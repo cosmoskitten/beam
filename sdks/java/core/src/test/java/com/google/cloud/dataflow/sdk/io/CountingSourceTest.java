@@ -16,7 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -37,6 +39,7 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -147,6 +150,40 @@ public class CountingSourceTest {
     DataflowAssert.thatSingleton(diffs).isEqualTo(0L);
 
     p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithPeriod() {
+    Pipeline p = TestPipeline.create();
+
+    Duration period = Duration.millis(2);
+    long numElements = 1000L;
+
+    PCollection<Long> input =
+        p.apply(
+            Read.from(
+                    CountingSource.createUnbounded()
+                        .withTimestampFn(new ValueAsTimestampFn())
+                        .withPeriod(period))
+                .withMaxNumRecords(numElements));
+    addCountingAsserts(input, numElements);
+
+    PCollection<Long> diffs =
+        input
+            .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
+            .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
+    // This assert also confirms that diffs only has one unique value.
+    DataflowAssert.thatSingleton(diffs).isEqualTo(0L);
+
+    Instant started = Instant.now();
+    p.run();
+    Instant finished = Instant.now();
+    Duration expectedDuration = period.multipliedBy((int) numElements);
+    assertThat(
+        started
+            .plus(expectedDuration)
+            .isBefore(finished),
+        is(true));
   }
 
   @Test
