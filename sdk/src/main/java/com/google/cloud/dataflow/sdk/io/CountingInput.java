@@ -3,19 +3,58 @@ package com.google.cloud.dataflow.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.dataflow.sdk.io.CountingSource.NowTimestampFn;
+import com.google.cloud.dataflow.sdk.io.Read.Unbounded;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
+import com.google.common.base.Optional;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+/**
+ * A {@link PTransform} that produces longs. When used to produce a
+ * {@link IsBounded#BOUNDED bounded} {@link PCollection}, {@link CountingInput} starts at {@code 0}
+ * and counts up to a specified maximum. When used to produce an
+ * {@link IsBounded#UNBOUNDED unbounded} {@link PCollection}, it counts up to {@link Long#MAX_VALUE}
+ * and then never produces more output. (In practice, this limit should never be reached.)
+ *
+ * <p>The bounded {@link CountingInput} is implemented based on {@link OffsetBasedSource} and
+ * {@link OffsetBasedSource.OffsetBasedReader}, so it performs efficient initial splitting and it
+ * supports dynamic work rebalancing.
+ *
+ * <p>To produce a bounded {@code PCollection<Long>}, use {@link CountingInput#upTo(long)}:
+ *
+ * <pre>{@code
+ * Pipeline p = ...
+ * PTransform<PBegin, PCollection<Long>> producer = CountingInput.upTo(1000);
+ * PCollection<Long> bounded = p.apply(producer);
+ * }</pre>
+ *
+ * <p>To produce an unbounded {@code PCollection<Long>}, use {@link CountingInput#unbounded()},
+ * calling {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)} to provide values
+ * with timestamps other than {@link Instant#now}.
+ *
+ * <pre>{@code
+ * Pipeline p = ...
+ *
+ * // To create an unbounded producer that uses processing time as the element timestamp.
+ * PTransform<PBegin, PCollection<Long>> producer = CountingInput.unbounded();
+ * // Or, to create an unbounded source that uses a provided function to set the element timestamp.
+ * PTransform<PBegin, PCollection<Long>> producer =
+ *     CountingInput.unbounded().withTimestampFn(someFn);
+ *
+ * PCollection<Long> unbounded = p.apply(producer);
+ * }</pre>
+ */
 public class CountingInput {
   /**
    * Creates a {@link BoundedCountingInput} that will produce the specified number of elements,
    * from {@code 0} to {@code numElements - 1}.
    */
-  public static PTransform<PBegin, PCollection<Long>> upTo(long numElements) {
+  public static BoundedCountingInput upTo(long numElements) {
     checkArgument(numElements > 0, "numElements (%s) must be greater than 0", numElements);
     return new BoundedCountingInput(numElements);
   }
@@ -33,10 +72,14 @@ public class CountingInput {
    * {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)} to control the output
    * timestamps.
    */
-  public static PTransform<PBegin, PCollection<Long>> unbounded() {
-    return new UnboundedCountingInput(new NowTimestampFn());
+  public static UnboundedCountingInput unbounded() {
+    return new UnboundedCountingInput(new NowTimestampFn(), Optional.<Long>absent(), Optional.<Duration>absent());
   }
-  
+
+  /**
+   * A {@link PTransform} that will produce a specified number of {@link Long Longs} starting from
+   * 0.
+   */
   public static class BoundedCountingInput extends PTransform<PBegin, PCollection<Long>> {
     private final long numElements;
 
@@ -66,9 +109,16 @@ public class CountingInput {
    */
   public static class UnboundedCountingInput extends PTransform<PBegin, PCollection<Long>> {
     private final SerializableFunction<Long, Instant> timestampFn;
+    private final Optional<Long> maxNumRecords;
+    private final Optional<Duration> maxReadTime;
 
-    private UnboundedCountingInput(SerializableFunction<Long, Instant> timestampFn) {
+    private UnboundedCountingInput(
+        SerializableFunction<Long, Instant> timestampFn,
+        Optional<Long> maxNumRecords,
+        Optional<Duration> maxReadTime) {
       this.timestampFn = timestampFn;
+      this.maxNumRecords = maxNumRecords;
+      this.maxReadTime = maxReadTime;
     }
 
     /**
@@ -78,14 +128,38 @@ public class CountingInput {
      * <p>Note that the timestamps produced by {@code timestampFn} may not decrease.
      */
     public UnboundedCountingInput withTimestampFn(SerializableFunction<Long, Instant> timestampFn) {
-      return new UnboundedCountingInput(timestampFn);
+      return new UnboundedCountingInput(timestampFn, maxNumRecords, maxReadTime);
+    }
+    
+    public UnboundedCountingInput withMaxNumRecords(long maxRecords) {
+      return new UnboundedCountingInput(timestampFn, Optional.of(maxRecords), maxReadTime);
     }
 
+    public UnboundedCountingInput withMaxReadTime(Duration readTime) {
+      return new UnboundedCountingInput(timestampFn, maxNumRecords, Optional.of(readTime));
+    }
+    
     @SuppressWarnings("deprecation")
     @Override
     public PCollection<Long> apply(PBegin begin) {
-      return begin.apply(Read.from(CountingSource.unboundedWithTimestampFn(timestampFn)));
+      Unbounded<Long> read = Read.from(CountingSource.unboundedWithTimestampFn(timestampFn));
+      if (!maxNumRecords.isPresent() && !maxReadTime.isPresent()) {
+        return begin.apply(read);
+      } else {
+
+        BoundedReadFromUnboundedSource<Long> boundedRead = null;
+        if (maxNumRecords.isPresent()) {
+          boundedRead = read.withMaxNumRecords(maxNumRecords.get());
+        }
+        if (maxReadTime.isPresent()) {
+          if (boundedRead != null) {
+            boundedRead = boundedRead.withMaxReadTime(maxReadTime.get());
+          } else {
+            boundedRead = read.withMaxReadTime(maxReadTime.get());
+          }
+        }
+        return begin.apply(boundedRead);
+      }
     }
   }
 }
-

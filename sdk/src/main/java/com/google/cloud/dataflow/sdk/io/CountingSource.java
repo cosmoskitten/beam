@@ -49,25 +49,24 @@ import java.util.NoSuchElementException;
  *
  * <pre>{@code
  * Pipeline p = ...
- * BoundedSource<Long> source = CountingSource.upTo(1000);
- * PCollection<Long> bounded = p.apply(Read.from(source));
+ * PTransform<PBegin, PCollection<Long>> producer = CountingInput.upTo(1000);
+ * PCollection<Long> bounded = p.apply(producer);
  * }</pre>
  *
- * <p>To produce an unbounded {@code PCollection<Long>}, use
- * {@link Countinginput#unbounded()}, calling
- * {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)} to provide values with
- * timestamps other than {@link Instant#now}.
+ * <p>To produce an unbounded {@code PCollection<Long>}, use {@link CountingInput#unbounded()},
+ * calling {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)} to provide values
+ * with timestamps other than {@link Instant#now}.
  *
  * <pre>{@code
  * Pipeline p = ...
  *
- * // To create an unbounded source that uses processing time as the element timestamp.
+ * // To create an unbounded producer that uses processing time as the element timestamp.
  * PTransform<PBegin, PCollection<Long>> producer = CountingInput.unbounded();
  * // Or, to create an unbounded source that uses a provided function to set the element timestamp.
  * PTransform<PBegin, PCollection<Long>> producer =
  *     CountingInput.unbounded().withTimestampFn(someFn);
  *
- * PCollection<Long> unbounded = p.apply(Read.from(source));
+ * PCollection<Long> unbounded = p.apply(producer);
  * }</pre>
  */
 public class CountingSource {
