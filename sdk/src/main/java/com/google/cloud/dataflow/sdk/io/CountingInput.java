@@ -1,6 +1,7 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.io.CountingSource.NowTimestampFn;
 import com.google.cloud.dataflow.sdk.io.Read.Unbounded;
@@ -139,6 +140,8 @@ public class CountingInput {
      * {@link PCollection} will be {@link IsBounded#BOUNDED bounded}.
      */
     public UnboundedCountingInput withMaxNumRecords(long maxRecords) {
+      checkArgument(
+          maxRecords > 0, "MaxRecords must be a positive (nonzero) value. Got %s", maxRecords);
       return new UnboundedCountingInput(timestampFn, Optional.of(maxRecords), maxReadTime);
     }
 
@@ -150,6 +153,7 @@ public class CountingInput {
      * {@link PCollection} will be {@link IsBounded#BOUNDED bounded}.
      */
     public UnboundedCountingInput withMaxReadTime(Duration readTime) {
+      checkNotNull(readTime, "ReadTime cannot be null");
       return new UnboundedCountingInput(timestampFn, maxNumRecords, Optional.of(readTime));
     }
     
@@ -159,20 +163,13 @@ public class CountingInput {
       Unbounded<Long> read = Read.from(CountingSource.unboundedWithTimestampFn(timestampFn));
       if (!maxNumRecords.isPresent() && !maxReadTime.isPresent()) {
         return begin.apply(read);
+      } else if (maxNumRecords.isPresent() && !maxReadTime.isPresent()) {
+        return begin.apply(read.withMaxNumRecords(maxNumRecords.get()));
+      } else if (!maxNumRecords.isPresent() && maxReadTime.isPresent()) {
+        return begin.apply(read.withMaxReadTime(maxReadTime.get()));
       } else {
-
-        BoundedReadFromUnboundedSource<Long> boundedRead = null;
-        if (maxNumRecords.isPresent()) {
-          boundedRead = read.withMaxNumRecords(maxNumRecords.get());
-        }
-        if (maxReadTime.isPresent()) {
-          if (boundedRead != null) {
-            boundedRead = boundedRead.withMaxReadTime(maxReadTime.get());
-          } else {
-            boundedRead = read.withMaxReadTime(maxReadTime.get());
-          }
-        }
-        return begin.apply(boundedRead);
+        return begin.apply(
+            read.withMaxReadTime(maxReadTime.get()).withMaxNumRecords(maxNumRecords.get()));
       }
     }
   }

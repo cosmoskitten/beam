@@ -60,13 +60,12 @@ import java.util.NoSuchElementException;
  * <pre>{@code
  * Pipeline p = ...
  *
- * // To create an unbounded producer that uses processing time as the element timestamp.
- * PTransform<PBegin, PCollection<Long>> producer = CountingInput.unbounded();
+ * // To create an unbounded PCollection that uses processing time as the element timestamp.
+ * PCollection<Long> unbounded = p.apply(CountingInput.unbounded());
  * // Or, to create an unbounded source that uses a provided function to set the element timestamp.
- * PTransform<PBegin, PCollection<Long>> producer =
- *     CountingInput.unbounded().withTimestampFn(someFn);
+ * PCollection<Long> unboundedWithTimestamps =
+ *     p.apply(CountingInput.unbounded().withTimestampFn(someFn));
  *
- * PCollection<Long> unbounded = p.apply(producer);
  * }</pre>
  */
 public class CountingSource {
