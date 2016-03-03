@@ -131,10 +131,24 @@ public class CountingInput {
       return new UnboundedCountingInput(timestampFn, maxNumRecords, maxReadTime);
     }
     
+    /**
+     * Returns an {@link UnboundedCountingInput} like this one, but that will read at most the
+     * specified number of elements.
+     *
+     * <p>A bounded amount of elements will be produced by the result transform, and the result
+     * {@link PCollection} will be {@link IsBounded#BOUNDED bounded}.
+     */
     public UnboundedCountingInput withMaxNumRecords(long maxRecords) {
       return new UnboundedCountingInput(timestampFn, Optional.of(maxRecords), maxReadTime);
     }
 
+    /**
+     * Returns an {@link UnboundedCountingInput} like this one, but that will read for at most the
+     * specified amount of time.
+     *
+     * <p>A bounded amount of elements will be produced by the result transform, and the result
+     * {@link PCollection} will be {@link IsBounded#BOUNDED bounded}.
+     */
     public UnboundedCountingInput withMaxReadTime(Duration readTime) {
       return new UnboundedCountingInput(timestampFn, maxNumRecords, Optional.of(readTime));
     }
