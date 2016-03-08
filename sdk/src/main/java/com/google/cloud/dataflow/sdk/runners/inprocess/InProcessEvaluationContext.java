@@ -269,11 +269,12 @@ class InProcessEvaluationContext {
   }
 
   /**
-   * Schedules a callback after the watermark for a {@link PValue} after the trigger for the
-   * specified window (with the specified windowing strategy) must have fired from the perspective
-   * of that {@link PValue}, as specified by the value of
+   * Execute the specified callback after the watermark for a {@link PValue} passes the point at
+   * which the trigger for the specified window (with the specified windowing strategy) must have
+   * fired from the perspective of that {@link PValue}, as specified by the value of
    * {@link Trigger#getWatermarkThatGuaranteesFiring(BoundedWindow)} for the trigger of the
-   * {@link WindowingStrategy}.
+   * {@link WindowingStrategy}. When the callback has fired, either values will have been produced
+   * for a key in that window, or the window is empty.
    */
   public void callAfterOutputMustHaveBeenProduced(
       PValue value,
@@ -281,7 +282,7 @@ class InProcessEvaluationContext {
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
     WatermarkCallback callback =
-        WatermarkCallback.onWindowClose(window, windowingStrategy, runnable);
+        WatermarkCallback.onGuaranteedFiring(window, windowingStrategy, runnable);
     AppliedPTransform<?, ?, ?> producing = getProducing(value);
     PriorityQueue<WatermarkCallback> callbacks = pendingCallbacks.get(producing);
     if (callbacks == null) {
@@ -377,7 +378,7 @@ class InProcessEvaluationContext {
   }
 
   private static class WatermarkCallback {
-    public static <W extends BoundedWindow> WatermarkCallback onWindowClose(
+    public static <W extends BoundedWindow> WatermarkCallback onGuaranteedFiring(
         BoundedWindow window, WindowingStrategy<?, W> strategy, Runnable callback) {
       @SuppressWarnings("unchecked")
       Instant firingAfter =
