@@ -64,11 +64,9 @@ import javax.annotation.Nullable;
  */
 class InProcessEvaluationContext {
   private final Set<AppliedPTransform<?, ?, ?>> allTransforms;
-  private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
   private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
 
   private final InProcessPipelineOptions options;
-  private final TransformEvaluatorRegistry registry;
   private final InMemoryWatermarkManager watermarkManager;
   private final ConcurrentMap<AppliedPTransform<?, ?, ?>, PriorityQueue<WatermarkCallback>>
       pendingCallbacks;
@@ -83,22 +81,23 @@ class InProcessEvaluationContext {
 
   private final Executor callbackExecutor;
 
-  public static InProcessEvaluationContext create(InProcessPipelineOptions options,
-      TransformEvaluatorRegistry evaluatorRegistry,
+  public static InProcessEvaluationContext create(
+      InProcessPipelineOptions options,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
-      Map<AppliedPTransform<?, ?, ?>, String> stepNames, Collection<PCollectionView<?>> views) {
+      Map<AppliedPTransform<?, ?, ?>, String> stepNames,
+      Collection<PCollectionView<?>> views) {
     return new InProcessEvaluationContext(
-        options, evaluatorRegistry, rootTransforms, valueToConsumers, stepNames, views);
+        options, rootTransforms, valueToConsumers, stepNames, views);
   }
 
-  private InProcessEvaluationContext(InProcessPipelineOptions options,
-      TransformEvaluatorRegistry registry,
+  private InProcessEvaluationContext(
+      InProcessPipelineOptions options,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
-      Map<AppliedPTransform<?, ?, ?>, String> stepNames, Collection<PCollectionView<?>> views) {
+      Map<AppliedPTransform<?, ?, ?>, String> stepNames,
+      Collection<PCollectionView<?>> views) {
     this.options = checkNotNull(options);
-    this.registry = checkNotNull(registry);
     checkNotNull(rootTransforms);
     checkNotNull(valueToConsumers);
     checkNotNull(stepNames);
@@ -109,7 +108,6 @@ class InProcessEvaluationContext {
             .addAll(rootTransforms)
             .addAll(Iterables.concat(valueToConsumers.values()))
             .build();
-    this.valueToConsumers = valueToConsumers;
     this.stepNames = stepNames;
 
     this.pendingCallbacks = new ConcurrentHashMap<>();
@@ -355,29 +353,6 @@ class InProcessEvaluationContext {
    */
   public CounterSet getCounters() {
     return mergedCounters;
-  }
-
-  /**
-   * Gets all of the {@link AppliedPTransform transform applications} that consume the provided
-   * {@link PValue} in this {@link Pipeline}.
-   *
-   * <p>Each returned {@link AppliedPTransform} will contain the provide {@link PValue} in its
-   * expanded output (i.e., the result of
-   * {@code application.getInput().expand().contains(pvalue) == true} for each returned value.)
-   */
-  public Collection<AppliedPTransform<?, ?, ?>> getConsumers(PValue pvalue) {
-    return valueToConsumers.get(pvalue);
-  }
-
-  /**
-   * Gets a transform evaluator capable of evaluating the provided {@link AppliedPTransform} on the
-   * provided {@link CommittedBundle Bundle}.
-   *
-   * @throws Exception if constructing the evaluator throws an exception
-   */
-  public <T> TransformEvaluator<T> getTransformEvaluator(
-      AppliedPTransform<?, ?, ?> transform, CommittedBundle<T> inputBundle) throws Exception {
-    return registry.forApplication(transform, inputBundle, this);
   }
 
   private static class WatermarkCallback {

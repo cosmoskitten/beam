@@ -110,7 +110,6 @@ public class InProcessEvaluationContextTest {
     context =
         InProcessEvaluationContext.create(
             runner.getPipelineOptions(),
-            TransformEvaluatorRegistry.defaultRegistry(),
             rootTransforms,
             valueToConsumers,
             stepNames,
