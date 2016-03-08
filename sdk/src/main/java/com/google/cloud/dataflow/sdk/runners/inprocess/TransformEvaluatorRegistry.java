@@ -45,6 +45,8 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
     return new TransformEvaluatorRegistry(primitives);
   }
 
+  // the TransformEvaluatorFactories can construct instances of all generic types of transform,
+  // so all instances of a primitive can be handled with the same evaluator factory.
   @SuppressWarnings("rawtypes")
   private final Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories;
 
@@ -60,9 +62,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
       @Nullable CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext)
       throws Exception {
-    @SuppressWarnings("rawtypes")
-    Class<? extends PTransform> applicationTransformClass = application.getTransform().getClass();
-    TransformEvaluatorFactory factory = factories.get(applicationTransformClass);
+    TransformEvaluatorFactory factory = factories.get(application.getTransform().getClass());
     return factory.forApplication(application, inputBundle, evaluationContext);
   }
 }

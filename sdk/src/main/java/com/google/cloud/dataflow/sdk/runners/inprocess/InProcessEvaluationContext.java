@@ -71,7 +71,9 @@ import javax.annotation.Nullable;
  * known to be empty).
  *
  * <p>{@link InProcessEvaluationContext} also handles results by committing finalizing bundles based
- * on the current global state and updating the global state appropiately.
+ * on the current global state and updating the global state appropriately. This includes updating
+ * the per-{@link StepAndKey} state, updating global watermarks, and executing any callbacks that
+ * can be executed.
  */
 class InProcessEvaluationContext {
   private final Set<AppliedPTransform<?, ?, ?>> allTransforms;
