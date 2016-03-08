@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.FiredTimers;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TransformWatermarks;
@@ -64,7 +63,15 @@ import javax.annotation.Nullable;
  * the current evaluation.
  *
  * <p>{@link InProcessEvaluationContext} contains shared state for an execution of the
- * {@link InProcessPipelineRunner}. This consists of access to the 
+ * {@link InProcessPipelineRunner} that can be used while evaluating a {@link PTransform}. This
+ * consists of views into underlying state and watermark implementations, access to read and write
+ * {@link PCollectionView PCollectionViews}, and constructing {@link CounterSet CounterSets} and
+ * {@link ExecutionContext ExecutionContexts}. This includes executing callbacks asynchronously when
+ * state changes to the appropriate point (e.g. when a {@link PCollectionView} is requested and
+ * known to be empty).
+ *
+ * <p>{@link InProcessEvaluationContext} also handles results by committing finalizing bundles based
+ * on the current global state and updating the global state appropiately.
  */
 class InProcessEvaluationContext {
   private final Set<AppliedPTransform<?, ?, ?>> allTransforms;
@@ -204,8 +211,9 @@ class InProcessEvaluationContext {
       AppliedPTransform<?, ?, ?> producingTransform,
       PriorityQueue<WatermarkCallback> pendingTransformCallbacks) {
     TransformWatermarks watermarks = watermarkManager.getWatermarks(producingTransform);
-    WatermarkCallback callback = null;
+    WatermarkCallback callback;
     do {
+      callback = null;
       synchronized (pendingTransformCallbacks) {
         if (!pendingTransformCallbacks.isEmpty()
             && pendingTransformCallbacks.peek().shouldFire(watermarks.getOutputWatermark())) {

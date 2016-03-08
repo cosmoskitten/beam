@@ -61,7 +61,7 @@ final class StepAndKey {
       return false;
     } else {
       StepAndKey that = (StepAndKey) other;
-      return Objects.equals(this.step, that.step) 
+      return Objects.equals(this.step, that.step)
           && Objects.equals(this.key, that.key);
     }
   }

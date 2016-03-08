@@ -20,7 +20,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
@@ -69,7 +68,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -258,12 +257,12 @@ public class InProcessEvaluationContextTest {
 
   @Test
   public void callAfterOutputMustHaveBeenProducedAfterEndOfWatermarkCallsback() throws Exception {
-    final ArrayBlockingQueue<Boolean> wasCalled = new ArrayBlockingQueue<>(1);
+    final CountDownLatch callLatch = new CountDownLatch(1);
     Runnable callback =
         new Runnable() {
           @Override
           public void run() {
-            wasCalled.offer(true);
+            callLatch.countDown();
           }
         };
 
@@ -279,13 +278,13 @@ public class InProcessEvaluationContextTest {
 
     // Difficult to demonstrate that we took no action in a multithreaded world; poll for a bit
     // will likely be flaky if this logic is broken
-    assertThat(wasCalled.poll(500L, TimeUnit.MILLISECONDS), nullValue());
+    assertThat(callLatch.await(500L, TimeUnit.MILLISECONDS), is(false));
 
     InProcessTransformResult finishedResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
     // Obtain the value via blocking call
-    assertThat(wasCalled.take(), equalTo(true));
+    assertThat(callLatch.await(1, TimeUnit.SECONDS), is(true));
   }
 
   @Test
@@ -294,18 +293,18 @@ public class InProcessEvaluationContextTest {
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
 
-    final ArrayBlockingQueue<Boolean> wasCalled = new ArrayBlockingQueue<>(1);
+    final CountDownLatch callLatch = new CountDownLatch(1);
     Runnable callback =
         new Runnable() {
           @Override
           public void run() {
-            wasCalled.offer(true);
+            callLatch.countDown();
           }
         };
     context.callAfterOutputMustHaveBeenProduced(
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
-    // Should be scheduled to execute asynchronously immediately, but still need a blocking call
-    assertThat(wasCalled.take(), equalTo(true));
+    // if the callback is not scheduled, this test will never complete.
+    assertThat(callLatch.await(1, TimeUnit.SECONDS), is(true));
   }
 
   @Test
@@ -390,7 +389,7 @@ public class InProcessEvaluationContextTest {
     assertThat(keyedBundle.isKeyed(), is(true));
     assertThat(keyedBundle.getKey(), Matchers.<Object>equalTo("foo"));
   }
-  
+
   private static class TestBoundedWindow extends BoundedWindow {
     private final Instant ts;
 

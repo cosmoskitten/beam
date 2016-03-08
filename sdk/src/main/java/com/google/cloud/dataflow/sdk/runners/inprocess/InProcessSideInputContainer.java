@@ -109,6 +109,19 @@ class InProcessSideInputContainer {
    * <p>The provided iterable is expected to contain only a single window and pane.
    */
   public void write(PCollectionView<?> view, Iterable<? extends WindowedValue<?>> values) {
+    Map<BoundedWindow, Collection<WindowedValue<?>>> valuesPerWindow =
+        indexValuesByWindow(values);
+    for (Map.Entry<BoundedWindow, Collection<WindowedValue<?>>> windowValues :
+        valuesPerWindow.entrySet()) {
+      setPCollectionViewWindowValues(view, windowValues.getKey(), windowValues.getValue());
+    }
+  }
+
+  /**
+   * Index the provided values by all {@link BoundedWindow windows} in which they appear.
+   */
+  private Map<BoundedWindow, Collection<WindowedValue<?>>> indexValuesByWindow(
+      Iterable<? extends WindowedValue<?>> values) {
     Map<BoundedWindow, Collection<WindowedValue<?>>> valuesPerWindow = new HashMap<>();
     for (WindowedValue<?> value : values) {
       for (BoundedWindow window : value.getWindows()) {
@@ -120,33 +133,40 @@ class InProcessSideInputContainer {
         windowValues.add(value);
       }
     }
-    for (Map.Entry<BoundedWindow, Collection<WindowedValue<?>>> windowValues :
-        valuesPerWindow.entrySet()) {
-      PCollectionViewWindow<?> windowedView = PCollectionViewWindow.of(view, windowValues.getKey());
-      SettableFuture<Iterable<? extends WindowedValue<?>>> future = null;
-      try {
-        future = viewByWindows.get(windowedView);
-        if (future.isDone()) {
-          Iterator<? extends WindowedValue<?>> existingValues = future.get().iterator();
-          PaneInfo newPane = windowValues.getValue().iterator().next().getPane();
-          // The current value may have no elements, if no elements were produced for the window,
-          // but we are recieving late data.
-          if (!existingValues.hasNext()
-              || newPane.getIndex() > existingValues.next().getPane().getIndex()) {
-            viewByWindows.invalidate(windowedView);
-            viewByWindows.get(windowedView).set(windowValues.getValue());
-          }
-        } else {
-          future.set(windowValues.getValue());
+    return valuesPerWindow;
+  }
+
+  /**
+   * Set the value of the {@link PCollectionView} in the {@link BoundedWindow} to be based on the
+   * specified values, if the values are part of a later pane than currently exist within the
+   * {@link PCollectionViewWindow}.
+   */
+  private void setPCollectionViewWindowValues(
+      PCollectionView<?> view, BoundedWindow window, Collection<WindowedValue<?>> windowValues) {
+    PCollectionViewWindow<?> windowedView = PCollectionViewWindow.of(view, window);
+    SettableFuture<Iterable<? extends WindowedValue<?>>> future = null;
+    try {
+      future = viewByWindows.get(windowedView);
+      if (future.isDone()) {
+        Iterator<? extends WindowedValue<?>> existingValues = future.get().iterator();
+        PaneInfo newPane = windowValues.iterator().next().getPane();
+        // The current value may have no elements, if no elements were produced for the window,
+        // but we are recieving late data.
+        if (!existingValues.hasNext()
+            || newPane.getIndex() > existingValues.next().getPane().getIndex()) {
+          viewByWindows.invalidate(windowedView);
+          viewByWindows.get(windowedView).set(windowValues);
         }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        if (future != null && !future.isDone()) {
-          future.set(Collections.<WindowedValue<?>>emptyList());
-        }
-      } catch (ExecutionException e) {
-        Throwables.propagate(e.getCause());
+      } else {
+        future.set(windowValues);
       }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      if (future != null && !future.isDone()) {
+        future.set(Collections.<WindowedValue<?>>emptyList());
+      }
+    } catch (ExecutionException e) {
+      Throwables.propagate(e.getCause());
     }
   }
 
