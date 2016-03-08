@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.FiredTimers;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TransformWatermarks;
@@ -61,6 +62,9 @@ import javax.annotation.Nullable;
 /**
  * The evaluation context for the {@link InProcessPipelineRunner}. Contains state shared within
  * the current evaluation.
+ *
+ * <p>{@link InProcessEvaluationContext} contains shared state for an execution of the
+ * {@link InProcessPipelineRunner}. This consists of access to the 
  */
 class InProcessEvaluationContext {
   private final Set<AppliedPTransform<?, ?, ?>> allTransforms;
@@ -126,13 +130,15 @@ class InProcessEvaluationContext {
    * {@link CommittedBundle} (potentially null, if the result of a root {@link PTransform}).
    *
    * <p>The result is the output of running the transform contained in the
-   * {@link InProcessTransformResult result} on the contents of the provided bundle.
+   * {@link InProcessTransformResult} on the contents of the provided bundle.
    *
    * @param completedBundle the bundle that was processed to produce the result. Potentially
-   *                        {@code null} if a root transform
+   *                        {@code null} if the transform that produced the result is a root
+   *                        transform
    * @param completedTimers the timers that were delivered to produce the {@code completedBundle},
    *                        or an empty iterable if no timers were delivered
    * @param result the result of evaluating the input bundle
+   * @return the committed bundles contained within the handled {@code result}
    */
   public synchronized Iterable<? extends CommittedBundle<?>> handleResult(
       @Nullable CommittedBundle<?> completedBundle,
@@ -177,8 +183,9 @@ class InProcessEvaluationContext {
       TransformWatermarks watermarks = watermarkManager.getWatermarks(producing);
       CommittedBundle<?> committed =
           inProgress.commit(watermarks.getSynchronizedProcessingOutputTime());
-      if (committed.getElements().iterator().hasNext()) {
-        // Empty bundles don't impact watermarks and shouldn't trigger downstream execution
+      // Empty bundles don't impact watermarks and shouldn't trigger downstream execution, so
+      // filter them out
+      if (!Iterables.isEmpty(committed.getElements())) {
         completed.add(committed);
       }
     }
@@ -197,12 +204,18 @@ class InProcessEvaluationContext {
       AppliedPTransform<?, ?, ?> producingTransform,
       PriorityQueue<WatermarkCallback> pendingTransformCallbacks) {
     TransformWatermarks watermarks = watermarkManager.getWatermarks(producingTransform);
-    synchronized (pendingTransformCallbacks) {
-      while (!pendingTransformCallbacks.isEmpty()
-          && pendingTransformCallbacks.peek().shouldFire(watermarks.getOutputWatermark())) {
-        callbackExecutor.execute(pendingTransformCallbacks.poll().getCallback());
+    WatermarkCallback callback = null;
+    do {
+      synchronized (pendingTransformCallbacks) {
+        if (!pendingTransformCallbacks.isEmpty()
+            && pendingTransformCallbacks.peek().shouldFire(watermarks.getOutputWatermark())) {
+          callback = pendingTransformCallbacks.poll();
+        }
       }
-    }
+      if (callback != null) {
+        callbackExecutor.execute(callback.getCallback());
+      }
+    } while (callback != null);
   }
 
   /**
@@ -217,11 +230,9 @@ class InProcessEvaluationContext {
    * PCollection}.
    */
   public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    if (input.isKeyed()) {
-      return InProcessBundle.keyed(output, input.getKey());
-    } else {
-      return InProcessBundle.unkeyed(output);
-    }
+    return input.isKeyed()
+        ? InProcessBundle.keyed(output, input.getKey())
+        : InProcessBundle.unkeyed(output);
   }
 
   /**

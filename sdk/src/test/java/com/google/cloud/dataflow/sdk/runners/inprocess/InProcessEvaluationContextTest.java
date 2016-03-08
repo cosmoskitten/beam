@@ -107,8 +107,7 @@ public class InProcessEvaluationContextTest {
     stepNames.put(view.getProducingTransformInternal(), "s3");
 
     Collection<PCollectionView<?>> views = ImmutableList.<PCollectionView<?>>of(view);
-    context =
-        InProcessEvaluationContext.create(
+    context = InProcessEvaluationContext.create(
             runner.getPipelineOptions(),
             rootTransforms,
             valueToConsumers,
@@ -123,20 +122,8 @@ public class InProcessEvaluationContextTest {
             PCollection.<Iterable<Integer>>createPrimitiveOutputInternal(
                 p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED),
             view);
-    BoundedWindow window =
-        new BoundedWindow() {
-          @Override
-          public Instant maxTimestamp() {
-            return new Instant(1248L);
-          }
-        };
-    BoundedWindow second =
-        new BoundedWindow() {
-          @Override
-          public Instant maxTimestamp() {
-            return new Instant(899999L);
-          }
-        };
+    BoundedWindow window = new TestBoundedWindow(new Instant(1024L));
+    BoundedWindow second = new TestBoundedWindow(new Instant(899999L));
     WindowedValue<Integer> firstValue =
         WindowedValue.of(1, new Instant(1222), window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
     WindowedValue<Integer> secondValue =
@@ -402,5 +389,18 @@ public class InProcessEvaluationContextTest {
             .commit(Instant.now());
     assertThat(keyedBundle.isKeyed(), is(true));
     assertThat(keyedBundle.getKey(), Matchers.<Object>equalTo("foo"));
+  }
+  
+  private static class TestBoundedWindow extends BoundedWindow {
+    private final Instant ts;
+
+    public TestBoundedWindow(Instant ts) {
+      this.ts = ts;
+    }
+
+    @Override
+    public Instant maxTimestamp() {
+      return ts;
+    }
   }
 }
