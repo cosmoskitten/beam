@@ -40,7 +40,6 @@ import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInterna
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -51,7 +50,6 @@ import org.joda.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
@@ -83,7 +81,7 @@ class InProcessEvaluationContext {
 
   /** The options that were used to create this {@link Pipeline}. */
   private final InProcessPipelineOptions options;
-  
+
   /** The current processing time and event time watermarks and timers. */
   private final InMemoryWatermarkManager watermarkManager;
 
@@ -124,8 +122,9 @@ class InProcessEvaluationContext {
     this.stepNames = stepNames;
 
     this.pendingCallbacks = ConcurrentPartitionedPriorityQueue.create(new CallbackOrdering());
-    this.watermarkManager = InMemoryWatermarkManager.create(
-        NanosOffsetClock.create(), rootTransforms, valueToConsumers);
+    this.watermarkManager =
+        InMemoryWatermarkManager.create(
+            NanosOffsetClock.create(), rootTransforms, valueToConsumers);
     this.sideInputContainer = InProcessSideInputContainer.create(this, views);
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
@@ -202,8 +201,7 @@ class InProcessEvaluationContext {
   }
 
   private void watermarksUpdated() {
-    for (
-        AppliedPTransform<?, ?, ?> transform : stepNames. keySet()) {
+    for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
       checkCallbacks(transform);
     }
   }
@@ -302,7 +300,7 @@ class InProcessEvaluationContext {
   }
 
   private AppliedPTransform<?, ?, ?> lookupProducing(PValue value) {
-    for (AppliedPTransform<?, ?, ?> transform : stepNames. keySet()) {
+    for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
       if (transform.getOutput().equals(value) || transform.getOutput().expand().contains(value)) {
         return transform;
       }
@@ -323,7 +321,9 @@ class InProcessEvaluationContext {
   public InProcessExecutionContext getExecutionContext(
       AppliedPTransform<?, ?, ?> application, Object key) {
     StepAndKey stepAndKey = StepAndKey.of(application, key);
-    return new InProcessExecutionContext(options.getClock(), key,
+    return new InProcessExecutionContext(
+        options.getClock(),
+        key,
         (CopyOnAccessInMemoryStateInternals<Object>) applicationStateInternals.get(stepAndKey),
         watermarkManager.getWatermarks(application));
   }

@@ -34,7 +34,7 @@ public class ConcurrentPartitionedPriorityQueue<K, V> {
   private final Ordering<V> ordering;
   private final ConcurrentMap<K, PriorityQueue<V>> queues;
 
-  public ConcurrentPartitionedPriorityQueue(Ordering<V> ordering) {
+  private ConcurrentPartitionedPriorityQueue(Ordering<V> ordering) {
     this.ordering = ordering;
     queues = new ConcurrentHashMap<>();
   }
