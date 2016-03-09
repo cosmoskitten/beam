@@ -26,8 +26,10 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.P
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
+import com.google.cloud.dataflow.sdk.util.ConcurrentPartitionedPriorityQueue;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
@@ -38,9 +40,9 @@ import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInterna
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 
@@ -50,7 +52,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
@@ -59,8 +60,9 @@ import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
 
 /**
- * The evaluation context for the {@link InProcessPipelineRunner}. Contains state shared within
- * the current evaluation.
+ * The evaluation context for a specific pipeline being executed by the
+ * {@link InProcessPipelineRunner}. Contains state shared within the execution across all
+ * transforms.
  *
  * <p>{@link InProcessEvaluationContext} contains shared state for an execution of the
  * {@link InProcessPipelineRunner} that can be used while evaluating a {@link PTransform}. This
@@ -76,12 +78,16 @@ import javax.annotation.Nullable;
  * can be executed.
  */
 class InProcessEvaluationContext {
-  private final Set<AppliedPTransform<?, ?, ?>> allTransforms;
+  /** The step name for each {@link AppliedPTransform} in the {@link Pipeline}. */
   private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
 
+  /** The options that were used to create this {@link Pipeline}. */
   private final InProcessPipelineOptions options;
+  
+  /** The current processing time and event time watermarks and timers. */
   private final InMemoryWatermarkManager watermarkManager;
-  private final ConcurrentMap<AppliedPTransform<?, ?, ?>, PriorityQueue<WatermarkCallback>>
+
+  private final ConcurrentPartitionedPriorityQueue<AppliedPTransform<?, ?, ?>, WatermarkCallback>
       pendingCallbacks;
 
   // The stateInternals of the world, by applied PTransform and key.
@@ -115,15 +121,9 @@ class InProcessEvaluationContext {
     checkNotNull(valueToConsumers);
     checkNotNull(stepNames);
     checkNotNull(views);
-
-    this.allTransforms =
-        ImmutableSet.<AppliedPTransform<?, ?, ?>>builder()
-            .addAll(rootTransforms)
-            .addAll(Iterables.concat(valueToConsumers.values()))
-            .build();
     this.stepNames = stepNames;
 
-    this.pendingCallbacks = new ConcurrentHashMap<>();
+    this.pendingCallbacks = ConcurrentPartitionedPriorityQueue.create(new CallbackOrdering());
     this.watermarkManager = InMemoryWatermarkManager.create(
         NanosOffsetClock.create(), rootTransforms, valueToConsumers);
     this.sideInputContainer = InProcessSideInputContainer.create(this, views);
@@ -203,29 +203,35 @@ class InProcessEvaluationContext {
 
   private void watermarksUpdated() {
     for (
-        Map.Entry<AppliedPTransform<?, ?, ?>, PriorityQueue<WatermarkCallback>> transformCallbacks :
-        pendingCallbacks.entrySet()) {
-      checkCallbacks(transformCallbacks.getKey(), transformCallbacks.getValue());
+        AppliedPTransform<?, ?, ?> transform : stepNames. keySet()) {
+      checkCallbacks(transform);
     }
   }
 
-  private void checkCallbacks(
-      AppliedPTransform<?, ?, ?> producingTransform,
-      PriorityQueue<WatermarkCallback> pendingTransformCallbacks) {
+  private void checkCallbacks(AppliedPTransform<?, ?, ?> producingTransform) {
     TransformWatermarks watermarks = watermarkManager.getWatermarks(producingTransform);
+    ShouldFirePredicate shouldFire = new ShouldFirePredicate(watermarks.getOutputWatermark());
     WatermarkCallback callback;
     do {
-      callback = null;
-      synchronized (pendingTransformCallbacks) {
-        if (!pendingTransformCallbacks.isEmpty()
-            && pendingTransformCallbacks.peek().shouldFire(watermarks.getOutputWatermark())) {
-          callback = pendingTransformCallbacks.poll();
-        }
-      }
+      callback = pendingCallbacks.pollIfSatisfies(producingTransform, shouldFire);
       if (callback != null) {
         callbackExecutor.execute(callback.getCallback());
       }
     } while (callback != null);
+  }
+
+  private static class ShouldFirePredicate
+      implements SerializableFunction<WatermarkCallback, Boolean> {
+    private final Instant currentInstant;
+
+    public ShouldFirePredicate(Instant currentInstant) {
+      this.currentInstant = currentInstant;
+    }
+
+    @Override
+    public Boolean apply(WatermarkCallback input) {
+      return input.shouldFire(currentInstant);
+    }
   }
 
   /**
@@ -284,17 +290,8 @@ class InProcessEvaluationContext {
     WatermarkCallback callback =
         WatermarkCallback.onGuaranteedFiring(window, windowingStrategy, runnable);
     AppliedPTransform<?, ?, ?> producing = getProducing(value);
-    PriorityQueue<WatermarkCallback> callbacks = pendingCallbacks.get(producing);
-    if (callbacks == null) {
-      PriorityQueue<WatermarkCallback> newCallbacks =
-          new PriorityQueue<>(10, new CallbackOrdering());
-      pendingCallbacks.putIfAbsent(producing, newCallbacks);
-      callbacks = pendingCallbacks.get(producing);
-    }
-    synchronized (callbacks) {
-      callbacks.offer(callback);
-    }
-    checkCallbacks(producing, callbacks);
+    pendingCallbacks.offer(producing, callback);
+    checkCallbacks(producing);
   }
 
   private AppliedPTransform<?, ?, ?> getProducing(PValue value) {
@@ -305,7 +302,7 @@ class InProcessEvaluationContext {
   }
 
   private AppliedPTransform<?, ?, ?> lookupProducing(PValue value) {
-    for (AppliedPTransform<?, ?, ?> transform : allTransforms) {
+    for (AppliedPTransform<?, ?, ?> transform : stepNames. keySet()) {
       if (transform.getOutput().equals(value) || transform.getOutput().expand().contains(value)) {
         return transform;
       }
@@ -335,7 +332,7 @@ class InProcessEvaluationContext {
    * Get all of the steps used in this {@link Pipeline}.
    */
   public Collection<AppliedPTransform<?, ?, ?>> getSteps() {
-    return allTransforms;
+    return stepNames.keySet();
   }
 
   /**
