@@ -39,8 +39,15 @@ import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.ErrorProto;
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.hadoop.util.RetryBoundedBackOff;
 import com.google.common.collect.ImmutableList;
@@ -235,5 +242,166 @@ public class BigQueryTableInserterTest {
       verify(response, times(1)).getContentType();
       throw e;
     }
+  }
+
+  /**
+   * Tests that {@link BigQueryTableInserter#insertLoadJob} succeeds.
+   */
+  @Test
+  public void testInsertLoadJobSucceeds() throws IOException, InterruptedException {
+    Job testJob = new Job();
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200);
+    when(response.getContent()).thenReturn(toStream(testJob));
+
+    TableReference ref = new TableReference();
+    ref.setProjectId("projectId");
+    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+    loadConfig.setDestinationTable(ref);
+
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    inserter.insertLoadJob("jobId", loadConfig);
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  /**
+   * Tests that {@link BigQueryTableInserter#insertLoadJob} succeeds with an already exist job.
+   */
+  @Test
+  public void testInsertLoadJobSucceedsAlreadyExists() throws IOException, InterruptedException {
+    when(response.getStatusCode()).thenReturn(409); // 409 means already exists
+
+    TableReference ref = new TableReference();
+    ref.setProjectId("projectId");
+    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+    loadConfig.setDestinationTable(ref);
+
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    inserter.insertLoadJob("jobId", loadConfig);
+
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  /**
+   * Tests that {@link BigQueryTableInserter#insertLoadJob} succeeds with a retry.
+   */
+  @Test
+  public void testInsertLoadJobRetry() throws IOException, InterruptedException {
+    Job testJob = new Job();
+
+    // First response is 403 rate limited, second response has valid payload.
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
+        .thenReturn(toStream(testJob));
+
+    TableReference ref = new TableReference();
+    ref.setProjectId("projectId");
+    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+    loadConfig.setDestinationTable(ref);
+
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    inserter.insertLoadJob("jobId", loadConfig);
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
+  }
+
+  /**
+   * Tests that {@link BigQueryTableInserter#pollJobStatus} succeeds.
+   */
+  @Test
+  public void testPollJobStatusSucceeds() throws IOException, InterruptedException {
+    Job testJob = new Job();
+    testJob.setStatus(new JobStatus().setState("DONE"));
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200);
+    when(response.getContent()).thenReturn(toStream(testJob));
+
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    BigQueryTableInserter.Status status =
+        inserter.pollJobStatus("projectId", "jobId", Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+
+    assertEquals(BigQueryTableInserter.Status.SUCCEEDED, status);
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  /**
+   * Tests that {@link BigQueryTableInserter#pollJobStatus} fails.
+   */
+  @Test
+  public void testPollJobStatusFailed() throws IOException, InterruptedException {
+    Job testJob = new Job();
+    testJob.setStatus(new JobStatus().setState("DONE").setErrorResult(new ErrorProto()));
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200);
+    when(response.getContent()).thenReturn(toStream(testJob));
+
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    BigQueryTableInserter.Status status =
+        inserter.pollJobStatus("projectId", "jobId", Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+
+    assertEquals(BigQueryTableInserter.Status.FAILED, status);
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  /**
+   * Tests that {@link BigQueryTableInserter#pollJobStatus} returns UNKNOWN.
+   */
+  @Test
+  public void testPollJobStatusUnknown() throws IOException, InterruptedException {
+    Job testJob = new Job();
+    testJob.setStatus(new JobStatus());
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200);
+    when(response.getContent()).thenReturn(toStream(testJob));
+
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    BigQueryTableInserter.Status status =
+        inserter.pollJobStatus("projectId", "jobId", Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
+
+    assertEquals(BigQueryTableInserter.Status.UNKNOWN, status);
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  /**
+   * Tests that {@link BigQueryTableInserter#load} succeeds.
+   */
+  @Test
+  public void testLoadSucceeds() throws IOException, InterruptedException {
+    Job testJob = new Job();
+    testJob.setStatus(new JobStatus().setState("DONE"));
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200).thenReturn(200);
+    when(response.getContent()).thenReturn(toStream(testJob)).thenReturn(toStream(testJob));
+
+    TableReference ref = new TableReference();
+    ref.setProjectId("projectId");
+    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+    loadConfig.setDestinationTable(ref);
+
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    inserter.load(
+        "jobId", ref, ImmutableList.of("uri"), new TableSchema(),
+        WriteDisposition.WRITE_EMPTY, CreateDisposition.CREATE_NEVER);
+
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
   }
 }

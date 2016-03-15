@@ -16,11 +16,18 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.Bigquery.Jobs;
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobConfiguration;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
@@ -72,6 +79,23 @@ public class BigQueryTableInserter {
 
   // The initial backoff after a failure inserting rows into BigQuery.
   private static final long INITIAL_INSERT_BACKOFF_INTERVAL_MS = 200L;
+
+  // The maximum number of retry load jobs.
+  private static final int MAX_RETRY_LOAD_JOBS = 3;
+
+  // The maximum number of retries to poll the status of a load job.
+  private static final int MAX_LOAD_JOB_POLL_RETRIES = 10;
+
+  // The initial backoff for polling the status of a load job.
+  private static final int INITIAL_LOAD_JOB_POLL_BACKOFF_MILLIS = 60000;
+
+  // The maximum number of attempts to execute a load job RPC.
+  private static final int MAX_LOAD_JOB_RPC_ATTEMPTS = 10;
+
+  // The initial backoff for executing a load job RPC.
+  private static final int INITIAL_LOAD_JOB_RPC_BACKOFF_MILLIS = 1000;
+
+  private final ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
   private final Bigquery client;
   private final TableReference defaultRef;
@@ -273,6 +297,137 @@ public class BigQueryTableInserter {
   }
 
   /**
+   * Import files into BigQuery with load jobs.
+   */
+  public void load(
+      String jobId,
+      TableReference ref,
+      List<String> gcsUris,
+      TableSchema schema,
+      WriteDisposition writeDisposition,
+      CreateDisposition createDisposition) throws InterruptedException, IOException {
+    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+    loadConfig.setSourceUris(gcsUris);
+    loadConfig.setDestinationTable(ref);
+    loadConfig.setSchema(schema);
+    loadConfig.setWriteDisposition(writeDisposition.name());
+    loadConfig.setCreateDisposition(createDisposition.name());
+    loadConfig.setSourceFormat("NEWLINE_DELIMITED_JSON");
+
+    String projectId = ref.getProjectId();
+    for (int i = 0; i < MAX_RETRY_LOAD_JOBS; ++i) {
+      String retryingJobId = jobId + "-" + i;
+      insertLoadJob(retryingJobId, loadConfig);
+      Status jobStatus = pollJobStatus(projectId, retryingJobId);
+      if (jobStatus == Status.SUCCEEDED) {
+        return;
+      } else if (jobStatus == Status.UNKNOWN) {
+        throw new RuntimeException("Failed to poll the load job status.");
+      }
+      // continue for Status.FAILED
+    }
+    throw new RuntimeException(
+        "Failed to create the load job, reached max retries: " + MAX_RETRY_LOAD_JOBS);
+  }
+
+  @VisibleForTesting
+  void insertLoadJob(String jobId, JobConfigurationLoad loadConfig)
+      throws InterruptedException, IOException {
+    TableReference ref = loadConfig.getDestinationTable();
+    String projectId = ref.getProjectId();
+
+    Job job = new Job();
+    JobReference jobRef = new JobReference();
+    jobRef.setProjectId(projectId);
+    jobRef.setJobId(jobId);
+    job.setJobReference(jobRef);
+    JobConfiguration config = new JobConfiguration();
+    config.setLoad(loadConfig);
+    job.setConfiguration(config);
+
+    Exception lastException = null;
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = new AttemptBoundedExponentialBackOff(
+        MAX_LOAD_JOB_RPC_ATTEMPTS, INITIAL_LOAD_JOB_RPC_BACKOFF_MILLIS);
+    do {
+      try {
+        client.jobs().insert(projectId, job).execute();
+        return; // SUCCEEDED
+      } catch (GoogleJsonResponseException e) {
+        if (errorExtractor.itemAlreadyExists(e)) {
+          return; // SUCCEEDED
+        }
+        // ignore and retry
+        LOG.warn("Ignore the error and retry inserting the job.", e);
+        lastException = e;
+      } catch (IOException e) {
+        // ignore and retry
+        LOG.warn("Ignore the error and retry inserting the job.", e);
+        lastException = e;
+      }
+    } while (nextBackOff(sleeper, backoff));
+    throw new IOException(
+        String.format(
+            "Unable to insert job: {}, aborting after {} retries.",
+            jobId, MAX_LOAD_JOB_RPC_ATTEMPTS),
+        lastException);
+  }
+
+  @VisibleForTesting
+  enum Status {
+    SUCCEEDED,
+    FAILED,
+    UNKNOWN,
+  }
+
+  private Status pollJobStatus(String projectId, String jobId) throws InterruptedException {
+    BackOff backoff = new AttemptBoundedExponentialBackOff(
+        MAX_LOAD_JOB_POLL_RETRIES, INITIAL_LOAD_JOB_POLL_BACKOFF_MILLIS);
+    return pollJobStatus(projectId, jobId, Sleeper.DEFAULT, backoff);
+  }
+
+  @VisibleForTesting
+  Status pollJobStatus(
+      String projectId,
+      String jobId,
+      Sleeper sleeper,
+      BackOff backoff) throws InterruptedException {
+    do {
+      try {
+        JobStatus status = client.jobs().get(projectId, jobId).execute().getStatus();
+        if (status != null && status.getState() != null && status.getState().equals("DONE")) {
+          if (status.getErrorResult() != null) {
+            return Status.FAILED;
+          } else if (status.getErrors() != null && !status.getErrors().isEmpty()) {
+            return Status.FAILED;
+          } else {
+            return Status.SUCCEEDED;
+          }
+        }
+        // The job is not DONE, wait longer and retry.
+      } catch (IOException e) {
+        // ignore and retry
+        LOG.warn("Ignore the error and retry polling job status.", e);
+      }
+    } while (nextBackOff(sleeper, backoff));
+    LOG.warn("Unable to poll job status: {}, aborting after {} retries.",
+        jobId, MAX_LOAD_JOB_POLL_RETRIES);
+    return Status.UNKNOWN;
+  }
+
+  /**
+   * Identical to {@link BackOffUtils#next} but without checked IOException.
+   * @throws InterruptedException
+   */
+  private boolean nextBackOff(Sleeper sleeper, BackOff backoff) throws InterruptedException {
+    try {
+      return BackOffUtils.next(sleeper, backoff);
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  /**
    * Retrieves or creates the table.
    *
    * <p>The table is checked to conform to insertion requirements as specified
@@ -302,7 +457,6 @@ public class BigQueryTableInserter {
     try {
       table = get.execute();
     } catch (IOException e) {
-      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
       if (!errorExtractor.itemNotFound(e) ||
           createDisposition != CreateDisposition.CREATE_IF_NEEDED) {
         // Rethrow.
@@ -402,11 +556,10 @@ public class BigQueryTableInserter {
       try {
         return client.tables().insert(projectId, datasetId, table).execute();
       } catch (IOException e) {
-        ApiErrorExtractor extractor = new ApiErrorExtractor();
-        if (extractor.itemAlreadyExists(e)) {
+        if (errorExtractor.itemAlreadyExists(e)) {
           // The table already exists, nothing to return.
           return null;
-        } else if (extractor.rateLimited(e)) {
+        } else if (errorExtractor.rateLimited(e)) {
           // The request failed because we hit a temporary quota. Back off and try again.
           try {
             if (BackOffUtils.next(sleeper, backoff)) {
