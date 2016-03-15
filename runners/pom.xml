@@ -39,6 +39,7 @@
     <module>direct-java</module>
     <module>flink</module>
     <module>spark</module>
+    <module>gearpump</module>
   </modules>
 
   <build>
