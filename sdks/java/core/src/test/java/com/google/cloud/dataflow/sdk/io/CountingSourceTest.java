@@ -17,12 +17,14 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.CountingSource.CounterMark;
+import com.google.cloud.dataflow.sdk.io.CountingSource.UnboundedCountingSource;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
@@ -153,10 +155,10 @@ public class CountingSourceTest {
   }
 
   @Test
-  public void testUnboundedSourceWithPeriod() {
+  public void testUnboundedSourceWithRate() {
     Pipeline p = TestPipeline.create();
 
-    Duration period = Duration.millis(2);
+    Duration period = Duration.millis(5);
     long numElements = 1000L;
 
     PCollection<Long> input =
@@ -164,7 +166,7 @@ public class CountingSourceTest {
             Read.from(
                     CountingSource.createUnbounded()
                         .withTimestampFn(new ValueAsTimestampFn())
-                        .withPeriod(period))
+                        .withRate(1, period))
                 .withMaxNumRecords(numElements));
     addCountingAsserts(input, numElements);
 
@@ -209,6 +211,40 @@ public class CountingSourceTest {
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceRateSplits() throws Exception {
+    Pipeline p = TestPipeline.create();
+    int elementsPerPeriod = 10;
+    Duration period = Duration.millis(5);
+
+    long numElements = 1000;
+    int numSplits = 10;
+
+    UnboundedCountingSource initial =
+        CountingSource.createUnbounded().withRate(elementsPerPeriod, period);
+    List<? extends UnboundedSource<Long, ?>> splits =
+        initial.generateInitialSplits(numSplits, p.getOptions());
+    assertEquals("Expected exact splitting", numSplits, splits.size());
+
+    long elementsPerSplit = numElements / numSplits;
+    assertEquals("Expected even splits", numElements, elementsPerSplit * numSplits);
+    PCollectionList<Long> pcollections = PCollectionList.empty(p);
+    for (int i = 0; i < splits.size(); ++i) {
+      pcollections =
+          pcollections.and(
+              p.apply("split" + i, Read.from(splits.get(i)).withMaxNumRecords(elementsPerSplit)));
+    }
+    PCollection<Long> input = pcollections.apply(Flatten.<Long>pCollections());
+
+    addCountingAsserts(input, numElements);
+    Instant startTime = Instant.now();
+    p.run();
+    Instant endTime = Instant.now();
+    // 5s
+    long expectedMinimumMillis = (numElements * period.getMillis()) / elementsPerPeriod;
+    assertThat(expectedMinimumMillis, lessThan(endTime.getMillis() - startTime.getMillis()));
   }
 
   /**

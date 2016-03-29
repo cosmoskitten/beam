@@ -89,18 +89,18 @@ public class CountingInputTest {
   @Test
   public void testUnboundedInputRate() {
     Pipeline p = TestPipeline.create();
-    long numElements = 1000;
+    long numElements = 5000;
 
     PCollection<Long> input =
         p.apply(
             CountingInput.unbounded()
-                .withRate(2L, Duration.millis(6))
+                .withRate(10L, Duration.millis(8))
                 .withMaxNumRecords(numElements));
 
     addCountingAsserts(input, numElements);
     Instant startTime = Instant.now();
     p.run();
-    assertThat(Instant.now().isAfter(startTime.plus(Duration.millis(3000))), is(true));
+    assertThat(Instant.now().isAfter(startTime.plus(Duration.millis(4000))), is(true));
   }
 
   private static class ElementValueDiff extends DoFn<Long, Long> {

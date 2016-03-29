@@ -89,7 +89,11 @@ public class CountingInput {
    */
   public static UnboundedCountingInput unbounded() {
     return new UnboundedCountingInput(
-        new NowTimestampFn(), Duration.ZERO, Optional.<Long>absent(), Optional.<Duration>absent());
+        new NowTimestampFn(),
+        1L,
+        Duration.ZERO,
+        Optional.<Long>absent(),
+        Optional.<Duration>absent());
   }
 
   /**
@@ -125,16 +129,19 @@ public class CountingInput {
    */
   public static class UnboundedCountingInput extends PTransform<PBegin, PCollection<Long>> {
     private final SerializableFunction<Long, Instant> timestampFn;
+    private final long elementsPerPeriod;
     private final Duration period;
     private final Optional<Long> maxNumRecords;
     private final Optional<Duration> maxReadTime;
 
     private UnboundedCountingInput(
         SerializableFunction<Long, Instant> timestampFn,
+        long elementsPerPeriod,
         Duration period,
         Optional<Long> maxNumRecords,
         Optional<Duration> maxReadTime) {
       this.timestampFn = timestampFn;
+      this.elementsPerPeriod = elementsPerPeriod;
       this.period = period;
       this.maxNumRecords = maxNumRecords;
       this.maxReadTime = maxReadTime;
@@ -147,7 +154,8 @@ public class CountingInput {
      * <p>Note that the timestamps produced by {@code timestampFn} may not decrease.
      */
     public UnboundedCountingInput withTimestampFn(SerializableFunction<Long, Instant> timestampFn) {
-      return new UnboundedCountingInput(timestampFn, period, maxNumRecords, maxReadTime);
+      return new UnboundedCountingInput(
+          timestampFn, elementsPerPeriod, period, maxNumRecords, maxReadTime);
     }
 
     /**
@@ -160,19 +168,22 @@ public class CountingInput {
     public UnboundedCountingInput withMaxNumRecords(long maxRecords) {
       checkArgument(
           maxRecords > 0, "MaxRecords must be a positive (nonzero) value. Got %s", maxRecords);
-      return new UnboundedCountingInput(timestampFn, period, Optional.of(maxRecords), maxReadTime);
+      return new UnboundedCountingInput(
+          timestampFn, elementsPerPeriod, period, Optional.of(maxRecords), maxReadTime);
     }
 
     /**
      * Returns an {@link UnboundedCountingInput} like this one, but with output production limited
-     * to an aggregate rate of no more than one element per period.
+     * to an aggregate rate of no more than the number of elements per the period length.
      *
      * <p>Note that this period is taken in aggregate across all instances of the
      * {@link PTransform}, which may cause elements to be produced in bunches.
+     *
+     * <p>A duration of {@link Duration#ZERO} will produce output as fast as possbile.
      */
     public UnboundedCountingInput withRate(long numElements, Duration periodLength) {
-      Duration newPeriod = periodLength.dividedBy(numElements);
-      return new UnboundedCountingInput(timestampFn, newPeriod, maxNumRecords, maxReadTime);
+      return new UnboundedCountingInput(
+          timestampFn, numElements, periodLength, maxNumRecords, maxReadTime);
     }
 
     /**
@@ -184,7 +195,8 @@ public class CountingInput {
      */
     public UnboundedCountingInput withMaxReadTime(Duration readTime) {
       checkNotNull(readTime, "ReadTime cannot be null");
-      return new UnboundedCountingInput(timestampFn, period, maxNumRecords, Optional.of(readTime));
+      return new UnboundedCountingInput(
+          timestampFn, elementsPerPeriod, period, maxNumRecords, Optional.of(readTime));
     }
 
     @SuppressWarnings("deprecation")
@@ -192,7 +204,9 @@ public class CountingInput {
     public PCollection<Long> apply(PBegin begin) {
       Unbounded<Long> read =
           Read.from(
-              CountingSource.createUnbounded().withTimestampFn(timestampFn).withPeriod(period));
+              CountingSource.createUnbounded()
+                  .withTimestampFn(timestampFn)
+                  .withRate(elementsPerPeriod, period));
       if (!maxNumRecords.isPresent() && !maxReadTime.isPresent()) {
         return begin.apply(read);
       } else if (maxNumRecords.isPresent() && !maxReadTime.isPresent()) {
