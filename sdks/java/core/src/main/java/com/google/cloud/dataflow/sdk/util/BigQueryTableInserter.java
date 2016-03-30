@@ -86,13 +86,13 @@ public class BigQueryTableInserter {
   private static final int MAX_LOAD_JOB_POLL_RETRIES = 10;
 
   // The initial backoff for polling the status of a load job.
-  private static final int INITIAL_LOAD_JOB_POLL_BACKOFF_MILLIS = 60000;
+  private static final long INITIAL_LOAD_JOB_POLL_BACKOFF_MILLIS = TimeUnit.SECONDS.toMillis(60);
 
   // The maximum number of attempts to execute a load job RPC.
   private static final int MAX_LOAD_JOB_RPC_ATTEMPTS = 10;
 
   // The initial backoff for executing a load job RPC.
-  private static final int INITIAL_LOAD_JOB_RPC_BACKOFF_MILLIS = 1000;
+  private static final long INITIAL_LOAD_JOB_RPC_BACKOFF_MILLIS = TimeUnit.SECONDS.toMillis(1);
 
   private final ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
@@ -315,22 +315,32 @@ public class BigQueryTableInserter {
 
     String projectId = ref.getProjectId();
     for (int i = 0; i < MAX_RETRY_LOAD_JOBS; ++i) {
+      BackOff backoff = new AttemptBoundedExponentialBackOff(
+          MAX_LOAD_JOB_RPC_ATTEMPTS, INITIAL_LOAD_JOB_RPC_BACKOFF_MILLIS);
       String retryingJobId = jobId + "-" + i;
-      insertLoadJob(retryingJobId, loadConfig);
+      insertLoadJob(retryingJobId, loadConfig, Sleeper.DEFAULT, backoff);
       Status jobStatus = pollJobStatus(projectId, retryingJobId);
-      if (jobStatus == Status.SUCCEEDED) {
-        return;
-      } else if (jobStatus == Status.UNKNOWN) {
-        throw new RuntimeException("Failed to poll the load job status.");
+      switch (jobStatus) {
+        case SUCCEEDED:
+          return;
+        case UNKNOWN:
+          throw new RuntimeException("Failed to poll the load job status.");
+        case FAILED:
+          continue;
+        default:
+          throw new IllegalStateException("Unexpected job status: " + jobStatus);
       }
-      // continue for Status.FAILED
     }
     throw new RuntimeException(
         "Failed to create the load job, reached max retries: " + MAX_RETRY_LOAD_JOBS);
   }
 
   @VisibleForTesting
-  void insertLoadJob(String jobId, JobConfigurationLoad loadConfig)
+  void insertLoadJob(
+      String jobId,
+      JobConfigurationLoad loadConfig,
+      Sleeper sleeper,
+      BackOff backoff)
       throws InterruptedException, IOException {
     TableReference ref = loadConfig.getDestinationTable();
     String projectId = ref.getProjectId();
@@ -345,9 +355,6 @@ public class BigQueryTableInserter {
     job.setConfiguration(config);
 
     Exception lastException = null;
-    Sleeper sleeper = Sleeper.DEFAULT;
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        MAX_LOAD_JOB_RPC_ATTEMPTS, INITIAL_LOAD_JOB_RPC_BACKOFF_MILLIS);
     do {
       try {
         client.jobs().insert(projectId, job).execute();
@@ -367,7 +374,7 @@ public class BigQueryTableInserter {
     } while (nextBackOff(sleeper, backoff));
     throw new IOException(
         String.format(
-            "Unable to insert job: {}, aborting after {} retries.",
+            "Unable to insert job: %s, aborting after %d retries.",
             jobId, MAX_LOAD_JOB_RPC_ATTEMPTS),
         lastException);
   }

@@ -49,6 +49,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.hadoop.util.RetryBoundedBackOff;
 import com.google.common.collect.ImmutableList;
 
@@ -259,8 +260,11 @@ public class BigQueryTableInserterTest {
     JobConfigurationLoad loadConfig = new JobConfigurationLoad();
     loadConfig.setDestinationTable(ref);
 
+    Sleeper sleeper = new FastNanoClockAndSleeper();
+    BackOff backoff = new AttemptBoundedExponentialBackOff(
+        5 /* attempts */, 1000 /* initialIntervalMillis */);
     BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
-    inserter.insertLoadJob("jobId", loadConfig);
+    inserter.insertLoadJob("jobId", loadConfig, sleeper, backoff);
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
@@ -278,8 +282,11 @@ public class BigQueryTableInserterTest {
     JobConfigurationLoad loadConfig = new JobConfigurationLoad();
     loadConfig.setDestinationTable(ref);
 
+    Sleeper sleeper = new FastNanoClockAndSleeper();
+    BackOff backoff = new AttemptBoundedExponentialBackOff(
+        5 /* attempts */, 1000 /* initialIntervalMillis */);
     BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
-    inserter.insertLoadJob("jobId", loadConfig);
+    inserter.insertLoadJob("jobId", loadConfig, sleeper, backoff);
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -305,8 +312,11 @@ public class BigQueryTableInserterTest {
     JobConfigurationLoad loadConfig = new JobConfigurationLoad();
     loadConfig.setDestinationTable(ref);
 
+    Sleeper sleeper = new FastNanoClockAndSleeper();
+    BackOff backoff = new AttemptBoundedExponentialBackOff(
+        5 /* attempts */, 1000 /* initialIntervalMillis */);
     BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
-    inserter.insertLoadJob("jobId", loadConfig);
+    inserter.insertLoadJob("jobId", loadConfig, sleeper, backoff);
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
