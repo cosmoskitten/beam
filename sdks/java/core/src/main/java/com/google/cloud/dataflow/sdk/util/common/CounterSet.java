@@ -74,10 +74,11 @@ public class CounterSet extends AbstractSet<Counter<?>> {
    * name but an incompatible kind had already been added
    */
   public synchronized <T> Counter<T> addOrReuseCounter(Counter<T> counter) {
-    Counter<?> oldCounter = counters.get(counter.getFlatName());
+    String flatName = counter.getFlatName();
+    Counter<?> oldCounter = counters.get(flatName);
     if (oldCounter == null) {
       // A new counter.
-      counters.put(counter.getFlatName(), counter);
+      counters.put(flatName, counter);
       return counter;
     }
     if (counter.isCompatibleWith(oldCounter)) {

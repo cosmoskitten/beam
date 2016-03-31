@@ -17,6 +17,8 @@
  */
 package com.google.cloud.dataflow.sdk.util.common;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.base.Strings;
 
 import javax.annotation.Nullable;
@@ -27,43 +29,43 @@ import javax.annotation.Nullable;
  * <p>It holds all information for generating structured name protos.
  * It is also used as a wrapper during the migration to structured counters.
  *
- * <p>Before migration, the {@link CounterNameAndMetadata} will be converted to a flat name.
- * During migration, the {@link CounterNameAndMetadata} will be mapped to a structured name proto.
+ * <p>Before migration, the {@link CounterName} will be converted to a flat name.
+ * During migration, the {@link CounterName} will be mapped to a structured name proto.
  */
-public class CounterNameAndMetadata {
+public class CounterName {
   /**
-   * Returns a CounterName with the given name.
+   * Returns a {@link CounterName} with the given name.
    */
-  public static CounterNameAndMetadata named(String name) {
-    return new CounterNameAndMetadata(name, "", "", "");
+  public static CounterName named(String name) {
+    return new CounterName(name, "", "", "");
   }
 
   /**
-   * Returns a msecs CounterName.
+   * Returns a msecs {@link CounterName}.
    */
-  public static CounterNameAndMetadata msecs(String name) {
+  public static CounterName msecs(String name) {
     return named(name + "-msecs");
   }
 
   /**
-   * Returns a CounterName identical to this, but with the given origin.
+   * Returns a {@link CounterName} identical to this, but with the given origin.
    */
-  public CounterNameAndMetadata withOrigin(String origin) {
-    return new CounterNameAndMetadata(this.name, origin, this.stepName, this.prefix);
+  public CounterName withOrigin(String origin) {
+    return new CounterName(this.name, origin, this.stepName, this.prefix);
   }
 
   /**
-   * Returns a CounterName identical to this, but with the given original step name.
+   * Returns a {@link CounterName} identical to this, but with the given step name.
    */
-  public CounterNameAndMetadata withOriginalStepName(String originalStepName) {
-    return new CounterNameAndMetadata(this.name, this.origin, originalStepName, this.prefix);
+  public CounterName withStepName(String stepName) {
+    return new CounterName(this.name, this.origin, stepName, this.prefix);
   }
 
   /**
-   * Returns a CounterName identical to this, but with the given prefix.
+   * Returns a {@link CounterName} identical to this, but with the given prefix.
    */
-  public CounterNameAndMetadata withPrefix(String prefix) {
-    return new CounterNameAndMetadata(this.name, this.origin, this.stepName, prefix);
+  public CounterName withPrefix(String prefix) {
+    return new CounterName(this.name, this.origin, this.stepName, prefix);
   }
 
   /**
@@ -77,26 +79,23 @@ public class CounterNameAndMetadata {
    * Origin (namespace) of counter name.
    *
    * <p>For example, "user" for user-defined counters.
-   * It may be null or empty for counters defined by the Dataflow service or SDK.
+   * It is empty for counters defined by the Dataflow service or SDK.
    */
-  @Nullable
   private final String origin;
 
   /**
    * System defined step name.
    *
    * <p>For example, s1, s2.out.
-   * It may be null or empty when counters don't associate with step names.
+   * It may be empty when counters don't associate with step names.
    */
-  @Nullable
   private final String stepName;
 
   /**
    * Prefix of group of counters.
    *
-   * <p>It is null or empty when counters don't have general prefixes.
+   * <p>It is empty when counters don't have general prefixes.
    */
-  @Nullable
   private final String prefix;
 
   /**
@@ -107,11 +106,11 @@ public class CounterNameAndMetadata {
   @Nullable
   private String flatName;
 
-  private CounterNameAndMetadata(String name, String origin, String stepName, String prefix) {
-    this.name = name;
-    this.origin = origin;
-    this.stepName = stepName;
-    this.prefix = prefix;
+  private CounterName(String name, String origin, String stepName, String prefix) {
+    this.name = checkNotNull(name, "name");
+    this.origin = checkNotNull(origin, "origin");
+    this.stepName = checkNotNull(stepName, "stepName");
+    this.prefix = checkNotNull(prefix, "prefix");
     this.flatName = null;
   }
 
@@ -120,19 +119,24 @@ public class CounterNameAndMetadata {
    */
   public synchronized String getFlatName() {
     if (flatName == null) {
-      StringBuilder sb = new StringBuilder();
-      if (!Strings.isNullOrEmpty(prefix)) {
-        // Flume doesn't explicitly use "-" to concatenate prefix, it may already have it in it.
-        sb.append(prefix);
+      synchronized (this) {
+        if (flatName != null) {
+          return flatName;
+        }
+        StringBuilder sb = new StringBuilder();
+        if (!Strings.isNullOrEmpty(prefix)) {
+          // Flume doesn't explicitly use "-" to concatenate prefix, it may already have it in it.
+          sb.append(prefix);
+        }
+        if (!Strings.isNullOrEmpty(origin)) {
+          sb.append(origin + "-");
+        }
+        if (!Strings.isNullOrEmpty(stepName)) {
+          sb.append(stepName + "-");
+        }
+        sb.append(name);
+        flatName = sb.toString();
       }
-      if (!Strings.isNullOrEmpty(origin)) {
-        sb.append(origin + "-");
-      }
-      if (!Strings.isNullOrEmpty(stepName)) {
-        sb.append(stepName + "-");
-      }
-      sb.append(name);
-      flatName = sb.toString();
     }
     return flatName;
   }
@@ -141,8 +145,8 @@ public class CounterNameAndMetadata {
   public boolean equals(Object o) {
     if (this == o) {
       return true;
-    } else if (o instanceof CounterNameAndMetadata) {
-      CounterNameAndMetadata that = (CounterNameAndMetadata) o;
+    } else if (o instanceof CounterName) {
+      CounterName that = (CounterName) o;
       return this.getFlatName().equals(that.getFlatName());
     }
     return false;
