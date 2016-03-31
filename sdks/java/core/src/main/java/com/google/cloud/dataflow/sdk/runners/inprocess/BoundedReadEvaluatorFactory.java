@@ -93,8 +93,9 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       if (sourceEvaluators.putIfAbsent(key, evaluatorQueue) == null) {
         // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
         // factory for this transform
+        BoundedSource<OutputT> source = transform.getTransform().getSource();
         BoundedReadEvaluator<OutputT> evaluator =
-            new BoundedReadEvaluator<OutputT>(transform, evaluationContext);
+            new BoundedReadEvaluator<OutputT>(transform, source, evaluationContext);
         evaluatorQueue.offer(evaluator);
       } else {
         // otherwise return the existing Queue that arrived before us
@@ -115,13 +116,16 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private static class BoundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
     private final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform;
+    private final BoundedSource<OutputT> source;
     private final InProcessEvaluationContext evaluationContext;
     private boolean contentsRemaining;
 
     public BoundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
+        BoundedSource<OutputT> source,
         InProcessEvaluationContext evaluationContext) {
       this.transform = transform;
+      this.source = source;
       this.evaluationContext = evaluationContext;
     }
 
@@ -131,10 +135,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
       try (final Reader<OutputT> reader =
-              transform
-                  .getTransform()
-                  .getSource()
-                  .createReader(evaluationContext.getPipelineOptions());) {
+              source.createReader(evaluationContext.getPipelineOptions());) {
         contentsRemaining = reader.start();
         UncommittedBundle<OutputT> output =
             evaluationContext.createRootBundle(transform.getOutput());
