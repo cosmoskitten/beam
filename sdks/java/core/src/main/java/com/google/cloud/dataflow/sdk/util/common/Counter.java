@@ -105,8 +105,15 @@ public abstract class Counter<T> {
    * @return the newly constructed Counter
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
-  public static Counter<Integer> ints(String name, AggregationKind kind) {
+  public static Counter<Integer> ints(CounterNameAndMetadata name, AggregationKind kind) {
     return new IntegerCounter(name, kind);
+  }
+
+  /**
+   * Constructs a new {@code Counter<Integer>} with an unstructured name.
+   */
+  public static Counter<Integer> ints(String name, AggregationKind kind) {
+    return new IntegerCounter(CounterNameAndMetadata.named(name), kind);
   }
 
   /**
@@ -120,8 +127,15 @@ public abstract class Counter<T> {
    * @return the newly constructed Counter
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
-  public static Counter<Long> longs(String name, AggregationKind kind) {
+  public static Counter<Long> longs(CounterNameAndMetadata name, AggregationKind kind) {
     return new LongCounter(name, kind);
+  }
+
+  /**
+   * Constructs a new {@code Counter<Long>} with an unstructured name.
+   */
+  public static Counter<Long> longs(String name, AggregationKind kind) {
+    return new LongCounter(CounterNameAndMetadata.named(name), kind);
   }
 
   /**
@@ -135,8 +149,15 @@ public abstract class Counter<T> {
    * @return the newly constructed Counter
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
-  public static Counter<Double> doubles(String name, AggregationKind kind) {
+  public static Counter<Double> doubles(CounterNameAndMetadata name, AggregationKind kind) {
     return new DoubleCounter(name, kind);
+  }
+
+  /**
+   * Constructs a new {@code Counter<Double>} with an unstructured name.
+   */
+  public static Counter<Double> doubles(String name, AggregationKind kind) {
+    return new DoubleCounter(CounterNameAndMetadata.named(name), kind);
   }
 
   /**
@@ -149,8 +170,15 @@ public abstract class Counter<T> {
    * @return the newly constructed Counter
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
-  public static Counter<Boolean> booleans(String name, AggregationKind kind) {
+  public static Counter<Boolean> booleans(CounterNameAndMetadata name, AggregationKind kind) {
     return new BooleanCounter(name, kind);
+  }
+
+  /**
+   * Constructs a new {@code Counter<Boolean>} with an unstructured name.
+   */
+  public static Counter<Boolean> booleans(String name, AggregationKind kind) {
+    return new BooleanCounter(CounterNameAndMetadata.named(name), kind);
   }
 
   /**
@@ -164,8 +192,16 @@ public abstract class Counter<T> {
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
   @SuppressWarnings("unused")
-  private static Counter<String> strings(String name, AggregationKind kind) {
+  private static Counter<String> strings(CounterNameAndMetadata name, AggregationKind kind) {
     return new StringCounter(name, kind);
+  }
+
+  /**
+   * Constructs a new {@code Counter<String>} with an unstructured name.
+   */
+  @SuppressWarnings("unused")
+  private static Counter<String> strings(String name, AggregationKind kind) {
+    return new StringCounter(CounterNameAndMetadata.named(name), kind);
   }
 
 
@@ -207,10 +243,20 @@ public abstract class Counter<T> {
   public abstract CounterMean<T> getAndResetMeanDelta();
 
   /**
-   * Returns the counter's name.
+   * Returns the counter's flat name.
    */
+  public String getFlatName() {
+    return name.getFlatName();
+  }
+
+  /**
+   * Returns the counter's name.
+   *
+   * @deprecated use {@link #getFlatName}.
+   */
+  @Deprecated
   public String getName() {
-    return name;
+    return name.getFlatName();
   }
 
   /**
@@ -265,7 +311,7 @@ public abstract class Counter<T> {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append(getName());
+    sb.append(getFlatName());
     sb.append(":");
     sb.append(getKind());
     sb.append("(");
@@ -340,13 +386,13 @@ public abstract class Counter<T> {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  /** The name of this counter. */
-  protected final String name;
+  /** The name and metadata of this counter. */
+  protected final CounterNameAndMetadata name;
 
   /** The kind of aggregation function to apply to this counter. */
   protected final AggregationKind kind;
 
-  protected Counter(String name, AggregationKind kind) {
+  protected Counter(CounterNameAndMetadata name, AggregationKind kind) {
     this.name = name;
     this.kind = kind;
   }
@@ -363,7 +409,7 @@ public abstract class Counter<T> {
     private final AtomicReference<LongCounterMean> deltaMean;
 
     /** Initializes a new {@link Counter} for {@link Long} values. */
-    private LongCounter(String name, AggregationKind kind) {
+    private LongCounter(CounterNameAndMetadata name, AggregationKind kind) {
       super(name, kind);
       switch (kind) {
         case MEAN:
@@ -558,7 +604,7 @@ public abstract class Counter<T> {
     AtomicReference<DoubleCounterMean> deltaMean;
 
     /** Initializes a new {@link Counter} for {@link Double} values. */
-    private DoubleCounter(String name, AggregationKind kind) {
+    private DoubleCounter(CounterNameAndMetadata name, AggregationKind kind) {
       super(name, kind);
       switch (kind) {
         case MEAN:
@@ -751,7 +797,7 @@ public abstract class Counter<T> {
     private final AtomicBoolean deltaAggregate;
 
     /** Initializes a new {@link Counter} for {@link Boolean} values. */
-    private BooleanCounter(String name, AggregationKind kind) {
+    private BooleanCounter(CounterNameAndMetadata name, AggregationKind kind) {
       super(name, kind);
       aggregate = new AtomicBoolean();
       deltaAggregate = new AtomicBoolean();
@@ -823,7 +869,7 @@ public abstract class Counter<T> {
    */
   private static class StringCounter extends Counter<String> {
     /** Initializes a new {@link Counter} for {@link String} values. */
-    private StringCounter(String name, AggregationKind kind) {
+    private StringCounter(CounterNameAndMetadata name, AggregationKind kind) {
       super(name, kind);
       // TODO: Support MIN, MAX of Strings.
       throw illegalArgumentException();
@@ -906,7 +952,7 @@ public abstract class Counter<T> {
     private final AtomicReference<IntegerCounterMean> deltaMean;
 
     /** Initializes a new {@link Counter} for {@link Integer} values. */
-    private IntegerCounter(String name, AggregationKind kind) {
+    private IntegerCounter(CounterNameAndMetadata name, AggregationKind kind) {
       super(name, kind);
       switch (kind) {
         case MEAN:
