@@ -1065,7 +1065,7 @@ public class BigQueryIO {
         CreateDisposition createDisposition,
         String tempFile,
         Coder<TableRow> coder) {
-      super(tempFile, "" /* extension */);
+      super(tempFile, ".avro");
       this.jobIdToken = checkNotNull(jobIdToken, "jobIdToken");
       this.jsonTable = checkNotNull(jsonTable, "jsonTable");
       this.jsonSchema = checkNotNull(jsonSchema, "jsonSchema");
@@ -1104,13 +1104,17 @@ public class BigQueryIO {
           tempFiles.add(result.getFilename());
         }
         if (!tempFiles.isEmpty()) {
-          inserter.load(
-              bigQuerySink.jobIdToken,
-              JSON_FACTORY.fromString(bigQuerySink.jsonTable, TableReference.class),
-              tempFiles,
-              JSON_FACTORY.fromString(bigQuerySink.jsonSchema, TableSchema.class),
-              bigQuerySink.writeDisposition,
-              bigQuerySink.createDisposition);
+          try {
+            inserter.load(
+                bigQuerySink.jobIdToken,
+                JSON_FACTORY.fromString(bigQuerySink.jsonTable, TableReference.class),
+                tempFiles,
+                JSON_FACTORY.fromString(bigQuerySink.jsonSchema, TableSchema.class),
+                bigQuerySink.writeDisposition,
+                bigQuerySink.createDisposition);
+          } finally {
+            removeTemporaryFiles(options);
+          }
         }
       }
     }
