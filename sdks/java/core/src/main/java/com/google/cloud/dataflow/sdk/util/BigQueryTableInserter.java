@@ -83,7 +83,8 @@ public class BigQueryTableInserter {
   private static final int MAX_RETRY_LOAD_JOBS = 3;
 
   // The maximum number of retries to poll the status of a load job.
-  private static final int MAX_LOAD_JOB_POLL_RETRIES = 10;
+  // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery load job finishes.
+  private static final int MAX_LOAD_JOB_POLL_RETRIES = Integer.MAX_VALUE;
 
   // The initial backoff for polling the status of a load job.
   private static final long INITIAL_LOAD_JOB_POLL_BACKOFF_MILLIS = TimeUnit.SECONDS.toMillis(60);
@@ -306,7 +307,7 @@ public class BigQueryTableInserter {
    * <p>If a load job failed, it will try another load job with a different job id.
    */
   public void load(
-      String jobId,
+      String jobIdPrefix,
       TableReference ref,
       List<String> gcsUris,
       TableSchema schema,
@@ -320,19 +321,26 @@ public class BigQueryTableInserter {
     loadConfig.setCreateDisposition(createDisposition.name());
     loadConfig.setSourceFormat("NEWLINE_DELIMITED_JSON");
 
+    boolean retrying = false;
     String projectId = ref.getProjectId();
     for (int i = 0; i < MAX_RETRY_LOAD_JOBS; ++i) {
       BackOff backoff = new AttemptBoundedExponentialBackOff(
           MAX_LOAD_JOB_RPC_ATTEMPTS, INITIAL_LOAD_JOB_RPC_BACKOFF_MILLIS);
-      String retryingJobId = jobId + "-" + i;
-      insertLoadJob(retryingJobId, loadConfig, Sleeper.DEFAULT, backoff);
-      Status jobStatus = pollJobStatus(projectId, retryingJobId);
+      String jobId = jobIdPrefix + "-" + i;
+      if (retrying) {
+        LOG.info("Previous load jobs failed, retrying.");
+      }
+      LOG.info("Starting BigQuery load job: " + jobId);
+      insertLoadJob(jobId, loadConfig, Sleeper.DEFAULT, backoff);
+      Status jobStatus = pollJobStatus(projectId, jobId);
       switch (jobStatus) {
         case SUCCEEDED:
           return;
         case UNKNOWN:
           throw new RuntimeException("Failed to poll the load job status.");
         case FAILED:
+          LOG.info("BigQuery load job failed: " + jobId);
+          retrying = true;
           continue;
         default:
           throw new IllegalStateException("Unexpected job status: " + jobStatus);
