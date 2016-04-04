@@ -21,6 +21,7 @@ import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowJobExecutionException;
@@ -42,6 +43,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -54,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowPipelineRunner.class);
+  private static final Map<string, PipelineResult> RESULT_MAP = new ConcurrentHashMap<string, PipelineResult>();
 
   private final TestDataflowPipelineOptions options;
   private final DataflowPipelineRunner runner;
@@ -72,6 +75,10 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
 
     return new TestDataflowPipelineRunner(dataflowOptions);
+  }
+
+  public static PipelineResult getPipelineResultById(string id) {
+    return RESULT_MAP.get(id);
   }
 
   @Override
@@ -152,6 +159,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
       Throwables.propagateIfPossible(e);
       throw Throwables.propagate(e);
     }
+    RESULT_MAP[job.getJobID()] = job;
     return job;
   }
 
