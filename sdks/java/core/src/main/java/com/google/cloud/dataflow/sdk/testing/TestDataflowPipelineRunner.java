@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
@@ -56,7 +57,8 @@ import java.util.concurrent.TimeUnit;
 public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowPipelineRunner.class);
-  private static final Map<string, PipelineResult> RESULT_MAP = new ConcurrentHashMap<string, PipelineResult>();
+  private static final Map<String, PipelineResult> RESULT_MAP = 
+      new ConcurrentHashMap<String, PipelineResult>();
 
   private final TestDataflowPipelineOptions options;
   private final DataflowPipelineRunner runner;
@@ -77,8 +79,8 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     return new TestDataflowPipelineRunner(dataflowOptions);
   }
 
-  public static PipelineResult getPipelineResultById(string id) {
-    return RESULT_MAP.get(id);
+  public static PipelineResult getPipelineResultByJobName(String jobName) {
+    return RESULT_MAP.get(jobName);
   }
 
   @Override
@@ -159,7 +161,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
       Throwables.propagateIfPossible(e);
       throw Throwables.propagate(e);
     }
-    RESULT_MAP[job.getJobID()] = job;
+    RESULT_MAP.put(options.getJobName(), job);
     return job;
   }
 

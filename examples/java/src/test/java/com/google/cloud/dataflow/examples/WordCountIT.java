@@ -22,8 +22,10 @@ import com.google.cloud.dataflow.examples.WordCount.WordCountOptions;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
+import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -43,16 +45,16 @@ public class WordCountIT extends BatchE2ETest {
     String[] args = {
         "--jobName=" + jobName,
         "--project=apache-beam-testing",
-        "--runner=BlockingDataflowPipelineRunner",
+        "--runner=com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner",
         "--stagingLocation=gs://apache-beam-testing-temp-storage/staging/" + jobName,
         "--output=gs://apache-beam-testing-temp-storage/output/" + jobName + "/results",
         "--workerLogLevelOverrides="
         + "{\"com.google.cloud.dataflow.sdk.util.UploadIdResponseInterceptor\":\"DEBUG\"}"};
 
-    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-        .as(WordCountOptions.class);
-
-    PipelineResult result = WordCount.runWorkflow(options);
+    WordCount.main(args);
+    PipelineResult result = TestDataflowPipelineRunner.getPipelineResultByJobName(jobName);
+    
+    assertNotNull(result);
     assertEquals(PipelineResult.State.DONE, result.getState());
   }
 }
