@@ -54,6 +54,11 @@ public class IntervalBoundedExponentialBackOff implements BackOff {
   private final long initialIntervalMillis;
   private int currentAttempt;
 
+  @Deprecated
+  public IntervalBoundedExponentialBackOff(int maximumIntervalMillis, long initialIntervalMillis) {
+    this((long)maximumIntervalMillis, initialIntervalMillis);
+  }
+
   public IntervalBoundedExponentialBackOff(long maximumIntervalMillis, long initialIntervalMillis) {
     Preconditions.checkArgument(
         maximumIntervalMillis > 0, "Maximum interval must be greater than zero.");
