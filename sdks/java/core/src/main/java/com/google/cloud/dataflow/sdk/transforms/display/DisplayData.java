@@ -171,6 +171,17 @@ public class DisplayData {
      * from the current transform or component.
      */
     ItemBuilder add(String key, Class<?> value);
+
+    /**
+     * Register the given display metadata. The input value will be inspected to see if it conforms
+     * to one of the supported DisplayData types. Otherwise, it will be registered as a
+     * {@link DisplayData.Type#STRING}, using the {@link Object#toString()} method to retrieve the
+     * display value.
+     *
+     * <p> The added display data is identified by the specified key and namespace from the current
+     * transform or component.
+     */
+    ItemBuilder add(String key, Object value);
   }
 
   /**
@@ -199,10 +210,9 @@ public class DisplayData {
      * Adds an explicit namespace to the most-recently added display metadata. The namespace
      * and key uniquely identify the display metadata.
      *
-     * <p>Specifying a null value or leaving the namespace unspecified will default to
-     * the registering instance's class.
+     * <p>Leaving the namespace unspecified will default to the registering instance's class.
      */
-    ItemBuilder withNamespace(@Nullable Class<?> namespace);
+    ItemBuilder withNamespace(Class<?> namespace);
   }
 
   /**
@@ -422,17 +432,33 @@ public class DisplayData {
   public enum Type {
     STRING {
       @Override
+      boolean isCompatible(Object value) {
+        return true; // Compatible with any type using Object.toString()
+      }
+
+      @Override
       FormattedItemValue format(Object value) {
-        return new FormattedItemValue((String) value);
+        return new FormattedItemValue(value.toString());
       }
     },
     INTEGER {
       @Override
+      boolean isCompatible(Object value) {
+        return value instanceof Integer || value instanceof Long;
+      }
+
+      @Override
       FormattedItemValue format(Object value) {
-        return new FormattedItemValue(Long.toString((long) value));
+        Number number = (Number) value;
+        return new FormattedItemValue(Long.toString(number.longValue()));
       }
     },
     FLOAT {
+      @Override
+      boolean isCompatible(Object value) {
+        return value instanceof Double || value instanceof Float;
+      }
+
       @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue(Double.toString((Double) value));
@@ -440,11 +466,21 @@ public class DisplayData {
     },
     BOOLEAN() {
       @Override
+      boolean isCompatible(Object value) {
+        return value instanceof Boolean;
+      }
+
+      @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue(Boolean.toString((boolean) value));
       }
     },
     TIMESTAMP() {
+      @Override
+      boolean isCompatible(Object value) {
+        return value instanceof Instant;
+      }
+
       @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue((TIMESTAMP_FORMATTER.print((Instant) value)));
@@ -452,11 +488,21 @@ public class DisplayData {
     },
     DURATION {
       @Override
+      boolean isCompatible(Object value) {
+        return value instanceof Duration;
+      }
+
+      @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue(Long.toString(((Duration) value).getMillis()));
       }
     },
     JAVA_CLASS {
+      @Override
+      boolean isCompatible(Object value) {
+        return value instanceof Class<?>;
+      }
+
       @Override
       FormattedItemValue format(Object value) {
         Class<?> clazz = (Class<?>) value;
@@ -471,6 +517,27 @@ public class DisplayData {
      * <p>Internal-only. Value objects can be safely cast to the expected Java type.
      */
     abstract FormattedItemValue format(Object value);
+
+    /**
+     * Determine whether the given value is compatible for the DisplayData type.
+     */
+    abstract boolean isCompatible(Object value);
+
+    /**
+     * Infer the {@link Type} for the given object.
+     */
+    static Type inferFrom(Object value) {
+      Set<Type> types = Sets.newHashSet(Type.values());
+      types.remove(STRING); // String is default
+
+      for (Type type : types) {
+        if (type.isCompatible(value)) {
+          return type;
+        }
+      }
+
+      return STRING;
+    }
   }
 
   static class FormattedItemValue {
@@ -574,7 +641,14 @@ public class DisplayData {
       return addItem(key, Type.JAVA_CLASS, value);
     }
 
-    private <T> ItemBuilder addItem(String key, Type type, T value) {
+    @Override
+    public ItemBuilder add(String key, Object value) {
+      checkNotNull(value);
+      Type type = Type.inferFrom(value);
+      return addItem(key, type, value);
+    }
+
+    private ItemBuilder addItem(String key, Type type, Object value) {
       checkNotNull(key);
       checkArgument(!key.isEmpty());
 
@@ -600,19 +674,20 @@ public class DisplayData {
     }
 
     @Override
-    public ItemBuilder withLabel(String label) {
+    public ItemBuilder withLabel(@Nullable String label) {
       latestItem = latestItem.withLabel(label);
       return this;
     }
 
     @Override
-    public ItemBuilder withLinkUrl(String url) {
+    public ItemBuilder withLinkUrl(@Nullable String url) {
       latestItem = latestItem.withUrl(url);
       return this;
     }
 
     @Override
-    public ItemBuilder withNamespace(@Nullable Class<?> namespace) {
+    public ItemBuilder withNamespace(Class<?> namespace) {
+      checkNotNull(namespace);
       latestItem = latestItem.withNamespace(namespace);
       return this;
     }
