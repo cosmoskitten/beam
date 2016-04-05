@@ -433,7 +433,7 @@ public class DisplayData {
   public enum Type {
     STRING {
       @Override
-      boolean isCompatible(Object value) {
+      boolean isCompatible(@Nullable Object value) {
         return true; // Compatible with any type using Object.toString()
       }
 
@@ -444,7 +444,7 @@ public class DisplayData {
     },
     INTEGER {
       @Override
-      boolean isCompatible(Object value) {
+      boolean isCompatible(@Nullable Object value) {
         return value instanceof Integer || value instanceof Long;
       }
 
@@ -456,7 +456,7 @@ public class DisplayData {
     },
     FLOAT {
       @Override
-      boolean isCompatible(Object value) {
+      boolean isCompatible(@Nullable Object value) {
         return value instanceof Double || value instanceof Float;
       }
 
@@ -467,7 +467,7 @@ public class DisplayData {
     },
     BOOLEAN() {
       @Override
-      boolean isCompatible(Object value) {
+      boolean isCompatible(@Nullable Object value) {
         return value instanceof Boolean;
       }
 
@@ -478,7 +478,7 @@ public class DisplayData {
     },
     TIMESTAMP() {
       @Override
-      boolean isCompatible(Object value) {
+      boolean isCompatible(@Nullable Object value) {
         return value instanceof Instant;
       }
 
@@ -489,7 +489,7 @@ public class DisplayData {
     },
     DURATION {
       @Override
-      boolean isCompatible(Object value) {
+      boolean isCompatible(@Nullable Object value) {
         return value instanceof Duration;
       }
 
@@ -500,7 +500,7 @@ public class DisplayData {
     },
     JAVA_CLASS {
       @Override
-      boolean isCompatible(Object value) {
+      boolean isCompatible(@Nullable Object value) {
         return value instanceof Class<?>;
       }
 
@@ -522,12 +522,12 @@ public class DisplayData {
     /**
      * Determine whether the given value is compatible for the DisplayData type.
      */
-    abstract boolean isCompatible(Object value);
+    abstract boolean isCompatible(@Nullable Object value);
 
     /**
      * Infer the {@link Type} for the given object.
      */
-    static Type inferFrom(Object value) {
+    static Type inferFrom(@Nullable Object value) {
       Set<Type> types = Sets.newHashSet(Type.values());
       types.remove(STRING); // String is default
 
@@ -626,32 +626,29 @@ public class DisplayData {
 
     @Override
     public ItemBuilder add(String key, Instant value) {
-      checkNotNull(value);
       return addItem(key, Type.TIMESTAMP, value);
     }
 
     @Override
     public ItemBuilder add(String key, Duration value) {
-      checkNotNull(value);
       return addItem(key, Type.DURATION, value);
     }
 
     @Override
     public ItemBuilder add(String key, Class<?> value) {
-      checkNotNull(value);
       return addItem(key, Type.JAVA_CLASS, value);
     }
 
     @Override
     public ItemBuilder add(String key, Object value) {
-      checkNotNull(value);
       Type type = Type.inferFrom(value);
       return addItem(key, type, value);
     }
 
-    private ItemBuilder addItem(String key, Type type, Object value) {
-      checkNotNull(key);
-      checkArgument(!key.isEmpty());
+    private ItemBuilder addItem(String key, Type type, @Nullable Object value) {
+      checkNotNull(key, "Display data keys cannot be null or empty.");
+      checkArgument(!key.isEmpty(), "Display data keys cannot be null or empty.");
+      checkNotNull(value, "Display data values cannot be null. Key: [%s]", key);
 
       commitLatest();
       latestItem = Item.create(latestNs, key, type, value);

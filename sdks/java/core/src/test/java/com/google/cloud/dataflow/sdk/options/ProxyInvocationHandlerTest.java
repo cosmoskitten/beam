@@ -826,6 +826,15 @@ public class ProxyInvocationHandlerTest {
   }
 
   @Test
+  public void testDisplayDataNullValuesConvertedToEmptyString() {
+    FooOptions options = PipelineOptionsFactory.as(FooOptions.class);
+    options.setFoo(null);
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, hasDisplayItem("foo", ""));
+  }
+
+  @Test
   public void testDisplayDataThrowsWhenDeserializedSourceNotKnown() throws Exception {
     FooOptions options = PipelineOptionsFactory.as(FooOptions.class);
     options.setFoo("bar");

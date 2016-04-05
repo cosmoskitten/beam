@@ -278,7 +278,8 @@ class ProxyInvocationHandler implements InvocationHandler {
       }
 
       for (Class<?> definingClass : keyToInterfaceMap.get(option.getKey())) {
-       builder.add(option.getKey(), boundValue.getValue())
+        Object value = boundValue.getValue() == null ? "" : boundValue.getValue();
+        builder.add(option.getKey(), value)
            .withNamespace(definingClass);
       }
     }
