@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Function;
@@ -31,7 +32,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
@@ -42,8 +42,11 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
+import com.google.common.collect.RowSortedTable;
 import com.google.common.collect.Sets;
 import com.google.common.collect.SortedSetMultimap;
+import com.google.common.collect.TreeBasedTable;
 import com.google.common.collect.TreeMultimap;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -76,6 +79,7 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import javax.annotation.Nullable;
@@ -673,32 +677,18 @@ public class PipelineOptionsFactory {
     Preconditions.checkNotNull(iface);
     validateWellFormed(iface, REGISTERED_OPTIONS);
 
-    Iterable<Method> methods =
-        Iterables.filter(
-            ReflectHelpers.getClosureOfMethodsOnInterface(iface), NOT_SYNTHETIC_PREDICATE);
-    ListMultimap<Class<?>, Method> ifaceToMethods = ArrayListMultimap.create();
-    for (Method method : methods) {
-      // Process only methods that are not marked as hidden.
-      if (method.getAnnotation(Hidden.class) == null) {
-        ifaceToMethods.put(method.getDeclaringClass(), method);
-      }
-    }
-    SortedSet<Class<?>> ifaces = new TreeSet<>(ClassNameComparator.INSTANCE);
-    // Keep interfaces that are not marked as hidden.
-    ifaces.addAll(Collections2.filter(ifaceToMethods.keySet(), new Predicate<Class<?>>() {
-      @Override
-      public boolean apply(Class<?> input) {
-        return input.getAnnotation(Hidden.class) == null;
-      }
-    }));
-    for (Class<?> currentIface : ifaces) {
-      Map<String, Method> propertyNamesToGetters =
-          getPropertyNamesToGetters(ifaceToMethods.get(currentIface));
+    Set<PipelineOptionsReflector.Property> properties =
+        PipelineOptionsReflector.collectVisibleProperties(iface);
 
-      // Don't output anything if there are no defined options
-      if (propertyNamesToGetters.isEmpty()) {
-        continue;
-      }
+    RowSortedTable<Class<?>, String, Method> ifacePropGetterTable = TreeBasedTable.create(
+        ClassNameComparator.INSTANCE, Ordering.natural());
+    for (PipelineOptionsReflector.Property prop : properties) {
+      ifacePropGetterTable.put(prop.definingInterface(), prop.name(), prop.getterMethod());
+    }
+
+    for (Class<?> currentIface : ifacePropGetterTable.rowKeySet()) {
+      Map<String, Method> propertyNamesToGetters = ifacePropGetterTable.row(currentIface);
+
       SortedSetMultimap<String, String> requiredGroupNameToProperties =
           getRequiredGroupNamesToProperties(propertyNamesToGetters);
 
@@ -885,15 +875,21 @@ public class PipelineOptionsFactory {
    * <p>TODO: Swap back to using Introspector once the proxy class issue with AppEngine is
    * resolved.
    */
-  private static List<PropertyDescriptor> getPropertyDescriptors(Class<?> beanClass)
+  private static List<PropertyDescriptor> getPropertyDescriptors(
+      Class<? extends PipelineOptions> beanClass)
       throws IntrospectionException {
     // The sorting is important to make this method stable.
     SortedSet<Method> methods = Sets.newTreeSet(MethodComparator.INSTANCE);
     methods.addAll(
         Collections2.filter(Arrays.asList(beanClass.getMethods()), NOT_SYNTHETIC_PREDICATE));
-    SortedMap<String, Method> propertyNamesToGetters = getPropertyNamesToGetters(methods);
-    List<PropertyDescriptor> descriptors = Lists.newArrayList();
 
+    SortedMap<String, Method> propertyNamesToGetters = new TreeMap<>();
+    for (Map.Entry<String, Method> entry :
+        PipelineOptionsReflector.getPropertyNamesToGetters(methods).entries()) {
+      propertyNamesToGetters.put(entry.getKey(), entry.getValue());
+    }
+
+    List<PropertyDescriptor> descriptors = Lists.newArrayList();
     List<TypeMismatch> mismatches = new ArrayList<>();
     /*
      * Add all the getter/setter pairs to the list of descriptors removing the getter once
@@ -966,28 +962,6 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * Returns a map of the property name to the getter method it represents.
-   * If there are duplicate methods with the same bean name, then it is indeterminate
-   * as to which method will be returned.
-   */
-  private static SortedMap<String, Method> getPropertyNamesToGetters(Iterable<Method> methods) {
-    SortedMap<String, Method> propertyNamesToGetters = Maps.newTreeMap();
-    for (Method method : methods) {
-      String methodName = method.getName();
-      if ((!methodName.startsWith("get")
-          && !methodName.startsWith("is"))
-          || method.getParameterTypes().length != 0
-          || method.getReturnType() == void.class) {
-        continue;
-      }
-      String propertyName = Introspector.decapitalize(
-          methodName.startsWith("is") ? methodName.substring(2) : methodName.substring(3));
-      propertyNamesToGetters.put(propertyName, method);
-    }
-    return propertyNamesToGetters;
-  }
-
-  /**
    * Returns a map of required groups of arguments to the properties that satisfy the requirement.
    */
   private static SortedSetMultimap<String, String> getRequiredGroupNamesToProperties(
@@ -1028,21 +1002,22 @@ public class PipelineOptionsFactory {
    */
   private static List<PropertyDescriptor> validateClass(Class<? extends PipelineOptions> iface,
       Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces,
-      Class<?> klass) throws IntrospectionException {
+      Class<? extends PipelineOptions> klass) throws IntrospectionException {
     Set<Method> methods = Sets.newHashSet(IGNORED_METHODS);
-    // Ignore static methods, "equals", "hashCode", "toString" and "as" on the generated class.
     // Ignore synthetic methods
     for (Method method : klass.getMethods()) {
       if (Modifier.isStatic(method.getModifiers()) || method.isSynthetic()) {
         methods.add(method);
       }
     }
+    // Ignore standard infrastructure methods on the generated class.
     try {
       methods.add(klass.getMethod("equals", Object.class));
       methods.add(klass.getMethod("hashCode"));
       methods.add(klass.getMethod("toString"));
       methods.add(klass.getMethod("as", Class.class));
       methods.add(klass.getMethod("cloneAs", Class.class));
+      methods.add(klass.getMethod("populateDisplayData", DisplayData.Builder.class));
     } catch (NoSuchMethodException | SecurityException e) {
       throw Throwables.propagate(e);
     }
