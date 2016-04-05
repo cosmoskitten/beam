@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.*;
@@ -490,6 +491,10 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
           @Override
           public void setTempLocation(String tempLocation) {
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
           }
         };
       }
