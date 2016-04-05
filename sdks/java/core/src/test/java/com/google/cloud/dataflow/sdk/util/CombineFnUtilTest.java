@@ -15,10 +15,13 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.withSettings;
 
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.util.state.StateContexts;
 
 import org.junit.Before;
@@ -58,5 +61,16 @@ public class CombineFnUtilTest {
     ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     ObjectOutputStream oos = new ObjectOutputStream(buffer);
     oos.writeObject(CombineFnUtil.bindContext(mockCombineFn, StateContexts.nullContext()));
+  }
+
+  @Test
+  public void testToFnWithContext() throws Exception {
+    CombineFnWithContext<Integer, int[], Integer> fnWithContext =
+        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn());
+    assertTrue(fnWithContext == CombineFnUtil.toFnWithContext(fnWithContext));
+
+    KeyedCombineFnWithContext<Object, Integer, int[], Integer> keyedFnWithContext =
+        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn().asKeyedFn());
+    assertTrue(keyedFnWithContext == CombineFnUtil.toFnWithContext(keyedFnWithContext));
   }
 }
