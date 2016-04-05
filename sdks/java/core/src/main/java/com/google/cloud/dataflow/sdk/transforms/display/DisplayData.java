@@ -591,32 +591,29 @@ public class DisplayData {
 
     @Override
     public ItemBuilder add(String key, Instant value) {
-      checkNotNull(value);
       return addItem(key, Type.TIMESTAMP, value);
     }
 
     @Override
     public ItemBuilder add(String key, Duration value) {
-      checkNotNull(value);
       return addItem(key, Type.DURATION, value);
     }
 
     @Override
     public ItemBuilder add(String key, Class<?> value) {
-      checkNotNull(value);
       return addItem(key, Type.JAVA_CLASS, value);
     }
 
     @Override
     public ItemBuilder add(String key, Object value) {
-      checkNotNull(value);
       Type type = Type.inferFrom(value);
       return addItem(key, type, value);
     }
 
-    private ItemBuilder addItem(String key, Type type, Object value) {
-      checkNotNull(key);
-      checkArgument(!key.isEmpty());
+    private ItemBuilder addItem(String key, Type type, @Nullable Object value) {
+      checkNotNull(key, "Display data keys cannot be null or empty.");
+      checkArgument(!key.isEmpty(), "Display data keys cannot be null or empty.");
+      checkNotNull(value, "Display data values cannot be null. Key: [%s]", key);
 
       commitLatest();
       latestItem = Item.create(latestNs, key, type, value);
