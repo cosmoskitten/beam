@@ -21,7 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Strings;
 
-import javax.annotation.Nullable;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A structured counter name.
@@ -103,42 +103,38 @@ public class CounterName {
    *
    * <p>It is null before {@link #getFlatName()} is called.
    */
-  @Nullable
-  private String flatName;
+  private AtomicReference<String> flatName;
 
   private CounterName(String name, String origin, String stepName, String prefix) {
     this.name = checkNotNull(name, "name");
     this.origin = checkNotNull(origin, "origin");
     this.stepName = checkNotNull(stepName, "stepName");
     this.prefix = checkNotNull(prefix, "prefix");
-    this.flatName = null;
+    this.flatName = new AtomicReference<String>();
   }
 
   /**
    * Returns the flat name of a structured counter.
    */
-  public synchronized String getFlatName() {
-    if (flatName == null) {
-      synchronized (this) {
-        if (flatName != null) {
-          return flatName;
-        }
-        StringBuilder sb = new StringBuilder();
-        if (!Strings.isNullOrEmpty(prefix)) {
-          // Flume doesn't explicitly use "-" to concatenate prefix, it may already have it in it.
-          sb.append(prefix);
-        }
-        if (!Strings.isNullOrEmpty(origin)) {
-          sb.append(origin + "-");
-        }
-        if (!Strings.isNullOrEmpty(stepName)) {
-          sb.append(stepName + "-");
-        }
-        sb.append(name);
-        flatName = sb.toString();
+  public String getFlatName() {
+    String ret = flatName.get();
+    if (ret == null) {
+      StringBuilder sb = new StringBuilder();
+      if (!Strings.isNullOrEmpty(prefix)) {
+        // Flume doesn't explicitly use "-" to concatenate prefix, it may already have it in it.
+        sb.append(prefix);
       }
+      if (!Strings.isNullOrEmpty(origin)) {
+        sb.append(origin + "-");
+      }
+      if (!Strings.isNullOrEmpty(stepName)) {
+        sb.append(stepName + "-");
+      }
+      sb.append(name);
+      flatName.compareAndSet(null, sb.toString());
+      ret = flatName.get();
     }
-    return flatName;
+    return ret;
   }
 
   @Override
