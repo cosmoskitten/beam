@@ -18,9 +18,7 @@
 
 package com.google.cloud.dataflow.examples;
 
-import com.google.cloud.dataflow.examples.WordCount.WordCountOptions;
 import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner;
 
@@ -44,7 +42,6 @@ public class WordCountIT extends BatchE2ETest {
     String jobName = "wordcount-" + generateTestIdentifier() + "-prod";
     String[] args = {
         "--jobName=" + jobName,
-        "--project=apache-beam-testing",
         "--runner=com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner",
         "--stagingLocation=gs://apache-beam-testing-temp-storage/staging/" + jobName,
         "--output=gs://apache-beam-testing-temp-storage/output/" + jobName + "/results",
@@ -53,7 +50,7 @@ public class WordCountIT extends BatchE2ETest {
 
     WordCount.main(args);
     PipelineResult result = TestDataflowPipelineRunner.getPipelineResultByJobName(jobName);
-    
+
     assertNotNull(result);
     assertEquals(PipelineResult.State.DONE, result.getState());
   }

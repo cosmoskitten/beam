@@ -57,7 +57,7 @@ import java.util.concurrent.TimeUnit;
 public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowPipelineRunner.class);
-  private static final Map<String, PipelineResult> RESULT_MAP = 
+  private static final Map<String, PipelineResult> RESULT_MAP =
       new ConcurrentHashMap<String, PipelineResult>();
 
   private final TestDataflowPipelineOptions options;
