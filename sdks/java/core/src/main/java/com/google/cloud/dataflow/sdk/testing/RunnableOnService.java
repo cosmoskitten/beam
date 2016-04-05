@@ -17,6 +17,8 @@
  */
 package com.google.cloud.dataflow.sdk.testing;
 
+import com.google.cloud.dataflow.sdk.values.PCollection;
+
 /**
  * Category tag for tests that can be run on the
  * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner} if the
@@ -27,5 +29,8 @@ package com.google.cloud.dataflow.sdk.testing;
  *     {@literal @}Category(RunnableOnService.class)
  *     public void testParDo() {...
  * </code></pre>
+ *
+ * <p>A test should only be marked {@link RunnableOnService} if it makes only assertions on the
+ * contents of {@link PCollection PCollections}, i.e. with {@link DataflowAssert}.
  */
 public interface RunnableOnService {}
