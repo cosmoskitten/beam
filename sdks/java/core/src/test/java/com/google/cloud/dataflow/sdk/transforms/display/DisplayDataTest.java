@@ -492,6 +492,40 @@ public class DisplayDataTest {
   }
 
   @Test
+  public void testObjectInputType() {
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add("castInteger", (Object) 1234)
+            .add("anonymousType", new Object() {
+              @Override
+              public String toString() {
+                return "foobar";
+              }
+            });
+      }
+    });
+
+    assertThat(data, hasDisplayItem("castInteger", 1234));
+    assertThat(data, hasDisplayItem("anonymousType", "foobar"));
+  }
+
+  @Test
+  public void testKnownTypeInferrence() {
+    assertEquals(DisplayData.Type.INTEGER, DisplayData.Type.inferFrom(1234));
+    assertEquals(DisplayData.Type.INTEGER, DisplayData.Type.inferFrom(1234L));
+    assertEquals(DisplayData.Type.FLOAT, DisplayData.Type.inferFrom(12.3));
+    assertEquals(DisplayData.Type.FLOAT, DisplayData.Type.inferFrom(12.3f));
+    assertEquals(DisplayData.Type.BOOLEAN, DisplayData.Type.inferFrom(true));
+    assertEquals(DisplayData.Type.TIMESTAMP, DisplayData.Type.inferFrom(Instant.now()));
+    assertEquals(DisplayData.Type.DURATION, DisplayData.Type.inferFrom(Duration.millis(1234)));
+    assertEquals(DisplayData.Type.JAVA_CLASS, DisplayData.Type.inferFrom(DisplayDataTest.class));
+    assertEquals(DisplayData.Type.STRING, DisplayData.Type.inferFrom("hello world"));
+    assertEquals(DisplayData.Type.STRING, DisplayData.Type.inferFrom(new Object() {}));
+  }
+
+  @Test
   public void testStringFormatting() throws IOException {
     final Instant now = Instant.now();
     final Duration oneHour = Duration.standardHours(1);
