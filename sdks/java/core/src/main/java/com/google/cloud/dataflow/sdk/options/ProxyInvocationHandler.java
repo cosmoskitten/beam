@@ -304,8 +304,14 @@ class ProxyInvocationHandler implements InvocationHandler {
     return jsonOptions.isEmpty();
   }
 
+  /**
+   * Construct a mapping from an option name to the {@link PipelineOptions} interface(s) which
+   * declare it. An option may be declared in multiple interfaces. If it is overridden in an
+   * type hierarchy, only the overriding interface will be included.
+   */
   private Multimap<String, Class<?>> buildOptionToInterfaceMap(
       Set<PipelineOptionsReflector.Property> props) {
+
     Multimap<String, Class<?>> keyToInterfaceMap = HashMultimap.create();
     for (PipelineOptionsReflector.Property prop : props) {
       keyToInterfaceMap.put(prop.name(), prop.definingInterface());
@@ -313,6 +319,13 @@ class ProxyInvocationHandler implements InvocationHandler {
 
     // Filter out overridden options
     for (Map.Entry<String, Collection<Class<?>>>entry : keyToInterfaceMap.asMap().entrySet()) {
+
+      /* Compare all interfaces for an option pairwise (iface1, iface2) to look for type
+       hierarchies. If one is the base-class of the other, remove it from the output and continue
+       iterating.
+
+       This is an N^2 operation per-option, but the number of interfaces defining an option
+       should always be small (usually 1). */
       List<Class<?>> ifaces = Lists.newArrayList(entry.getValue());
       for (int i = 0; i < ifaces.size(); i++) {
         Class<?> iface1 = ifaces.get(i);
@@ -323,13 +336,14 @@ class ProxyInvocationHandler implements InvocationHandler {
             keyToInterfaceMap.remove(entry.getKey(), iface1);
             ifaces.remove(i);
 
-            iface1 = ifaces.get(i);
-            j = i;
+            // reset iterator indices to increment outer loop.
+            i--;
+            j = ifaces.size();
           } else  if (iface2.isAssignableFrom(iface1)) {
             keyToInterfaceMap.remove(entry.getKey(), iface2);
             ifaces.remove(j);
 
-            j = j - 1;
+            j--;
           }
         }
       }
