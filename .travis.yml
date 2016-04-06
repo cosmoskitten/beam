@@ -31,6 +31,9 @@ before_install:
 install:
   - travis_retry mvn -B install clean -U -DskipTests=true
 
+after_success:
+  - mvn jacoco:report coveralls:report
+
 script:
   - travis_retry mvn -B $MAVEN_OVERRIDE install -U
   - travis_retry travis/test_wordcount.sh
