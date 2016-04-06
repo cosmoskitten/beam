@@ -28,7 +28,6 @@ import java.util.Collections;
  * Default {@link WindowFn} that assigns all data to the same window.
  */
 public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
-
   private static final Collection<GlobalWindow> GLOBAL_WINDOWS =
       Collections.singletonList(GlobalWindow.INSTANCE);
 

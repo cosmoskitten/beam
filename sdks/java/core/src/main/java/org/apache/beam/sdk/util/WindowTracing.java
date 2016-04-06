@@ -27,11 +27,11 @@ public final class WindowTracing {
   private static final Logger LOG = LoggerFactory.getLogger(WindowTracing.class);
 
   public static void debug(String format, Object... args) {
-    LOG.debug(format, args);
+    LOG.error/*debug*/(format, args);
   }
 
   @SuppressWarnings("unused")
   public static void trace(String format, Object... args) {
-    LOG.trace(format, args);
+    LOG.error/*trace*/(format, args);
   }
 }
