@@ -31,6 +31,9 @@ import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
 
+import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
+
 /**
  * Determine the timing and other properties of a new pane for a given computation, key and window.
  * Incorporates any previous pane, whether the pane has been produced because an
@@ -38,116 +41,196 @@ import org.joda.time.Instant;
  * and the current output watermark.
  */
 public class PaneInfoTracker {
-  private TimerInternals timerInternals;
 
-  public PaneInfoTracker(TimerInternals timerInternals) {
-    this.timerInternals = timerInternals;
+  /**
+   * Interface for calculating and tracking pane info state.
+   */
+  public interface PaneInfoTrackerIface {
+    void clear(StateAccessor<?> state);
+
+    ReadableState<PaneInfo> getNextPaneInfo(
+        ReduceFn<?, ?, ?, ?>.Context context, final boolean isFinal);
+
+    void storeCurrentPaneInfo(ReduceFn<?, ?, ?, ?>.Context context, PaneInfo currentPane);
+
+    boolean hasState();
   }
 
   @VisibleForTesting
   static final StateTag<Object, ValueState<PaneInfo>> PANE_INFO_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("pane", PaneInfoCoder.INSTANCE));
 
-  public void clear(StateAccessor<?> state) {
-    state.access(PANE_INFO_TAG).clear();
+
+  public static PaneInfoTrackerIface globalPaneInfoTracker() {
+    return new GlobalPaneInfoTracker();
+  }
+
+  public static PaneInfoTrackerIface localPaneInfoTracker(TimerInternals timerInternals) {
+    return new LocalPaneInfoTracker(timerInternals);
   }
 
   /**
-   * Return a ({@link ReadableState} for) the pane info appropriate for {@code context}. The pane
-   * info includes the timing for the pane, who's calculation is quite subtle.
-   *
-   * @param isFinal should be {@code true} only if the triggering machinery can guarantee
-   * no further firings for the
+   * Track pane info for Global window.
    */
-  public ReadableState<PaneInfo> getNextPaneInfo(
-      ReduceFn<?, ?, ?, ?>.Context context, final boolean isFinal) {
-    final Object key = context.key();
-    final ReadableState<PaneInfo> previousPaneFuture =
-        context.state().access(PaneInfoTracker.PANE_INFO_TAG);
-    final Instant windowMaxTimestamp = context.window().maxTimestamp();
-
-    return new ReadableState<PaneInfo>() {
-      @Override
-      public ReadableState<PaneInfo> readLater() {
-        previousPaneFuture.readLater();
-        return this;
-      }
-
-      @Override
-      public PaneInfo read() {
-        PaneInfo previousPane = previousPaneFuture.read();
-        return describePane(key, windowMaxTimestamp, previousPane, isFinal);
-      }
-    };
-  }
-
-  public void storeCurrentPaneInfo(ReduceFn<?, ?, ?, ?>.Context context, PaneInfo currentPane) {
-    context.state().access(PANE_INFO_TAG).write(currentPane);
-  }
-
-  private <W> PaneInfo describePane(
-      Object key, Instant windowMaxTimestamp, PaneInfo previousPane, boolean isFinal) {
-    boolean isFirst = previousPane == null;
-    Timing previousTiming = isFirst ? null : previousPane.getTiming();
-    long index = isFirst ? 0 : previousPane.getIndex() + 1;
-    long nonSpeculativeIndex = isFirst ? 0 : previousPane.getNonSpeculativeIndex() + 1;
-    Instant outputWM = timerInternals.currentOutputWatermarkTime();
-    Instant inputWM = timerInternals.currentInputWatermarkTime();
-
-    // True if it is not possible to assign the element representing this pane a timestamp
-    // which will make an ON_TIME pane for any following computation.
-    // Ie true if the element's latest possible timestamp is before the current output watermark.
-    boolean isLateForOutput = outputWM != null && windowMaxTimestamp.isBefore(outputWM);
-
-    // True if all emitted panes (if any) were EARLY panes.
-    // Once the ON_TIME pane has fired, all following panes must be considered LATE even
-    // if the output watermark is behind the end of the window.
-    boolean onlyEarlyPanesSoFar = previousTiming == null || previousTiming == Timing.EARLY;
-
-    // True is the input watermark hasn't passed the window's max timestamp.
-    boolean isEarlyForInput = !inputWM.isAfter(windowMaxTimestamp);
-
-    Timing timing;
-    if (isLateForOutput || !onlyEarlyPanesSoFar) {
-      // The output watermark has already passed the end of this window, or we have already
-      // emitted a non-EARLY pane. Irrespective of how this pane was triggered we must
-      // consider this pane LATE.
-      timing = Timing.LATE;
-    } else if (isEarlyForInput) {
-      // This is an EARLY firing.
-      timing = Timing.EARLY;
-      nonSpeculativeIndex = -1;
-    } else {
-      // This is the unique ON_TIME firing for the window.
-      timing = Timing.ON_TIME;
+  private static class GlobalPaneInfoTracker implements PaneInfoTrackerIface {
+    @Override
+    public void clear(StateAccessor<?> state) {
+      // Nothing to clear.
     }
 
-    WindowTracing.debug(
-        "describePane: {} pane (prev was {}) for key:{}; windowMaxTimestamp:{}; "
-        + "inputWatermark:{}; outputWatermark:{}; isLateForOutput:{}",
-        timing, previousTiming, key, windowMaxTimestamp, inputWM, outputWM, isLateForOutput);
+    @Override
+    public ReadableState<PaneInfo> getNextPaneInfo(
+        ReduceFn<?, ?, ?, ?>.Context context, final boolean isFinal) {
+      return new ReadableState<PaneInfo>() {
+        @Override
+        public ReadableState<PaneInfo> readLater() {
+          // Nothing to read.
+          return this;
+        }
 
-    if (previousPane != null) {
-      // Timing transitions should follow EARLY* ON_TIME? LATE*
-      switch (previousTiming) {
-        case EARLY:
-          Preconditions.checkState(
-              timing == Timing.EARLY || timing == Timing.ON_TIME || timing == Timing.LATE,
-              "EARLY cannot transition to %s", timing);
-          break;
-        case ON_TIME:
-          Preconditions.checkState(
-              timing == Timing.LATE, "ON_TIME cannot transition to %s", timing);
-          break;
-        case LATE:
-          Preconditions.checkState(timing == Timing.LATE, "LATE cannot transtion to %s", timing);
-          break;
-        case UNKNOWN:
-          break;
-      }
-      Preconditions.checkState(!previousPane.isLast(), "Last pane was not last after all.");
+        @Override
+        public PaneInfo read() {
+          // Since this is for the Global window:
+          //  - never first.
+          //  - always early.
+          //  - random nonce for speculative index.
+          //  - always zero for non-speculative index.
+          return PaneInfo.createPane(false, isFinal, isFinal  ? Timing.ON_TIME : Timing.EARLY,
+              ThreadLocalRandom.current().nextLong(), 0L);
+        }
+      };
     }
 
-    return PaneInfo.createPane(isFirst, isFinal, timing, index, nonSpeculativeIndex);
+    @Override
+    public void storeCurrentPaneInfo(ReduceFn<?, ?, ?, ?>.Context context, PaneInfo currentPane) {
+      // Nothing to store.
+    }
+
+    @Override
+    public boolean hasState() {
+      return false;
+    }
+  }
+
+  /**
+   * Track pane info for non-Global window.
+   */
+  private static class LocalPaneInfoTracker implements PaneInfoTrackerIface {
+
+    private TimerInternals timerInternals;
+
+    public LocalPaneInfoTracker(TimerInternals timerInternals) {
+      this.timerInternals = timerInternals;
+    }
+
+    @Override
+    public void clear(StateAccessor<?> state) {
+      state.access(PANE_INFO_TAG).clear();
+    }
+
+    /**
+     * Return a ({@link ReadableState} for) the pane info appropriate for {@code context}. The pane
+     * info includes the timing for the pane, who's calculation is quite subtle.
+     *
+     * @param isFinal should be {@code true} only if the triggering machinery can guarantee
+     *                no further firings for the
+     */
+    @Override
+    public ReadableState<PaneInfo> getNextPaneInfo(
+        ReduceFn<?, ?, ?, ?>.Context context, final boolean isFinal) {
+      final Object key = context.key();
+      final ReadableState<PaneInfo> previousPaneFuture =
+          context.state().access(PaneInfoTracker.PANE_INFO_TAG);
+      final Instant windowMaxTimestamp = context.window().maxTimestamp();
+
+      return new ReadableState<PaneInfo>() {
+        @Override
+        public ReadableState<PaneInfo> readLater() {
+          previousPaneFuture.readLater();
+          return this;
+        }
+
+        @Override
+        public PaneInfo read() {
+          return describePane(key, windowMaxTimestamp, previousPaneFuture.read(), isFinal);
+        }
+      };
+    }
+
+    @Override
+    public void storeCurrentPaneInfo(ReduceFn<?, ?, ?, ?>.Context context, PaneInfo currentPane) {
+      context.state().access(PANE_INFO_TAG).write(currentPane);
+    }
+
+    private <W> PaneInfo describePane(
+        Object key, Instant windowMaxTimestamp, @Nullable PaneInfo previousPane, boolean isFinal) {
+      boolean isFirst = previousPane == null;
+      Timing previousTiming = isFirst ? null : previousPane.getTiming();
+      long index = isFirst ? 0 : previousPane.getIndex() + 1;
+      long nonSpeculativeIndex = isFirst ? 0 : previousPane.getNonSpeculativeIndex() + 1;
+      Instant outputWM = timerInternals.currentOutputWatermarkTime();
+      Instant inputWM = timerInternals.currentInputWatermarkTime();
+
+      // True if it is not possible to assign the element representing this pane a timestamp
+      // which will make an ON_TIME pane for any following computation.
+      // Ie true if the element's latest possible timestamp is before the current output watermark.
+      boolean isLateForOutput = outputWM != null && windowMaxTimestamp.isBefore(outputWM);
+
+      // True if all emitted panes (if any) were EARLY panes.
+      // Once the ON_TIME pane has fired, all following panes must be considered LATE even
+      // if the output watermark is behind the end of the window.
+      boolean onlyEarlyPanesSoFar = previousTiming == null || previousTiming == Timing.EARLY;
+
+      // True is the input watermark hasn't passed the window's max timestamp.
+      boolean isEarlyForInput = !inputWM.isAfter(windowMaxTimestamp);
+
+      Timing timing;
+      if (isLateForOutput || !onlyEarlyPanesSoFar) {
+        // The output watermark has already passed the end of this window, or we have already
+        // emitted a non-EARLY pane. Irrespective of how this pane was triggered we must
+        // consider this pane LATE.
+        timing = Timing.LATE;
+      } else if (isEarlyForInput) {
+        // This is an EARLY firing.
+        timing = Timing.EARLY;
+        nonSpeculativeIndex = -1;
+      } else {
+        // This is the unique ON_TIME firing for the window.
+        timing = Timing.ON_TIME;
+      }
+
+      WindowTracing.debug(
+          "describePane: {} pane (prev was {}) for key:{}; windowMaxTimestamp:{}; "
+          + "inputWatermark:{}; outputWatermark:{}; isLateForOutput:{}",
+          timing, previousTiming, key, windowMaxTimestamp, inputWM, outputWM, isLateForOutput);
+
+      if (previousPane != null) {
+        // Timing transitions should follow EARLY* ON_TIME? LATE*
+        switch (previousTiming) {
+          case EARLY:
+            Preconditions.checkState(
+                timing == Timing.EARLY || timing == Timing.ON_TIME || timing == Timing.LATE,
+                "EARLY cannot transition to %s", timing);
+            break;
+          case ON_TIME:
+            Preconditions.checkState(
+                timing == Timing.LATE, "ON_TIME cannot transition to %s", timing);
+            break;
+          case LATE:
+            Preconditions.checkState(timing == Timing.LATE, "LATE cannot transtion to %s", timing);
+            break;
+          case UNKNOWN:
+            break;
+        }
+        Preconditions.checkState(!previousPane.isLast(), "Last pane was not last after all.");
+      }
+
+      return PaneInfo.createPane(isFirst, isFinal, timing, index, nonSpeculativeIndex);
+    }
+
+    @Override
+    public boolean hasState() {
+      return true;
+    }
   }
 }

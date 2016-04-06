@@ -240,6 +240,25 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     return createRunner().hasNoActiveWindows();
   }
 
+  public final void assertEmptyState() {
+    for (StateNamespace namespace : stateInternals.getNamespacesInUse()) {
+      if (namespace instanceof StateNamespaces.GlobalNamespace) {
+        continue;
+      } else if (namespace instanceof StateNamespaces.WindowNamespace) {
+        Set<StateTag<? super String, ?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        assertTrue(namespace + " contains " + tagsInUse, tagsInUse.isEmpty());
+      } else if (namespace instanceof StateNamespaces.WindowAndTriggerNamespace) {
+        Set<StateTag<? super String, ?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        assertTrue(namespace + " contains " + tagsInUse, tagsInUse.isEmpty());
+      } else {
+        fail("Unrecognized namespace " + namespace);
+      }
+    }
+  }
+
+  public final void assertNoTimers() {
+    timerInternals.assertNoTimers();
+  }
   @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
@@ -616,6 +635,12 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     /** Current synchronized processing time. */
     @Nullable
     private Instant synchronizedProcessingTime = null;
+    public void assertNoTimers() {
+      assertTrue("Still have " + watermarkTimers.size() + " event timers",
+          watermarkTimers.isEmpty         ());
+      assertTrue("Still have " + processingTimers.size() + " processing timers",
+          processingTimers.isEmpty());
+    }
 
     @Nullable
     public Instant getNextTimer(TimeDomain domain) {

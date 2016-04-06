@@ -18,6 +18,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
@@ -291,14 +292,17 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     Instant inputWM = timerInternals.currentInputWatermarkTime();
 
     String which;
-    boolean tooLate;
+    boolean added;
     Instant eowHold = context.window().maxTimestamp();
     if (eowHold.isBefore(inputWM)) {
       which = "too late for end-of-window timer";
-      tooLate = true;
+      added = false;
+    } else if (GlobalWindows.INSTANCE.isCompatible(windowingStrategy.getWindowFn())) {
+      which = "unnecessary (global window)";
+      added = false;
     } else {
       which = "on time";
-      tooLate = false;
+      added = true;
       Preconditions.checkState(outputWM == null || !eowHold.isBefore(outputWM),
           "End-of-window hold %s cannot be before output watermark %s", eowHold, outputWM);
       context.state().access(EXTRA_HOLD_TAG).add(eowHold);
@@ -309,7 +313,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
         eowHold, which, context.key(), context.window(), inputWM,
         outputWM);
 
-    return tooLate ? null : eowHold;
+    return added ? eowHold : null;
   }
 
   /**
@@ -327,23 +331,35 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     // at garbage collection time, and garbage collection time is strictly after the
     // end of window. (All non-empty panes will have holds at their output
     // time derived from their incoming elements and no additional hold is required.)
-    if (context.windowingStrategy().getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS
-        && windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO)) {
-      Instant gcHold = context.window().maxTimestamp().plus(windowingStrategy.getAllowedLateness());
-      Instant outputWM = timerInternals.currentOutputWatermarkTime();
-      Instant inputWM = timerInternals.currentInputWatermarkTime();
+    Instant outputWM = timerInternals.currentOutputWatermarkTime();
+    Instant inputWM = timerInternals.currentInputWatermarkTime();
 
-      WindowTracing.trace(
-          "WatermarkHold.addGarbageCollectionHold: garbage collection at {} hold for "
-          + "key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
-          gcHold, context.key(), context.window(), inputWM, outputWM);
+    String which;
+    boolean added;
+    Instant eow = context.window().maxTimestamp();
+    Instant gcHold = eow.plus(windowingStrategy.getAllowedLateness());
+    if (context.windowingStrategy().getClosingBehavior() != ClosingBehavior.FIRE_ALWAYS) {
+      which = "unnecessary (not FIRE_ALWAYS)";
+      added = false;
+    } else if (!windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO)) {
+      which = "unnecessary (no allowed lateness)";
+      added  = false;
+    } else if (GlobalWindows.INSTANCE.isCompatible(windowingStrategy.getWindowFn())) {
+      gcHold = BoundedWindow.TIMESTAMP_MAX_VALUE; // clip to max timestamp in debug message.
+      which = "unnecessary (global window)";
+      added = false;
+    } else {
+      which = "on time";
+      added = true;
       Preconditions.checkState(!gcHold.isBefore(inputWM),
           "Garbage collection hold %s cannot be before input watermark %s", gcHold, inputWM);
       context.state().access(EXTRA_HOLD_TAG).add(gcHold);
-      return gcHold;
-    } else {
-      return null;
     }
+    WindowTracing.trace(
+        "WatermarkHold.addGarbageCollectionHold: garbage collection hold at {} is {} for "
+        + "key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
+        gcHold, which, context.key(), context.window(), inputWM, outputWM);
+    return added ? gcHold : null;
   }
 
   /**
@@ -464,13 +480,5 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
         timerInternals.currentOutputWatermarkTime());
     context.state().access(elementHoldTag).clear();
     context.state().access(EXTRA_HOLD_TAG).clear();
-  }
-
-  /**
-   * Return the current data hold, or null if none. Does not clear. For debugging only.
-   */
-  @Nullable
-  public Instant getDataCurrent(ReduceFn<?, ?, ?, W>.Context context) {
-    return context.state().access(elementHoldTag).read();
   }
 }

@@ -103,6 +103,11 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   }
 
   @Override
+  public boolean hasState(TriggerContext c) throws Exception {
+    return !c.state().access(ELEMENTS_IN_PANE_TAG).isEmpty().read();
+  }
+
+  @Override
   public boolean isCompatible(Trigger<?> other) {
     return this.equals(other);
   }

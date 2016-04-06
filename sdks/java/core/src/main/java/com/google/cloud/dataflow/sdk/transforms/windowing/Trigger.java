@@ -379,6 +379,21 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     }
   }
 
+  /**
+   * Return {@literal true} if trigger (or one of its children) has any non-empty state.
+   * Does not include finished bits, which are managed by the trigger runner.
+   */
+  public boolean hasState(TriggerContext c) throws Exception {
+    if (subTriggers != null) {
+      for (ExecutableTrigger<W> trigger : c.trigger().subTriggers()) {
+        if (trigger.invokeHasState(c)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   public Iterable<Trigger<W>> subTriggers() {
     return subTriggers;
   }

@@ -218,6 +218,11 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
+  public boolean hasState(TriggerContext c) throws Exception {
+    return !c.state().access(DELAYED_UNTIL_TAG).isEmpty().read();
+  }
+
+  @Override
   public Instant getWatermarkThatGuaranteesFiring(W window) {
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }

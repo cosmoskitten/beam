@@ -18,6 +18,8 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
@@ -1140,6 +1142,38 @@ public class ReduceFnRunnerTest {
     assertThat(
         output.get(3),
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 3, 2)));
+  }
+
+  /**
+   * We should not accumulate state in the Global window if there's no pending data.
+   */
+  @Test
+  public void dontLeakStateInGlobalWindow() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, GlobalWindow> tester =
+        ReduceFnTester.nonCombining(new GlobalWindows(),
+            Repeatedly
+                .<GlobalWindow>forever(
+                    AfterProcessingTime.<GlobalWindow>pastFirstElementInPane().plusDelayOf(
+                        new Duration(5))),
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(100), // ignored since global window
+            ClosingBehavior.FIRE_ALWAYS); // ignored since global window
+
+    tester.advanceInputWatermark(new Instant(0));
+
+    final int n = 20;
+    for (int i = 0; i < n; i++) {
+      tester.advanceProcessingTime(new Instant(i));
+      tester.injectElements(TimestampedValue.of(i, new Instant(i)));
+    }
+
+    tester.advanceProcessingTime(new Instant(n + 6));
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertEquals(n / 5, output.size());
+
+    tester.assertEmptyState();
+    tester.assertNoTimers();
   }
 
   private static class SumAndVerifyContextFn extends CombineFnWithContext<Integer, int[], Integer> {

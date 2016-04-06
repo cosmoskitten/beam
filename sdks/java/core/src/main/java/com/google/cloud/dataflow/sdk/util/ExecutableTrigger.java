@@ -141,10 +141,17 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
   }
 
   /**
-   * Invoke clear for the current this trigger.
+   * Invoke clear for the current trigger.
    */
   public void invokeClear(Trigger<W>.TriggerContext c) throws Exception {
     trigger.clear(c.forTrigger(this));
+  }
+
+  /**
+   * Return result of hasState on the current trigger.
+   */
+  public boolean invokeHasState(Trigger<W>.TriggerContext c) throws Exception {
+    return trigger.hasState(c.forTrigger(this));
   }
 
   /**

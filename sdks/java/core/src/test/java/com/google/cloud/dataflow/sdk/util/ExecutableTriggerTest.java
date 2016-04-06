@@ -105,6 +105,11 @@ public class ExecutableTriggerTest {
     }
 
     @Override
+    public boolean hasState(TriggerContext c) throws Exception {
+      return false;
+    }
+
+    @Override
     public Instant getWatermarkThatGuaranteesFiring(IntervalWindow window) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }

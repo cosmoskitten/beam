@@ -66,6 +66,11 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   public void clear(TriggerContext c) throws Exception { }
 
   @Override
+  public boolean hasState(TriggerContext c) throws Exception {
+    return false;
+  }
+
+  @Override
   public Instant getWatermarkThatGuaranteesFiring(W window) {
     return window.maxTimestamp();
   }
