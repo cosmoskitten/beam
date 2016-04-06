@@ -35,7 +35,7 @@ import java.util.Objects;
 
 /**
  * {@link Trigger}s that fire based on properties of the elements in the current pane.
- */
+ *
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane extends OnceTrigger {
 
@@ -97,6 +97,11 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   @Override
   public void clear(TriggerContext c) throws Exception {
     c.state().access(ELEMENTS_IN_PANE_TAG).clear();
+  }
+
+  @Override
+  public boolean hasState(TriggerContext c) throws Exception {
+    return !c.state().access(ELEMENTS_IN_PANE_TAG).isEmpty().read();
   }
 
   @Override

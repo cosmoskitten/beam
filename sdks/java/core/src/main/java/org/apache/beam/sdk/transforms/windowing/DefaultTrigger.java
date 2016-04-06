@@ -27,7 +27,7 @@ import java.util.List;
 /**
  * A trigger that is equivalent to {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
  * See {@link Repeatedly#forever} and {@link AfterWatermark#pastEndOfWindow} for more details.
- */
+ *
 @Experimental(Experimental.Kind.TRIGGER)
 public class DefaultTrigger extends Trigger{
 
@@ -62,6 +62,11 @@ public class DefaultTrigger extends Trigger{
 
   @Override
   public void clear(TriggerContext c) throws Exception { }
+
+  @Override
+  public boolean hasState(TriggerContext c) throws Exception {
+    return false;
+  }
 
   @Override
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {

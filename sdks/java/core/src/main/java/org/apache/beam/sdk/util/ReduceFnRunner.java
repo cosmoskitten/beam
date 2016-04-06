@@ -186,7 +186,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    * <li>Lifetime: Cleared when trigger is closed or window is garbage collected.
    * </ul>
    */
-  private final PaneInfoTracker paneInfoTracker;
+  private final PaneInfoTracker.PaneInfoTrackerIface paneInfoTracker;
 
   /**
    * Store whether we've seen any elements for a window since the last pane was emitted.
@@ -211,7 +211,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       PipelineOptions options) {
     this.key = key;
     this.timerInternals = timerInternals;
-    this.paneInfoTracker = new PaneInfoTracker(timerInternals);
+    this.paneInfoTracker = GlobalWindows.INSTANCE.isCompatible(windowingStrategy.getWindowFn()) ?
+                           PaneInfoTracker.globalPaneInfoTracker() :
+                           PaneInfoTracker.localPaneInfoTracker(timerInternals);
     this.stateInternals = stateInternals;
     this.outputter = new OutputViaWindowingInternals<>(windowingInternals);
     this.droppedDueToClosedWindow = droppedDueToClosedWindow;
@@ -557,7 +559,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       && timer.getTimestamp().equals(window.maxTimestamp());
 
     // If this is a garbage collection timer then we should trigger and garbage collect the window.
-    Instant cleanupTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+    Instant cleanupTime = windowMaxTimestampPlusAllowedLateness(window);
     boolean isGarbageCollection =
         TimeDomain.EVENT_TIME == timer.getDomain() && timer.getTimestamp().equals(cleanupTime);
 
@@ -572,7 +574,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         // We need to call onTrigger to emit the final pane if required.
         // The final pane *may* be ON_TIME if no prior ON_TIME pane has been emitted,
         // and the watermark has passed the end of the window.
-        onTrigger(directContext, renamedContext, true/* isFinished */, isEndOfWindow);
+        @Nullable Instant newHold =
+            onTrigger(directContext, renamedContext, true/* isFinished */, isEndOfWindow);
+        Preconditions.checkState(newHold == null);
       }
 
       // Cleanup flavor B: Clear all the remaining state for this window since we'll never
@@ -692,7 +696,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // Run onTrigger to produce the actual pane contents.
     // As a side effect it will clear all element holds, but not necessarily any
     // end-of-window or garbage collection holds.
-    onTrigger(directContext, renamedContext, isFinished, false /*isEndOfWindow*/);
+    @Nullable Instant newHold =
+        onTrigger(directContext, renamedContext, isFinished, false /*isEndOfWindow*/);
 
     // Now that we've triggered, the pane is empty.
     nonEmptyPanes.clearPane(renamedContext.state());
@@ -711,6 +716,18 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           directContext.window(), directContext.timers(), directContext.state());
       paneInfoTracker.clear(directContext.state());
       activeWindows.remove(directContext.window());
+    }
+
+    if (shouldDiscard &&
+        !triggerRunner.hasState(directContext.window(), directContext.timers(),
+            directContext.state()) &&
+        !paneInfoTracker.hasState() && // only true if global window
+        !activeWindows.hasState() &&
+        newHold == null) {
+      // No need for an end-of-window timer if there's currently no state to clean up
+      // and we don't care about empty ON_TIME panes (which are useless  in Global window).
+      // (We'll add one again if another element shows up.)
+      cancelEndOfWindowAndGarbageCollectionTimers(directContext);
     }
   }
 
@@ -735,8 +752,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   /**
    * Run the {@link ReduceFn#onTrigger} method and produce any necessary output.
+   * Return output watermark hold added, or {@literal null} if none.
    */
-  private void onTrigger(
+  private Instant onTrigger(
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
       boolean isFinished, boolean isEndOfWindow)
@@ -772,8 +790,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       if (newHold.isAfter(directContext.window().maxTimestamp())) {
         // The hold must be for garbage collection, which can't have happened yet.
         Preconditions.checkState(
-          newHold.isEqual(
-            directContext.window().maxTimestamp().plus(windowingStrategy.getAllowedLateness())),
+          newHold.isEqual(windowMaxTimestampPlusAllowedLateness(directContext.window())),
           "new hold %s should be at garbage collection for window %s plus %s",
           newHold,
           directContext.window(),
@@ -815,6 +832,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       reduceFn.onTrigger(renamedTriggerContext);
     }
+
+    return newHold;
   }
 
   /**
@@ -837,15 +856,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private Instant scheduleEndOfWindowOrGarbageCollectionTimer(
       ReduceFn<?, ?, ?, W>.Context directContext) {
     Instant inputWM = timerInternals.currentInputWatermarkTime();
-    Instant endOfWindow = directContext.window().maxTimestamp();
-    Instant fireTime;
-    String which;
-    if (endOfWindow.isBefore(inputWM)) {
-      fireTime = endOfWindow.plus(windowingStrategy.getAllowedLateness());
+    Instant fireTime = directContext.window().maxTimestamp();
+    String which = "end-of-window";
+    if (fireTime.isBefore(inputWM)) {
+      fireTime = windowMaxTimestampPlusAllowedLateness(directContext.window());
       which = "garbage collection";
-    } else {
-      fireTime = endOfWindow;
-      which = "end-of-window";
     }
     WindowTracing.trace(
         "ReduceFnRunner.scheduleEndOfWindowOrGarbageCollectionTimer: Scheduling {} timer at {} for "
@@ -860,17 +875,26 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     return fireTime;
   }
 
-  private void cancelEndOfWindowAndGarbageCollectionTimers(ReduceFn<?, ?, ?, W>.Context context) {
+  private void cancelEndOfWindowAndGarbageCollectionTimers(
+      ReduceFn<?, ?, ?, W>.Context directContext) {
     WindowTracing.debug(
         "ReduceFnRunner.cancelEndOfWindowAndGarbageCollectionTimers: Deleting timers for "
         + "key:{}; window:{} where inputWatermark:{}; outputWatermark:{}",
-        key, context.window(), timerInternals.currentInputWatermarkTime(),
+        key, directContext.window(), timerInternals.currentInputWatermarkTime(),
         timerInternals.currentOutputWatermarkTime());
-    Instant timer = context.window().maxTimestamp();
-    context.timers().deleteTimer(timer, TimeDomain.EVENT_TIME);
-    if (windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO)) {
-      timer = timer.plus(windowingStrategy.getAllowedLateness());
-      context.timers().deleteTimer(timer, TimeDomain.EVENT_TIME);
+    Instant eow = directContext.window().maxTimestamp();
+    directContext.timers().deleteTimer(eow, TimeDomain.EVENT_TIME);
+    Instant gc = windowMaxTimestampPlusAllowedLateness(directContext.window());
+    if (gc.isAfter(eow)) {
+      directContext.timers().deleteTimer(eow, TimeDomain.EVENT_TIME);
+    }
+  }
+
+  private Instant windowMaxTimestampPlusAllowedLateness(W window) {
+    if (GlobalWindows.INSTANCE.isCompatible(windowingStrategy.getWindowFn())) {
+      return window.maxTimestamp();
+    } else {
+      return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
     }
   }
 

@@ -64,4 +64,9 @@ public class FinishedTriggersBitSet implements FinishedTriggers {
   public FinishedTriggersBitSet copy() {
     return new FinishedTriggersBitSet((BitSet) bitSet.clone());
   }
+
+  @Override
+  public String toString() {
+    return "FinishedTriggersBitSet" + bitSet.toString();
+  }
 }

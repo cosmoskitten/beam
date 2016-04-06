@@ -40,7 +40,7 @@ import javax.annotation.Nullable;
  * {@link WindowFn}, and then passed to the associated {@code Trigger} to determine if the
  * {@code Window}s contents should be output.
  *
- * <p>See {@link org.apache.beam.sdk.transforms.GroupByKey} and {@link Window}
+ * <p>See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} and {@link Window}
  * for more information about how grouping with windows works.
  *
  * <p>The elements that are assigned to a window since the last time it was fired (or since the
@@ -91,7 +91,7 @@ import javax.annotation.Nullable;
  * <p>Triggers should not build up any state internally since they may be recreated
  * between invocations of the callbacks. All important values should be persisted using
  * state before the callback returns.
- */
+ *
 @Experimental(Experimental.Kind.TRIGGER)
 public abstract class Trigger implements Serializable, TriggerBuilder {
 
@@ -372,6 +372,21 @@ public abstract class Trigger implements Serializable, TriggerBuilder {
         trigger.invokeClear(c);
       }
     }
+  }
+
+  /**
+   * Return {@literal true} if trigger (or one of its children) has any non-empty state.
+   * Does not include finished bits, which are managed by the trigger runner.
+   */
+  public boolean hasState(TriggerContext c) throws Exception {
+    if (subTriggers != null) {
+      for (ExecutableTrigger<W> trigger : c.trigger().subTriggers()) {
+        if (trigger.invokeHasState(c)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   public Iterable<Trigger> subTriggers() {

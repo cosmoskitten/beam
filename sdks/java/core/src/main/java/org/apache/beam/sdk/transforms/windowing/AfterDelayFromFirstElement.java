@@ -223,6 +223,11 @@ public abstract class AfterDelayFromFirstElement extends OnceTrigger {
   }
 
   @Override
+  public boolean hasState(TriggerContext c) throws Exception {
+    return !c.state().access(DELAYED_UNTIL_TAG).isEmpty().read();
+  }
+
+  @Override
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }
