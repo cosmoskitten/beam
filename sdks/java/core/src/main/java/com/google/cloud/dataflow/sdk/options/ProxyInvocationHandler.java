@@ -103,7 +103,7 @@ class ProxyInvocationHandler implements InvocationHandler {
   private static Map<String, BoundValue> bindOptions(Map<String, Object> inputOptions) {
     HashMap<String, BoundValue> options = Maps.newHashMap();
     for (Map.Entry<String, Object> entry : inputOptions.entrySet()) {
-      options.put(entry.getKey(), BoundValue.set(entry.getValue()));
+      options.put(entry.getKey(), BoundValue.fromExplicitOption(entry.getValue()));
     }
 
     return options;
@@ -155,7 +155,7 @@ class ProxyInvocationHandler implements InvocationHandler {
         }
         return options.get(propertyName).getValue();
       } else if (settersToPropertyNames.containsKey(methodName)) {
-        options.put(settersToPropertyNames.get(methodName), BoundValue.set(args[0]));
+        options.put(settersToPropertyNames.get(methodName), BoundValue.fromExplicitOption(args[0]));
         return Void.TYPE;
       }
     }
@@ -175,10 +175,16 @@ class ProxyInvocationHandler implements InvocationHandler {
       this.isDefault = isDefault;
     }
 
-    static BoundValue set(Object value) {
+    /**
+     * Create a {@link BoundValue} representing an explicitly set option.
+     */
+    static BoundValue fromExplicitOption(Object value) {
       return new BoundValue(value, false);
     }
 
+    /**
+     * Create a {@link BoundValue} representing a default option value.
+     */
     static BoundValue fromDefault(Object value) {
       return new BoundValue(value, true);
     }
