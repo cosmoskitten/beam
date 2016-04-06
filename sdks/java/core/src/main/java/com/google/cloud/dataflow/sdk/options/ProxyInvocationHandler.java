@@ -267,11 +267,14 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
-   * Populate display data. See {@link HasDisplayData#populateDisplayData}.
+   * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly-set
+   * pipeline options will be added as display data. Default values are not included unless
+   * explicitly set.
    */
   private void populateDisplayData(DisplayData.Builder builder) {
-    Preconditions.checkState(canPopulateDisplayData(),
-        "Populating display data from deserialized PipelineOptions is not supported.");
+    Preconditions.checkState(isOptionsTypeInformationKnown(),
+        "Cannot populate display data for PipelineOptions instances constructed "
+        + "without type information");
     Set<PipelineOptionsReflector.Property> props =
         PipelineOptionsReflector.collectVisibleProperties(knownInterfaces);
 
@@ -291,7 +294,13 @@ class ProxyInvocationHandler implements InvocationHandler {
     }
   }
 
-  private boolean canPopulateDisplayData() {
+  /**
+   * Check whether we have type information for all set options. When an instance is constructed
+   * via JSON deserialization, we lose type information about which {@link PipelineOptions}
+   * interfaces an option originates from. This information is necessary for constructing display
+   * data.
+   */
+  private boolean isOptionsTypeInformationKnown() {
     return jsonOptions.isEmpty();
   }
 
@@ -487,7 +496,9 @@ class ProxyInvocationHandler implements InvocationHandler {
         jgen.writeFieldName("options");
         jgen.writeObject(serializableOptions);
 
-        if (handler.canPopulateDisplayData()) {
+        if (handler.isOptionsTypeInformationKnown()) {
+          // Need type information for display data. If it's missing (i.e. constructed via
+          // JSON deserialization), DisplayData won't be present in the serialized JSON.
           List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
           for (DisplayData.Item item : DisplayData.from(value).items()) {
             serializedDisplayData.add(MAPPER.convertValue(item, Map.class));
