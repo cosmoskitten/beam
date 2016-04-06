@@ -246,6 +246,18 @@ public class DisplayDataTest {
     assertThat(data, includes(subComponent, namespaceOverride.getClass()));
   }
 
+  @Test
+  public void testNullNamespaceOverride() {
+    thrown.expect(NullPointerException.class);
+
+    DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add("foo", "bar")
+            .withNamespace(null);
+      }
+    });
+  }
 
   @Test
   public void testIdentifierEquality() {

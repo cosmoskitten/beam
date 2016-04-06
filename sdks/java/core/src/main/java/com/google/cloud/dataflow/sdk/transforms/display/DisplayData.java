@@ -210,10 +210,9 @@ public class DisplayData {
      * Adds an explicit namespace to the most-recently added display metadata. The namespace
      * and key uniquely identify the display metadata.
      *
-     * <p>Specifying a null value or leaving the namespace unspecified will default to
-     * the registering instance's class.
+     * <p>Leaving the namespace unspecified will default to the registering instance's class.
      */
-    ItemBuilder withNamespace(@Nullable Class<?> namespace);
+    ItemBuilder withNamespace(Class<?> namespace);
   }
 
   /**
@@ -672,19 +671,20 @@ public class DisplayData {
     }
 
     @Override
-    public ItemBuilder withLabel(String label) {
+    public ItemBuilder withLabel(@Nullable String label) {
       latestItem = latestItem.withLabel(label);
       return this;
     }
 
     @Override
-    public ItemBuilder withLinkUrl(String url) {
+    public ItemBuilder withLinkUrl(@Nullable String url) {
       latestItem = latestItem.withUrl(url);
       return this;
     }
 
     @Override
-    public ItemBuilder withNamespace(@Nullable Class<?> namespace) {
+    public ItemBuilder withNamespace(Class<?> namespace) {
+      checkNotNull(namespace);
       latestItem = latestItem.withNamespace(namespace);
       return this;
     }
