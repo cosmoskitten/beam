@@ -432,21 +432,11 @@ public class DisplayData {
   public enum Type {
     STRING {
       @Override
-      boolean isCompatible(@Nullable Object value) {
-        return true; // Compatible with any type using Object.toString()
-      }
-
-      @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue(value.toString());
       }
     },
     INTEGER {
-      @Override
-      boolean isCompatible(@Nullable Object value) {
-        return value instanceof Integer || value instanceof Long;
-      }
-
       @Override
       FormattedItemValue format(Object value) {
         Number number = (Number) value;
@@ -455,21 +445,11 @@ public class DisplayData {
     },
     FLOAT {
       @Override
-      boolean isCompatible(@Nullable Object value) {
-        return value instanceof Double || value instanceof Float;
-      }
-
-      @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue(Double.toString((Double) value));
       }
     },
     BOOLEAN() {
-      @Override
-      boolean isCompatible(@Nullable Object value) {
-        return value instanceof Boolean;
-      }
-
       @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue(Boolean.toString((boolean) value));
@@ -477,32 +457,17 @@ public class DisplayData {
     },
     TIMESTAMP() {
       @Override
-      boolean isCompatible(@Nullable Object value) {
-        return value instanceof Instant;
-      }
-
-      @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue((TIMESTAMP_FORMATTER.print((Instant) value)));
       }
     },
     DURATION {
       @Override
-      boolean isCompatible(@Nullable Object value) {
-        return value instanceof Duration;
-      }
-
-      @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue(Long.toString(((Duration) value).getMillis()));
       }
     },
     JAVA_CLASS {
-      @Override
-      boolean isCompatible(@Nullable Object value) {
-        return value instanceof Class<?>;
-      }
-
       @Override
       FormattedItemValue format(Object value) {
         Class<?> clazz = (Class<?>) value;
@@ -519,24 +484,25 @@ public class DisplayData {
     abstract FormattedItemValue format(Object value);
 
     /**
-     * Determine whether the given value is compatible for the DisplayData type.
-     */
-    abstract boolean isCompatible(@Nullable Object value);
-
-    /**
      * Infer the {@link Type} for the given object.
      */
     static Type inferFrom(@Nullable Object value) {
-      Set<Type> types = Sets.newHashSet(Type.values());
-      types.remove(STRING); // String is default
-
-      for (Type type : types) {
-        if (type.isCompatible(value)) {
-          return type;
-        }
+      if (value instanceof Integer || value instanceof Long) {
+        return INTEGER;
+      } else if (value instanceof Double || value instanceof Float) {
+        return FLOAT;
+      } else if (value instanceof Boolean) {
+        return BOOLEAN;
+      } else if (value instanceof Instant) {
+        return TIMESTAMP;
+      } else if (value instanceof Duration) {
+        return DURATION;
+      } else if (value instanceof Class<?>) {
+        return JAVA_CLASS;
+      } else {
+        // default
+        return STRING;
       }
-
-      return STRING;
     }
   }
 
