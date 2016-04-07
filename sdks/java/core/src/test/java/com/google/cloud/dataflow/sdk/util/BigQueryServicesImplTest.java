@@ -47,6 +47,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -57,6 +59,7 @@ import java.io.InputStream;
 /**
  * Tests for {@link BigQueryServicesImpl}.
  */
+@RunWith(JUnit4.class)
 public class BigQueryServicesImplTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(BigQueryServicesImpl.class);

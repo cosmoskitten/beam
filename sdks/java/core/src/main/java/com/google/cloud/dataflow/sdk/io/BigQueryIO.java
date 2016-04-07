@@ -741,10 +741,10 @@ public class BigQueryIO {
     public static class Bound extends PTransform<PCollection<TableRow>, PDone> {
       @Nullable final String jsonTableRef;
 
-      final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+      @Nullable final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
 
       // Table schema. The schema is required only if the table does not exist.
-      @Nullable final TableSchema schema;
+      @Nullable final String jsonSchema;
 
       // Options for creating the table. Valid values are CREATE_IF_NEEDED and
       // CREATE_NEVER.
@@ -785,14 +785,15 @@ public class BigQueryIO {
             WriteDisposition.WRITE_EMPTY, true, null);
       }
 
-      private Bound(String name, String jsonTableRef,
-          SerializableFunction<BoundedWindow, TableReference> tableRefFunction, TableSchema schema,
+      private Bound(String name, @Nullable String jsonTableRef,
+          @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+          @Nullable String jsonSchema,
           CreateDisposition createDisposition, WriteDisposition writeDisposition,
           boolean validate, BigQueryServices testBigQueryServices) {
         super(name);
         this.jsonTableRef = jsonTableRef;
         this.tableRefFunction = tableRefFunction;
-        this.schema = schema;
+        this.jsonSchema = jsonSchema;
         this.createDisposition = createDisposition;
         this.writeDisposition = writeDisposition;
         this.validate = validate;
@@ -805,7 +806,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound named(String name) {
-        return new Bound(name, jsonTableRef, tableRefFunction, schema, createDisposition,
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
             writeDisposition, validate, testBigQueryServices);
       }
 
@@ -825,7 +826,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound to(TableReference table) {
-        return new Bound(name, toJsonString(table), tableRefFunction, schema, createDisposition,
+        return new Bound(name, toJsonString(table), tableRefFunction, jsonSchema, createDisposition,
             writeDisposition, validate, testBigQueryServices);
       }
 
@@ -854,7 +855,7 @@ public class BigQueryIO {
        */
       public Bound toTableReference(
           SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
-        return new Bound(name, jsonTableRef, tableRefFunction, schema, createDisposition,
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
             writeDisposition, validate, testBigQueryServices);
       }
 
@@ -865,8 +866,8 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withSchema(TableSchema schema) {
-        return new Bound(name, jsonTableRef, tableRefFunction, schema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+        return new Bound(name, jsonTableRef, tableRefFunction, toJsonString(schema),
+            createDisposition, writeDisposition, validate, testBigQueryServices);
       }
 
       /**
@@ -875,7 +876,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withCreateDisposition(CreateDisposition createDisposition) {
-        return new Bound(name, jsonTableRef, tableRefFunction, schema, createDisposition,
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
             writeDisposition, validate, testBigQueryServices);
       }
 
@@ -885,7 +886,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withWriteDisposition(WriteDisposition writeDisposition) {
-        return new Bound(name, jsonTableRef, tableRefFunction, schema, createDisposition,
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
             writeDisposition, validate, testBigQueryServices);
       }
 
@@ -895,13 +896,13 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withoutValidation() {
-        return new Bound(name, jsonTableRef, tableRefFunction, schema, createDisposition,
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
             writeDisposition, false, testBigQueryServices);
       }
 
       @VisibleForTesting
       Bound withTestServices(BigQueryServices testServices) {
-        return new Bound(name, jsonTableRef, tableRefFunction, schema, createDisposition,
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
             writeDisposition, validate, testServices);
       }
 
@@ -942,7 +943,7 @@ public class BigQueryIO {
                 + "transform");
         }
 
-        if (createDisposition == CreateDisposition.CREATE_IF_NEEDED && schema == null) {
+        if (createDisposition == CreateDisposition.CREATE_IF_NEEDED && jsonSchema == null) {
           throw new IllegalArgumentException("CreateDisposition is CREATE_IF_NEEDED, "
               + "however no schema was provided.");
         }
@@ -984,7 +985,7 @@ public class BigQueryIO {
                 + "supported for unbounded PCollections or when using tablespec functions.");
           }
 
-          return input.apply(new StreamWithDeDup(table, tableRefFunction, schema));
+          return input.apply(new StreamWithDeDup(table, tableRefFunction, getSchema()));
         }
 
         String tempLocation = options.getTempLocation();
@@ -1001,13 +1002,11 @@ public class BigQueryIO {
         }
         String jobIdToken = UUID.randomUUID().toString();
         String tempFilePrefix = tempLocation + "/BigQuerySinkTemp/" + jobIdToken;
-        String jsonTable = toJsonString(checkNotNull(table, "table"));
-        String jsonSchema = toJsonString(schema);
         BigQueryServices bqServices = getBigQueryServices();
         return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
             new BigQuerySink(
                 jobIdToken,
-                jsonTable,
+                jsonTableRef,
                 jsonSchema,
                 getWriteDisposition(),
                 getCreateDisposition(),
@@ -1033,7 +1032,7 @@ public class BigQueryIO {
 
       /** Returns the table schema. */
       public TableSchema getSchema() {
-        return schema;
+        return fromJsonString(jsonSchema, TableSchema.class);
       }
 
       /** Returns the table reference, or {@code null} if a . */

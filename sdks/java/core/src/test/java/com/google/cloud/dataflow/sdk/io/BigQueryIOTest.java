@@ -21,6 +21,7 @@ import static org.junit.Assert.assertNull;
 
 import com.google.api.client.util.Data;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -37,6 +38,7 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.util.BigQueryServices;
 import com.google.cloud.dataflow.sdk.util.BigQueryServices.Status;
+import com.google.common.collect.ImmutableList;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 
 import org.hamcrest.Matchers;
@@ -194,7 +196,7 @@ public class BigQueryIOTest {
     assertEquals(project, bound.getTable().getProjectId());
     assertEquals(dataset, bound.getTable().getDatasetId());
     assertEquals(table, bound.getTable().getTableId());
-    assertEquals(schema, bound.schema);
+    assertEquals(schema, bound.jsonSchema);
     assertEquals(createDisposition, bound.createDisposition);
     assertEquals(writeDisposition, bound.writeDisposition);
     assertEquals(validate, bound.validate);
@@ -336,7 +338,11 @@ public class BigQueryIOTest {
         new TableRow().set("name", "c").set("number", 3)))
     .setCoder(TableRowJsonCoder.of())
     .apply(BigQueryIO.Write.to("project-id:dataset-id.table-id")
-        .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+        .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+        .withSchema(new TableSchema().setFields(
+            ImmutableList.of(
+                new TableFieldSchema().setName("name").setType("STRING"),
+                new TableFieldSchema().setName("number").setType("INTEGER"))))
         .withTestServices(fakeBqServices)
         .withoutValidation());
     p.run();

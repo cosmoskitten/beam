@@ -190,7 +190,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
       try {
         return BackOffUtils.next(sleeper, backoff);
       } catch (IOException e) {
-        throw Throwables.propagate(e);
+        throw new RuntimeException(e);
       }
     }
   }
