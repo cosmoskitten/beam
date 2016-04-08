@@ -20,24 +20,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.google.cloud.dataflow</groupId>
-  <artifactId>google-cloud-dataflow-java-contrib-kafka-examples</artifactId>
-  <name>Google Cloud Dataflow Kafka Examples</name>
-  <description>Examples apps using Kafka Source in Google Cloud Dataflow</description>
-  <version>0.0.1-SNAPSHOT</version>
+  <parent>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>parent</artifactId>
+    <version>0.1.0-incubating-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>contrib-kafka-examples</artifactId>
+  <name>Apache Beam :: Contrib :: Kafka IO :: Examples</name>
+  <description>Examples of using Kafka IO in Beam applications</description>
   <packaging>jar</packaging>
-
-  <licenses>
-    <license>
-      <name>Apache License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
 
   <build>
     <plugins>
@@ -64,7 +57,7 @@
           </dependency>
         </dependencies>
         <configuration>
-          <configLocation>../../../checkstyle.xml</configLocation>
+          <configLocation>../../../sdks/checkstyle.xml</configLocation>
           <consoleOutput>true</consoleOutput>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
@@ -106,23 +99,12 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>2.10.3</version>
         <configuration>
-          <windowtitle>Google Cloud Dataflow Kafka Contrib</windowtitle>
-          <doctitle>Google Cloud Dataflow Kafka Contrib</doctitle>
+          <windowtitle>Apache Beam Kafka IO Examples</windowtitle>
+          <doctitle>Apache Beam Kafka IO Examples</doctitle>
 
-          <subpackages>com.google.cloud.dataflow.contrib.kafka</subpackages>
+          <subpackages>com.google.cloud.dataflow.contrib.kafka.examples</subpackages>
           <use>false</use>
           <bottom><![CDATA[<br>]]></bottom>
-
-          <offlineLinks>
-            <offlineLink>
-              <url>https://cloud.google.com/dataflow/java-sdk/JavaDoc/</url>
-              <location>${basedir}/../../javadoc/dataflow-sdk-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://docs.guava-libraries.googlecode.com/git-history/release18/javadoc/</url>
-              <location>${basedir}/../../javadoc/guava-docs</location>
-            </offlineLink>
-          </offlineLinks>
         </configuration>
         <executions>
           <execution>
@@ -171,19 +153,19 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.cloud.dataflow</groupId>
-      <artifactId>google-cloud-dataflow-java-contrib-kafka</artifactId>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>contrib-kafka</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>1.7.7</version>
+      <version>${slf4j.version}</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
-      <version>1.7.7</version>
+      <version>${slf4j.version}</version>
       <scope>runtime</scope>
     </dependency>
   </dependencies>

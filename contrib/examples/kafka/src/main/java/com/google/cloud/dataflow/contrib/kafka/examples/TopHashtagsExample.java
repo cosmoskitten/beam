@@ -58,9 +58,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This Dataflow app show cases {@link KafkaIO}. The application reads from a Kafka topic
+ * A Dataflow pipline that show cases {@link KafkaIO}. It reads from a Kafka topic
  * containing <a href="https://dev.twitter.com/overview/api/tweets">JSON Tweets</a>, calculates top
- * hashtags in 10 minute window. The results are written back to a Kafka topic.
+ * hashtags in a 10 minute sliding window. The results are written back to kafka.
  *
  * <pre>{@code
  * Usage:
@@ -184,7 +184,7 @@ public class TopHashtagsExample {
         .forPattern("yyyy-MM-dd HH:mm:ss")
         .withZoneUTC();
     private static final ObjectWriter JSON_WRITER = new ObjectMapper()
-        .writerWithType(OutputJson.class);
+        .writerFor(OutputJson.class);
 
     static class OutputJson {
       @JsonProperty String windowStart;

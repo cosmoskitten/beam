@@ -20,6 +20,7 @@ package com.google.cloud.dataflow.contrib.kafka;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * KafkaRecord contains key and value of the record as well as metadata for the record (topic name,
@@ -67,6 +68,11 @@ public class KafkaRecord<K, V> implements Serializable {
 
   public KV<K, V> getKV() {
     return kv;
+  }
+
+  @Override
+  public int hashCode() {
+    return Arrays.deepHashCode(new Object[]{topic, partition, offset, kv});
   }
 
   @Override

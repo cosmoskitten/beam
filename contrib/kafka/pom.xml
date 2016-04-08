@@ -20,28 +20,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.google.cloud.dataflow</groupId>
-  <artifactId>google-cloud-dataflow-java-contrib-kafka</artifactId>
-  <name>Google Cloud Dataflow Kafka Connectors</name>
-  <description>Dataflow Library to read Kafka topics</description>
-  <version>0.0.1-SNAPSHOT</version>
+  <parent>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>parent</artifactId>
+    <version>0.1.0-incubating-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>contrib-kafka</artifactId>
+  <name>Apache Beam :: Contrib :: Kafka IO</name>
+  <description>Beam Library to read Kafka topics</description>
   <packaging>jar</packaging>
-
-  <licenses>
-    <license>
-      <name>Apache License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <google-cloud-dataflow-version>[1.2.0,2.0.0)</google-cloud-dataflow-version>
-    <hamcrest.version>1.3</hamcrest.version>
-    <junit.version>4.11</junit.version>
-    <slf4j.version>1.7.7</slf4j.version>
-  </properties>
 
   <build>
     <plugins>
@@ -67,7 +56,7 @@
           </dependency>
         </dependencies>
         <configuration>
-          <configLocation>../../checkstyle.xml</configLocation>
+          <configLocation>../../sdks/java/checkstyle.xml</configLocation>
           <consoleOutput>true</consoleOutput>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
@@ -109,23 +98,12 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>2.10.3</version>
         <configuration>
-          <windowtitle>Google Cloud Dataflow Kafka Contrib</windowtitle>
-          <doctitle>Google Cloud Dataflow Kafka Contrib</doctitle>
+          <windowtitle>Apache Beam Kafka IO</windowtitle>
+          <doctitle>Apache Beam Kafka IO</doctitle>
 
           <subpackages>com.google.cloud.dataflow.contrib.kafka</subpackages>
           <use>false</use>
           <bottom><![CDATA[<br>]]></bottom>
-
-          <offlineLinks>
-            <offlineLink>
-              <url>https://cloud.google.com/dataflow/java-sdk/JavaDoc/</url>
-              <location>${basedir}/../../javadoc/dataflow-sdk-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://docs.guava-libraries.googlecode.com/git-history/release18/javadoc/</url>
-              <location>${basedir}/../../javadoc/guava-docs</location>
-            </offlineLink>
-          </offlineLinks>
         </configuration>
         <executions>
           <execution>
@@ -141,9 +119,9 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.cloud.dataflow</groupId>
-      <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-      <version>${google-cloud-dataflow-version}</version>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>java-sdk-all</artifactId>
+      <version>0.1.0-incubating-SNAPSHOT</version>
     </dependency>
 
     <dependency>

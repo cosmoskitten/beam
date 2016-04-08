@@ -34,3 +34,5 @@ install:
 script:
   - travis_retry mvn -B $MAVEN_OVERRIDE install -U
   - travis_retry travis/test_wordcount.sh
+  - (cd contrib/kafka && mvn -B $MAVEN_OVERRIDE install -U)
+  - (cd contrib/examples/kafka && mvn -B $MAVEN_OVERRIDE package)

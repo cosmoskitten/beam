@@ -26,7 +26,7 @@ import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Count;
@@ -126,7 +126,7 @@ public class KafkaIOTest {
                 addRecord(r);
               }
               updateBeginningOffsets(ImmutableMap.of(tp, 0L));
-              updateEndOffsets(ImmutableMap.of(tp, (long)records.get(tp).size()));
+              updateEndOffsets(ImmutableMap.of(tp, (long) records.get(tp).size()));
               seek(tp, 0);
             }
           }
@@ -198,20 +198,20 @@ public class KafkaIOTest {
 
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
     // Count == numElements
-    DataflowAssert
+    PAssert
       .thatSingleton(input.apply("Count", Count.<Long>globally()))
       .isEqualTo(numElements);
     // Unique count == numElements
-    DataflowAssert
+    PAssert
       .thatSingleton(input.apply(RemoveDuplicates.<Long>create())
                           .apply("UniqueCount", Count.<Long>globally()))
       .isEqualTo(numElements);
     // Min == 0
-    DataflowAssert
+    PAssert
       .thatSingleton(input.apply("Min", Min.<Long>globally()))
       .isEqualTo(0L);
     // Max == numElements-1
-    DataflowAssert
+    PAssert
       .thatSingleton(input.apply("Max", Max.<Long>globally()))
       .isEqualTo(numElements - 1);
   }
@@ -251,11 +251,11 @@ public class KafkaIOTest {
         .apply(Values.<Long>create());
 
     // assert that every element is a multiple of 5.
-    DataflowAssert
+    PAssert
       .that(input)
       .satisfies(new AssertMultipleOf(5));
 
-    DataflowAssert
+    PAssert
       .thatSingleton(input.apply(Count.<Long>globally()))
       .isEqualTo(numElements / 10L);
 
@@ -285,7 +285,7 @@ public class KafkaIOTest {
         .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
         .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
     // This assert also confirms that diffs only has one unique value.
-    DataflowAssert.thatSingleton(diffs).isEqualTo(0L);
+    PAssert.thatSingleton(diffs).isEqualTo(0L);
 
     p.run();
   }

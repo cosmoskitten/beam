@@ -166,8 +166,7 @@ public class KafkaIO {
    * Creates and uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
    * configuration should set with {@link Read#withBootstrapServers(String)} and
    * {@link Read#withTopics(List)}. Other optional settings include key and value coders,
-   * custom timestamp and watermark functions. Additionally, {@link Read#withMetadata()} provides
-   * access to Kafka metadata for each record (topic name, partition, offset).
+   * custom timestamp and watermark functions.
    */
   public static Read<byte[], byte[]> read() {
     return new Read<byte[], byte[]>(
@@ -481,8 +480,8 @@ public class KafkaIO {
   }
 
   /**
-   * A {@link PTransform} to read from Kafka topics. Similar to {@link KafkaIO.Typed}, but removes
-   * Kafka metatdata and returns a {@link PCollection} of {@link KV}.
+   * A {@link PTransform} to read from Kafka topics. Similar to {@link KafkaIO.TypedRead}, but
+   * removes Kafka metatdata and returns a {@link PCollection} of {@link KV}.
    * See {@link KafkaIO} for more information on usage and configuration of reader.
    */
   public static class TypedWithoutMetadata<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
@@ -865,12 +864,12 @@ public class KafkaIO {
 
       // offsetConsumer setup :
 
-      // override client_id and auto_commit so that it does not interfere with main consumer.
-      String offsetConsumerId = String.format("%s_offset_consumer_%d_%s", name,
-          (new Random()).nextInt(Integer.MAX_VALUE),
-          source.consumerConfig.getOrDefault(ConsumerConfig.CLIENT_ID_CONFIG, "none"));
+      Object groupId = source.consumerConfig.get(ConsumerConfig.GROUP_ID_CONFIG);
+      // override group_id and disable auto_commit so that it does not interfere with main consumer
+      String offsetGroupId = String.format("%s_offset_consumer_%d_%s", name,
+          (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
       Map<String, Object> offsetConsumerConfig = new HashMap<>(source.consumerConfig);
-      offsetConsumerConfig.put(ConsumerConfig.CLIENT_ID_CONFIG, offsetConsumerId);
+      offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
       offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
       offsetConsumer = source.consumerFactoryFn.apply(offsetConsumerConfig);

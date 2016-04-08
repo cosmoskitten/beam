@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.contrib.kafka;
+package com.google.cloud.dataflow.contrib.kafka;
 
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
