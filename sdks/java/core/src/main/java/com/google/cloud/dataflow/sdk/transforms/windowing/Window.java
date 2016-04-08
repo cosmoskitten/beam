@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -587,21 +586,8 @@ public class Window {
     public PCollection<T> apply(PCollection<T> input) {
       WindowingStrategy<?, ?> outputStrategy =
           getOutputStrategyInternal(input.getWindowingStrategy());
-      PCollection<T> output;
-      if (windowFn != null) {
-        // If the windowFn changed, we create a primitive, and run the AssignWindows operation here.
-        output = assignWindows(input, windowFn);
-      } else {
-        // If the windowFn didn't change, we just run a pass-through transform and then set the
-        // new windowing strategy.
-        output = input.apply(Window.<T>identity());
-      }
-      return output.setWindowingStrategyInternal(outputStrategy);
-    }
-
-    private <T, W extends BoundedWindow> PCollection<T> assignWindows(
-        PCollection<T> input, WindowFn<? super T, W> windowFn) {
-      return input.apply("AssignWindows", ParDo.of(new AssignWindowsDoFn<T, W>(windowFn)));
+      return PCollection.createPrimitiveOutputInternal(input.getPipeline(), outputStrategy,
+          input.isBounded());
     }
 
     @Override

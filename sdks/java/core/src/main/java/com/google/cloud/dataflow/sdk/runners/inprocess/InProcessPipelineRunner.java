@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.MapAggregatorValues;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
@@ -81,6 +82,7 @@ public class InProcessPipelineRunner
           ImmutableMap.<Class<? extends PTransform>, Class<? extends PTransform>>builder()
               .put(Create.Values.class, InProcessCreate.class)
               .put(GroupByKey.class, InProcessGroupByKey.class)
+              .put(Window.Bound.class, InProcessWindowInto.class)
               .put(
                   CreatePCollectionView.class,
                   ViewEvaluatorFactory.InProcessCreatePCollectionView.class)
