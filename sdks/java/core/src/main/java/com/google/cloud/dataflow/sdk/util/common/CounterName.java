@@ -84,9 +84,9 @@ public class CounterName {
   private final String origin;
 
   /**
-   * System defined step name.
+   * System defined step name or the named-output of a step.
    *
-   * <p>For example, s1, s2.out.
+   * <p>For example, {@code s1} or {@code s2.out}.
    * It may be empty when counters don't associate with step names.
    */
   private final String stepName;
@@ -121,7 +121,7 @@ public class CounterName {
     if (ret == null) {
       StringBuilder sb = new StringBuilder();
       if (!Strings.isNullOrEmpty(prefix)) {
-        // Flume doesn't explicitly use "-" to concatenate prefix, it may already have it in it.
+        // Not all runner versions use "-" to concatenate prefix, it may already have it in it.
         sb.append(prefix);
       }
       if (!Strings.isNullOrEmpty(origin)) {
