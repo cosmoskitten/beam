@@ -17,7 +17,6 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
@@ -27,6 +26,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.common.base.MoreObjects;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.Duration;
 

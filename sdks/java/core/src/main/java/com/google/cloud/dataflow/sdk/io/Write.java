@@ -18,7 +18,6 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.io.Sink.WriteOperation;
@@ -34,6 +33,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PDone;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.Instant;
 

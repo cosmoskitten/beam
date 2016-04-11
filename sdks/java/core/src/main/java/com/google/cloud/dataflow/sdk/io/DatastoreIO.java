@@ -48,7 +48,6 @@ import com.google.api.services.datastore.client.DatastoreFactory;
 import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.api.services.datastore.client.DatastoreOptions;
 import com.google.api.services.datastore.client.QuerySplitter;
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.EntityCoder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
@@ -63,6 +62,8 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

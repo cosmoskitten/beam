@@ -17,12 +17,13 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.common.base.Joiner;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.Instant;
 

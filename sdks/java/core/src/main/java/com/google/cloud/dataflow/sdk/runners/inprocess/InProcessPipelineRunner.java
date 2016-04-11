@@ -20,7 +20,6 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
 import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.AggregatorPipelineExtractor;
 import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
@@ -53,6 +52,8 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.Instant;
 

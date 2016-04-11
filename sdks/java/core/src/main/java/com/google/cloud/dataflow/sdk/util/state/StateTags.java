@@ -17,8 +17,6 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
@@ -28,6 +26,9 @@ import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineF
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.common.base.MoreObjects;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 import java.io.IOException;
 import java.io.Serializable;

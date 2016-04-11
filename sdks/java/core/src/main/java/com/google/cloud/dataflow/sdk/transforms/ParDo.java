@@ -18,7 +18,6 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
@@ -48,6 +47,8 @@ import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.cloud.dataflow.sdk.values.TypedPValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import java.io.Serializable;
 import java.util.Arrays;

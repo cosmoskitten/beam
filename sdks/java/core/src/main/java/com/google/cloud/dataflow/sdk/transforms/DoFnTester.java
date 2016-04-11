@@ -17,7 +17,6 @@
  */
 package com.google.cloud.dataflow.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
@@ -38,6 +37,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.Instant;
 

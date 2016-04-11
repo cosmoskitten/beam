@@ -17,10 +17,10 @@
  */
 package com.google.cloud.dataflow.sdk.io;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.annotations.Experimental;
 
 import java.io.Serializable;
 

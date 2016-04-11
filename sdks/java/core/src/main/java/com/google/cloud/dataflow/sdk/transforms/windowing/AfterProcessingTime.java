@@ -17,15 +17,15 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.Instant;
 
 import java.util.List;
 import java.util.Objects;
-
 import javax.annotation.Nullable;
 
 /**

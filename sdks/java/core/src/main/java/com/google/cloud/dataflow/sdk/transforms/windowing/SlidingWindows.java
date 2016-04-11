@@ -17,10 +17,9 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 

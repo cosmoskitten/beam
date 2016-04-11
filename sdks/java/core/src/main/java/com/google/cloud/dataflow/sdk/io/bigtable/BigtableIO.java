@@ -26,7 +26,6 @@ import com.google.bigtable.v1.Row;
 import com.google.bigtable.v1.RowFilter;
 import com.google.bigtable.v1.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.Proto2Coder;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
@@ -51,6 +50,8 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

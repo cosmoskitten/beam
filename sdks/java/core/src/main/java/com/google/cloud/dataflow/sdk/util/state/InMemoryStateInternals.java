@@ -17,8 +17,6 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
@@ -28,6 +26,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.util.CombineFnUtil;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.joda.time.Instant;
 
 import java.util.ArrayList;

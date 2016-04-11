@@ -17,8 +17,8 @@
  */
 package com.google.cloud.dataflow.sdk.io;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.annotations.Experimental;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;

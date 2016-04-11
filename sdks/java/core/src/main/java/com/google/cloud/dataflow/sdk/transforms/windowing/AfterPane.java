@@ -17,7 +17,6 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
@@ -27,6 +26,8 @@ import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.Instant;
 

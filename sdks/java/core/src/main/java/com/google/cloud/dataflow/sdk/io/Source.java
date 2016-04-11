@@ -17,9 +17,8 @@
  */
 package com.google.cloud.dataflow.sdk.io;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-
+import org.apache.beam.sdk.annotations.Experimental;
 import org.joda.time.Instant;
 
 import java.io.IOException;

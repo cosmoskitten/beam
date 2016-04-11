@@ -36,7 +36,6 @@ import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
@@ -141,6 +140,8 @@ import com.google.common.collect.Multimap;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;

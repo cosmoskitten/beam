@@ -17,9 +17,10 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 import java.util.Map;
 

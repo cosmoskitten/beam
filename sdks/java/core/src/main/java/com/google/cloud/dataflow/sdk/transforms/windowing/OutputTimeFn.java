@@ -17,9 +17,8 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.common.collect.Ordering;
-
+import org.apache.beam.sdk.annotations.Experimental;
 import org.joda.time.Instant;
 
 import java.io.Serializable;

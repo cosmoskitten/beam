@@ -19,12 +19,13 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.Instant;
 

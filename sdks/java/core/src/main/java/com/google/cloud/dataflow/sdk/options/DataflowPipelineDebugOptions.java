@@ -18,7 +18,6 @@
 package com.google.cloud.dataflow.sdk.options;
 
 import com.google.api.services.dataflow.Dataflow;
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.DataflowPathValidator;
 import com.google.cloud.dataflow.sdk.util.DataflowTransport;
 import com.google.cloud.dataflow.sdk.util.GcsStager;
@@ -27,6 +26,8 @@ import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.Stager;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 import java.util.List;
 import java.util.Map;
