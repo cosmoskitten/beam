@@ -23,36 +23,18 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>sdks-parent</artifactId>
+    <artifactId>io</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>java-sdk-parent</artifactId>
-
+  <artifactId>gcp</artifactId>
   <packaging>pom</packaging>
-
-  <name>Apache Beam :: SDKs :: Java</name>
+  <name>Apache Beam :: SDKs :: Java :: IO :: GCP</name>
+  <description>Beam SDK Java IO GCP gathers IO related to the Google Cloud Platform.</description>
 
   <modules>
-    <module>core</module>
-    <module>io</module>
-    <!-- sdks/java/maven-archtypes has several dependencies on the
-         DataflowPipelineRunner. Until these are refactored out or
-         a released artifact exists, we need to modify the build order.
-    <module>maven-archetypes</module> -->
+    <module>bigtable</module>
   </modules>
-
-  <profiles>
-    <profile>
-      <id>java8-tests</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <modules>
-        <module>java8tests</module>
-      </modules>
-    </profile>
-  </profiles>
 
 </project>

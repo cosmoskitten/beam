@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io.bigtable;
+package org.apache.beam.sdk.io.bigtable;
 
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
@@ -23,10 +23,7 @@ import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitA
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
-import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 
 import com.google.bigtable.v1.Cell;
 import com.google.bigtable.v1.Column;
@@ -39,7 +36,6 @@ import com.google.bigtable.v1.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.io.bigtable.BigtableIO.BigtableSource;
 import com.google.cloud.dataflow.sdk.io.range.ByteKey;
 import com.google.cloud.dataflow.sdk.io.range.ByteKeyRange;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
@@ -57,12 +53,10 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
+import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
 
 import org.hamcrest.Matchers;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -352,7 +346,7 @@ public class BigtableIOTest {
         source.splitIntoBundles(numRows * bytesPerRow / numSamples, null /* options */);
 
     // Test num splits and split equality.
-    assertThat(splits, hasSize(numSamples));
+    Assert.assertThat(splits, Matchers.hasSize(numSamples));
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
   }
 
@@ -375,7 +369,7 @@ public class BigtableIOTest {
     List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
-    assertThat(splits, hasSize(numSplits));
+    Assert.assertThat(splits, Matchers.hasSize(numSplits));
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
   }
 
@@ -400,7 +394,7 @@ public class BigtableIOTest {
     List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
-    assertThat(splits, hasSize(numSplits));
+    Assert.assertThat(splits, Matchers.hasSize(numSplits));
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
   }
 
@@ -420,11 +414,11 @@ public class BigtableIOTest {
 
     logged.verifyInfo("Wrote 1 records");
 
-    assertEquals(1, service.tables.size());
-    assertNotNull(service.getTable(table));
+    Assert.assertEquals(1, service.tables.size());
+    Assert.assertNotNull(service.getTable(table));
     Map<ByteString, ByteString> rows = service.getTable(table);
-    assertEquals(1, rows.size());
-    assertEquals(ByteString.copyFromUtf8(value), rows.get(ByteString.copyFromUtf8(key)));
+    Assert.assertEquals(1, rows.size());
+    Assert.assertEquals(ByteString.copyFromUtf8(value), rows.get(ByteString.copyFromUtf8(key)));
   }
 
   /** Tests that when writing to a non-existent table, the write fails. */
