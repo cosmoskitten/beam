@@ -246,7 +246,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Pub/sub topic to publish to.
    */
-  private final String topic;
+  private final PubsubClient.TopicPath topic;
 
   /**
    * Coder for elements. Elements are effectively double-encoded: first to a byte array
@@ -272,7 +272,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
 
   public PubsubUnboundedSink(
       int numCores,
-      String topic,
+      PubsubClient.TopicPath topic,
       Coder<T> elementCoder,
       String timestampLabel,
       String idLabel) {
@@ -285,7 +285,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
 
   @Override
   public PDone apply(PCollection<T> input) {
-    String label = "PubsubSink(" + topic.replaceFirst(".*/", "") + ")";
+    String label = "PubsubSink(" + topic.getPath().replace("/", ".") + ")";
     input.apply(Window.<T>into(new GlobalWindows())
                     .triggering(
                         Repeatedly.forever(
