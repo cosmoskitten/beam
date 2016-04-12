@@ -56,11 +56,12 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     // If the input has already had its windows merged, then the GBK that performed the merge
     // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
     // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
-    Window.Bound<KV<K, V>> rewindow = Window
-        .<KV<K, V>>into(new PassThroughWindowFn<>(originalStrategy.getWindowFn()))
-        .triggering(new ReshuffleTrigger<>())
-        .discardingFiredPanes()
-        .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+    Window.Bound<KV<K, V>> rewindow =
+        Window.<KV<K, V>>into(
+                new PassThroughWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
+            .triggering(new ReshuffleTrigger<>())
+            .discardingFiredPanes()
+            .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     return input.apply(rewindow)
         .apply(GroupByKey.<K, V>create())

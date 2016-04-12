@@ -20,15 +20,20 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.util.List;
 
 /**
- * A trigger which never fires. Any {@link GroupByKey} that {@link Never} triggers will produce
- * output for a {@link BoundedWindow} only when that {@link BoundedWindow window} closes.
+ * A trigger which never fires.
+ *
+ * <p>
+ * Using this trigger will only produce output when the watermark passes the end of the
+ * {@link BoundedWindow window} plus the {@link Window#withAllowedLateness(Duration) allowed
+ * lateness}.
  */
-public class Never {
+public final class Never {
   /**
    * Returns a trigger which never fires. Output will be produced from the using {@link GroupByKey}
    * when the {@link BoundedWindow} closes.
@@ -60,7 +65,7 @@ public class Never {
     }
 
     @Override
-    public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    public boolean shouldFire(Trigger<W>.TriggerContext context) {
       return false;
     }
 
