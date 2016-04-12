@@ -105,7 +105,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     String fullClassName = new Exception().getStackTrace()[1].getClassName().toLowerCase();
     String[] classList = fullClassName.split("\\.");
     String className = classList[classList.length - 1];
-    String jobName = className + generateTestIdentifier() + "-prod";
+    String jobName = className + "-" + generateTestIdentifier() + "-prod";
     opts.put("jobName", jobName);
     opts.put("runner", "com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner");
     opts.put("stagingLocation", TestPipelineArgs.getTestFileLocation() + "staging/" + jobName);
