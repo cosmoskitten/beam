@@ -140,25 +140,6 @@
 
   <profiles>
     <profile>
-      <id>dev</id>
-      <activation>
-        <property>
-          <name>!skipDefault</name>
-        </property>
-      </activation>
-      <properties>
-        <skipIntegrationTests>true</skipIntegrationTests>
-        <skipUnitTests>false</skipUnitTests>
-      </properties>
-    </profile>
-    <profile>
-      <id>IntegrationTests</id>
-      <properties>
-        <skipIntegrationTests>false</skipIntegrationTests>
-        <skipUnitTests>true</skipUnitTests>
-      </properties>
-    </profile>
-    <profile>
       <id>doclint-java8-disable</id>
       <activation>
         <jdk>[1.8,)</jdk>
@@ -311,7 +292,6 @@
             <parallel>${testParallelValue}</parallel>
             <threadCount>4</threadCount>
             <groups>${testGroups}</groups>
-            <skipTests>${skipUnitTests}</skipTests>
             <systemPropertyVariables>
               <runIntegrationTestOnService>${runIntegrationTestOnService}</runIntegrationTestOnService>
               <projectName>${dataflowProjectName}</projectName>
@@ -327,6 +307,12 @@
               <version>2.18.1</version>
             </dependency>
           </dependencies>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>2.19.1</version>
         </plugin>
 
         <!-- This plugin's configuration tells the m2e plugin how to import this
