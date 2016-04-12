@@ -152,7 +152,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       byte[] elementBytes = CoderUtils.encodeToByteArray(elementCoder, c.element());
       long timestampMsSinceEpoch = c.timestamp().getMillis();
       c.output(KV.of(ThreadLocalRandom.current().nextInt(numCores * SCALE_OUT),
-                     new PubsubClient.OutgoingMessage(elementBytes, timestampMsSinceEpoch)));
+          new PubsubClient.OutgoingMessage(elementBytes, timestampMsSinceEpoch)));
     }
   }
 
@@ -197,7 +197,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     public void startBundle(Context c) throws Exception {
       Preconditions.checkState(pubsubClient == null);
       pubsubClient = PubsubGrpcClient.newClient(timestampLabel, idLabel,
-                                                c.getPipelineOptions().as(GcpOptions.class));
+          c.getPipelineOptions().as(GcpOptions.class));
       super.startBundle(c);
     }
 
@@ -297,17 +297,21 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     return idLabel;
   }
 
+  public Coder<T> getElementCoder() {
+    return elementCoder;
+  }
+
   @Override
   public PDone apply(PCollection<T> input) {
     String label = "PubsubSink(" + topic.getPath().replace("/", ".") + ")";
     input.apply(Window.<T>into(new GlobalWindows())
-                    .triggering(
-                        Repeatedly.forever(
-                            AfterFirst.of(AfterPane.elementCountAtLeast(PUBLISH_BATCH_SIZE),
-                                          AfterProcessingTime.pastFirstElementInPane()
-                                                             .plusDelayOf(MAX_LATENCY))))
-                    .discardingFiredPanes()
-                    .withAllowedLateness(Duration.ZERO))
+        .triggering(
+            Repeatedly.forever(
+                AfterFirst.of(AfterPane.elementCountAtLeast(PUBLISH_BATCH_SIZE),
+                    AfterProcessingTime.pastFirstElementInPane()
+                                       .plusDelayOf(MAX_LATENCY))))
+        .discardingFiredPanes()
+        .withAllowedLateness(Duration.ZERO))
          .apply(ParDo.named(label + ".Shard").of(new ShardFn(numCores)))
          .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
          .apply(GroupByKey.<Integer, PubsubClient.OutgoingMessage>create())
