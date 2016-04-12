@@ -283,6 +283,20 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     this.idLabel = idLabel;
   }
 
+  public PubsubClient.TopicPath getTopic() {
+    return topic;
+  }
+
+  @Nullable
+  public String getTimestampLabel() {
+    return timestampLabel;
+  }
+
+  @Nullable
+  public String getIdLabel() {
+    return idLabel;
+  }
+
   @Override
   public PDone apply(PCollection<T> input) {
     String label = "PubsubSink(" + topic.getPath().replace("/", ".") + ")";
