@@ -16,22 +16,78 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.util;
 
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+import org.apache.beam.sdk.options.PubsubOptions;
+
+import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 
 /**
- * A helper interface for talking to Pubsub via an underlying transport.
+ * An (abstract) helper class for talking to Pubsub via an underlying transport.
  */
-public interface PubsubClient extends AutoCloseable {
+public abstract class PubsubClient implements AutoCloseable {
+  /**
+   * Which client to create for.
+   */
+  public enum TransportType {
+    APIARY,
+    GRPC;
+  }
+
+  /**
+   * Project IDs must contain 6-63 lowercase letters, digits, or dashes.
+   * IDs must start with a letter and may not end with a dash.
+   * This regex isn't exact - this allows for patterns that would be rejected by
+   * the service, but this is sufficient for basic parsing of table references.
+   */
+  private static final Pattern PROJECT_ID_REGEXP =
+      Pattern.compile("[a-z][-a-z0-9:.]{4,61}[a-z0-9]");
+
+  private static final Pattern PUBSUB_NAME_REGEXP = Pattern.compile("[a-zA-Z][-._~%+a-zA-Z0-9]+");
+
+  private static final int PUBSUB_NAME_MIN_LENGTH = 3;
+  private static final int PUBSUB_NAME_MAX_LENGTH = 255;
+
+  private static void validateProjectId(String project) {
+    if (!PROJECT_ID_REGEXP.matcher(project).matches()) {
+      throw new IllegalArgumentException(
+          "Illegal project name specified in Pubsub request: " + project);
+    }
+  }
+
+  private static void validatePubsubName(String name) {
+    if (name.length() < PUBSUB_NAME_MIN_LENGTH) {
+      throw new IllegalArgumentException(
+          "Pubsub topic or subscription name is shorter than 3 characters: " + name);
+    }
+    if (name.length() > PUBSUB_NAME_MAX_LENGTH) {
+      throw new IllegalArgumentException(
+          "Pubsub topic or subscription name is longer than 255 characters: " + name);
+    }
+
+    if (name.startsWith("goog")) {
+      throw new IllegalArgumentException(
+          "Pubsub topic or subscription name cannot start with goog: " + name);
+    }
+
+    Matcher match = PUBSUB_NAME_REGEXP.matcher(name);
+    if (!match.matches()) {
+      throw new IllegalArgumentException("Illegal Pubsub object name specified: " + name
+                                         + " Please see Javadoc for naming rules.");
+    }
+  }
+
   /**
    * Path representing a cloud project id.
    */
-  class ProjectPath implements Serializable {
+  public static class ProjectPath implements Serializable {
     private final String path;
 
     public ProjectPath(String path) {
@@ -66,16 +122,17 @@ public interface PubsubClient extends AutoCloseable {
     public String toString() {
       return path;
     }
+  }
 
-    public static ProjectPath fromId(String projectId) {
-      return new ProjectPath(String.format("projects/%s", projectId));
-    }
+  public static ProjectPath projectPathFromId(String projectId) {
+    validateProjectId(projectId);
+    return new ProjectPath(String.format("projects/%s", projectId));
   }
 
   /**
    * Path representing a Pubsub subscription.
    */
-  class SubscriptionPath implements Serializable {
+  public static class SubscriptionPath implements Serializable {
     private final String path;
 
     public SubscriptionPath(String path) {
@@ -113,17 +170,20 @@ public interface PubsubClient extends AutoCloseable {
     public String toString() {
       return path;
     }
+  }
 
-    public static SubscriptionPath fromName(String projectId, String subscriptionName) {
-      return new SubscriptionPath(String.format("projects/%s/subscriptions/%s",
-          projectId, subscriptionName));
-    }
+  public static SubscriptionPath subscriptionPathFromName(
+      String projectId, String subscriptionName) {
+    validateProjectId(projectId);
+    validatePubsubName(subscriptionName);
+    return new SubscriptionPath(String.format("projects/%s/subscriptions/%s",
+        projectId, subscriptionName));
   }
 
   /**
    * Path representing a Pubsub topic.
    */
-  class TopicPath implements Serializable {
+  public static class TopicPath implements Serializable {
     private final String path;
 
     public TopicPath(String path) {
@@ -161,16 +221,18 @@ public interface PubsubClient extends AutoCloseable {
     public String toString() {
       return path;
     }
+  }
 
-    public static TopicPath fromName(String projectId, String topicName) {
-      return new TopicPath(String.format("projects/%s/topics/%s", projectId, topicName));
-    }
+  public static TopicPath topicPathFromName(String projectId, String topicName) {
+    validateProjectId(projectId);
+    validatePubsubName(topicName);
+    return new TopicPath(String.format("projects/%s/topics/%s", projectId, topicName));
   }
 
   /**
    * A message to be sent to Pubsub.
    */
-  class OutgoingMessage {
+  public static class OutgoingMessage {
     /**
      * Underlying (encoded) element.
      */
@@ -190,7 +252,7 @@ public interface PubsubClient extends AutoCloseable {
   /**
    * A message received from Pubsub.
    */
-  class IncomingMessage {
+  public static class IncomingMessage {
     /**
      * Underlying (encoded) element.
      */
@@ -232,11 +294,26 @@ public interface PubsubClient extends AutoCloseable {
   }
 
   /**
+   * Create a client using the underlying transport.
+   */
+  public static PubsubClient newClient(TransportType transportType,
+                                       @Nullable String timestampLabel,
+                                       @Nullable String idLabel,
+                                       PubsubOptions options) throws IOException {
+    switch (transportType) {
+      case  APIARY:
+        return PubsubApiaryClient.newClient(timestampLabel, idLabel, options);
+      case GRPC:
+        return PubsubGrpcClient.newClient(timestampLabel, idLabel, options);
+    }
+    throw new RuntimeException(); // cases are exhaustive.
+  }
+
+  /**
    * Gracefully close the underlying transport.
    */
   @Override
-  void close();
-
+  public abstract void close();
 
   /**
    * Publish {@code outgoingMessages} to Pubsub {@code topic}. Return number of messages
@@ -244,17 +321,18 @@ public interface PubsubClient extends AutoCloseable {
    *
    * @throws IOException
    */
-  int publish(TopicPath topic, Iterable<OutgoingMessage> outgoingMessages) throws IOException;
+  public abstract int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages)
+      throws IOException;
 
   /**
    * Request the next batch of up to {@code batchSize} messages from {@code subscription}.
    * Return the received messages, or empty collection if none were available. Does not
-   * wait for messages to arrive. Returned messages will record heir request time
+   * wait for messages to arrive. Returned messages will record their request time
    * as {@code requestTimeMsSinceEpoch}.
    *
    * @throws IOException
    */
-  Collection<IncomingMessage> pull(
+  public abstract List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize)
       throws IOException;
 
@@ -263,7 +341,8 @@ public interface PubsubClient extends AutoCloseable {
    *
    * @throws IOException
    */
-  void acknowledge(SubscriptionPath subscription, Iterable<String> ackIds) throws IOException;
+  public abstract void acknowledge(SubscriptionPath subscription, List<String> ackIds)
+      throws IOException;
 
   /**
    * Modify the ack deadline for messages from {@code subscription} with {@code ackIds} to
@@ -271,9 +350,8 @@ public interface PubsubClient extends AutoCloseable {
    *
    * @throws IOException
    */
-  void modifyAckDeadline(
-      SubscriptionPath subscription, Iterable<String> ackIds,
-      int deadlineSeconds)
+  public abstract void modifyAckDeadline(
+      SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds)
       throws IOException;
 
   /**
@@ -281,43 +359,42 @@ public interface PubsubClient extends AutoCloseable {
    *
    * @throws IOException
    */
-  void createTopic(TopicPath topic) throws IOException;
+  public abstract void createTopic(TopicPath topic) throws IOException;
 
   /*
    * Delete {@code topic}.
    *
    * @throws IOException
    */
-  void deleteTopic(TopicPath topic) throws IOException;
+  public abstract void deleteTopic(TopicPath topic) throws IOException;
 
   /**
    * Return a list of topics for {@code project}.
    *
    * @throws IOException
    */
-  Collection<TopicPath> listTopics(ProjectPath project) throws IOException;
+  public abstract List<TopicPath> listTopics(ProjectPath project) throws IOException;
 
   /**
    * Create {@code subscription} to {@code topic}.
    *
    * @throws IOException
    */
-  void createSubscription(
-      TopicPath topic, SubscriptionPath subscription,
-      int ackDeadlineSeconds) throws IOException;
+  public abstract void createSubscription(
+      TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException;
 
   /**
    * Delete {@code subscription}.
    *
    * @throws IOException
    */
-  void deleteSubscription(SubscriptionPath subscription) throws IOException;
+  public abstract void deleteSubscription(SubscriptionPath subscription) throws IOException;
 
   /**
    * Return a list of subscriptions for {@code topic} in {@code project}.
    *
    * @throws IOException
    */
-  Collection<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
+  public abstract List<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
       throws IOException;
 }

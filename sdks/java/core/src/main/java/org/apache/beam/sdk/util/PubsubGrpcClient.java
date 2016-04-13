@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.PubsubOptions;
 
 import com.google.api.client.util.DateTime;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -56,7 +56,6 @@ import io.grpc.netty.NettyChannelBuilder;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +67,7 @@ import javax.annotation.Nullable;
 /**
  * A helper class for talking to Pubsub via grpc.
  */
-public class PubsubGrpcClient implements PubsubClient {
+public class PubsubGrpcClient extends PubsubClient {
   private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
   private static final int PUBSUB_PORT = 443;
   private static final List<String> PUBSUB_SCOPES =
@@ -104,6 +103,7 @@ public class PubsubGrpcClient implements PubsubClient {
   @Nullable
   private final String idLabel;
 
+
   /**
    * Cached stubs, or null if not cached.
    */
@@ -128,8 +128,8 @@ public class PubsubGrpcClient implements PubsubClient {
    * message metadata.
    */
   public static PubsubGrpcClient newClient(
-      @Nullable String timestampLabel, @Nullable String idLabel,
-      GcpOptions options) throws IOException {
+      @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+      throws IOException {
     ManagedChannel channel = NettyChannelBuilder
         .forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
         .negotiationType(NegotiationType.TLS)
@@ -191,7 +191,7 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public int publish(TopicPath topic, Iterable<OutgoingMessage> outgoingMessages)
+  public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages)
       throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder()
                                                    .setTopic(topic.getPath());
@@ -219,7 +219,7 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public Collection<IncomingMessage> pull(
+  public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
       SubscriptionPath subscription,
       int batchSize) throws IOException {
@@ -290,7 +290,7 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public void acknowledge(SubscriptionPath subscription, Iterable<String> ackIds)
+  public void acknowledge(SubscriptionPath subscription, List<String> ackIds)
       throws IOException {
     AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
                                                    .setSubscription(subscription.getPath())
@@ -301,8 +301,7 @@ public class PubsubGrpcClient implements PubsubClient {
 
   @Override
   public void modifyAckDeadline(
-      SubscriptionPath subscription, Iterable<String> ackIds, int
-      deadlineSeconds)
+      SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds)
       throws IOException {
     ModifyAckDeadlineRequest request =
         ModifyAckDeadlineRequest.newBuilder()
@@ -330,7 +329,7 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public Collection<TopicPath> listTopics(ProjectPath project) throws IOException {
+  public List<TopicPath> listTopics(ProjectPath project) throws IOException {
     ListTopicsRequest.Builder request =
         ListTopicsRequest.newBuilder()
                          .setProject(project.getPath())
@@ -375,7 +374,7 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public Collection<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
+  public List<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
       throws IOException {
     ListSubscriptionsRequest.Builder request =
         ListSubscriptionsRequest.newBuilder()
