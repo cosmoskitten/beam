@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.AvroIO;
+import org.apache.beam.sdk.io.FileNameTemplate;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.DirectPipelineOptions;
@@ -128,8 +129,9 @@ public class DirectPipelineRunnerTest implements Serializable {
      .apply(TextIO.Write.to(prefix).withSuffix("txt"));
     p.run();
 
-    String filename =
-        IOChannelUtils.constructName(prefix, ShardNameTemplate.INDEX_OF_MAX, ".txt", 0, 1);
+    String filename = FileNameTemplate
+        .of(prefix, ShardNameTemplate.INDEX_OF_MAX, ".txt")
+        .apply(0, 1);
     List<String> fileContents =
         Files.readLines(new File(filename), StandardCharsets.UTF_8);
     // Ensure that each file got at least one record
@@ -151,9 +153,10 @@ public class DirectPipelineRunnerTest implements Serializable {
     p.run();
 
     List<String> allContents = new ArrayList<>();
+    FileNameTemplate fileNameTemplate = FileNameTemplate.of(
+        prefix, ShardNameTemplate.INDEX_OF_MAX, ".txt");
     for (int i = 0; i < numShards; ++i) {
-      String shardFileName =
-          IOChannelUtils.constructName(prefix, ShardNameTemplate.INDEX_OF_MAX, ".txt", i, 3);
+      String shardFileName = fileNameTemplate.apply(i, 3);
       List<String> shardFileContents =
           Files.readLines(new File(shardFileName), StandardCharsets.UTF_8);
 
@@ -177,8 +180,9 @@ public class DirectPipelineRunnerTest implements Serializable {
      .apply(AvroIO.Write.withSchema(String.class).to(prefix).withSuffix(".avro"));
     p.run();
 
-    String filename =
-        IOChannelUtils.constructName(prefix, ShardNameTemplate.INDEX_OF_MAX, ".avro", 0, 1);
+    String filename = FileNameTemplate
+        .of(prefix, ShardNameTemplate.INDEX_OF_MAX, ".avro")
+        .apply(0, 1);
     List<String> fileContents = new ArrayList<>();
     Iterables.addAll(fileContents, DataFileReader.openReader(
         new File(filename), AvroCoder.of(String.class).createDatumReader()));
@@ -203,9 +207,10 @@ public class DirectPipelineRunnerTest implements Serializable {
     p.run();
 
     List<String> allContents = new ArrayList<>();
+    FileNameTemplate fileNameTemplate = FileNameTemplate.of(
+        prefix, ShardNameTemplate.INDEX_OF_MAX, ".avro");
     for (int i = 0; i < numShards; ++i) {
-      String shardFileName =
-          IOChannelUtils.constructName(prefix, ShardNameTemplate.INDEX_OF_MAX, ".avro", i, 3);
+      String shardFileName = fileNameTemplate.apply(i, 3);
       List<String> shardFileContents = new ArrayList<>();
       Iterables.addAll(shardFileContents, DataFileReader.openReader(
           new File(shardFileName), AvroCoder.of(String.class).createDatumReader()));

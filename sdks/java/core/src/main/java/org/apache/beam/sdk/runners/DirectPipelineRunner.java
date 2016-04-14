@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.FileNameTemplate;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.DirectPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -306,12 +307,11 @@ public class DirectPipelineRunner
          * This logic mirrors the file naming strategy within
          * {@link FileBasedSink#generateDestinationFilenames()}
          */
-        String outputFilename = IOChannelUtils.constructName(
+        FileNameTemplate fileNameTemplate = FileNameTemplate.of(
             transform.getFilenamePrefix(),
             transform.getShardNameTemplate(),
-            getFileExtension(transform.getFilenameSuffix()),
-            i,
-            transform.getNumShards());
+            getFileExtension(transform.getFilenameSuffix()));
+        String outputFilename = fileNameTemplate.apply(i, transform.getNumShards());
 
         String transformName = String.format("%s(Shard:%s)", transform.getName(), i);
         partitionedElements.get(i).apply(transformName,
@@ -379,12 +379,11 @@ public class DirectPipelineRunner
          * This logic mirrors the file naming strategy within
          * {@link FileBasedSink#generateDestinationFilenames()}
          */
-        String outputFilename = IOChannelUtils.constructName(
+        FileNameTemplate fileNameTemplate = FileNameTemplate.of(
             transform.getFilenamePrefix(),
             transform.getShardNameTemplate(),
-            getFileExtension(transform.getFilenameSuffix()),
-            i,
-            transform.getNumShards());
+            getFileExtension(transform.getFilenameSuffix()));
+        String outputFilename = fileNameTemplate.apply(i, transform.getNumShards());
 
         String transformName = String.format("%s(Shard:%s)", transform.getName(), i);
         partitionedElements.get(i).apply(transformName,

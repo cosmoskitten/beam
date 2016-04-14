@@ -20,9 +20,9 @@ package org.apache.beam.sdk.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import org.apache.beam.sdk.io.FileNameTemplate;
 import com.google.common.io.Files;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -40,43 +40,14 @@ public class IOChannelUtilsTest {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  @Test
-  public void testShardFormatExpansion() {
-    assertEquals("output-001-of-123.txt",
-        IOChannelUtils.constructName("output", "-SSS-of-NNN",
-            ".txt",
-            1, 123));
-
-    assertEquals("out.txt/part-00042",
-        IOChannelUtils.constructName("out.txt", "/part-SSSSS", "",
-            42, 100));
-
-    assertEquals("out.txt",
-        IOChannelUtils.constructName("ou", "t.t", "xt", 1, 1));
-
-    assertEquals("out0102shard.txt",
-        IOChannelUtils.constructName("out", "SSNNshard", ".txt", 1, 2));
-
-    assertEquals("out-2/1.part-1-of-2.txt",
-        IOChannelUtils.constructName("out", "-N/S.part-S-of-N",
-            ".txt", 1, 2));
-  }
-
   @Test(expected = IllegalArgumentException.class)
   public void testShardNameCollision() throws Exception {
     File outFolder = tmpFolder.newFolder();
     String filename = outFolder.toPath().resolve("output").toString();
 
-    IOChannelUtils.create(filename, "", "", 2, "text").close();
+    IOChannelUtils.create(FileNameTemplate.of(filename, "", ""), 2, "text").close();
     fail("IOChannelUtils.create expected to fail due "
         + "to filename collision");
-  }
-
-  @Test
-  public void testLargeShardCount() {
-    Assert.assertEquals("out-100-of-5000.txt",
-        IOChannelUtils.constructName("out", "-SS-of-NN", ".txt",
-            100, 5000));
   }
 
   @Test

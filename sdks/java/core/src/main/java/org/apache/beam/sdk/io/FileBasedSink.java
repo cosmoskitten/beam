@@ -21,6 +21,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.FileIOChannelFactory;
 import org.apache.beam.sdk.util.GcsIOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
@@ -102,6 +103,16 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   }
 
   /**
+   * Construct a FileBasedSink with the given file name template.
+   */
+  public FileBasedSink(FileNameTemplate fileNameTemplate) {
+    this(
+        fileNameTemplate.getPrefix(),
+        fileNameTemplate.getSuffix(),
+        fileNameTemplate.getShardTemplate());
+  }
+
+  /**
    * Construct a FileBasedSink with the given base output filename, extension, and file naming
    * template.
    *
@@ -134,6 +145,13 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    */
   @Override
   public abstract FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options);
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    FileNameTemplate template = FileNameTemplate.of(
+        baseOutputFilename, fileNamingTemplate, extension);
+    builder.add("fileNamePattern", template.toString());
+  }
 
   /**
    * Abstract {@link Sink.WriteOperation} that manages the process of writing to a
@@ -349,9 +367,10 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       String fileNamingTemplate = getSink().fileNamingTemplate;
 
       String suffix = getFileExtension(extension);
+      FileNameTemplate template = FileNameTemplate.of(
+          baseOutputFilename, fileNamingTemplate, suffix);
       for (int i = 0; i < numFiles; i++) {
-        destFilenames.add(IOChannelUtils.constructName(
-            baseOutputFilename, fileNamingTemplate, suffix, i, numFiles));
+        destFilenames.add(template.apply(i, numFiles));
       }
       return destFilenames;
     }

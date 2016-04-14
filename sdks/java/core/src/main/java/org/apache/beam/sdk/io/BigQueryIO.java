@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BigQueryServices;
 import org.apache.beam.sdk.util.BigQueryServices.LoadService;
@@ -513,6 +514,18 @@ public class BigQueryIO {
       @Override
       protected Coder<TableRow> getDefaultOutputCoder() {
         return TableRowJsonCoder.of();
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        if (table != null) {
+          builder.add("table", toTableSpec(table));
+        }
+
+        builder
+            .addIfNotNull("query", query)
+            .addIfNotNull("flattenResults", flattenResults)
+            .addIfNotDefault("validation", validate, true);
       }
 
       static {
@@ -1032,6 +1045,20 @@ public class BigQueryIO {
       @Override
       protected Coder<Void> getDefaultOutputCoder() {
         return VoidCoder.of();
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        if (tableRefFunction != null) {
+          builder.add("tableFn", tableRefFunction.getClass());
+        }
+
+        builder
+            .add("createDisposition", createDisposition.toString())
+            .add("writeDisposition", writeDisposition.toString())
+            .addIfNotNull("table", jsonTableRef)
+            .addIfNotNull("schema", jsonSchema)
+            .addIfNotDefault("validation", validate, true);
       }
 
       /** Returns the create disposition. */

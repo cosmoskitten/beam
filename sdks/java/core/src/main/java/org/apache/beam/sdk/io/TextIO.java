@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
@@ -339,6 +340,14 @@ public class TextIO {
       }
 
       @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+            .add("compressionType", compressionType.toString())
+            .addIfNotDefault("validation", validate, true)
+            .addIfNotNull("filePattern", filepattern);
+      }
+
+      @Override
       protected Coder<T> getDefaultOutputCoder() {
         return coder;
       }
@@ -467,10 +476,8 @@ public class TextIO {
      * @param <T> the type of the elements of the input PCollection
      */
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-      /** The prefix of each file written, combined with suffix and shardTemplate. */
-      @Nullable private final String filenamePrefix;
-      /** The suffix of each file written, combined with prefix and shardTemplate. */
-      private final String filenameSuffix;
+      /** The template file name to write to. */
+      private final FileNameTemplate fileNameTemplate;
 
       /** The Coder to use to decode each line. */
       private final Coder<T> coder;
@@ -478,24 +485,20 @@ public class TextIO {
       /** Requested number of shards. 0 for automatic. */
       private final int numShards;
 
-      /** The shard template of each file written, combined with prefix and suffix. */
-      private final String shardTemplate;
-
       /** An option to indicate if output validation is desired. Default is true. */
       private final boolean validate;
 
+
       Bound(Coder<T> coder) {
-        this(null, null, "", coder, 0, ShardNameTemplate.INDEX_OF_MAX, true);
+        this(null, FileNameTemplate.DEFAULT, coder, 0, true);
       }
 
-      private Bound(String name, String filenamePrefix, String filenameSuffix, Coder<T> coder,
-          int numShards, String shardTemplate, boolean validate) {
+      private Bound(String name, FileNameTemplate fileNameTemplate, Coder<T> coder,
+          int numShards, boolean validate) {
         super(name);
         this.coder = coder;
-        this.filenamePrefix = filenamePrefix;
-        this.filenameSuffix = filenameSuffix;
+        this.fileNameTemplate = fileNameTemplate;
         this.numShards = numShards;
-        this.shardTemplate = shardTemplate;
         this.validate = validate;
       }
 
@@ -506,8 +509,7 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
-            shardTemplate, validate);
+        return new Bound<>(name, fileNameTemplate, coder, numShards, validate);
       }
 
       /**
@@ -520,8 +522,8 @@ public class TextIO {
        */
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
-            shardTemplate, validate);
+        return new Bound<>(
+            name, fileNameTemplate.withPrefix(filenamePrefix), coder, numShards, validate);
       }
 
       /**
@@ -534,8 +536,8 @@ public class TextIO {
        */
       public Bound<T> withSuffix(String nameExtension) {
         validateOutputComponent(nameExtension);
-        return new Bound<>(name, filenamePrefix, nameExtension, coder, numShards,
-            shardTemplate, validate);
+        return new Bound<>(
+            name, fileNameTemplate.withSuffix(nameExtension), coder, numShards, validate);
       }
 
       /**
@@ -554,8 +556,7 @@ public class TextIO {
        */
       public Bound<T> withNumShards(int numShards) {
         Preconditions.checkArgument(numShards >= 0);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
-            shardTemplate, validate);
+        return new Bound<>(name, fileNameTemplate, coder, numShards, validate);
       }
 
       /**
@@ -567,8 +568,8 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
-            shardTemplate, validate);
+        return new Bound<>(
+            name, fileNameTemplate.withShardTemplate(shardTemplate), coder, numShards, validate);
       }
 
       /**
@@ -585,7 +586,7 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutSharding() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, 1, "", validate);
+        return new Bound<>(name, fileNameTemplate.withShardTemplate(""), coder, 1, validate);
       }
 
       /**
@@ -597,8 +598,7 @@ public class TextIO {
        * @param <X> the type of the elements of the input {@link PCollection}
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
-            shardTemplate, validate);
+        return new Bound<>(name, fileNameTemplate, coder, numShards, validate);
       }
 
       /**
@@ -612,13 +612,12 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutValidation() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
-            shardTemplate, false);
+        return new Bound<>(name, fileNameTemplate, coder, numShards, false);
       }
 
       @Override
       public PDone apply(PCollection<T> input) {
-        if (filenamePrefix == null) {
+        if (fileNameTemplate.getPrefix().isEmpty()) {
           throw new IllegalStateException(
               "need to set the filename prefix of a TextIO.Write transform");
         }
@@ -627,15 +626,22 @@ public class TextIO {
         // Thus pipeline runner writers need to individually add support internally to
         // apply user requested sharding limits.
         return input.apply("Write", org.apache.beam.sdk.io.Write.to(
-            new TextSink<>(
-                filenamePrefix, filenameSuffix, shardTemplate, coder)));
+            new TextSink<>(fileNameTemplate, coder)));
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+            .add("fileNameTemplate", fileNameTemplate.toString())
+            .addIfNotDefault("validation", validate, true)
+            .addIfNotDefault("numShards", numShards, 0);
       }
 
       /**
        * Returns the current shard name template string.
        */
       public String getShardNameTemplate() {
-        return shardTemplate;
+        return fileNameTemplate.getShardTemplate();
       }
 
       @Override
@@ -644,11 +650,11 @@ public class TextIO {
       }
 
       public String getFilenamePrefix() {
-        return filenamePrefix;
+        return fileNameTemplate.getPrefix();
       }
 
       public String getShardTemplate() {
-        return shardTemplate;
+        return fileNameTemplate.getShardTemplate();
       }
 
       public int getNumShards() {
@@ -656,7 +662,7 @@ public class TextIO {
       }
 
       public String getFilenameSuffix() {
-        return filenameSuffix;
+        return fileNameTemplate.getSuffix();
       }
 
       public Coder<T> getCoder() {
@@ -933,9 +939,8 @@ public class TextIO {
     private final Coder<T> coder;
 
     @VisibleForTesting
-    TextSink(
-        String baseOutputFilename, String extension, String fileNameTemplate, Coder<T> coder) {
-      super(baseOutputFilename, extension, fileNameTemplate);
+    TextSink(FileNameTemplate fileNameTemplate, Coder<T> coder) {
+      super(fileNameTemplate);
       this.coder = coder;
     }
 

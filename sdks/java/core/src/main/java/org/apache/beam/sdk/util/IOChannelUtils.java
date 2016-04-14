@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.io.FileNameTemplate;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
-import java.text.DecimalFormat;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,9 +39,6 @@ public class IOChannelUtils {
   // TODO: add registration mechanism for adding new schemas.
   private static final Map<String, IOChannelFactory> FACTORY_MAP =
       Collections.synchronizedMap(new HashMap<String, IOChannelFactory>());
-
-  // Pattern that matches shard placeholders within a shard template.
-  private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+)");
 
   /**
    * Associates a scheme with an {@link IOChannelFactory}.
@@ -81,12 +77,29 @@ public class IOChannelUtils {
    *
    * <p>Shard numbers are 0 based, meaning they start with 0 and end at the
    * number of shards - 1.
+   *
+   * @deprecated replaced by {@link IOChannelUtils#create(FileNameTemplate, int, String)}
    */
+  @Deprecated
   public static WritableByteChannel create(String prefix, String shardTemplate,
       String suffix, int numShards, String mimeType) throws IOException {
+    return create(FileNameTemplate.of(prefix, shardTemplate, suffix), numShards, mimeType);
+  }
+
+
+  /**
+   * Creates a write channel for the given file components.
+   *
+   * <p>If numShards is specified, then a ShardingWritableByteChannel is
+   * returned.
+   *
+   * <p>Shard numbers are 0 based, meaning they start with 0 and end at the
+   * number of shards - 1.
+   */
+  public static WritableByteChannel create(
+      FileNameTemplate template, int numShards, String mimeType) throws IOException {
     if (numShards == 1) {
-      return create(constructName(prefix, shardTemplate, suffix, 0, 1),
-                    mimeType);
+      return create(template.apply(0, 1), mimeType);
     }
 
     // It is the callers responsibility to close this channel.
@@ -96,8 +109,7 @@ public class IOChannelUtils {
 
     Set<String> outputNames = new HashSet<>();
     for (int i = 0; i < numShards; i++) {
-      String outputName =
-          constructName(prefix, shardTemplate, suffix, i, numShards);
+      String outputName = template.apply(i, numShards);
       if (!outputNames.add(outputName)) {
         throw new IllegalArgumentException(
             "Shard name collision detected for: " + outputName);
@@ -135,29 +147,13 @@ public class IOChannelUtils {
    * <p>For example, if prefix = "output", shardTemplate = "-SSS-of-NNN", and
    * suffix = ".txt", with shardNum = 1 and numShards = 100, the following is
    * produced:  "output-001-of-100.txt".
+   *
+   * @deprecated replaced by {@link FileNameTemplate}
    */
+  @Deprecated
   public static String constructName(String prefix,
       String shardTemplate, String suffix, int shardNum, int numShards) {
-    // Matcher API works with StringBuffer, rather than StringBuilder.
-    StringBuffer sb = new StringBuffer();
-    sb.append(prefix);
-
-    Matcher m = SHARD_FORMAT_RE.matcher(shardTemplate);
-    while (m.find()) {
-      boolean isShardNum = (m.group(1).charAt(0) == 'S');
-
-      char[] zeros = new char[m.end() - m.start()];
-      Arrays.fill(zeros, '0');
-      DecimalFormat df = new DecimalFormat(String.valueOf(zeros));
-      String formatted = df.format(isShardNum
-                                   ? shardNum
-                                   : numShards);
-      m.appendReplacement(sb, formatted);
-    }
-    m.appendTail(sb);
-
-    sb.append(suffix);
-    return sb.toString();
+    return FileNameTemplate.of(prefix, shardTemplate, suffix).apply(shardNum, numShards);
   }
 
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(

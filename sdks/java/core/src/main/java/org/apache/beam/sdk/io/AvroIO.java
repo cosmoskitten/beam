@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -26,6 +27,7 @@ import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
@@ -327,6 +329,13 @@ public class AvroIO {
       }
 
       @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+          .addIfNotNull("filePattern", filepattern)
+          .addIfNotDefault("validation", validate, true);
+      }
+
+      @Override
       protected Coder<T> getDefaultOutputCoder() {
         return AvroCoder.of(type, schema);
       }
@@ -467,15 +476,10 @@ public class AvroIO {
      * @param <T> the type of each of the elements of the input PCollection
      */
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-      /** The filename to write to. */
-      @Nullable
-      final String filenamePrefix;
-      /** Suffix to use for each filename. */
-      final String filenameSuffix;
+      /** The file name template to write to. */
+      final FileNameTemplate fileNameTemplate;
       /** Requested number of shards. 0 for automatic. */
       final int numShards;
-      /** Shard template string. */
-      final String shardTemplate;
       /** The class type of the records. */
       final Class<T> type;
       /** The schema of the output file. */
@@ -485,23 +489,19 @@ public class AvroIO {
       final boolean validate;
 
       Bound(Class<T> type) {
-        this(null, null, "", 0, ShardNameTemplate.INDEX_OF_MAX, type, null, true);
+        this(null, FileNameTemplate.DEFAULT, 0, type, null, true);
       }
 
       Bound(
           String name,
-          String filenamePrefix,
-          String filenameSuffix,
+          FileNameTemplate fileNameTemplate,
           int numShards,
-          String shardTemplate,
           Class<T> type,
           Schema schema,
           boolean validate) {
         super(name);
-        this.filenamePrefix = filenamePrefix;
-        this.filenameSuffix = filenameSuffix;
+        this.fileNameTemplate = checkNotNull(fileNameTemplate);
         this.numShards = numShards;
-        this.shardTemplate = shardTemplate;
         this.type = type;
         this.schema = schema;
         this.validate = validate;
@@ -515,7 +515,7 @@ public class AvroIO {
        */
       public Bound<T> named(String name) {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+            name, fileNameTemplate, numShards, type, schema, validate);
       }
 
       /**
@@ -530,7 +530,7 @@ public class AvroIO {
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+            name, fileNameTemplate.withPrefix(filenamePrefix), numShards, type, schema, validate);
       }
 
       /**
@@ -544,7 +544,7 @@ public class AvroIO {
       public Bound<T> withSuffix(String filenameSuffix) {
         validateOutputComponent(filenameSuffix);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+            name, fileNameTemplate.withSuffix(filenameSuffix), numShards, type, schema, validate);
       }
 
       /**
@@ -564,7 +564,7 @@ public class AvroIO {
       public Bound<T> withNumShards(int numShards) {
         Preconditions.checkArgument(numShards >= 0);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+            name, fileNameTemplate, numShards, type, schema, validate);
       }
 
       /**
@@ -576,8 +576,8 @@ public class AvroIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
-        return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+        FileNameTemplate newTemplate = this.fileNameTemplate.withShardTemplate(shardTemplate);
+        return new Bound<>(name, newTemplate, numShards, type, schema, validate);
       }
 
       /**
@@ -590,7 +590,8 @@ public class AvroIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutSharding() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, 1, "", type, schema, validate);
+        return new Bound<>(
+            name, fileNameTemplate.withShardTemplate(""), 1, type, schema, validate);
       }
 
       /**
@@ -605,10 +606,8 @@ public class AvroIO {
       public <X> Bound<X> withSchema(Class<X> type) {
         return new Bound<>(
             name,
-            filenamePrefix,
-            filenameSuffix,
+            fileNameTemplate,
             numShards,
-            shardTemplate,
             type,
             ReflectData.get().getSchema(type),
             validate);
@@ -624,10 +623,8 @@ public class AvroIO {
       public Bound<GenericRecord> withSchema(Schema schema) {
         return new Bound<>(
             name,
-            filenamePrefix,
-            filenameSuffix,
+            fileNameTemplate,
             numShards,
-            shardTemplate,
             GenericRecord.class,
             schema,
             validate);
@@ -656,12 +653,12 @@ public class AvroIO {
        */
       public Bound<T> withoutValidation() {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, false);
+            name, fileNameTemplate, numShards, type, schema, false);
       }
 
       @Override
       public PDone apply(PCollection<T> input) {
-        if (filenamePrefix == null) {
+        if (fileNameTemplate.getPrefix().isEmpty()) {
           throw new IllegalStateException(
               "need to set the filename prefix of an AvroIO.Write transform");
         }
@@ -675,15 +672,23 @@ public class AvroIO {
         return input.apply(
             "Write",
             org.apache.beam.sdk.io.Write.to(
-                new AvroSink<>(
-                    filenamePrefix, filenameSuffix, shardTemplate, AvroCoder.of(type, schema))));
+                new AvroSink<>(fileNameTemplate, AvroCoder.of(type, schema))));
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+            .add("schema", type)
+            .add("fileNameTemplate", fileNameTemplate.toString())
+            .addIfNotDefault("numShards", numShards, 0)
+            .addIfNotDefault("validation", validate, true);
       }
 
       /**
        * Returns the current shard name template string.
        */
       public String getShardNameTemplate() {
-        return shardTemplate;
+        return fileNameTemplate.getShardTemplate();
       }
 
       @Override
@@ -692,11 +697,11 @@ public class AvroIO {
       }
 
       public String getFilenamePrefix() {
-        return filenamePrefix;
+        return fileNameTemplate.getPrefix();
       }
 
       public String getShardTemplate() {
-        return shardTemplate;
+        return fileNameTemplate.getShardTemplate();
       }
 
       public int getNumShards() {
@@ -704,7 +709,7 @@ public class AvroIO {
       }
 
       public String getFilenameSuffix() {
-        return filenameSuffix;
+        return fileNameTemplate.getSuffix();
       }
 
       public Class<T> getType() {
@@ -748,9 +753,8 @@ public class AvroIO {
     private final AvroCoder<T> coder;
 
     @VisibleForTesting
-    AvroSink(
-        String baseOutputFilename, String extension, String fileNameTemplate, AvroCoder<T> coder) {
-      super(baseOutputFilename, extension, fileNameTemplate);
+    AvroSink(FileNameTemplate fileNameTemplate, AvroCoder<T> coder) {
+      super(fileNameTemplate);
       this.coder = coder;
     }
 

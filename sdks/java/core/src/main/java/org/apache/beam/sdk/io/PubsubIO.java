@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.Transport;
@@ -689,6 +690,23 @@ public class PubsubIO {
       }
 
       @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+            .addIfNotNull("timestampLabel", timestampLabel)
+            .addIfNotNull("idLabel", idLabel)
+            .addIfNotNull("maxReadTime", maxReadTime)
+            .addIfNotDefault("maxNumRecords", maxNumRecords, 0);
+
+        if (topic != null) {
+          builder.add("topic", topic.asPath());
+        }
+
+        if (subscription != null) {
+          builder.add("subscription", subscription.asPath());
+        }
+      }
+
+      @Override
       protected Coder<T> getDefaultOutputCoder() {
         return coder;
       }
@@ -971,6 +989,17 @@ public class PubsubIO {
         }
         input.apply(ParDo.of(new PubsubWriter()));
         return PDone.in(input.getPipeline());
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+            .addIfNotNull("timestampLabel", timestampLabel)
+            .addIfNotNull("idLabel", idLabel);
+
+        if (topic != null) {
+          builder.add("topic", topic.asPath());
+        }
       }
 
       @Override

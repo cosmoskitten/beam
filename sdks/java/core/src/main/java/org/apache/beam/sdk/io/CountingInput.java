@@ -24,6 +24,7 @@ import org.apache.beam.sdk.io.CountingSource.NowTimestampFn;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -113,6 +114,11 @@ public class CountingInput {
     @Override
     public PCollection<Long> apply(PBegin begin) {
       return begin.apply(Read.from(CountingSource.upTo(numElements)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add("upTo", numElements);
     }
   }
 
@@ -219,6 +225,19 @@ public class CountingInput {
       } else {
         return begin.apply(
             read.withMaxReadTime(maxReadTime.get()).withMaxNumRecords(maxNumRecords.get()));
+      }
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add("timestampFn", timestampFn.getClass());
+
+      if (maxReadTime.isPresent()) {
+        builder.add("maxReadTime", maxReadTime.get());
+      }
+
+      if (maxNumRecords.isPresent()) {
+        builder.add("maxRecords", maxNumRecords.get());
       }
     }
   }
