@@ -20,7 +20,7 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.options.PubsubOptions;
 
-import com.google.api.client.util.DateTime;
+import com.google.api.client.util.Clock;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -222,10 +222,11 @@ public class PubsubGrpcClient extends PubsubClient {
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
       SubscriptionPath subscription,
-      int batchSize) throws IOException {
+      int batchSize,
+      boolean returnImmediately) throws IOException {
     PullRequest request = PullRequest.newBuilder()
                                      .setSubscription(subscription.getPath())
-                                     .setReturnImmediately(true)
+                                     .setReturnImmediately(returnImmediately)
                                      .setMaxMessages(batchSize)
                                      .build();
     PullResponse response = subscriberStub().pull(request);
@@ -235,37 +236,20 @@ public class PubsubGrpcClient extends PubsubClient {
     List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessagesCount());
     for (ReceivedMessage message : response.getReceivedMessagesList()) {
       PubsubMessage pubsubMessage = message.getMessage();
-      Map<String, String> attributes = pubsubMessage.getAttributes();
+      @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
 
       // Payload.
       byte[] elementBytes = pubsubMessage.getData().toByteArray();
 
       // Timestamp.
-      // Start with Pubsub processing time.
+      String pubsubTimestampString = null;
       Timestamp timestampProto = pubsubMessage.getPublishTime();
-      long timestampMsSinceEpoch = timestampProto.getSeconds() + timestampProto.getNanos() / 1000L;
-      if (timestampLabel != null && attributes != null) {
-        String timestampString = attributes.get(timestampLabel);
-        if (timestampString != null && !timestampString.isEmpty()) {
-          try {
-            // Try parsing as milliseconds since epoch. Note there is no way to parse a
-            // string in RFC 3339 format here.
-            // Expected IllegalArgumentException if parsing fails; we use that to fall back
-            // to RFC 3339.
-            timestampMsSinceEpoch = Long.parseLong(timestampString);
-          } catch (IllegalArgumentException e1) {
-            try {
-              // Try parsing as RFC3339 string. DateTime.parseRfc3339 will throw an
-              // IllegalArgumentException if parsing fails, and the caller should handle.
-              timestampMsSinceEpoch = DateTime.parseRfc3339(timestampString).getValue();
-            } catch (IllegalArgumentException e2) {
-              // Fallback to Pubsub processing time.
-            }
-          }
-        }
-        // else: fallback to Pubsub processing time.
+      if (timestampProto != null) {
+        pubsubTimestampString = String.valueOf(timestampProto.getSeconds()
+                                               + timestampProto.getNanos() / 1000L);
       }
-      // else: fallback to Pubsub processing time.
+      long timestampMsSinceEpoch =
+          extractTimestamp(Clock.SYSTEM, timestampLabel, pubsubTimestampString, attributes);
 
       // Ack id.
       String ackId = message.getAckId();

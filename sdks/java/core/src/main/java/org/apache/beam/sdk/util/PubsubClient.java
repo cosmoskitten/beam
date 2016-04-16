@@ -20,13 +20,14 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.options.PubsubOptions;
 
+import com.google.api.client.util.Clock;
+import com.google.api.client.util.DateTime;
 import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -34,7 +35,7 @@ import javax.annotation.Nullable;
  */
 public abstract class PubsubClient implements AutoCloseable {
   /**
-   * Which client to create for.
+   * Which underlying transport to use.
    */
   public enum TransportType {
     APIARY,
@@ -42,46 +43,57 @@ public abstract class PubsubClient implements AutoCloseable {
   }
 
   /**
-   * Project IDs must contain 6-63 lowercase letters, digits, or dashes.
-   * IDs must start with a letter and may not end with a dash.
-   * This regex isn't exact - this allows for patterns that would be rejected by
-   * the service, but this is sufficient for basic parsing of table references.
+   * Return timestamp as ms-since-unix-epoch corresponding to {@code timestamp}.
+   * Return {@literal null} if no timestamp could be found. Throw {@link IllegalArgumentException}
+   * if timestamp cannot be recognized.
    */
-  private static final Pattern PROJECT_ID_REGEXP =
-      Pattern.compile("[a-z][-a-z0-9:.]{4,61}[a-z0-9]");
-
-  private static final Pattern PUBSUB_NAME_REGEXP = Pattern.compile("[a-zA-Z][-._~%+a-zA-Z0-9]+");
-
-  private static final int PUBSUB_NAME_MIN_LENGTH = 3;
-  private static final int PUBSUB_NAME_MAX_LENGTH = 255;
-
-  private static void validateProjectId(String project) {
-    if (!PROJECT_ID_REGEXP.matcher(project).matches()) {
-      throw new IllegalArgumentException(
-          "Illegal project name specified in Pubsub request: " + project);
+  @Nullable
+  private static Long asMsSinceEpoch(@Nullable String timestamp) {
+    if (timestamp == null || timestamp.isEmpty()) {
+      return null;
+    }
+    try {
+      // Try parsing as milliseconds since epoch. Note there is no way to parse a
+      // string in RFC 3339 format here.
+      // Expected IllegalArgumentException if parsing fails; we use that to fall back
+      // to RFC 3339.
+      return Long.parseLong(timestamp);
+    } catch (IllegalArgumentException e1) {
+      // Try parsing as RFC3339 string. DateTime.parseRfc3339 will throw an
+      // IllegalArgumentException if parsing fails, and the caller should handle.
+      return DateTime.parseRfc3339(timestamp).getValue();
     }
   }
 
-  private static void validatePubsubName(String name) {
-    if (name.length() < PUBSUB_NAME_MIN_LENGTH) {
-      throw new IllegalArgumentException(
-          "Pubsub topic or subscription name is shorter than 3 characters: " + name);
+  /**
+   * Return the timestamp to use for a Pubsub message with {@code attributes}:
+   * <ol>
+   * <li> If {@code timestampLabel} is non-{@literal null} then the message attributes
+   * must contain that label, and the value for that label must be recognized as a
+   * ms-since-unix-epoch or RFC3339 time. Return that time as ms-since-unix-epoch or
+   * throw {@link IllegalArgumentException} if not possible.
+   * <li> Otherwise return the current system time according to {@code clock}.
+   * </ol>
+   * <p>
+   * Note  that {@code pubsubTimestamp} is currently ignored, but should be the Pubsub timestamp
+   * extracted from the underlying Pubsub message. This may be used for the message timestamp
+   * instead of the current system time in the future.
+   *
+   * @throws IllegalArgumentException
+   */
+  protected static long extractTimestamp(
+      Clock clock,
+      @Nullable String timestampLabel,
+      @Nullable String pubsubTimestamp,
+      @Nullable Map<String, String> attributes) {
+    if (timestampLabel == null) {
+      return clock.currentTimeMillis();
     }
-    if (name.length() > PUBSUB_NAME_MAX_LENGTH) {
-      throw new IllegalArgumentException(
-          "Pubsub topic or subscription name is longer than 255 characters: " + name);
-    }
-
-    if (name.startsWith("goog")) {
-      throw new IllegalArgumentException(
-          "Pubsub topic or subscription name cannot start with goog: " + name);
-    }
-
-    Matcher match = PUBSUB_NAME_REGEXP.matcher(name);
-    if (!match.matches()) {
-      throw new IllegalArgumentException("Illegal Pubsub object name specified: " + name
-                                         + " Please see Javadoc for naming rules.");
-    }
+    Long timestampMsSinceEpoch =
+        asMsSinceEpoch(attributes == null ? null : attributes.get(timestampLabel));
+    Preconditions.checkArgument(timestampMsSinceEpoch != null,
+        "PubSub message is missing a timestamp in label: %s", timestampLabel);
+    return timestampMsSinceEpoch;
   }
 
   /**
@@ -125,7 +137,6 @@ public abstract class PubsubClient implements AutoCloseable {
   }
 
   public static ProjectPath projectPathFromId(String projectId) {
-    validateProjectId(projectId);
     return new ProjectPath(String.format("projects/%s", projectId));
   }
 
@@ -174,8 +185,6 @@ public abstract class PubsubClient implements AutoCloseable {
 
   public static SubscriptionPath subscriptionPathFromName(
       String projectId, String subscriptionName) {
-    validateProjectId(projectId);
-    validatePubsubName(subscriptionName);
     return new SubscriptionPath(String.format("projects/%s/subscriptions/%s",
         projectId, subscriptionName));
   }
@@ -224,8 +233,6 @@ public abstract class PubsubClient implements AutoCloseable {
   }
 
   public static TopicPath topicPathFromName(String projectId, String topicName) {
-    validateProjectId(projectId);
-    validatePubsubName(topicName);
     return new TopicPath(String.format("projects/%s/topics/%s", projectId, topicName));
   }
 
@@ -296,12 +303,13 @@ public abstract class PubsubClient implements AutoCloseable {
   /**
    * Create a client using the underlying transport.
    */
-  public static PubsubClient newClient(TransportType transportType,
-                                       @Nullable String timestampLabel,
-                                       @Nullable String idLabel,
-                                       PubsubOptions options) throws IOException {
+  public static PubsubClient newClient(
+      TransportType transportType,
+      @Nullable String timestampLabel,
+      @Nullable String idLabel,
+      PubsubOptions options) throws IOException {
     switch (transportType) {
-      case  APIARY:
+      case APIARY:
         return PubsubApiaryClient.newClient(timestampLabel, idLabel, options);
       case GRPC:
         return PubsubGrpcClient.newClient(timestampLabel, idLabel, options);
@@ -327,13 +335,14 @@ public abstract class PubsubClient implements AutoCloseable {
   /**
    * Request the next batch of up to {@code batchSize} messages from {@code subscription}.
    * Return the received messages, or empty collection if none were available. Does not
-   * wait for messages to arrive. Returned messages will record their request time
-   * as {@code requestTimeMsSinceEpoch}.
+   * wait for messages to arrive if {@code returnImmediately} is {@literal true}.
+   * Returned messages will record their request time as {@code requestTimeMsSinceEpoch}.
    *
    * @throws IOException
    */
   public abstract List<IncomingMessage> pull(
-      long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize)
+      long requestTimeMsSinceEpoch, SubscriptionPath subscription,
+      int batchSize, boolean returnImmediately)
       throws IOException;
 
   /**
