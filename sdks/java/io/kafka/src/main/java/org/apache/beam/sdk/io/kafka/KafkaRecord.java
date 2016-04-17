@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.contrib.kafka;
+package org.apache.beam.sdk.io.kafka;
 
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.sdk.values.KV;
 
 import java.io.Serializable;
 import java.util.Arrays;

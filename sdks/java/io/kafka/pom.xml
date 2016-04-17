@@ -22,14 +22,14 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>parent</artifactId>
+    <artifactId>io-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
-    <relativePath>../../pom.xml</relativePath>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>contrib-kafka</artifactId>
-  <name>Apache Beam :: Contrib :: Kafka IO</name>
-  <description>Beam Library to read Kafka topics</description>
+  <artifactId>kafka</artifactId>
+  <name>Apache Beam :: SDKs :: Java :: IO :: Kafka</name>
+  <description>Library to read Kafka topics.</description>
   <packaging>jar</packaging>
 
   <build>
@@ -101,7 +101,7 @@
           <windowtitle>Apache Beam Kafka IO</windowtitle>
           <doctitle>Apache Beam Kafka IO</doctitle>
 
-          <subpackages>com.google.cloud.dataflow.contrib.kafka</subpackages>
+          <subpackages>org.apache.beam.sdk.io.kafka</subpackages>
           <use>false</use>
           <bottom><![CDATA[<br>]]></bottom>
         </configuration>
