@@ -26,14 +26,18 @@ import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BigQueryServices;
 import org.apache.beam.sdk.util.BigQueryServices.Status;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.TestCredential;
 
 import com.google.api.client.util.Data;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
@@ -603,5 +607,57 @@ public class BigQueryIOTest {
     assertEquals("BigQueryIO.Write", BigQueryIO.Write.to("somedataset.sometable").getName());
     assertEquals("ReadMyTable", BigQueryIO.Read.named("ReadMyTable").getName());
     assertEquals("WriteMyTable", BigQueryIO.Write.named("WriteMyTable").getName());
+  }
+
+  @Test
+  public void testWriteValidateFailsCreateNoSchema() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("no schema was provided");
+    TestPipeline.create()
+        .apply(Create.<TableRow>of())
+        .apply(BigQueryIO.Write
+            .to("dataset.table")
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testWriteValidateFailsTableAndTableSpec() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("Cannot set both a table reference and a table function");
+    TestPipeline.create()
+        .apply(Create.<TableRow>of())
+        .apply(BigQueryIO.Write
+            .to("dataset.table")
+            .to(new SerializableFunction<BoundedWindow, String>() {
+              @Override
+              public String apply(BoundedWindow input) {
+                return null;
+              }
+            }));
+  }
+
+  @Test
+  public void testWriteValidateFailsNoTableAndNoTableSpec() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("must set the table reference of a BigQueryIO.Write transform");
+    TestPipeline.create()
+        .apply(Create.<TableRow>of())
+        .apply(BigQueryIO.Write.named("name"));
+  }
+
+
+  @Test
+  public void testWriteLogsDefaultProject() {
+    GcpOptions options = PipelineOptionsFactory.create().as(GcpOptions.class);
+    options.setProject("project");
+    options.setTempLocation("gs://bucket/temp");
+    TestPipeline.create(options)
+        .apply(Create.<TableRow>of())
+        .apply(BigQueryIO.Write
+            .to("dataset.table")
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withoutValidation());
+    logged.verifyWarn("No project specified for BigQuery table \"dataset.table\"."
+        + " Assuming it is in \"project\"");
   }
 }
