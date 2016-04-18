@@ -953,9 +953,12 @@ public class BigQueryIO {
 
           // If user does not specify a project we assume the table to be located in the project
           // configured in BigQueryOptions.
-          LOG.warn(String.format(BigQueryIO.SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
-              table.getTableId(), options.getProject()));
-          table.setProjectId(options.getProject());
+          if (Strings.isNullOrEmpty(table.getProjectId())) {
+            LOG.warn(
+                String.format(BigQueryIO.SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
+                    table.getTableId(), options.getProject()));
+            table.setProjectId(options.getProject());
+          }
 
           // Check for destination table presence and emptiness for early failure notification.
           // Note that a presence check can fail when the table or dataset is created by an earlier
