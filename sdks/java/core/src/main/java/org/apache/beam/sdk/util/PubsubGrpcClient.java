@@ -39,11 +39,13 @@ import com.google.pubsub.v1.ModifyAckDeadlineRequest;
 import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PublisherGrpc;
+import com.google.pubsub.v1.PublisherGrpc.PublisherBlockingStub;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.SubscriberGrpc;
+import com.google.pubsub.v1.SubscriberGrpc.SubscriberBlockingStub;
 import com.google.pubsub.v1.Subscription;
 import com.google.pubsub.v1.Topic;
 
@@ -80,7 +82,7 @@ public class PubsubGrpcClient extends PubsubClient {
   /**
    * Timeout for grpc calls (in s).
    */
-  private final int timeout_s;
+  private final int timeoutSec;
 
   /**
    * Underlying netty channel, or {@literal null} if closed.
@@ -118,14 +120,14 @@ public class PubsubGrpcClient extends PubsubClient {
   PubsubGrpcClient(
       @Nullable String timestampLabel,
       @Nullable String idLabel,
-      int timeout_s,
+      int timeoutSec,
       ManagedChannel publisherChannel,
       GoogleCredentials credentials,
       PublisherGrpc.PublisherBlockingStub cachedPublisherStub,
       SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub) {
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
-    this.timeout_s = timeout_s;
+    this.timeoutSec = timeoutSec;
     this.publisherChannel = publisherChannel;
     this.credentials = credentials;
     this.cachedPublisherStub = cachedPublisherStub;
@@ -162,9 +164,9 @@ public class PubsubGrpcClient extends PubsubClient {
   public void close() {
     Preconditions.checkState(publisherChannel != null, "Client has already been closed");
     publisherChannel.shutdown();
-    if (timeout_s > 0) {
+    if (timeoutSec > 0) {
       try {
-        publisherChannel.awaitTermination(timeout_s, TimeUnit.SECONDS);
+        publisherChannel.awaitTermination(timeoutSec, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         // Ignore.
         Thread.currentThread().interrupt();
@@ -188,12 +190,12 @@ public class PubsubGrpcClient extends PubsubClient {
   /**
    * Return a stub for making a publish request with a timeout.
    */
-  private PublisherGrpc.PublisherBlockingStub publisherStub() throws IOException {
+  private PublisherBlockingStub publisherStub() throws IOException {
     if (cachedPublisherStub == null) {
       cachedPublisherStub = PublisherGrpc.newBlockingStub(newChannel());
     }
-    if (timeout_s > 0) {
-      return cachedPublisherStub.withDeadlineAfter(timeout_s, TimeUnit.SECONDS);
+    if (timeoutSec > 0) {
+      return cachedPublisherStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
     } else {
       return cachedPublisherStub;
     }
@@ -202,12 +204,12 @@ public class PubsubGrpcClient extends PubsubClient {
   /**
    * Return a stub for making a subscribe request with a timeout.
    */
-  private SubscriberGrpc.SubscriberBlockingStub subscriberStub() throws IOException {
+  private SubscriberBlockingStub subscriberStub() throws IOException {
     if (cachedSubscriberStub == null) {
       cachedSubscriberStub = SubscriberGrpc.newBlockingStub(newChannel());
     }
-    if (timeout_s > 0) {
-      return cachedSubscriberStub.withDeadlineAfter(timeout_s, TimeUnit.SECONDS);
+    if (timeoutSec > 0) {
+      return cachedSubscriberStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
     } else {
       return cachedSubscriberStub;
     }
