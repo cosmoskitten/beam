@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.options.PubsubOptions;
 
+import com.google.api.client.repackaged.com.google.common.annotations.VisibleForTesting;
 import com.google.api.client.util.Clock;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.base.Preconditions;
@@ -74,10 +75,12 @@ public class PubsubGrpcClient extends PubsubClient {
       Collections.singletonList("https://www.googleapis.com/auth/pubsub");
   private static final int LIST_BATCH_SIZE = 1000;
 
+  private static final int DEFAULT_TIMEOUT_S = 15;
+
   /**
    * Timeout for grpc calls (in s).
    */
-  private static final int TIMEOUT_S = 15;
+  private final int timeout_s;
 
   /**
    * Underlying netty channel, or {@literal null} if closed.
@@ -111,13 +114,22 @@ public class PubsubGrpcClient extends PubsubClient {
   private PublisherGrpc.PublisherBlockingStub cachedPublisherStub;
   private SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub;
 
-  private PubsubGrpcClient(
-      @Nullable String timestampLabel, @Nullable String idLabel,
-      ManagedChannel publisherChannel, GoogleCredentials credentials) {
+  @VisibleForTesting
+  PubsubGrpcClient(
+      @Nullable String timestampLabel,
+      @Nullable String idLabel,
+      int timeout_s,
+      ManagedChannel publisherChannel,
+      GoogleCredentials credentials,
+      PublisherGrpc.PublisherBlockingStub cachedPublisherStub,
+      SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub) {
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
+    this.timeout_s = timeout_s;
     this.publisherChannel = publisherChannel;
     this.credentials = credentials;
+    this.cachedPublisherStub = cachedPublisherStub;
+    this.cachedSubscriberStub = cachedSubscriberStub;
   }
 
   /**
@@ -139,7 +151,8 @@ public class PubsubGrpcClient extends PubsubClient {
     // various command line options. It currently only supports the older
     // com.google.api.client.auth.oauth2.Credentials.
     GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-    return new PubsubGrpcClient(timestampLabel, idLabel, channel, credentials);
+    return new PubsubGrpcClient(timestampLabel, idLabel, DEFAULT_TIMEOUT_S, channel, credentials,
+                                null, null);
   }
 
   /**
@@ -149,11 +162,13 @@ public class PubsubGrpcClient extends PubsubClient {
   public void close() {
     Preconditions.checkState(publisherChannel != null, "Client has already been closed");
     publisherChannel.shutdown();
-    try {
-      publisherChannel.awaitTermination(TIMEOUT_S, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      // Ignore.
-      Thread.currentThread().interrupt();
+    if (timeout_s > 0) {
+      try {
+        publisherChannel.awaitTermination(timeout_s, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        // Ignore.
+        Thread.currentThread().interrupt();
+      }
     }
     publisherChannel = null;
     cachedPublisherStub = null;
@@ -177,7 +192,11 @@ public class PubsubGrpcClient extends PubsubClient {
     if (cachedPublisherStub == null) {
       cachedPublisherStub = PublisherGrpc.newBlockingStub(newChannel());
     }
-    return cachedPublisherStub.withDeadlineAfter(TIMEOUT_S, TimeUnit.SECONDS);
+    if (timeout_s > 0) {
+      return cachedPublisherStub.withDeadlineAfter(timeout_s, TimeUnit.SECONDS);
+    } else {
+      return cachedPublisherStub;
+    }
   }
 
   /**
@@ -187,7 +206,11 @@ public class PubsubGrpcClient extends PubsubClient {
     if (cachedSubscriberStub == null) {
       cachedSubscriberStub = SubscriberGrpc.newBlockingStub(newChannel());
     }
-    return cachedSubscriberStub.withDeadlineAfter(TIMEOUT_S, TimeUnit.SECONDS);
+    if (timeout_s > 0) {
+      return cachedSubscriberStub.withDeadlineAfter(timeout_s, TimeUnit.SECONDS);
+    } else {
+      return cachedSubscriberStub;
+    }
   }
 
   @Override
@@ -208,7 +231,7 @@ public class PubsubGrpcClient extends PubsubClient {
       if (idLabel != null) {
         message.getMutableAttributes()
                .put(idLabel,
-                   Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
+                    Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
       }
 
       request.addMessages(message);
@@ -268,7 +291,7 @@ public class PubsubGrpcClient extends PubsubClient {
       }
 
       incomingMessages.add(new IncomingMessage(elementBytes, timestampMsSinceEpoch,
-          requestTimeMsSinceEpoch, ackId, recordId));
+                                               requestTimeMsSinceEpoch, ackId, recordId));
     }
     return incomingMessages;
   }

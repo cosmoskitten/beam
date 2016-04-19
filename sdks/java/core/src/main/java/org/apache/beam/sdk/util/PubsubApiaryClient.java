@@ -36,6 +36,7 @@ import com.google.api.services.pubsub.model.ReceivedMessage;
 import com.google.api.services.pubsub.model.Subscription;
 import com.google.api.services.pubsub.model.Topic;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
@@ -71,7 +72,8 @@ public class PubsubApiaryClient extends PubsubClient {
    */
   private Pubsub pubsub;
 
-  private PubsubApiaryClient(
+  @VisibleForTesting
+  PubsubApiaryClient(
       @Nullable String timestampLabel,
       @Nullable String idLabel,
       Pubsub pubsub) {

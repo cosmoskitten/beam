@@ -20,6 +20,10 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
+import org.apache.beam.sdk.util.PubsubClient.ProjectPath;
+import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
+import org.apache.beam.sdk.util.PubsubClient.TopicPath;
+
 import com.google.api.client.testing.http.FixedClock;
 import com.google.api.client.util.Clock;
 import com.google.common.collect.ImmutableMap;
@@ -37,6 +41,10 @@ import java.util.Map;
 public class PubsubClientTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
+
+  //
+  // Timestamp handling
+  //
 
   private long parse(String timestamp) {
     Map<String, String> map = ImmutableMap.of("myLabel", timestamp);
@@ -149,5 +157,29 @@ public class PubsubClientTest {
     thrown.expect(NumberFormatException.class);
     // Year 10000 out of range.
     parse("10000-10-29T23:41:41.123999Z");
+  }
+
+  //
+  // Paths
+  //
+
+  @Test
+  public void projectPathFromIdWellFormed() {
+    ProjectPath path = PubsubClient.projectPathFromId("test");
+    assertEquals("projects/test", path.getPath());
+  }
+
+  @Test
+  public void subscriptionPathFromNameWellFormed() {
+    SubscriptionPath path = PubsubClient.subscriptionPathFromName("test", "something");
+    assertEquals("projects/test/subscriptions/something", path.getPath());
+    assertEquals("/subscriptions/test/something", path.getV1Beta1Path());
+  }
+
+  @Test
+  public void topicPathFromNameWellFormed() {
+    TopicPath path = PubsubClient.topicPathFromName("test", "something");
+    assertEquals("projects/test/topics/something", path.getPath());
+    assertEquals("/topics/test/something", path.getV1Beta1Path());
   }
 }
