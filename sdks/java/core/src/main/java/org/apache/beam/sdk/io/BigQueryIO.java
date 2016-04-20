@@ -88,6 +88,8 @@ import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1015,7 +1017,23 @@ public class BigQueryIO {
           table.setProjectId(options.getProject());
         }
         String jobIdToken = UUID.randomUUID().toString();
-        String tempFilePrefix = options.getTempLocation() + "/BigQuerySinkTemp/" + jobIdToken;
+        String tempLocation = options.getTempLocation();
+        Path tempPath;
+        if (testBigQueryServices == null) {
+          try {
+            tempPath = GcsPath.fromUri(tempLocation);
+          } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(String.format(
+                "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
+                tempLocation), e);
+          }
+        } else {
+          tempPath = Paths.get(tempLocation);
+        }
+
+        String tempFilePrefix = tempPath
+            .resolve("BigQuerySinkTemp")
+            .resolve(jobIdToken).toString();
         BigQueryServices bqServices = getBigQueryServices();
         return input.apply("Write", org.apache.beam.sdk.io.Write.to(
             new BigQuerySink(
