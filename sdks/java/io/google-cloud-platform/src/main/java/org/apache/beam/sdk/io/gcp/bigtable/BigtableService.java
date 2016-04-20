@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.bigtable;
+package org.apache.beam.sdk.io.gcp.bigtable;
 
-import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
 
 import com.google.bigtable.v1.Mutation;
@@ -96,7 +95,7 @@ interface BigtableService extends Serializable {
   /**
    * Returns a {@link Reader} that will read from the specified source.
    */
-  Reader createReader(BigtableSource source) throws IOException;
+  Reader createReader(BigtableIO.BigtableSource source) throws IOException;
 
   /**
    * Returns a {@link Writer} that will write to the specified table.
@@ -107,5 +106,5 @@ interface BigtableService extends Serializable {
    * Returns a set of row keys sampled from the underlying table. These contain information about
    * the distribution of keys within the table.
    */
-  List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException;
+  List<SampleRowKeysResponse> getSampleRowKeys(BigtableIO.BigtableSource source) throws IOException;
 }

@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.bigtable;
+package org.apache.beam.sdk.io.gcp.bigtable;
 
-import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
 
 import com.google.bigtable.admin.table.v1.GetTableRequest;
@@ -101,11 +100,11 @@ class BigtableServiceImpl implements BigtableService {
 
   private class BigtableReaderImpl implements Reader {
     private BigtableSession session;
-    private final BigtableSource source;
+    private final BigtableIO.BigtableSource source;
     private ResultScanner<Row> results;
     private Row currentRow;
 
-    public BigtableReaderImpl(BigtableSession session, BigtableSource source) {
+    public BigtableReaderImpl(BigtableSession session, BigtableIO.BigtableSource source) {
       this.session = session;
       this.source = source;
     }
@@ -226,13 +225,13 @@ class BigtableServiceImpl implements BigtableService {
   }
 
   @Override
-  public Reader createReader(BigtableSource source) throws IOException {
+  public Reader createReader(BigtableIO.BigtableSource source) throws IOException {
     BigtableSession session = new BigtableSession(options);
     return new BigtableReaderImpl(session, source);
   }
 
   @Override
-  public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException {
+  public List<SampleRowKeysResponse> getSampleRowKeys(BigtableIO.BigtableSource source) throws IOException {
     try (BigtableSession session = new BigtableSession(options)) {
       SampleRowKeysRequest request =
           SampleRowKeysRequest.newBuilder()

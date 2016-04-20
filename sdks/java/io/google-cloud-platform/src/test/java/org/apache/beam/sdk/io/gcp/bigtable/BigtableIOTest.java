@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.bigtable;
+package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
@@ -35,7 +35,6 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -306,8 +305,8 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    BigtableSource source =
-        new BigtableSource(service, table, null, service.getTableRange(table), null);
+    BigtableIO.BigtableSource source =
+        new BigtableIO.BigtableSource(service, table, null, service.getTableRange(table), null);
     assertSplitAtFractionExhaustive(source, null);
   }
 
@@ -323,8 +322,8 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    BigtableSource source =
-        new BigtableSource(service, table, null, service.getTableRange(table), null);
+    BigtableIO.BigtableSource source =
+        new BigtableIO.BigtableSource(service, table, null, service.getTableRange(table), null);
     // With 0 items read, all split requests will fail.
     assertSplitAtFractionFails(source, 0, 0.1, null /* options */);
     assertSplitAtFractionFails(source, 0, 1.0, null /* options */);
@@ -353,9 +352,9 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     // Generate source and split it.
-    BigtableSource source =
-        new BigtableSource(service, table, null /*filter*/, ByteKeyRange.ALL_KEYS, null /*size*/);
-    List<BigtableSource> splits =
+    BigtableIO.BigtableSource source =
+        new BigtableIO.BigtableSource(service, table, null /*filter*/, ByteKeyRange.ALL_KEYS, null /*size*/);
+    List<BigtableIO.BigtableSource> splits =
         source.splitIntoBundles(numRows * bytesPerRow / numSamples, null /* options */);
 
     // Test num splits and split equality.
@@ -377,9 +376,9 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     // Generate source and split it.
-    BigtableSource source =
-        new BigtableSource(service, table, null /*filter*/, ByteKeyRange.ALL_KEYS, null /*size*/);
-    List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
+    BigtableIO.BigtableSource source =
+        new BigtableIO.BigtableSource(service, table, null /*filter*/, ByteKeyRange.ALL_KEYS, null /*size*/);
+    List<BigtableIO.BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSplits));
@@ -402,9 +401,9 @@ public class BigtableIOTest {
     // Generate source and split it.
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
-    BigtableSource source =
-        new BigtableSource(service, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
-    List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
+    BigtableIO.BigtableSource source =
+        new BigtableIO.BigtableSource(service, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
+    List<BigtableIO.BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSplits));
@@ -565,7 +564,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FakeBigtableReader createReader(BigtableSource source) {
+    public FakeBigtableReader createReader(BigtableIO.BigtableSource source) {
       return new FakeBigtableReader(source);
     }
 
@@ -575,7 +574,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) {
+    public List<SampleRowKeysResponse> getSampleRowKeys(BigtableIO.BigtableSource source) {
       List<SampleRowKeysResponse> samples = sampleRowKeys.get(source.getTableId());
       checkArgument(samples != null, "No samples found for table %s", source.getTableId());
       return samples;
@@ -618,12 +617,12 @@ public class BigtableIOTest {
    * <p>This reader does not support {@link RowFilter} objects.
    */
   private static class FakeBigtableReader implements BigtableService.Reader {
-    private final BigtableSource source;
+    private final BigtableIO.BigtableSource source;
     private Iterator<Map.Entry<ByteString, ByteString>> rows;
     private Row currentRow;
     private Predicate<ByteString> filter;
 
-    public FakeBigtableReader(BigtableSource source) {
+    public FakeBigtableReader(BigtableIO.BigtableSource source) {
       this.source = source;
       if (source.getRowFilter() == null) {
         filter = Predicates.alwaysTrue();
