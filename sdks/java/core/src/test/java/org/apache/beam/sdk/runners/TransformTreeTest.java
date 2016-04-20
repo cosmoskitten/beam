@@ -40,7 +40,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PValue;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -128,9 +127,9 @@ public class TransformTreeTest {
     final EnumSet<TransformsSeen> left =
         EnumSet.noneOf(TransformsSeen.class);
 
-    p.traverseTopologically(new Pipeline.PipelineVisitor() {
+    p.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {
       @Override
-      public void enterCompositeTransform(TransformTreeNode node) {
+      public Recurse enterCompositeTransform(TransformTreeNode node) {
         PTransform<?, ?> transform = node.getTransform();
         if (transform instanceof Sample.SampleAny) {
           assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
@@ -142,6 +141,7 @@ public class TransformTreeTest {
           assertTrue(node.isCompositeNode());
         }
         assertThat(transform, not(instanceOf(Read.Bounded.class)));
+        return Recurse.ENTER_TRANSFORM;
       }
 
       @Override
@@ -161,10 +161,6 @@ public class TransformTreeTest {
         if (transform instanceof Read.Bounded) {
           assertTrue(visited.add(TransformsSeen.READ));
         }
-      }
-
-      @Override
-      public void visitValue(PValue value, TransformTreeNode producer) {
       }
     });
 

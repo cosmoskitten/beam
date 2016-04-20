@@ -56,12 +56,13 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   }
 
   @Override
-  public void enterCompositeTransform(TransformTreeNode node) {
+  public Recurse enterCompositeTransform(TransformTreeNode node) {
     checkState(
         !finalized,
         "Attempted to use a %s that has already been finalized on a pipeline (visiting node %s)",
         KeyedPValueTrackingVisitor.class.getSimpleName(),
         node);
+    return Recurse.ENTER_TRANSFORM;
   }
 
   @Override

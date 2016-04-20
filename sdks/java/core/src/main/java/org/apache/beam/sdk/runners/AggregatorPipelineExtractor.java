@@ -56,18 +56,12 @@ public class AggregatorPipelineExtractor {
     return aggregatorSteps.asMap();
   }
 
-  private static class AggregatorVisitor implements PipelineVisitor {
+  private static class AggregatorVisitor extends PipelineVisitor.Defaults {
     private final SetMultimap<Aggregator<?, ?>, PTransform<?, ?>> aggregatorSteps;
 
     public AggregatorVisitor(SetMultimap<Aggregator<?, ?>, PTransform<?, ?>> aggregatorSteps) {
       this.aggregatorSteps = aggregatorSteps;
     }
-
-    @Override
-    public void enterCompositeTransform(TransformTreeNode node) {}
-
-    @Override
-    public void leaveCompositeTransform(TransformTreeNode node) {}
 
     @Override
     public void visitTransform(TransformTreeNode node) {

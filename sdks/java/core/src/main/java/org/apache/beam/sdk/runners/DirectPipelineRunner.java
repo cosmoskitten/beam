@@ -828,7 +828,7 @@ public class DirectPipelineRunner
 
   /////////////////////////////////////////////////////////////////////////////
 
-  class Evaluator implements PipelineVisitor, EvaluationContext {
+  class Evaluator extends PipelineVisitor.Defaults implements EvaluationContext {
     /**
      * A map from PTransform to the step name of that transform. This is the internal name for the
      * transform (e.g. "s2").
@@ -878,14 +878,6 @@ public class DirectPipelineRunner
       checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
           "can only be called with current transform");
       return (OutputT) currentTransform.getOutput();
-    }
-
-    @Override
-    public void enterCompositeTransform(TransformTreeNode node) {
-    }
-
-    @Override
-    public void leaveCompositeTransform(TransformTreeNode node) {
     }
 
     @Override

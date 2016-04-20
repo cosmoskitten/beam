@@ -41,7 +41,7 @@ import java.util.Set;
  * {@link Pipeline}. This is used to schedule consuming {@link PTransform PTransforms} to consume
  * input after the upstream transform has produced and committed output.
  */
-public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
+public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
   private Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers = new HashMap<>();
   private Collection<AppliedPTransform<?, ?, ?>> rootTransforms = new ArrayList<>();
   private Collection<PCollectionView<?>> views = new ArrayList<>();
@@ -51,13 +51,14 @@ public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
   private boolean finalized = false;
 
   @Override
-  public void enterCompositeTransform(TransformTreeNode node) {
+  public Recurse enterCompositeTransform(TransformTreeNode node) {
     checkState(
         !finalized,
         "Attempting to traverse a pipeline (node %s) with a %s "
             + "which has already visited a Pipeline and is finalized",
         node.getFullName(),
         ConsumerTrackingPipelineVisitor.class.getSimpleName());
+    return Recurse.ENTER_TRANSFORM;
   }
 
   @Override

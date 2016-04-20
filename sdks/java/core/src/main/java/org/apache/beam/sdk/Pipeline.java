@@ -220,8 +220,10 @@ public class Pipeline {
     /**
      * Called for each composite transform after all topological predecessors have been visited
      * but before any of its component transforms.
+     *
+     * <p>The return value controls whether or not child transforms are visited.
      */
-    public void enterCompositeTransform(TransformTreeNode node);
+    public Recurse enterCompositeTransform(TransformTreeNode node);
 
     /**
      * Called for each composite transform after all of its component transforms and their outputs
@@ -240,6 +242,35 @@ public class Pipeline {
      * visited.
      */
     public void visitValue(PValue value, TransformTreeNode producer);
+
+    /**
+     * Control enum for indicating whether or not a traversal should process the contents of
+     * a composite transform or not.
+     */
+    public enum Recurse {
+      ENTER_TRANSFORM,
+      DO_NOT_ENTER_TRANSFORM;
+    }
+
+    /**
+     * Default no-op {@link PipelineVisitor} that enters all composite transforms.
+     * User implementations can override just those methods they are interested in.
+     */
+    public class Defaults implements PipelineVisitor {
+      @Override
+      public Recurse enterCompositeTransform(TransformTreeNode node) {
+        return Recurse.ENTER_TRANSFORM;
+      }
+
+      @Override
+      public void leaveCompositeTransform(TransformTreeNode node) { }
+
+      @Override
+      public void visitTransform(TransformTreeNode node) { }
+
+      @Override
+      public void visitValue(PValue value, TransformTreeNode producer) { }
+    }
   }
 
   /**

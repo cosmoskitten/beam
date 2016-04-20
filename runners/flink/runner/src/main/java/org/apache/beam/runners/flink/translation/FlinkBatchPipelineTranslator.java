@@ -57,7 +57,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @Override
-  public void enterCompositeTransform(TransformTreeNode node) {
+  public Recurse enterCompositeTransform(TransformTreeNode node) {
     LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
 
     PTransform<?, ?> transform = node.getTransform();
@@ -73,6 +73,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
       }
     }
     this.depth++;
+    return Recurse.ENTER_TRANSFORM;
   }
 
   @Override

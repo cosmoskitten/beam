@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.runners;
 
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor.Recurse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -198,7 +199,7 @@ public class TransformTreeNode {
    * transform (or child nodes for composite transforms), then the
    * output values.
    */
-  public void visit(Pipeline.PipelineVisitor visitor,
+  public void visit(PipelineVisitor visitor,
                     Set<PValue> visitedValues) {
     if (!finishedSpecifying) {
       finishSpecifying();
@@ -212,9 +213,12 @@ public class TransformTreeNode {
     }
 
     if (isCompositeNode()) {
-      visitor.enterCompositeTransform(this);
-      for (TransformTreeNode child : parts) {
-        child.visit(visitor, visitedValues);
+      PipelineVisitor.Recurse recurse = visitor.enterCompositeTransform(this);
+
+      if (recurse.equals(Recurse.ENTER_TRANSFORM)) {
+        for (TransformTreeNode child : parts) {
+          child.visit(visitor, visitedValues);
+        }
       }
       visitor.leaveCompositeTransform(this);
     } else {
