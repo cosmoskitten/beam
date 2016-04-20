@@ -22,6 +22,8 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
@@ -611,6 +613,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             + "inputWatermark:{}; outputWatermark:{}",
             key, directContext.window(), cleanupTime, timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
+        Preconditions.checkState(!cleanupTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+                                 "Cleanup time %s is beyond end-of-time", cleanupTime);
         directContext.timers().setTimer(cleanupTime, TimeDomain.EVENT_TIME);
       }
     }
@@ -871,6 +875,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         directContext.window(),
         inputWM,
         timerInternals.currentOutputWatermarkTime());
+    Preconditions.checkState(!fireTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+                             "Fire time %s is beyond end-of-time", fireTime);
     directContext.timers().setTimer(fireTime, TimeDomain.EVENT_TIME);
     return fireTime;
   }
@@ -891,10 +897,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private Instant windowMaxTimestampPlusAllowedLateness(W window) {
-    if (GlobalWindows.INSTANCE.isCompatible(windowingStrategy.getWindowFn())) {
-      return window.maxTimestamp();
+    Instant maxTimestamp = window.maxTimestamp();
+    if (maxTimestamp.isBefore(GlobalWindow.INSTANCE.maxTimestamp())) {
+      return maxTimestamp.plus(windowingStrategy.getAllowedLateness());
     } else {
-      return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+      return maxTimestamp;
     }
   }
 

@@ -35,7 +35,7 @@ import java.util.Objects;
 
 /**
  * {@link Trigger}s that fire based on properties of the elements in the current pane.
- *
+ */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane extends OnceTrigger {
 

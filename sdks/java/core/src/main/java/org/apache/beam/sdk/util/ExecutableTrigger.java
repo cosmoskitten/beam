@@ -149,7 +149,7 @@ public class ExecutableTrigger implements Serializable {
   /**
    * Return result of hasState on the current trigger.
    */
-  public boolean invokeHasState(Trigger<W>.TriggerContext c) throws Exception {
+  public boolean invokeHasState(Trigger.TriggerContext c) throws Exception {
     return trigger.hasState(c.forTrigger(this));
   }
 

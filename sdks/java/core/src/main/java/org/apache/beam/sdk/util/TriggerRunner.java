@@ -235,7 +235,7 @@ public class TriggerRunner<W extends BoundedWindow> {
     if (!finishedSet.getBitSet().isEmpty()) {
       return true;
     }
-    Trigger<W>.TriggerContext context = contextFactory.base(window, timers,
+    Trigger.TriggerContext context = contextFactory.base(window, timers,
         rootTrigger, finishedSet);
     return rootTrigger.invokeHasState(context);
   }

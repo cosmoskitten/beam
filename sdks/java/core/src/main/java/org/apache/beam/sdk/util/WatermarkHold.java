@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
@@ -204,16 +205,14 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    */
   private Instant shift(Instant timestamp, W window) {
     Instant shifted = windowingStrategy.getOutputTimeFn().assignOutputTime(timestamp, window);
-    if (shifted.isBefore(timestamp)) {
-      throw new IllegalStateException(
-          String.format("OutputTimeFn moved element from %s to earlier time %s for window %s",
-              timestamp, shifted, window));
-    }
-    if (!timestamp.isAfter(window.maxTimestamp()) && shifted.isAfter(window.maxTimestamp())) {
-      throw new IllegalStateException(
-          String.format("OutputTimeFn moved element from %s to %s which is beyond end of window %s",
-              timestamp, shifted, window));
-    }
+    Preconditions.checkState(!shifted.isBefore(timestamp),
+                             "OutputTimeFn moved element from %s to earlier time %s for window %s",
+                             timestamp, shifted, window);
+    Preconditions.checkState(timestamp.isAfter(window.maxTimestamp())
+                             || !shifted.isAfter(window.maxTimestamp()),
+                             "OutputTimeFn moved element from %s to %s which is beyond end of "
+                             + "window %s",
+                             timestamp, shifted, window);
 
     return shifted;
   }
@@ -250,6 +249,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     } else {
       which = "on time";
       tooLate = false;
+      Preconditions.checkState(!elementHold.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+                               "Element hold %s is beyond end-of-time", elementHold);
       context.state().access(elementHoldTag).add(elementHold);
     }
     WindowTracing.trace(
@@ -297,7 +298,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     if (eowHold.isBefore(inputWM)) {
       which = "too late for end-of-window timer";
       added = false;
-    } else if (GlobalWindows.INSTANCE.isCompatible(windowingStrategy.getWindowFn())) {
+    } else if (!eowHold.isBefore(GlobalWindow.INSTANCE.maxTimestamp())) {
       which = "unnecessary (global window)";
       added = false;
     } else {
@@ -305,6 +306,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       added = true;
       Preconditions.checkState(outputWM == null || !eowHold.isBefore(outputWM),
           "End-of-window hold %s cannot be before output watermark %s", eowHold, outputWM);
+      Preconditions.checkState(!eowHold.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+                               "End-of-window hold %s is beyond end-of-time", eowHold);
       context.state().access(EXTRA_HOLD_TAG).add(eowHold);
     }
     WindowTracing.trace(
@@ -344,8 +347,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     } else if (!windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO)) {
       which = "unnecessary (no allowed lateness)";
       added  = false;
-    } else if (GlobalWindows.INSTANCE.isCompatible(windowingStrategy.getWindowFn())) {
-      gcHold = BoundedWindow.TIMESTAMP_MAX_VALUE; // clip to max timestamp in debug message.
+    } else if (!eow.isBefore(GlobalWindow.INSTANCE.maxTimestamp())) {
+      gcHold = BoundedWindow.TIMESTAMP_MAX_VALUE; // clip to max timestamp (for debug message only).
       which = "unnecessary (global window)";
       added = false;
     } else {
@@ -353,6 +356,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       added = true;
       Preconditions.checkState(!gcHold.isBefore(inputWM),
           "Garbage collection hold %s cannot be before input watermark %s", gcHold, inputWM);
+      Preconditions.checkState(!gcHold.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+                               "Garbage collection hold %s is beyond end-of-time", gcHold);
       context.state().access(EXTRA_HOLD_TAG).add(gcHold);
     }
     WindowTracing.trace(
