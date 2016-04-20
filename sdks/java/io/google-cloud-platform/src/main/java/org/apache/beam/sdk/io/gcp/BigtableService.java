@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.bigtable;
+package org.apache.beam.sdk.io.gcp;
 
-import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.io.gcp.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
 
 import com.google.bigtable.v1.Mutation;
