@@ -19,7 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static com.google.api.services.datastore.DatastoreV1.PropertyFilter.Operator.EQUAL;
 import static com.google.api.services.datastore.DatastoreV1.PropertyOrder.Direction.DESCENDING;
-import static com.google.api.services.datastore.DatastoreV1.QueryResultBatch.MoreResultsType.NOT_FINISHED;
+import static com.google.api.services.datastore.DatastoreV1.QueryResultBatch.MoreResultsType
+    .NOT_FINISHED;
 import static com.google.api.services.datastore.client.DatastoreHelper.getPropertyMap;
 import static com.google.api.services.datastore.client.DatastoreHelper.makeFilter;
 import static com.google.api.services.datastore.client.DatastoreHelper.makeOrder;
@@ -75,7 +76,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
 
 /**
@@ -389,6 +389,7 @@ public class DatastoreIO {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
           .addIfNotDefault("host", host, DEFAULT_HOST)
           .addIfNotNull("dataset", datasetId)
