@@ -154,6 +154,12 @@ public class InProcessPipelineRunner
      * timers that fired to produce this bundle.
      */
     Instant getSynchronizedProcessingOutputWatermark();
+
+    /**
+     * Return a new {@link CommittedBundle} that is like this one, except calls to
+     * {@link #getElements()} will return the provided elements. This bundle is unchanged.
+     */
+    CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements);
   }
 
   /**
