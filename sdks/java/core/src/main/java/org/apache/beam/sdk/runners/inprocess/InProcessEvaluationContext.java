@@ -42,7 +42,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
 import java.util.Collection;
@@ -74,6 +74,11 @@ import javax.annotation.Nullable;
 class InProcessEvaluationContext {
   /** The step name for each {@link AppliedPTransform} in the {@link Pipeline}. */
   private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
+  /**
+   * The mapping from each {@link PValue} contained within the {@link Pipeline} to each
+   * {@link AppliedPTransform} that consumes it.
+   */
+  private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
 
   /** The options that were used to create this {@link Pipeline}. */
   private final InProcessPipelineOptions options;
@@ -114,7 +119,7 @@ class InProcessEvaluationContext {
     this.options = checkNotNull(options);
     this.bundleFactory = checkNotNull(bundleFactory);
     checkNotNull(rootTransforms);
-    checkNotNull(valueToConsumers);
+    this.valueToConsumers = checkNotNull(valueToConsumers);
     checkNotNull(stepNames);
     checkNotNull(views);
     this.stepNames = stepNames;
@@ -145,11 +150,11 @@ class InProcessEvaluationContext {
    * @param result the result of evaluating the input bundle
    * @return the committed bundles contained within the handled {@code result}
    */
-  public synchronized Iterable<? extends CommittedBundle<?>> handleResult(
+  public synchronized Map<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> handleResult(
       @Nullable CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
       InProcessTransformResult result) {
-    Iterable<? extends CommittedBundle<?>> committedBundles =
+    Map<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> committedBundles =
         commitBundles(result.getOutputBundles());
     // Update watermarks and timers
     watermarkManager.updateWatermarks(
@@ -179,9 +184,10 @@ class InProcessEvaluationContext {
     return committedBundles;
   }
 
-  private Iterable<? extends CommittedBundle<?>> commitBundles(
+  private Map<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> commitBundles(
       Iterable<? extends UncommittedBundle<?>> bundles) {
-    ImmutableList.Builder<CommittedBundle<?>> completed = ImmutableList.builder();
+    ImmutableMap.Builder<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> completed
+        = ImmutableMap.builder();
     for (UncommittedBundle<?> inProgress : bundles) {
       AppliedPTransform<?, ?, ?> producing =
           inProgress.getPCollection().getProducingTransformInternal();
@@ -191,7 +197,7 @@ class InProcessEvaluationContext {
       // Empty bundles don't impact watermarks and shouldn't trigger downstream execution, so
       // filter them out
       if (!Iterables.isEmpty(committed.getElements())) {
-        completed.add(committed);
+        completed.put(committed, valueToConsumers.get(committed.getPCollection()));
       }
     }
     return completed.build();
