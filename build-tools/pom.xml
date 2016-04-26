@@ -1,0 +1,12 @@
+<project>
+  <!--
+    build-tools contains build resources referenced by sub-projects. It follows the
+    "Multimodule Configuration" described here:
+      https://maven.apache.org/plugins/maven-checkstyle-plugin/examples/multi-module-config.html
+  -->
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.apache.beam</groupId>
+  <artifactId>build-tools</artifactId>
+  <version>1.0</version>
+  <name>Build Tools</name>
+</project>
