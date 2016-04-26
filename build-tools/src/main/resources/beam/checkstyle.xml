@@ -59,20 +59,6 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="severity" value="error"/>
   </module>
 
-  <module name="RegexpSingleline">
-    <!-- Checks that FIXME is not used in comments.  -->
-    <property name="format" value="((//.*)|(\*.*))FIXME" />
-    <property name="message" value='FIXME should not appear in comments.' />
-    <property name="severity" value="error"/>
-  </module>
-
-  <module name="RegexpSingleline">
-    <!-- Checks that XXX is not used in comments.  -->
-    <property name="format" value="((//.*)|(\*.*))XXX" />
-    <property name="message" value='XXX should not appear in comments.' />
-    <property name="severity" value="error"/>
-  </module>
-
   <!-- Allow use of comment to suppress javadocstyle -->
   <module name="SuppressionCommentFilter">
     <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
@@ -84,10 +70,8 @@ page at http://checkstyle.sourceforge.net/config.html -->
   <module name="TreeWalker">
 
     <module name="TodoComment">
-      <metadata name="com.atlassw.tools.eclipse.checkstyle.comment"
-                value="Author tags not allowed"/>
-      <property name="format" value="@author"/>
-      <property name="severity" value="error"/>
+      <!-- Checks that disallowed strings are not used in comments.  -->
+      <property name="format" value="(FIXME)|(XXX)|(@author)" />
     </module>
 
     <!--
