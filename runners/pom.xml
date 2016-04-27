@@ -37,6 +37,7 @@
   <modules>
     <module>flink</module>
     <module>spark</module>
+    <module>direct-java</module>
   </modules>
 
   <build>
