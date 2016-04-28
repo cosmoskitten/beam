@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkState;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -35,9 +36,11 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
+import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -57,10 +60,14 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -153,16 +160,6 @@ import javax.annotation.Nullable;
  */
 public class KafkaIO {
 
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaIO.class);
-
-  private static class NowTimestampFn<T> implements SerializableFunction<T, Instant> {
-    @Override
-    public Instant apply(T input) {
-      return Instant.now();
-    }
-  }
-
-
   /**
    * Creates and uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
    * configuration should set with {@link Read#withBootstrapServers(String)} and
@@ -181,6 +178,12 @@ public class KafkaIO {
         null);
   }
 
+  /**
+   *
+   */
+  public static Write<byte[] byte[]> write() {
+    return new Write<byte[], byte[]>()
+  }
   /**
    * A {@link PTransform} to read from Kafka topics. See {@link KafkaIO} for more
    * information on usage and configuration.
@@ -505,6 +508,17 @@ public class KafkaIO {
                   ctx.output(ctx.element().getKV());
                 }
               }));
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaIO.class);
+
+  private static class NowTimestampFn<T> implements SerializableFunction<T, Instant> {
+    @Override
+    public Instant apply(T input) {
+      return Instant.now();
     }
   }
 
@@ -1051,4 +1065,78 @@ public class KafkaIO {
       Closeables.close(consumer, true);
     }
   }
+
+  // XXX move to public:
+  public static class Write<K, V> {
+
+    // set config defaults
+    private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
+        ImmutableMap.<String, Object>of(
+            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName(),
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+
+  }
+
+  public static class ValueWrite<V> extends PTransform<PCollection<V>, PDone> {
+
+
+    @Override
+    protected Coder<Void> getDefaultOutputCoder() {
+      return VoidCoder.of();
+    }
+
+  }
+
+  private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
+
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
+
+    private final String topic;
+    private final Map<String, Object> producerConfig;
+    private static transient KafkaProducer<byte[], byte[]> producer = null;
+
+    KafkaWriter(String topic, Map<String, Object> producerConfig) {
+      this.topic = topic;
+      this.producerConfig = producerConfig;
+    }
+
+    @Override
+    public void startBundle(Context c) throws Exception {
+      if (producer == null) { // in Beam, startBundle might be called multiple times.
+        producer = new KafkaProducer<byte[], byte[]>(producerConfig);
+      }
+    }
+
+    @Override
+    public void finishBundle(Context c) throws Exception {
+      producer.flush();
+      // XXX when should we close producer?
+    }
+
+    @Override
+    public void processElement(ProcessContext ctx) throws Exception {
+      KV<K, V> kv = ctx.element();
+
+      producer.send(new ProducerRecord<byte[], byte[]>(
+          topic,
+          encode(kv.getKey(), keyCoder),
+          encode(kv.getValue(), valueCoder)));
+    }
+
+    @Nullable
+    private static <T> byte[] encode(T elem, Coder<T> coder) {
+      if (elem == null) {
+        return null; // common when only the values are written to kafka
+      }
+
+      // when T is other than String or byte[] coder.encode() could cost multiples buffer copies.
+      // we could reused output stream or start with a good initial buffer size.
+
+      ExposedByteArrayOutputStream out = new ExposedByteArrayOutputStream();
+      coder.encode(elem, out, Coder.Context.OUTER);
+      return out.toByteArray();
+    }
+  }
+
 }
