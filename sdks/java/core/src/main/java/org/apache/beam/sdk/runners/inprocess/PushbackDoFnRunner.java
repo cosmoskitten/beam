@@ -60,6 +60,10 @@ class PushbackDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT>
   /**
    * Call the underlying {@link DoFnRunner#processElement(WindowedValue)} for the provided element
    * for each window the element is in that is ready.
+   *
+   * @param elem the element to process in all ready windows
+   * @return each element that could not be processed because it requires a side input window
+   * that is not ready.
    */
   public Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem) {
     if (views.isEmpty()) {
