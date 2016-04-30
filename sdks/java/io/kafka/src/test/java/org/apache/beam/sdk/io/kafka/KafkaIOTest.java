@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -50,6 +50,9 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.clients.producer.MockProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.joda.time.Instant;
@@ -114,8 +117,8 @@ public class KafkaIOTest {
               tp.topic(),
               tp.partition(),
               offsets[pIdx]++,
-              null, // key
-              ByteBuffer.wrap(new byte[8]).putLong(i).array())); // value is 8 byte record id.
+              ByteBuffer.wrap(new byte[8]).putInt(i).array(),    // key is 4 byte record id
+              ByteBuffer.wrap(new byte[8]).putLong(i).array())); // value is 8 byte record id
     }
 
     MockConsumer<byte[], byte[]> consumer =
@@ -162,16 +165,17 @@ public class KafkaIOTest {
    * Creates a consumer with two topics, with 5 partitions each.
    * numElements are (round-robin) assigned all the 10 partitions.
    */
-  private static KafkaIO.TypedRead<byte[], Long> mkKafkaReadTransform(
+  private static KafkaIO.TypedRead<Integer, Long> mkKafkaReadTransform(
       int numElements,
-      @Nullable SerializableFunction<KV<byte[], Long>, Instant> timestampFn) {
+      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
-    KafkaIO.Read<byte[], Long> reader = KafkaIO.read()
+    KafkaIO.Read<Integer, Long> reader = KafkaIO.read()
         .withBootstrapServers("none")
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(topics, 10, numElements)) // 20 partitions
+        .withKeyCoder(BigEndianIntegerCoder.of())
         .withValueCoder(BigEndianLongCoder.of())
         .withMaxNumRecords(numElements);
 
@@ -306,9 +310,9 @@ public class KafkaIOTest {
     int numElements = 1000;
     int numSplits = 10;
 
-    UnboundedSource<KafkaRecord<byte[], Long>, ?> initial =
+    UnboundedSource<KafkaRecord<Integer, Long>, ?> initial =
         mkKafkaReadTransform(numElements, null).makeSource();
-    List<? extends UnboundedSource<KafkaRecord<byte[], Long>, ?>> splits =
+    List<? extends UnboundedSource<KafkaRecord<Integer, Long>, ?>> splits =
         initial.generateInitialSplits(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
@@ -318,7 +322,7 @@ public class KafkaIOTest {
     for (int i = 0; i < splits.size(); ++i) {
       pcollections = pcollections.and(
           p.apply("split" + i, Read.from(splits.get(i)).withMaxNumRecords(elementsPerSplit))
-           .apply("Remove Metadata " + i, ParDo.of(new RemoveKafkaMetadata<byte[], Long>()))
+           .apply("Remove Metadata " + i, ParDo.of(new RemoveKafkaMetadata<Integer, Long>()))
            .apply("collection " + i, Values.<Long>create()));
     }
     PCollection<Long> input = pcollections.apply(Flatten.<Long>pCollections());
@@ -331,9 +335,9 @@ public class KafkaIOTest {
    * A timestamp function that uses the given value as the timestamp.
    */
   private static class ValueAsTimestampFn
-                       implements SerializableFunction<KV<byte[], Long>, Instant> {
+                       implements SerializableFunction<KV<Integer, Long>, Instant> {
     @Override
-    public Instant apply(KV<byte[], Long> input) {
+    public Instant apply(KV<Integer, Long> input) {
       return new Instant(input.getValue());
     }
   }
@@ -353,13 +357,13 @@ public class KafkaIOTest {
     int numElements = 85; // 85 to make sure some partitions have more records than other.
 
     // create a single split:
-    UnboundedSource<KafkaRecord<byte[], Long>, KafkaCheckpointMark> source =
+    UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
           .makeSource()
           .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
           .get(0);
 
-    UnboundedReader<KafkaRecord<byte[], Long>> reader = source.createReader(null, null);
+    UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
     final int numToSkip = 3;
 
     // advance numToSkip elements
@@ -394,5 +398,43 @@ public class KafkaIOTest {
         advanceOnce(reader);
       }
     }
+  }
+
+  @Test
+  public void testSink() throws Exception {
+
+    int numElements = 1000;
+
+    final MockProducer<Integer, Long> mockProducer = new MockProducer<>(
+        true,
+        new KafkaIO.CoderBasedKafkaSerializer<Integer>(),
+        new KafkaIO.CoderBasedKafkaSerializer<Long>());
+
+    SerializableFunction<Map<String, Object>, Producer<Integer, Long>> producerFactoryFn =
+        new SerializableFunction<Map<String, Object>, Producer<Integer, Long>>() {
+          @Override
+          public Producer<Integer, Long> apply(Map<String, Object> config) {
+            return mockProducer;
+          }
+      };
+
+    Pipeline pipeline = TestPipeline.create();
+
+    pipeline
+      .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+              .withoutMetadata())
+      .apply(KafkaIO.write()
+          .withBootstrapServers("none")
+          .withTopic("test")
+          .withKeyCoder(BigEndianIntegerCoder.of())
+          .withValueCoder(BigEndianLongCoder.of())
+          .withProducerFactoryFn(producerFactoryFn));
+
+    pipeline.run();
+
+    // verify that appropriate messages are written to kafka
+    List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
+
+
   }
 }

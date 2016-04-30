@@ -61,6 +61,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
@@ -68,6 +69,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.Serializer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -181,9 +183,14 @@ public class KafkaIO {
   /**
    *
    */
-  public static Write<byte[] byte[]> write() {
-    return new Write<byte[], byte[]>()
+  public static Write<byte[], byte[]> write() {
+    return new Write<byte[], byte[]>(
+        null,
+        ByteArrayCoder.of(),
+        ByteArrayCoder.of(),
+        TypedWrite.DEFAULT_PRODUCER_PROPERTIES);
   }
+
   /**
    * A {@link PTransform} to read from Kafka topics. See {@link KafkaIO} for more
    * information on usage and configuration.
@@ -256,13 +263,9 @@ public class KafkaIO {
      * Update consumer configuration with new properties.
      */
     public Read<K, V> updateConsumerProperties(Map<String, Object> configUpdates) {
-      for (String key : configUpdates.keySet()) {
-        checkArgument(!IGNORED_CONSUMER_PROPERTIES.containsKey(key),
-            "No need to configure '%s'. %s", key, IGNORED_CONSUMER_PROPERTIES.get(key));
-      }
 
-      Map<String, Object> config = new HashMap<>(consumerConfig);
-      config.putAll(configUpdates);
+      Map<String, Object> config = updateKafkaProperties(consumerConfig,
+          IGNORED_CONSUMER_PROPERTIES, configUpdates);
 
       return new Read<K, V>(topics, topicPartitions, keyCoder, valueCoder,
           consumerFactoryFn, config, maxNumRecords, maxReadTime);
@@ -308,8 +311,8 @@ public class KafkaIO {
      * A set of properties that are not required or don't make sense for our consumer.
      */
     private static final Map<String, String> IGNORED_CONSUMER_PROPERTIES = ImmutableMap.of(
-        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDecoderFn instead",
-        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDecoderFn instead"
+        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyCoder instead",
+        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueCoder instead"
         // "group.id", "enable.auto.commit", "auto.commit.interval.ms" :
         //     lets allow these, applications can have better resume point for restarts.
         );
@@ -514,6 +517,26 @@ public class KafkaIO {
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIO.class);
+
+  /**
+   * Returns a new config map which is merge of current config and updates.
+   * Verifies the updates do not includes ignored properties.
+   */
+  private static Map<String, Object> updateKafkaProperties(
+      Map<String, Object> currentConfig,
+      Map<String, String> ignoredProperties,
+      Map<String, Object> updates) {
+
+    for (String key : updates.keySet()) {
+      checkArgument(!ignoredProperties.containsKey(key),
+          "No need to configure '%s'. %s", key, ignoredProperties.get(key));
+    }
+
+    Map<String, Object> config = new HashMap<>(currentConfig);
+    config.putAll(config);
+
+    return config;
+  }
 
   private static class NowTimestampFn<T> implements SerializableFunction<T, Instant> {
     @Override
@@ -732,7 +755,6 @@ public class KafkaIO {
       // simple moving average for size of each record in bytes
       private double avgRecordSize = 0;
       private static final int movingAvgWindow = 1000; // very roughly avg of last 1000 elements
-
 
       PartitionState(TopicPartition partition, long offset) {
         this.topicPartition = partition;
@@ -1066,45 +1088,198 @@ public class KafkaIO {
     }
   }
 
-  // XXX move to public:
-  public static class Write<K, V> {
 
-    // set config defaults
-    private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
-        ImmutableMap.<String, Object>of(
-            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName(),
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+  // XXX move to public:
+  public static class Write<K, V> extends TypedWrite<K, V> {
+
+    /**
+     * Returns a new {@link Write} transform with Kafka producer pointing to
+     * {@code bootstrapServers}.
+     */
+    public Write<K, V> withBootstrapServers(String bootstrapServers) {
+      return updateProducerProperties(
+          ImmutableMap.<String, Object>of(
+              ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+    }
+
+    /**
+     * Returns a new {@link Write} transform that write to given topic.
+     */
+    public Write<K, V> withTopic(String topic) {
+      return new Write<K, V>(topic, keyCoder, valueCoder, producerConfig);
+    }
+
+    /**
+     * Returns a new {@link Write} with {@link Coder} for serializing key (if any) to bytes.
+     * A key is optional while writing to Kafka. Note when a key is set, its hash is used to
+     * determine partition in Kafka (see {@link ProducerRecord} for more details).
+     */
+    public <KeyT> Write<KeyT, V> withKeyCoder(Coder<KeyT> keyCoder) {
+      return new Write<KeyT, V>(topic, keyCoder, valueCoder, producerConfig);
+    }
+
+    /**
+     * Returns a new {@link Write} with {@link Coder} for serializing value to bytes.
+     */
+    public <ValueT> Write<K, ValueT> withValueCoder(Coder<ValueT> valueCoder) {
+      return new Write<K, ValueT>(topic, keyCoder, valueCoder, producerConfig);
+    }
+
+    public Write<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
+      Map<String, Object> config = updateKafkaProperties(producerConfig,
+          TypedWrite.IGNORED_PRODUCER_PROPERTIES, configUpdates);
+      return new Write<K, V>(topic, keyCoder, valueCoder, config);
+    }
+
+    private Write(
+        String topic,
+        Coder<K> keyCoder,
+        Coder<V> valueCoder,
+        Map<String, Object> producerConfig) {
+      super(topic, keyCoder, valueCoder, producerConfig,
+          Optional.<SerializableFunction<Map<String, Object>, Producer<K, V>>>absent());
+    }
 
   }
 
-  public static class ValueWrite<V> extends PTransform<PCollection<V>, PDone> {
+  public static class TypedWrite<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
 
+    /**
+     * Returns a new {@link Write} with a custom function to create Kafka producer. Primarily used
+     * for tests. Default is {@link KafkaProducer}
+     */
+    public TypedWrite<K, V> withProducerFactoryFn(
+        SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
+      return new TypedWrite<K, V>(topic, keyCoder, valueCoder, producerConfig,
+          Optional.of(producerFactoryFn));
+    }
+
+    /**
+     * Returns a new transform that writes just the values to Kafka. This is useful for writing
+     * collections of values rather thank {@link KV}s.
+     */
+    public PTransform<PCollection<V>, PDone> values() {
+      return new KafkaValueWrite<K, V>(this);
+    }
+
+
+    @Override
+    public PDone apply(PCollection<KV<K, V>> input) {
+      input.apply(ParDo.of(new KafkaWriter<K, V>(
+          topic, keyCoder, valueCoder, producerConfig, producerFactoryFnOpt)));
+      return PDone.in(input.getPipeline());
+    }
+
+    @Override
+    public void validate(PCollection<KV<K, V>> input) {
+      checkNotNull(topic, "Kafka topic to write to should be set");
+      checkNotNull(producerConfig.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
+          "Kafka bootstrap servers should be set");
+    }
 
     @Override
     protected Coder<Void> getDefaultOutputCoder() {
       return VoidCoder.of();
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////
+
+    protected final String topic;
+    protected final Coder<K> keyCoder;
+    protected final Coder<V> valueCoder;
+    protected final Optional<SerializableFunction<Map<String, Object>, Producer<K, V>>>
+        producerFactoryFnOpt;
+    protected final Map<String, Object> producerConfig;
+
+    protected TypedWrite(
+        String topic,
+        Coder<K> keyCoder,
+        Coder<V> valueCoder,
+        Map<String, Object> producerConfig,
+        Optional<SerializableFunction<Map<String, Object>, Producer<K, V>>> producerFactoryFnOpt) {
+
+      this.topic = topic;
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+      this.producerConfig = producerConfig;
+      this.producerFactoryFnOpt = producerFactoryFnOpt;
+    }
+
+    // set config defaults
+    private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
+        ImmutableMap.<String, Object>of(
+            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName(),
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+
+    /**
+     * A set of properties that are not required or don't make sense for our consumer.
+     */
+    private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES = ImmutableMap.of(
+        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Set keyCoder instead",
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Set valueCoder instead"
+     );
+  }
+
+  /**
+   * Same as Write<K, V> without a Key. Null is used for key as it is the convention is Kafka
+   * when there is no key specified. Majority of Kafka writers don't specify a key.
+   */
+  private static class KafkaValueWrite<K, V> extends PTransform<PCollection<V>, PDone> {
+
+    private final TypedWrite<K, V> kvWriteTransform;
+
+    private KafkaValueWrite(TypedWrite<K, V> kvWriteTransform) {
+      this.kvWriteTransform = kvWriteTransform;
+    }
+
+    @Override
+    public PDone apply(PCollection<V> input) {
+      return kvWriteTransform.apply(
+          input.apply("Write values with default key",
+              ParDo.of(new DoFn<V, KV<K, V>>() {
+                @Override
+                public void processElement(ProcessContext ctx) throws Exception {
+                  ctx.output(KV.<K, V>of(null, ctx.element()));
+                }
+              })));
+    }
   }
 
   private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
-    private final Coder<K> keyCoder;
-    private final Coder<V> valueCoder;
-
     private final String topic;
     private final Map<String, Object> producerConfig;
-    private static transient KafkaProducer<byte[], byte[]> producer = null;
+    private final Optional<SerializableFunction<Map<String, Object>, Producer<K, V>>>
+                  producerFactoryFnOpt;
+    private transient Producer<K, V> producer = null;
 
-    KafkaWriter(String topic, Map<String, Object> producerConfig) {
+    KafkaWriter(String topic,
+        Coder<K> keyCoder,
+        Coder<V> valueCoder,
+        Map<String, Object> producerConfig,
+        Optional<SerializableFunction<Map<String, Object>, Producer<K, V>>> producerFactoryFnOpt) {
+
       this.topic = topic;
-      this.producerConfig = producerConfig;
+      this.producerFactoryFnOpt = producerFactoryFnOpt;
+
+      this.producerConfig = new HashMap<>();
+      this.producerConfig.putAll(producerConfig);
+
+      // Set custom kafka serializers. We can not serialize user objects then pass the bytes to
+      // producer as key and value objects are used kafka Paritioner interface.
+      // This does not matter for default partitioner in Kafka as it uses just the serialized
+      // bytes to pick a partition.
+
+      this.producerConfig.put(configForKeySerializer(), keyCoder);
+      this.producerConfig.put(configForValueSerializer(), valueCoder);
     }
 
     @Override
     public void startBundle(Context c) throws Exception {
       if (producer == null) { // in Beam, startBundle might be called multiple times.
-        producer = new KafkaProducer<byte[], byte[]>(producerConfig);
+        producer = producerFactoryFnOpt.isPresent() ?
+            producerFactoryFnOpt.get().apply(producerConfig) :
+            new KafkaProducer<K, V>(producerConfig);
       }
     }
 
@@ -1118,20 +1293,21 @@ public class KafkaIO {
     public void processElement(ProcessContext ctx) throws Exception {
       KV<K, V> kv = ctx.element();
 
-      producer.send(new ProducerRecord<byte[], byte[]>(
+      producer.send(new ProducerRecord<K, V>(
           topic,
-          encode(kv.getKey(), keyCoder),
-          encode(kv.getValue(), valueCoder)));
+          kv.getKey(),
+          kv.getValue()));
     }
 
     @Nullable
-    private static <T> byte[] encode(T elem, Coder<T> coder) {
+    private static <T> byte[] encode(T elem, Coder<T> coder) throws IOException {
       if (elem == null) {
         return null; // common when only the values are written to kafka
       }
 
-      // when T is other than String or byte[] coder.encode() could cost multiples buffer copies.
-      // we could reused output stream or start with a good initial buffer size.
+      // When the type is String or byte[] ExposedByteArrayOutputStream avoids extra copies.
+      // Otherwise coder.encode() could cost multiples buffer copies.
+      // We could reuse buffer in OutputStream or start with a good initial buffer size.
 
       ExposedByteArrayOutputStream out = new ExposedByteArrayOutputStream();
       coder.encode(elem, out, Coder.Context.OUTER);
@@ -1139,4 +1315,55 @@ public class KafkaIO {
     }
   }
 
+  /**
+   * Implements Kafka's {@link Serializer} with a {@link Coder}. The coder is stored as serialized
+   * value in producer configuration map.
+   */
+  @VisibleForTesting
+  static class CoderBasedKafkaSerializer<T> implements Serializer<T> {
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      String configKey = isKey ? configForKeySerializer() : configForValueSerializer();
+      coder = (Coder<T>) configs.get(configKey);
+      checkNotNull(coder, "could not instantiate coder for Kafka serialization");
+    }
+
+    @Override
+    public byte[] serialize(String topic, T data) {
+      if (data == null) {
+        return null; // common when only the values are written to kafka
+      }
+
+      // When the type is String or byte[] ExposedByteArrayOutputStream avoids extra copies.
+      // Otherwise coder.encode() could cost multiples buffer copies.
+      // We could reuse buffer in OutputStream or start with a good initial buffer size.
+
+      ExposedByteArrayOutputStream out = new ExposedByteArrayOutputStream();
+      try {
+        coder.encode(data, out, Coder.Context.OUTER);
+      } catch(IOException e) {
+        Throwables.propagate(e);
+      }
+
+      return out.toByteArray();
+    }
+
+    @Override
+    public void close() {
+    }
+
+    private Coder<T> coder = null;
+    private static final String CONFIG_FORMAT = "beam.coder.based.kafka.%s.serializer";
+  }
+
+
+  private static String configForKeySerializer() {
+    return String.format(CoderBasedKafkaSerializer.CONFIG_FORMAT, "key");
+  }
+
+  private static String configForValueSerializer() {
+    return String.format(CoderBasedKafkaSerializer.CONFIG_FORMAT, "value");
+  }
 }
