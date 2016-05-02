@@ -17,10 +17,9 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.runners.dataflow.BlockingDataflowPipelineRunner;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -63,13 +62,18 @@ public class MinimalWordCount {
     // Create a PipelineOptions object. This object lets us set various execution
     // options for our pipeline, such as the associated Cloud Platform project and the location
     // in Google Cloud Storage to stage files.
-    DataflowPipelineOptions options = PipelineOptionsFactory.create()
-        .as(DataflowPipelineOptions.class);
-    options.setRunner(BlockingDataflowPipelineRunner.class);
-    // CHANGE 1/3: Your project ID is required in order to run your pipeline on the Google Cloud.
-    options.setProject("SET_YOUR_PROJECT_ID_HERE");
-    // CHANGE 2/3: Your Google Cloud Storage path is required for staging local files.
-    options.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
+    PipelineOptions options = PipelineOptionsFactory.create();
+
+    // In order to run your pipeline on the Google Cloud, you need to make following
+    // runner specific changes:
+
+    // CHANGE 1/4: Select a dataflow PipelineRunner.
+    // CHANGE 2/4: Your project ID is required in order to run your pipeline on the Google Cloud.
+    // CHANGE 3/4: Your Google Cloud Storage path is required for staging temp files.
+    // options.as(DataflowPipelineOptions.class)
+    //     .setRunner(BlockingDatalfowPipelineRunner.class)
+    //     .setProject("SET_YOUR_PROJECT_ID_HERE")
+    //     .setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
 
     // Create the Pipeline object with the options we defined above.
     Pipeline p = Pipeline.create(options);
@@ -109,7 +113,7 @@ public class MinimalWordCount {
      // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.
      // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
      // formatted strings) to a series of text files in Google Cloud Storage.
-     // CHANGE 3/3: The Google Cloud Storage path is required for outputting the results to.
+     // CHANGE 4/4: The Google Cloud Storage path is required for outputting the results to.
      .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
 
     // Run the pipeline.
