@@ -95,8 +95,8 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
- * An unbounded source for <a href="http://kafka.apache.org/">Kafka</a> topics. Kafka version 0.9
- * and above are supported.
+ * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
+ * Kafka version 0.9 and above are supported.
  *
  * <h3>Reading from Kafka topics</h3>
  *
@@ -155,15 +155,56 @@ import javax.annotation.Nullable;
  * beginning by setting appropriate appropriate properties in {@link ConsumerConfig}, through
  * {@link Read#updateConsumerProperties(Map)}.
  *
+ * <h3>Writing to Kafka</h3>
+ *
+ * KafkaIO sink supports writing publishing key-value pairs to a Kafka topic. Users can also write
+ * just the values. To configure a Kafka sink, you must specify at the minimum Kafka
+ * <tt>bootstrapServers</tt> a topic to write to. The following example illustrates various options
+ * for configuring the sink :
+ *
+ * <pre>{@code
+ *
+ *  pipeline
+ *    .apply(...) // returns PCollection<KV<Long, String>>
+ *    .apply(KafkaIO.write()
+ *       .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *       .withTopic("results")
+ *
+ *       // set Coder for Key and Value
+ *       .withKeyCoder(BigEndianLongCoder.of())
+ *       .withValueCoder(StringUtf8Coder.of())
+
+ *       // you can further customize KafkaProducer used to write the records by adding more
+ *       // settings for ProducerConfig. e.g, to enable compression :
+ *       .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
+ *    )
+ * }</pre>
+ *
+ * Often you might want to write just values without any keys to Kafka. Use {@code values()} to
+ * write records with default empty(null) key :
+ *
+ * <pre>{@code
+ *
+ *  pipeline
+ *    .apply(...) // returns PCollection<String>
+ *    .apply(KafkaIO.write()
+ *       .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *       .withTopic("results")
+ *       .withValueCoder(StringUtf8Coder.of()) // just need coder for value
+ *       .values() // writes values to Kafka with default key
+ *    )
+ * }</pre>
+ *
  * <h3>Advanced Kafka Configuration</h3>
- * KafakIO allows setting most of the properties in {@link ConsumerConfig}. E.g. if you would like
- * to enable offset <em>auto commit</em> (for external monitoring or other purposes), you can set
+ * KafakIO allows setting most of the properties in {@link ConsumerConfig} for source or in
+ * {@link ProducerConfig} for sink. E.g. if you would like to enable offset
+ * <em>auto commit</em> (for external monitoring or other purposes), you can set
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  */
 public class KafkaIO {
 
   /**
-   * Creates and uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
+   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
    * configuration should set with {@link Read#withBootstrapServers(String)} and
    * {@link Read#withTopics(List)}. Other optional settings include key and value coders,
    * custom timestamp and watermark functions.
@@ -181,7 +222,9 @@ public class KafkaIO {
   }
 
   /**
-   *
+   * Creates an uninitialized {@link Write} {@link PTransform}. Before use, Kafka configuration
+   * should be set with {@link Write#withBootstrapServers(String)} and {@link Write#withTopic}
+   * along with {@link Coder}s for (optional) key and values.
    */
   public static Write<byte[], byte[]> write() {
     return new Write<byte[], byte[]>(
@@ -190,6 +233,8 @@ public class KafkaIO {
         ByteArrayCoder.of(),
         TypedWrite.DEFAULT_PRODUCER_PROPERTIES);
   }
+
+  ///////////////////////// Read Support \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
   /**
    * A {@link PTransform} to read from Kafka topics. See {@link KafkaIO} for more
@@ -1088,8 +1133,8 @@ public class KafkaIO {
     }
   }
 
+  //////////////////////// Sink Support \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-  // XXX move to public:
   public static class Write<K, V> extends TypedWrite<K, V> {
 
     /**
@@ -1216,7 +1261,9 @@ public class KafkaIO {
      */
     private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES = ImmutableMap.of(
         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Set keyCoder instead",
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Set valueCoder instead"
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Set valueCoder instead",
+        configForKeySerializer(), "Reserved for internal serializer",
+        configForValueSerializer(), "Reserved for internal serializer"
      );
   }
 
