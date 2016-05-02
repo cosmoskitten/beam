@@ -533,7 +533,7 @@ public class KafkaIO {
     }
 
     Map<String, Object> config = new HashMap<>(currentConfig);
-    config.putAll(config);
+    config.putAll(updates);
 
     return config;
   }
@@ -1172,9 +1172,9 @@ public class KafkaIO {
 
     @Override
     public void validate(PCollection<KV<K, V>> input) {
-      checkNotNull(topic, "Kafka topic to write to should be set");
       checkNotNull(producerConfig.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
           "Kafka bootstrap servers should be set");
+      checkNotNull(topic, "Kafka topic should be set");
     }
 
     @Override
@@ -1243,6 +1243,11 @@ public class KafkaIO {
                 }
               })));
     }
+
+    //@Override
+    //protected Coder<Void> getDefaultOutputCoder() {
+    //  return VoidCoder.of();
+    //}
   }
 
   private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
@@ -1262,14 +1267,12 @@ public class KafkaIO {
       this.topic = topic;
       this.producerFactoryFnOpt = producerFactoryFnOpt;
 
-      this.producerConfig = new HashMap<>();
-      this.producerConfig.putAll(producerConfig);
-
       // Set custom kafka serializers. We can not serialize user objects then pass the bytes to
       // producer as key and value objects are used kafka Paritioner interface.
       // This does not matter for default partitioner in Kafka as it uses just the serialized
       // bytes to pick a partition.
 
+      this.producerConfig = new HashMap<>(producerConfig);
       this.producerConfig.put(configForKeySerializer(), keyCoder);
       this.producerConfig.put(configForValueSerializer(), valueCoder);
     }

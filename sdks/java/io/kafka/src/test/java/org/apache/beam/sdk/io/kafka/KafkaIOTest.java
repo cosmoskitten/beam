@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -64,6 +65,8 @@ import org.junit.runners.JUnit4;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -402,39 +405,107 @@ public class KafkaIOTest {
 
   @Test
   public void testSink() throws Exception {
+    // Simply read from kafka source and write to kafka sink. Then verify the records
+    // are correctly published to mock kafka producer.
 
     int numElements = 1000;
 
-    final MockProducer<Integer, Long> mockProducer = new MockProducer<>(
-        true,
-        new KafkaIO.CoderBasedKafkaSerializer<Integer>(),
-        new KafkaIO.CoderBasedKafkaSerializer<Long>());
+    synchronized (MOCK_PRODUCER) {
 
-    SerializableFunction<Map<String, Object>, Producer<Integer, Long>> producerFactoryFn =
-        new SerializableFunction<Map<String, Object>, Producer<Integer, Long>>() {
-          @Override
-          public Producer<Integer, Long> apply(Map<String, Object> config) {
-            return mockProducer;
-          }
-      };
+      MOCK_PRODUCER.clear();
 
-    Pipeline pipeline = TestPipeline.create();
+      Pipeline pipeline = TestPipeline.create();
+      String topic = "test";
 
-    pipeline
-      .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
-              .withoutMetadata())
-      .apply(KafkaIO.write()
-          .withBootstrapServers("none")
-          .withTopic("test")
-          .withKeyCoder(BigEndianIntegerCoder.of())
-          .withValueCoder(BigEndianLongCoder.of())
-          .withProducerFactoryFn(producerFactoryFn));
+      pipeline
+        .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+            .withoutMetadata())
+        .apply(KafkaIO.write()
+            .withBootstrapServers("none")
+            .withTopic(topic)
+            .withKeyCoder(BigEndianIntegerCoder.of())
+            .withValueCoder(BigEndianLongCoder.of())
+            .withProducerFactoryFn(new ProducerFactoryFn()));
 
-    pipeline.run();
+      pipeline.run();
+
+      verifyProducerRecords(topic, numElements, false);
+     }
+  }
+
+  @Test
+  public void testSinkValues() throws Exception {
+    // similar to testSink(), but use values()' interface.
+
+    int numElements = 1000;
+
+    synchronized (MOCK_PRODUCER) {
+
+      MOCK_PRODUCER.clear();
+
+      Pipeline pipeline = TestPipeline.create();
+      String topic = "test";
+
+      pipeline
+        .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+            .withoutMetadata())
+        .apply(Values.<Long>create()) // there are no keys
+        .apply(KafkaIO.write()
+            .withBootstrapServers("none")
+            .withTopic(topic)
+            .withKeyCoder(BigEndianIntegerCoder.of())
+            .withValueCoder(BigEndianLongCoder.of())
+            .withProducerFactoryFn(new ProducerFactoryFn())
+            .values());
+
+      pipeline.run();
+
+      verifyProducerRecords(topic, numElements, true);
+     }
+  }
+
+
+  private static void verifyProducerRecords(String topic, int numElements, boolean keyIsAbsent) {
 
     // verify that appropriate messages are written to kafka
-    List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
+    List<ProducerRecord<Integer, Long>> sent = MOCK_PRODUCER.history();
 
+    // sort by values
+    Collections.sort(sent, new Comparator<ProducerRecord<Integer, Long>>() {
+      @Override
+      public int compare(ProducerRecord<Integer, Long> o1, ProducerRecord<Integer, Long> o2) {
+        return Integer.compare(o1.key(), o2.key());
+      }
+    });
 
+    for (int i = 0; i < numElements; i++) {
+      ProducerRecord<Integer, Long> record = sent.get(i);
+      assertEquals(topic, record.topic());
+      if (keyIsAbsent) {
+        assertNull(record.key());
+      } else {
+        assertEquals(i, record.key().intValue());
+      }
+      assertEquals(i, record.value().longValue());
+    }
+  }
+
+  /**
+   * Singleton MockProudcer. Using a singleton here since we need access to the object to fetch
+   * the actual records published to the producer. This prohibits running the tests using
+   * the producer in parallel, but there are only one or two tests.
+   */
+  private static final MockProducer<Integer, Long> MOCK_PRODUCER = new MockProducer<>(
+      true,
+      new KafkaIO.CoderBasedKafkaSerializer<Integer>(),
+      new KafkaIO.CoderBasedKafkaSerializer<Long>());
+
+  private static class ProducerFactoryFn
+    implements SerializableFunction<Map<String, Object>, Producer<Integer, Long>> {
+
+    @Override
+    public Producer<Integer, Long> apply(Map<String, Object> config) {
+      return MOCK_PRODUCER;
+    }
   }
 }
