@@ -281,6 +281,10 @@ class ProxyInvocationHandler implements InvocationHandler {
       HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(option.getKey()));
 
       for (PipelineOptionSpec optionSpec : specs) {
+        if (!optionSpec.shouldSerialize()) {
+          continue;
+        }
+
         Class<?> pipelineInterface = optionSpec.getDefiningInterface();
         if (type != null) {
           builder.add(DisplayData.item(option.getKey(), type, value)
@@ -304,6 +308,10 @@ class ProxyInvocationHandler implements InvocationHandler {
           .withNamespace(UnknownPipelineOptions.class));
       } else {
         for (PipelineOptionSpec spec : specs) {
+          if (!spec.shouldSerialize()) {
+            continue;
+          }
+
           Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
           DisplayData.Type type = DisplayData.inferType(value);
           if (type != null) {
