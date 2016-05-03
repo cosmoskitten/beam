@@ -37,8 +37,8 @@ public interface DoFnRunner<InputT, OutputT> {
   public void processElement(WindowedValue<InputT> elem);
 
   /**
-   * Calls {@link DoFn#finishBundle} and performs additional tasks, such as
-   * flushing in-memory states.
+   * Calls {@link DoFn#finishBundle} and performs additional tasks, such as flushing in-memory
+   * states.
    */
   public void finishBundle();
 
