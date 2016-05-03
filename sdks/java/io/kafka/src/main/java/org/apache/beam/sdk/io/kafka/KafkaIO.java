@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
@@ -1203,8 +1204,11 @@ public class KafkaIO {
      * Returns a new transform that writes just the values to Kafka. This is useful for writing
      * collections of values rather thank {@link KV}s.
      */
+    @SuppressWarnings("unchecked")
     public PTransform<PCollection<V>, PDone> values() {
-      return new KafkaValueWrite<K, V>(this);
+      return new KafkaValueWrite<V>((TypedWrite<Void, V>)this);
+      // Any way to avoid casting here to TypedWrite<Void, V>? We can't create
+      // new TypedWrite without casting producerFactoryFn.
     }
 
 
@@ -1220,11 +1224,6 @@ public class KafkaIO {
       checkNotNull(producerConfig.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
           "Kafka bootstrap servers should be set");
       checkNotNull(topic, "Kafka topic should be set");
-    }
-
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////
@@ -1271,30 +1270,28 @@ public class KafkaIO {
    * Same as Write<K, V> without a Key. Null is used for key as it is the convention is Kafka
    * when there is no key specified. Majority of Kafka writers don't specify a key.
    */
-  private static class KafkaValueWrite<K, V> extends PTransform<PCollection<V>, PDone> {
+  private static class KafkaValueWrite<V> extends PTransform<PCollection<V>, PDone> {
 
-    private final TypedWrite<K, V> kvWriteTransform;
+    private final TypedWrite<Void, V> kvWriteTransform;
 
-    private KafkaValueWrite(TypedWrite<K, V> kvWriteTransform) {
+    private KafkaValueWrite(TypedWrite<Void, V> kvWriteTransform) {
       this.kvWriteTransform = kvWriteTransform;
     }
 
     @Override
     public PDone apply(PCollection<V> input) {
       return kvWriteTransform.apply(
-          input.apply("Write values with default key",
-              ParDo.of(new DoFn<V, KV<K, V>>() {
-                @Override
-                public void processElement(ProcessContext ctx) throws Exception {
-                  ctx.output(KV.<K, V>of(null, ctx.element()));
-                }
-              })));
+          input
+            .apply("Write values with default key",
+                ParDo.of(new DoFn<V, KV<Void, V>>() {
+                  @Override
+                  public void processElement(ProcessContext ctx) throws Exception {
+                    ctx.output(KV.<Void, V>of(null, ctx.element()));
+                  }
+                }))
+            .setCoder(KvCoder.of(VoidCoder.of(), kvWriteTransform.valueCoder))
+          );
     }
-
-    //@Override
-    //protected Coder<Void> getDefaultOutputCoder() {
-    //  return VoidCoder.of();
-    //}
   }
 
   private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {

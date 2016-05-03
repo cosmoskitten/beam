@@ -433,7 +433,7 @@ public class KafkaIOTest {
      }
   }
 
-  //XXX does not work yet @Test
+  @Test
   public void testSinkValues() throws Exception {
     // similar to testSink(), but use values()' interface.
 
@@ -461,7 +461,7 @@ public class KafkaIOTest {
       pipeline.run();
 
       verifyProducerRecords(topic, numElements, true);
-     }
+    }
   }
 
 
@@ -474,7 +474,7 @@ public class KafkaIOTest {
     Collections.sort(sent, new Comparator<ProducerRecord<Integer, Long>>() {
       @Override
       public int compare(ProducerRecord<Integer, Long> o1, ProducerRecord<Integer, Long> o2) {
-        return Integer.compare(o1.key(), o2.key());
+        return Long.compare(o1.value(), o2.value());
       }
     });
 
