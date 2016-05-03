@@ -61,10 +61,12 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
@@ -717,7 +719,7 @@ public class KafkaIO {
           return new UnboundedKafkaReader<K, V>(
               generateInitialSplits(1, options).get(0), checkpointMark);
         } catch (Exception e) {
-          Throwables.propagate(e);
+          throw new RuntimeException(e);
         }
       }
       return new UnboundedKafkaReader<K, V>(this, checkpointMark);
@@ -1296,11 +1298,44 @@ public class KafkaIO {
 
   private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
+    @Override
+    public void startBundle(Context c) throws Exception {
+      if (producer == null) { // in Beam, startBundle might be called multiple times.
+        producer = producerFactoryFnOpt.isPresent() ?
+            producerFactoryFnOpt.get().apply(producerConfig) :
+            new KafkaProducer<K, V>(producerConfig);
+      }
+    }
+
+    @Override
+    public void processElement(ProcessContext ctx) throws Exception {
+      checkForFailures();
+
+      KV<K, V> kv = ctx.element();
+      producer.send(
+          new ProducerRecord<K, V>(topic, kv.getKey(), kv.getValue()),
+          new SendCallback());
+    }
+
+    @Override
+    public void finishBundle(Context c) throws Exception {
+      producer.flush();
+      producer.close();
+      checkForFailures();
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////
+
     private final String topic;
     private final Map<String, Object> producerConfig;
     private final Optional<SerializableFunction<Map<String, Object>, Producer<K, V>>>
                   producerFactoryFnOpt;
+
     private transient Producer<K, V> producer = null;
+    //private transient Callback sendCallback = new SendCallback();
+    // first exception and number of failures since last invocation of checkForFailures():
+    private transient Exception sendException = null;
+    private transient long numSendFailures = 0;
 
     KafkaWriter(String topic,
         Coder<K> keyCoder,
@@ -1312,7 +1347,7 @@ public class KafkaIO {
       this.producerFactoryFnOpt = producerFactoryFnOpt;
 
       // Set custom kafka serializers. We can not serialize user objects then pass the bytes to
-      // producer as key and value objects are used kafka Paritioner interface.
+      // producer as key and value objects are used kafka Partitioner interface.
       // This does not matter for default partitioner in Kafka as it uses just the serialized
       // bytes to pick a partition.
 
@@ -1321,31 +1356,25 @@ public class KafkaIO {
       this.producerConfig.put(configForValueSerializer(), valueCoder);
     }
 
-    @Override
-    public void startBundle(Context c) throws Exception {
-      if (producer == null) { // in Beam, startBundle might be called multiple times.
-        producer = producerFactoryFnOpt.isPresent() ?
-            producerFactoryFnOpt.get().apply(producerConfig) :
-            new KafkaProducer<K, V>(producerConfig);
+    private synchronized void checkForFailures() throws IOException {
+      if (numSendFailures == 0) {
+        return;
       }
+
+      String msg = String.format(
+          "KafkaWriter : failed to send %d records (since last report)", numSendFailures);
+
+      Exception e = sendException;
+      sendException = null;
+      numSendFailures = 0;
+
+      LOG.warn(msg);
+      throw new IOException(msg, e);
     }
 
-    @Override
-    public void finishBundle(Context c) throws Exception {
-      producer.flush();
-      // XXX when should we close producer?
-    }
-
-    @Override
-    public void processElement(ProcessContext ctx) throws Exception {
-      KV<K, V> kv = ctx.element();
-
-      producer.send(new ProducerRecord<K, V>(
-          topic,
-          kv.getKey(),
-          kv.getValue()));
-    }
-
+    /**
+     * Returns serialized bytes after encoding {@code elem} using {@code coder}.
+     */
     @Nullable
     private static <T> byte[] encode(T elem, Coder<T> coder) throws IOException {
       if (elem == null) {
@@ -1359,6 +1388,24 @@ public class KafkaIO {
       ExposedByteArrayOutputStream out = new ExposedByteArrayOutputStream();
       coder.encode(elem, out, Coder.Context.OUTER);
       return out.toByteArray();
+    }
+
+    private class SendCallback implements Callback {
+      @Override
+      public void onCompletion(RecordMetadata metadata, Exception exception) {
+        if (exception == null) {
+          return;
+        }
+
+        synchronized (KafkaWriter.this) {
+          if (sendException == null) {
+            sendException = exception;
+          }
+          numSendFailures++;
+        }
+        // don't log exception stacktrace here, exception will be propagated up.
+        LOG.warn("KafkaWriter send failed : '{}'", exception.getMessage());
+      }
     }
   }
 

@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.io.Read;
@@ -57,8 +58,10 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -70,6 +73,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nullable;
 
@@ -85,6 +91,9 @@ public class KafkaIOTest {
    * Other tests to consider :
    *   - test KafkaRecordCoder
    */
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   // Update mock consumer with records distributed among the given topics, each with given number
   // of partitions. Records are assigned in round-robin order among the partitions.
@@ -410,9 +419,11 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    synchronized (MOCK_PRODUCER) {
+    synchronized (MOCK_PRODUCER_LOCK) {
 
       MOCK_PRODUCER.clear();
+
+      ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
 
       Pipeline pipeline = TestPipeline.create();
       String topic = "test";
@@ -429,19 +440,23 @@ public class KafkaIOTest {
 
       pipeline.run();
 
+      completionThread.shutdown();
+
       verifyProducerRecords(topic, numElements, false);
      }
   }
 
   @Test
-  public void testSinkValues() throws Exception {
+  public void testValuesSink() throws Exception {
     // similar to testSink(), but use values()' interface.
 
     int numElements = 1000;
 
-    synchronized (MOCK_PRODUCER) {
+    synchronized (MOCK_PRODUCER_LOCK) {
 
       MOCK_PRODUCER.clear();
+
+      ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
 
       Pipeline pipeline = TestPipeline.create();
       String topic = "test";
@@ -460,10 +475,56 @@ public class KafkaIOTest {
 
       pipeline.run();
 
+      completionThread.shutdown();
+
       verifyProducerRecords(topic, numElements, true);
     }
   }
 
+  @Test
+  public void testSinkWithSendErrors() throws Throwable {
+    // similar to testSink(), except that up to 10 of the send calls to producer will fail
+    // asynchronously.
+
+    // TODO: Ideally we want the pipeline to run to completion by retrying bundles that fail.
+    // We limit the number of errors injected to 10 below. This would reflect a real streaming
+    // pipeline. But I am sure how to achieve that. For now expect an exception:
+
+    thrown.expect(InjectedErrorException.class);
+    thrown.expectMessage("Injected Error #1");
+
+    int numElements = 1000;
+
+    synchronized (MOCK_PRODUCER_LOCK) {
+
+      MOCK_PRODUCER.clear();
+
+      Pipeline pipeline = TestPipeline.create();
+      String topic = "test";
+
+      ProducerSendCompletionThread completionThreadWithErrors =
+          new ProducerSendCompletionThread(10, 100).start();
+
+      pipeline
+        .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+            .withoutMetadata())
+        .apply(KafkaIO.write()
+            .withBootstrapServers("none")
+            .withTopic(topic)
+            .withKeyCoder(BigEndianIntegerCoder.of())
+            .withValueCoder(BigEndianLongCoder.of())
+            .withProducerFactoryFn(new ProducerFactoryFn()));
+
+      try {
+        pipeline.run();
+      } catch (PipelineExecutionException e) {
+        // throwing inner exception helps assert that first exception is thrown from the Sink
+        throw e.getCause().getCause();
+      } finally {
+        completionThreadWithErrors.shutdown();
+      }
+    }
+  }
 
   private static void verifyProducerRecords(String topic, int numElements, boolean keyIsAbsent) {
 
@@ -495,10 +556,30 @@ public class KafkaIOTest {
    * the actual records published to the producer. This prohibits running the tests using
    * the producer in parallel, but there are only one or two tests.
    */
-  private static final MockProducer<Integer, Long> MOCK_PRODUCER = new MockProducer<>(
-      true,
+  private static final MockProducer<Integer, Long> MOCK_PRODUCER =
+    new MockProducer<Integer, Long>(
+      false, // disable synchronous completion of send. see ProducerSendCompletionThread below.
       new KafkaIO.CoderBasedKafkaSerializer<Integer>(),
-      new KafkaIO.CoderBasedKafkaSerializer<Long>());
+      new KafkaIO.CoderBasedKafkaSerializer<Long>()) {
+
+      // override flush() so that it does not complete all the waiting sends, giving a chance to
+      // ProducerCompletionThread to inject errors.
+
+      @Override
+      public void flush() {
+        while (completeNext()) {
+          // there are some uncompleted records. let the completion thread handle them.
+          try {
+            Thread.sleep(10);
+          } catch (InterruptedException e) {
+          }
+        }
+      }
+    };
+
+  // use a separate object serialize tests using MOCK_PRODUCER so that we don't interfere
+  // with Kafka MockProducer locking itself.
+  private static final Object MOCK_PRODUCER_LOCK = new Object();
 
   private static class ProducerFactoryFn
     implements SerializableFunction<Map<String, Object>, Producer<Integer, Long>> {
@@ -506,6 +587,79 @@ public class KafkaIOTest {
     @Override
     public Producer<Integer, Long> apply(Map<String, Object> config) {
       return MOCK_PRODUCER;
+    }
+  }
+
+  private static class InjectedErrorException extends RuntimeException {
+    public InjectedErrorException(String message) {
+      super(message);
+    }
+  }
+
+  /**
+   * We start MockProducer with auto-completion disabled. That implies a record is not marked sent
+   * until #completeNext() is called on it. This class starts a thread to asynchronously 'complete'
+   * the the sends. During completion, we can also make those requests fail. This error injection
+   * is used in one of the tests.
+   */
+  private static class ProducerSendCompletionThread {
+
+    private final int maxErrors;
+    private final int errorFrequency;
+    private final AtomicBoolean done = new AtomicBoolean(false);
+    private final ExecutorService injectorThread;
+    private int numCompletions = 0;
+
+    ProducerSendCompletionThread() {
+      // complete everything successfully
+      this(0, 0);
+    }
+
+    ProducerSendCompletionThread(final int maxErrors, final int errorFrequency) {
+      this.maxErrors = maxErrors;
+      this.errorFrequency = errorFrequency;
+      injectorThread = Executors.newSingleThreadExecutor();
+    }
+
+    ProducerSendCompletionThread start() {
+      injectorThread.submit(new Runnable() {
+        @Override
+        public void run() {
+          int errorsInjected = 0;
+
+          while (!done.get()) {
+            boolean successful;
+
+            if (errorsInjected < maxErrors && ((numCompletions + 1) % errorFrequency) == 0) {
+              successful = MOCK_PRODUCER.errorNext(
+                  new InjectedErrorException("Injected Error #" + (errorsInjected + 1)));
+
+              if (successful) {
+                errorsInjected++;
+              }
+            } else {
+              successful = MOCK_PRODUCER.completeNext();
+            }
+
+            if (successful) {
+              numCompletions++;
+            } else {
+              // wait a bit since there were no records waiting to be sent.
+              try {
+                Thread.sleep(1);
+              } catch (InterruptedException e) {
+              }
+            }
+          }
+        }
+      });
+
+      return this;
+    }
+
+    void shutdown() {
+      done.set(true);
+      injectorThread.shutdown();
     }
   }
 }
