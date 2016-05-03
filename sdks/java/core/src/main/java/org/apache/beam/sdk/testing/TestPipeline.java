@@ -25,6 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.TestCredential;
 
 import com.google.common.base.Optional;
@@ -242,7 +243,7 @@ public class TestPipeline extends Pipeline {
   }
 
   private static class IntegrationMatcherStore extends Module {
-    private static Map<String, Matcher> matcherMap = new ConcurrentHashMap<>();
+    private static Map<String, Matcher<PipelineResult>> matcherMap = new ConcurrentHashMap<>();
 
     /**
      * Adds a matcher to the matcher store, to be retrieved by a TestPipelineRunner during
@@ -252,7 +253,7 @@ public class TestPipeline extends Pipeline {
      * @return Returns a UUID corresponding to the matcher which can be used in e.g.
      * opts.SetPassVerifier(matcher)
      */
-    String addMatcher(Matcher m) {
+    String addMatcher(Matcher<PipelineResult> m) {
       if (matcherMap == null) {
         matcherMap = new HashMap<>();
       }
@@ -267,7 +268,7 @@ public class TestPipeline extends Pipeline {
      * @param str The UUID of the matcher to return.
      * @return Returns the matcher corresponding to the string passed, or null if it doesn't exist.
      */
-    Matcher getMatcher(String str) {
+    Matcher<PipelineResult> getMatcher(String str) {
       if (matcherMap == null) {
         return null;
       }
@@ -281,32 +282,32 @@ public class TestPipeline extends Pipeline {
 
     @Override
     public Version version() {
-      return new Version(1,0,0,"",null,null);
+      return new Version(1, 0, 0, "", null, null);
     }
 
     @Override
     public void setupModule(SetupContext setupContext) {
       SimpleSerializers ser = new SimpleSerializers();
-      ser.addSerializer(Matcher.class, new MatcherSerializer());
+      ser.addSerializer(Matcher.class, (JsonSerializer) new MatcherSerializer());
       SimpleDeserializers des = new SimpleDeserializers();
       des.addDeserializer(Matcher.class, new MatcherDeserializer());
       setupContext.addSerializers(ser);
       setupContext.addDeserializers(des);
     }
 
-    class MatcherSerializer extends JsonSerializer<Matcher> {
+    class MatcherSerializer extends JsonSerializer<Matcher<PipelineResult>> {
       @Override
-      public void serialize(Matcher matcher, JsonGenerator jsonGenerator,
+      public void serialize(Matcher<PipelineResult> matcher, JsonGenerator jsonGenerator,
           SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
         String uuid = addMatcher(matcher);
         jsonGenerator.writeString(uuid);
       }
     }
 
-    class MatcherDeserializer extends JsonDeserializer<Matcher> {
+    class MatcherDeserializer extends JsonDeserializer<Matcher<PipelineResult>> {
 
       @Override
-      public Matcher deserialize(JsonParser jsonParser,
+      public Matcher<PipelineResult> deserialize(JsonParser jsonParser,
           DeserializationContext deserializationContext)
           throws IOException, JsonProcessingException {
         String uuid = jsonParser.getText();
