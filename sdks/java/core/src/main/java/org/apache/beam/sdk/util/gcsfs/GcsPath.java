@@ -478,7 +478,6 @@ public class GcsPath implements Path {
   public Iterator<Path> iterator() {
     return new NameIterator(fs, !bucket.isEmpty(), bucketAndObject());
   }
-
   private static class NameIterator implements Iterator<Path> {
     private final FileSystem fs;
     private boolean fullPath;
@@ -599,6 +598,27 @@ public class GcsPath implements Path {
     }
     sb.append(object);
     return sb.toString();
+  }
+
+  private static final Pattern HAS_GLOB = Pattern.compile(".*(\\[|\\*|\\?).*");
+  public String getBrowseUrl() {
+    StringBuilder builder = new StringBuilder("https://console.cloud.google.com/storage/browser/");
+    if (HAS_GLOB.matcher(bucket).matches()) {
+      return builder.toString();
+    }
+
+    builder.append(bucket);
+    for (String component : object.split("/")) {
+      if (component.length() == 0) {
+        continue;
+      }
+      if (HAS_GLOB.matcher(component).matches()) {
+        break;
+      }
+      builder.append("/").append(component);
+    }
+
+    return builder.toString();
   }
 
   @Override
