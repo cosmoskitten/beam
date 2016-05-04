@@ -42,6 +42,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
@@ -65,7 +66,9 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
+import org.hamcrest.BaseMatcher;
 import org.hamcrest.CustomTypeSafeMatcher;
+import org.hamcrest.Description;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -80,6 +83,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.math.BigDecimal;
+import java.nio.channels.Pipe;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -401,19 +405,7 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnCreateMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
-          @Override
-          protected boolean matchesSafely(PipelineResult pipelineResult) {
-            try {
-              verify(mockJob, never()).waitToFinish(any(Long.class), any(TimeUnit.class),
-                  any(JobMessagesHandler.class));
-            } catch (Exception e) {
-              return false;
-            }
-            assertSame(mockJob, pipelineResult);
-            return true;
-          }
-        });
+        .setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
 
     when(request.execute()).thenReturn(
         generateMockMetricResponse(true /* success */, true /* tentative */));
@@ -438,19 +430,7 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnCreateMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
-          @Override
-          protected boolean matchesSafely(PipelineResult pipelineResult) {
-            try {
-              verify(mockJob, never()).waitToFinish(any(Long.class), any(TimeUnit.class),
-                  any(JobMessagesHandler.class));
-            } catch (Exception e) {
-              return false;
-            }
-            assertSame(mockJob, pipelineResult);
-            return true;
-          }
-        });
+        .setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
 
     when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
@@ -477,19 +457,7 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
-          @Override
-          protected boolean matchesSafely(PipelineResult pipelineResult) {
-            try {
-              verify(mockJob, Mockito.times(1)).waitToFinish(any(Long.class), any(TimeUnit.class),
-                  any(JobMessagesHandler.class));
-            } catch (Exception e) {
-              return false;
-            }
-            assertSame(mockJob, pipelineResult);
-            return true;
-          }
-        });
+        .setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
 
     when(request.execute()).thenReturn(
         generateMockMetricResponse(true /* success */, true /* tentative */));
@@ -514,19 +482,7 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
-          @Override
-          protected boolean matchesSafely(PipelineResult pipelineResult) {
-            try {
-              verify(mockJob, Mockito.times(1)).waitToFinish(any(Long.class), any(TimeUnit.class),
-                  any(JobMessagesHandler.class));
-            } catch (Exception e) {
-              return false;
-            }
-            assertSame(mockJob, pipelineResult);
-            return true;
-          }
-        });
+        .setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
 
     when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
@@ -553,13 +509,7 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
-          @Override
-          protected boolean matchesSafely(PipelineResult pipelineResult) {
-            fail("OnSuccessMatcher should not be called on pipeline failure.");
-            return false;
-          }
-        });
+        .setOnSuccessMatcher(new TestFailureMatcher());
 
     when(request.execute()).thenReturn(
         generateMockMetricResponse(false /* success */, true /* tentative */));
@@ -591,13 +541,7 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
-          @Override
-          protected boolean matchesSafely(PipelineResult pipelineResult) {
-            fail("OnSuccessMatcher should not be called on pipeline failure.");
-            return false;
-          }
-        });
+        .setOnSuccessMatcher(new TestFailureMatcher());
 
     when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
         .thenReturn(State.FAILED);
@@ -612,5 +556,48 @@ public class TestDataflowPipelineRunnerTest {
       return;
     }
     fail("Expected an exception on pipeline failure.");
+  }
+
+  static class TestSuccessMatcher extends BaseMatcher<PipelineResult> implements
+      SerializableMatcher<PipelineResult> {
+    DataflowPipelineJob mockJob;
+    int called;
+    public TestSuccessMatcher(DataflowPipelineJob job, int times) {
+      this.mockJob = job;
+      this.called = times;
+    }
+
+    @Override
+    public boolean matches(Object o) {
+      if (!(o instanceof PipelineResult)) {
+        fail();
+      }
+      PipelineResult other = (PipelineResult) o;
+      try {
+        verify(mockJob, Mockito.times(called)).waitToFinish(any(Long.class), any(TimeUnit.class),
+            any(JobMessagesHandler.class));
+      } catch (Exception e) {
+        return false;
+      }
+      assertSame(mockJob, other);
+      return true;
+    }
+
+    @Override
+    public void describeTo(Description description) {
+    }
+  }
+
+  static class TestFailureMatcher extends BaseMatcher<PipelineResult> implements
+      SerializableMatcher<PipelineResult> {
+    @Override
+    public boolean matches(Object o) {
+      fail("OnSuccessMatcher should not be called on pipeline failure.");
+      return false;
+    }
+
+    @Override
+    public void describeTo(Description description) {
+    }
   }
 }
