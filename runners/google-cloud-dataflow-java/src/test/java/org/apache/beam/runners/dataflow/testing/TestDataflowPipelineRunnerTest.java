@@ -27,7 +27,6 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,7 +66,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 import org.hamcrest.BaseMatcher;
-import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.Description;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -83,7 +81,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.math.BigDecimal;
-import java.nio.channels.Pipe;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
