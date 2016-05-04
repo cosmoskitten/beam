@@ -17,8 +17,25 @@
  */
 package org.apache.beam.sdk.testing;
 
+import com.google.api.client.util.Base64;
+
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import org.apache.beam.sdk.testing.SerializableMatcher.MatcherDeserializer;
+import org.apache.beam.sdk.testing.SerializableMatcher.MatcherSerializer;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.hamcrest.Matcher;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -32,5 +49,31 @@ import java.io.Serializable;
  *
  * @param <T> The type of value matched.
  */
-interface SerializableMatcher<T> extends Matcher<T>, Serializable {
+@JsonSerialize(using = MatcherSerializer.class)
+@JsonDeserialize(using = MatcherDeserializer.class)
+public interface SerializableMatcher<T> extends Matcher<T>, Serializable {
+  class MatcherSerializer extends JsonSerializer<SerializableMatcher<?>> {
+    @Override
+    public void serialize(SerializableMatcher<?> matcher, JsonGenerator jsonGenerator,
+        SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+      byte[] out = SerializableUtils.serializeToByteArray(matcher);
+      jsonGenerator.writeStartObject();
+      jsonGenerator.writeBinaryField("matcher", out);
+      jsonGenerator.writeEndObject();
+    }
+  }
+
+  class MatcherDeserializer extends JsonDeserializer<SerializableMatcher<?>> {
+    @Override
+    public SerializableMatcher<?> deserialize(JsonParser jsonParser,
+        DeserializationContext deserializationContext)
+        throws IOException, JsonProcessingException {
+      ObjectNode node = jsonParser.readValueAsTree();
+      String matcher = node.get("matcher").asText();
+      byte[] in = Base64.decodeBase64(matcher);
+      return (SerializableMatcher<?>) SerializableUtils
+          .deserializeFromByteArray(in, "SerializableMatcher");
+    }
+  }
 }
+
