@@ -100,6 +100,7 @@
     <dataflow.javadoc_opts></dataflow.javadoc_opts>
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
+    <activemq.version>5.11.2</activemq.version>
     <avro.version>1.7.7</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
     <pubsubgrpc.version>0.0.2</pubsubgrpc.version>
@@ -107,6 +108,7 @@
     <dataflow.version>v1b3-rev26-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.version>v1beta2-rev1-4.0.0</datastore.version>
+    <geronimo-jms.version>1.1.1</geronimo-jms.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
     <google-auto-value.version>1.1</google-auto-value.version>
     <google-clients.version>1.22.0</google-clients.version>
@@ -571,6 +573,23 @@
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.geronimo.specs</groupId>
+        <artifactId>geronimo-jms_1.1_spec</artifactId>
+        <version>${geronimo-jms.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.activemq</groupId>
+        <artifactId>activemq-broker</artifactId>
+        <version>${activemq.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.activemq</groupId>
+        <artifactId>activemq-kahadb-store</artifactId>
+        <version>${activemq.version}</version>
       </dependency>
 
       <!-- Testing -->
