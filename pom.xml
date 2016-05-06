@@ -915,6 +915,46 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.rat</groupId>
+        <artifactId>apache-rat-plugin</artifactId>
+        <version>0.11</version>
+        <executions>
+          <execution>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
+          <excludeSubProjects>false</excludeSubProjects>
+          <excludes>
+            <exclude>**/target/**/*</exclude>
+            <!-- Exclude java file (already checked by checkstyle -->
+            <exclude>**/*.java</exclude>
+            <!-- Exclude json -->
+            <exclude>**/user.avsc</exclude>
+            <!-- Exclude txt test resources -->
+            <exclude>**/test/resources/**/*.txt</exclude>
+            <!-- Exclude package-list -->
+            <exclude>**/package-list</exclude>
+            <!-- Git files -->
+            <exclude>**/.git/**/*</exclude>
+            <!-- IDEA files -->
+            <exclude>**/.idea/**/*</exclude>
+            <exclude>**/*.iml</exclude>
+            <exclude>**/*.ipr</exclude>
+            <exclude>**/*.iws</exclude>
+            <!-- Eclipse files -->
+            <exclude>**/.*</exclude>
+            <exclude>**/eclipse-classes/**/*</exclude>
+            <exclude>**/dependency-reduced-pom.xml</exclude>
+            <exclude>**/.settings/**</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
