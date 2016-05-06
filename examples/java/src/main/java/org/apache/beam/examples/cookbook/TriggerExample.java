@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
+import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BigQueryIO;
@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -420,7 +421,7 @@ public class TriggerExample {
    * Inherits standard configuration options.
    */
   public interface TrafficFlowOptions
-      extends ExampleBigQueryTableOptions, DataflowExampleOptions {
+      extends ExampleBigQueryTableOptions, ExampleOptions, StreamingOptions {
 
     @Description("Input file to read from")
     @Default.String("gs://dataflow-samples/traffic_sensor/"
@@ -433,8 +434,6 @@ public class TriggerExample {
     Integer getWindowDuration();
     void setWindowDuration(Integer value);
   }
-
-  private static final String PUBSUB_TIMESTAMP_LABEL_KEY = "timestamp_ms";
 
   public static void main(String[] args) throws Exception {
     TrafficFlowOptions options = PipelineOptionsFactory.fromArgs(args)

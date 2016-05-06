@@ -316,7 +316,7 @@ public class DataflowExampleUtils {
     if (result instanceof DataflowPipelineJob) {
       final DataflowPipelineJob job = (DataflowPipelineJob) result;
       jobsToCancel.add(job);
-      if (!options.as(DataflowExampleOptions.class).getKeepJobsRunning()) {
+      if (!options.as(ExampleOptions.class).getKeepJobsRunning()) {
         addShutdownHook(jobsToCancel);
       }
       try {

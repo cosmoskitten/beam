@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples.complete;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
+import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -317,7 +317,7 @@ public class TrafficRoutes {
   *
   * <p>Inherits standard configuration options.
   */
-  private interface TrafficRoutesOptions extends DataflowExampleOptions,
+  private interface TrafficRoutesOptions extends ExampleOptions,
       ExampleBigQueryTableOptions {
     @Description("Path of the file to read from")
     @Default.String("gs://dataflow-samples/traffic_sensor/"

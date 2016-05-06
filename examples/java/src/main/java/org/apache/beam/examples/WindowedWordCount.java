@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
+import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BigQueryIO;
@@ -179,7 +179,7 @@ public class WindowedWordCount {
    * specification of the input file.
    */
   public static interface Options extends WordCount.WordCountOptions,
-      DataflowExampleOptions, ExampleBigQueryTableOptions {
+      ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Fixed window duration, in minutes")
     @Default.Integer(WINDOW_SIZE)
     Integer getWindowSize();
