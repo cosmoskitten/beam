@@ -18,26 +18,27 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.TupleTag;
+
+import org.apache.spark.api.java.function.FlatMapFunction;
+
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.beam.runners.spark.util.BroadcastHelper;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.spark.api.java.function.FlatMapFunction;
-
 /**
  * Dataflow's Do functions correspond to Spark's FlatMap functions.
  *
- * @param <I> Input element type.
- * @param <O> Output element type.
+ * @param <T0> Input element type.
+ * @param <T1> Output element type.
  */
-public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<WindowedValue<I>>,
-    WindowedValue<O>> {
-  private final DoFn<I, O> mFunction;
+public class DoFnFunction<T0, T1> implements FlatMapFunction<Iterator<WindowedValue<T0>>,
+    WindowedValue<T1>> {
+  private final DoFn<T0, T1> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
@@ -46,7 +47,7 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<WindowedValu
    * @param runtime    Runtime to apply function in.
    * @param sideInputs Side inputs used in DoFunction.
    */
-  public DoFnFunction(DoFn<I, O> fn,
+  public DoFnFunction(DoFn<T0, T1> fn,
                SparkRuntimeContext runtime,
                Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     this.mFunction = fn;
@@ -55,7 +56,7 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<WindowedValu
   }
 
   @Override
-  public Iterable<WindowedValue<O>> call(Iterator<WindowedValue<I>> iter) throws
+  public Iterable<WindowedValue<T1>> call(Iterator<WindowedValue<T0>> iter) throws
       Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
     ctxt.setup();
@@ -63,23 +64,23 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<WindowedValu
     return ctxt.getOutputIterable(iter, mFunction);
   }
 
-  private class ProcCtxt extends SparkProcessContext<I, O, WindowedValue<O>> {
+  private class ProcCtxt extends SparkProcessContext<T0, T1, WindowedValue<T1>> {
 
-    private final List<WindowedValue<O>> outputs = new LinkedList<>();
+    private final List<WindowedValue<T1>> outputs = new LinkedList<>();
 
-    ProcCtxt(DoFn<I, O> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
+    ProcCtxt(DoFn<T0, T1> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
         BroadcastHelper<?>> sideInputs) {
       super(fn, runtimeContext, sideInputs);
     }
 
     @Override
-    public synchronized void output(O o) {
+    public synchronized void output(T1 o) {
       outputs.add(windowedValue != null ? windowedValue.withValue(o) :
           WindowedValue.valueInGlobalWindow(o));
     }
 
     @Override
-    public synchronized void output(WindowedValue<O> o) {
+    public synchronized void output(WindowedValue<T1> o) {
       outputs.add(o);
     }
 
@@ -89,7 +90,7 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<WindowedValu
     }
 
     @Override
-    protected Iterator<WindowedValue<O>> getOutputIterator() {
+    protected Iterator<WindowedValue<T1>> getOutputIterator() {
       return outputs.iterator();
     }
   }
