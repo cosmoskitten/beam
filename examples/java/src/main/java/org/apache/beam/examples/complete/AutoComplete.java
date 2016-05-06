@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -414,7 +415,8 @@ public class AutoComplete {
    *
    * <p>Inherits standard Dataflow configuration options.
    */
-  private static interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+  private static interface Options
+      extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Input text file")
     String getInputFile();
     void setInputFile(String value);

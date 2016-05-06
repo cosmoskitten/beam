@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
@@ -111,7 +112,7 @@ public class StreamingWordExtract {
    * <p>Inherits standard configuration options.
    */
   private interface StreamingWordExtractOptions
-      extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+      extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Input file to inject to Pub/Sub topic")
     @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
     String getInputFile();
