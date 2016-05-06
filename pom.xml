@@ -219,8 +219,51 @@
                 </execution>
               </executions>
             </plugin>
+
+            <plugin>
+              <groupId>org.apache.rat</groupId>
+              <artifactId>apache-rat-plugin</artifactId>
+              <version>0.11</version>
+              <executions>
+                <execution>
+                  <phase>verify</phase>
+                  <goals>
+                    <goal>check</goal>
+                  </goals>
+                </execution>
+              </executions>
+              <configuration>
+                <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
+                <excludeSubProjects>false</excludeSubProjects>
+                <useDefaultExcludes>true</useDefaultExcludes>
+                <excludes>
+                  <!-- exclude target -->
+                  <exclude>**/target/**/*</exclude>
+                  <exclude>**/dependency-reduced-pom.xml</exclude>
+                  <!-- exclude IntelliJ iml file -->
+                  <exclude>**/*.iml</exclude>
+                  <!-- exclude Javadoc package-list -->
+                  <exclude>**/package-list</exclude>
+                  <!-- Exclude json -->
+                  <exclude>**/user.avsc</exclude>
+                  <!-- Exclude txt test resources -->
+                  <exclude>**/test/resources/**/*.txt</exclude>
+                  <exclude>**/test/**/.placeholder</exclude>
+                </excludes>
+              </configuration>
+            </plugin>
           </plugins>
         </pluginManagement>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.rat</groupId>
+            <artifactId>apache-rat-plugin</artifactId>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+          </plugin>
+        </plugins>
       </build>
     </profile>
 
@@ -233,6 +276,7 @@
         <dataflow.javadoc_opts>-Xdoclint:-missing</dataflow.javadoc_opts>
       </properties>
     </profile>
+
   </profiles>
 
   <dependencyManagement>
@@ -896,7 +940,7 @@
           <artifactId>maven-release-plugin</artifactId>
           <version>2.5.3</version>
           <configuration>
-            <releaseProfiles>release</releaseProfiles>
+            <releaseProfiles>src,rat</releaseProfiles>
             <preparationGoals>clean install</preparationGoals>
             <goals>deploy</goals>
             <autoVersionSubmodules>true</autoVersionSubmodules>
