@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
+import org.apache.beam.examples.common.DataflowExampleOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BigQueryIO;
