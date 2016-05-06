@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
+import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
@@ -102,7 +102,7 @@ public class LeaderBoard extends HourlyTeamScore {
   /**
    * Options supported by {@link LeaderBoard}.
    */
-  static interface Options extends HourlyTeamScore.Options, DataflowExampleOptions {
+  static interface Options extends HourlyTeamScore.Options, ExampleOptions {
 
     @Description("Pub/Sub topic to read from")
     @Validation.Required

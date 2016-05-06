@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples.complete;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
+import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExamplePubsubTopicAndSubscriptionOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -332,7 +332,7 @@ public class TrafficRoutes {
   *
   * <p>Inherits standard configuration options.
   */
-  private interface TrafficRoutesOptions extends DataflowExampleOptions,
+  private interface TrafficRoutesOptions extends ExampleOptions,
       ExamplePubsubTopicAndSubscriptionOptions, ExampleBigQueryTableOptions {
     @Description("Input file to inject to Pub/Sub topic")
     @Default.String("gs://dataflow-samples/traffic_sensor/"

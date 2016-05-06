@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
+import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExamplePubsubTopicOptions;
 import org.apache.beam.examples.common.PubsubFileInjector;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -435,7 +435,7 @@ public class TriggerExample {
    * Inherits standard configuration options.
    */
   public interface TrafficFlowOptions
-      extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions, DataflowExampleOptions {
+      extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions, ExampleOptions {
 
     @Description("Input file to inject to Pub/Sub topic")
     @Default.String("gs://dataflow-samples/traffic_sensor/"
@@ -489,7 +489,7 @@ public class TriggerExample {
   private static Pipeline runInjector(TrafficFlowOptions options){
     DataflowPipelineOptions copiedOptions = options.cloneAs(DataflowPipelineOptions.class);
     copiedOptions.setStreaming(false);
-    copiedOptions.setNumWorkers(options.as(DataflowExampleOptions.class).getInjectorNumWorkers());
+    copiedOptions.setNumWorkers(options.as(ExampleOptions.class).getInjectorNumWorkers());
     copiedOptions.setJobName(options.getJobName() + "-injector");
     Pipeline injectorPipeline = Pipeline.create(copiedOptions);
     injectorPipeline
