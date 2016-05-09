@@ -37,7 +37,7 @@ import org.junit.Test;
 import java.util.Set;
 
 /**
- * Unit tests for Dataflow usage of {@link Combine} transforms.
+ * Unit tests for Dataflow usage of {@link BigQueryIO} transforms.
  */
 public class DataflowBigQueryIOTest {
   @Test
