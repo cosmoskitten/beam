@@ -109,7 +109,7 @@ public class DisplayDataEvaluator {
   extends Pipeline.PipelineVisitor.Defaults {
     private final PTransform root;
     private final Set<DisplayData> displayData;
-    private boolean shouldRecord = false;
+    private boolean inCompositeRoot = false;
 
     PrimitiveDisplayDataPTransformVisitor(PTransform root) {
       this.root = root;
@@ -123,7 +123,7 @@ public class DisplayDataEvaluator {
     @Override
     public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
       if (Objects.equals(root, node.getTransform())) {
-        shouldRecord = true;
+        inCompositeRoot = true;
       }
 
       return CompositeBehavior.ENTER_TRANSFORM;
@@ -132,13 +132,13 @@ public class DisplayDataEvaluator {
     @Override
     public void leaveCompositeTransform(TransformTreeNode node) {
       if (Objects.equals(root, node.getTransform())) {
-        shouldRecord = false;
+        inCompositeRoot = false;
       }
     }
 
     @Override
     public void visitPrimitiveTransform(TransformTreeNode node) {
-      if (shouldRecord) {
+      if (inCompositeRoot || Objects.equals(root, node.getTransform())) {
         displayData.add(DisplayData.from(node.getTransform()));
       }
     }

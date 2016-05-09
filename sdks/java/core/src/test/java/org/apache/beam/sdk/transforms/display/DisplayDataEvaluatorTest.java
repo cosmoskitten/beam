@@ -41,7 +41,7 @@ import java.util.Set;
 public class DisplayDataEvaluatorTest implements Serializable {
 
   @Test
-  public void testDisplayDataForPrimitiveTransforms() {
+  public void testCompositeTransform() {
     PTransform<? super PCollection<String>, ? super POutput> myTransform =
         new PTransform<PCollection<String>, POutput> () {
           @Override
@@ -70,5 +70,24 @@ public class DisplayDataEvaluatorTest implements Serializable {
 
     assertThat(displayData, not(hasItem(hasDisplayItem("compositeKey", "compositeValue"))));
     assertThat(displayData, hasItem(hasDisplayItem("primitiveKey", "primitiveValue")));
+  }
+
+  @Test
+  public void testPrimitiveTransform() {
+    PTransform<? super PCollection<Integer>, ? super PCollection<Integer>> myTransform = ParDo.of(
+        new DoFn<Integer, Integer>() {
+      @Override
+      public void processElement(ProcessContext c) throws Exception {}
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    });
+
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.forRunner(DirectPipelineRunner.class);
+    Set<DisplayData> displayDatas = evaluator.displayDataForPrimitiveTransforms(myTransform);
+
+    assertThat(displayDatas, hasItem(hasDisplayItem("foo")));
   }
 }
