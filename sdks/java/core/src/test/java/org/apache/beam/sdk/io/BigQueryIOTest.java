@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -568,8 +567,8 @@ public class BigQueryIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem(hasKey("table")));
-    assertThat(displayData, hasDisplayItem(hasKey("schema")));
+    assertThat(displayData, hasDisplayItem("table"));
+    assertThat(displayData, hasDisplayItem("schema"));
     assertThat(displayData,
         hasDisplayItem("createDisposition", CreateDisposition.CREATE_IF_NEEDED.toString()));
     assertThat(displayData,
