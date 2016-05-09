@@ -26,7 +26,6 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.transforms.DataflowDisplayDataEvaluator;
 import org.apache.beam.sdk.io.BigQueryIO;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 
