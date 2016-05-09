@@ -326,11 +326,11 @@ public class WindowEvaluatorFactoryTest {
   private static class EvaluatorTestWindowFn extends NonMergingWindowFn<Long, BoundedWindow> {
     @Override
     public Collection<BoundedWindow> assignWindows(AssignContext c) throws Exception {
-      if (c.windows().contains(GlobalWindow.INSTANCE)) {
+      if (c.window() instanceof GlobalWindow) {
         return Collections.<BoundedWindow>singleton(new IntervalWindow(c.timestamp(),
             c.timestamp().plus(1L)));
       }
-      return (Collection<BoundedWindow>) c.windows();
+      return Collections.singleton(c.window());
     }
 
     @Override

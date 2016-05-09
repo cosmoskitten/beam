@@ -17,9 +17,13 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
+
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
@@ -35,6 +39,7 @@ class FlinkAssignContext<InputT, W extends BoundedWindow>
 
   FlinkAssignContext(WindowFn<InputT, W> fn, WindowedValue<InputT> value) {
     fn.super();
+    checkArgument(Iterables.size(value.getWindows()) == 1);
     this.value = value;
   }
 
@@ -49,8 +54,8 @@ class FlinkAssignContext<InputT, W extends BoundedWindow>
   }
 
   @Override
-  public Collection<? extends BoundedWindow> windows() {
-    return value.getWindows();
+  public BoundedWindow window() {
+    return Iterables.getOnlyElement(value.getWindows());
   }
 
 }
