@@ -68,7 +68,7 @@ public abstract class WindowFn<T, W extends BoundedWindow>
      * Returns the windows the current element was in, prior to this
      * {@code WindowFn} being called.
      */
-    public abstract Collection<? extends BoundedWindow> windows();
+    public abstract BoundedWindow window();
   }
 
   /**
@@ -157,13 +157,6 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    * Returns true if this {@code WindowFn} never needs to merge any windows.
    */
   public boolean isNonMerging() {
-    return false;
-  }
-
-  /**
-   * Returns true if this {@code WindowFn} assigns each element to a single window.
-   */
-  public boolean assignsToSingleWindow() {
     return false;
   }
 
