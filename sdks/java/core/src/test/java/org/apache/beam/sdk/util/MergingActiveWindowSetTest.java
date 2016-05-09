@@ -22,6 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
@@ -37,8 +38,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Collection;
 
 /**
  * Test NonMergingActiveWindowSet.
@@ -77,8 +76,8 @@ public class MergingActiveWindowSetTest {
       }
 
       @Override
-      public Collection<? extends BoundedWindow> windows() {
-        return ImmutableList.of();
+      public BoundedWindow window() {
+        return GlobalWindow.INSTANCE;
       }
     };
 

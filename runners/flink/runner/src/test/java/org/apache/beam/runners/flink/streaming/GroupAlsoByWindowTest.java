@@ -507,7 +507,7 @@ public class GroupAlsoByWindowTest {
           }
 
           @Override
-          public Collection<? extends BoundedWindow> windows() {
+          public BoundedWindow window() {
             throw new UnsupportedOperationException(
                 "WindowFn attempted to access input windows when none were available");
           }
