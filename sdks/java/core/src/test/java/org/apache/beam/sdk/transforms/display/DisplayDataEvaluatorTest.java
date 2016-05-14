@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -65,7 +64,7 @@ public class DisplayDataEvaluatorTest implements Serializable {
           }
         };
 
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.forRunner(DirectPipelineRunner.class);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(myTransform);
 
     assertThat(displayData, not(hasItem(hasDisplayItem("compositeKey", "compositeValue"))));
@@ -85,9 +84,9 @@ public class DisplayDataEvaluatorTest implements Serializable {
       }
     });
 
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.forRunner(DirectPipelineRunner.class);
-    Set<DisplayData> displayDatas = evaluator.displayDataForPrimitiveTransforms(myTransform);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(myTransform);
 
-    assertThat(displayDatas, hasItem(hasDisplayItem("foo")));
+    assertThat(displayData, hasItem(hasDisplayItem("foo")));
   }
 }

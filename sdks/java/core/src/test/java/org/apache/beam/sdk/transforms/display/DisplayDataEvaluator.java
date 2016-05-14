@@ -20,9 +20,9 @@ package org.apache.beam.sdk.transforms.display;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -40,25 +40,21 @@ public class DisplayDataEvaluator {
   private final PipelineOptions options;
 
   /**
-   * Create a new {@link DisplayDataEvaluator} using the specified {@link PipelineRunner} and
-   * default {@link PipelineOptions}.
+   * Create a new {@link DisplayDataEvaluator} using {@link TestPipeline#testingPipelineOptions()}.
    */
-  public static DisplayDataEvaluator forRunner(Class<? extends PipelineRunner<?>> pipelineRunner) {
-    return forRunner(pipelineRunner, PipelineOptionsFactory.create());
+  public static DisplayDataEvaluator create() {
+    return create(TestPipeline.testingPipelineOptions());
   }
 
   /**
-   * Create a new {@link DisplayDataEvaluator} using the specified {@link PipelineRunner} and
-   * {@link PipelineOptions}.
+   * Create a new {@link DisplayDataEvaluator} using the specified {@link PipelineOptions}.
    */
-  public static DisplayDataEvaluator forRunner(
-      Class<? extends PipelineRunner<?>> pipelineRunner, PipelineOptions pipelineOptions) {
-    return new DisplayDataEvaluator(pipelineRunner, pipelineOptions);
+  public static DisplayDataEvaluator create(PipelineOptions pipelineOptions) {
+    return new DisplayDataEvaluator(pipelineOptions);
   }
 
-  private DisplayDataEvaluator(Class<? extends PipelineRunner<?>> runner, PipelineOptions options) {
+  private DisplayDataEvaluator(PipelineOptions options) {
     this.options = options;
-    this.options.setRunner(runner);
   }
 
   /**
