@@ -492,9 +492,7 @@ public class BigtableIOTest {
         .withBigtableOptions(BIGTABLE_OPTIONS);
 
     DisplayData displayData = DisplayData.from(write);
-
     assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
-    // BigtableIO adds user-agent to options; assert only on key and not value.
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
