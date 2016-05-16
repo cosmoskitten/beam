@@ -120,7 +120,7 @@ public class Read {
     }
 
     /**
-     * Returns a new {@link UnboundedReadFromBoundedSourceTest}.
+     * Returns a new {@link UnboundedReadFromBoundedSource}.
      *
      * It performs a unbounded read from the given {@link BoundedSource}.
      */
