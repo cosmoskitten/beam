@@ -120,9 +120,12 @@ public class Read {
     }
 
     /**
-     * Returns a new {@link UnboundedReadFromBoundedSourceTest}.
+     * Returns an {@link UnboundedReadFromBoundedSource} {@link PTransform}.
      *
-     * It performs a unbounded read from the given {@link BoundedSource}.
+     * It produces an unbounded {@link PCollection} from a {@link BoundedSource}.
+     *
+     * <p>It doesn't support checkpoints in the middle of the {@link BoundedSource}. If the read
+     * restarts, it will read from the very beginning.
      */
     public UnboundedReadFromBoundedSource<T> toUnbounded() {
       return new UnboundedReadFromBoundedSource<>(source);

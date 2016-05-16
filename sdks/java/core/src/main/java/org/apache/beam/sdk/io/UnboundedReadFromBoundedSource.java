@@ -30,14 +30,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 
 import com.google.api.client.util.Lists;
+import com.google.common.annotations.VisibleForTesting;
 
 import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
-
-import autovalue.shaded.com.google.common.common.annotations.VisibleForTesting;
 
 /**
  * {@link PTransform} that performs a unbounded read from an {@link BoundedSource}.
@@ -109,6 +108,11 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
     @Override
     public Coder<T> getDefaultOutputCoder() {
       return boundedSource.getDefaultOutputCoder();
+    }
+
+    @Override
+    public boolean requiresDeduping() {
+      return true;
     }
 
     static class Checkpoint implements UnboundedSource.CheckpointMark {
@@ -188,6 +192,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       public Checkpoint getCheckpointMark() {
         return new Checkpoint(done);
       }
+
+
 
       @Override
       public BoundedToUnboundedSourceAdapter<T> getCurrentSource() {
