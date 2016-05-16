@@ -39,7 +39,7 @@ import java.util.Set;
  */
 public class DataflowBigQueryIOTest {
   @Test
-  public void testSourcePrimitiveDisplayData() {
+  public void testTableSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
     BigQueryIO.Read.Bound read = BigQueryIO.Read
         .from("project:dataset.tableId")
@@ -48,6 +48,18 @@ public class DataflowBigQueryIOTest {
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
     assertThat("BigQueryIO.Read should include the table spec in its primitive display data",
         displayData, hasItem(hasDisplayItem("table")));
+  }
+
+  @Test
+  public void testQuerySourcePrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+    BigQueryIO.Read.Bound read = BigQueryIO.Read
+        .fromQuery("foobar")
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("BigQueryIO.Read should include the query in its primitive display data",
+        displayData, hasItem(hasDisplayItem("query")));
   }
 
   @Test
