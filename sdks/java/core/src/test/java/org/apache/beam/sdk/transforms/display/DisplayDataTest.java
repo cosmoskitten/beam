@@ -40,6 +40,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -86,6 +87,8 @@ import java.util.regex.Pattern;
 @RunWith(JUnit4.class)
 public class DisplayDataTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedLogs logs = ExpectedLogs.none(DisplayData.class);
+
   private static final DateTimeFormatter ISO_FORMATTER = ISODateTimeFormat.dateTime();
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -969,15 +972,16 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testFromThrowable() {
-    Throwable cause = new Throwable("foo");
-    Throwable t = new Throwable("bar", cause) {};
-    DisplayData data = DisplayData.from(t);
+    Throwable t = new Throwable("foo") {};
+    DisplayData data = DisplayData.errorCreating("bar", t);
 
     assertThat(data, hasDisplayItem("exceptionType", t.getClass()));
     assertThat(data, hasDisplayItem("exceptionMessage", "bar"));
     assertThat(data, hasDisplayItem("exceptionCause", "foo"));
     assertThat(data, hasDisplayItem("stackTrace"));
     assertThat(data.items(), everyItem(hasNamespace(DisplayData.DisplayDataException.class)));
+
+    logs.verifyWarn("bar");
   }
 
   /**

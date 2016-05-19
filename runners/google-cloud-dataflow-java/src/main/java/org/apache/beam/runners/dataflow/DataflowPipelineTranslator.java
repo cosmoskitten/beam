@@ -731,10 +731,7 @@ public class DataflowPipelineTranslator {
       } catch (Exception e) {
         String msg = String.format("Exception thrown while collecting display data for step: %s. "
             + "Display data will be not be available for this step.", stepName);
-        RuntimeException displayDataException = new RuntimeException(msg, e);
-        LOG.warn(msg, displayDataException);
-
-        displayData = DisplayData.from(displayDataException);
+        displayData = DisplayData.errorCreating(msg, e);
       }
 
       List<Map<String, Object>> list = MAPPER.convertValue(displayData, List.class);

@@ -36,6 +36,8 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.io.Serializable;
@@ -56,6 +58,7 @@ import java.util.Set;
 public class DisplayData implements Serializable {
   private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item<?>>newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();
+  private static final Logger LOG = LoggerFactory.getLogger(DisplayData.class);
 
   private final ImmutableMap<Identifier, Item<?>> entries;
 
@@ -85,8 +88,8 @@ public class DisplayData implements Serializable {
   }
 
   /**
-   * Build a {@link DisplayData} set representing the given {@link Throwable}. This is useful to
-   * wrap exceptions caught while collecting display data.
+   * Recover from errors thrown while collecting display data. This method will log the message
+   * and throwable, and build a {@link DisplayData} set representing the error.
    *
    * <p>Display data should be treated as optional. Exceptions thrown during display data collection
    * should not block processing. A common pattern for collecting display data is to catch
@@ -97,16 +100,16 @@ public class DisplayData implements Serializable {
    * try {
    *   displayData = DisplayData.from(component);
    * } catch (Throwable t) {
-   *   RuntimeException displayDataException = new RuntimeException(
-   *     "Failed to collect display data", e);
-   *   LOG.warn(msg, displayDataException);
-   *   displayData = DisplayData.from(displayDataException);
+   *   displayData = DisplayData.errorCreating("Failed to collect display data", e);
    * }
    * }</pre>
    */
-  public static DisplayData from(Throwable t) {
+  public static DisplayData errorCreating(String message, Throwable t) {
     checkNotNull(t, "Input throwable cannot be null");
-    HasDisplayData wrappedException = DisplayDataException.wrap(t);
+    checkNotNull(message, "Input message cannot be null");
+
+    LOG.warn(message, t);
+    HasDisplayData wrappedException = new DisplayDataException(message, t);
     return from(wrappedException);
   }
 
@@ -763,36 +766,27 @@ public class DisplayData implements Serializable {
   }
 
   /**
-   * Wraps exceptions passed via {@link #from(Throwable)}.
+   * Wraps exceptions passed via {@link #errorCreating(String, Throwable)}.
    *
-   * @see #from(Throwable)
+   * @see #errorCreating(String, Throwable)
    */
   static class DisplayDataException extends Exception implements HasDisplayData {
-    private final Throwable wrappedThrowable;
     /**
      * Wrap the given {@link Throwable} to be used for display data.
      */
-    static HasDisplayData wrap(Throwable t) {
-      checkNotNull(t);
-      return new DisplayDataException(t);
-    }
-
-    private DisplayDataException(Throwable t) {
-      super(t.getMessage(), t.getCause());
-      wrappedThrowable = t;
+    private DisplayDataException(String message, Throwable t) {
+      super(message, t);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      Throwable cause = getCause();
+
       builder
           .add(DisplayData.item("exceptionMessage", getMessage()))
-          .add(DisplayData.item("exceptionType", wrappedThrowable.getClass()))
+          .add(DisplayData.item("exceptionCause", cause.getMessage()))
+          .add(DisplayData.item("exceptionType", cause.getClass()))
           .add(DisplayData.item("stackTrace", stackTraceToString()));
-
-      Throwable cause = getCause();
-      if (cause != null) {
-          builder.add(DisplayData.item("exceptionCause", cause.getMessage()));
-      }
     }
 
     private String stackTraceToString() {

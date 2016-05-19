@@ -50,9 +50,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -88,7 +85,6 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 class ProxyInvocationHandler implements InvocationHandler {
-  private static final Logger LOG = LoggerFactory.getLogger(ProxyInvocationHandler.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
   /**
    * No two instances of this class are considered equivalent hence we generate a random hash code
@@ -564,10 +560,7 @@ class ProxyInvocationHandler implements InvocationHandler {
         } catch (Exception e) {
           String msg = "Exception thrown while collecting display data for PipelineOptions. "
               + "PipelineOptions display data will be not be available.";
-          RuntimeException displayDataException = new RuntimeException(msg, e);
-          LOG.warn(msg, displayDataException);
-
-          displayData = DisplayData.from(displayDataException);
+          displayData = DisplayData.errorCreating(msg, e);
         }
         for (DisplayData.Item<?> item : displayData.items()) {
           @SuppressWarnings("unchecked")
