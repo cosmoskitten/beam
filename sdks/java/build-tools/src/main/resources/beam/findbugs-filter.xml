@@ -405,18 +405,6 @@
     <!--Return value of method without side effect is ignored-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.ZipFiles"/>
-    <Method name="zipDirectory"/>
-    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
-    <!--Possible null pointer dereference due to return value of called method-->
-  </Match>
-  <Match>
-    <Class name="org.apache.beam.sdk.util.ZipFiles"/>
-    <Method name="zipDirectoryInternal"/>
-    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
-    <!--Possible null pointer dereference due to return value of called method-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.util.common.ReflectHelpers$1"/>
     <Method name="apply"/>
     <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>

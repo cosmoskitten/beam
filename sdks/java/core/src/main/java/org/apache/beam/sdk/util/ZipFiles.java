@@ -40,6 +40,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Functions for zipping a directory (including a subdirectory) into a ZIP-file
  * or unzipping it again.
@@ -226,6 +228,8 @@ public final class ZipFiles {
    * @throws IOException the zipping failed, e.g. because the input was not
    *     readable.
    */
+  @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE",
+      justification = "Validated input is directory via sourceDirectory.isDirectory()")
   public static void zipDirectory(
       File sourceDirectory,
       OutputStream outputStream) throws IOException {
@@ -235,6 +239,7 @@ public final class ZipFiles {
         sourceDirectory.isDirectory(),
         "%s is not a valid directory",
         sourceDirectory.getAbsolutePath());
+
     ZipOutputStream zos = new ZipOutputStream(outputStream);
     for (File file : sourceDirectory.listFiles()) {
       zipDirectoryInternal(file, "", zos);
@@ -257,6 +262,8 @@ public final class ZipFiles {
    * @throws IOException the zipping failed, e.g. because the output was not
    *     writeable.
    */
+  @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE",
+      justification = "Validated input is directory via sourceDirectory.isDirectory()")
   private static void zipDirectoryInternal(
       File inputFile,
       String directoryName,
