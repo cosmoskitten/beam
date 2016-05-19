@@ -56,7 +56,7 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class AvroIOGeneratedClassTest {
   @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  public TemporaryFolder tmpFolder = new TemporaryFoldorg.apache.beamer();
   private File avroFile;
 
   @Before

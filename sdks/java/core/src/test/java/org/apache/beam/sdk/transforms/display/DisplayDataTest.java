@@ -87,7 +87,7 @@ import java.util.regex.Pattern;
 @RunWith(JUnit4.class)
 public class DisplayDataTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public ExpectedLogs logs = ExpectedLogs.none(DisplayData.class);
+  @Rule public transient ExpectedLogs logs = ExpectedLogs.none(DisplayData.class);
 
   private static final DateTimeFormatter ISO_FORMATTER = ISODateTimeFormat.dateTime();
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -836,7 +836,7 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testFromNull() {
     thrown.expect(NullPointerException.class);
-    DisplayData.from((HasDisplayData) null);
+    DisplayData.from(null);
   }
 
   @Test
