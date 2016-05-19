@@ -50,6 +50,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -85,6 +88,7 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 class ProxyInvocationHandler implements InvocationHandler {
+  private static final Logger LOG = LoggerFactory.getLogger(ProxyInvocationHandler.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
   /**
    * No two instances of this class are considered equivalent hence we generate a random hash code
@@ -315,6 +319,7 @@ class ProxyInvocationHandler implements InvocationHandler {
           }
 
           Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
+          value = value == null ? "" : value;
           DisplayData.Type type = DisplayData.inferType(value);
           if (type != null) {
             builder.add(DisplayData.item(jsonOption.getKey(), type, value)
@@ -552,7 +557,19 @@ class ProxyInvocationHandler implements InvocationHandler {
         jgen.writeObject(serializableOptions);
 
         List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
-        for (DisplayData.Item<?> item : DisplayData.from(value).items()) {
+        DisplayData displayData;
+
+        try {
+          displayData = DisplayData.from(value);
+        } catch (Exception e) {
+          String msg = "Exception thrown while collecting display data for PipelineOptions. "
+              + "PipelineOptions display data will be not be available.";
+          RuntimeException displayDataException = new RuntimeException(msg, e);
+          LOG.warn(msg, displayDataException);
+
+          displayData = DisplayData.from(displayDataException);
+        }
+        for (DisplayData.Item<?> item : displayData.items()) {
           @SuppressWarnings("unchecked")
           Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
           serializedDisplayData.add(serializedItem);

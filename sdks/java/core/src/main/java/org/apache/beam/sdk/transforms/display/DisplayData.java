@@ -37,7 +37,9 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
+import java.io.PrintWriter;
 import java.io.Serializable;
+import java.io.StringWriter;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -80,6 +82,32 @@ public class DisplayData implements Serializable {
   public static DisplayData from(HasDisplayData component) {
     checkNotNull(component, "component argument cannot be null");
     return InternalBuilder.forRoot(component).build();
+  }
+
+  /**
+   * Build a {@link DisplayData} set representing the given {@link Throwable}. This is useful to
+   * wrap exceptions caught while collecting display data.
+   *
+   * <p>Display data should be treated as optional. Exceptions thrown during display data collection
+   * should not block processing. A common pattern for collecting display data is to catch
+   * exceptions and wrap them using this method:
+   *
+   * <pre>{@code
+   * DisplayData displayData;
+   * try {
+   *   displayData = DisplayData.from(component);
+   * } catch (Throwable t) {
+   *   RuntimeException displayDataException = new RuntimeException(
+   *     "Failed to collect display data", e);
+   *   LOG.warn(msg, displayDataException);
+   *   displayData = DisplayData.from(displayDataException);
+   * }
+   * }</pre>
+   */
+  public static DisplayData from(Throwable t) {
+    checkNotNull(t, "Input throwable cannot be null");
+    HasDisplayData wrappedException = DisplayDataException.wrap(t);
+    return from(wrappedException);
   }
 
   /**
@@ -732,5 +760,46 @@ public class DisplayData implements Serializable {
     checkNotNull(type, "type argument cannot be null");
 
     return Item.create(key, type, value);
+  }
+
+  /**
+   * Wraps exceptions passed via {@link #from(Throwable)}.
+   *
+   * @see #from(Throwable)
+   */
+  static class DisplayDataException extends Exception implements HasDisplayData {
+    private final Throwable wrappedThrowable;
+    /**
+     * Wrap the given {@link Throwable} to be used for display data.
+     */
+    static HasDisplayData wrap(Throwable t) {
+      checkNotNull(t);
+      return new DisplayDataException(t);
+    }
+
+    private DisplayDataException(Throwable t) {
+      super(t.getMessage(), t.getCause());
+      wrappedThrowable = t;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add(DisplayData.item("exceptionMessage", getMessage()))
+          .add(DisplayData.item("exceptionType", wrappedThrowable.getClass()))
+          .add(DisplayData.item("stackTrace", stackTraceToString()));
+
+      Throwable cause = getCause();
+      if (cause != null) {
+          builder.add(DisplayData.item("exceptionCause", cause.getMessage()));
+      }
+    }
+
+    private String stackTraceToString() {
+      StringWriter stringWriter = new StringWriter();
+      PrintWriter printWriter = new PrintWriter(stringWriter);
+      printStackTrace(printWriter);
+      return stringWriter.toString();
+    }
   }
 }

@@ -833,7 +833,7 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testFromNull() {
     thrown.expect(NullPointerException.class);
-    DisplayData.from(null);
+    DisplayData.from((HasDisplayData) null);
   }
 
   @Test
@@ -965,6 +965,19 @@ public class DisplayDataTest implements Serializable {
     assertThat(json, hasExpectedJson(
         component, "JAVA_CLASS", "class", quoted(DisplayDataTest.class.getName()),
         quoted("DisplayDataTest"), "baz", "http://abc"));
+  }
+
+  @Test
+  public void testFromThrowable() {
+    Throwable cause = new Throwable("foo");
+    Throwable t = new Throwable("bar", cause) {};
+    DisplayData data = DisplayData.from(t);
+
+    assertThat(data, hasDisplayItem("exceptionType", t.getClass()));
+    assertThat(data, hasDisplayItem("exceptionMessage", "bar"));
+    assertThat(data, hasDisplayItem("exceptionCause", "foo"));
+    assertThat(data, hasDisplayItem("stackTrace"));
+    assertThat(data.items(), everyItem(hasNamespace(DisplayData.DisplayDataException.class)));
   }
 
   /**

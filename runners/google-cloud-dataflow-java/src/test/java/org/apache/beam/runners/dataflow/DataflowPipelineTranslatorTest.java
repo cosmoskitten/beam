@@ -1010,24 +1010,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Iterable<Map<String, String>> displayData = (Collection<Map<String, String>>) steps.get(1)
         .getProperties().get("display_data");
 
-    String namespace = DataflowPipelineTranslator.DisplayDataException.class.getName();
     Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
-      hasEntry("namespace", namespace),
-      hasEntry("key", "exceptionType"),
-      hasEntry("value", RuntimeException.class.getName()))));
-
-    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
-        hasEntry("namespace", namespace),
         hasEntry("key", "exceptionMessage"),
         hasEntry(is("value"), Matchers.containsString(expectedMessage)))));
-
-    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
-        hasEntry("namespace", namespace),
-        hasEntry("key", "exceptionCause"),
-        hasEntry("value", "foobar"))));
-
-    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
-        hasEntry("namespace", namespace),
-        hasEntry("key", "stackTrace"))));
   }
 }
