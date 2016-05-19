@@ -50,7 +50,6 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.RecordingPipelineVisitor;
-import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -106,9 +105,7 @@ import java.util.Map;
  */
 @RunWith(JUnit4.class)
 public class DataflowPipelineTranslatorTest implements Serializable {
-
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient ExpectedLogs logs = ExpectedLogs.none(DataflowPipelineTranslator.class);
 
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
@@ -1000,9 +997,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         (DataflowPipelineRunner) pipeline.getRunner(),
         Collections.<DataflowPackage>emptyList()).getJob();
 
-    String expectedMessage = "Display data will be not be available for this step";
-    logs.verifyWarn(expectedMessage);
-
     List<Step> steps = job.getSteps();
     assertEquals("Job should have 2 steps", 2, steps.size());
 
@@ -1012,6 +1006,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
         hasEntry("key", "exceptionMessage"),
-        hasEntry(is("value"), Matchers.containsString(expectedMessage)))));
+        hasEntry(is("value"),
+            containsString("Display data will be not be available for this step")))));
   }
 }
