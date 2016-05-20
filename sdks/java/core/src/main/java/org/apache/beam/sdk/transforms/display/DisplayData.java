@@ -39,9 +39,7 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.PrintWriter;
 import java.io.Serializable;
-import java.io.StringWriter;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -85,33 +83,6 @@ public class DisplayData implements Serializable {
   public static DisplayData from(HasDisplayData component) {
     checkNotNull(component, "component argument cannot be null");
     return InternalBuilder.forRoot(component).build();
-  }
-
-  /**
-   * Recover from errors thrown while collecting display data. This method will log the message
-   * and throwable, and build a {@link DisplayData} set representing the error.
-   *
-   * <p>Display data should be treated as optional. Exceptions thrown during display data collection
-   * should not block processing. A common pattern for collecting display data is to catch
-   * exceptions and wrap them using this method:
-   *
-   * <pre>{@code
-   * DisplayData displayData;
-   * try {
-   *   displayData = DisplayData.from(component);
-   * } catch (Throwable t) {
-   *   displayData = DisplayData.errorCreating("Failed to collect display data", e);
-   * }
-   * }</pre>
-   */
-  public static DisplayData errorCreating(Throwable t, String message, Object... args) {
-    checkNotNull(t, "Input throwable cannot be null");
-    checkNotNull(message, "Input message cannot be null");
-
-    String formattedMessage = String.format(message, args);
-    LOG.warn(formattedMessage, t);
-    HasDisplayData wrappedException = new DisplayDataException(formattedMessage, t);
-    return from(wrappedException);
   }
 
   /**
@@ -764,37 +735,5 @@ public class DisplayData implements Serializable {
     checkNotNull(type, "type argument cannot be null");
 
     return Item.create(key, type, value);
-  }
-
-  /**
-   * Wraps exceptions passed via {@link #errorCreating(Throwable, String)}.
-   *
-   * @see #errorCreating(Throwable, String)
-   */
-  static class DisplayDataException extends Exception implements HasDisplayData {
-    /**
-     * Wrap the given {@link Throwable} to be used for display data.
-     */
-    private DisplayDataException(String message, Throwable t) {
-      super(message, t);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      Throwable cause = getCause();
-
-      builder
-          .add(DisplayData.item("exceptionMessage", getMessage()))
-          .add(DisplayData.item("exceptionCause", cause.getMessage()))
-          .add(DisplayData.item("exceptionType", cause.getClass()))
-          .add(DisplayData.item("stackTrace", stackTraceToString()));
-    }
-
-    private String stackTraceToString() {
-      StringWriter stringWriter = new StringWriter();
-      PrintWriter printWriter = new PrintWriter(stringWriter);
-      printStackTrace(printWriter);
-      return stringWriter.toString();
-    }
   }
 }

@@ -553,15 +553,7 @@ class ProxyInvocationHandler implements InvocationHandler {
         jgen.writeObject(serializableOptions);
 
         List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
-        DisplayData displayData;
-
-        try {
-          displayData = DisplayData.from(value);
-        } catch (Exception e) {
-          String msg = "Exception thrown while collecting display data for PipelineOptions. "
-              + "PipelineOptions display data will be not be available.";
-          displayData = DisplayData.errorCreating(e, msg);
-        }
+        DisplayData displayData = DisplayData.from(value);
         for (DisplayData.Item<?> item : displayData.items()) {
           @SuppressWarnings("unchecked")
           Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);

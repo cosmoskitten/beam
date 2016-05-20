@@ -725,15 +725,7 @@ public class DataflowPipelineTranslator {
     }
 
     private void addDisplayData(String stepName, HasDisplayData hasDisplayData) {
-      DisplayData displayData;
-      try {
-        displayData = DisplayData.from(hasDisplayData);
-      } catch (Exception e) {
-        displayData = DisplayData.errorCreating(e,
-            "Exception thrown while collecting display data for step: %s. "
-            + "Display data will be not be available for this step.", stepName);
-      }
-
+      DisplayData displayData = DisplayData.from(hasDisplayData);
       List<Map<String, Object>> list = MAPPER.convertValue(displayData, List.class);
       addList(getProperties(), PropertyNames.DISPLAY_DATA, list);
     }

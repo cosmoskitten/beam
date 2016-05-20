@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -42,8 +41,6 @@ import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonValue;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -966,31 +963,5 @@ public class ProxyInvocationHandlerTest {
 
     DisplayData data = DisplayData.from(options);
     assertThat(data, not(hasDisplayItem("value")));
-  }
-
-  @Test
-  public void testDisplayDataSerializationExceptionHandling() throws JsonProcessingException {
-    class InjectFailure {
-      @JsonValue
-      public String safeValue() {
-        return "safe";
-      }
-
-      @Override
-      public String toString() {
-        throw new RuntimeException("injected failure");
-      }
-    }
-
-    ObjectOptions options = PipelineOptionsFactory.as(ObjectOptions.class);
-    options.setObject(new InjectFailure());
-
-    String serializedJson = MAPPER.writeValueAsString(options); // should not throw
-    assertThat(serializedJson, containsString("injected failure"));
-  }
-
-  interface ObjectOptions extends PipelineOptions {
-    Object getObject();
-    void setObject(Object value);
   }
 }

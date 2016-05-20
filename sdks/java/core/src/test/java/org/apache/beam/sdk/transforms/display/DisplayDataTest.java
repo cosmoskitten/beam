@@ -970,20 +970,6 @@ public class DisplayDataTest implements Serializable {
         quoted("DisplayDataTest"), "baz", "http://abc"));
   }
 
-  @Test
-  public void testFromThrowable() {
-    Throwable t = new Throwable("foo") {};
-    DisplayData data = DisplayData.errorCreating(t, "%s", "bar");
-
-    assertThat(data, hasDisplayItem("exceptionType", t.getClass()));
-    assertThat(data, hasDisplayItem("exceptionMessage", "bar"));
-    assertThat(data, hasDisplayItem("exceptionCause", "foo"));
-    assertThat(data, hasDisplayItem("stackTrace"));
-    assertThat(data.items(), everyItem(hasNamespace(DisplayData.DisplayDataException.class)));
-
-    logs.verifyWarn("bar");
-  }
-
   /**
    * Verify that {@link DisplayData.Builder} can recover from exceptions thrown in user code.
    */
