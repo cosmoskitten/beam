@@ -214,7 +214,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
+      <groupId>org.apache.beam.runners</groupId>
       <artifactId>google-cloud-dataflow-java-runner</artifactId>
       <version>${project.version}</version>
     </dependency>

@@ -22,7 +22,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam</groupId>
+    <groupId>org.apache.beam.runners</groupId>
     <artifactId>flink-runner-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
@@ -100,7 +100,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
+      <groupId>org.apache.beam.runners</groupId>
       <artifactId>runners-core</artifactId>
       <exclusions>
         <exclusion>
