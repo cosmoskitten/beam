@@ -985,6 +985,51 @@ public class DisplayDataTest implements Serializable {
   }
 
   /**
+   * Verify that {@link DisplayData.Builder} can recover from exceptions thrown in user code.
+   */
+  @Test
+  public void testCanRecoverFromBuildException() {
+    final HasDisplayData safeComponent = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("a", "a"));
+      }
+    };
+
+    final HasDisplayData failingComponent = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        throw new RuntimeException("oh noes!");
+      }
+    };
+
+    DisplayData displayData = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add(DisplayData.item("b", "b"))
+            .add(DisplayData.item("c", "c"));
+
+        try {
+          builder.include(failingComponent);
+          fail("Expected exception not thrown");
+        } catch (RuntimeException e) {
+          // Expected
+        }
+
+        builder
+            .include(safeComponent)
+            .add(DisplayData.item("d", "d"));
+      }
+    });
+
+    assertThat(displayData, hasDisplayItem("a"));
+    assertThat(displayData, hasDisplayItem("b"));
+    assertThat(displayData, hasDisplayItem("c"));
+    assertThat(displayData, hasDisplayItem("d"));
+  }
+
+  /**
    * Validate that all runners are resilient to exceptions thrown while retrieving display data.
    */
   @Test
