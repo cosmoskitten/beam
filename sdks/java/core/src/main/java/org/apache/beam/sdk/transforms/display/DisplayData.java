@@ -599,7 +599,15 @@ public class DisplayData implements Serializable {
       if (newComponent) {
         String prevNs = this.latestNs;
         this.latestNs = namespace;
-        subComponent.populateDisplayData(this);
+
+        try {
+          subComponent.populateDisplayData(this);
+        } catch (Throwable e) {
+          String msg = String.format("Error while populating display data for component: %s",
+              namespace);
+          throw new RuntimeException(msg, e);
+        }
+
         this.latestNs = prevNs;
       }
 
