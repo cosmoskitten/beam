@@ -104,12 +104,13 @@ public class DisplayData implements Serializable {
    * }
    * }</pre>
    */
-  public static DisplayData errorCreating(String message, Throwable t) {
+  public static DisplayData errorCreating(Throwable t, String message, Object... args) {
     checkNotNull(t, "Input throwable cannot be null");
     checkNotNull(message, "Input message cannot be null");
 
-    LOG.warn(message, t);
-    HasDisplayData wrappedException = new DisplayDataException(message, t);
+    String formattedMessage = String.format(message, args);
+    LOG.warn(formattedMessage, t);
+    HasDisplayData wrappedException = new DisplayDataException(formattedMessage, t);
     return from(wrappedException);
   }
 
@@ -766,9 +767,9 @@ public class DisplayData implements Serializable {
   }
 
   /**
-   * Wraps exceptions passed via {@link #errorCreating(String, Throwable)}.
+   * Wraps exceptions passed via {@link #errorCreating(Throwable, String)}.
    *
-   * @see #errorCreating(String, Throwable)
+   * @see #errorCreating(Throwable, String)
    */
   static class DisplayDataException extends Exception implements HasDisplayData {
     /**

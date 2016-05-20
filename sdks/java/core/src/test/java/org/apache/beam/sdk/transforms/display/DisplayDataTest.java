@@ -973,7 +973,7 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testFromThrowable() {
     Throwable t = new Throwable("foo") {};
-    DisplayData data = DisplayData.errorCreating("bar", t);
+    DisplayData data = DisplayData.errorCreating(t, "%s", "bar");
 
     assertThat(data, hasDisplayItem("exceptionType", t.getClass()));
     assertThat(data, hasDisplayItem("exceptionMessage", "bar"));

@@ -560,7 +560,7 @@ class ProxyInvocationHandler implements InvocationHandler {
         } catch (Exception e) {
           String msg = "Exception thrown while collecting display data for PipelineOptions. "
               + "PipelineOptions display data will be not be available.";
-          displayData = DisplayData.errorCreating(msg, e);
+          displayData = DisplayData.errorCreating(e, msg);
         }
         for (DisplayData.Item<?> item : displayData.items()) {
           @SuppressWarnings("unchecked")
