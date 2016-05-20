@@ -247,6 +247,9 @@
   </build>
 
   <dependencies>
+    <!-- jsr305 dependency must come before java-sdk-all, as java-sdk-all depends on
+         findbugs:annotations which duplicates many annotation classes. Declaring
+         jsr305 first ensures symbols are sourced from correct JAR. -->
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>

@@ -427,6 +427,9 @@
       <artifactId>protobuf-java</artifactId>
     </dependency>
 
+    <!-- findbugs:jsr305 dependency must come before findbugs:annotations
+         because @Nullable is packaged in both but should be sourced from
+         jsr305. -->
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
