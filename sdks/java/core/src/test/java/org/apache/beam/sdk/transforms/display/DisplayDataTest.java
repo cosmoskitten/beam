@@ -39,12 +39,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -70,7 +65,6 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -1013,26 +1007,6 @@ public class DisplayDataTest implements Serializable {
     assertThat(displayData, hasDisplayItem("b"));
     assertThat(displayData, hasDisplayItem("c"));
     assertThat(displayData, hasDisplayItem("d"));
-  }
-
-  /**
-   * Validate that all runners are resilient to exceptions thrown while retrieving display data.
-   */
-  @Test
-  @Category(RunnableOnService.class)
-  public void testRunnersResilientToDisplayDataExceptions() {
-    Pipeline p = TestPipeline.create();
-    PCollection<Integer> pCol = p
-        .apply(Create.of(1, 2, 3))
-        .apply(new IdentityTransform<Integer>() {
-          @Override
-          public void populateDisplayData(Builder builder) {
-            throw new RuntimeException("bug!");
-          }
-        });
-
-    PAssert.that(pCol).containsInAnyOrder(1, 2, 3);
-    p.run();
   }
 
   private static class IdentityTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
