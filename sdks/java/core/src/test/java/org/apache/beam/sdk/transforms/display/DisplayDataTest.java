@@ -964,6 +964,8 @@ public class DisplayDataTest implements Serializable {
 
   /**
    * Verify that {@link DisplayData.Builder} can recover from exceptions thrown in user code.
+   * This is not used within the Beam SDK since we want all code to produce valid DisplayData.
+   * This test just ensures it is possible to write custom code that does recover.
    */
   @Test
   public void testCanRecoverFromBuildException() {
