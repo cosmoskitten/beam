@@ -36,8 +36,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -56,7 +54,6 @@ import java.util.Set;
 public class DisplayData implements Serializable {
   private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item<?>>newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();
-  private static final Logger LOG = LoggerFactory.getLogger(DisplayData.class);
 
   private final ImmutableMap<Identifier, Item<?>> entries;
 
