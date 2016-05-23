@@ -56,7 +56,7 @@ class DisplayDataEnforcement {
         evaluateDisplayData(node.getTransform());
       }
 
-      return super.enterCompositeTransform(node);
+      return CompositeBehavior.ENTER_TRANSFORM;
     }
 
     @Override
