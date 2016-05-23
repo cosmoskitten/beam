@@ -64,6 +64,8 @@ import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.api.client.util.Data;
+import com.google.api.client.util.Preconditions;
+import com.google.api.client.util.Strings;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -205,6 +207,7 @@ public class BigQueryIOTest implements Serializable {
 
     private Object[] startJobReturns;
     private Object[] pollJobReturns;
+    private String executingProject;
     // Both counts will be reset back to zeros after serialization.
     // This is a work around for DoFn's verifyUnmodified check.
     private transient int startJobCallsCount;
@@ -238,27 +241,42 @@ public class BigQueryIOTest implements Serializable {
       return this;
     }
 
+    /**
+     * Verifies executing project.
+     */
+    public FakeJobService verifyExecutingProject(String executingProject) {
+      this.executingProject = executingProject;
+      return this;
+    }
+
     @Override
     public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException {
-      startJob();
+      startJob(jobRef);
     }
 
     @Override
     public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException {
-      startJob();
+      startJob(jobRef);
     }
 
     @Override
     public void startQueryJob(JobReference jobRef, JobConfigurationQuery query)
         throws IOException, InterruptedException {
-      startJob();
+      startJob(jobRef);
     }
 
     @Override
     public Job pollJob(JobReference jobRef, int maxAttempts)
         throws InterruptedException {
+      if (!Strings.isNullOrEmpty(executingProject)) {
+        Preconditions.checkArgument(
+            jobRef.getProjectId().equals(executingProject),
+            "Project id: %s is not equal to executing project: %s",
+            jobRef.getProjectId(), executingProject);
+      }
+
       if (pollJobStatusCallsCount < pollJobReturns.length) {
         Object ret = pollJobReturns[pollJobStatusCallsCount++];
         if (ret instanceof Job) {
@@ -276,7 +294,14 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
-    private void startJob() throws IOException, InterruptedException {
+    private void startJob(JobReference jobRef) throws IOException, InterruptedException {
+      if (!Strings.isNullOrEmpty(executingProject)) {
+        Preconditions.checkArgument(
+            jobRef.getProjectId().equals(executingProject),
+            "Project id: %s is not equal to executing project: %s",
+            jobRef.getProjectId(), executingProject);
+      }
+
       if (startJobCallsCount < startJobReturns.length) {
         Object ret = startJobReturns[startJobCallsCount++];
         if (ret instanceof IOException) {
@@ -479,7 +504,8 @@ public class BigQueryIOTest implements Serializable {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
             .startJobReturns("done", "done")
-            .pollJobReturns(Status.UNKNOWN))
+            .pollJobReturns(Status.UNKNOWN)
+            .verifyExecutingProject(bqOptions.getProject()))
         .readerReturns(
             toJsonString(new TableRow().set("name", "a").set("number", 1)),
             toJsonString(new TableRow().set("name", "b").set("number", 2)),
