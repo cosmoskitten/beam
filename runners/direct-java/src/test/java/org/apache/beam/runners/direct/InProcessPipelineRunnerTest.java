@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
+import com.fasterxml.jackson.annotation.JsonValue;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
@@ -79,7 +80,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
   }
 
   @Test
-  public void displayDataExceptionShouldFail() {
+  public void transformDisplayDataExceptionShouldFail() {
     DoFn<Integer, Integer> brokenDoFn = new DoFn<Integer, Integer>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {}
@@ -95,9 +96,40 @@ public class InProcessPipelineRunnerTest implements Serializable {
         .apply(Create.of(1, 2, 3))
         .apply(ParDo.of(brokenDoFn));
 
+    thrown.expectMessage(brokenDoFn.getClass().getName());
     thrown.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!")));
     p.run();
   }
+
+  @Test
+  public void pipelineOptionsDisplayDataExceptionShouldFail() {
+    Object brokenValueType = new Object() {
+      @JsonValue
+      public int getValue () {
+        return 42;
+      }
+
+      @Override
+      public String toString() {
+        throw new RuntimeException("oh noes!!");
+      }
+    };
+
+    Pipeline p = getPipeline();
+    p.getOptions().as(ObjectPipelineOptions.class).setValue(brokenValueType);
+
+    p.apply(Create.of(1, 2, 3));
+
+    thrown.expectMessage(PipelineOptions.class.getName());
+    thrown.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!!")));
+    p.run();
+  }
+
+  interface ObjectPipelineOptions extends PipelineOptions {
+    Object getValue();
+    void setValue(Object value);
+  }
+
 
   private Pipeline getPipeline() {
     PipelineOptions opts = PipelineOptionsFactory.create();
