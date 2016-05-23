@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.Matchers.is;
+
 import org.apache.beam.runners.direct.InProcessPipelineRunner.InProcessPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -24,12 +26,18 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.internal.matchers.ThrowableMessageMatcher;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -40,6 +48,8 @@ import java.io.Serializable;
  */
 @RunWith(JUnit4.class)
 public class InProcessPipelineRunnerTest implements Serializable {
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void wordCountShouldSucceed() throws Throwable {
     Pipeline p = getPipeline();
@@ -66,6 +76,27 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
     InProcessPipelineResult result = ((InProcessPipelineResult) p.run());
     result.awaitCompletion();
+  }
+
+  @Test
+  public void displayDataExceptionShouldFail() {
+    DoFn<Integer, Integer> brokenDoFn = new DoFn<Integer, Integer>() {
+      @Override
+      public void processElement(ProcessContext c) throws Exception {}
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        throw new RuntimeException("oh noes!");
+      }
+    };
+
+    Pipeline p = getPipeline();
+    p
+        .apply(Create.of(1, 2, 3))
+        .apply(ParDo.of(brokenDoFn));
+
+    thrown.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!")));
+    p.run();
   }
 
   private Pipeline getPipeline() {

@@ -222,6 +222,8 @@ public class InProcessPipelineRunner
                 GroupByKey.class, InProcessGroupByKeyOnly.class));
     pipeline.traverseTopologically(keyedPValueVisitor);
 
+    DisplayDataEnforcement.validatePipeline(pipeline);
+
     InProcessEvaluationContext context =
         InProcessEvaluationContext.create(
             getPipelineOptions(),
