@@ -22,13 +22,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>flink-runner-parent</artifactId>
+    <groupId>org.apache.beam.runners</groupId>
+    <artifactId>flink-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>flink-runner_2.10</artifactId>
+  <artifactId>flink_2.10</artifactId>
 
   <name>Apache Beam :: Runners :: Flink :: Core</name>
 
@@ -63,7 +63,7 @@
       <version>${flink.version}</version>
     </dependency>
 
-    <!--- Beam -->
+    <!-- Beam -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>java-sdk-all</artifactId>
@@ -76,8 +76,8 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>runners-core</artifactId>
+      <groupId>org.apache.beam.runners</groupId>
+      <artifactId>core</artifactId>
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>
@@ -158,6 +158,19 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
       -->
+
+      <!-- Disable javadoc for now.
+           TODO: this section should be removed as soon as possible. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <phase/>
+          </execution>
+        </executions>
+      </plugin>
 
       <!-- Integration Tests -->
       <plugin>
