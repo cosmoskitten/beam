@@ -648,9 +648,9 @@
             <configLocation>beam/checkstyle.xml</configLocation>
             <headerLocation>beam/header-file.txt</headerLocation>
             <consoleOutput>true</consoleOutput>
-            <failOnViolation>true</failOnViolation>
+            <failOnViolation>false</failOnViolation>
             <includeResources>false</includeResources>
-            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <includeTestSourceDirectory>false</includeTestSourceDirectory>
           </configuration>
           <executions>
             <execution>
