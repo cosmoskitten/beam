@@ -37,6 +37,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipInputStream;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -148,6 +149,28 @@ public class CompressedSource<T> extends FileBasedSource<T> {
           throws IOException {
         return Channels.newChannel(
             new BZip2CompressorInputStream(Channels.newInputStream(channel)));
+      }
+    },
+
+    /**
+     * Reads a byte channel assuming it is compressed with zip.
+     *
+     * Warning: only zip files that have exactly one entry (aka are ZIPs of a single file) are
+     * supported.
+     */
+    ZIP {
+      @Override
+      public boolean matches(String fileName) {
+        return fileName.toLowerCase().endsWith(".zip");
+      }
+
+      public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
+        throws IOException {
+        ZipInputStream zip = new ZipInputStream(Channels.newInputStream(channel));
+        if (zip.getNextEntry() != null) {
+          return Channels.newChannel(zip);
+        }
+        throw new IllegalArgumentException("ZIP file doesn't contain any entry");
       }
     };
 

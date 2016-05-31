@@ -72,6 +72,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Tests for TextIO Read and Write transforms.
@@ -407,6 +409,158 @@ public class TextIOTest {
     PCollection<String> output = p.apply(read);
 
     PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /**
+   * Read a zip compressed file. The user provides the ZIP compression type.
+   * We expect a PCollection with the lines.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedRead() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile();
+    String filename = tmpFile.getPath();
+
+    List<String> expected = new ArrayList<>();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+
+    out.putNextEntry(new ZipEntry("test.txt"));
+
+    PrintStream writer = new PrintStream(out);
+    for (String line : lines) {
+      writer.println(line);
+      expected.add(line);
+    }
+    writer.close();
+    out.close();
+
+    Pipeline p = TestPipeline.create();
+
+    TextIO.Read.Bound<String> read =
+        TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /**
+   * Read a zip compressed file. The ZIP compression type is auto-detected based on the
+   * file extension. We expect a PCollection with the lines.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedAutoDetected() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile("testZipCompressedAutoDetected.zip");
+    String filename = tmpFile.getPath();
+
+    List<String> expected = new ArrayList<>();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+
+    out.putNextEntry(new ZipEntry("test.txt"));
+
+    PrintStream writer = new PrintStream(out);
+    for (String line : lines) {
+      writer.println(line);
+      expected.add(line);
+    }
+    writer.close();
+    out.close();
+
+    // test with auto-detect ZIP based on extension.
+    Pipeline p = TestPipeline.create();
+
+    TextIO.Read.Bound<String> read = TextIO.Read.from(filename);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /**
+   * Read a ZIP compressed empty file. We expect an exception.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithEmptyFile() throws Exception {
+    File tmpFile = tmpFolder.newFile();
+    String filename = tmpFile.getPath();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+
+    out.close();
+
+    Pipeline p = TestPipeline.create();
+
+    p.apply(TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP));
+    // expectedException.expect(IllegalArgumentException.class);
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectMessage("ZIP file doesn't contain any entry");
+
+    p.run();
+  }
+
+  /**
+   * Read a ZIP compressed file containing an unique empty entry. We expect an empty PCollection.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithEmptyEntry() throws Exception {
+    File tmpFile = tmpFolder.newFile();
+    String filename = tmpFile.getPath();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+    out.putNextEntry(new ZipEntry("test.txt"));
+    out.closeEntry();
+
+    out.close();
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> output = p.apply(TextIO.Read.from(filename).withCompressionType
+        (CompressionType.ZIP));
+    PAssert.that(output).empty();
+
+    p.run();
+  }
+
+  /**
+   * Read a ZIP compressed file with multiple entries. Only the first entry is actually read.
+   * We expect an empty PCollection.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithMultiEntriesFile() throws Exception {
+    File tmpFile = tmpFolder.newFile();
+    String filename = tmpFile.getPath();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+
+    out.putNextEntry(new ZipEntry("first.txt"));
+    out.closeEntry();
+    out.putNextEntry(new ZipEntry("second.txt"));
+    PrintStream writer = new PrintStream(out);
+    writer.println("This is a test");
+    out.closeEntry();
+    out.putNextEntry(new ZipEntry("third.txt"));
+    writer.println("This is a test");
+    out.closeEntry();
+    writer.close();
+
+    out.close();
+
+    Pipeline p = TestPipeline.create();
+
+    TextIO.Read.Bound<String> read =
+        TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).empty();
     p.run();
   }
 
