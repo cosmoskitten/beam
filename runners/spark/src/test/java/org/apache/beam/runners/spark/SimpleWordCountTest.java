@@ -40,6 +40,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -60,6 +61,24 @@ public class SimpleWordCountTest {
   private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
   private static final Set<String> EXPECTED_COUNT_SET =
       ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
+
+  @Test
+  public void testWithProvidedContext() throws Exception {
+    JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
+    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    SparkPipelineRunner sparkPipelineRunner = SparkPipelineRunner.fromOptions(options, jsc);
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
+        .of()));
+    PCollection<String> output = inputWords.apply(new CountWords());
+
+    PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
+
+    EvaluationResult res = sparkPipelineRunner.run(p);
+    res.close();
+    jsc.stop();
+  }
 
   @Test
   public void testInMem() throws Exception {
