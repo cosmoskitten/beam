@@ -72,6 +72,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Tests for TextIO Read and Write transforms.
@@ -404,6 +406,95 @@ public class TextIOTest {
 
     TextIO.Read.Bound<String> read =
         TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedRead() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile();
+    String filename = tmpFile.getPath();
+
+    List<String> expected = new ArrayList<>();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+
+    out.putNextEntry(new ZipEntry("test.txt"));
+
+    PrintStream writer = new PrintStream(out);
+    for (String line : lines) {
+      writer.println(line);
+      expected.add(line);
+    }
+    writer.close();
+    out.closeEntry();
+    out.close();
+
+    Pipeline p = TestPipeline.create();
+
+    TextIO.Read.Bound<String> read =
+        TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+
+    // test with auto-detect ZIP based on extension.
+    p = TestPipeline.create();
+
+    read = TextIO.Read.from(filename);
+    output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithEmptyFile() throws Exception {
+    File tmpFile = tmpFolder.newFile();
+    String filename = tmpFile.getPath();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+
+    out.close();
+
+    Pipeline p = TestPipeline.create();
+
+    expectedException.expect(IllegalArgumentException.class);
+    p.apply(TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP));
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithMultiEntriesFile() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile();
+    String filename = tmpFile.getPath();
+
+    List<String> expected = new ArrayList<>();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+
+    out.putNextEntry(new ZipEntry("first.txt"));
+    out.closeEntry();
+    out.putNextEntry(new ZipEntry("second.txt"));
+    out.closeEntry();
+    out.putNextEntry(new ZipEntry("third.txt"));
+    out.closeEntry();
+
+    out.close();
+
+    Pipeline p = TestPipeline.create();
+
+    TextIO.Read.Bound<String> read =
+        TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP);
     PCollection<String> output = p.apply(read);
 
     PAssert.that(output).containsInAnyOrder(expected);
