@@ -18,32 +18,22 @@
 
 package org.apache.beam.runners.spark;
 
-import org.apache.beam.sdk.options.ApplicationNameOptions;
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
 
 /**
- * Spark runner pipeline options.
+ * Existing Spark Context pipeline options.
  */
-public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
-                                              ApplicationNameOptions, ExistingSparkContextOptions {
-  @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
-  @Default.String("local[1]")
-  String getSparkMaster();
+public interface ExistingSparkContextOptions extends PipelineOptions {
 
-  void setSparkMaster(String master);
+  /**
+   * Set to true if the spark runner will be
+   * initialized with an existing Spark Context.
+   */
+    @Description("Set to true if the spark runner will be "
+     + "initialized with an existing Spark Context")
+    boolean isProvidedJavaSparkContext();
 
-  @Override
-  @Default.Boolean(false)
-  boolean isStreaming();
+    void setProvidedJavaSparkContext(boolean value);
 
-  @Override
-  @Default.String("spark dataflow pipeline job")
-  String getAppName();
-
-  @Override
-  @Default.Boolean(false)
-  boolean isProvidedJavaSparkContext();
 }

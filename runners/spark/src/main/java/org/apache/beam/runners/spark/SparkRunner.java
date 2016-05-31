@@ -81,7 +81,12 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   private final SparkPipelineOptions mOptions;
 
   /**
-   * Creates and returns a new SparkRunner with default options. In particular, against a
+   * A provided Java Spark context.
+   */
+  private JavaSparkContext providedJavaSparkContext;
+
+  /**
+   * Creates and returns a new SparkPipelineRunner with default options. In particular, against a
    * spark instance running in local mode.
    *
    * @return A pipeline runner with default options.
@@ -115,6 +120,21 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   }
 
   /**
+   * Creates and returns a new SparkPipelineRunner with specified options.
+   * The Pipeline will be run with the provided Java Spark Context.
+   *
+   * @param options The PipelineOptions to use when executing the job.
+   * @param pjsc a provided Spark Java context to use when executing the job.
+   * @return A pipeline runner that will execute with specified options.
+   */
+  public static SparkRunner fromOptions(PipelineOptions options, JavaSparkContext pjsc) {
+    SparkWithProvidedContextPipelineOptions sparkOptions = PipelineOptionsValidator
+    .validate(SparkWithProvidedContextPipelineOptions.class, options);
+    LOG.info("Creating a SparkPipelineRunner with the provided Spark Java Context : " + pjsc);
+    return new SparkRunner(sparkOptions, pjsc);
+  }
+
+  /**
    * Overrides for this runner.
    */
   @SuppressWarnings("rawtypes")
@@ -142,6 +162,13 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     mOptions = options;
   }
 
+  /**
+   * Constructs a Spark pipeline runner with a provided Spark context.
+   */
+  private SparkRunner(SparkPipelineOptions options, JavaSparkContext pjsc) {
+    mOptions = options;
+    this.providedJavaSparkContext = pjsc;
+  }
 
   @Override
   public EvaluationResult run(Pipeline pipeline) {
@@ -152,10 +179,16 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
             + SparkStreamingPipelineOptions.class.getSimpleName() + ", found "
             + mOptions.getClass().getSimpleName());
       }
-      LOG.info("Executing pipeline using the SparkRunner.");
-      JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions
-              .getSparkMaster(), mOptions.getAppName());
-
+      LOG.info("Executing pipeline using the SparkPipelineRunner.");
+      JavaSparkContext jsc;
+      if (mOptions.isProvidedJavaSparkContext() && this.providedJavaSparkContext != null) {
+          LOG.info("Using a provided Spark Java Context.");
+          jsc = this.providedJavaSparkContext;
+      } else {
+          LOG.info("Creating a new Spark Java Context");
+          jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster(),
+              mOptions.getAppName());
+      }
       if (mOptions.isStreaming()) {
         SparkPipelineTranslator translator =
                 new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());
