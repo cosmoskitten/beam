@@ -72,6 +72,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Tests for TextIO Read and Write transforms.
@@ -396,6 +398,37 @@ public class TextIOTest {
 
     TextIO.Read.Bound<String> read =
         TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedRead() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile();
+    String filename = tmpFile.getPath();
+
+    List<String> expected = new ArrayList<>();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+
+    out.putNextEntry(new ZipEntry("test.txt"));
+
+    PrintStream writer = new PrintStream(out);
+    for (String line : lines) {
+      writer.println(line);
+      expected.add(line);
+    }
+    writer.close();
+    out.close();
+
+    Pipeline p = TestPipeline.create();
+
+    TextIO.Read.Bound<String> read =
+        TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP);
     PCollection<String> output = p.apply(read);
 
     PAssert.that(output).containsInAnyOrder(expected);
