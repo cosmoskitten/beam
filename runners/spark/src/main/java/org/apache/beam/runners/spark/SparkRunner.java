@@ -110,6 +110,17 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   /**
    * Creates and returns a new SparkRunner with specified options.
    *
+   * @param options The SparkPipelineOptions to use when executing the job.
+   * @param pjsc A provided JavaSparkContext to be used with the SparkRunner.
+   * @return A pipeline runner that will execute with specified options.
+   */
+  public static SparkRunner create(SparkPipelineOptions options, JavaSparkContext pjsc) {
+    return new SparkRunner(options, pjsc);
+  }
+
+  /**
+   * Creates and returns a new SparkRunner with specified options.
+   *
    * @param options The PipelineOptions to use when executing the job.
    * @return A pipeline runner that will execute with specified options.
    */
@@ -128,8 +139,8 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
    * @return A pipeline runner that will execute with specified options.
    */
   public static SparkRunner fromOptions(PipelineOptions options, JavaSparkContext pjsc) {
-    SparkWithProvidedContextPipelineOptions sparkOptions = PipelineOptionsValidator
-    .validate(SparkWithProvidedContextPipelineOptions.class, options);
+    SparkPipelineOptions sparkOptions = PipelineOptionsValidator
+    .validate(SparkPipelineOptions.class, options);
     LOG.info("Creating a SparkPipelineRunner with the provided Spark Java Context : " + pjsc);
     return new SparkRunner(sparkOptions, pjsc);
   }

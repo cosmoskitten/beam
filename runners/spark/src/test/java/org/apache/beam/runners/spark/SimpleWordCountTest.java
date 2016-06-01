@@ -66,7 +66,8 @@ public class SimpleWordCountTest {
   public void testWithProvidedContext() throws Exception {
     JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    SparkRunner sparkPipelineRunner = SparkRunner.fromOptions(options, jsc);
+    options.setRunner(SparkRunner.class);
+    options.setProvidedJavaSparkContext(true);
 
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
@@ -75,7 +76,7 @@ public class SimpleWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
-    EvaluationResult res = sparkPipelineRunner.run(p);
+    EvaluationResult res = SparkRunner.create(options, jsc).run(p);
     res.close();
     jsc.stop();
   }
