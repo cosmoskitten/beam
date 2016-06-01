@@ -117,7 +117,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
       executionConfig) {
     WindowedValue.WindowedValueCoder windowCoder = (WindowedValue.WindowedValueCoder) coder;
     if (windowCoder.getValueCoder() instanceof KvCoder) {
-      return new KvCoderComperator(windowCoder);
+      return new KvCoderComparator(windowCoder);
     } else {
       return new CoderComparator<>(coder);
     }

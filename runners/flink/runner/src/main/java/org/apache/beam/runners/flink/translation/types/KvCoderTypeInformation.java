@@ -57,7 +57,7 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<WindowedValue<KV
       boolean[] orders,
       int logicalFieldOffset,
       ExecutionConfig config) {
-    return new KvCoderComperator(coder);
+    return new KvCoderComparator(coder);
   }
 
   @Override
@@ -201,7 +201,7 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<WindowedValue<KV
 
     @Override
     public TypeComparator<WindowedValue<KV<K, V>>> createTypeComparator(ExecutionConfig config) {
-      return new KvCoderComperator<>(coder);
+      return new KvCoderComparator<>(coder);
     }
   }
 }

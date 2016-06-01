@@ -36,7 +36,7 @@ import java.util.Arrays;
  * Flink {@link TypeComparator} for {@link KvCoder}. We have a special comparator
  * for {@link KV} that always compares on the key only.
  */
-public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K, V>>> {
+public class KvCoderComparator<K, V> extends TypeComparator<WindowedValue<KV<K, V>>> {
 
   private final WindowedValue.WindowedValueCoder<KV<K, V>> coder;
   private final Coder<K> keyCoder;
@@ -53,7 +53,7 @@ public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K,
   // For deserializing the key
   private transient DataInputViewWrapper inputWrapper;
 
-  public KvCoderComperator(WindowedValue.WindowedValueCoder<KV<K, V>> coder) {
+  public KvCoderComparator(WindowedValue.WindowedValueCoder<KV<K, V>> coder) {
     this.coder = coder;
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) coder.getValueCoder();
     this.keyCoder = kvCoder.getKeyCoder();
@@ -122,7 +122,7 @@ public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K,
   @Override
   public int compareToReference(TypeComparator<WindowedValue<KV<K, V>>> other) {
     InspectableByteArrayOutputStream otherReferenceBuffer =
-        ((KvCoderComperator<K, V>) other).referenceBuffer;
+        ((KvCoderComparator<K, V>) other).referenceBuffer;
 
     byte[] arr = referenceBuffer.getBuffer();
     byte[] arrOther = otherReferenceBuffer.getBuffer();
@@ -243,7 +243,7 @@ public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K,
 
   @Override
   public TypeComparator<WindowedValue<KV<K, V>>> duplicate() {
-    return new KvCoderComperator<>(coder);
+    return new KvCoderComparator<>(coder);
   }
 
   @Override
