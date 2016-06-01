@@ -15,28 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink;
+package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.runners.flink.translation.types.KvCoderComparator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import org.apache.avro.reflect.Nullable;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -46,11 +40,14 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 /**
- * A special test for the Flink {@link GroupByKey} implementation. If the {@link KvCoderComparator}
- * does not correctly hash and compare on the encoded form of a value this test will fail.
+ * A special test for {@link GroupByKey} that verifies that a runner uses
+ * the encoded form of a value for hashing/comparison.
  */
 @RunWith(JUnit4.class)
-public class FlinkGroupByKeyTest {
+public class GroupByKeyEncodingTest {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   /**
    * This is a bogus key class that returns random hash values from {@link #hashCode()} and always
@@ -84,7 +81,7 @@ public class FlinkGroupByKeyTest {
   }
 
   @DefaultCoder(AvroCoder.class)
-  public static class DumbData {
+  static class DumbData {
     @Nullable
     String key1;
     @Nullable
@@ -147,6 +144,9 @@ public class FlinkGroupByKeyTest {
     }
   }
 
+  /**
+   *
+   */
   public static class MergeGbk extends DoFn<KV<Key, Iterable<DumbData>>, String> {
 
     private static final Logger LOG = LoggerFactory.getLogger(MergeGbk.class);
@@ -179,16 +179,11 @@ public class FlinkGroupByKeyTest {
   }
 
   @Test
-  public void testGroupByKeyWithLargeData() throws Exception {
+  @Category(RunnableOnService.class)
+  public void testGroupByKeyWithBogusKey() throws Exception {
     final int NUM_VALUES = 10;
 
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-
-    // we need at least parallelism 2 so that we actually have a shuffle
-    options.setParallelism(2);
-    options.setRunner(FlinkPipelineRunner.class);
-
-    Pipeline p = TestPipeline.fromOptions(options);
+    Pipeline p = TestPipeline.create();
 
     // Create several Configs, so that several parallel Generator instances emit
     // data. Otherwise, a pre-shuffle combine would already combine everything
