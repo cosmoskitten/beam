@@ -26,7 +26,9 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -43,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -50,6 +53,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+
+import org.hamcrest.MatcherAssert;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -60,9 +69,18 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 
 /**
  * Tests for GroupByKey.
@@ -392,5 +410,185 @@ public class GroupByKeyTest {
 
     assertThat(gbkDisplayData.items(), empty());
     assertThat(fewKeysDisplayData, hasDisplayItem("fewKeys", true));
+  }
+
+
+  /**
+   * Verify that runners correctly hash/group on the encoded value
+   * and not the value itself.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testGroupByKeyWithBogusKey() throws Exception {
+    final int numValues = 10;
+    final int numKeys = 5;
+
+    Pipeline p = TestPipeline.create();
+
+    p.getCoderRegistry().registerCoder(Key.class, DeterministicKeyCoder.class);
+
+    // construct input data
+    List<KV<Key, Long>> input = new ArrayList<>();
+    for (int i = 0; i < numValues; i++) {
+      for (int key = 0; key < numKeys; key++) {
+        input.add(KV.of(new Key(key), 1L));
+      }
+    }
+
+    // We first ensure that the values are randomly partitioned in the beginning.
+    // Some runners might otherwise keep all values on the machine where
+    // they are initially created.
+    PCollection<KV<Key, Long>> dataset1 = p
+        .apply(Create.of(input))
+        .apply(ParDo.of(new AssignRandomKey()))
+        .apply(Reshuffle.<Long, KV<Key, Long>>of())
+        .apply(Values.<KV<Key, Long>>create());
+
+    PCollection<KV<Key, Long>> result = dataset1
+        .apply(GroupByKey.<Key, Long>create())
+        .apply(Combine.<Key, Long>groupedValues(new CountFn()));
+
+    PAssert.that(result).satisfies(new AssertThatCountPerKeyCorrect(numValues));
+
+    PAssert.that(result).satisfies(new AssertThatAllKeysExist(numKeys));
+
+    p.run();
+  }
+
+  /**
+   * This is a bogus key class that returns random hash values from {@link #hashCode()} and always
+   * returns {@code false} for {@link #equals(Object)}. The results of the test are correct if
+   * the runner correctly hashes and sorts on the encoded bytes.
+   */
+  static class Key {
+    long key;
+
+    public Key() {}
+
+    public Key(long key) {
+      this.key = key;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      UUID uuid = UUID.randomUUID();
+      return uuid.hashCode();
+    }
+  }
+
+  /**
+   * Deterministic {@link Coder} for {@link Key}.
+   */
+  static class DeterministicKeyCoder extends AtomicCoder<Key> {
+
+    @JsonCreator
+    public static DeterministicKeyCoder of() {
+      return INSTANCE;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
+
+    private static final DeterministicKeyCoder INSTANCE =
+        new DeterministicKeyCoder();
+
+    private DeterministicKeyCoder() {}
+
+    @Override
+    public void encode(Key value, OutputStream outStream, Context context)
+        throws IOException {
+      new DataOutputStream(outStream).writeLong(value.key);
+    }
+
+    @Override
+    public Key decode(InputStream inStream, Context context)
+        throws IOException {
+      return new Key(new DataInputStream(inStream).readLong());
+    }
+  }
+
+  /**
+   * Creates a KV that wraps the original KV together with a random key.
+   */
+  static class AssignRandomKey extends DoFn<KV<Key, Long>, KV<Long, KV<Key, Long>>> {
+    private Random rand = new Random();
+
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      c.output(KV.of(rand.nextLong(), c.element()));
+    }
+  }
+
+  static class CountFn implements SerializableFunction<Iterable<Long>, Long> {
+    @Override
+    public Long apply(Iterable<Long> input) {
+      long result = 0L;
+      for (Long in: input) {
+        result += in;
+      }
+      return result;
+    }
+  }
+
+  static class AssertThatCountPerKeyCorrect
+      implements SerializableFunction<Iterable<KV<Key, Long>>, Void> {
+    private final int numValues;
+
+    AssertThatCountPerKeyCorrect(int numValues) {
+      this.numValues = numValues;
+    }
+
+    @Override
+    public Void apply(Iterable<KV<Key, Long>> input) {
+      for (KV<Key, Long> val: input) {
+        Assert.assertEquals(numValues, (long) val.getValue());
+      }
+      return null;
+    }
+  }
+
+  static class AssertThatAllKeysExist
+      implements SerializableFunction<Iterable<KV<Key, Long>>, Void> {
+    private final int numKeys;
+
+    AssertThatAllKeysExist(int numKeys) {
+      this.numKeys = numKeys;
+    }
+
+    @Override
+    public Void apply(Iterable<KV<Key, Long>> input) {
+      final DeterministicKeyCoder keyCoder = DeterministicKeyCoder.of();
+
+      Collection<Object> expected = new ArrayList<>();
+      for (int key = 0; key < numKeys; key++) {
+        try {
+          expected.add(keyCoder.structuralValue(new Key(key)));
+        } catch (Exception e) {
+          Assert.fail("Could not create expected structural values.");
+        }
+      }
+
+      Iterable<Object> actual = Iterables.transform(
+          input,
+          new Function<KV<Key, Long>, Object>() {
+            @Override
+            public Object apply(KV<Key, Long> input) {
+              try {
+                return keyCoder.structuralValue(input.getKey());
+              } catch (Exception e) {
+                Assert.fail("Could not create expected structural values.");
+                throw new RuntimeException(); // to satisfy the compiler...
+              }
+            }
+          });
+
+      MatcherAssert.assertThat(actual, containsInAnyOrder(expected.toArray()));
+
+      return null;
+    }
   }
 }
