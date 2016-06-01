@@ -144,10 +144,7 @@ public class GroupByKeyEncodingTest {
     }
   }
 
-  /**
-   *
-   */
-  public static class MergeGbk extends DoFn<KV<Key, Iterable<DumbData>>, String> {
+  static class MergeGbk extends DoFn<KV<Key, Iterable<DumbData>>, String> {
 
     private static final Logger LOG = LoggerFactory.getLogger(MergeGbk.class);
 
