@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.MemorySegment;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Arrays;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for
@@ -59,7 +60,13 @@ public class CoderComparator<T> extends TypeComparator<T> {
 
   @Override
   public int hash(T record) {
-    return record.hashCode();
+    buffer1.reset();
+    try {
+      coder.encode(record, buffer1, Coder.Context.OUTER);
+      return Arrays.hashCode(buffer1.toByteArray());
+    } catch (IOException e) {
+      throw new RuntimeException("Could not serialize for hashing: " + e);
+    }
   }
 
   @Override

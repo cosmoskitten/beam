@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation.types;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
@@ -31,13 +30,14 @@ import org.apache.flink.core.memory.MemorySegment;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Arrays;
 
 /**
  * Flink {@link TypeComparator} for {@link KvCoder}. We have a special comparator
  * for {@link KV} that always compares on the key only.
  */
 public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K, V>>> {
-  
+
   private final WindowedValue.WindowedValueCoder<KV<K, V>> coder;
   private final Coder<K> keyCoder;
 
@@ -78,10 +78,12 @@ public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K,
   @Override
   public int hash(WindowedValue<KV<K, V>> record) {
     K key = record.getValue().getKey();
-    if (key != null) {
-      return key.hashCode();
-    } else {
-      return 0;
+    buffer1.reset();
+    try {
+      keyCoder.encode(key, buffer1, Coder.Context.OUTER);
+      return Arrays.hashCode(buffer1.toByteArray());
+    } catch (IOException e) {
+      throw new RuntimeException("Could not serialize key for hashing: " + e);
     }
   }
 
