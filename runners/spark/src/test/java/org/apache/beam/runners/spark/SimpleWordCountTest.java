@@ -66,6 +66,7 @@ public class SimpleWordCountTest {
   public void testWithProvidedContext() throws Exception {
     JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    options.setProvidedJavaSparkContext(true);
     SparkPipelineRunner sparkPipelineRunner = SparkPipelineRunner.fromOptions(options, jsc);
 
     Pipeline p = Pipeline.create(options);
