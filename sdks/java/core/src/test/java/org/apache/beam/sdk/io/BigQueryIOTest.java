@@ -385,7 +385,7 @@ public class BigQueryIOTest implements Serializable {
   public void setUp() throws IOException {
     bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    bqOptions.setBigQueryTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
     MockitoAnnotations.initMocks(this);
   }
@@ -570,7 +570,7 @@ public class BigQueryIOTest implements Serializable {
 
     logged.verifyInfo("Starting BigQuery load job");
     logged.verifyInfo("Previous load jobs failed, retrying.");
-    File tempDir = new File(bqOptions.getTempLocation());
+    File tempDir = new File(bqOptions.getBigQueryTempLocation());
     assertEquals(0, tempDir.listFiles(new FileFilter() {
       @Override
       public boolean accept(File pathname) {
