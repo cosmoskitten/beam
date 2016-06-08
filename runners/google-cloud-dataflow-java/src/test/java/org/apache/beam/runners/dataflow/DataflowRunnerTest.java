@@ -675,9 +675,8 @@ public class DataflowRunnerTest {
     options.setProject("foo-project");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Missing required value: at least one of tempLocation or stagingLocation must be set.");
-
+    thrown.expectMessage("Missing required value: at least one of tempLocation, gcpTempLocation"
+        + " or stagingLocation must be set.");
     DataflowRunner.fromOptions(options);
   }
 
