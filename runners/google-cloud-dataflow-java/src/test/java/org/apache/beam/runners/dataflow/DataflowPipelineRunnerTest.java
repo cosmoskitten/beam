@@ -188,7 +188,8 @@ public class DataflowPipelineRunnerTest {
     return mockDataflowClient;
   }
 
-  private GcsUtil buildMockGcsUtil(boolean bucketExists) throws IOException {
+  private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketExists)
+      throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .then(new Answer<SeekableByteChannel>() {
@@ -207,7 +208,7 @@ public class DataflowPipelineRunnerTest {
         return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
       }
     });
-    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExists);
+    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExist, bucketExists);
     return mockGcsUtil;
   }
 
@@ -544,7 +545,8 @@ public class DataflowPipelineRunnerTest {
   public void testNonExistentTempLocation() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
-    GcsUtil mockGcsUtil = buildMockGcsUtil(false /* bucket exists */);
+    GcsUtil mockGcsUtil =
+        buildMockGcsUtil(false /* temp bucket exists */, true /* staging bucket exists */);
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
     options.setGcsUtil(mockGcsUtil);
     options.setTempLocation("gs://non-existent-bucket/location");
@@ -560,7 +562,8 @@ public class DataflowPipelineRunnerTest {
   public void testNonExistentStagingLocation() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
-    GcsUtil mockGcsUtil = buildMockGcsUtil(false /* bucket exists */);
+    GcsUtil mockGcsUtil =
+        buildMockGcsUtil(true /* temp bucket exists */, false /* staging bucket exists */);
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
     options.setGcsUtil(mockGcsUtil);
     options.setStagingLocation("gs://non-existent-bucket/location");
