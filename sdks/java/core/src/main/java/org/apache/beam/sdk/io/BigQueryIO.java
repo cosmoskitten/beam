@@ -540,13 +540,13 @@ public class BigQueryIO {
         final BigQueryServices bqServices = getBigQueryServices();
 
         final String extractDestinationDir;
-        String tempLocation = bqOptions.getTempLocation();
+        String gcpTempLocation = bqOptions.getGcpTempLocation();
         try {
-          IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-          extractDestinationDir = factory.resolve(tempLocation, uuid);
+          IOChannelFactory factory = IOChannelUtils.getFactory(gcpTempLocation);
+          extractDestinationDir = factory.resolve(gcpTempLocation, uuid);
         } catch (IOException e) {
-          throw new RuntimeException(
-              String.format("Failed to resolve extract destination directory in %s", tempLocation));
+          throw new RuntimeException(String.format(
+              "Failed to resolve extract destination directory in %s", gcpTempLocation));
         }
 
         final String executingProject = bqOptions.getProject();
@@ -1659,18 +1659,18 @@ public class BigQueryIO {
                   + " when using a tablespec function.");
         } else {
           // We will use a BigQuery load job -- validate the temp location.
-          String tempLocation = options.getTempLocation();
+          String gcpTempLocation = options.getGcpTempLocation();
           checkArgument(
-              !Strings.isNullOrEmpty(tempLocation),
+              !Strings.isNullOrEmpty(gcpTempLocation),
               "BigQueryIO.Write needs a GCS temp location to store temp files.");
           if (testBigQueryServices == null) {
             try {
-              GcsPath.fromUri(tempLocation);
+              GcsPath.fromUri(gcpTempLocation);
             } catch (IllegalArgumentException e) {
               throw new IllegalArgumentException(
                   String.format(
                       "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
-                      tempLocation),
+                      gcpTempLocation),
                   e);
             }
           }
@@ -1692,16 +1692,16 @@ public class BigQueryIO {
           table.setProjectId(options.getProject());
         }
         String jobIdToken = randomUUIDString();
-        String tempLocation = options.getTempLocation();
+        String gcpTempLocation = options.getGcpTempLocation();
         String tempFilePrefix;
         try {
-          IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+          IOChannelFactory factory = IOChannelUtils.getFactory(gcpTempLocation);
           tempFilePrefix = factory.resolve(
-                  factory.resolve(tempLocation, "BigQuerySinkTemp"),
-                  jobIdToken);
+              factory.resolve(gcpTempLocation, "BigQuerySinkTemp"),
+              jobIdToken);
         } catch (IOException e) {
           throw new RuntimeException(
-              String.format("Failed to resolve BigQuery temp location in %s", tempLocation),
+              String.format("Failed to resolve BigQuery temp location in %s", gcpTempLocation),
               e);
         }
 
