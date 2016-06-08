@@ -260,26 +260,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     PathValidator validator = dataflowOptions.getPathValidator();
-    checkArgument(!(isNullOrEmpty(dataflowOptions.getTempLocation())
-        && isNullOrEmpty(dataflowOptions.getStagingLocation())),
-        "Missing required value: at least one of tempLocation or stagingLocation must be set.");
-
-    if (dataflowOptions.getStagingLocation() != null) {
-      validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
-    }
     if (dataflowOptions.getTempLocation() != null) {
       validator.validateOutputFilePrefixSupported(dataflowOptions.getTempLocation());
     }
-    if (isNullOrEmpty(dataflowOptions.getTempLocation())) {
-      dataflowOptions.setTempLocation(dataflowOptions.getStagingLocation());
-    } else if (isNullOrEmpty(dataflowOptions.getStagingLocation())) {
-      try {
-        dataflowOptions.setStagingLocation(
-            IOChannelUtils.resolve(dataflowOptions.getTempLocation(), "staging"));
-      } catch (IOException e) {
-        throw new IllegalArgumentException("Unable to resolve PipelineOptions.stagingLocation "
-            + "from PipelineOptions.tempLocation. Please set the staging location explicitly.", e);
-      }
+    if (dataflowOptions.getStagingLocation() != null) {
+      validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
     }
 
     if (dataflowOptions.getFilesToStage() == null) {
