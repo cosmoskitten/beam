@@ -20,10 +20,12 @@ package org.apache.beam.sdk.options;
 import org.apache.beam.sdk.util.CredentialFactory;
 import org.apache.beam.sdk.util.GcpCredentialFactory;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.io.Files;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -290,4 +292,37 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   @Hidden
   String getAuthorizationServerEncodedUrl();
   void setAuthorizationServerEncodedUrl(String value);
+
+  /**
+   * A GCS path for storing temporary files in GCP.
+   *
+   * <p>Its default to {@link PipelineOptions#getTempLocation}.
+   */
+  @Description("A GCS path for storing temporary files in GCP.")
+  @Default.InstanceFactory(GcpTempLocationFactory.class)
+  String getGcpTempLocation();
+  void setGcpTempLocation(String value);
+
+  /**
+   * Returns {@link PipelineOptions#getTempLocation} as the default GCP temp location.
+   */
+  public static class GcpTempLocationFactory implements DefaultValueFactory<String> {
+
+    @Override
+    public String create(PipelineOptions options) {
+      String tempLocation = options.getTempLocation();
+      if (!Strings.isNullOrEmpty(tempLocation)) {
+        try {
+          GcsPath.fromUri(tempLocation);
+        } catch (IllegalArgumentException e) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "GCP temp location requires a valid 'gs://' path, and it cannot be set to '%s'",
+                  tempLocation),
+              e);
+        }
+      }
+      return tempLocation;
+    }
+  }
 }
