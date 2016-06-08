@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.options;
 
+import org.apache.beam.sdk.util.IOChannelUtils;
+
+import com.google.common.base.Strings;
+
+import java.io.IOException;
+
 /**
  * Properties needed when using BigQuery with the Dataflow SDK.
  */
@@ -29,4 +35,35 @@ public interface BigQueryOptions extends ApplicationNameOptions, GcpOptions,
   @Default.String("bigquery.googleapis.com/cloud_dataflow")
   String getTempDatasetId();
   void setTempDatasetId(String value);
+
+  /**
+   * A GCS path for storing temporary files for BigQueryIO.
+   *
+   * <p>Its default to {@link GcpOptions#getGcpTempLocation}.
+   */
+  @Description("A GCS path for storing temporary files for BigQueryIO.")
+  @Default.InstanceFactory(BigQueryTempLocationFactory.class)
+  String getBigQueryTempLocation();
+  void setBigQueryTempLocation(String value);
+
+  /**
+   * Returns {@link GcpOptions#getGcpTempLocation} as the default BigQueryIO temp location.
+   */
+  public static class BigQueryTempLocationFactory implements DefaultValueFactory<String> {
+
+    @Override
+    public String create(PipelineOptions options) {
+      String gcpTempLocation = options.as(GcpOptions.class).getGcpTempLocation();
+      if (Strings.isNullOrEmpty(gcpTempLocation)) {
+        return gcpTempLocation;
+      }
+      try {
+        return IOChannelUtils.resolve(gcpTempLocation, "BigQueryIO");
+      } catch (IOException e) {
+        throw new IllegalArgumentException("Unable to resolve stagingLocation from gcpTempLocation."
+            + " Please set the staging location explicitly.", e);
+      }
+    }
+  }
+
 }
