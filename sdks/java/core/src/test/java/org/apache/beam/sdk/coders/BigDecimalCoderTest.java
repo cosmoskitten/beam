@@ -17,8 +17,17 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.common.Counter;
+import org.apache.beam.sdk.util.common.Counter.AggregationKind;
+import org.apache.beam.sdk.util.common.CounterName;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+
+import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,7 +36,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -36,19 +44,21 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class BigDecimalCoderTest {
 
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   private static final Coder<BigDecimal> TEST_CODER = BigDecimalCoder.of();
 
-  private static final List<BigDecimal> TEST_VALUES = Arrays.asList(
-      new BigDecimal(Double.MIN_VALUE),
-      new BigDecimal(-11),
-      new BigDecimal(-3),
-      new BigDecimal(-1),
-      new BigDecimal(0),
-      new BigDecimal(1),
-      new BigDecimal(5),
-      new BigDecimal(13),
-      new BigDecimal(29),
-      new BigDecimal(Double.MAX_VALUE));
+  private static final List<BigDecimal> TEST_VALUES =
+      ImmutableList.of(
+          new BigDecimal(Double.MIN_VALUE).multiply(BigDecimal.TEN),
+          new BigDecimal(Double.MIN_VALUE),
+          new BigDecimal(-10.5),
+          new BigDecimal(-1),
+          new BigDecimal(0),
+          new BigDecimal(1),
+          new BigDecimal(13.258),
+          new BigDecimal(Double.MAX_VALUE),
+          new BigDecimal(Double.MAX_VALUE).multiply(BigDecimal.TEN));
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
@@ -69,35 +79,55 @@ public class BigDecimalCoderTest {
    * Generated data to check that the wire format has not changed. To regenerate, see
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AAAEMgAAATg12KOw51bHBNnjNkPn-wPiaWQ_AsohTe-mXyOGWcybUGt9TKi2FHqY2OH-gV0_GWqRbjNAGsSskI7K3" +
-          "xf9JmTjf1ySZXuvF9S9PsgV3kT-sgypaRw_i1MK_orzcJVg_s3cEGTjTY1_Xor3JM9UBVKiQy3Vpulf7aN9LM" +
-          "kiQEfO28mXQibyUtXL4yoLIwujoo8ArC9SayfbH5HmUxX9G0e506_cefoYIGByfq3M8GLp1_METj97ViU38je" +
-          "xsXkggqxXrMG8PO6pCYNB8P_jcf9i5OagpPafem18giZ8-v3fWJPN63vkbuOtaHb9u9yGQfrN25aLpNW9ooU9" +
-          "eYbL-1ewSBwENptcIT5SMhkulcVY6e9LyAqamGWdvnbevpwW84rTQpkeJePOkIt6G1_slfkQn6VBw7Jz3Vk",
-      "AAAAAAAAAAH1",
-      "AAAAAAAAAAH9",
-      "AAAAAAAAAAH_",
-      "AAAAAAAAAAEA",
-      "AAAAAAAAAAEB",
-      "AAAAAAAAAAEF",
-      "AAAAAAAAAAEN",
-      "AAAAAAAAAAEd",
-      "AAAAAAAAAIEA________-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
-          "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
-          "AAAAAAAAA");
+  private static final List<String> TEST_ENCODINGS =
+      ImmutableList.of(
+          "AAAEMgAAATkCGnZk6QljxjCC4B6nD84m2B3qdhvlTQtcf7djP4H-ESQy5P6XHMzJ-HjT8Q2kdv4prk"
+              + "4AgQuuvaWT7Lbv43_w4vmdt_bU1u5PZHPQ2q6x8vR-nhsae3E-bfFtgmXVyfQKmKPw4QeG-bFtp3A"
+              + "ZSDU6Vp_KWIUdv0hi47_bVoLOFJXf6JWFdzxZ9t-kb150ZFmWBrnZOC-Ojzuy_z7b4xDNQ"
+              + "kTenMPE8UPEePLKAWPdIm9-Kw560V10L3Ys8O67RRq7bL-RWmFSml8gk2n-4nP53PECRn"
+              + "GiOshG3RWA4c3quXXGCzLW7FTkxhSl6VadPpPMCpPhdHBZaFk0Zr9D99Fs4tEYKi"
+              + "IRmUxvNfT70dm1eSNY9dBqCfP4KXCks3IY5YNsQJn7LXrmEaVyxRG_Pdu6pjx0kaT4hqV6",
+          "AAAEMgAAATg12KOw51bHBNnjNkPn-wPiaWQ_AsohTe-mXyOGWcybUGt9TKi2FHqY2OH-gV0_GWqRbj"
+              + "NAGsSskI7K3xf9JmTjf1ySZXuvF9S9PsgV3kT-sgypaRw_i1MK_orzcJVg_s3cEGTjTY1"
+              + "_Xor3JM9UBVKiQy3Vpulf7aN9LMkiQEfO28mXQibyUtXL4yoLIwujoo8ArC9SayfbH5HmUx"
+              + "X9G0e506_cefoYIGByfq3M8GLp1_METj97ViU38jexsXkggqxXrMG8PO6pCYNB8P_j"
+              + "cf9i5OagpPafem18giZ8-v3fWJPN63vkbuOtaHb9u9yGQfrN25aLpNW9ooU9eYbL-1e"
+              + "wSBwENptcIT5SMhkulcVY6e9LyAqamGWdvnbevpwW84rTQpkeJePOkIt6G1_slfkQn6"
+              + "VBw7Jz3Vk",
+          "AAAAAQAAAAGX",
+          "AAAAAAAAAAH_",
+          "AAAAAAAAAAEA",
+          "AAAAAAAAAAEB",
+          "AAAAMAAAABUJEk1IAgE1H9Gsru39PDZgUqT1NnU",
+          "AAAAAAAAAIEA________-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "AAAAAAAAAIEJ________sAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Test
+  public void testGetEncodedElementByteSize() throws Exception {
+    Counter<Long> counter = Counter.longs(CounterName.named("dummy"), AggregationKind.SUM);
+    ElementByteSizeObserver observer = new ElementByteSizeObserver(counter);
+    for (BigDecimal value : TEST_VALUES) {
+      TEST_CODER.registerByteSizeObserver(value, observer, Coder.Context.OUTER);
+      observer.advance();
+      assertThat(
+          counter.getAggregate(),
+          equalTo((long) CoderUtils.encodeToByteArray(TEST_CODER, value).length));
+      counter.resetToValue(0L);
+    }
+  }
 
   @Test
-  public void encodeNullThrowsCoderException() throws Exception {
-    thrown.expect(CoderException.class);
+  public void encodeNullThrowsException() throws Exception {
+    thrown.expect(NullPointerException.class);
     thrown.expectMessage("cannot encode a null BigDecimal");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
