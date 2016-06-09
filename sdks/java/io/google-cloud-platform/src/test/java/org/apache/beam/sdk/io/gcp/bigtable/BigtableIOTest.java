@@ -17,20 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
-import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
-import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
-import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Verify.verifyNotNull;
-
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-
+import com.google.bigtable.v1.*;
+import com.google.bigtable.v1.Mutation.SetCell;
+import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Empty;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
@@ -44,47 +41,25 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.bigtable.v1.Cell;
-import com.google.bigtable.v1.Column;
-import com.google.bigtable.v1.Family;
-import com.google.bigtable.v1.Mutation;
-import com.google.bigtable.v1.Mutation.SetCell;
-import com.google.bigtable.v1.Row;
-import com.google.bigtable.v1.RowFilter;
-import com.google.bigtable.v1.SampleRowKeysResponse;
-import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
-
 import org.hamcrest.Matchers;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 
-import javax.annotation.Nullable;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Verify.verifyNotNull;
+import static org.apache.beam.sdk.testing.SourceTestUtils.*;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.*;
 
 /**
  * Unit tests for {@link BigtableIO}.
@@ -294,7 +269,6 @@ public class BigtableIOTest {
    * <p>Because this test runs so slowly, it is disabled by default. Re-run when changing the
    * {@link BigtableIO.Read} implementation.
    */
-  @Ignore("Slow. Rerun when changing the implementation.")
   @Test
   public void testReadingSplitAtFractionExhaustive() throws Exception {
     final String table = "TEST-FEW-ROWS-SPLIT-EXHAUSTIVE-TABLE";

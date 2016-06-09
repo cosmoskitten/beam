@@ -767,6 +767,9 @@ public class BigtableIO {
           reader.start()
               && rangeTracker.tryReturnRecordAt(true, ByteKey.of(reader.getCurrentRow().getKey()));
       if (hasRecord) {
+        if (recordsReturned == 0) {
+          source = source.withStartKey(rangeTracker.getStartPosition());
+        }
         ++recordsReturned;
       }
       return hasRecord;
