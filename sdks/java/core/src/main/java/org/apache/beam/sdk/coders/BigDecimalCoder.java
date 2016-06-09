@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 import java.io.DataInputStream;
@@ -28,9 +30,11 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 /**
- * A {@link BigDecimalCoder} encodes {@link BigDecimal} in an integer and
- * a byte array. The integer represents the scale and the byte array
- * represents a {@link BigInteger}. The integer is in 4 bytes, big-endian.
+ * A {@link BigDecimalCoder} encodes {@link BigDecimal} two integers and a byte array. The first
+ * integer, encoded in 4 bytes, big-endian, represents the scale. The second integer, also in 4
+ * bytes big-endian is a length-prefix for the byte array. The byte array contains the big endian
+ * two's-complement representation of a {@link BigInteger} that, when scaled, equals to the given
+ * {@link BigDecimal}.
  */
 public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
 
@@ -48,9 +52,7 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
   @Override
   public void encode(BigDecimal value, OutputStream outStream, Context context)
       throws IOException, CoderException {
-    if (value == null) {
-      throw new CoderException("cannot encode a null BigDecimal");
-    }
+    checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
 
     byte[] bigIntBytes = value.unscaledValue().toByteArray();
 
@@ -99,14 +101,15 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code 8} plus the size of the {@link BigInteger} bytes.
+   * @return {@code 4} (the size of an integer denoting the scale) plus {@code 4} (the size of an
+   * integer length prefix for the following bytes) plus the size of the two's-complement
+   * representation of the {@link BigInteger} that, when scaled, equals the given value.
    */
   @Override
-  protected long getEncodedElementByteSize(BigDecimal value, Context context)
-      throws Exception {
-    if (value == null) {
-      throw new CoderException("cannot encode a null BigDecimal");
-    }
-    return 8 + value.unscaledValue().toByteArray().length;
+  protected long getEncodedElementByteSize(BigDecimal value, Context context) throws Exception {
+    checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
+    return 4 // scale size
+        + 4 // length prefix
+        + value.unscaledValue().toByteArray().length;
   }
 }
