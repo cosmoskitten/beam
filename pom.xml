@@ -948,7 +948,7 @@
           <dependencies>
             <dependency>
               <groupId>org.apache.beam</groupId>
-              <artifactId>java-build-tools</artifactId>
+              <artifactId>beam-sdks-java-build-tools</artifactId>
               <version>${project.version}</version>
             </dependency>
           </dependencies>
