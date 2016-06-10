@@ -494,7 +494,7 @@ public class AutoComplete {
                .to(tableRef)
                .withSchema(FormatForBigquery.getSchema())
                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-               .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+               .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
     }
 
     // Run the pipeline.
