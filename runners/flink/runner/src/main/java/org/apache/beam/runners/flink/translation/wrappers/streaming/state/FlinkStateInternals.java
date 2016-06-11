@@ -63,8 +63,6 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
   private final K key;
 
-  private final Coder<K> keyCoder;
-
   private final Coder<? extends BoundedWindow> windowCoder;
 
   private final OutputTimeFn<? super BoundedWindow> outputTimeFn;
@@ -72,11 +70,9 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   private Instant watermarkHoldAccessor;
 
   public FlinkStateInternals(K key,
-                             Coder<K> keyCoder,
                              Coder<? extends BoundedWindow> windowCoder,
                              OutputTimeFn<? super BoundedWindow> outputTimeFn) {
     this.key = key;
-    this.keyCoder = keyCoder;
     this.windowCoder = windowCoder;
     this.outputTimeFn = outputTimeFn;
   }

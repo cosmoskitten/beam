@@ -73,83 +73,10 @@ public class StateCheckpointUtils {
 
       //decode the state associated to the key.
       FlinkStateInternals<K> stateForKey =
-          new FlinkStateInternals<>(key, keyCoder, windowCoder, outputTimeFn);
+          new FlinkStateInternals<>(key, windowCoder, outputTimeFn);
       stateForKey.restoreState(reader, classLoader);
       perKeyStateInternals.put(key, stateForKey);
     }
     return perKeyStateInternals;
-  }
-
-  //////////////        Encoding/Decoding the Timers        ////////////////
-
-
-  public static <K> void encodeTimers(Map<K, Set<TimerInternals.TimerData>> allTimers,
-                StateCheckpointWriter writer,
-                Coder<K> keyCoder) throws IOException {
-    CoderTypeSerializer<K> keySerializer = new CoderTypeSerializer<>(keyCoder);
-
-    int noOfKeys = allTimers.size();
-    writer.writeInt(noOfKeys);
-    for (Map.Entry<K, Set<TimerInternals.TimerData>> timersPerKey : allTimers.entrySet()) {
-      K key = timersPerKey.getKey();
-
-      // encode the key
-      writer.serializeKey(key, keySerializer);
-
-      // write the associated timers
-      Set<TimerInternals.TimerData> timers = timersPerKey.getValue();
-      encodeTimerDataForKey(writer, timers);
-    }
-  }
-
-  public static <K> Map<K, Set<TimerInternals.TimerData>> decodeTimers(
-      StateCheckpointReader reader,
-      Coder<? extends BoundedWindow> windowCoder,
-      Coder<K> keyCoder) throws IOException {
-
-    int noOfKeys = reader.getInt();
-    Map<K, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>(noOfKeys);
-    activeTimers.clear();
-
-    CoderTypeSerializer<K> keySerializer = new CoderTypeSerializer<>(keyCoder);
-    for (int i = 0; i < noOfKeys; i++) {
-
-      // decode the key.
-      K key = reader.deserializeKey(keySerializer);
-
-      // decode the associated timers.
-      Set<TimerInternals.TimerData> timers = decodeTimerDataForKey(reader, windowCoder);
-      activeTimers.put(key, timers);
-    }
-    return activeTimers;
-  }
-
-  private static void encodeTimerDataForKey(StateCheckpointWriter writer, Set<TimerInternals.TimerData> timers) throws IOException {
-    // encode timers
-    writer.writeInt(timers.size());
-    for (TimerInternals.TimerData timer : timers) {
-      String stringKey = timer.getNamespace().stringKey();
-
-      writer.setTag(stringKey);
-      writer.setTimestamp(timer.getTimestamp());
-      writer.writeInt(timer.getDomain().ordinal());
-    }
-  }
-
-  private static Set<TimerInternals.TimerData> decodeTimerDataForKey(
-      StateCheckpointReader reader, Coder<? extends BoundedWindow> windowCoder) throws IOException {
-
-    // decode the timers: first their number and then the content itself.
-    int noOfTimers = reader.getInt();
-    Set<TimerInternals.TimerData> timers = new HashSet<>(noOfTimers);
-    for (int i = 0; i < noOfTimers; i++) {
-      String stringKey = reader.getTagToString();
-      Instant instant = reader.getTimestamp();
-      TimeDomain domain = TimeDomain.values()[reader.getInt()];
-
-      StateNamespace namespace = StateNamespaces.fromString(stringKey, windowCoder);
-      timers.add(TimerInternals.TimerData.of(namespace, instant, domain));
-    }
-    return timers;
   }
 }
