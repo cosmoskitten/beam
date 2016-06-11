@@ -32,8 +32,8 @@ import org.apache.flink.util.Collector;
 import java.util.Map;
 
 /**
- * Encapsulates a {@link org.apache.beam.sdk.transforms.DoFn} that uses side outputs
- * inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
+ * Encapsulates a {@link org.apache.beam.sdk.transforms.DoFn} that can emit to multiple
+ * outputs inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
  *
  * We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index
  * and must tag all outputs with the output number. Afterwards a filter will filter out
@@ -104,7 +104,9 @@ public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
       }
     }
 
-
+    // set the windowed value to null so that the special logic for outputting
+    // in startBundle/finishBundle kicks in
+    context = context.forWindowedValue(null);
     this.doFn.finishBundle(context);
   }
 }
