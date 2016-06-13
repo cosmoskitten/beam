@@ -77,9 +77,11 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   public static TestDataflowPipelineRunner fromOptions(
       PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
-    dataflowOptions.setStagingLocation(Joiner.on("/").join(
+    String tempLocation = Joiner.on("/").join(
         new String[]{dataflowOptions.getTempRoot(),
-          dataflowOptions.getJobName(), "output", "results"}));
+        dataflowOptions.getJobName(), "output", "results"});
+    dataflowOptions.setTempLocation(tempLocation);
+    dataflowOptions.setStagingLocation(tempLocation);
 
     return new TestDataflowPipelineRunner(dataflowOptions);
   }
