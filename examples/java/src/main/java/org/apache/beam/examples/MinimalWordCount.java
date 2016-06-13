@@ -67,11 +67,12 @@ public class MinimalWordCount {
     // In order to run your pipeline on the Google Cloud, you need to make following
     // runner specific changes:
 
-    // CHANGE 1/4: Select a dataflow PipelineRunner.
+    // CHANGE 1/4: Select a Beam runner, such as BlockingDataflowPipelineRunner,
+    // FlinkPipelineRunner, or SparkPipelineRunner.
     // CHANGE 2/4: Your project ID is required in order to run your pipeline on the Google Cloud.
     // CHANGE 3/4: Your Google Cloud Storage path is required for staging temp files.
     // options.as(DataflowPipelineOptions.class)
-    //     .setRunner(BlockingDatalfowPipelineRunner.class)
+    //     .setRunner(BlockingDataflowPipelineRunner.class)
     //     .setProject("SET_YOUR_PROJECT_ID_HERE")
     //     .setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
 
