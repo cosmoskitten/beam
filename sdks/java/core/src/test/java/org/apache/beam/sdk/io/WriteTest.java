@@ -19,9 +19,11 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -147,7 +149,7 @@ public class WriteTest {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
     runWrite(
-        inputs, new WindowAndReshuffle(Window.<String>into(FixedWindows.of(Duration.millis(2)))));
+        inputs, new WindowAndReshuffle<>(Window.<String>into(FixedWindows.of(Duration.millis(2)))));
   }
 
   /**
@@ -161,7 +163,22 @@ public class WriteTest {
 
     runWrite(
         inputs,
-        new WindowAndReshuffle(Window.<String>into(Sessions.withGapDuration(Duration.millis(1)))));
+        new WindowAndReshuffle<>(
+            Window.<String>into(Sessions.withGapDuration(Duration.millis(1)))));
+  }
+
+  @Test
+  public void testBuildWrite() {
+    Sink sink = new TestSink() {};
+    Write.Bound<String> write = Write.to(sink).withNumShards(3);
+    assertEquals(3, write.getNumShards());
+    assertThat(write.getSink(), is(sink));
+
+    Write.Bound<String> write2 = write.withNumShards(7);
+    assertEquals(7, write2.getNumShards());
+    assertThat(write2.getSink(), is(sink));
+    // original unchanged
+    assertEquals(3, write.getNumShards());
   }
 
   @Test
@@ -178,8 +195,6 @@ public class WriteTest {
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFrom(sink));
   }
-
-
 
   /**
    * Performs a Write transform and verifies the Write transform calls the appropriate methods on
@@ -246,10 +261,7 @@ public class WriteTest {
      */
     @Override
     public boolean equals(Object other) {
-      if (!(other instanceof TestSink)) {
-        return false;
-      }
-      return true;
+      return (other instanceof TestSink);
     }
 
     @Override
