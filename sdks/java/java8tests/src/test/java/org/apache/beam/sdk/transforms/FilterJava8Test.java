@@ -92,7 +92,7 @@ public class FilterJava8Test implements Serializable {
     @SuppressWarnings({"unchecked", "rawtypes"})
     PCollection<String> output = pipeline
         .apply(Create.of("hello"))
-        .apply(Filter.by(s -> true));
+        .apply(Filter.byPredicate(s -> true));
 
     thrown.expect(CannotProvideCoderException.class);
     pipeline.getCoderRegistry().getDefaultCoder(output.getTypeDescriptor());

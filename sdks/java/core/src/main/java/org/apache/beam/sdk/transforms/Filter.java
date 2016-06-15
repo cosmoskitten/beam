@@ -51,24 +51,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    */
   public static <T, PredicateT extends SerializableFunction<T, Boolean>> Filter<T>
   byPredicate(PredicateT predicate) {
-    return new Filter<T>("Filter", predicate);
-  }
-
-  /**
-   * @deprecated use {@link #byPredicate}, which returns a {@link Filter} transform instead of
-   * a {@link ParDo.Bound}.
-   */
-  @Deprecated
-  public static <T, PredicateT extends SerializableFunction<T, Boolean>> ParDo.Bound<T, T>
-  by(final PredicateT filterPred) {
-    return ParDo.named("Filter").of(new DoFn<T, T>() {
-      @Override
-      public void processElement(ProcessContext c) {
-        if (filterPred.apply(c.element()) == true) {
-          c.output(c.element());
-        }
-      }
-    });
+    return new Filter<>(predicate);
   }
 
   /**
@@ -92,21 +75,13 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #byPredicate}, which returns elements
    * that satisfy the given predicate.
    */
-  public static <T extends Comparable<T>> ParDo.Bound<T, T> lessThan(final T value) {
-    return ParDo.named("Filter.lessThan").of(new DoFn<T, T>() {
+  public static <T extends Comparable<T>> Filter<T> lessThan(final T value) {
+    return byPredicate(new SerializableFunction<T, Boolean>() {
       @Override
-      public void processElement(ProcessContext c) {
-        if (c.element().compareTo(value) < 0) {
-          c.output(c.element());
-        }
+      public Boolean apply(T input) {
+        return input.compareTo(value) < 0;
       }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        Filter.populateDisplayData(builder, String.format("x < %s", value));
-      }
-    });
+    }).named("Filter.lessThan").described(String.format("x < %s", value));
   }
 
 
@@ -131,21 +106,13 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #byPredicate}, which returns elements
    * that satisfy the given predicate.
    */
-  public static <T extends Comparable<T>> ParDo.Bound<T, T> greaterThan(final T value) {
-    return ParDo.named("Filter.greaterThan").of(new DoFn<T, T>() {
+  public static <T extends Comparable<T>> Filter<T> greaterThan(final T value) {
+    return byPredicate(new SerializableFunction<T, Boolean>() {
       @Override
-      public void processElement(ProcessContext c) {
-        if (c.element().compareTo(value) > 0) {
-          c.output(c.element());
-        }
+      public Boolean apply(T input) {
+        return input.compareTo(value) > 0;
       }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        Filter.populateDisplayData(builder, String.format("x > %s", value));
-      }
-    });
+    }).named("Filter.lessThan").described(String.format("x > %s", value));
   }
 
   /**
@@ -169,21 +136,13 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #byPredicate}, which returns elements
    * that satisfy the given predicate.
    */
-  public static <T extends Comparable<T>> ParDo.Bound<T, T> lessThanEq(final T value) {
-    return ParDo.named("Filter.lessThanEq").of(new DoFn<T, T>() {
+  public static <T extends Comparable<T>> Filter<T> lessThanEq(final T value) {
+    return byPredicate(new SerializableFunction<T, Boolean>() {
       @Override
-      public void processElement(ProcessContext c) {
-        if (c.element().compareTo(value) <= 0) {
-          c.output(c.element());
-        }
+      public Boolean apply(T input) {
+        return input.compareTo(value) <= 0;
       }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        Filter.populateDisplayData(builder, String.format("x ≤ %s", value));
-      }
-    });
+    }).named("Filter.lessThanEq").described(String.format("x ≤ %s", value));
   }
 
   /**
@@ -207,43 +166,54 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #byPredicate}, which returns elements
    * that satisfy the given predicate.
    */
-  public static <T extends Comparable<T>> ParDo.Bound<T, T> greaterThanEq(final T value) {
-    return ParDo.named("Filter.greaterThanEq").of(new DoFn<T, T>() {
+  public static <T extends Comparable<T>> Filter<T> greaterThanEq(final T value) {
+    return byPredicate(new SerializableFunction<T, Boolean>() {
       @Override
-      public void processElement(ProcessContext c) {
-        if (c.element().compareTo(value) >= 0) {
-          c.output(c.element());
-        }
+      public Boolean apply(T input) {
+        return input.compareTo(value) >= 0;
       }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        Filter.populateDisplayData(builder, String.format("x ≥ %s", value));
-      }
-    });
+    }).named("Filter.greaterThanEq").described(String.format("x ≥ %s", value));
   }
 
   ///////////////////////////////////////////////////////////////////////////////
 
+  private String name = "Filter";
   private SerializableFunction<T, Boolean> predicate;
+  private String predicateDescription = "Filter.predicate";
 
   private Filter(SerializableFunction<T, Boolean> predicate) {
     this.predicate = predicate;
   }
 
-  private Filter(String name, SerializableFunction<T, Boolean> predicate) {
-    super(name);
+  private Filter(String name, SerializableFunction<T, Boolean> predicate,
+      String predicateDescription) {
+    this.name = name;
     this.predicate = predicate;
+    this.predicateDescription = predicateDescription;
   }
 
+  /**
+   * Returns a new {@link Filter} {@link PTransform} that's like this
+   * {@link PTransform} but with the specified name. Does not
+   * modify this {@link PTransform}.
+   */
   public Filter<T> named(String name) {
-    return new Filter<>(name, predicate);
+    return new Filter<>(name, predicate, predicateDescription);
+  }
+
+  /**
+   * Returns a new {@link Filter} {@link PTransform} that's like this
+   * {@link PTransform} but with the specified description for {@link DisplayData}. Does not
+   * modify this {@link PTransform}.
+   */
+  public Filter<T> described(String description) {
+    return new Filter<>(name, predicate, description);
+
   }
 
   @Override
   public PCollection<T> apply(PCollection<T> input) {
-    PCollection<T> output = input.apply(ParDo.named("Filter").of(new DoFn<T, T>() {
+    PCollection<T> output = input.apply(ParDo.named(name).of(new DoFn<T, T>() {
       @Override
       public void processElement(ProcessContext c) {
         if (predicate.apply(c.element()) == true) {
@@ -259,8 +229,9 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
     return input.getCoder();
   }
 
-  private static void populateDisplayData(
-      DisplayData.Builder builder, String predicateDescription) {
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
     builder.add(DisplayData.item("predicate", predicateDescription)
       .withLabel("Filter Predicate"));
   }
