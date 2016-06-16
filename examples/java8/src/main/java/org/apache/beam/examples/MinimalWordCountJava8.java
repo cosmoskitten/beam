@@ -26,7 +26,7 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 import java.util.Arrays;
 
@@ -39,11 +39,12 @@ public class MinimalWordCountJava8 {
 
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
-    // In order to run your pipeline on the Google Cloud, you need to make following
-    // runner specific changes:
-    // CHANGE 1 of 4: Select a dataflow PipelineRunner.
-    // CHANGE 2 of 4: Your project ID is required in order to run your pipeline on the Google Cloud.
-    // CHANGE 3 of 4: Your Google Cloud Storage path is required for staging temp files.
+    // In order to run your pipeline, you need to make following runner specific changes:
+    //
+    // CHANGE 1/4: Select a Beam runner, such as BlockingDataflowPipelineRunner
+    // or FlinkPipelineRunner.
+    // CHANGE 2/4: Specify runner-required options.
+    // For BlockingDataflowPipelineRunner, set project and temp location as follows:
     // options.as(DataflowPipelineOptions.class)
     //     .setRunner(BlockingDataflowPipelineRunner.class);
     //     .setProject("SET_YOUR_PROJECT_ID_HERE")
@@ -53,12 +54,12 @@ public class MinimalWordCountJava8 {
 
     p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
      .apply(FlatMapElements.via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+")))
-         .withOutputType(new TypeDescriptor<String>() {}))
+         .withOutputType(TypeDescriptors.strings()))
      .apply(Filter.byPredicate((String word) -> !word.isEmpty()))
      .apply(Count.<String>perElement())
      .apply(MapElements
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue())
-         .withOutputType(new TypeDescriptor<String>() {}))
+         .withOutputType(TypeDescriptors.strings()))
 
      // CHANGE 4 of 4: The Google Cloud Storage path is required for outputting the results to.
      .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
