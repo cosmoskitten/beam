@@ -31,6 +31,8 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import static org.hamcrest.Matchers.containsString;
+
 /**
  * Java 8 Tests for {@link WithKeys}.
  */
@@ -66,8 +68,13 @@ public class WithKeysJava8Test {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder for ApplyKeysWithWithKeys");
-    thrown.expectMessage("Cannot provide a coder for type variable K");
-    thrown.expectMessage("the actual type is unknown due to erasure.");
+    thrown.expectMessage("No Coder has been manually specified");
+    thrown.expectMessage(
+        containsString("Building a Coder using a registered CoderFactory failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the @DefaultCoder annotation failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the fallback CoderProvider failed"));
 
     p.run();
   }
