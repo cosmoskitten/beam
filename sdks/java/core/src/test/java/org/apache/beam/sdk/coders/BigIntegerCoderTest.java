@@ -50,7 +50,7 @@ public class BigIntegerCoderTest {
 
   private static final List<BigInteger> TEST_VALUES =
       ImmutableList.of(
-          BigInteger.valueOf(Integer.MIN_VALUE).multiply(BigInteger.TEN),
+          BigInteger.valueOf(Integer.MIN_VALUE).subtract(BigInteger.valueOf(Integer.MAX_VALUE)),
           BigInteger.valueOf(Integer.MIN_VALUE).subtract(BigInteger.ONE),
           BigInteger.valueOf(-1),
           BigInteger.ZERO,
@@ -78,14 +78,7 @@ public class BigIntegerCoderTest {
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
   private static final List<String> TEST_ENCODINGS =
-      ImmutableList.of(
-          "AAAABfsAAAAA",
-          "AAAABf9_____",
-          "AAAAAf8",
-          "AAAAAQA",
-          "AAAAAQE",
-          "AAAABQCAAAAA",
-          "AAAABQT____2");
+      ImmutableList.of("_wAAAAE", "_3____8", "_w", "AA", "AQ", "AIAAAAA", "BP____Y");
 
   @Test
   public void testWireFormatEncode() throws Exception {
@@ -112,5 +105,15 @@ public class BigIntegerCoderTest {
     thrown.expectMessage("cannot encode a null BigInteger");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
+
+  }
+  /**
+   * This is a change-detector test. If this test fails, then the encoding id of
+   * {@link BigIntegerCoder} must change.
+   */
+  @Test
+  public void testCoderIdDependencies() {
+    assertThat(VarIntCoder.of().getEncodingId(), equalTo(""));
+    assertThat(ByteArrayCoder.of().getEncodingId(), equalTo(""));
   }
 }

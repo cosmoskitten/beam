@@ -21,16 +21,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
 
 /**
- * A {@link BigIntegerCoder} encodes a {@link BigInteger} as a length-prefixed byte array
- * containing the big endian two's-complement representation.
+ * A {@link BigIntegerCoder} encodes a {@link BigInteger} as a byte array containing the big endian
+ * two's-complement representation.
  */
 public class BigIntegerCoder extends AtomicCoder<BigInteger> {
 
@@ -45,28 +43,19 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
 
   private BigIntegerCoder() {}
 
+  private final ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
+
   @Override
   public void encode(BigInteger value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
-
-    byte[] bigIntBytes = value.toByteArray();
-
-    DataOutputStream dataOutputStream = new DataOutputStream(outStream);
-    dataOutputStream.writeInt(bigIntBytes.length);
-    dataOutputStream.write(bigIntBytes);
+    byteArrayCoder.encode(value.toByteArray(), outStream, context);
   }
 
   @Override
   public BigInteger decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    DataInputStream dataInputStream = new DataInputStream(inStream);
-
-    int bigIntBytesSize = dataInputStream.readInt();
-    byte[] bigIntBytes = new byte[bigIntBytesSize];
-    dataInputStream.readFully(bigIntBytes);
-
-    return new BigInteger(bigIntBytes);
+    return new BigInteger(byteArrayCoder.decode(inStream, context));
   }
 
   /**
@@ -92,13 +81,11 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code 4} (the size of a big endian int length prefix) plus the
-   * size of the {@link BigInteger} bytes.
+   * @return the size of the encoding as a byte array according to {@link ByteArrayCoder}
    */
   @Override
-  protected long getEncodedElementByteSize(BigInteger value, Context context)
-      throws Exception {
+  protected long getEncodedElementByteSize(BigInteger value, Context context) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
-    return 4 + value.toByteArray().length;
+    return byteArrayCoder.getEncodedElementByteSize(value.toByteArray(), context);
   }
 }
