@@ -21,20 +21,18 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 
 /**
- * A {@link BigDecimalCoder} encodes {@link BigDecimal} two integers and a byte array. The first
- * integer, encoded in 4 bytes, big-endian, represents the scale. The second integer, also in 4
- * bytes big-endian is a length-prefix for the byte array. The byte array contains the big endian
- * two's-complement representation of a {@link BigInteger} that, when scaled, equals to the given
- * {@link BigDecimal}.
+ * A {@link BigDecimalCoder} encodes a {@link BigDecimal} as an integer scale encoded with
+ * {@link VarIntCoder} and a {@link BigInteger} encoded using {@link BigIntegerCoder}. The
+ * {@link BigInteger}, when scaled (with unlimited precision, aka {@link MathContext#UNLIMITED}),
+ * yields the expected {@link BigDecimal}.
  */
 public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
 
@@ -47,35 +45,25 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
 
   private static final BigDecimalCoder INSTANCE = new BigDecimalCoder();
 
+  private final VarIntCoder integerCoder = VarIntCoder.of();
+  private final BigIntegerCoder bigIntegerCoder = BigIntegerCoder.of();
+
   private BigDecimalCoder() {}
 
   @Override
   public void encode(BigDecimal value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
-
-    byte[] bigIntBytes = value.unscaledValue().toByteArray();
-
-    DataOutputStream dataOutputStream = new DataOutputStream(outStream);
-    dataOutputStream.writeInt(value.scale());
-    dataOutputStream.writeInt(bigIntBytes.length);
-    dataOutputStream.write(bigIntBytes);
+    integerCoder.encode(value.scale(), outStream, context.nested());
+    bigIntegerCoder.encode(value.unscaledValue(), outStream, context.nested());
   }
 
   @Override
   public BigDecimal decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    DataInputStream dataInputStream = new DataInputStream(inStream);
-    int scale = dataInputStream.readInt();
-    int bigIntBytesSize = dataInputStream.readInt();
-
-    byte[] bigIntBytes = new byte[bigIntBytesSize];
-    dataInputStream.readFully(bigIntBytes);
-
-    BigInteger bigInteger = new BigInteger(bigIntBytes);
-    BigDecimal bigDecimal = new BigDecimal(bigInteger, scale);
-
-    return bigDecimal;
+    int scale = integerCoder.decode(inStream, context.nested());
+    BigInteger bigInteger = bigIntegerCoder.decode(inStream, context.nested());
+    return new BigDecimal(bigInteger, scale);
   }
 
   /**
@@ -108,8 +96,7 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
   @Override
   protected long getEncodedElementByteSize(BigDecimal value, Context context) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
-    return 4 // scale size
-        + 4 // length prefix
-        + value.unscaledValue().toByteArray().length;
+    return integerCoder.getEncodedElementByteSize(value.scale(), context.nested())
+        + bigIntegerCoder.getEncodedElementByteSize(value.unscaledValue(), context.nested());
   }
 }
