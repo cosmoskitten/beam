@@ -75,9 +75,15 @@ public class TypedPValueTest {
     PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, untypedSideOutputTag);
 
     thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(not(containsString("erasure")));
+    thrown.expectMessage(not(containsString("see TupleTag Javadoc")));
     thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage("erasure");
-    thrown.expectMessage("see TupleTag Javadoc");
+    thrown.expectMessage(
+        containsString("Building a Coder using a registered CoderFactory failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the @DefaultCoder annotation failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the fallback CoderProvider failed"));
 
     tuple.get(untypedSideOutputTag).getCoder();
   }
@@ -90,9 +96,15 @@ public class TypedPValueTest {
     PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, untypedSideOutputTag);
 
     thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(not(containsString("erasure")));
+    thrown.expectMessage(not(containsString("see TupleTag Javadoc")));
     thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage("erasure");
-    thrown.expectMessage("see TupleTag Javadoc");
+    thrown.expectMessage(
+        containsString("Building a Coder using a registered CoderFactory failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the @DefaultCoder annotation failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the fallback CoderProvider failed"));
 
     tuple.get(untypedSideOutputTag).getCoder();
   }
