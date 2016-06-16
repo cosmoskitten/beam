@@ -66,14 +66,17 @@ public class MinimalWordCount {
 
     // In order to run your pipeline, you need to make following runner specific changes:
     //
-    // CHANGE 1/4: Select a Beam runner, such as BlockingDataflowPipelineRunner
+    // CHANGE 1/3: Select a Beam runner, such as BlockingDataflowPipelineRunner
     // or FlinkPipelineRunner.
-    // CHANGE 2/4: Specify runner-required options.
+    // CHANGE 2/3: Specify runner-required options.
     // For BlockingDataflowPipelineRunner, set project and temp location as follows:
-    // options.as(DataflowPipelineOptions.class)
-    //     .setRunner(BlockingDataflowPipelineRunner.class)
-    //     .setProject("SET_YOUR_PROJECT_ID_HERE")
-    //     .setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
+    //   DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    //   dataflowOptions.setRunner(BlockingDataflowPipelineRunner.class);
+    //   dataflowOptions.setProject("SET_YOUR_PROJECT_ID_HERE");
+    //   dataflowOptions.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
+    // For FlinkPipelineRunner, check {@code FlinkPipelineOptions} for other options.
+    //   options.as(FlinkPipelineOptions.class)
+    //      .setRunner(FlinkPipelineRunner.class);
 
     // Create the Pipeline object with the options we defined above.
     Pipeline p = Pipeline.create(options);
@@ -113,7 +116,7 @@ public class MinimalWordCount {
      // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.
      // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
      // formatted strings) to a series of text files in Google Cloud Storage.
-     // CHANGE 4/4: The Google Cloud Storage path is required for outputting the results to.
+     // CHANGE 3/3: The Google Cloud Storage path is required for outputting the results to.
      .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
 
     // Run the pipeline.

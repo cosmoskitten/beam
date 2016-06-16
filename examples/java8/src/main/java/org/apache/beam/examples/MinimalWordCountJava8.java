@@ -41,14 +41,17 @@ public class MinimalWordCountJava8 {
     PipelineOptions options = PipelineOptionsFactory.create();
     // In order to run your pipeline, you need to make following runner specific changes:
     //
-    // CHANGE 1/4: Select a Beam runner, such as BlockingDataflowPipelineRunner
+    // CHANGE 1/3: Select a Beam runner, such as BlockingDataflowPipelineRunner
     // or FlinkPipelineRunner.
-    // CHANGE 2/4: Specify runner-required options.
+    // CHANGE 2/3: Specify runner-required options.
     // For BlockingDataflowPipelineRunner, set project and temp location as follows:
-    // options.as(DataflowPipelineOptions.class)
-    //     .setRunner(BlockingDataflowPipelineRunner.class);
-    //     .setProject("SET_YOUR_PROJECT_ID_HERE")
-    //     .setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
+    //   DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    //   dataflowOptions.setRunner(BlockingDataflowPipelineRunner.class);
+    //   dataflowOptions.setProject("SET_YOUR_PROJECT_ID_HERE");
+    //   dataflowOptions.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
+    // For FlinkPipelineRunner, check {@code FlinkPipelineOptions} for other options.
+    //   options.as(FlinkPipelineOptions.class)
+    //      .setRunner(FlinkPipelineRunner.class);
 
     Pipeline p = Pipeline.create(options);
 
@@ -61,7 +64,7 @@ public class MinimalWordCountJava8 {
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue())
          .withOutputType(TypeDescriptors.strings()))
 
-     // CHANGE 4 of 4: The Google Cloud Storage path is required for outputting the results to.
+     // CHANGE 3/3: The Google Cloud Storage path is required for outputting the results to.
      .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
 
     p.run();

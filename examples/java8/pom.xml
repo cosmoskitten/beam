@@ -75,6 +75,12 @@
             <goals><goal>analyze-only</goal></goals>
             <configuration>
               <failOnWarning>true</failOnWarning>
+              <ignoredUnusedDeclaredDependencies>
+                <!-- runners are used by ServiceLoader. -->
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-direct-java</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-google-cloud-dataflow-java</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-flink_2.10</ignoredUnusedDeclaredDependency>
+              </ignoredUnusedDeclaredDependencies>
             </configuration>
           </execution>
         </executions>
@@ -118,7 +124,19 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-flink_2.10</artifactId>
       <version>${project.version}</version>
     </dependency>
 
