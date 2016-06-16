@@ -397,6 +397,18 @@ public class CoderRegistryTest {
 
   private static class TestGenericClass<TestGenericT> { }
 
+  @Test
+  public void testSerializableTypeVariableDefaultCoder() throws Exception {
+    CoderRegistry registry = new CoderRegistry();
+
+    TypeDescriptor type = TypeDescriptor.of(
+        TestSerializableGenericClass.class.getTypeParameters()[0]);
+    assertEquals(registry.getDefaultCoder(type),
+        SerializableCoder.of(type));
+  }
+
+  private static class TestSerializableGenericClass<TestGenericT extends Serializable> {}
+
   /**
    * In-context test that assures the functionality tested in
    * {@link #testDefaultCoderAnnotationGeneric} is invoked in the right ways.

@@ -31,12 +31,14 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -163,9 +165,9 @@ public class CoderRegistry implements CoderProvider {
    */
   public <T> void registerCoder(Class<T> rawClazz, Coder<T> coder) {
     checkArgument(
-      rawClazz.getTypeParameters().length == 0,
-      "CoderRegistry.registerCoder(Class<T>, Coder<T>) may not be used "
-      + "with unspecialized generic classes");
+        rawClazz.getTypeParameters().length == 0,
+        "CoderRegistry.registerCoder(Class<T>, Coder<T>) may not be used "
+            + "with unspecialized generic classes");
 
     CoderFactory factory = CoderFactories.forCoder(coder);
     registerCoder(rawClazz, factory);
@@ -720,6 +722,9 @@ public class CoderRegistry implements CoderProvider {
       return getDefaultCoder(clazz);
     } else if (type instanceof ParameterizedType) {
       return getDefaultCoder((ParameterizedType) type, typeCoderBindings);
+    } else if (type instanceof TypeVariable
+        && TypeToken.of(type).isSubtypeOf(Serializable.class)) {
+      return SerializableCoder.PROVIDER.getCoder(TypeDescriptor.of(type));
     } else if (type instanceof TypeVariable || type instanceof WildcardType) {
       // No default coder for an unknown generic type.
       throw new CannotProvideCoderException(
