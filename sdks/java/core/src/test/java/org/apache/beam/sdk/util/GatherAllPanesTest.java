@@ -136,7 +136,14 @@ public class GatherAllPanesTest implements Serializable {
                     return null;
                   }
                 }
-                fail("Expected at least one window to have multiple panes");
+                if (Iterables.size(input) == 0) {
+                  System.out.println("Hello world");
+                  return null;
+                }
+                fail(
+                    "Expected at least one window to have multiple panes. "
+                        + Iterables.size(input)
+                        + " total windows");
                 return null;
               }
             });
