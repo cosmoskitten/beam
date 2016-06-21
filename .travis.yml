@@ -37,6 +37,7 @@ matrix:
   include:
     # On OSX, run with default JDK only.
     - os: osx
+      env: MAVEN_OVERRIDE=""
     # On Linux, run with specific JDKs only.
     - os: linux
       env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-DforkCount=0"
@@ -62,4 +63,3 @@ script:
   - travis_retry $TOX_HOME/tox -e $TOX_ENV
   - travis_retry mvn -B $MAVEN_OVERRIDE install -U
   - travis_retry testing/travis/test_wordcount.sh
-
