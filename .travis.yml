@@ -37,7 +37,6 @@ matrix:
   include:
     # On OSX, run with default JDK only.
     - os: osx
-      env: MAVEN_OVERRIDE=""
     # On Linux, run with specific JDKs only.
     - os: linux
       env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-DforkCount=0"
@@ -52,13 +51,15 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then jdk_switcher use "$CUSTOM_JDK"; fi
   # python sdk environment settings
   - export TOX_ENV=py27
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export TOX_HOME=$HOME/Library/Python/2.7/bin; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then export TOX_HOME=$HOME/.local/bin; fi
 
 install:
   - travis_retry mvn -B install clean -U -DskipTests=true
   - travis_retry pip install tox --user `whoami`
 
 script:
-  - travis_retry  ~/.local/bin/tox -e $TOX_ENV
+  - travis_retry $TOX_HOME/tox -e $TOX_ENV
   - travis_retry mvn -B $MAVEN_OVERRIDE install -U
   - travis_retry testing/travis/test_wordcount.sh
 
