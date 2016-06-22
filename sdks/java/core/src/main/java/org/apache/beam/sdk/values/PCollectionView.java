@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 
@@ -50,8 +51,16 @@ public interface PCollectionView<T> extends PValue, Serializable {
 
   /**
    * For internal use only.
+   *
+   * @deprecated use getViewFn()
    */
+  @Deprecated
   public T fromIterableInternal(Iterable<WindowedValue<?>> contents);
+
+  /**
+   * For internal use only.
+   */
+  public ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
 
   /**
    * For internal use only.
