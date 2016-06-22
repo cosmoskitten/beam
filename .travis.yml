@@ -65,6 +65,6 @@ install:
   - if [ "$TEST_PYTHON" ]; then travis_retry pip install tox --user `whoami`; fi
 
 script:
-  - if [ "$TEST_PYTHON" ]; then travis_retry $TOX_HOME/tox -e $TOX_ENV; fi
+  - if [ "$TEST_PYTHON" ]; then travis_retry $TOX_HOME/tox -e $TOX_ENV -c sdks/python/tox.ini; fi
   - if [ ! "$TEST_PYTHON" ]; then travis_retry mvn -B $MAVEN_OVERRIDE install -U; fi
   - if [ ! "$TEST_PYTHON" ]; then travis_retry testing/travis/test_wordcount.sh; fi
