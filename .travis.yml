@@ -48,7 +48,7 @@ matrix:
     # Python SDK environments
     - os: osx
       env: TEST_PYTHON="1"
-    - os: linux:
+    - os: linux
       env: TEST_PYTHON="1"
 
 before_install:
