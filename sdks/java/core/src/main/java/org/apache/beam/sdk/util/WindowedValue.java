@@ -147,7 +147,7 @@ public abstract class WindowedValue<T> {
     return new ValueInEmptyWindows<T>(value, pane);
   }
 
-  private WindowedValue(T value, PaneInfo pane) {
+  protected WindowedValue(T value, PaneInfo pane) {
     this.value = value;
     this.pane = checkNotNull(pane);
   }
