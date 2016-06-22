@@ -29,6 +29,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ByteKeyRangeTrackerTest {
   private static final ByteKey INITIAL_START_KEY = ByteKey.of(0x12);
+  private static final ByteKey AFTER_START_KEY = ByteKey.of(0x13);
   private static final ByteKey INITIAL_MIDDLE_KEY = ByteKey.of(0x23);
   private static final ByteKey NEW_START_KEY = ByteKey.of(0x14);
   private static final ByteKey NEW_MIDDLE_KEY = ByteKey.of(0x24);
@@ -150,5 +151,34 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY));
     assertFalse(tracker.trySplitAtPosition(INITIAL_MIDDLE_KEY));
     assertTrue(tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY));
+  }
+
+  /** Tests for {@link ByteKeyRangeTracker#getSplitPointsConsumed()}. */
+  @Test
+  public void testGetSplitPointsConsumed() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    assertEquals(0, tracker.getSplitPointsConsumed());
+
+    // Unstarted, should not split. Split points should remain at 0.
+    assertFalse(tracker.trySplitAtPosition(INITIAL_MIDDLE_KEY));
+    assertEquals(0, tracker.getSplitPointsConsumed());
+
+    // Start it, split 1 time, 0 split points consumed
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_START_KEY));
+    assertTrue(tracker.trySplitAtPosition(BEFORE_END_KEY));
+    assertEquals(0, tracker.getSplitPointsConsumed());
+
+    // Split 2 times, 1 split point consumed
+    assertTrue(tracker.trySplitAtPosition(INITIAL_MIDDLE_KEY));
+    assertEquals(1, tracker.getSplitPointsConsumed());
+
+    // Split 3 times, 2 split points consumed
+    assertTrue(tracker.trySplitAtPosition(AFTER_START_KEY));
+    assertEquals(2, tracker.getSplitPointsConsumed());
+
+    // Mark as done, 3 split points consumed
+    tracker.markDone();
+    assertTrue(tracker.isDone());
+    assertEquals(3, tracker.getSplitPointsConsumed());
   }
 }
