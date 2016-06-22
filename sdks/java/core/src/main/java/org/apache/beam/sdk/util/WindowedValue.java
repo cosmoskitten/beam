@@ -131,7 +131,13 @@ public abstract class WindowedValue<T> {
   /**
    * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
    * and pane.
+   *
+   * @deprecated a value in no windows technical is not "in" a PCollection. It is allowed to drop it
+   * at any point, and there are various points in various runners where this will happen. If a
+   * hack is needed where no window can be provided, create a dummy window that will fail fast if it
+   * is used outside its intended context.
    */
+  @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
     return new ValueInEmptyWindows<T>(value, PaneInfo.NO_FIRING);
   }
@@ -139,7 +145,13 @@ public abstract class WindowedValue<T> {
   /**
    * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
    * and the specified pane.
+   *
+   * @deprecated a value in no windows technical is not "in" a PCollection. It is allowed to drop it
+   * at any point, and there are various points in various runners where this will happen. If a
+   * hack is needed where no window can be provided, create a dummy window that will fail fast if it
+   * is used outside its intended context.
    */
+  @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
     return new ValueInEmptyWindows<T>(value, pane);
   }
@@ -293,7 +305,13 @@ public abstract class WindowedValue<T> {
   /**
    * The representation of a WindowedValue where timestamp == MIN and
    * windows == {}.
+   *
+   * @deprecated a value in no windows technical is not "in" a PCollection. It is allowed to drop it
+   * at any point, and there are various points in various runners where this will happen. If a
+   * hack is needed where no window can be provided, create a dummy window that will fail fast if it
+   * is used outside its intended context.
    */
+  @Deprecated
   private static class ValueInEmptyWindows<T>
       extends MinTimestampWindowedValue<T> {
     public ValueInEmptyWindows(T value, PaneInfo pane) {
