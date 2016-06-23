@@ -81,6 +81,18 @@
     <!--Method ignores results of InputStream.read()-->
   </Match>
   <Match>
+    <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
+    <Method name="getContext"/>
+    <Bug pattern="DC_DOUBLECHECK"/>
+    <!--Possible double check of field-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
+    <Field name="jaxbContext"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
     <Class name="org.apache.beam.sdk.coders.InstantCoder$1"/>
     <Bug pattern="HE_INHERITS_EQUALS_USE_HASHCODE"/>
     <!--Class inherits equals() and uses Object.hashCode()-->
@@ -159,6 +171,12 @@
   </Match>
   <Match>
     <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="startOffset"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
     <Field name="stopOffset"/>
     <Bug pattern="IS2_INCONSISTENT_SYNC"/>
     <!--Inconsistent synchronization-->
@@ -218,6 +236,18 @@
     <!--Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$PCollectionContentsAssert"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_UNUSUAL"/>
+    <!--Unusual equals method-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$PCollectionViewAssert"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_UNUSUAL"/>
+    <!--Unusual equals method-->
+  </Match>
+  <Match>
     <Class name="org.apache.beam.sdk.testing.PAssert$SingletonAssert"/>
     <Method name="equals"/>
     <Bug pattern="EQ_UNUSUAL"/>
@@ -254,6 +284,12 @@
     <!--Transient field that isn't set by deserialization. -->
   </Match>
   <Match>
+    <Class name="org.apache.beam.sdk.transforms.DoFnTester"/>
+    <Field name="sideOutputTags"/>
+    <Bug pattern="URF_UNREAD_FIELD"/>
+    <!--Unread field-->
+  </Match>
+  <Match>
     <Class name="org.apache.beam.sdk.transforms.Mean$CountSum"/>
     <Method name="equals"/>
     <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
@@ -264,6 +300,11 @@
     <Field name="entries"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.display.DisplayData$InternalBuilder$PopulateDisplayDataException"/>
+    <Bug pattern="SIC_INNER_SHOULD_BE_STATIC"/>
+    <!--Should be a static inner class-->
   </Match>
   <Match>
     <Class name="org.apache.beam.sdk.transforms.join.CoGbkResult$UnionValueIterator"/>
