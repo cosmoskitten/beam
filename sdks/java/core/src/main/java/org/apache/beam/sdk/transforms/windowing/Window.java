@@ -647,8 +647,8 @@ public class Window {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private static <T> PTransform<PCollection<? extends T>, PCollection<T>> identity() {
-    return ParDo.named("Identity").of(new DoFn<T, T>() {
+  private static <T> PTransform<PCollection<? extends T>, PCollection<T>> identityDoFn() {
+    return ParDo.of(new DoFn<T, T>() {
       @Override public void processElement(ProcessContext c) {
         c.output(c.element());
       }
@@ -675,7 +675,7 @@ public class Window {
       WindowingStrategy<?, ?> outputWindowingStrategy = getOutputWindowing(
           input.getWindowingStrategy());
 
-      return input.apply(Window.<T>identity())
+      return input.apply("Identity", Window.<T>identityDoFn())
           .setWindowingStrategyInternal(outputWindowingStrategy);
     }
 
