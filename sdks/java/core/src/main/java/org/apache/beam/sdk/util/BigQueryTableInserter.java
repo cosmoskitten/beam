@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 
 import com.google.api.client.util.BackOff;
@@ -37,7 +38,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.MoreExecutors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,9 +49,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
@@ -82,8 +80,8 @@ public class BigQueryTableInserter {
   private final TableReference defaultRef;
   private final long maxRowsPerBatch;
 
-  private static final ExecutorService executor = MoreExecutors.getExitingExecutorService(
-      (ThreadPoolExecutor) Executors.newFixedThreadPool(100), 10, TimeUnit.SECONDS);
+  private static final ExecutorService executor =
+          new GcsOptions.ExecutorServiceFactory().create();
 
   /**
    * Constructs a new row inserter.

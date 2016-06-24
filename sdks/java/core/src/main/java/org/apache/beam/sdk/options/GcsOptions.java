@@ -89,9 +89,14 @@ public interface GcsOptions extends
    * {@link ExecutorService} is compatible with AppEngine.
    */
   public static class ExecutorServiceFactory implements DefaultValueFactory<ExecutorService> {
-    @SuppressWarnings("deprecation")  // IS_APP_ENGINE is deprecated for internal use only.
+
     @Override
     public ExecutorService create(PipelineOptions options) {
+      return create();
+    }
+
+    @SuppressWarnings("deprecation")  // IS_APP_ENGINE is deprecated for internal use only.
+    public ExecutorService create() {
       ThreadFactoryBuilder threadFactoryBuilder = new ThreadFactoryBuilder();
       threadFactoryBuilder.setThreadFactory(MoreExecutors.platformThreadFactory());
       if (!AppEngineEnvironment.IS_APP_ENGINE) {
