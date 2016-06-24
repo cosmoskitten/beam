@@ -491,24 +491,25 @@ public class BigQueryIO {
 
       @Override
       public void validate(PInput input) {
+
+        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+
+        TableReference table = getTableWithDefaultProject(bqOptions);
+        if (table == null && query == null) {
+          throw new IllegalStateException(
+              "Invalid BigQuery read operation, either table reference or query has to be set");
+        } else if (table != null && query != null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies both a"
+              + " query and a table, only one of these should be provided");
+        } else if (table != null && flattenResults != null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
+              + " table with a result flattening preference, which is not configurable");
+        } else if (query != null && flattenResults == null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
+              + " query without a result flattening preference");
+        }
+
         if (validate) {
-          BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-
-          TableReference table = getTableWithDefaultProject(bqOptions);
-          if (table == null && query == null) {
-            throw new IllegalStateException(
-                "Invalid BigQuery read operation, either table reference or query has to be set");
-          } else if (table != null && query != null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies both a"
-                + " query and a table, only one of these should be provided");
-          } else if (table != null && flattenResults != null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
-                + " table with a result flattening preference, which is not configurable");
-          } else if (query != null && flattenResults == null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
-                + " query without a result flattening preference");
-          }
-
           // Check for source table/query presence for early failure notification.
           // Note that a presence check can fail if the table or dataset are created by earlier
           // stages of the pipeline or if a query depends on earlier stages of a pipeline. For these
