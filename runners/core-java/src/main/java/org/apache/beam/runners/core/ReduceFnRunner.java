@@ -34,6 +34,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.ReduceFnContextFactory.OnTriggerCallbacks;
 import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
+import org.apache.beam.runners.core.reactors.TriggerReactorContextFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -50,7 +51,6 @@ import org.apache.beam.sdk.util.NonMergingActiveWindowSet;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
-import org.apache.beam.sdk.util.TriggerContextFactory;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
@@ -165,7 +165,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
    * garbage collected.
    * </ul>
    */
-  private final TriggerRunner<W> triggerRunner;
+  private final TriggerReactorRunner<W> triggerRunner;
 
   /**
    * Store the output watermark holds for each window.
@@ -244,7 +244,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     this.triggerRunner =
         new TriggerRunner<>(
             windowingStrategy.getTrigger(),
-            new TriggerContextFactory<>(
+            new TriggerReactorContextFactory<>(
                 windowingStrategy.getWindowFn(), stateInternals, activeWindows));
   }
 

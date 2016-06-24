@@ -38,6 +38,7 @@ import static org.mockito.Mockito.withSettings;
 import com.google.common.collect.Iterables;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.runners.core.reactors.TriggerReactor;
 import org.apache.beam.sdk.WindowMatchers;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -94,23 +95,23 @@ import org.mockito.stubbing.Answer;
 @RunWith(JUnit4.class)
 public class ReduceFnRunnerTest {
   @Mock private SideInputReader mockSideInputReader;
-  private Trigger mockTrigger;
+  private TriggerReactor mockTrigger;
   private PCollectionView<Integer> mockView;
 
   private IntervalWindow firstWindow;
 
-  private static Trigger.TriggerContext anyTriggerContext() {
-    return Mockito.<Trigger.TriggerContext>any();
+  private static TriggerReactor.TriggerContext anyTriggerContext() {
+    return Mockito.<TriggerReactor.TriggerContext>any();
   }
-  private static Trigger.OnElementContext anyElementContext() {
-    return Mockito.<Trigger.OnElementContext>any();
+  private static TriggerReactor.OnElementContext anyElementContext() {
+    return Mockito.<TriggerReactor.OnElementContext>any();
   }
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    mockTrigger = mock(Trigger.class, withSettings().serializable());
+    mockTrigger = mock(TriggerReactor.class, withSettings().serializable());
 
     @SuppressWarnings("unchecked")
     PCollectionView<Integer> mockViewUnchecked =
@@ -125,13 +126,13 @@ public class ReduceFnRunnerTest {
     tester.injectElements(TimestampedValue.of(element, new Instant(element)));
   }
 
-  private void triggerShouldFinish(Trigger mockTrigger) throws Exception {
+  private void triggerShouldFinish(TriggerReactor mockTrigger) throws Exception {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation) throws Exception {
         @SuppressWarnings("unchecked")
-        Trigger.TriggerContext context =
-            (Trigger.TriggerContext) invocation.getArguments()[0];
+        TriggerReactor.TriggerContext context =
+            (TriggerReactor.TriggerContext) invocation.getArguments()[0];
         context.trigger().setFinished(true);
         return null;
       }

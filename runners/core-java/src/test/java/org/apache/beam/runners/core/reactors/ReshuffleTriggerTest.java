@@ -32,28 +32,28 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link ReshuffleTrigger}.
+ * Tests for {@link ReshuffleTriggerReactor}.
  */
 @RunWith(JUnit4.class)
 public class ReshuffleTriggerTest {
 
-  /** Public so that other tests can instantiate {@link ReshuffleTrigger}. */
-  public static <W extends BoundedWindow> ReshuffleTrigger<W> forTest() {
-    return new ReshuffleTrigger<>();
+  /** Public so that other tests can instantiate {@link ReshuffleTriggerReactor}. */
+  public static <W extends BoundedWindow> ReshuffleTriggerReactor<W> forTest() {
+    return new ReshuffleTriggerReactor<>();
   }
 
   @Test
   public void testShouldFire() throws Exception {
-    TriggerTester<Integer, IntervalWindow> tester = TriggerTester.forTrigger(
-        new ReshuffleTrigger<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
+    TriggerReactorTester<Integer, IntervalWindow> tester = TriggerReactorTester.forTrigger(
+        new ReshuffleTriggerReactor<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
     IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(300), new Instant(400));
     assertTrue(tester.shouldFire(arbitraryWindow));
   }
 
   @Test
   public void testOnTimer() throws Exception {
-    TriggerTester<Integer, IntervalWindow> tester = TriggerTester.forTrigger(
-        new ReshuffleTrigger<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
+    TriggerReactorTester<Integer, IntervalWindow> tester = TriggerReactorTester.forTrigger(
+        new ReshuffleTriggerReactor<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
     IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(100), new Instant(200));
     tester.fireIfShouldFire(arbitraryWindow);
     assertFalse(tester.isMarkedFinished(arbitraryWindow));
@@ -61,7 +61,7 @@ public class ReshuffleTriggerTest {
 
   @Test
   public void testToString() {
-    Trigger trigger = new ReshuffleTrigger<>();
+    Trigger trigger = new ReshuffleTriggerReactor<>();
     assertEquals("ReshuffleTrigger()", trigger.toString());
   }
 }

@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.reactors.ExecutableTriggerReactor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -117,7 +118,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   private boolean autoAdvanceOutputWatermark = true;
 
-  private ExecutableTrigger executableTrigger;
+  private ExecutableTriggerReactor executableTrigger;
 
   private final InMemoryLongSumAggregator droppedDueToClosedWindow =
       new InMemoryLongSumAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
@@ -234,7 +235,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         options);
   }
 
-  public ExecutableTrigger getTrigger() {
+  public ExecutableTriggerReactor getTrigger() {
     return executableTrigger;
   }
 
@@ -250,7 +251,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<? super String, ?>>of(TriggerRunner.FINISHED_BITS_TAG));
+        ImmutableSet.<StateTag<? super String, ?>>of(TriggerReactorRunner.FINISHED_BITS_TAG));
   }
 
   @SafeVarargs
@@ -258,7 +259,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
         ImmutableSet.<StateTag<? super String, ?>>of(
-            TriggerRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG,
+            TriggerReactorRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForOutputTimeFn(objectStrategy.getOutputTimeFn()),
             WatermarkHold.EXTRA_HOLD_TAG));
   }
