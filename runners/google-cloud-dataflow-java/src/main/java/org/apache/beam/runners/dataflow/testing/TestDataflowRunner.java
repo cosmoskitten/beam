@@ -74,12 +74,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Constructs a runner from the provided options.
    */
-  public static TestDataflowRunner fromOptions(
-      PipelineOptions options) {
+  public static TestDataflowRunner fromOptions(PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
     String tempLocation = Joiner.on("/").join(
-        new String[]{dataflowOptions.getTempRoot(),
-        dataflowOptions.getJobName(), "output", "results"});
+        dataflowOptions.getTempRoot(),
+        dataflowOptions.getJobName(),
+        "output",
+        "results");
     dataflowOptions.setTempLocation(tempLocation);
     dataflowOptions.setStagingLocation(tempLocation);
 
