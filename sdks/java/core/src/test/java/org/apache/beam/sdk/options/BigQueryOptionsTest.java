@@ -18,15 +18,10 @@
 package org.apache.beam.sdk.options;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.util.IOChannelUtils;
 
-import com.google.api.client.util.Strings;
-
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -36,38 +31,21 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryOptionsTest {
 
-  @Rule public ExpectedException thrown = ExpectedException.none();
-
   @Test
-  public void testStagingLocation() {
+  public void testGcpTempLocation() {
     BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
     IOChannelUtils.registerStandardIOFactories(options);
     options.setTempLocation("file://temp_location");
-    options.setBigQueryTempLocation("gs://bq_temp_location");
-    assertEquals("gs://bq_temp_location", options.getBigQueryTempLocation());
+    options.setGcpTempLocation("gs://gcp_temp_location");
+    assertEquals("gs://gcp_temp_location", options.getGcpTempLocation());
   }
 
   @Test
-  public void testDefaultStagingLocation() {
+  public void testDefaultGcpTempLocation() {
     BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
     IOChannelUtils.registerStandardIOFactories(options);
     options.setTempLocation("gs://temp_location");
-    assertEquals("gs://temp_location/BigQueryIO", options.getBigQueryTempLocation());
-  }
-
-  @Test
-  public void testDefaultStagingLocationInvalid() {
-    BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
-    options.setTempLocation("file://temp_location");
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("GCP temp location requires a valid 'gs://' path");
-    options.getBigQueryTempLocation();
-  }
-
-  @Test
-  public void testDefaultStagingLocationUnset() {
-    BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
-    assertTrue(Strings.isNullOrEmpty(options.getBigQueryTempLocation()));
+    assertEquals("gs://temp_location", options.getGcpTempLocation());
   }
 }
 
