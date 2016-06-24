@@ -15,27 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.reactors;
 
 /**
- * A mutable set which tracks whether any particular {@link ExecutableTrigger} is
+ * A mutable set which tracks whether any particular {@link ExecutableTriggerReactor} is
  * finished.
  */
 public interface FinishedTriggers {
   /**
    * Returns {@code true} if the trigger is finished.
    */
-  public boolean isFinished(ExecutableTrigger trigger);
+  public boolean isFinished(ExecutableTriggerReactor trigger);
 
   /**
    * Sets the fact that the trigger is finished.
    */
-  public void setFinished(ExecutableTrigger trigger, boolean value);
+  public void setFinished(ExecutableTriggerReactor trigger, boolean value);
 
   /**
    * Sets the trigger and all of its subtriggers to unfinished.
    */
-  public void clearRecursively(ExecutableTrigger trigger);
+  public void clearRecursively(ExecutableTriggerReactor trigger);
 
   /**
    * Create an independent copy of this mutable {@link FinishedTriggers}.
