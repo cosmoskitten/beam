@@ -169,7 +169,7 @@ public class WriteTest {
 
   @Test
   public void testBuildWrite() {
-    Sink sink = new TestSink() {};
+    Sink<String> sink = new TestSink() {};
     Write.Bound<String> write = Write.to(sink).withNumShards(3);
     assertEquals(3, write.getNumShards());
     assertThat(write.getSink(), is(sink));
@@ -433,7 +433,7 @@ public class WriteTest {
   /**
    * Options for test, exposed for PipelineOptionsFactory.
    */
-  public static interface WriteOptions extends TestPipelineOptions {
+  public interface WriteOptions extends TestPipelineOptions {
     @Description("Test flag and value")
     String getTestFlag();
 

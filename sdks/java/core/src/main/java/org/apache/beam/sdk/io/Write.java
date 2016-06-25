@@ -192,7 +192,6 @@ public class Write {
       }
     }
 
-
     private class WriteShardedBundles<WriteT> extends DoFn<KV<Integer, Iterable<T>>, WriteT> {
       // Writer that will write the records in this bundle. Lazily
       // initialized in processElement.
@@ -371,7 +370,7 @@ public class Write {
                     extraShardsNeeded, results.size(), minShardsNeeded);
                 ArrayList<WriteT> newResults = new ArrayList<>(minShardsNeeded);
                 newResults.addAll(results);
-                for (int i = 0; i < minShardsNeeded - results.size(); ++i) {
+                for (int i = 0; i < extraShardsNeeded; ++i) {
                   Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
                   writer.open(UUID.randomUUID().toString());
                   WriteT emptyWrite = writer.close();
