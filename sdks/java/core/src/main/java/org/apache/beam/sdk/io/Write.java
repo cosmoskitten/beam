@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -53,19 +54,25 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * A {@link PTransform} that writes to a {@link Sink}. A write begins with a sequential global
  * initialization of a sink, followed by a parallel write, and ends with a sequential finalization
- * of the write. The output of a write is {@link PDone}.  In the case of an empty PCollection, only
- * the global initialization and finalization will be performed.
+ * of the write. The output of a write is {@link PDone}.
  *
- * <p>The exact parallelism of the write stage can be controlled using
- * {@link Write.Bound#withNumShards}, typically used to control how many files are produced or to
- * globally limit the number of workers connecting to an external service. However, this option can
- * often hurt performance: it adds an additional {@link GroupByKey} to the pipeline.
+ * <p>By default, every bundle in the input {@link PCollection} will be processed by a
+ * {@link WriteOperation}, so the number of outputs will vary based on runner behavior, though at
+ * least 1 output will always be produced. The exact parallelism of the write stage can be
+ * controlled using {@link Write.Bound#withNumShards}, typically used to control how many files are
+ * produced or to globally limit the number of workers connecting to an external service. However,
+ * this option can often hurt performance: it adds an additional {@link GroupByKey} to the pipeline.
  *
- * <p>Currently, only batch workflows can contain a {@code Write} transform.
+ * <p>{@code Write} re-windows the data into the global window, so it is typically not well suited
+ * to use in streaming pipelines.
  *
- * <p>Example usage:
+ * <p>Example usage with runner-controlled sharding:
  *
- * <p>{@code p.apply(Write.to(new MySink(...)));}
+ * <pre>{@code p.apply(Write.to(new MySink(...)));}</pre>
+
+ * <p>Example usage with a fixed number of shards:
+ *
+ * <pre>{@code p.apply(Write.to(new MySink(...)).withNumShards(3));}</pre>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class Write {
@@ -142,11 +149,15 @@ public class Write {
       return new Bound<>(sink, Math.max(numShards, 0));
     }
 
+    /**
+     * Writes all the elements in a bundle using a {@link Writer} produced by the
+     * {@link WriteOperation} associated with the {@link Sink}.
+     */
     private class WriteBundles<WriteT> extends DoFn<T, WriteT> {
       // Writer that will write the records in this bundle. Lazily
       // initialized in processElement.
       private Writer<T, WriteT> writer = null;
-      final PCollectionView<WriteOperation<T, WriteT>> writeOperationView;
+      private final PCollectionView<WriteOperation<T, WriteT>> writeOperationView;
 
       WriteBundles(PCollectionView<WriteOperation<T, WriteT>> writeOperationView) {
         this.writeOperationView = writeOperationView;
@@ -192,11 +203,17 @@ public class Write {
       }
     }
 
+    /**
+     * Like {@link WriteBundles}, but where the elements for each shard have been collected into
+     * a single iterable.
+     *
+     * @see WriteBundles
+     */
     private class WriteShardedBundles<WriteT> extends DoFn<KV<Integer, Iterable<T>>, WriteT> {
       // Writer that will write the records in this bundle. Lazily
       // initialized in processElement.
       private Writer<T, WriteT> writer = null;
-      final PCollectionView<WriteOperation<T, WriteT>> writeOperationView;
+      private final PCollectionView<WriteOperation<T, WriteT>> writeOperationView;
 
       WriteShardedBundles(PCollectionView<WriteOperation<T, WriteT>> writeOperationView) {
         this.writeOperationView = writeOperationView;
@@ -321,7 +338,12 @@ public class Write {
       final PCollectionView<WriteOperation<T, WriteT>> writeOperationView =
           operationCollection.apply(View.<WriteOperation<T, WriteT>>asSingleton());
 
-      PCollection<T> inputInGlobalWindow = input.apply(Window.<T>into(new GlobalWindows()));
+      // Re-window the data into the global window and remove any existing triggers.
+      PCollection<T> inputInGlobalWindow =
+          input.apply(
+              Window.<T>into(new GlobalWindows())
+                  .triggering(DefaultTrigger.of())
+                  .discardingFiredPanes());
 
       // Perform the per-bundle writes as a ParDo on the input PCollection (with the WriteOperation
       // as a side input) and collect the results of the writes in a PCollection.
