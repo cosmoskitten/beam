@@ -21,7 +21,10 @@ import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -61,13 +64,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -766,8 +767,7 @@ public class CombineTest implements Serializable {
     public static SetCoder<?> of(
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
         List<Coder<?>> components) {
-      Preconditions.checkArgument(components.size() == 1,
-          "Expecting 1 component, got " + components.size());
+      checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
       return of((Coder<?>) components.get(0));
     }
 
@@ -1094,8 +1094,8 @@ public class CombineTest implements Serializable {
 
       @Override
       public void addInput(Integer element) {
-        Preconditions.checkState(merges == 0);
-        Preconditions.checkState(outputs == 0);
+        checkState(merges == 0);
+        checkState(outputs == 0);
 
         inputs++;
         sum += element;
@@ -1103,8 +1103,8 @@ public class CombineTest implements Serializable {
 
       @Override
       public void mergeAccumulator(Counter accumulator) {
-        Preconditions.checkState(outputs == 0);
-        Preconditions.checkArgument(accumulator.outputs == 0);
+        checkState(outputs == 0);
+        checkArgument(accumulator.outputs == 0);
 
         merges += accumulator.merges + 1;
         inputs += accumulator.inputs;
@@ -1113,7 +1113,7 @@ public class CombineTest implements Serializable {
 
       @Override
       public Iterable<Long> extractOutput() {
-        Preconditions.checkState(outputs == 0);
+        checkState(outputs == 0);
 
         return Arrays.asList(sum, inputs, merges, outputs);
       }

@@ -17,19 +17,18 @@
  */
 package org.apache.beam.sdk.transforms.display;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.transforms.PTransform;
 
-import com.google.auto.value.AutoValue;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
@@ -657,7 +656,7 @@ public class DisplayData implements Serializable {
       }
 
       Identifier id = Identifier.of(item.getNamespace(), item.getKey());
-      Preconditions.checkArgument(!entries.containsKey(id),
+      checkArgument(!entries.containsKey(id),
           "Display data key (%s) is not unique within the specified namespace (%s).",
           item.getKey(), item.getNamespace());
 
