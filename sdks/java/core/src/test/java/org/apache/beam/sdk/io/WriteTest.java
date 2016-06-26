@@ -64,12 +64,16 @@ import org.junit.runners.JUnit4;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.annotation.Nullable;
 
 /**
  * Tests for the Write PTransform.
@@ -78,6 +82,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class WriteTest {
   // Static store that can be accessed within the writer
   private static List<String> sinkContents = new ArrayList<>();
+  // Static count of output shards
+  private static AtomicInteger numShards = new AtomicInteger(0);
 
   private static final MapElements<String, String> IDENTITY_MAP =
       MapElements.via(new SimpleFunction<String, String>() {
@@ -128,6 +134,37 @@ public class WriteTest {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
     runWrite(inputs, IDENTITY_MAP);
+  }
+
+  /**
+   * Test that Write with an empty input still produces one shard.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testEmptyWrite() {
+    runWrite(Collections.<String>emptyList(), IDENTITY_MAP);
+    // Note we did not request a sharded write, so runWrite will not validate the number of shards.
+    assertEquals(1, numShards.intValue());
+  }
+
+  /**
+   * Test that Write with a configured number of shards produces the desired number of shards even
+   * when there are many elements.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testShardedWrite() {
+    runShardedWrite(Arrays.asList("one", "two", "three", "four", "five", "six"), IDENTITY_MAP, 1);
+  }
+
+  /**
+   * Test that Write with a configured number of shards produces the desired number of shards even
+   * when there are too few elements.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testExpandShardedWrite() {
+    runShardedWrite(Arrays.asList("one", "two", "three", "four", "five", "six"), IDENTITY_MAP, 20);
   }
 
   /**
@@ -203,6 +240,18 @@ public class WriteTest {
    */
   private static void runWrite(
       List<String> inputs, PTransform<PCollection<String>, PCollection<String>> transform) {
+    runShardedWrite(inputs, transform, null);
+  }
+
+  /**
+   * Performs a Write transform with the desired number of shards. Verifies the Write transform
+   * calls the appropriate methods on a test sink in the correct order, as well as verifies that
+   * the elements of a PCollection are written to the sink. If numConfiguredShards is not null, also
+   * verifies that the output number of shards is correct.
+   */
+  private static void runShardedWrite(
+      List<String> inputs, PTransform<PCollection<String>, PCollection<String>> transform,
+      @Nullable Integer numConfiguredShards) {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
     options.setTestFlag("test_value");
@@ -210,6 +259,8 @@ public class WriteTest {
 
     // Clear the sink's contents.
     sinkContents.clear();
+    // Reset the number of shards produced.
+    numShards.set(0);
 
     // Prepare timestamps for the elements.
     List<Long> timestamps = new ArrayList<>();
@@ -218,13 +269,20 @@ public class WriteTest {
     }
 
     TestSink sink = new TestSink();
+    Write.Bound<String> write = Write.to(sink);
+    if (numConfiguredShards != null) {
+      write = write.withNumShards(numConfiguredShards);
+    }
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
      .apply(transform)
-     .apply(Write.to(sink));
+     .apply(write);
 
     p.run();
     assertThat(sinkContents, containsInAnyOrder(inputs.toArray()));
     assertTrue(sink.hasCorrectState());
+    if (numConfiguredShards != null) {
+      assertEquals((int) numConfiguredShards, numShards.intValue());
+    }
   }
 
   // Test sink and associated write operation and writer. TestSink, TestWriteOperation, and
@@ -410,6 +468,7 @@ public class WriteTest {
 
     @Override
     public void open(String uId) throws Exception {
+      numShards.incrementAndGet();
       this.uId = uId;
       assertEquals(State.INITIAL, state);
       state = State.OPENED;
@@ -436,7 +495,6 @@ public class WriteTest {
   public interface WriteOptions extends TestPipelineOptions {
     @Description("Test flag and value")
     String getTestFlag();
-
     void setTestFlag(String value);
   }
 }

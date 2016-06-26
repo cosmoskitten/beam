@@ -379,9 +379,9 @@ public class Write {
             @Override
             public void processElement(ProcessContext c) throws Exception {
               WriteOperation<T, WriteT> writeOperation = c.element();
-              LOG.info("Finalizing write operation {}", writeOperation);
+              LOG.info("Finalizing write operation {}.", writeOperation);
               List<WriteT> results = c.sideInput(resultsView);
-              LOG.debug("Side input initialized to finalize write operation {}", writeOperation);
+              LOG.debug("Side input initialized to finalize write operation {}.", writeOperation);
 
               // Create extra shards if the user requested fix sharding.
               int minShardsNeeded = Math.max(1, getNumShards());
