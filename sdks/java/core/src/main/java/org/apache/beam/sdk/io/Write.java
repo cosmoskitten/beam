@@ -84,7 +84,7 @@ public class Write {
    */
   public static <T> Bound<T> to(Sink<T> sink) {
     checkNotNull(sink, "sink");
-    return new Bound<>(sink, 0 /* no default sharding */);
+    return new Bound<>(sink, 0 /* runner-controlled sharding */);
   }
 
   /**
@@ -180,7 +180,11 @@ public class Write {
           try {
             writer.close();
             // The writer does not need to be reset, as this DoFn cannot be reused.
-          } catch (Throwable closeException) {
+          } catch (Exception closeException) {
+            if (closeException instanceof InterruptedException) {
+              // Do not silently ignore interrupted state.
+              Thread.currentThread().interrupt();
+            }
             // Do not mask the exception that caused the write to fail.
             e.addSuppressed(closeException);
           }
@@ -193,7 +197,7 @@ public class Write {
         if (writer != null) {
           WriteT result = writer.close();
           c.output(result);
-          // Reset state in case of reuse
+          // Reset state in case of reuse.
           writer = null;
         }
       }
@@ -234,7 +238,11 @@ public class Write {
         } catch (Exception e) {
           try {
             writer.close();
-          } catch (Throwable closeException) {
+          } catch (Exception closeException) {
+            if (closeException instanceof InterruptedException) {
+              // Do not silently ignore interrupted state.
+              Thread.currentThread().interrupt();
+            }
             // Do not mask the exception that caused the write to fail.
             e.addSuppressed(closeException);
           }
@@ -258,12 +266,18 @@ public class Write {
 
       ApplyShardingKey(int numShards) {
         this.numShards = numShards;
-        shardNumber = ThreadLocalRandom.current().nextInt(numShards);
+        shardNumber = -1;
       }
 
       @Override
       public Integer apply(T input) {
-        shardNumber = (shardNumber + 1) % numShards;
+        if (shardNumber == -1) {
+          // We want to desynchronize the first record sharding key for each instance of
+          // ApplyShardingKey, so records in a small PCollection will be statistically balanced.
+          shardNumber = ThreadLocalRandom.current().nextInt(numShards);
+        } else {
+          shardNumber = (shardNumber + 1) % numShards;
+        }
         return shardNumber;
       }
     }
