@@ -110,6 +110,8 @@ public class AvroWrapperCoder<WrapperT extends AvroWrapper<DatumT>, DatumT>
   }
 
   @Override
-  public void verifyDeterministic() throws NonDeterministicException {}
+  public void verifyDeterministic() throws NonDeterministicException {
+    datumCoder.verifyDeterministic();
+  }
 
 }
