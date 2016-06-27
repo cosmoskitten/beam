@@ -179,9 +179,10 @@ public class Write {
           // Discard write result and close the write.
           try {
             writer.close();
-            // The writer does not need to be reset, as this DoFn cannot be reused
-          } catch (Exception closeException) {
+            // The writer does not need to be reset, as this DoFn cannot be reused.
+          } catch (Throwable closeException) {
             // Do not mask the exception that caused the write to fail.
+            e.addSuppressed(closeException);
           }
           throw e;
         }
@@ -210,9 +211,6 @@ public class Write {
      * @see WriteBundles
      */
     private class WriteShardedBundles<WriteT> extends DoFn<KV<Integer, Iterable<T>>, WriteT> {
-      // Writer that will write the records in this bundle. Lazily
-      // initialized in processElement.
-      private Writer<T, WriteT> writer = null;
       private final PCollectionView<WriteOperation<T, WriteT>> writeOperationView;
 
       WriteShardedBundles(PCollectionView<WriteOperation<T, WriteT>> writeOperationView) {
@@ -221,38 +219,31 @@ public class Write {
 
       @Override
       public void processElement(ProcessContext c) throws Exception {
-        // Lazily initialize the Writer
-        if (writer == null) {
-          WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
-          LOG.info("Opening writer for write operation {}", writeOperation);
-          writer = writeOperation.createWriter(c.getPipelineOptions());
-          writer.open(UUID.randomUUID().toString());
-          LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
-        }
+        // In a sharded write, single input element represents one shard. We can open and close
+        // the writer in each call to processElement.
+        WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
+        LOG.info("Opening writer for write operation {}", writeOperation);
+        Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
+        writer.open(UUID.randomUUID().toString());
+        LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
+
         try {
-          for (T t: c.element().getValue()) {
+          for (T t : c.element().getValue()) {
             writer.write(t);
           }
         } catch (Exception e) {
-          // Discard write result and close the write.
           try {
             writer.close();
-            // The writer does not need to be reset, as this DoFn cannot be reused
-          } catch (Exception closeException) {
+          } catch (Throwable closeException) {
             // Do not mask the exception that caused the write to fail.
+            e.addSuppressed(closeException);
           }
           throw e;
         }
-      }
 
-      @Override
-      public void finishBundle(Context c) throws Exception {
-        if (writer != null) {
-          WriteT result = writer.close();
-          c.output(result);
-          // Reset state in case of reuse
-          writer = null;
-        }
+        // Close the writer; if this throws let the error propagate.
+        WriteT result = writer.close();
+        c.output(result);
       }
 
       @Override
