@@ -254,12 +254,17 @@ public class Write {
 
     private static class ApplyShardingKey<T> implements SerializableFunction<T, Integer> {
       private final int numShards;
+      private int shardNumber;
+
       ApplyShardingKey(int numShards) {
         this.numShards = numShards;
+        shardNumber = ThreadLocalRandom.current().nextInt(numShards);
       }
+
       @Override
       public Integer apply(T input) {
-        return ThreadLocalRandom.current().nextInt(numShards);
+        shardNumber = (shardNumber + 1) % numShards;
+        return shardNumber;
       }
     }
 
