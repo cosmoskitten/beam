@@ -28,6 +28,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 
 import com.google.api.client.googleapis.json.GoogleJsonError;
@@ -75,6 +77,7 @@ public class BigQueryTableInserterTest {
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(BigQueryTableInserter.class);
   @Mock private LowLevelHttpResponse response;
   private Bigquery bigquery;
+  private PipelineOptions options = PipelineOptionsFactory.create();
 
   @Before
   public void setUp() {
@@ -139,7 +142,7 @@ public class BigQueryTableInserterTest {
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testTable));
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
     Table ret =
         inserter.tryCreateTable(
             new Table(),
@@ -160,7 +163,7 @@ public class BigQueryTableInserterTest {
   public void testCreateTableSucceedsAlreadyExists() throws IOException {
     when(response.getStatusCode()).thenReturn(409); // 409 means already exists
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
     Table ret =
         inserter.tryCreateTable(
             new Table(),
@@ -191,7 +194,7 @@ public class BigQueryTableInserterTest {
         .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
         .thenReturn(toStream(testTable));
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
     Table ret =
         inserter.tryCreateTable(
             testTable,
@@ -227,7 +230,7 @@ public class BigQueryTableInserterTest {
     thrown.expect(GoogleJsonResponseException.class);
     thrown.expectMessage("actually forbidden");
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
     try {
       inserter.tryCreateTable(
           new Table(),
@@ -261,7 +264,7 @@ public class BigQueryTableInserterTest {
         .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
         .thenReturn(toStream(new TableDataInsertAllResponse()));
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
 
     inserter.insertAll(ref, rows);
     verify(response, times(2)).getStatusCode();
@@ -291,7 +294,7 @@ public class BigQueryTableInserterTest {
     thrown.expect(GoogleJsonResponseException.class);
     thrown.expectMessage("actually forbidden");
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
 
     try {
       inserter.insertAll(ref, rows);

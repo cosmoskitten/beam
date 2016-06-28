@@ -50,6 +50,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.storage.Storage;
 import com.google.common.collect.ImmutableList;
 
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
@@ -281,7 +282,8 @@ public class RetryHttpRequestInitializerTest {
     // RetryHttpInitializer.
     Bigquery b = new Bigquery.Builder(
         transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()).build();
-    BigQueryTableInserter inserter = new BigQueryTableInserter(b);
+
+    BigQueryTableInserter inserter = new BigQueryTableInserter(b, PipelineOptionsFactory.create());
     TableReference t = new TableReference()
         .setProjectId("project").setDatasetId("dataset").setTableId("table");
 
