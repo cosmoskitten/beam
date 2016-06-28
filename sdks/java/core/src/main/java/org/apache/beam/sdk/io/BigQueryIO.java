@@ -1594,7 +1594,7 @@ public class BigQueryIO {
           TableReference table) {
         try {
           Bigquery client = Transport.newBigQueryClient(options).build();
-          BigQueryTableInserter inserter = new BigQueryTableInserter(client);
+          BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
           if (!inserter.isEmpty(table)) {
             throw new IllegalArgumentException(
                 "BigQuery table is not empty: " + BigQueryIO.toTableSpec(table));
@@ -2109,7 +2109,7 @@ public class BigQueryIO {
           if (!createdTables.contains(tableSpec)) {
             TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
             Bigquery client = Transport.newBigQueryClient(options).build();
-            BigQueryTableInserter inserter = new BigQueryTableInserter(client);
+            BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
             inserter.getOrCreateTable(tableReference, WriteDisposition.WRITE_APPEND,
                 CreateDisposition.CREATE_IF_NEEDED, tableSchema);
             createdTables.add(tableSpec);
