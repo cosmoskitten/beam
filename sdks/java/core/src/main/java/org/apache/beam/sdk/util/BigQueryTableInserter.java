@@ -22,6 +22,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 
 import com.google.api.client.util.BackOff;
@@ -38,7 +41,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.MoreExecutors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,9 +52,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
@@ -83,8 +83,7 @@ public class BigQueryTableInserter {
   private final TableReference defaultRef;
   private final long maxRowsPerBatch;
 
-  private static final ExecutorService executor = MoreExecutors.getExitingExecutorService(
-      (ThreadPoolExecutor) Executors.newFixedThreadPool(100), 10, TimeUnit.SECONDS);
+  private ExecutorService executor;
 
   /**
    * Constructs a new row inserter.
@@ -95,6 +94,22 @@ public class BigQueryTableInserter {
     this.client = client;
     this.defaultRef = null;
     this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
+    this.executor = new GcsOptions.ExecutorServiceFactory().create(
+            PipelineOptionsFactory.create());
+  }
+
+
+  /**
+   * Constructs a new row inserter.
+   *
+   * @param client a BigQuery client
+   * @param options a PipelineOptions object
+   */
+  public BigQueryTableInserter(Bigquery client, PipelineOptions options) {
+    this.client = client;
+    this.defaultRef = null;
+    this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
+    this.executor = options.as(GcsOptions.class).getExecutorService();
   }
 
   /**
@@ -109,6 +124,7 @@ public class BigQueryTableInserter {
     this.client = client;
     this.defaultRef = defaultRef;
     this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
+    this.executor = PipelineOptionsFactory.create().as(GcsOptions.class).getExecutorService();
   }
 
   /**
@@ -120,6 +136,7 @@ public class BigQueryTableInserter {
     this.client = client;
     this.defaultRef = null;
     this.maxRowsPerBatch = maxRowsPerBatch;
+    this.executor = PipelineOptionsFactory.create().as(GcsOptions.class).getExecutorService();
   }
 
   /**
@@ -134,6 +151,7 @@ public class BigQueryTableInserter {
     this.client = client;
     this.defaultRef = defaultRef;
     this.maxRowsPerBatch = maxRowsPerBatch;
+    this.executor = PipelineOptionsFactory.create().as(GcsOptions.class).getExecutorService();
   }
 
   /**
