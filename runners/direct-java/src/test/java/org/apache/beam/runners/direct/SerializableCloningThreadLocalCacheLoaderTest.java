@@ -24,6 +24,8 @@ import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.IsSame.theInstance;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.transforms.SerializableFunction;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,11 +40,11 @@ import java.util.concurrent.Executors;
  */
 @RunWith(JUnit4.class)
 public class SerializableCloningThreadLocalCacheLoaderTest {
-  private SerializableCloningThreadLocalCacheLoader<Record> loader;
+  private SerializableCloningThreadLocalCacheLoader<Record, Record> loader;
 
   @Before
   public void setup() {
-    loader = new SerializableCloningThreadLocalCacheLoader();
+    loader = SerializableCloningThreadLocalCacheLoader.create();
   }
 
   @Test
@@ -77,6 +79,31 @@ public class SerializableCloningThreadLocalCacheLoaderTest {
     assertThat(sameThread, not(theInstance(firstOtherThread)));
     assertThat(sameThread, not(theInstance(secondOtherThread)));
     assertThat(firstOtherThread, not(theInstance(secondOtherThread)));
+  }
+
+  @Test
+  public void withMapperUsesMapperForValue() throws Exception {
+    final Record original = new Record();
+    final SerializableCloningThreadLocalCacheLoader<Record, Double> ccl =
+        loader.withMapper(
+            new SerializableFunction<Record, Double>() {
+              @Override
+              public Double apply(Record input) {
+                return input.rand;
+              }
+            });
+
+    assertThat(ccl.load(original).get(), equalTo(original.rand));
+
+    Callable<Double> otherThread =
+        new Callable<Double>() {
+          @Override
+          public Double call() throws Exception {
+            return ccl.load(original).get();
+          }
+        };
+    Double firstOtherThread = Executors.newSingleThreadExecutor().submit(otherThread).get();
+    assertThat(firstOtherThread, equalTo(original.rand));
   }
 
   private static class Record implements Serializable {

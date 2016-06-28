@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 
 import com.google.common.cache.CacheLoader;
@@ -28,15 +29,30 @@ import java.io.Serializable;
  * A {@link CacheLoader} that loads {@link ThreadLocal ThreadLocals} with initial values equal to
  * the clone of the key.
  */
-class SerializableCloningThreadLocalCacheLoader<T extends Serializable>
-    extends CacheLoader<T, ThreadLocal<T>> {
-  public static <T extends Serializable> CacheLoader<T, ThreadLocal<T>> create() {
-    return new SerializableCloningThreadLocalCacheLoader<T>();
+class SerializableCloningThreadLocalCacheLoader<K, T extends Serializable>
+    extends CacheLoader<K, ThreadLocal<T>> {
+  public static <T extends Serializable> SerializableCloningThreadLocalCacheLoader<T, T> create() {
+    return new SerializableCloningThreadLocalCacheLoader<>(new IdentityFunction<T>());
+  }
+
+  private final SerializableFunction<K, T> mapper;
+
+  private SerializableCloningThreadLocalCacheLoader(SerializableFunction<K, T> mapper) {
+    this.mapper = mapper;
+  }
+
+  /**
+   * Returns a {@link SerializableCloningThreadLocalCacheLoader} like this one, but which uses
+   * the provided mapper to convert the key into the value to be cloned.
+   */
+  public <K, T extends Serializable> SerializableCloningThreadLocalCacheLoader<K, T> withMapper(
+      SerializableFunction<K, T> mapper) {
+    return new SerializableCloningThreadLocalCacheLoader<>(mapper);
   }
 
   @Override
-  public ThreadLocal<T> load(T key) throws Exception {
-    return new CloningThreadLocal<>(key);
+  public ThreadLocal<T> load(K key) throws Exception {
+    return new CloningThreadLocal<>(mapper.apply(key));
   }
 
   private static class CloningThreadLocal<T extends Serializable> extends ThreadLocal<T> {
@@ -49,6 +65,13 @@ class SerializableCloningThreadLocalCacheLoader<T extends Serializable>
     @Override
     public T initialValue() {
       return SerializableUtils.clone(original);
+    }
+  }
+
+  private static class IdentityFunction<T> implements SerializableFunction<T, T> {
+    @Override
+    public T apply(T input) {
+      return input;
     }
   }
 }
