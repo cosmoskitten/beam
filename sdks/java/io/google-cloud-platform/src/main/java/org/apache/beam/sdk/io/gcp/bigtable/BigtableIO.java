@@ -56,6 +56,8 @@ import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 
+import io.grpc.Status;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,8 +69,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.annotation.Nullable;
-
-import io.grpc.Status;
 
 /**
  * A bounded source and sink for Google Cloud Bigtable.
@@ -1030,7 +1030,7 @@ public class BigtableIO {
   /**
    * A helper function to produce a Cloud Bigtable user agent string.
    */
-  private static BigtableOptions.Builder addRetryOptions(BigtableOptions.Builder builder) {
+  public static BigtableOptions.Builder addRetryOptions(BigtableOptions.Builder builder) {
     RetryOptions retryOptions = builder.build().getRetryOptions();
 
     RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder()
@@ -1055,7 +1055,7 @@ public class BigtableIO {
     return builder;
   }
 
-  private static BigtableOptions.Builder addBulkOptions(BigtableOptions.Builder builder) {
+  public static BigtableOptions.Builder addBulkOptions(BigtableOptions.Builder builder) {
     BulkOptions bulkOptions = builder.build().getBulkOptions();
 
     BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder()

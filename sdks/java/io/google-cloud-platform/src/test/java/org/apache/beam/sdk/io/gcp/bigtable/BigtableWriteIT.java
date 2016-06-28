@@ -35,6 +35,7 @@ import com.google.bigtable.admin.table.v1.Table;
 import com.google.bigtable.v1.Mutation;
 import com.google.bigtable.v1.ReadRowsRequest;
 import com.google.bigtable.v1.Row;
+import com.google.bigtable.v1.RowRange;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableAdminClient;
@@ -83,6 +84,8 @@ public class BigtableWriteIT implements Serializable {
         .setClusterId(options.getClusterId())
         .setZoneId(options.getZoneId())
         .setUserAgent("apache-beam-test");
+    bigtableOptionsBuilder = BigtableIO.addBulkOptions(bigtableOptionsBuilder);
+    bigtableOptionsBuilder = BigtableIO.addRetryOptions(bigtableOptionsBuilder);
     bigtableOptions = bigtableOptionsBuilder.build();
 
     session = new BigtableSession(bigtableOptions);
@@ -172,9 +175,15 @@ public class BigtableWriteIT implements Serializable {
 
   /** Helper function to get a table's data. */
   private List<KV<ByteString, ByteString>> getTableData(String tableName) throws IOException {
+    // Add empty range to avoid TARGET_NOT_SET error
+    RowRange range = RowRange.newBuilder()
+        .setStartKey(ByteString.EMPTY)
+        .setEndKey(ByteString.EMPTY)
+        .build();
     List<KV<ByteString, ByteString>> tableData = new ArrayList<>();
     ReadRowsRequest.Builder readRowsRequestBuilder = ReadRowsRequest.newBuilder()
-        .setTableName(tableName);
+        .setTableName(tableName)
+        .setRowRange(range);
     ResultScanner<Row> scanner = session.getDataClient().readRows(readRowsRequestBuilder.build());
 
     Row currentRow;
