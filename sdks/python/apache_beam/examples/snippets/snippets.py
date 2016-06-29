@@ -650,9 +650,9 @@ def model_custom_source(count):
       while bundle_start < self._count:
         bundle_stop = max(self._count, bundle_start + desired_bundle_size)
         yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
-                           source=self,
-                           start_position=bundle_start,
-                           stop_position=bundle_stop)
+                                  source=self,
+                                  start_position=bundle_start,
+                                  stop_position=bundle_stop)
         bundle_start = bundle_stop
   # [END model_custom_source_new_source]
 
@@ -661,10 +661,11 @@ def model_custom_source(count):
   numbers = p | beam.io.Read('ProduceNumbers', CountingSource(count))
   # [END model_custom_source_use_new_source]
 
-  lines = numbers | beam.core.Map(lambda number : 'line %d' % number)
-  lines | beam.core.Map(lambda line : logging.info(line))
+  lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
+  lines | beam.core.Map(lambda line: logging.info(line))
   beam.assert_that(
-      lines, beam.equal_to(['line ' + str(number) for number in range(0, count)]))
+      lines, beam.equal_to(
+          ['line ' + str(number) for number in range(0, count)]))
 
   p.run()
 
@@ -984,7 +985,8 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
   p.run()
 
-def model_join_using_side_inputs(name_list, email_list, phone_list, output_path):
+def model_join_using_side_inputs(
+    name_list, email_list, phone_list, output_path):
   """Joining PCollections using side inputs."""
 
   import apache_beam as beam
