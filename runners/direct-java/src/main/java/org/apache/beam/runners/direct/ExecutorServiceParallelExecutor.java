@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.FiredTimers;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -57,10 +57,10 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
- * An {@link InProcessExecutor} that uses an underlying {@link ExecutorService} and
- * {@link InProcessEvaluationContext} to execute a {@link Pipeline}.
+ * An {@link PipelineExecutor} that uses an underlying {@link ExecutorService} and
+ * {@link EvaluationContext} to execute a {@link Pipeline}.
  */
-final class ExecutorServiceParallelExecutor implements InProcessExecutor {
+final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorServiceParallelExecutor.class);
 
   private final ExecutorService executorService;
@@ -72,7 +72,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   private final Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
       transformEnforcements;
 
-  private final InProcessEvaluationContext evaluationContext;
+  private final EvaluationContext evaluationContext;
 
   private final LoadingCache<StepAndKey, TransformExecutorService> executorServices;
 
@@ -91,7 +91,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
-      InProcessEvaluationContext context) {
+      EvaluationContext context) {
     return new ExecutorServiceParallelExecutor(
         executorService, valueToConsumers, keyedPValues, registry, transformEnforcements, context);
   }
@@ -103,7 +103,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
-      InProcessEvaluationContext context) {
+      EvaluationContext context) {
     this.executorService = executorService;
     this.valueToConsumers = valueToConsumers;
     this.keyedPValues = keyedPValues;
@@ -200,28 +200,33 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   public void awaitCompletion() throws Throwable {
     VisibleExecutorUpdate update;
     do {
-      update = visibleUpdates.take();
-      if (update.throwable.isPresent()) {
+      // Get an update; don't block forever if another thread has handled it
+      update = visibleUpdates.poll(2L, TimeUnit.SECONDS);
+      if (update == null && executorService.isShutdown()) {
+        // there are no updates to process and no updates will ever be published because the
+        // executor is shutdown
+        return;
+      } else if (update != null && update.throwable.isPresent()) {
         throw update.throwable.get();
       }
-    } while (!update.isDone());
+    } while (update == null || !update.isDone());
     executorService.shutdown();
   }
 
   /**
    * The base implementation of {@link CompletionCallback} that provides implementations for
-   * {@link #handleResult(CommittedBundle, InProcessTransformResult)} and
+   * {@link #handleResult(CommittedBundle, TransformResult)} and
    * {@link #handleThrowable(CommittedBundle, Throwable)}, given an implementation of
-   * {@link #getCommittedResult(CommittedBundle, InProcessTransformResult)}.
+   * {@link #getCommittedResult(CommittedBundle, TransformResult)}.
    */
   private abstract class CompletionCallbackBase implements CompletionCallback {
     protected abstract CommittedResult getCommittedResult(
         CommittedBundle<?> inputBundle,
-        InProcessTransformResult result);
+        TransformResult result);
 
     @Override
     public final CommittedResult handleResult(
-        CommittedBundle<?> inputBundle, InProcessTransformResult result) {
+        CommittedBundle<?> inputBundle, TransformResult result) {
       CommittedResult committedResult = getCommittedResult(inputBundle, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle,
@@ -249,7 +254,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   private class DefaultCompletionCallback extends CompletionCallbackBase {
     @Override
     public CommittedResult getCommittedResult(
-        CommittedBundle<?> inputBundle, InProcessTransformResult result) {
+        CommittedBundle<?> inputBundle, TransformResult result) {
       return evaluationContext.handleResult(inputBundle,
           Collections.<TimerData>emptyList(),
           result);
@@ -259,7 +264,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   /**
    * A {@link CompletionCallback} where the completed bundle was produced to deliver some collection
    * of {@link TimerData timers}. When the evaluator completes successfully, reports all of the
-   * timers used to create the input to the {@link InProcessEvaluationContext evaluation context}
+   * timers used to create the input to the {@link EvaluationContext evaluation context}
    * as part of the result.
    */
   private class TimerCompletionCallback extends CompletionCallbackBase {
@@ -271,7 +276,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
 
     @Override
     public CommittedResult getCommittedResult(
-        CommittedBundle<?> inputBundle, InProcessTransformResult result) {
+        CommittedBundle<?> inputBundle, TransformResult result) {
           return evaluationContext.handleResult(inputBundle, timers, result);
     }
   }
@@ -346,6 +351,8 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
         evaluationContext.getPipelineOptions().getAppName(),
         ExecutorServiceParallelExecutor.class.getSimpleName());
 
+    private boolean exceptionThrown = false;
+
     @Override
     public void run() {
       String oldName = Thread.currentThread().getName();
@@ -361,6 +368,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
             scheduleConsumers(update);
           } else if (update.getException().isPresent()) {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
+            exceptionThrown = true;
           }
           if (System.nanoTime() - updatesStart > maxTimeProcessingUpdatesNanos) {
             break;
@@ -396,17 +404,19 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     private boolean fireTimers() throws Exception {
       try {
         boolean firedTimers = false;
-        for (Map.Entry<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> transformTimers :
+        for (Map.Entry<
+               AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> transformTimers :
             evaluationContext.extractFiredTimers().entrySet()) {
           AppliedPTransform<?, ?, ?> transform = transformTimers.getKey();
-          for (Map.Entry<Object, FiredTimers> keyTimers : transformTimers.getValue().entrySet()) {
+          for (Map.Entry<StructuralKey<?>, FiredTimers> keyTimers :
+              transformTimers.getValue().entrySet()) {
             for (TimeDomain domain : TimeDomain.values()) {
               Collection<TimerData> delivery = keyTimers.getValue().getTimers(domain);
               if (delivery.isEmpty()) {
                 continue;
               }
-              KeyedWorkItem<Object, Object> work =
-                  KeyedWorkItems.timersWorkItem(keyTimers.getKey(), delivery);
+              KeyedWorkItem<?, Object> work =
+                  KeyedWorkItems.timersWorkItem(keyTimers.getKey().getKey(), delivery);
               @SuppressWarnings({"unchecked", "rawtypes"})
               CommittedBundle<?> bundle =
                   evaluationContext
@@ -427,15 +437,17 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
 
     private boolean shouldShutdown() {
-      if (evaluationContext.isDone()) {
-        LOG.debug("Pipeline is finished. Shutting down. {}");
-        while (!visibleUpdates.offer(VisibleExecutorUpdate.finished())) {
-          visibleUpdates.poll();
+      boolean shouldShutdown = exceptionThrown || evaluationContext.isDone();
+      if (shouldShutdown) {
+        if (evaluationContext.isDone()) {
+          LOG.debug("Pipeline is finished. Shutting down. {}");
+          while (!visibleUpdates.offer(VisibleExecutorUpdate.finished())) {
+            visibleUpdates.poll();
+          }
         }
         executorService.shutdown();
-        return true;
       }
-      return false;
+      return shouldShutdown;
     }
 
     /**

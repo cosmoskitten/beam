@@ -19,15 +19,14 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.util.MutationDetector;
 import org.apache.beam.sdk.util.MutationDetectors;
-import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -72,8 +71,8 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
   }
 
   @Override
-  public <T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, Object key, PCollection<T> output) {
+  public <K, T> UncommittedBundle<T> createKeyedBundle(
+      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
     return new ImmutabilityEnforcingBundle<>(underlying.createKeyedBundle(input, key, output));
   }
 
@@ -111,17 +110,16 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
         try {
           detector.verifyUnmodified();
         } catch (IllegalMutationException exn) {
-          throw UserCodeException.wrap(
-              new IllegalMutationException(
-                  String.format(
-                      "PTransform %s mutated value %s after it was output (new value was %s)."
-                          + " Values must not be mutated in any way after being output.",
-                      underlying.getPCollection().getProducingTransformInternal().getFullName(),
-                      exn.getSavedValue(),
-                      exn.getNewValue()),
-                  exn.getSavedValue(),
-                  exn.getNewValue(),
-                  exn));
+            throw new IllegalMutationException(
+                String.format(
+                    "PTransform %s mutated value %s after it was output (new value was %s)."
+                        + " Values must not be mutated in any way after being output.",
+                    underlying.getPCollection().getProducingTransformInternal().getFullName(),
+                    exn.getSavedValue(),
+                    exn.getNewValue()),
+                exn.getSavedValue(),
+                exn.getNewValue(),
+                exn);
         }
       }
       return underlying.commit(synchronizedProcessingTime);

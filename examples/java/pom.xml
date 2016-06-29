@@ -15,30 +15,24 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>parent</artifactId>
-    <version>0.1.0-incubating-SNAPSHOT</version>
-    <relativePath>../../pom.xml</relativePath>
+    <artifactId>beam-examples-parent</artifactId>
+    <version>0.2.0-incubating-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>java-examples-all</artifactId>
-  <name>Apache Beam :: Examples :: Java All</name>
+  <artifactId>beam-examples-java</artifactId>
+  <name>Apache Beam :: Examples :: Java</name>
   <description>Apache Beam SDK provides a simple, Java-based
   interface for processing virtually any size data. This
   artifact includes all Apache Beam Java SDK examples.</description>
 
   <packaging>jar</packaging>
-
-  <properties>
-    <skipITs>true</skipITs>
-  </properties>
 
   <build>
     <plugins>
@@ -51,15 +45,11 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
+            <beamUseDummyRunner></beamUseDummyRunner>
             <beamTestPipelineOptions>
             </beamTestPipelineOptions>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
       </plugin>
 
       <plugin>
@@ -210,13 +200,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam.runners</groupId>
-      <artifactId>google-cloud-dataflow-java</artifactId>
-      <version>${project.version}</version>
+      <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
     <dependency>
@@ -246,11 +230,6 @@
 
     <dependency>
       <groupId>com.google.apis</groupId>
-      <artifactId>google-api-services-datastore-protobuf</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-pubsub</artifactId>
     </dependency>
 
@@ -265,6 +244,16 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.cloud.datastore</groupId>
+      <artifactId>datastore-v1beta3-proto-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud.datastore</groupId>
+      <artifactId>datastore-v1beta3-protos</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
     </dependency>
@@ -275,15 +264,22 @@
     </dependency>
 
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-jdk14</artifactId>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${project.version}</version>
       <scope>runtime</scope>
     </dependency>
 
     <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>javax.servlet-api</artifactId>
-      <version>3.1.0</version>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-jdk14</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- Hamcrest and JUnit are required dependencies of PAssert,

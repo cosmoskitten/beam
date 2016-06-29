@@ -65,7 +65,6 @@ import com.google.protobuf.Empty;
 
 import org.hamcrest.Matchers;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -290,11 +289,7 @@ public class BigtableIOTest {
 
   /**
    * Tests dynamic work rebalancing exhaustively.
-   *
-   * <p>Because this test runs so slowly, it is disabled by default. Re-run when changing the
-   * {@link BigtableIO.Read} implementation.
    */
-  @Ignore("Slow. Rerun when changing the implementation.")
   @Test
   public void testReadingSplitAtFractionExhaustive() throws Exception {
     final String table = "TEST-FEW-ROWS-SPLIT-EXHAUSTIVE-TABLE";

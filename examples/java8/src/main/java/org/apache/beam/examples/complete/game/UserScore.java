@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 import org.apache.avro.reflect.Nullable;
 import org.slf4j.Logger;
@@ -63,7 +63,7 @@ import java.util.Map;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  *   --dataset=YOUR-DATASET
  * }
  * </pre>
@@ -168,7 +168,8 @@ public class UserScore {
       return gameInfo
         .apply(MapElements
             .via((GameActionInfo gInfo) -> KV.of(gInfo.getKey(field), gInfo.getScore()))
-            .withOutputType(new TypeDescriptor<KV<String, Integer>>() {}))
+            .withOutputType(
+                TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())))
         .apply(Sum.<String>integersPerKey());
     }
   }
@@ -225,7 +226,7 @@ public class UserScore {
 
     // Read events from a text file and parse them.
     pipeline.apply(TextIO.Read.from(options.getInput()))
-      .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()))
+      .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
       // Extract and sum username/score pairs from the event data.
       .apply("ExtractUserScore", new ExtractAndSumScore("user"))
       .apply("WriteUserScoreSums",

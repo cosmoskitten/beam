@@ -18,7 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
@@ -26,8 +25,8 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -41,10 +40,14 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
+import com.google.common.collect.ContiguousSet;
+import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Range;
 
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
@@ -70,10 +73,10 @@ import javax.annotation.Nullable;
 public class UnboundedReadEvaluatorFactoryTest {
   private PCollection<Long> longs;
   private TransformEvaluatorFactory factory;
-  private InProcessEvaluationContext context;
+  private EvaluationContext context;
   private UncommittedBundle<Long> output;
 
-  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+  private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   @Before
   public void setup() {
@@ -83,7 +86,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     longs = p.apply(Read.from(source));
 
     factory = new UnboundedReadEvaluatorFactory();
-    context = mock(InProcessEvaluationContext.class);
+    context = mock(EvaluationContext.class);
     output = bundleFactory.createRootBundle(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
   }
@@ -93,7 +96,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
 
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(
         result.getWatermarkHold(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
     assertThat(
@@ -112,7 +115,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
 
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(
         result.getWatermarkHold(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
     assertThat(
@@ -125,7 +128,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     when(context.createRootBundle(longs)).thenReturn(secondOutput);
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
-    InProcessTransformResult secondResult = secondEvaluator.finishBundle();
+    TransformResult secondResult = secondEvaluator.finishBundle();
     assertThat(
         secondResult.getWatermarkHold(),
         Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
@@ -136,7 +139,61 @@ public class UnboundedReadEvaluatorFactoryTest {
   }
 
   @Test
-  public void evaluatorClosesReader() throws Exception {
+  public void unboundedSourceWithDuplicatesMultipleCalls() throws Exception {
+    Long[] outputs = new Long[20];
+    for (long i = 0L; i < 20L; i++) {
+      outputs[(int) i] = i % 5L;
+    }
+    TestUnboundedSource<Long> source =
+        new TestUnboundedSource<>(BigEndianLongCoder.of(), outputs);
+    source.dedupes = true;
+
+    TestPipeline p = TestPipeline.create();
+    PCollection<Long> pcollection = p.apply(Read.from(source));
+    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
+    when(context.createRootBundle(pcollection)).thenReturn(output);
+    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+
+    evaluator.finishBundle();
+    assertThat(
+        output.commit(Instant.now()).getElements(),
+        containsInAnyOrder(tgw(1L), tgw(2L), tgw(4L), tgw(3L), tgw(0L)));
+
+    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
+    when(context.createRootBundle(longs)).thenReturn(secondOutput);
+    TransformEvaluator<?> secondEvaluator = factory.forApplication(sourceTransform, null, context);
+    secondEvaluator.finishBundle();
+    assertThat(
+        secondOutput.commit(Instant.now()).getElements(),
+        Matchers.<WindowedValue<Long>>emptyIterable());
+  }
+
+  @Test
+  public void evaluatorClosesReaderAfterOutputCount() throws Exception {
+    ContiguousSet<Long> elems = ContiguousSet.create(
+        Range.closed(0L, 20L * UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT),
+        DiscreteDomain.longs());
+    TestUnboundedSource<Long> source =
+        new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
+
+    TestPipeline p = TestPipeline.create();
+    PCollection<Long> pcollection = p.apply(Read.from(source));
+    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
+    when(context.createRootBundle(pcollection)).thenReturn(output);
+
+    for (int i = 0; i < UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT + 1; i++) {
+      TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+      evaluator.finishBundle();
+    }
+    assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
+  }
+
+  @Test
+  public void evaluatorReusesReaderBeforeCount() throws Exception {
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), 1L, 2L, 3L);
 
@@ -151,11 +208,18 @@ public class UnboundedReadEvaluatorFactoryTest {
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(ImmutableList.copyOf(committed.getElements()), hasSize(3));
-    assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
+    assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
+    assertThat(TestUnboundedSource.readerAdvancedCount, equalTo(4));
+
+    evaluator = factory.forApplication(sourceTransform, null, context);
+    evaluator.finishBundle();
+    assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
+    // Tried to advance again, even with no elements
+    assertThat(TestUnboundedSource.readerAdvancedCount, equalTo(5));
   }
 
   @Test
-  public void evaluatorNoElementsClosesReader() throws Exception {
+  public void evaluatorNoElementsReusesReaderAlways() throws Exception {
     TestUnboundedSource<Long> source = new TestUnboundedSource<>(BigEndianLongCoder.of());
 
     TestPipeline p = TestPipeline.create();
@@ -165,11 +229,13 @@ public class UnboundedReadEvaluatorFactoryTest {
     UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
     when(context.createRootBundle(pcollection)).thenReturn(output);
 
-    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
-    evaluator.finishBundle();
-    CommittedBundle<Long> committed = output.commit(Instant.now());
-    assertThat(committed.getElements(), emptyIterable());
-    assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
+    for (int i = 0; i < 2 * UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT; i++) {
+      TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+      evaluator.finishBundle();
+    }
+    assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
+    assertThat(TestUnboundedSource.readerAdvancedCount,
+        equalTo(2 * UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT));
   }
 
   // TODO: Once the source is split into multiple sources before evaluating, this test will have to
@@ -187,7 +253,7 @@ public class UnboundedReadEvaluatorFactoryTest {
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
 
     assertThat(secondEvaluator, nullValue());
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
 
     assertThat(
         result.getWatermarkHold(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
@@ -215,10 +281,13 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   private static class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMark> {
     static int readerClosedCount;
+    static int readerAdvancedCount;
     private final Coder<T> coder;
     private final List<T> elems;
+    private boolean dedupes = false;
 
     public TestUnboundedSource(Coder<T> coder, T... elems) {
+      readerAdvancedCount = 0;
       readerClosedCount = 0;
       this.coder = coder;
       this.elems = Arrays.asList(elems);
@@ -240,6 +309,11 @@ public class UnboundedReadEvaluatorFactoryTest {
     @Nullable
     public Coder<TestCheckpointMark> getCheckpointMarkCoder() {
       return new TestCheckpointMark.Coder();
+    }
+
+    @Override
+    public boolean requiresDeduping() {
+      return dedupes;
     }
 
     @Override
@@ -266,6 +340,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public boolean advance() throws IOException {
+        readerAdvancedCount++;
         if (index + 1 < elems.size()) {
           index++;
           return true;
@@ -296,7 +371,16 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public Instant getCurrentTimestamp() throws NoSuchElementException {
-        return Instant.now();
+        return new Instant(index);
+      }
+
+      @Override
+      public byte[] getCurrentRecordId() {
+        try {
+          return CoderUtils.encodeToByteArray(coder, getCurrent());
+        } catch (CoderException e) {
+          throw new RuntimeException(e);
+        }
       }
 
       @Override

@@ -44,7 +44,7 @@ import java.util.TimeZone;
 /**
  * This class is the second in a series of four pipelines that tell a story in a 'gaming'
  * domain, following {@link UserScore}. In addition to the concepts introduced in {@link UserScore},
- * new concepts include: windowing and element timestamps; use of {@code Filter.byPredicate()}.
+ * new concepts include: windowing and element timestamps; use of {@code Filter.by()}.
  *
  * <p> This pipeline processes data collected from gaming events in batch, building on {@link
  * UserScore} but using fixed windows. It calculates the sum of scores per team, for each window,
@@ -60,7 +60,7 @@ import java.util.TimeZone;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  *   --dataset=YOUR-DATASET
  * }
  * </pre>
@@ -109,9 +109,11 @@ public class HourlyTeamScore extends UserScore {
     String getStopMin();
     void setStopMin(String value);
 
+    @Override
     @Description("The BigQuery table name. Should not already exist.")
     @Default.String("hourly_team_score")
     String getTableName();
+    @Override
     void setTableName(String value);
   }
 
@@ -155,7 +157,7 @@ public class HourlyTeamScore extends UserScore {
     // Read 'gaming' events from a text file.
     pipeline.apply(TextIO.Read.from(options.getInput()))
       // Parse the incoming data.
-      .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()))
+      .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
 
       // Filter out data before and after the given times so that it is not included
       // in the calculations. As we collect data in batches (say, by day), the batch for the day
@@ -164,10 +166,10 @@ public class HourlyTeamScore extends UserScore {
       // (to scoop up late-arriving events from the day we're analyzing), we need to weed out events
       // that fall after the time period we want to analyze.
       // [START DocInclude_HTSFilters]
-      .apply("FilterStartTime", Filter.byPredicate(
+      .apply("FilterStartTime", Filter.by(
           (GameActionInfo gInfo)
               -> gInfo.getTimestamp() > startMinTimestamp.getMillis()))
-      .apply("FilterEndTime", Filter.byPredicate(
+      .apply("FilterEndTime", Filter.by(
           (GameActionInfo gInfo)
               -> gInfo.getTimestamp() < stopMinTimestamp.getMillis()))
       // [END DocInclude_HTSFilters]
@@ -176,9 +178,8 @@ public class HourlyTeamScore extends UserScore {
       // Add an element timestamp based on the event log, and apply fixed windowing.
       .apply("AddEventTimestamps",
              WithTimestamps.of((GameActionInfo i) -> new Instant(i.getTimestamp())))
-      .apply(Window.named("FixedWindowsTeam")
-          .<GameActionInfo>into(FixedWindows.of(
-                Duration.standardMinutes(options.getWindowDuration()))))
+      .apply("FixedWindowsTeam", Window.<GameActionInfo>into(
+          FixedWindows.of(Duration.standardMinutes(options.getWindowDuration()))))
       // [END DocInclude_HTSAddTsAndWindow]
 
       // Extract and sum teamname/score pairs from the event data.

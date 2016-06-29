@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -29,7 +33,7 @@ import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 
-import com.google.common.base.Preconditions;
+import com.google.common.collect.Ordering;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +47,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -111,7 +115,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Perform pipeline-construction-time validation. The default implementation is a no-op.
    * Subclasses should override to ensure the sink is valid and can be written to. It is recommended
-   * to use {@link Preconditions} in the implementation of this method.
+   * to use {@link Preconditions#checkState(boolean)} in the implementation of this method.
    */
   @Override
   public void validate(PipelineOptions options) {}
@@ -333,12 +337,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected final List<String> copyToOutputFiles(List<String> filenames, PipelineOptions options)
         throws IOException {
       int numFiles = filenames.size();
-      List<String> srcFilenames = new ArrayList<>();
+      // Sort files for idempotence.
+      List<String> srcFilenames = Ordering.natural().sortedCopy(filenames);
       List<String> destFilenames = generateDestinationFilenames(numFiles);
-
-      // Sort files for copying.
-      srcFilenames.addAll(filenames);
-      Collections.sort(srcFilenames);
 
       if (numFiles > 0) {
         LOG.debug("Copying {} files.", numFiles);
@@ -366,6 +367,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         destFilenames.add(IOChannelUtils.constructName(
             baseOutputFilename, fileNamingTemplate, suffix, i, numFiles));
       }
+
+      int numDistinctShards = new HashSet<String>(destFilenames).size();
+      checkState(numDistinctShards == numFiles,
+          "Shard name template '%s' only generated %s distinct file names for %s files.",
+          fileNamingTemplate, numDistinctShards, numFiles);
+
       return destFilenames;
     }
 
@@ -454,7 +461,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * Construct a new FileBasedWriter with a base filename.
      */
     public FileBasedWriter(FileBasedWriteOperation<T> writeOperation) {
-      Preconditions.checkNotNull(writeOperation);
+      checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
     }
 
@@ -624,7 +631,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     @Override
     public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
-      Preconditions.checkArgument(
+      checkArgument(
           srcFilenames.size() == destFilenames.size(),
           "Number of source files %s must equal number of destination files %s",
           srcFilenames.size(),

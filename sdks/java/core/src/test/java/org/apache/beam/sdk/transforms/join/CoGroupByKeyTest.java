@@ -406,7 +406,7 @@ public class CoGroupByKeyTest implements Serializable {
    */
   @SuppressWarnings("unchecked")
   @Test
-  public void testConsumingDoFn() {
+  public void testConsumingDoFn() throws Exception {
     TupleTag<String> purchasesTag = new TupleTag<>();
     TupleTag<String> addressesTag = new TupleTag<>();
     TupleTag<String> namesTag = new TupleTag<>();
@@ -438,7 +438,7 @@ public class CoGroupByKeyTest implements Serializable {
                 purchasesTag,
                 addressesTag,
                 namesTag))
-                .processBatch(
+                .processBundle(
                     KV.of(1, result1),
                     KV.of(2, result2),
                     KV.of(3, result3),

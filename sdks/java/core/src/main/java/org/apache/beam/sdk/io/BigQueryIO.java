@@ -162,8 +162,7 @@ import javax.annotation.Nullable;
  * This produces a {@link PCollection} of {@link TableRow TableRows} as output:
  * <pre>{@code
  * PCollection<TableRow> shakespeare = pipeline.apply(
- *     BigQueryIO.Read.named("Read")
- *                    .from("clouddataflow-readonly:samples.weather_stations"));
+ *     BigQueryIO.Read.from("clouddataflow-readonly:samples.weather_stations"));
  * }</pre>
  *
  * <p>See {@link TableRow} for more information on the {@link TableRow} object.
@@ -174,8 +173,7 @@ import javax.annotation.Nullable;
  *
  * <pre>{@code
  * PCollection<TableRow> shakespeare = pipeline.apply(
- *     BigQueryIO.Read.named("Read")
- *                    .fromQuery("SELECT year, mean_temp FROM samples.weather_stations"));
+ *     BigQueryIO.Read.fromQuery("SELECT year, mean_temp FROM samples.weather_stations"));
  * }</pre>
  *
  * <p>When creating a BigQuery input transform, users should provide either a query or a table.
@@ -193,7 +191,6 @@ import javax.annotation.Nullable;
  * TableSchema schema = new TableSchema().setFields(fields);
  *
  * quotes.apply(BigQueryIO.Write
- *     .named("Write")
  *     .to("my-project:output.output_table")
  *     .withSchema(schema)
  *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
@@ -201,8 +198,8 @@ import javax.annotation.Nullable;
  *
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
- * empty. Note that the dataset being written to must already exist. Write
- * dispositions are not supported in streaming mode.
+ * empty. Note that the dataset being written to must already exist. Unbounded PCollections can only
+ * be written using {@link WriteDisposition#WRITE_EMPTY} or {@link WriteDisposition#WRITE_APPEND}.
  *
  * <h3>Sharding BigQuery output tables</h3>
  * <p>A common use case is to dynamically generate BigQuery table names based on
@@ -214,7 +211,6 @@ import javax.annotation.Nullable;
  * PCollection<TableRow> quotes = ...
  * quotes.apply(Window.<TableRow>into(CalendarWindows.days(1)))
  *       .apply(BigQueryIO.Write
- *         .named("Write")
  *         .withSchema(schema)
  *         .to(new SerializableFunction<BoundedWindow, String>() {
  *           public String apply(BoundedWindow window) {
@@ -345,13 +341,6 @@ public class BigQueryIO {
    * }}</pre>
    */
   public static class Read {
-    /**
-     * Returns a {@link Read.Bound} with the given name. The BigQuery table or query to be read
-     * from has not yet been configured.
-     */
-    public static Bound named(String name) {
-      return new Bound().named(name);
-    }
 
     /**
      * Reads a BigQuery table specified as {@code "[project_id]:[dataset_id].[table_id]"} or
@@ -389,6 +378,12 @@ public class BigQueryIO {
     public static class Bound extends PTransform<PInput, PCollection<TableRow>> {
       @Nullable final String jsonTableRef;
       @Nullable final String query;
+
+      /**
+       * Disable validation that the table exists or the query succeeds prior to pipeline
+       * submission. Basic validation (such as ensuring that a query or table is specified) still
+       * occurs.
+       */
       final boolean validate;
       @Nullable final Boolean flattenResults;
       @Nullable final BigQueryServices testBigQueryServices;
@@ -420,15 +415,6 @@ public class BigQueryIO {
         this.validate = validate;
         this.flattenResults = flattenResults;
         this.testBigQueryServices = testBigQueryServices;
-      }
-
-      /**
-       * Returns a copy of this transform using the name associated with this transformation.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound named(String name) {
-        return new Bound(name, query, jsonTableRef, validate, flattenResults, testBigQueryServices);
       }
 
       /**
@@ -467,7 +453,9 @@ public class BigQueryIO {
       }
 
       /**
-       * Disable table validation.
+       * Disable validation that the table exists or the query succeeds prior to pipeline
+       * submission. Basic validation (such as ensuring that a query or table is specified) still
+       * occurs.
        */
       public Bound withoutValidation() {
         return new Bound(name, query, jsonTableRef, false, flattenResults, testBigQueryServices);
@@ -491,24 +479,26 @@ public class BigQueryIO {
 
       @Override
       public void validate(PInput input) {
+        // Even if existence validation is disabled, we need to make sure that the BigQueryIO
+        // read is properly specified.
+        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+
+        TableReference table = getTableWithDefaultProject(bqOptions);
+        if (table == null && query == null) {
+          throw new IllegalStateException(
+              "Invalid BigQuery read operation, either table reference or query has to be set");
+        } else if (table != null && query != null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies both a"
+              + " query and a table, only one of these should be provided");
+        } else if (table != null && flattenResults != null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
+              + " table with a result flattening preference, which is not configurable");
+        } else if (query != null && flattenResults == null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
+              + " query without a result flattening preference");
+        }
+
         if (validate) {
-          BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-
-          TableReference table = getTableWithDefaultProject(bqOptions);
-          if (table == null && query == null) {
-            throw new IllegalStateException(
-                "Invalid BigQuery read operation, either table reference or query has to be set");
-          } else if (table != null && query != null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies both a"
-                + " query and a table, only one of these should be provided");
-          } else if (table != null && flattenResults != null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
-                + " table with a result flattening preference, which is not configurable");
-          } else if (query != null && flattenResults == null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
-                + " query without a result flattening preference");
-          }
-
           // Check for source table/query presence for early failure notification.
           // Note that a presence check can fail if the table or dataset are created by earlier
           // stages of the pipeline or if a query depends on earlier stages of a pipeline. For these
@@ -635,13 +625,13 @@ public class BigQueryIO {
       }
 
       /**
-       * Returns the table to write, or {@code null} if reading from a query instead.
+       * Returns the table to read, or {@code null} if reading from a query instead.
        *
-       * <p>If the table's project is not specified, use the default one.
+       * <p>If the table's project is not specified, use the executing project.
        */
       @Nullable private TableReference getTableWithDefaultProject(BigQueryOptions bqOptions) {
         TableReference table = getTable();
-        if (table != null && table.getProjectId() == null) {
+        if (table != null && Strings.isNullOrEmpty(table.getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
           table.setProjectId(bqOptions.getProject());
@@ -652,6 +642,7 @@ public class BigQueryIO {
       /**
        * Returns the table to read, or {@code null} if reading from a query instead.
        */
+      @Nullable
       public TableReference getTable() {
         return fromJsonString(jsonTableRef, TableReference.class);
       }
@@ -767,11 +758,7 @@ public class BigQueryIO {
         String executingProject) {
       super(jobIdToken, extractDestinationDir, bqServices, executingProject);
       checkNotNull(table, "table");
-      try {
-        this.jsonTable = JSON_FACTORY.toString(table);
-      } catch (IOException e) {
-        throw new RuntimeException("Cannot initialize table to JSON strings.", e);
-      }
+      this.jsonTable = toJsonString(table);
       this.tableSizeBytes = new AtomicReference<>();
     }
 
@@ -849,11 +836,7 @@ public class BigQueryIO {
       super(jobIdToken, extractDestinationDir, bqServices,
           checkNotNull(queryTempTableRef, "queryTempTableRef").getProjectId());
       this.query = checkNotNull(query, "query");
-      try {
-        this.jsonQueryTempTable = JSON_FACTORY.toString(queryTempTableRef);
-      } catch (IOException e) {
-        throw new RuntimeException("Cannot initialize table to JSON strings.", e);
-      }
+      this.jsonQueryTempTable = toJsonString(queryTempTableRef);
       this.flattenResults = checkNotNull(flattenResults, "flattenResults");
       this.dryRunJobStats = new AtomicReference<>();
     }
@@ -1075,12 +1058,8 @@ public class BigQueryIO {
           new SerializableFunction<GenericRecord, TableRow>() {
             @Override
             public TableRow apply(GenericRecord input) {
-              try {
-                return AvroUtils.convertGenericRecordToTableRow(
-                    input, JSON_FACTORY.fromString(jsonSchema, TableSchema.class));
-              } catch (IOException e) {
-                throw new RuntimeException("Failed to convert GenericRecord to TableRow", e);
-              }
+              return AvroUtils.convertGenericRecordToTableRow(
+                  input, fromJsonString(jsonSchema, TableSchema.class));
             }};
 
       List<BoundedSource<TableRow>> avroSources = Lists.newArrayList();
@@ -1373,14 +1352,6 @@ public class BigQueryIO {
     }
 
     /**
-     * Creates a write transformation with the given transform name. The BigQuery table to be
-     * written has not yet been configured.
-     */
-    public static Bound named(String name) {
-      return new Bound().named(name);
-    }
-
-    /**
      * Creates a write transformation for the given table specification.
      *
      * <p>Refer to {@link #parseTableSpec(String)} for the specification format.
@@ -1523,16 +1494,6 @@ public class BigQueryIO {
       }
 
       /**
-       * Returns a copy of this write transformation, but with the specified transform name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound named(String name) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
-      }
-
-      /**
        * Returns a copy of this write transformation, but writing to the specified table. Refer to
        * {@link #parseTableSpec(String)} for the specification format.
        *
@@ -1670,13 +1631,7 @@ public class BigQueryIO {
 
         // The user specified a table.
         if (jsonTableRef != null && validate) {
-          TableReference table = getTable();
-
-          // If user does not specify a project we assume the table to be located in the project
-          // configured in BigQueryOptions.
-          if (Strings.isNullOrEmpty(table.getProjectId())) {
-            table.setProjectId(options.getProject());
-          }
+          TableReference table = getTableWithDefaultProject(options);
 
           // Check for destination table presence and emptiness for early failure notification.
           // Note that a presence check can fail when the table or dataset is created by an earlier
@@ -1691,7 +1646,7 @@ public class BigQueryIO {
           }
         }
 
-        if (options.isStreaming() || tableRefFunction != null) {
+        if (input.isBounded() == PCollection.IsBounded.UNBOUNDED || tableRefFunction != null) {
           // We will use BigQuery's streaming write API -- validate supported dispositions.
           checkArgument(
               createDisposition != CreateDisposition.CREATE_NEVER,
@@ -1805,6 +1760,21 @@ public class BigQueryIO {
       /** Returns the table schema. */
       public TableSchema getSchema() {
         return fromJsonString(jsonSchema, TableSchema.class);
+      }
+
+      /**
+       * Returns the table to write, or {@code null} if writing with {@code tableRefFunction}.
+       *
+       * <p>If the table's project is not specified, use the executing project.
+       */
+      @Nullable private TableReference getTableWithDefaultProject(BigQueryOptions bqOptions) {
+        TableReference table = getTable();
+        if (table != null && Strings.isNullOrEmpty(table.getProjectId())) {
+          // If user does not specify a project we assume the table to be located in
+          // the default project.
+          table.setProjectId(bqOptions.getProject());
+        }
+        return table;
       }
 
       /** Returns the table reference, or {@code null}. */

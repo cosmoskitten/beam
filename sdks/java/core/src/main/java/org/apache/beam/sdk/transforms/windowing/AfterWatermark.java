@@ -31,6 +31,8 @@ import org.joda.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 /**
  * <p>{@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a
  * lower-bound, sometimes heuristically established, on event times that have been fully processed
@@ -76,40 +78,19 @@ public class AfterWatermark {
   }
 
   /**
-   * Interface for building an AfterWatermarkTrigger with early firings already filled in.
+   * @see AfterWatermark
    */
-  public interface AfterWatermarkEarly extends TriggerBuilder {
-    /**
-     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
-     * the given {@code Trigger} fires after the watermark has passed the end of the window.
-     */
-    TriggerBuilder withLateFirings(OnceTrigger lateTrigger);
-  }
-
-  /**
-   * Interface for building an AfterWatermarkTrigger with late firings already filled in.
-   */
-  public interface AfterWatermarkLate extends TriggerBuilder {
-    /**
-     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
-     * the given {@code Trigger} fires before the watermark has passed the end of the window.
-     */
-    TriggerBuilder withEarlyFirings(OnceTrigger earlyTrigger);
-  }
-
-
-  private static class AfterWatermarkEarlyAndLate
-      extends Trigger
-      implements TriggerBuilder, AfterWatermarkEarly, AfterWatermarkLate {
+  public static class AfterWatermarkEarlyAndLate extends Trigger {
 
     private static final int EARLY_INDEX = 0;
     private static final int LATE_INDEX = 1;
 
     private final OnceTrigger earlyTrigger;
+    @Nullable
     private final OnceTrigger lateTrigger;
 
     @SuppressWarnings("unchecked")
-    private AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
+    public AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
       super(lateTrigger == null
           ? ImmutableList.<Trigger>of(earlyTrigger)
           : ImmutableList.<Trigger>of(earlyTrigger, lateTrigger));
@@ -117,13 +98,11 @@ public class AfterWatermark {
       this.lateTrigger = lateTrigger;
     }
 
-    @Override
-    public TriggerBuilder withEarlyFirings(OnceTrigger earlyTrigger) {
+    public Trigger withEarlyFirings(OnceTrigger earlyTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
-    @Override
-    public TriggerBuilder withLateFirings(OnceTrigger lateTrigger) {
+    public Trigger withLateFirings(OnceTrigger lateTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
@@ -226,7 +205,6 @@ public class AfterWatermark {
     public String toString() {
       StringBuilder builder = new StringBuilder(TO_STRING);
 
-      Trigger earlyTrigger = subTriggers.get(EARLY_INDEX);
       if (!(earlyTrigger instanceof Never.NeverTrigger)) {
         builder
             .append(".withEarlyFirings(")
@@ -234,10 +212,12 @@ public class AfterWatermark {
             .append(")");
       }
 
-      builder
-          .append(".withLateFirings(")
-          .append(subTriggers.get(LATE_INDEX))
-          .append(")");
+      if (lateTrigger != null && !(lateTrigger instanceof Never.NeverTrigger)) {
+        builder
+            .append(".withLateFirings(")
+            .append(lateTrigger)
+            .append(")");
+      }
 
       return builder.toString();
     }
@@ -297,7 +277,7 @@ public class AfterWatermark {
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
      * the given {@code Trigger} fires before the watermark has passed the end of the window.
      */
-    public AfterWatermarkEarly withEarlyFirings(OnceTrigger earlyFirings) {
+    public AfterWatermarkEarlyAndLate withEarlyFirings(OnceTrigger earlyFirings) {
       checkNotNull(earlyFirings, "Must specify the trigger to use for early firings");
       return new AfterWatermarkEarlyAndLate(earlyFirings, null);
     }
@@ -306,7 +286,7 @@ public class AfterWatermark {
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
      * the given {@code Trigger} fires after the watermark has passed the end of the window.
      */
-    public AfterWatermarkLate withLateFirings(OnceTrigger lateFirings) {
+    public AfterWatermarkEarlyAndLate withLateFirings(OnceTrigger lateFirings) {
       checkNotNull(lateFirings, "Must specify the trigger to use for late firings");
       return new AfterWatermarkEarlyAndLate(Never.ever(), lateFirings);
     }

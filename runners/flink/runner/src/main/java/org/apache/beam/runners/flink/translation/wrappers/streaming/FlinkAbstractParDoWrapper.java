@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -32,11 +35,10 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
-import com.google.common.base.Preconditions;
-
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -52,29 +54,38 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
   private final DoFn<IN, OUTDF> doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
-  private transient PipelineOptions options;
+  private final SerializedPipelineOptions serializedPipelineOptions;
 
   private DoFnProcessContext context;
 
   public FlinkAbstractParDoWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, DoFn<IN, OUTDF> doFn) {
-    Preconditions.checkNotNull(options);
-    Preconditions.checkNotNull(windowingStrategy);
-    Preconditions.checkNotNull(doFn);
+    checkNotNull(options);
+    checkNotNull(windowingStrategy);
+    checkNotNull(doFn);
 
     this.doFn = doFn;
-    this.options = options;
+    this.serializedPipelineOptions = new SerializedPipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
   }
 
-  private void initContext(DoFn<IN, OUTDF> function, Collector<WindowedValue<OUTFL>> outCollector) {
-    if (this.context == null) {
-      this.context = new DoFnProcessContext(function, outCollector);
+  @Override
+  public void open(Configuration parameters) throws Exception {
+  }
+
+  @Override
+  public void close() throws Exception {
+    if (this.context != null) {
+      // we have initialized the context
+      this.doFn.finishBundle(this.context);
     }
   }
 
   @Override
   public void flatMap(WindowedValue<IN> value, Collector<WindowedValue<OUTFL>> out) throws Exception {
-    this.initContext(doFn, out);
+    if (this.context == null) {
+      this.context = new DoFnProcessContext(doFn, out);
+      this.doFn.startBundle(this.context);
+    }
 
     // for each window the element belongs to, create a new copy here.
     Collection<? extends BoundedWindow> windows = value.getWindows();
@@ -90,9 +101,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
   private void processElement(WindowedValue<IN> value) throws Exception {
     this.context.setElement(value);
-    this.doFn.startBundle(context);
-    doFn.processElement(context);
-    this.doFn.finishBundle(context);
+    doFn.processElement(this.context);
   }
 
   private class DoFnProcessContext extends DoFn<IN, OUTDF>.ProcessContext {
@@ -103,7 +112,8 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
     private WindowedValue<IN> element;
 
-    private DoFnProcessContext(DoFn<IN, OUTDF> function, Collector<WindowedValue<OUTFL>> outCollector) {
+    private DoFnProcessContext(DoFn<IN, OUTDF> function,
+          Collector<WindowedValue<OUTFL>> outCollector) {
       function.super();
       super.setupDelegateAggregators();
 
@@ -152,7 +162,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      return options;
+      return serializedPipelineOptions.getPipelineOptions();
     }
 
     @Override
@@ -235,9 +245,9 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
           }
 
           @Override
-          public Collection<? extends BoundedWindow> windows() {
+          public BoundedWindow window() {
             throw new UnsupportedOperationException(
-                "WindowFn attempted to access input windows when none were available");
+                "WindowFn attempted to access input window when none was available");
           }
         });
       } catch (Exception e) {

@@ -1,3 +1,22 @@
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+
 Spark Beam Runner (Spark-Runner)
 ================================
 
@@ -70,7 +89,7 @@ If we wanted to run a Beam pipeline with the default options of a single threade
 instance in local mode, we would do the following:
 
     Pipeline p = <logic for pipeline creation >
-    EvaluationResult result = SparkPipelineRunner.create().run(p);
+    EvaluationResult result = SparkRunner.create().run(p);
 
 To create a pipeline runner to run against a different Spark cluster, with a custom master url we
 would do the following:
@@ -78,7 +97,7 @@ would do the following:
     Pipeline p = <logic for pipeline creation >
     SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
     options.setSparkMaster("spark://host:port");
-    EvaluationResult result = SparkPipelineRunner.create(options).run(p);
+    EvaluationResult result = SparkRunner.create(options).run(p);
 
 ## Word Count Example
 
@@ -94,7 +113,7 @@ Then run the [word count example][wc] from the SDK using a single threaded Spark
 in local mode:
 
     mvn exec:exec -DmainClass=org.apache.beam.examples.WordCount \
-      -Dinput=/tmp/kinglear.txt -Doutput=/tmp/out -Drunner=SparkPipelineRunner \
+      -Dinput=/tmp/kinglear.txt -Doutput=/tmp/out -Drunner=SparkRunner \
       -DsparkMaster=local
 
 Check the output by running:
@@ -120,7 +139,7 @@ Then run the word count example using Spark submit with the `yarn-client` master
       --class org.apache.beam.examples.WordCount \
       --master yarn-client \
       target/spark-runner-*-spark-app.jar \
-        --inputFile=kinglear.txt --output=out --runner=SparkPipelineRunner --sparkMaster=yarn-client
+        --inputFile=kinglear.txt --output=out --runner=SparkRunner --sparkMaster=yarn-client
 
 Check the output by running:
 

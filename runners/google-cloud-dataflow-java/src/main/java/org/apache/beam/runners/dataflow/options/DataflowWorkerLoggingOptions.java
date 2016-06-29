@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
@@ -38,7 +38,23 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * The set of log levels that can be used on the Dataflow worker.
    */
   public enum Level {
-    DEBUG, ERROR, INFO, TRACE, WARN
+    /** Special level used to turn off logging. */
+    OFF,
+
+    /** Level for logging error messages. */
+    ERROR,
+
+    /** Level for logging warning messages. */
+    WARN,
+
+    /** Level for logging informational messages. */
+    INFO,
+
+    /** Level for logging diagnostic messages. */
+    DEBUG,
+
+    /** Level for logging tracing messages. */
+    TRACE
   }
 
   /**
@@ -48,6 +64,34 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   @Default.Enum("INFO")
   Level getDefaultWorkerLogLevel();
   void setDefaultWorkerLogLevel(Level level);
+
+  /**
+   * Controls the log level given to messages printed to {@code System.out}.
+   *
+   * <p>Note that the message may be filtered depending on the
+   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a {@code System.out} override is
+   * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
+   */
+  @Description("Controls the log level given to messages printed to System.out. Note that the "
+      + "message may be filtered depending on the defaultWorkerLogLevel or if a 'System.out' "
+      + "override is specified via workerLogLevelOverrides.")
+  @Default.Enum("INFO")
+  Level getWorkerSystemOutMessageLevel();
+  void setWorkerSystemOutMessageLevel(Level level);
+
+  /**
+   * Controls the log level given to messages printed to {@code System.err}.
+   *
+   * <p>Note that the message may be filtered depending on the
+   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a {@code System.err} override is
+   * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
+   */
+  @Description("Controls the log level given to messages printed to System.err. Note that the "
+      + "message may be filtered depending on the defaultWorkerLogLevel or if a 'System.err' "
+      + "override is specified via workerLogLevelOverrides.")
+  @Default.Enum("ERROR")
+  Level getWorkerSystemErrMessageLevel();
+  void setWorkerSystemErrMessageLevel(Level level);
 
   /**
    * This option controls the log levels for specifically named loggers.
@@ -60,26 +104,25 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * {@link WorkerLogLevelOverrides#from}.
    */
   @Description("This option controls the log levels for specifically named loggers. "
-      + "The expected format is {\"Name\":\"Level\",...}. The Dataflow worker uses "
-      + "java.util.logging, which supports a logging hierarchy based off of names that are '.' "
-      + "separated. For example, by specifying the value {\"a.b.c.Foo\":\"DEBUG\"}, the logger "
-      + "for the class 'a.b.c.Foo' will be configured to output logs at the DEBUG level. "
-      + "Similarly, by specifying the value {\"a.b.c\":\"WARN\"}, all loggers underneath the "
-      + "'a.b.c' package will be configured to output logs at the WARN level. Also, note that "
-      + "when multiple overrides are specified, the exact name followed by the closest parent "
-      + "takes precedence.")
+      + "The expected format is {\"Name\":\"Level\",...}. The Dataflow worker supports a logging "
+      + "hierarchy based off of names that are '.' separated. For example, by specifying the value "
+      + "{\"a.b.c.Foo\":\"DEBUG\"}, the logger for the class 'a.b.c.Foo' will be configured to "
+      + "output logs at the DEBUG level. Similarly, by specifying the value {\"a.b.c\":\"WARN\"}, "
+      + "all loggers underneath the 'a.b.c' package will be configured to output logs at the WARN "
+      + "level. System.out and System.err levels are configured via loggers of the corresponding "
+      + "name. Also, note that when multiple overrides are specified, the exact name followed by "
+      + "the closest parent takes precedence.")
   WorkerLogLevelOverrides getWorkerLogLevelOverrides();
   void setWorkerLogLevelOverrides(WorkerLogLevelOverrides value);
 
   /**
    * Defines a log level override for a specific class, package, or name.
    *
-   * <p>{@code java.util.logging} is used on the Dataflow worker harness and supports
-   * a logging hierarchy based off of names that are "." separated. It is a common
-   * pattern to have the logger for a given class share the same name as the class itself.
-   * Given the classes {@code a.b.c.Foo}, {@code a.b.c.Xyz}, and {@code a.b.Bar}, with
-   * loggers named {@code "a.b.c.Foo"}, {@code "a.b.c.Xyz"}, and {@code "a.b.Bar"} respectively,
-   * we can override the log levels:
+   * <p>The Dataflow worker harness supports a logging hierarchy based off of names that are "."
+   * separated. It is a common pattern to have the logger for a given class share the same name as
+   * the class itself. Given the classes {@code a.b.c.Foo}, {@code a.b.c.Xyz}, and {@code a.b.Bar},
+   * with loggers named {@code "a.b.c.Foo"}, {@code "a.b.c.Xyz"}, and {@code "a.b.Bar"}
+   * respectively, we can override the log levels:
    * <ul>
    *    <li>for {@code Foo} by specifying the name {@code "a.b.c.Foo"} or the {@link Class}
    *    representing {@code a.b.c.Foo}.
@@ -87,8 +130,10 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    *    the {@link Package} representing {@code a.b}.
    *    <li>for {@code Foo} and {@code Bar} by specifying both of their names or classes.
    * </ul>
-   * Note that by specifying multiple overrides, the exact name followed by the closest parent
-   * takes precedence.
+   *
+   * <p>{@code System.out} and {@code System.err} messages are configured via loggers of the
+   * corresponding name. Note that by specifying multiple overrides, the exact name followed by the
+   * closest parent takes precedence.
    */
   public static class WorkerLogLevelOverrides extends HashMap<String, Level> {
     /**
@@ -99,7 +144,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
      * and passing in the {@link Class#getName() class name}.
      */
     public WorkerLogLevelOverrides addOverrideForClass(Class<?> klass, Level level) {
-      Preconditions.checkNotNull(klass, "Expected class to be not null.");
+      checkNotNull(klass, "Expected class to be not null.");
       addOverrideForName(klass.getName(), level);
       return this;
     }
@@ -112,7 +157,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
      * and passing in the {@link Package#getName() package name}.
      */
     public WorkerLogLevelOverrides addOverrideForPackage(Package pkg, Level level) {
-      Preconditions.checkNotNull(pkg, "Expected package to be not null.");
+      checkNotNull(pkg, "Expected package to be not null.");
       addOverrideForName(pkg.getName(), level);
       return this;
     }
@@ -125,8 +170,8 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
      * a parent logger that has the passed in name.
      */
     public WorkerLogLevelOverrides addOverrideForName(String name, Level level) {
-      Preconditions.checkNotNull(name, "Expected name to be not null.");
-      Preconditions.checkNotNull(level,
+      checkNotNull(name, "Expected name to be not null.");
+      checkNotNull(level,
           "Expected level to be one of %s.", Arrays.toString(Level.values()));
       put(name, level);
       return this;
@@ -141,7 +186,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
      */
     @JsonCreator
     public static WorkerLogLevelOverrides from(Map<String, String> values) {
-      Preconditions.checkNotNull(values, "Expected values to be not null.");
+      checkNotNull(values, "Expected values to be not null.");
       WorkerLogLevelOverrides overrides = new WorkerLogLevelOverrides();
       for (Map.Entry<String, String> entry : values.entrySet()) {
         try {

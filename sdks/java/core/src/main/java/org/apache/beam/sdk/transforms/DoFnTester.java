@@ -18,32 +18,37 @@
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.DirectModeExecutionContext;
-import org.apache.beam.sdk.util.DirectSideInputReader;
-import org.apache.beam.sdk.util.DoFnRunner;
-import org.apache.beam.sdk.util.DoFnRunnerBase;
-import org.apache.beam.sdk.util.DoFnRunners;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.PTuple;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.CounterSet;
+import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals;
+import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 import com.google.common.base.Function;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import org.joda.time.Instant;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,18 +63,18 @@ import java.util.Map;
  *
  * DoFnTester<InputT, OutputT> fnTester = DoFnTester.of(fn);
  *
- * // Set arguments shared across all batches:
+ * // Set arguments shared across all bundles:
  * fnTester.setSideInputs(...);      // If fn takes side inputs.
  * fnTester.setSideOutputTags(...);  // If fn writes to side outputs.
  *
- * // Process a batch containing a single input element:
+ * // Process a bundle containing a single input element:
  * Input testInput = ...;
- * List<OutputT> testOutputs = fnTester.processBatch(testInput);
+ * List<OutputT> testOutputs = fnTester.processBundle(testInput);
  * Assert.assertThat(testOutputs,
  *                   JUnitMatchers.hasItems(...));
  *
- * // Process a bigger batch:
- * Assert.assertThat(fnTester.processBatch(i1, i2, ...),
+ * // Process a bigger bundle:
+ * Assert.assertThat(fnTester.processBundle(i1, i2, ...),
  *                   JUnitMatchers.hasItems(...));
  * } </pre>
  *
@@ -165,7 +170,7 @@ public class DoFnTester<InputT, OutputT> {
    * calls {@link #finishBundle}, then returns the result of
    * {@link #takeOutputElements}.
    */
-  public List<OutputT> processBatch(Iterable <? extends InputT> inputElements) {
+  public List<OutputT> processBundle(Iterable <? extends InputT> inputElements) throws Exception {
     startBundle();
     for (InputT inputElement : inputElements) {
       processElement(inputElement);
@@ -186,8 +191,8 @@ public class DoFnTester<InputT, OutputT> {
    * </ol>
    */
   @SafeVarargs
-  public final List<OutputT> processBatch(InputT... inputElements) {
-    return processBatch(Arrays.asList(inputElements));
+  public final List<OutputT> processBundle(InputT... inputElements) throws Exception {
+    return processBundle(Arrays.asList(inputElements));
   }
 
   /**
@@ -195,10 +200,12 @@ public class DoFnTester<InputT, OutputT> {
    *
    * <p>If needed, first creates a fresh instance of the DoFn under test.
    */
-  public void startBundle() {
+  public void startBundle() throws Exception {
     resetState();
     initializeState();
-    fnRunner.startBundle();
+    TestContext<InputT, OutputT> context = createContext(fn);
+    context.setupDelegateAggregators();
+    fn.startBundle(context);
     state = State.STARTED;
   }
 
@@ -213,14 +220,14 @@ public class DoFnTester<InputT, OutputT> {
    * @throws IllegalStateException if the {@code DoFn} under test has already
    * been finished
    */
-  public void processElement(InputT element) {
+  public void processElement(InputT element) throws Exception {
     if (state == State.FINISHED) {
       throw new IllegalStateException("finishBundle() has already been called");
     }
     if (state == State.UNSTARTED) {
       startBundle();
     }
-    fnRunner.processElement(WindowedValue.valueInGlobalWindow(element));
+    fn.processElement(createProcessContext(fn, element));
   }
 
   /**
@@ -232,14 +239,14 @@ public class DoFnTester<InputT, OutputT> {
    * @throws IllegalStateException if the {@code DoFn} under test has already
    * been finished
    */
-  public void finishBundle() {
+  public void finishBundle() throws Exception {
     if (state == State.FINISHED) {
       throw new IllegalStateException("finishBundle() has already been called");
     }
     if (state == State.UNSTARTED) {
       startBundle();
     }
-    fnRunner.finishBundle();
+    fn.finishBundle(createContext(fn));
     state = State.FINISHED;
   }
 
@@ -256,10 +263,10 @@ public class DoFnTester<InputT, OutputT> {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(
         peekOutputElementsWithTimestamp(),
-        new Function<OutputElementWithTimestamp<OutputT>, OutputT>() {
+        new Function<TimestampedValue<OutputT>, OutputT>() {
           @Override
           @SuppressWarnings("unchecked")
-          public OutputT apply(OutputElementWithTimestamp<OutputT> input) {
+          public OutputT apply(TimestampedValue<OutputT> input) {
             return input.getValue();
           }
         });
@@ -274,19 +281,40 @@ public class DoFnTester<InputT, OutputT> {
    * @see #clearOutputElements
    */
   @Experimental
-  public List<OutputElementWithTimestamp<OutputT>> peekOutputElementsWithTimestamp() {
+  public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(
-        outputManager.getOutput(mainOutputTag),
-        new Function<Object, OutputElementWithTimestamp<OutputT>>() {
+    return Lists.transform(getOutput(mainOutputTag),
+        new Function<WindowedValue<OutputT>, TimestampedValue<OutputT>>() {
           @Override
           @SuppressWarnings("unchecked")
-          public OutputElementWithTimestamp<OutputT> apply(Object input) {
-            return new OutputElementWithTimestamp<OutputT>(
-                ((WindowedValue<OutputT>) input).getValue(),
-                ((WindowedValue<OutputT>) input).getTimestamp());
+          public TimestampedValue<OutputT> apply(WindowedValue<OutputT> input) {
+            return TimestampedValue.of(input.getValue(), input.getTimestamp());
           }
         });
+  }
+
+  /**
+   * Returns the elements output so far to the main output in the provided window with associated
+   * timestamps.
+   */
+  public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(BoundedWindow window) {
+    return peekOutputElementsInWindow(mainOutputTag, window);
+  }
+
+  /**
+   * Returns the elements output so far to the specified output in the provided window with
+   * associated timestamps.
+   */
+  public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(
+      TupleTag<OutputT> tag,
+      BoundedWindow window) {
+    ImmutableList.Builder<TimestampedValue<OutputT>> valuesBuilder = ImmutableList.builder();
+    for (WindowedValue<OutputT> value : getOutput(tag)) {
+      if (value.getWindows().contains(window)) {
+        valuesBuilder.add(TimestampedValue.of(value.getValue(), value.getTimestamp()));
+      }
+    }
+    return valuesBuilder.build();
   }
 
   /**
@@ -319,8 +347,8 @@ public class DoFnTester<InputT, OutputT> {
    * @see #clearOutputElements
    */
   @Experimental
-  public List<OutputElementWithTimestamp<OutputT>> takeOutputElementsWithTimestamp() {
-    List<OutputElementWithTimestamp<OutputT>> resultElems =
+  public List<TimestampedValue<OutputT>> takeOutputElementsWithTimestamp() {
+    List<TimestampedValue<OutputT>> resultElems =
         new ArrayList<>(peekOutputElementsWithTimestamp());
     clearOutputElements();
     return resultElems;
@@ -336,8 +364,7 @@ public class DoFnTester<InputT, OutputT> {
    */
   public <T> List<T> peekSideOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(
-        outputManager.getOutput(tag),
+    return Lists.transform(getOutput(tag),
         new Function<WindowedValue<T>, T>() {
           @SuppressWarnings("unchecked")
           @Override
@@ -372,46 +399,260 @@ public class DoFnTester<InputT, OutputT> {
    * Returns the value of the provided {@link Aggregator}.
    */
   public <AggregateT> AggregateT getAggregatorValue(Aggregator<?, AggregateT> agg) {
-    @SuppressWarnings("unchecked")
-    Counter<AggregateT> counter =
-        (Counter<AggregateT>)
-            counterSet.getExistingCounter("user-" + STEP_NAME + "-" + agg.getName());
-    return counter.getAggregate();
+    return extractAggregatorValue(agg.getName(), agg.getCombineFn());
   }
 
-  /**
-   * Holder for an OutputElement along with its associated timestamp.
-   */
-  @Experimental
-  public static class OutputElementWithTimestamp<OutputT> {
-    private final OutputT value;
-    private final Instant timestamp;
-
-    OutputElementWithTimestamp(OutputT value, Instant timestamp) {
-      this.value = value;
-      this.timestamp = timestamp;
+  private <AccumT, AggregateT> AggregateT extractAggregatorValue(
+      String name, CombineFn<?, AccumT, AggregateT> combiner) {
+    @SuppressWarnings("unchecked")
+    AccumT accumulator = (AccumT) accumulators.get(name);
+    if (accumulator == null) {
+      accumulator = combiner.createAccumulator();
     }
+    return combiner.extractOutput(accumulator);
+  }
 
-    OutputT getValue() {
-      return value;
-    }
+  private <T> List<WindowedValue<T>> getOutput(TupleTag<T> tag) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    List<WindowedValue<T>> elems = (List) outputs.get(tag);
+    return MoreObjects.firstNonNull(elems, Collections.<WindowedValue<T>>emptyList());
+  }
 
-    Instant getTimestamp() {
-      return timestamp;
+  private TestContext<InputT, OutputT> createContext(DoFn<InputT, OutputT> fn) {
+    return new TestContext<>(fn, options, mainOutputTag, outputs, accumulators);
+  }
+
+  private static class TestContext<InT, OutT> extends DoFn<InT, OutT>.Context {
+    private final PipelineOptions opts;
+    private final TupleTag<OutT> mainOutputTag;
+    private final Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
+    private final Map<String, Object> accumulators;
+
+    public TestContext(
+        DoFn<InT, OutT> fn,
+        PipelineOptions opts,
+        TupleTag<OutT> mainOutputTag,
+        Map<TupleTag<?>, List<WindowedValue<?>>> outputs,
+        Map<String, Object> accumulators) {
+      fn.super();
+      this.opts = opts;
+      this.mainOutputTag = mainOutputTag;
+      this.outputs = outputs;
+      this.accumulators = accumulators;
     }
 
     @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof OutputElementWithTimestamp)) {
-        return false;
+    public PipelineOptions getPipelineOptions() {
+      return opts;
+    }
+
+    @Override
+    public void output(OutT output) {
+      sideOutput(mainOutputTag, output);
+    }
+
+    @Override
+    public void outputWithTimestamp(OutT output, Instant timestamp) {
+      sideOutputWithTimestamp(mainOutputTag, output, timestamp);
+    }
+
+    @Override
+    protected <AggInT, AggOutT> Aggregator<AggInT, AggOutT> createAggregatorInternal(
+        final String name, final CombineFn<AggInT, ?, AggOutT> combiner) {
+      return aggregator(name, combiner);
+    }
+
+    private <AinT, AccT, AoutT> Aggregator<AinT, AoutT> aggregator(
+        final String name,
+        final CombineFn<AinT, AccT, AoutT> combiner) {
+      Aggregator<AinT, AoutT> aggregator = new Aggregator<AinT, AoutT>() {
+        @Override
+        public void addValue(AinT value) {
+          AccT accum = (AccT) accumulators.get(name);
+          AccT newAccum = combiner.addInput(accum, value);
+          accumulators.put(name, newAccum);
+        }
+
+        @Override
+        public String getName() {
+          return name;
+        }
+
+        @Override
+        public CombineFn<AinT, ?, AoutT> getCombineFn() {
+          return combiner;
+        }
+      };
+      accumulators.put(name, combiner.createAccumulator());
+      return aggregator;
+    }
+
+    @Override
+    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+
+    }
+
+    @Override
+    public <T> void sideOutput(TupleTag<T> tag, T output) {
+      sideOutputWithTimestamp(tag, output, BoundedWindow.TIMESTAMP_MIN_VALUE);
+    }
+
+    public <T> void noteOutput(TupleTag<T> tag, WindowedValue<T> output) {
+      getOutputList(tag).add(output);
+    }
+
+    private <T> List<WindowedValue<T>> getOutputList(TupleTag<T> tag) {
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      List<WindowedValue<T>> outputList = (List) outputs.get(tag);
+      if (outputList == null) {
+        outputList = new ArrayList<>();
+        outputs.put(tag, (List) outputList);
       }
-      OutputElementWithTimestamp<?> other = (OutputElementWithTimestamp<?>) obj;
-      return Objects.equal(other.value, value) && Objects.equal(other.timestamp, timestamp);
+      return outputList;
+    }
+  }
+
+  private TestProcessContext<InputT, OutputT> createProcessContext(
+      DoFn<InputT, OutputT> fn,
+      InputT elem) {
+    return new TestProcessContext<>(fn,
+        createContext(fn),
+        WindowedValue.valueInGlobalWindow(elem),
+        mainOutputTag,
+        sideInputs);
+  }
+
+  private static class TestProcessContext<InT, OutT> extends DoFn<InT, OutT>.ProcessContext {
+    private final TestContext<InT, OutT> context;
+    private final TupleTag<OutT> mainOutputTag;
+    private final WindowedValue<InT> element;
+    private final Map<PCollectionView<?>, ?> sideInputs;
+
+    private TestProcessContext(
+        DoFn<InT, OutT> fn,
+        TestContext<InT, OutT> context,
+        WindowedValue<InT> element,
+        TupleTag<OutT> mainOutputTag,
+        Map<PCollectionView<?>, ?> sideInputs) {
+      fn.super();
+      this.context = context;
+      this.element = element;
+      this.mainOutputTag = mainOutputTag;
+      this.sideInputs = sideInputs;
     }
 
     @Override
-    public int hashCode() {
-      return Objects.hashCode(value, timestamp);
+    public InT element() {
+      return element.getValue();
+    }
+
+    @Override
+    public <T> T sideInput(PCollectionView<T> view) {
+      @SuppressWarnings("unchecked")
+      T sideInput = (T) sideInputs.get(view);
+      return sideInput;
+    }
+
+    @Override
+    public Instant timestamp() {
+      return element.getTimestamp();
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return Iterables.getOnlyElement(element.getWindows());
+    }
+
+    @Override
+    public PaneInfo pane() {
+      return element.getPane();
+    }
+
+    @Override
+    public WindowingInternals<InT, OutT> windowingInternals() {
+      return new WindowingInternals<InT, OutT>() {
+        StateInternals<?> stateInternals = InMemoryStateInternals.forKey(new Object());
+
+        @Override
+        public StateInternals<?> stateInternals() {
+          return stateInternals;
+        }
+
+        @Override
+        public void outputWindowedValue(
+            OutT output,
+            Instant timestamp,
+            Collection<? extends BoundedWindow> windows,
+            PaneInfo pane) {
+          context.noteOutput(mainOutputTag, WindowedValue.of(output, timestamp, windows, pane));
+        }
+
+        @Override
+        public TimerInternals timerInternals() {
+          throw
+              new UnsupportedOperationException("Timer Internals are not supported in DoFnTester");
+        }
+
+        @Override
+        public Collection<? extends BoundedWindow> windows() {
+          return element.getWindows();
+        }
+
+        @Override
+        public PaneInfo pane() {
+          return element.getPane();
+        }
+
+        @Override
+        public <T> void writePCollectionViewData(
+            TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder)
+            throws IOException {
+          throw new UnsupportedOperationException(
+              "WritePCollectionViewData is not supported in in the context of DoFnTester");
+        }
+
+        @Override
+        public <T> T sideInput(
+            PCollectionView<T> view, BoundedWindow mainInputWindow) {
+          throw new UnsupportedOperationException(
+              "SideInput from WindowingInternals is not supported in in the context of DoFnTester");
+        }
+      };
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      return context.getPipelineOptions();
+    }
+
+    @Override
+    public void output(OutT output) {
+      sideOutput(mainOutputTag, output);
+    }
+
+    @Override
+    public void outputWithTimestamp(OutT output, Instant timestamp) {
+      sideOutputWithTimestamp(mainOutputTag, output, timestamp);
+    }
+
+    @Override
+    public <T> void sideOutput(TupleTag<T> tag, T output) {
+      sideOutputWithTimestamp(tag, output, element.getTimestamp());
+    }
+
+    @Override
+    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      context.noteOutput(tag,
+          WindowedValue.of(output, timestamp, element.getWindows(), element.getPane()));
+    }
+
+    @Override
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
+      throw new IllegalStateException("Aggregators should not be created within ProcessContext. "
+          + "Instead, create an aggregator at DoFn construction time with createAggregator, and "
+          + "ensure they are set up by the time startBundle is called "
+          + "with setupDelegateAggregators.");
     }
   }
 
@@ -424,11 +665,6 @@ public class DoFnTester<InputT, OutputT> {
     FINISHED
   }
 
-  /** The name of the step of a DoFnTester. */
-  static final String STEP_NAME = "stepName";
-  /** The name of the enclosing DoFn PTransform for a DoFnTester. */
-  static final String TRANSFORM_NAME = "transformName";
-
   final PipelineOptions options = PipelineOptionsFactory.create();
 
   /** The original DoFn under test. */
@@ -438,6 +674,8 @@ public class DoFnTester<InputT, OutputT> {
   private Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs =
       new HashMap<>();
 
+  private Map<String, Object> accumulators;
+
   /** The output tags used by the DoFn under test. */
   TupleTag<OutputT> mainOutputTag = new TupleTag<>();
   List<TupleTag<?>> sideOutputTags = new ArrayList<>();
@@ -446,13 +684,7 @@ public class DoFnTester<InputT, OutputT> {
   DoFn<InputT, OutputT> fn;
 
   /** The ListOutputManager to examine the outputs. */
-  DoFnRunnerBase.ListOutputManager outputManager;
-
-  /** The DoFnRunner if processing is in progress. */
-  DoFnRunner<InputT, OutputT> fnRunner;
-
-  /** Counters for user-defined Aggregators if processing is in progress. */
-  CounterSet counterSet;
+  Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
 
   /** The state of processing of the DoFn under test. */
   State state;
@@ -464,9 +696,8 @@ public class DoFnTester<InputT, OutputT> {
 
   void resetState() {
     fn = null;
-    outputManager = null;
-    fnRunner = null;
-    counterSet = null;
+    outputs = null;
+    accumulators = null;
     state = State.UNSTARTED;
   }
 
@@ -476,23 +707,12 @@ public class DoFnTester<InputT, OutputT> {
         SerializableUtils.deserializeFromByteArray(
             SerializableUtils.serializeToByteArray(origFn),
             origFn.toString());
-    counterSet = new CounterSet();
     PTuple runnerSideInputs = PTuple.empty();
     for (Map.Entry<PCollectionView<?>, Iterable<WindowedValue<?>>> entry
         : sideInputs.entrySet()) {
       runnerSideInputs = runnerSideInputs.and(entry.getKey().getTagInternal(), entry.getValue());
     }
-    outputManager = new DoFnRunnerBase.ListOutputManager();
-    fnRunner =
-        DoFnRunners.createDefault(
-            options,
-            fn,
-            DirectSideInputReader.of(runnerSideInputs),
-            outputManager,
-            mainOutputTag,
-            sideOutputTags,
-            DirectModeExecutionContext.create().getOrCreateStepContext(STEP_NAME, TRANSFORM_NAME),
-            counterSet.getAddCounterMutator(),
-            WindowingStrategy.globalDefault());
+    outputs = new HashMap<>();
+    accumulators = new HashMap<>();
   }
 }

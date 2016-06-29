@@ -21,7 +21,10 @@ import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -39,7 +42,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -56,7 +58,6 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
-import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
@@ -64,7 +65,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
@@ -87,7 +87,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Random;
 import java.util.Set;
 
 /**
@@ -516,24 +515,6 @@ public class CombineTest implements Serializable {
     assertThat(sum.getName(), Matchers.startsWith("Sum"));
   }
 
-  @Test
-  public void testAddInputsRandomly() {
-    TestCounter counter = new TestCounter();
-    Combine.KeyedCombineFn<
-        String, Integer, TestCounter.Counter, Iterable<Long>> fn =
-        counter.asKeyedFn();
-
-    List<TestCounter.Counter> accums = DirectPipelineRunner.TestCombineDoFn.addInputsRandomly(
-        PerKeyCombineFnRunners.create(fn), "bob", Arrays.asList(NUMBERS), new Random(42),
-        processContext);
-
-    assertThat(accums, Matchers.contains(
-        counter.new Counter(3, 2, 0, 0),
-        counter.new Counter(131, 5, 0, 0),
-        counter.new Counter(8, 2, 0, 0),
-        counter.new Counter(1, 1, 0, 0)));
-  }
-
   private static final SerializableFunction<String, Integer> hotKeyFanout =
       new SerializableFunction<String, Integer>() {
         @Override
@@ -787,8 +768,7 @@ public class CombineTest implements Serializable {
     public static SetCoder<?> of(
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
         List<Coder<?>> components) {
-      Preconditions.checkArgument(components.size() == 1,
-          "Expecting 1 component, got " + components.size());
+      checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
       return of((Coder<?>) components.get(0));
     }
 
@@ -1115,8 +1095,8 @@ public class CombineTest implements Serializable {
 
       @Override
       public void addInput(Integer element) {
-        Preconditions.checkState(merges == 0);
-        Preconditions.checkState(outputs == 0);
+        checkState(merges == 0);
+        checkState(outputs == 0);
 
         inputs++;
         sum += element;
@@ -1124,8 +1104,8 @@ public class CombineTest implements Serializable {
 
       @Override
       public void mergeAccumulator(Counter accumulator) {
-        Preconditions.checkState(outputs == 0);
-        Preconditions.checkArgument(accumulator.outputs == 0);
+        checkState(outputs == 0);
+        checkArgument(accumulator.outputs == 0);
 
         merges += accumulator.merges + 1;
         inputs += accumulator.inputs;
@@ -1134,7 +1114,7 @@ public class CombineTest implements Serializable {
 
       @Override
       public Iterable<Long> extractOutput() {
-        Preconditions.checkState(outputs == 0);
+        checkState(outputs == 0);
 
         return Arrays.asList(sum, inputs, merges, outputs);
       }
