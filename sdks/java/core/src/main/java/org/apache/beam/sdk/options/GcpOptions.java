@@ -314,12 +314,9 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       if (!Strings.isNullOrEmpty(tempLocation)) {
         try {
           GcsPath.fromUri(tempLocation);
-        } catch (IllegalArgumentException e) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "GCP temp location requires a valid 'gs://' path, and it cannot be set to '%s'",
-                  tempLocation),
-              e);
+        } catch (Exception e) {
+          // Ignore the temp location because it is not a valid 'gs://' path.
+          return null;
         }
       }
       return tempLocation;

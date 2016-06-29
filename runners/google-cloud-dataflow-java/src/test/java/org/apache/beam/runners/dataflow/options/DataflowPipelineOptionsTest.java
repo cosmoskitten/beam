@@ -112,11 +112,12 @@ public class DataflowPipelineOptionsTest {
   }
 
   @Test
-  public void testDefaultStagingLocationInvalid() {
+  public void testDefaultNoneGcsTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setTempLocation("file://temp_location");
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("GCP temp location requires a valid 'gs://' path");
+    thrown.expectMessage("Missing required value: at least one of tempLocation, gcpTempLocation"
+        + " or stagingLocation must be set.");
     options.getStagingLocation();
   }
 

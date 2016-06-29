@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -26,13 +27,11 @@ import static org.mockito.Mockito.when;
 import org.apache.beam.sdk.options.GcpOptions.DefaultProjectFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 
-import com.google.api.client.util.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
@@ -48,7 +47,6 @@ import java.util.Map;
 public class GcpOptionsTest {
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
-  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGetProjectFromCloudSdkConfigEnv() throws Exception {
@@ -111,7 +109,7 @@ public class GcpOptionsTest {
   @Test
   public void testEmptyGcpTempLocation() throws Exception {
     GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
-    assertTrue(Strings.isNullOrEmpty(options.getGcpTempLocation()));
+    assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
   }
 
   @Test
@@ -126,9 +124,7 @@ public class GcpOptionsTest {
   public void testDefaultGcpTempLocationInvalid() throws Exception {
     GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
     options.setTempLocation("file://");
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("GCP temp location requires a valid 'gs://' path");
-    options.getGcpTempLocation();
+    assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
   }
 
   private static void makePropertiesFileWithProject(File path, String projectId)
