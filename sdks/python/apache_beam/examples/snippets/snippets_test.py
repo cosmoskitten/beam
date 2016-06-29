@@ -431,7 +431,7 @@ class SnippetsTest(unittest.TestCase):
       with open(file_name) as f:
         for line in f:
           received_output.append(line.rstrip(os.linesep))
-    expected_output =  [
+    expected_output = [
         'key' + str(i) + ':' + 'value' + str(i) for i in range(100)]
 
     self.assertItemsEqual(expected_output, received_output)
