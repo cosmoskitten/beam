@@ -993,9 +993,9 @@ def model_join_using_side_inputs(name_list, email_list, phone_list, output_path)
 
   p = beam.Pipeline(options=PipelineOptions())
   # [START model_join_using_side_inputs]
-  # This is similar to the example for CoGroupByKey but we receive the set of
-  # names as an input. We perform join by passing PCollections that contain
-  # emails and phone numbers as side inputs instead of using CoGroupByKey.
+  # This code performs a join by receiving the set of names as an input and
+  # passing PCollections that contain emails and phone numbers as side inputs
+  # instead of using CoGroupByKey.
   names = p | beam.Create('names', name_list)
   emails = p | beam.Create('email', email_list)
   phones = p | beam.Create('phone', phone_list)
