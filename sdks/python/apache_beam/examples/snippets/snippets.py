@@ -612,10 +612,8 @@ def examples_wordcount_debugging(renames):
 def model_custom_source(count):
   import apache_beam as beam
   from apache_beam.io import iobase
-  from apache_beam.utils.options import PipelineOptions
   from apache_beam.io.range_trackers import OffsetRangeTracker
-
-  import logging
+  from apache_beam.utils.options import PipelineOptions
 
   # [START model_custom_source_new_source]
   class CountingSource(iobase.BoundedSource):
@@ -663,7 +661,6 @@ def model_custom_source(count):
   # [END model_custom_source_use_new_source]
 
   lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  lines | beam.core.Map(lambda line: logging.info(line))
   beam.assert_that(
       lines, beam.equal_to(
           ['line ' + str(number) for number in range(0, count)]))
