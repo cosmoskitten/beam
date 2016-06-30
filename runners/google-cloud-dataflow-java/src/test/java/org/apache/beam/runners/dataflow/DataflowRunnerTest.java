@@ -189,6 +189,12 @@ public class DataflowRunnerTest {
     return mockDataflowClient;
   }
 
+  /**
+   * Build a mock {@link GcsUtil} with return values.
+   *
+   * @param bucketExist fist return value
+   * @param bucketExists next return values
+   */
   private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketExists)
       throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
