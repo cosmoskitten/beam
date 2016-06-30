@@ -436,7 +436,6 @@ class SnippetsTest(unittest.TestCase):
 
     self.assertItemsEqual(expected_output, received_output)
 
-
   def test_model_textio(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
     result_path = temp_path + '.result'

@@ -667,6 +667,7 @@ def model_custom_source(count):
 
   p.run()
 
+
 def model_custom_sink(simplekv, KVs, final_table_name):
 
   # simplekv is a key-value storage with following API
@@ -733,6 +734,7 @@ def model_custom_sink(simplekv, KVs, final_table_name):
   # [END model_custom_source_use_new_sink]
 
   p.run()
+
 
 def model_textio(renames):
   """Using a Read and Write transform to read/write text files.
@@ -983,6 +985,7 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
   p.run()
 
+
 def model_join_using_side_inputs(
     name_list, email_list, phone_list, output_path):
   """Joining PCollections using side inputs."""
@@ -1020,6 +1023,7 @@ def model_join_using_side_inputs(
   # [END model_join_using_side_inputs]
   contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
   p.run()
+
 
 # [START model_library_transforms_keys]
 class Keys(beam.PTransform):
