@@ -236,6 +236,8 @@ class TypeHintsTest(unittest.TestCase):
     # [END type_hints_missing_define_numbers]
 
     # Consider the following code.
+    # pylint: disable=expression-not-assigned
+    # pylint: disable=unused-variable
     # [START type_hints_missing_apply]
     evens = numbers | beam.Filter(lambda x: x % 2 == 0)
     # [END type_hints_missing_apply]
@@ -281,11 +283,13 @@ class TypeHintsTest(unittest.TestCase):
     words_with_lens = words | MyTransform()
     # [END type_hints_transform]
 
+    # pylint: disable=expression-not-assigned
     with self.assertRaises(typehints.TypeCheckError):
       words_with_lens | beam.Map(lambda x: x).with_input_types(
           beam.typehints.Tuple[int, int])
 
   def test_runtime_checks_off(self):
+    # pylint: disable=expression-not-assigned
     p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
     # [START type_hints_runtime_off]
     p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
@@ -293,6 +297,7 @@ class TypeHintsTest(unittest.TestCase):
     # [END type_hints_runtime_off]
 
   def test_runtime_checks_on(self):
+    # pylint: disable=expression-not-assigned
     p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
