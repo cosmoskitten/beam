@@ -48,6 +48,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import autovalue.shaded.com.google.common.common.collect.ImmutableList;
+
 /**
  * Properties for use in {@link Coder} tests. These are implemented with junit assertions
  * rather than as predicates for the sake of error messages.
@@ -61,7 +63,7 @@ public class CoderProperties {
   /**
    * All the contexts, for use in test cases.
    */
-   public static final List<Coder.Context> ALL_CONTEXTS = Arrays.asList(
+   public static final List<Coder.Context> ALL_CONTEXTS = ImmutableList.of(
        Coder.Context.OUTER, Coder.Context.NESTED);
 
   /**
