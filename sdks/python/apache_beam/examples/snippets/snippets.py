@@ -675,8 +675,8 @@ def model_custom_sink(simplekv, KVs, final_table_name):
   # which can be used to perform further operations
   # simplekv.open_table(access_token, table_name) - creates a table named
   # 'table_name'. Returns a table object.
-  # simplekv.write_to_table(table, key, value) - writes a key, value pair to the
-  # given table.
+  # simplekv.write_to_table(table, access_token, key, value) - writes a
+  # key, value pair to the given table.
   # simplekv.rename_table(access_token, old_name, new_name) - renames the table
   # named 'old_name' to 'new_name'.
 
