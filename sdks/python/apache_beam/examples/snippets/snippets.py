@@ -685,7 +685,7 @@ def model_custom_sink(simplekv, KVs, final_table_name):
   from apache_beam.io import iobase
   from apache_beam.utils.options import PipelineOptions
 
-  # [START model_custom_source_new_sink]
+  # [START model_custom_sink_new_sink]
   class SimpleKVSink(iobase.Sink):
 
     def __init__(self, url, final_table_name):
@@ -704,9 +704,9 @@ def model_custom_sink(simplekv, KVs, final_table_name):
       for i, table_name in enumerate(table_names):
         simplekv.rename_table(
             access_token, table_name, self._final_table_name + str(i))
-  # [END model_custom_source_new_sink]
+  # [END model_custom_sink_new_sink]
 
-  # [START model_custom_source_new_writer]
+  # [START model_custom_sink_new_writer]
   class SimpleKVWriter(iobase.Writer):
 
     def __init__(self, access_token, table_name):
@@ -721,9 +721,9 @@ def model_custom_sink(simplekv, KVs, final_table_name):
 
     def close(self):
       return self._table_name
-  # [END model_custom_source_new_writer]
+  # [END model_custom_sink_new_writer]
 
-  # [START model_custom_source_use_new_sink]
+  # [START model_custom_sink_use_new_sink]
   p = beam.Pipeline(options=PipelineOptions())
   kvs = p | beam.core.Create(
       'CreateKVs', KVs)
@@ -731,7 +731,7 @@ def model_custom_sink(simplekv, KVs, final_table_name):
   kvs | beam.io.Write('WriteToSimpleKV',
                       SimpleKVSink('http://url_to_simple_kv/',
                                    final_table_name))
-  # [END model_custom_source_use_new_sink]
+  # [END model_custom_sink_use_new_sink]
 
   p.run()
 
