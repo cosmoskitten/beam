@@ -34,7 +34,9 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.KV;
@@ -426,8 +428,8 @@ public class BigtableIO {
 
     @Override
     public PDone apply(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
-      Sink sink = new Sink(tableId, getBigtableService());
-      return input.apply(org.apache.beam.sdk.io.Write.to(sink));
+      input.apply(ParDo.of(new BigtableWriterFn(tableId, getBigtableService())));
+      return PDone.in(input.getPipeline());
     }
 
     @Override
@@ -881,6 +883,89 @@ public class BigtableIO {
     /** Does nothing, as it is redundant with {@link Write#validate}. */
     @Override
     public void validate(PipelineOptions options) {}
+  }
+
+  private static class BigtableWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
+
+    public BigtableWriterFn(String tableId, BigtableService bigtableService) {
+      this.tableId = checkNotNull(tableId, "tableId");
+      this.bigtableService = checkNotNull(bigtableService, "bigtableService");
+      this.failures = new ConcurrentLinkedQueue<>();
+    }
+
+    @Override
+    public void startBundle(Context c) throws Exception {
+      bigtableWriter = bigtableService.openForWriting(tableId);
+      recordsWritten = 0;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      checkForFailures();
+      Futures.addCallback(
+          bigtableWriter.writeRecord(c.element()), new WriteExceptionCallback(c.element()));
+      ++recordsWritten;
+    }
+
+    @Override
+    public void finishBundle(Context c) throws Exception {
+      bigtableWriter.close();
+      bigtableWriter = null;
+      checkForFailures();
+      logger.info("Wrote {} records", recordsWritten);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////
+    private final String tableId;
+    private final BigtableService bigtableService;
+    private BigtableService.Writer bigtableWriter;
+    private long recordsWritten;
+    private final ConcurrentLinkedQueue<BigtableWriteException> failures;
+
+    /**
+     * If any write has asynchronously failed, fail the bundle with a useful error.
+     */
+    private void checkForFailures() throws IOException {
+      // Note that this function is never called by multiple threads and is the only place that
+      // we remove from failures, so this code is safe.
+      if (failures.isEmpty()) {
+        return;
+      }
+
+      StringBuilder logEntry = new StringBuilder();
+      int i = 0;
+      for (; i < 10 && !failures.isEmpty(); ++i) {
+        BigtableWriteException exc = failures.remove();
+        logEntry.append("\n").append(exc.getMessage());
+        if (exc.getCause() != null) {
+          logEntry.append(": ").append(exc.getCause().getMessage());
+        }
+      }
+      String message =
+          String.format(
+              "At least %d errors occurred writing to Bigtable. First %d errors: %s",
+              i + failures.size(),
+              i,
+              logEntry.toString());
+      logger.error(message);
+      throw new IOException(message);
+    }
+
+    private class WriteExceptionCallback implements FutureCallback<Empty> {
+      private final KV<ByteString, Iterable<Mutation>> value;
+
+      public WriteExceptionCallback(KV<ByteString, Iterable<Mutation>> value) {
+        this.value = value;
+      }
+
+      @Override
+      public void onFailure(Throwable cause) {
+        failures.add(new BigtableWriteException(value, cause));
+      }
+
+      @Override
+      public void onSuccess(Empty produced) {}
+    }
   }
 
   private static class BigtableWriteOperation
