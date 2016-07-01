@@ -176,6 +176,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   /**
    * Constructs a Spark pipeline runner with a provided Spark context.
    */
+
   private SparkRunner(SparkPipelineOptions options, JavaSparkContext pjsc) {
     mOptions = options;
     this.providedJavaSparkContext = pjsc;
@@ -200,6 +201,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
           jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster(),
               mOptions.getAppName());
       }
+
       if (mOptions.isStreaming()) {
         SparkPipelineTranslator translator =
                 new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());
