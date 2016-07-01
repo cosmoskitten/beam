@@ -26,7 +26,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.BigQueryIO;
-import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -46,7 +45,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.base.Strings;
 
 import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
@@ -364,22 +362,8 @@ public class TrafficMaxLaneFlow {
     tableRef.setDatasetId(options.getBigQueryDataset());
     tableRef.setTableId(options.getBigQueryTable());
 
-    PCollection<String> input;
-    if (options.isUnbounded()) {
-      // Read unbounded PubSubIO.
-      input = pipeline.apply(PubsubIO.Read
-          .timestampLabel(PUBSUB_TIMESTAMP_LABEL_KEY)
-          .subscription(options.getPubsubSubscription()));
-    } else {
-      // Read bounded PubSubIO.
-      input = pipeline.apply(PubsubIO.Read
-          .timestampLabel(PUBSUB_TIMESTAMP_LABEL_KEY)
-          .subscription(options.getPubsubSubscription()).maxNumRecords(VALID_INPUTS));
-
-      // To read bounded TextIO files, use:
-      // input = pipeline.apply(new ReadFileAndExtractTimestamps(options.getInputFile()));
-    }
-    input
+    pipeline
+        .apply("ReadLines", new ReadFileAndExtractTimestamps(options.getInputFile()))
         // row... => <station route, station speed> ...
         .apply(ParDo.of(new ExtractFlowInfoFn()))
         // map the incoming data stream into sliding windows. The default window duration values
@@ -392,15 +376,6 @@ public class TrafficMaxLaneFlow {
         .apply(new MaxLaneFlow())
         .apply(BigQueryIO.Write.to(tableRef)
             .withSchema(FormatMaxesFn.getSchema()));
-
-    // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
-    if (!Strings.isNullOrEmpty(options.getInputFile())
-        && !Strings.isNullOrEmpty(options.getPubsubTopic())) {
-      dataflowUtils.runInjectorPipeline(
-          new ReadFileAndExtractTimestamps(options.getInputFile()),
-          options.getPubsubTopic(),
-          PUBSUB_TIMESTAMP_LABEL_KEY);
-    }
 
     // Run the pipeline.
     PipelineResult result = pipeline.run();
