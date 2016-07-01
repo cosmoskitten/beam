@@ -19,6 +19,7 @@ package org.apache.beam.sdk;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.util.Map;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -26,6 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -515,6 +517,14 @@ public class Pipeline {
       // A duplicate!  Retry.
       name = origName + suffixNum++;
     }
+  }
+
+  /**
+   * Returns a {@link Map} between each {@link Aggregator} in the {@link Pipeline} to the {@link
+   * PTransform PTransforms} in which it is used.
+   */
+  public Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> getAggregatorSteps() {
+    return new AggregatorPipelineExtractor(this).getAggregatorSteps();
   }
 
   /**
