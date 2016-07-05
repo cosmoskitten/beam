@@ -42,10 +42,11 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
-import com.google.bigtable.v1.Mutation;
-import com.google.bigtable.v1.Row;
-import com.google.bigtable.v1.RowFilter;
-import com.google.bigtable.v1.SampleRowKeysResponse;
+import com.google.bigtable.v2.MutateRowResponse;
+import com.google.bigtable.v2.Mutation;
+import com.google.bigtable.v2.Row;
+import com.google.bigtable.v2.RowFilter;
+import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
@@ -54,7 +55,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
 
 import io.grpc.Status;
 
@@ -90,8 +90,7 @@ import javax.annotation.Nullable;
  * BigtableOptions.Builder optionsBuilder =
  *     new BigtableOptions.Builder()
  *         .setProjectId("project")
- *         .setClusterId("cluster")
- *         .setZoneId("zone");
+ *         .setInstanceId("instance");
  *
  * Pipeline p = ...;
  *
@@ -990,7 +989,7 @@ public class BigtableIO {
       return writeOperation;
     }
 
-    private class WriteExceptionCallback implements FutureCallback<Empty> {
+    private class WriteExceptionCallback implements FutureCallback<MutateRowResponse> {
       private final KV<ByteString, Iterable<Mutation>> value;
 
       public WriteExceptionCallback(KV<ByteString, Iterable<Mutation>> value) {
@@ -1003,7 +1002,7 @@ public class BigtableIO {
       }
 
       @Override
-      public void onSuccess(Empty produced) {}
+      public void onSuccess(MutateRowResponse produced) {}
     }
   }
 
