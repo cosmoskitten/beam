@@ -609,11 +609,24 @@ def examples_wordcount_debugging(renames):
 
 
 def model_custom_source(count):
+  """Demonstrates creating a new custom source and using it in a pipeline.
+
+  Defines a new source 'CountingSource' that produces integers starting from 0
+  up to a given size.
+
+  Uses the new source in an example pipeline.
+
+  Args:
+    count: the size of the counting source to be used in the pipeline
+           demonstrated in this method.
+  """
+
   import apache_beam as beam
   from apache_beam.io import iobase
   from apache_beam.io.range_trackers import OffsetRangeTracker
   from apache_beam.utils.options import PipelineOptions
 
+  # Defining a new source.
   # [START model_custom_source_new_source]
   class CountingSource(iobase.BoundedSource):
 
@@ -654,6 +667,7 @@ def model_custom_source(count):
         bundle_start = bundle_stop
   # [END model_custom_source_new_source]
 
+  # Using the source in an example pipeline.
   # [START model_custom_source_use_new_source]
   p = beam.Pipeline(options=PipelineOptions())
   numbers = p | beam.io.Read('ProduceNumbers', CountingSource(count))
@@ -668,22 +682,35 @@ def model_custom_source(count):
 
 
 def model_custom_sink(simplekv, KVs, final_table_name):
+  """Demonstrates creating a new custom sink and using it in a pipeline.
 
-  # simplekv is a key-value storage with following API
-  #
-  # simplekv.connect(url) - connects to the storage and returns an access token
-  # which can be used to perform further operations
-  # simplekv.open_table(access_token, table_name) - creates a table named
-  # 'table_name'. Returns a table object.
-  # simplekv.write_to_table(table, access_token, key, value) - writes a
-  # key, value pair to the given table.
-  # simplekv.rename_table(access_token, old_name, new_name) - renames the table
-  # named 'old_name' to 'new_name'.
+  Defines a new sink 'SimpleKVSink' that demonstrates writing to a simple
+  key-value based storage system.
+
+  Uses the new sink in an example pipeline.
+
+  Args:
+    simplekv: an object that mocks the key-value storage. The API of the
+              key-value storage consists of following methods.
+              simplekv.connect(url) -
+                  connects to the storage and returns an access token
+                  which can be used to perform further operations
+              simplekv.open_table(access_token, table_name) -
+                  creates a table named 'table_name'. Returns a table object.
+              simplekv.write_to_table(table, access_token, key, value) -
+                  writes a key-value pair to the given table.
+              simplekv.rename_table(access_token, old_name, new_name) -
+                  renames the table named 'old_name' to 'new_name'.
+    KVs: the set of key-value pairs to be written in the example pipeline.
+    final_table_name: the prefix of final set of tables to be created by the
+                      example pipeline.
+  """
 
   import apache_beam as beam
   from apache_beam.io import iobase
   from apache_beam.utils.options import PipelineOptions
 
+  # Defining the new sink.
   # [START model_custom_sink_new_sink]
   class SimpleKVSink(iobase.Sink):
 
@@ -705,6 +732,7 @@ def model_custom_sink(simplekv, KVs, final_table_name):
             access_token, table_name, self._final_table_name + str(i))
   # [END model_custom_sink_new_sink]
 
+  # Defining a writer for the new sink.
   # [START model_custom_sink_new_writer]
   class SimpleKVWriter(iobase.Writer):
 
@@ -722,6 +750,7 @@ def model_custom_sink(simplekv, KVs, final_table_name):
       return self._table_name
   # [END model_custom_sink_new_writer]
 
+  # Using the new sink in an example pipeline.
   # [START model_custom_sink_use_new_sink]
   p = beam.Pipeline(options=PipelineOptions())
   kvs = p | beam.core.Create(
