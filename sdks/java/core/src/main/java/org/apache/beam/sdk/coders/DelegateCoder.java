@@ -45,7 +45,7 @@ import autovalue.shaded.com.google.common.common.base.MoreObjects;
  * @param <T> The type of objects coded by this Coder.
  * @param <IntermediateT> The type of objects a {@code T} will be converted to for coding.
  */
-public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
+public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   /**
    * A {@link DelegateCoder.CodingFunction CodingFunction&lt;InputT, OutputT&gt;} is a serializable
    * function from {@code InputT} to {@code OutputT} that may throw any {@link Exception}.
