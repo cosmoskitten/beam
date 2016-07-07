@@ -163,7 +163,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise Exception(
           'get_position_for_fraction_consumed is not applicable for an '
           'unbounded range')
-    return (math.ceil(self.start_position() + fraction * (
+    return long(math.ceil(self.start_position() + fraction * (
         self.stop_position() - self.start_position())))
 
 

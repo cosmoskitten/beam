@@ -258,10 +258,21 @@ class DynamicSplitResult(object):
 
 
 class DynamicSplitResultWithPosition(DynamicSplitResult):
+  """"""
 
   def __init__(self, stop_position):
     assert isinstance(stop_position, ReaderPosition)
     self.stop_position = stop_position
+
+
+class BoundedSourceSplit(DynamicSplitResult):
+  """"""
+  def __init__(self, primary, residual):
+    assert isinstance(primary, SourceBundle)
+    assert isinstance(residual, SourceBundle)
+
+    self.primary = primary
+    self.residual = residual
 
 
 class NativeSink(object):
