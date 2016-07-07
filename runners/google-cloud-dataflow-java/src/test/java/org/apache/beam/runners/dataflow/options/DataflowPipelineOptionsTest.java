@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -100,6 +101,7 @@ public class DataflowPipelineOptionsTest {
     IOChannelUtils.registerStandardIOFactories(options);
     options.setTempLocation("file://temp_location");
     options.setStagingLocation("gs://staging_location");
+    assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
     assertEquals("gs://staging_location", options.getStagingLocation());
   }
 
@@ -108,6 +110,7 @@ public class DataflowPipelineOptionsTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     IOChannelUtils.registerStandardIOFactories(options);
     options.setTempLocation("gs://temp_location");
+    assertEquals("gs://temp_location", options.getGcpTempLocation());
     assertEquals("gs://temp_location/staging", options.getStagingLocation());
   }
 
