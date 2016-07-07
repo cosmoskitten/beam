@@ -24,7 +24,7 @@ import org.apache.beam.sdk.options.Description;
 /**
  * Options that can be used to configure the Dataflow examples.
  */
-public interface DataflowExampleOptions extends DataflowPipelineOptions {
+public interface ExampleOptions extends DataflowPipelineOptions {
   @Description("Whether to keep jobs running on the Dataflow service after local process exit")
   @Default.Boolean(false)
   boolean getKeepJobsRunning();
