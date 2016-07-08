@@ -725,11 +725,6 @@ class DataflowWorkerClient(object):
         work_item_status.stopPosition = (
             dynamic_split_result_with_position_to_cloud_stop_position(
                 dynamic_split_result_to_report))
-      elif isinstance(dynamic_split_result_to_report,
-                      iobase.BoundedSourceSplit):
-        work_item_status.dynamicSourceSplit = (
-            bounded_source_split_to_cloud_dynamic_source_split(
-                dynamic_split_result_to_report))
       else:
         raise RuntimeError('Unknown type of dynamic split result.')
 
@@ -821,20 +816,6 @@ def dynamic_split_result_with_position_to_cloud_stop_position(split_result):
   return reader_position_to_cloud_position(split_result.stop_position)
 
 
-def bounded_source_split_to_cloud_dynamic_source_split(bounded_source_split):
-  """Converts a given 'iobase.BoundedSourceSplit' to Dataflow cloud format."""
-  assert isinstance(bounded_source_split.primary, iobase.SourceBundle)
-  assert isinstance(bounded_source_split.residual, iobase.SourceBundle)
-
-  cloud_split = dataflow.DynamicSourceSplit()
-  cloud_split.primary = _source_bundle_to_derived_source(
-      bounded_source_split.primary)
-  cloud_split.residual = _source_bundle_to_derived_source(
-      bounded_source_split.residual)
-
-  return cloud_split
-
-
 def cloud_progress_to_reader_progress(cloud_progress):
   reader_position = None
   if cloud_progress.position is not None:
@@ -900,8 +881,28 @@ def splits_to_split_response(bundles):
   Returns:
    a SourceOperationResponse object.
   """
-  derived_sources = [
-      _source_bundle_to_derived_source(bundle) for bundle in bundles]
+  derived_sources = []
+  for bundle in bundles:
+    derived_source = dataflow.DerivedSource()
+    derived_source.derivationMode = (
+        dataflow.DerivedSource.DerivationModeValueValuesEnum
+        .SOURCE_DERIVATION_MODE_INDEPENDENT)
+    derived_source.source = dataflow.Source()
+    derived_source.source.doesNotNeedSplitting = True
+
+    derived_source.source.spec = dataflow.Source.SpecValue()
+    derived_source.source.spec.additionalProperties.append(
+        dataflow.Source.SpecValue.AdditionalProperty(
+            key=names.SERIALIZED_SOURCE_KEY,
+            value=to_json_value(pickler.dumps(
+                (bundle.source, bundle.start_position, bundle.stop_position)),
+                                with_type=True)))
+    derived_source.source.spec.additionalProperties.append(
+        dataflow.Source.SpecValue.AdditionalProperty(key='@type',
+                                                     value=to_json_value(
+                                                         names.SOURCE_TYPE)))
+    derived_sources.append(derived_source)
+
   split_response = dataflow.SourceSplitResponse()
   split_response.bundles = derived_sources
   split_response.outcome = (
@@ -911,28 +912,3 @@ def splits_to_split_response(bundles):
   response = dataflow.SourceOperationResponse()
   response.split = split_response
   return response
-
-
-def _source_bundle_to_derived_source(bundle):
-  """Converts a given 'iobase.SourceBundle' to dataflow 'DerivedSource'."""
-  derived_source = dataflow.DerivedSource()
-  derived_source.derivationMode = (
-      dataflow.DerivedSource.DerivationModeValueValuesEnum
-      .SOURCE_DERIVATION_MODE_INDEPENDENT)
-  derived_source.source = dataflow.Source()
-  derived_source.source.doesNotNeedSplitting = True
-
-  derived_source.source.spec = dataflow.Source.SpecValue()
-  derived_source.source.spec.additionalProperties.append(
-      dataflow.Source.SpecValue.AdditionalProperty(
-          key=names.SERIALIZED_SOURCE_KEY,
-          value=to_json_value(
-              pickler.dumps((bundle.source,
-                             bundle.start_position,
-                             bundle.stop_position)),
-              with_type=True)))
-  derived_source.source.spec.additionalProperties.append(
-      dataflow.Source.SpecValue.AdditionalProperty(key='@type',
-                                                   value=to_json_value(
-                                                       names.SOURCE_TYPE)))
-  return derived_source

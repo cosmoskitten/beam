@@ -108,47 +108,6 @@ class UtilTest(unittest.TestCase):
     self.assertIsNotNone(dynamic_split_request.progress.percent_complete)
     self.assertEqual(dynamic_split_request.progress.percent_complete, 0.123)
 
-  def test_bounded_source_split_to_cloud_dynamic_source_split(self):
-    primary = iobase.SourceBundle(weight=0.2, source=iobase.BoundedSource(),
-                                  start_position=100, stop_position=200)
-    residual = iobase.SourceBundle(weight=0.8, source=iobase.BoundedSource(),
-                                   start_position=200, stop_position=300)
-    bounded_source_split = iobase.BoundedSourceSplit(primary=primary,
-                                                     residual=residual)
-
-    cloud_split = apiclient.bounded_source_split_to_cloud_dynamic_source_split(
-        bounded_source_split)
-
-    self.assertTrue(
-        isinstance(cloud_split, dataflow.DynamicSourceSplit))
-    self.assertTrue(
-        isinstance(cloud_split.primary, dataflow.DerivedSource))
-    self.assertTrue(
-        isinstance(cloud_split.primary.source, dataflow.Source))
-
-    self.assertTrue(
-        isinstance(cloud_split.residual, dataflow.DerivedSource))
-    self.assertTrue(
-        isinstance(cloud_split.residual.source, dataflow.Source))
-
-  def test_splits_to_split_response(self):
-    bundles = []
-    bundles.append(
-        iobase.SourceBundle(weight=0.2, source=iobase.BoundedSource(),
-                            start_position=100, stop_position=200))
-    bundles.append(
-        iobase.SourceBundle(weight=0.5, source=iobase.BoundedSource(),
-                            start_position=200, stop_position=300))
-    bundles.append(
-        iobase.SourceBundle(weight=0.3, source=iobase.BoundedSource(),
-                            start_position=300, stop_position=400))
-
-    split_response = apiclient.splits_to_split_response(bundles)
-
-    self.assertTrue(
-        isinstance(split_response, dataflow.SourceOperationResponse))
-    self.assertEqual(3, len(split_response.split.bundles))
-
 
 if __name__ == '__main__':
   unittest.main()
