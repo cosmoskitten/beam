@@ -17,47 +17,42 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.WindowedValue;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
+import java.nio.ByteBuffer;
+
 /**
- * {@link KeySelector} that retrieves a key from a {@link KeyedWorkItem}.
+ * {@link KeySelector} that retrieves a key from a {@link KeyedWorkItem}. This will return
+ * the key as encoded by the provided {@link Coder} in a {@link ByteBuffer}. This ensures
+ * that all key comparisons/hashing happen on the encoded form.
  */
 public class WorkItemKeySelector<K, V>
-    implements KeySelector<WindowedValue<SingletonKeyedWorkItem<K, V>>, K>, ResultTypeQueryable<K> {
+    implements KeySelector<WindowedValue<SingletonKeyedWorkItem<K, V>>, ByteBuffer>, ResultTypeQueryable<ByteBuffer> {
 
-  private final boolean isKeyVoid;
   private final Coder<K> keyCoder;
 
   public WorkItemKeySelector(Coder<K> keyCoder) {
-    this.isKeyVoid = keyCoder instanceof VoidCoder;
     this.keyCoder = keyCoder;
   }
 
   @Override
-  public K getKey(WindowedValue<SingletonKeyedWorkItem<K, V>> value) throws Exception {
-    return isKeyVoid ? (K) VoidValue.instance: value.getValue().key();
+  public ByteBuffer getKey(WindowedValue<SingletonKeyedWorkItem<K, V>> value) throws Exception {
+    K key = value.getValue().key();
+    byte[] keyBytes = CoderUtils.encodeToByteArray(keyCoder, key);
+    return ByteBuffer.wrap(keyBytes);
   }
 
   @Override
-  public TypeInformation<K> getProducedType() {
-    return new CoderTypeInformation<>(keyCoder);
+  public TypeInformation<ByteBuffer> getProducedType() {
+    return new GenericTypeInfo<>(ByteBuffer.class);
   }
-
-  /**
-   * Special type to return for null keys because Flink does not allow null keys.
-   */
-  public static class VoidValue {
-    private VoidValue() {}
-
-    public static VoidValue instance = new VoidValue();
-  }
-
 }

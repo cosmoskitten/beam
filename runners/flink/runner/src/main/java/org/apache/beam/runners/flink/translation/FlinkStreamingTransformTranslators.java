@@ -85,6 +85,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -428,7 +429,7 @@ public class FlinkStreamingTransformTranslators {
 
       KeyedStream<
           WindowedValue<
-              SingletonKeyedWorkItem<K, InputT>>, K> keyedWorkItemStream = workItemStream
+              SingletonKeyedWorkItem<K, InputT>>, ByteBuffer> keyedWorkItemStream = workItemStream
           .keyBy(new WorkItemKeySelector<K, InputT>(inputKvCoder.getKeyCoder()));
 
       SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, BoundedWindow> reduceFn =
@@ -515,7 +516,7 @@ public class FlinkStreamingTransformTranslators {
 
       KeyedStream<
             WindowedValue<
-                SingletonKeyedWorkItem<K, InputT>>, K> keyedWorkItemStream = workItemStream
+                SingletonKeyedWorkItem<K, InputT>>, ByteBuffer> keyedWorkItemStream = workItemStream
           .keyBy(new WorkItemKeySelector<K, InputT>(inputKvCoder.getKeyCoder()));
 
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn = SystemReduceFn.combining(
