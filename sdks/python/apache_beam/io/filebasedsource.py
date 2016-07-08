@@ -131,13 +131,7 @@ class FileBasedSource(iobase.BoundedSource):
   def _estimate_sizes_in_parallel(file_names):
 
     def _calculate_size_of_file(file_name):
-      f = fileio.ChannelFactory.open(
-          file_name, 'rb', 'application/octet-stream')
-      try:
-        f.seek(0, os.SEEK_END)
-        return f.tell()
-      finally:
-        f.close()
+      return fileio.ChannelFactory.size_in_bytes(file_name)
 
     return ThreadPool(MAX_NUM_THREADS_FOR_SIZE_ESTIMATION).map(
         _calculate_size_of_file, file_names)
