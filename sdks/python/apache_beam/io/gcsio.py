@@ -241,10 +241,10 @@ class GcsIO(object):
   def size(self, path):
     """Returns the size of a single GCS object.
 
-    This method does not perform glob expansions. Hence the given path must be
-    for a single object.
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
 
-    Returns: the size of object in bytes
+    Returns: size of the GCS object in bytes.
     """
     bucket, object_path = parse_gcs_path(path)
     request = storage.StorageObjectsGetRequest(bucket=bucket,
