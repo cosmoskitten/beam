@@ -745,7 +745,7 @@ def model_custom_sink(simplekv, KVs, final_table_name):
     def write(self, record):
       key, value = record
 
-      simplekv.write_to_table(self._access_token, self._table_name, key, value)
+      simplekv.write_to_table(self._access_token, self._table, key, value)
 
     def close(self):
       return self._table_name

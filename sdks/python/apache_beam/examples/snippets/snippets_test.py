@@ -405,6 +405,7 @@ class SnippetsTest(unittest.TestCase):
         file_name = self._tmp_dir + os.sep + table_name
         assert not os.path.exists(file_name)
         open(file_name, 'wb').close()
+        return table_name
 
       def write_to_table(self, access_token, table_name, key, value):
         assert access_token == self._dummy_token
