@@ -264,20 +264,6 @@ class DynamicSplitResultWithPosition(DynamicSplitResult):
     self.stop_position = stop_position
 
 
-class BoundedSourceSplit(DynamicSplitResult):
-  """A ``DynamicSplitResult`` for custom sources.
-
-  Specifies primary and residual sources explicitly by a pair of
-  ``SourceBundle`` objects."""
-
-  def __init__(self, primary, residual):
-    assert isinstance(primary, SourceBundle)
-    assert isinstance(residual, SourceBundle)
-
-    self.primary = primary
-    self.residual = residual
-
-
 class NativeSink(object):
   """A sink implemented by Dataflow service.
 
