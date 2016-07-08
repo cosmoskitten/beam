@@ -857,7 +857,7 @@ class CombineGlobally(PTransform):
 
 
 @ptransform_fn
-def CombinePerKey(label, pcoll, fn, *args, **kwargs):  # pylint: disable=invalid-name
+def CombinePerKey(pcoll, fn, *args, **kwargs):  # pylint: disable=invalid-name
   """A per-key Combine transform.
 
   Identifies sets of values associated with the same key in the input
@@ -866,8 +866,6 @@ def CombinePerKey(label, pcoll, fn, *args, **kwargs):  # pylint: disable=invalid
   CombineFns are applied.
 
   Args:
-    label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
     pcoll: input pcollection.
     fn: instance of CombineFn to apply to all values under the same key in
       pcoll, or a callable whose signature is f(iterable, *args, **kwargs)
@@ -897,7 +895,6 @@ class CombineValues(PTransformWithSideInputs):
       key_type, _ = input_type.tuple_types
 
     runtime_type_check = (
-        pcoll.pipeline.options is not None and
         pcoll.pipeline.options.view_as(TypeOptions).runtime_type_check)
     return pcoll | ParDo(
         CombineValuesDoFn(key_type, self.fn, runtime_type_check),
