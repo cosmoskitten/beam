@@ -26,7 +26,6 @@ For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.
 """
 
 from multiprocessing.pool import ThreadPool
-import os
 import range_trackers
 
 from apache_beam.io import fileio
