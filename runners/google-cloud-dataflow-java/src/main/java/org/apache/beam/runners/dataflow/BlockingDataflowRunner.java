@@ -29,11 +29,11 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -116,9 +116,7 @@ public class BlockingDataflowRunner extends
       @Nullable
       State result;
       try {
-        result = job.waitToFinish(
-            BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS,
-            new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
+        result = job.waitToFinish(Duration.standardSeconds(BUILTIN_JOB_TIMEOUT_SEC));
       } catch (IOException | InterruptedException ex) {
         if (ex instanceof InterruptedException) {
           Thread.currentThread().interrupt();
