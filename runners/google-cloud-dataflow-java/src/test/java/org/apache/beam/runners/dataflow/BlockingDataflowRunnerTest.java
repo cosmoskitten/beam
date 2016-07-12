@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -40,13 +40,12 @@ import org.hamcrest.Description;
 import org.hamcrest.Factory;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for BlockingDataflowRunner.
@@ -181,8 +180,7 @@ public class BlockingDataflowRunnerTest {
     DataflowPipelineJob mockJob = mock(DataflowPipelineJob.class);
     when(mockJob.getProjectId()).thenReturn(projectId);
     when(mockJob.getJobId()).thenReturn(jobId);
-    when(mockJob.waitToFinish(
-        anyLong(), isA(TimeUnit.class), isA(MonitoringUtil.JobMessagesHandler.class)))
+    when(mockJob.waitToFinish(any(Duration.class)))
         .thenReturn(terminalState);
     return mockJob;
   }
