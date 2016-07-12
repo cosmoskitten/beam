@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -37,12 +38,15 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 import com.google.common.base.MoreObjects;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import java.io.IOException;
+import java.io.PrintStream;
 
 /**
  * Options that can be used to configure the {@link DataflowRunner}.
@@ -104,6 +108,16 @@ public interface DataflowPipelineOptions
   void setUpdate(boolean value);
 
   /**
+   * Output stream for job status messages.
+   */
+  @Description("Where messages generated during execution of the Dataflow job will be output.")
+  @JsonIgnore
+  @Hidden
+  @Default.InstanceFactory(StandardOutputFactory.class)
+  PrintStream getJobMessageOutput();
+  void setJobMessageOutput(PrintStream value);
+
+  /**
    * Returns a normalized job name constructed from {@link ApplicationNameOptions#getAppName()}, the
    * local system user name (if available), and the current time. The normalization makes sure that
    * the job name matches the required pattern of [a-z]([-a-z0-9]*[a-z0-9])? and length limit of 40
@@ -157,6 +171,16 @@ public interface DataflowPipelineOptions
             "Unable to resolve stagingLocation from gcpTempLocation: %s."
             + " Please set the staging location explicitly.", gcpTempLocation), e);
       }
+    }
+  }
+
+  /**
+   * Returns a default of {@link System#out}.
+   */
+  public static class StandardOutputFactory implements DefaultValueFactory<PrintStream> {
+    @Override
+    public PrintStream create(PipelineOptions options) {
+      return System.out;
     }
   }
 }
