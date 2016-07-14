@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.StartBundle;
+import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -91,6 +95,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+
 import javax.annotation.Nullable;
 
 
@@ -277,6 +282,15 @@ public abstract class DoFnReflector {
         new TypeParameter<OutputT>() {});
   }
 
+  @VisibleForTesting
+  static void verifyLifecycleMethodArguments(Method m) {
+    if (m == null) {
+      return;
+    }
+    checkState(void.class.equals(m.getReturnType()), "%s must have void return type", format(m));
+    checkState(m.getGenericParameterTypes().length == 0, "%s must take zero arguments", format(m));
+  }
+
   /**
    * Verify the method arguments for a given {@link DoFn} method.
    *
@@ -367,6 +381,8 @@ public abstract class DoFnReflector {
 
   /** Interface for invoking the {@code OldDoFn} processing methods. */
   public interface DoFnInvoker<InputT, OutputT>  {
+    /** Invoke {@link OldDoFn#setup} on the bound {@code OldDoFn}. */
+    void invokeSetup();
     /** Invoke {@link OldDoFn#startBundle} on the bound {@code OldDoFn}. */
     void invokeStartBundle(
         DoFn<InputT, OutputT>.Context c,
@@ -375,6 +391,9 @@ public abstract class DoFnReflector {
     void invokeFinishBundle(
         DoFn<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra);
+
+    /** Invoke {@link OldDoFn#teardown()} on the bound {@code DoFn}. */
+    void invokeTeardown();
 
     /** Invoke {@link OldDoFn#processElement} on the bound {@code OldDoFn}. */
     public void invokeProcessElement(
@@ -387,9 +406,11 @@ public abstract class DoFnReflector {
    */
   private static class GenericDoFnReflector extends DoFnReflector {
 
+    private final Method setup;
     private final Method startBundle;
     private final Method processElement;
     private final Method finishBundle;
+    private final Method teardown;
     private final List<AdditionalParameter> processElementArgs;
     private final List<AdditionalParameter> startBundleArgs;
     private final List<AdditionalParameter> finishBundleArgs;
@@ -399,13 +420,17 @@ public abstract class DoFnReflector {
         @SuppressWarnings("rawtypes") Class<? extends DoFn> fn) {
       // Locate the annotated methods
       this.processElement = findAnnotatedMethod(ProcessElement.class, fn, true);
+      this.setup = findAnnotatedMethod(Setup.class, fn, false);
       this.startBundle = findAnnotatedMethod(StartBundle.class, fn, false);
       this.finishBundle = findAnnotatedMethod(FinishBundle.class, fn, false);
+      this.teardown = findAnnotatedMethod(Teardown.class, fn, false);
 
       // Verify that their method arguments satisfy our conditions.
       this.processElementArgs = verifyProcessMethodArguments(processElement);
       this.startBundleArgs = verifyBundleMethodArguments(startBundle);
       this.finishBundleArgs = verifyBundleMethodArguments(finishBundle);
+      verifyLifecycleMethodArguments(setup);
+      verifyLifecycleMethodArguments(teardown);
 
       this.constructor = createInvokerConstructor(fn);
     }
@@ -527,8 +552,17 @@ public abstract class DoFnReflector {
           .intercept(InvokerDelegation.create(
               startBundle, BeforeDelegation.INVOKE_PREPARE_FOR_PROCESSING, startBundleArgs))
           .method(ElementMatchers.named("invokeFinishBundle"))
-          .intercept(InvokerDelegation.create(
-              finishBundle, BeforeDelegation.NOOP, finishBundleArgs));
+          .intercept(InvokerDelegation.create(finishBundle,
+              BeforeDelegation.NOOP,
+              finishBundleArgs))
+          .method(ElementMatchers.named("invokeSetup"))
+          .intercept(InvokerDelegation.create(setup,
+              BeforeDelegation.NOOP,
+              Collections.<AdditionalParameter>emptyList()))
+          .method(ElementMatchers.named("invokeTeardown"))
+          .intercept(InvokerDelegation.create(teardown,
+              BeforeDelegation.NOOP,
+              Collections.<AdditionalParameter>emptyList()));
 
       @SuppressWarnings("unchecked")
       Class<? extends DoFnInvoker<?, ?>> dynamicClass = (Class<? extends DoFnInvoker<?, ?>>) builder
@@ -704,6 +738,11 @@ public abstract class DoFnReflector {
     }
 
     @Override
+    public void setup() throws Exception {
+      invoker.invokeSetup();
+    }
+
+    @Override
     public void startBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
       ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
       invoker.invokeStartBundle(adapter, adapter);
@@ -713,6 +752,11 @@ public abstract class DoFnReflector {
     public void finishBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
       ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
       invoker.invokeFinishBundle(adapter, adapter);
+    }
+
+    @Override
+    public void teardown() {
+      invoker.invokeTeardown();
     }
 
     @Override
@@ -908,15 +952,20 @@ public abstract class DoFnReflector {
           new MethodDescription.ForLoadedMethod(target)).resolve(instrumentedMethod);
       ParameterList<?> params = targetMethod.getParameters();
 
-      // Instructions to setup the parameters for the call
-      ArrayList<StackManipulation> parameters = new ArrayList<>(args.size() + 1);
-      // 1. The first argument in the delegate method must be the context. This corresponds to
-      //    the first argument in the instrumented method, so copy that.
-      parameters.add(MethodVariableAccess.of(
-          params.get(0).getType().getSuperClass()).loadOffset(1));
-      // 2. For each of the extra arguments push the appropriate value.
-      for (AdditionalParameter arg : args) {
-        parameters.add(pushArgument(arg, instrumentedMethod));
+      List<StackManipulation> parameters;
+      if (!params.isEmpty()) {
+        // Instructions to setup the parameters for the call
+        parameters = new ArrayList<>(args.size() + 1);
+        // 1. The first argument in the delegate method must be the context. This corresponds to
+        //    the first argument in the instrumented method, so copy that.
+        parameters.add(MethodVariableAccess.of(params.get(0).getType().getSuperClass())
+            .loadOffset(1));
+        // 2. For each of the extra arguments push the appropriate value.
+        for (AdditionalParameter arg : args) {
+          parameters.add(pushArgument(arg, instrumentedMethod));
+        }
+      } else {
+        parameters = Collections.emptyList();
       }
 
       return new StackManipulation.Compound(
