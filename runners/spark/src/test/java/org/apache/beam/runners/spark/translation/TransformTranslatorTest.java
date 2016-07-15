@@ -36,6 +36,8 @@ import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,6 +52,7 @@ import java.util.regex.Pattern;
  * executed in Spark.
  */
 public class TransformTranslatorTest {
+  private static final Logger LOG = LoggerFactory.getLogger(TransformTranslatorTest.class);
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
 
   /**
@@ -93,7 +96,7 @@ public class TransformTranslatorTest {
       //noinspection ConstantConditions
       for (File f : parent.listFiles()) {
         if (pattern.matcher(f.getName()).matches()) {
-          System.out.println("For " + outPattern + " reading file " + f.getName());
+          LOG.info("For " + outPattern + " reading file " + f.getName());
           lines.addAll(FileUtils.readLines(f, Charsets.UTF_8));
         }
       }
