@@ -20,8 +20,9 @@ import os
 import tempfile
 import unittest
 
-from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
+# Importing private class for testing purposes.
+from apache_beam.io.avroio import _AvroSource as AvroSource
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
 import avro.schema as avro_schema
@@ -80,7 +81,7 @@ class TestAvro(unittest.TestCase):
 
   def _run_avro_test(
       self, pattern, desired_bundle_size, perform_splitting, expected_result):
-    source = avroio.AvroSource(pattern)
+    source = AvroSource(pattern)
 
     read_records = []
     if perform_splitting:
