@@ -18,10 +18,12 @@
 
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -62,19 +65,18 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-import javax.annotation.Nullable;
-
 /**
- * Created by tgroh on 7/14/16.
+ * Tests for {@link WriteWithShardingFactory}.
  */
 public class WriteWithShardingFactoryTest {
+  public static final int INPUT_SIZE = 10000;
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
   private WriteWithShardingFactory factory = new WriteWithShardingFactory();
 
   @Test
   public void dynamicallyReshardedWrite() throws Exception {
-    List<String> strs = new ArrayList<>(10000);
-    for (int i = 0; i < 10000; i++) {
+    List<String> strs = new ArrayList<>(INPUT_SIZE);
+    for (int i = 0; i < INPUT_SIZE; i++) {
       strs.add(UUID.randomUUID().toString());
     }
     Collections.shuffle(strs);
@@ -90,8 +92,7 @@ public class WriteWithShardingFactoryTest {
     p.run();
 
     Collection<String> files = IOChannelUtils.getFactory(outputPath).match(targetLocation + "*");
-    assertThat(files.size(), greaterThan(1));
-    assertThat(files.size(), lessThan((int) (Math.log10(10000) + 1)));
+    assertThat(files, hasSize(allOf(greaterThan(1), lessThan((int) (Math.log10(INPUT_SIZE) + 1))));
     List<String> actuals = new ArrayList(strs.size());
     for (String file : files) {
       CharBuffer buf = CharBuffer.allocate((int) new File(file).length());
@@ -145,7 +146,7 @@ public class WriteWithShardingFactoryTest {
     KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView);
     DoFnTester<String, KV<Long, String>> fnTester = DoFnTester.of(fn);
 
-    fnTester.setSideInput(elementCountView, 1L);
+    fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, 1L);
 
     List<KV<Long, String>> outputs = fnTester.processBundle("foo", "bar", "bazbar");
     assertThat(
@@ -160,7 +161,7 @@ public class WriteWithShardingFactoryTest {
     KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView);
     DoFnTester<String, KV<Long, String>> fnTester = DoFnTester.of(fn);
 
-    fnTester.setSideInput(elementCountView, 2L);
+    fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, 2L);
 
     List<KV<Long, String>> outputs = fnTester.processBundle("foo", "bar");
     assertThat(
@@ -178,7 +179,7 @@ public class WriteWithShardingFactoryTest {
     KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView);
     DoFnTester<String, KV<Long, String>> fnTester = DoFnTester.of(fn);
 
-    fnTester.setSideInput(elementCountView, 100L);
+    fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, 100L);
 
     List<KV<Long, String>> outputs =
         fnTester.processBundle("foo", "bar", "baz", "foobar", "foobaz", "barbaz");
@@ -186,9 +187,8 @@ public class WriteWithShardingFactoryTest {
         Iterables.transform(
             outputs,
             new Function<KV<Long, String>, Long>() {
-              @Nullable
               @Override
-              public Long apply(@Nullable KV<Long, String> input) {
+              public Long apply(KV<Long, String> input) {
                 return input.getKey();
               }
             }),
@@ -204,7 +204,7 @@ public class WriteWithShardingFactoryTest {
     DoFnTester<String, KV<Long, String>> fnTester = DoFnTester.of(fn);
 
     double count = Math.pow(10, 10);
-    fnTester.setSideInput(elementCountView, (long) count);
+    fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, (long) count);
 
     List<String> strings = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
