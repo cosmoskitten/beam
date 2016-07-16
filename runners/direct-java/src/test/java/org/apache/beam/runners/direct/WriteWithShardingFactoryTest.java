@@ -92,7 +92,7 @@ public class WriteWithShardingFactoryTest {
     p.run();
 
     Collection<String> files = IOChannelUtils.getFactory(outputPath).match(targetLocation + "*");
-    assertThat(files, hasSize(allOf(greaterThan(1), lessThan((int) (Math.log10(INPUT_SIZE) + 1))));
+    assertThat(files, hasSize(allOf(greaterThan(1), lessThan((int) (Math.log10(INPUT_SIZE) + 1)))));
     List<String> actuals = new ArrayList(strs.size());
     for (String file : files) {
       CharBuffer buf = CharBuffer.allocate((int) new File(file).length());
