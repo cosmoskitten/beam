@@ -22,6 +22,7 @@ import org.apache.beam.examples.WordCount.WordCountOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+
 import com.google.common.base.Joiner;
 
 import org.junit.Test;
