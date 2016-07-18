@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -59,12 +60,17 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
           Bound<InputT, OutputT>> application,
       CommittedBundle<InputT> inputBundle, EvaluationContext evaluationContext) {
     TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
+    String stepName = evaluationContext.getStepName(application);
+    DirectStepContext stepContext =
+        evaluationContext.getExecutionContext(application, inputBundle.getKey())
+            .getOrCreateStepContext(stepName, stepName);
 
     @SuppressWarnings({"unchecked", "rawtypes"}) ThreadLocal<DoFn<InputT, OutputT>> fnLocal =
         (ThreadLocal) fnClones.getUnchecked(application.getTransform().getFn());
     try {
       ParDoEvaluator<InputT> parDoEvaluator = ParDoEvaluator.create(
           evaluationContext,
+          stepContext,
           inputBundle,
           application,
           fnLocal.get(),
