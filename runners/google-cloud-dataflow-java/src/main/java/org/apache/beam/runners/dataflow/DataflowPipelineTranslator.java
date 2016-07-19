@@ -27,7 +27,6 @@ import static org.apache.beam.sdk.util.Structs.addLong;
 import static org.apache.beam.sdk.util.Structs.addObject;
 import static org.apache.beam.sdk.util.Structs.addString;
 import static org.apache.beam.sdk.util.Structs.getString;
-
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -941,29 +940,6 @@ public class DataflowPipelineTranslator {
             translateFn(transform.getFn(), context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs(), context.getInput(transform).getCoder(), context);
             translateOutputs(context.getOutput(transform), context);
-          }
-        });
-
-    registerTransformTranslator(
-        ParDo.Bound.class,
-        new TransformTranslator<ParDo.Bound>() {
-          @Override
-          public void translate(
-              ParDo.Bound transform,
-              TranslationContext context) {
-            translateSingleHelper(transform, context);
-          }
-
-          private <InputT, OutputT> void translateSingleHelper(
-              ParDo.Bound<InputT, OutputT> transform,
-              TranslationContext context) {
-            context.addStep(transform, "ParallelDo");
-            translateInputs(context.getInput(transform), transform.getSideInputs(), context);
-            translateFn(
-                transform.getFn(),
-                context.getInput(transform).getWindowingStrategy(),
-                transform.getSideInputs(), context.getInput(transform).getCoder(), context);
-            context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });
 

@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.include
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
@@ -816,22 +815,22 @@ public class ParDoTest implements Serializable {
 
     {
       PCollection<String> output1 = input.apply(ParDo.of(new TestDoFn()));
-      assertEquals("ParDo(Test).out", output1.getName());
+      assertEquals("ParDo(Test)/ParDo(Test).out0", output1.getName());
     }
 
     {
       PCollection<String> output2 = input.apply("MyParDo", ParDo.of(new TestDoFn()));
-      assertEquals("MyParDo.out", output2.getName());
+      assertEquals("MyParDo/ParDo(Test).out0", output2.getName());
     }
 
     {
       PCollection<String> output4 = input.apply("TestDoFn", ParDo.of(new TestDoFn()));
-      assertEquals("TestDoFn.out", output4.getName());
+      assertEquals("TestDoFn/ParDo(Test).out0", output4.getName());
     }
 
     {
       PCollection<String> output5 = input.apply(ParDo.of(new StrangelyNamedDoer()));
-      assertEquals("ParDo(StrangelyNamedDoer).out",
+      assertEquals("ParDo(StrangelyNamedDoer)/ParDo(StrangelyNamedDoer).out0",
           output5.getName());
     }
 
