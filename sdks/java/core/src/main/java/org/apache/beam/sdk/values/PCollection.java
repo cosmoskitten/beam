@@ -39,7 +39,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  * be passed as the inputs of other PTransforms.
  *
  * <p>Some root transforms produce bounded {@code PCollections} and others
- * produce unbounded ones. For example, {@link CountingInput#upTo} produces a fixed set of integers
+ * produce unbounded ones. For example, {@link CountingInput#upTo} produces a fixed set of integers,
  * so it produces a bounded {@link PCollection}. {@link CountingInput#unbounded} produces all
  * integers as an infinite stream, so it produces an unbounded {@link PCollection}.
  *
