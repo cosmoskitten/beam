@@ -438,7 +438,7 @@ def get_required_container_version():
     # TODO(ccy): change this back to 'beamhead' when worker support for the
     # recent change to use WindowedValueCoders in Sources and Sinks is rolled
     # out.
-    return 'beamhead-02'
+    return 'beamhead'
 
 
 def _download_pypi_sdk_package(temp_dir):
