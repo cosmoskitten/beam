@@ -21,8 +21,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.util.AvroUtils;
-import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -30,70 +28,21 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.Lists;
 
 import org.apache.avro.Schema;
-import org.apache.avro.file.CodecFactory;
-import org.apache.avro.file.DataFileConstants;
-import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.Nullable;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 /**
  * Tests for {@link BigQueryAvroUtils}.
  */
 @RunWith(JUnit4.class)
 public class BigQueryAvroUtilsTest {
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
-
-  private static final int DEFAULT_RECORD_COUNT = 10000;
-
-  /**
-   * Generates an input Avro file containing the given records in the temporary directory and
-   * returns the full path of the file.
-   */
-  @SuppressWarnings("deprecation")  // test of internal functionality
-  private <T> String generateTestFile(String filename, List<T> elems, AvroCoder<T> coder,
-      String codec) throws IOException {
-    File tmpFile = tmpFolder.newFile(filename);
-    String path = tmpFile.toString();
-
-    FileOutputStream os = new FileOutputStream(tmpFile);
-    DatumWriter<T> datumWriter = coder.createDatumWriter();
-    try (DataFileWriter<T> writer = new DataFileWriter<>(datumWriter)) {
-      writer.setCodec(CodecFactory.fromString(codec));
-      writer.create(coder.getSchema(), os);
-      for (T elem : elems) {
-        writer.append(elem);
-      }
-    }
-    return path;
-  }
-
-  @Test
-  public void testReadSchemaString() throws Exception {
-    List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
-    String codec = DataFileConstants.NULL_CODEC;
-    String filename = generateTestFile(
-        codec, expected, AvroCoder.of(Bird.class), codec);
-    AvroMetadata metadata = AvroUtils.readMetadataFromFile(filename);
-    // By default, parse validates the schema, which is what we want.
-    Schema schema = new Schema.Parser().parse(metadata.getSchemaString());
-    assertEquals(8, schema.getFields().size());
-  }
-
   @Test
   public void testConvertGenericRecordToTableRow() throws Exception {
     TableSchema tableSchema = new TableSchema();
@@ -169,6 +118,7 @@ public class BigQueryAvroUtilsTest {
    * Pojo class used as the record type in tests.
    */
   @DefaultCoder(AvroCoder.class)
+  @SuppressWarnings("unused")  // Used by Avro reflection.
   static class Bird {
     long number;
     @Nullable String species;
@@ -189,24 +139,5 @@ public class BigQueryAvroUtilsTest {
       associates = new SubBird[1];
       associates[0] = new SubBird();
     }
-  }
-
-  /**
-   * Create a list of n random records.
-   */
-  private static List<Bird> createRandomRecords(long n) {
-    String[] species = {"pigeons", "owls", "gulls", "hawks", "robins", "jays"};
-    Random random = new Random(0);
-
-    List<Bird> records = new ArrayList<>();
-    for (long i = 0; i < n; i++) {
-      Bird bird = new Bird();
-      bird.quality = random.nextDouble();
-      bird.species = species[random.nextInt(species.length)];
-      bird.number = i;
-      bird.quantity = random.nextLong();
-      records.add(bird);
-    }
-    return records;
   }
 }
