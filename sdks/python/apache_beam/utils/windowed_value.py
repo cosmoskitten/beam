@@ -46,6 +46,7 @@ class WindowedValue(object):
     self.value = value
     if isinstance(timestamp, int):
       self.timestamp_micros = timestamp * 1000000
+      self.timestamp_object = None
     else:
       self.timestamp_object = (timestamp if isinstance(timestamp, Timestamp)
                                else Timestamp.of(timestamp))
