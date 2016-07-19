@@ -46,7 +46,6 @@ class WindowedValue(object):
     self.value = value
     if isinstance(timestamp, int):
       self.timestamp_micros = timestamp * 1000000
-      self.timestamp_object = None
     else:
       self.timestamp_object = (timestamp if isinstance(timestamp, Timestamp)
                                else Timestamp.of(timestamp))
@@ -99,6 +98,7 @@ class WindowedValue(object):
   def __reduce__(self):
     return WindowedValue, (self.value, self.timestamp, self.windows)
 
+
 # TODO(robertwb): Move this to a static method.
 def create(value, timestamp_micros, windows):
   wv = WindowedValue.__new__(WindowedValue)
@@ -106,3 +106,9 @@ def create(value, timestamp_micros, windows):
   wv.timestamp_micros = timestamp_micros
   wv.windows = windows
   return wv
+
+
+try:
+  WindowedValue.timestamp_object = None
+except TypeError:
+  pass  # Cythonized class already has this default value.
