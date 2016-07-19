@@ -55,7 +55,7 @@ public interface PipelineResult {
    *   information.
    * @throws InterruptedException
    */
-  public State waitToFinish(Duration duration) throws IOException, InterruptedException;
+  State waitToFinish(Duration duration) throws IOException, InterruptedException;
 
   /**
    * Retrieves the current value of the provided {@link Aggregator}.
