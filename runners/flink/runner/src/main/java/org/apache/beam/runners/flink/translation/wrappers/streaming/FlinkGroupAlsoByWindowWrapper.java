@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serializable;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
@@ -265,12 +266,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   private <W extends BoundedWindow> DoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> createGroupAlsoByWindowOperator() {
     if (this.operator == null) {
 
-      StateInternalsFactory<K> stateInternalsFactory = new StateInternalsFactory<K>(){
-        @Override
-        public StateInternals<K> stateInternalsForKey(K key) {
-          return getStateInternalsForKey(key);
-        }
-      };
+      StateInternalsFactory<K> stateInternalsFactory = new GroupAlsoByWindowWrapperStateInternalsFactory();
 
       if (this.combineFn == null) {
         // Thus VOUT == Iterable<VIN>
@@ -633,5 +629,14 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
     // restore the timerInternals.
     this.timerInternals.restoreTimerInternals(reader, inputKvCoder, windowCoder);
+  }
+
+  private class GroupAlsoByWindowWrapperStateInternalsFactory implements
+      StateInternalsFactory<K>, Serializable {
+
+    @Override
+    public StateInternals<K> stateInternalsForKey(K key) {
+      return getStateInternalsForKey(key);
+    }
   }
 }

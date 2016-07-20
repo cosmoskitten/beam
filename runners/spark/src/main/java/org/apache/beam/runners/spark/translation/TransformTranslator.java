@@ -24,6 +24,7 @@ import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutput
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFileTemplate;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardCount;
 
+import java.io.Serializable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
 import org.apache.beam.runners.spark.io.hadoop.ShardNameTemplateHelper;
@@ -208,12 +209,7 @@ public final class TransformTranslator {
         DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> gabwDoFn =
             new GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>(
                 windowingStrategy,
-                new StateInternalsFactory<K>() {
-                  @Override
-                  public StateInternals<K> stateInternalsForKey(K key) {
-                    return InMemoryStateInternals.forKey(key);
-                  }
-                },
+                new InMemoryStateInternalsFactory<K>(),
                 SystemReduceFn.<K, V, W>buffering(inputIterableElementValueCoder));
 
         // GroupAlsoByWindow current uses a dummy in-memory StateInternals
@@ -918,6 +914,14 @@ public final class TransformTranslator {
     public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translate(
         Class<TransformT> clazz) {
       return getTransformEvaluator(clazz);
+    }
+  }
+
+  private static class InMemoryStateInternalsFactory<K> implements StateInternalsFactory<K>,
+      Serializable {
+    @Override
+    public StateInternals<K> stateInternalsForKey(K key) {
+      return InMemoryStateInternals.forKey(key);
     }
   }
 }
