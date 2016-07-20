@@ -18,10 +18,12 @@
 
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +56,7 @@ class DoFnLifecycleManager {
     Thread currentThread = Thread.currentThread();
     DoFn<?, ?> fn = outstanding.get(currentThread);
     if (fn == null) {
+      // The key is the current thread, so this is safe when accessed in a multithreaded manner.
       fn =
           (DoFn<?, ?>)
               SerializableUtils.deserializeFromByteArray(
@@ -73,9 +76,13 @@ class DoFnLifecycleManager {
   }
 
   /**
-   * Remove all {@link DoFn DoFns} from this {@link DoFnLifecycleManager}.
+   * Remove all {@link DoFn DoFns} from this {@link DoFnLifecycleManager}. Returns all exceptions
+   * that were thrown while calling the remove methods.
+   *
+   * <p>If the returned Collection is nonempty, an exception was thrown from at least one
+   * {@link DoFn#teardown()} method, and the {@link PipelineRunner} should throw an exception.
    */
-  public void removeAll() throws Exception {
+  public Collection<Exception> removeAll() {
     List<Exception> suppressed = new ArrayList<>();
     Iterator<Entry<Thread, DoFn<?, ?>>> entries = outstanding.entrySet().iterator();
     while (entries.hasNext()) {
@@ -84,16 +91,12 @@ class DoFnLifecycleManager {
       try {
         entry.getValue().teardown();
       } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         suppressed.add(e);
       }
     }
-    // Throw any exceptions that were thrown while making calls to teardown
-    if (!suppressed.isEmpty()) {
-      Exception arbitrary = suppressed.get(0);
-      for (Exception alsoThrown : suppressed.subList(1, suppressed.size())) {
-        arbitrary.addSuppressed(alsoThrown);
-      }
-      throw arbitrary;
-    }
+    return suppressed;
   }
 }
