@@ -71,7 +71,7 @@ import java.util.List;
  *     on a worker, and {@link DoFn#setup()} is called on this instance. This may be through
  *     deserialization or other means. A {@link PipelineRunner} may reuse {@link DoFn} instances for
  *     multiple bundles. A {@link DoFn} that has terminated abnormally (by throwing an
- *     {@link Exception} will never be reused.</li>
+ *     {@link Exception}) will never be reused.</li>
  *   <li>The {@link DoFn DoFn's} {@link DoFn#startBundle} method is called to
  *     initialize it. If this method is not overridden, the call may be optimized
  *     away.</li>
