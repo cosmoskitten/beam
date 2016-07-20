@@ -34,6 +34,10 @@
 
   <packaging>jar</packaging>
 
+  <properties>
+    <spark.version>1.6.2</spark.version>
+  </properties>
+
   <build>
     <plugins>
       <plugin>
@@ -194,6 +198,24 @@
           </execution>
         </executions>
       </plugin>
+
+      <!-- Override parent configuration.
+           Spark/Flink runner dependencies are nessaccerry to be in shaded jar
+           in order to run WordCountIT with Spark/Flink runner -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>2.10</version>
+        <executions>
+          <execution>
+            <goals><goal>analyze-only</goal></goals>
+            <configuration combine.self="override">
+              <!-- Ignore runtime-only dependencies in analysis -->
+              <ignoreNonCompile>true</ignoreNonCompile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <extensions>
@@ -291,6 +313,30 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-flink_2.10</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-spark</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_2.10</artifactId>
+      <version>${spark.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-streaming_2.10</artifactId>
+      <version>${spark.version}</version>
     </dependency>
 
     <dependency>
