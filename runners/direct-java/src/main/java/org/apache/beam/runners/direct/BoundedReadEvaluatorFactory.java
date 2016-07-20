@@ -61,9 +61,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   @Override
-  public void cleanup() {
-
-  }
+  public void cleanup() {}
 
   private <OutputT> TransformEvaluator<?> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,

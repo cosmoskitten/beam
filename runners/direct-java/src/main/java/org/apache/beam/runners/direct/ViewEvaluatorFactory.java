@@ -58,8 +58,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   @Override
-  public void cleanup() throws Exception {
-  }
+  public void cleanup() throws Exception {}
 
   private <InT, OuT> TransformEvaluator<Iterable<InT>> createEvaluator(
       final AppliedPTransform<PCollection<Iterable<InT>>, PCollectionView<OuT>, WriteView<InT, OuT>>

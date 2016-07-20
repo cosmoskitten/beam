@@ -123,8 +123,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   @Override
-  public void cleanup() {
-  }
+  public void cleanup() {}
+
 
   /**
    * A {@link UnboundedReadEvaluator} produces elements from an underlying {@link UnboundedSource},

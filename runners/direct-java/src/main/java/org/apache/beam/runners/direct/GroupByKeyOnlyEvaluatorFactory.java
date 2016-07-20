@@ -61,9 +61,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   @Override
-  public void cleanup() {
-
-  }
+  public void cleanup() {}
 
   private <K, V> TransformEvaluator<KV<K, WindowedValue<V>>> createEvaluator(
       final AppliedPTransform<

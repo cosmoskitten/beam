@@ -44,8 +44,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   @Override
-  public void cleanup() throws Exception {
-  }
+  public void cleanup() throws Exception {}
 
   private <InputT> TransformEvaluator<InputT> createInMemoryEvaluator(
       final AppliedPTransform<
