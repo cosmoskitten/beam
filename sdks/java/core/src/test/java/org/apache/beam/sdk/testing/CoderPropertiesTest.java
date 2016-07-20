@@ -26,8 +26,10 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 import com.google.common.base.Strings;
+import com.google.common.primitives.Ints;
 
 import org.hamcrest.CoreMatchers;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -213,4 +215,39 @@ public class CoderPropertiesTest {
     expectedException.expectMessage("Caller does not own the underlying");
     CoderProperties.encode(new ClosingCoder(), Context.NESTED, "test-value");
   }
+
+  /** Coder that consumes more bytes while decoding than required. */
+  public static class BadCoderThatConsumesMoreBytes extends NonDeterministicCoder {
+
+    @Override
+    public String decode(InputStream inStream, Context context) throws IOException {
+      String value = super.decode(inStream, context);
+      byte[] extraBytes = new byte[Ints.BYTES];
+      inStream.read(extraBytes);
+      return value;
+    }
+  }
+
+  @Test
+  public void testGoodCoderConsumesBytesAsMuchAsItProduces() throws IOException {
+    CoderProperties.coderConsumesBytesEqualToBytesEncoded(StringUtf8Coder.of(), "TestData");
+  }
+
+  @Test
+  public void testNonDeterministicCoderConsumesBytesAsMuchAsItProduces() throws IOException {
+    CoderProperties.coderConsumesBytesEqualToBytesEncoded(new NonDeterministicCoder(), "TestData");
+  }
+
+  @Test
+  public void testCoderWhichConsumesMoreBytesThanItProducesFail() throws IOException {
+    try {
+      CoderProperties.coderConsumesBytesEqualToBytesEncoded(new BadCoderThatConsumesMoreBytes(),
+          "TestData");
+      Assert.fail("Expected Assertion Error");
+    } catch (AssertionError error) {
+      assertThat(error.getMessage(),
+          CoreMatchers.containsString("consumed bytes equal to produced bytes"));
+    }
+  }
+
 }

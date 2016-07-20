@@ -40,6 +40,7 @@ import org.apache.beam.sdk.util.UnownedOutputStream;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.primitives.Ints;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -320,6 +321,26 @@ public class CoderProperties {
     for (int i = 0; i < base64Encodings.size(); i++) {
       coderDecodesBase64ContentsEqual(coder, base64Encodings.get(i), expected.get(i));
     }
+  }
+
+  public static <T> void coderConsumesBytesEqualToBytesEncoded(Coder<T> coder, T value)
+      throws IOException {
+
+    byte[] bytes = encode(coder, Coder.Context.NESTED, value);
+
+    @SuppressWarnings("unchecked")
+    Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
+
+    byte[] extendedBytes = new byte[bytes.length + Ints.BYTES];
+    System.arraycopy(bytes, 0, extendedBytes, 0, bytes.length);
+    System.arraycopy(Ints.toByteArray(1), 0, extendedBytes, bytes.length, Ints.BYTES);
+
+    ByteArrayInputStream is = new ByteArrayInputStream(extendedBytes);
+    int startPos = is.available();
+    deserializedCoder.decode(new UnownedInputStream(is), Coder.Context.NESTED);
+    int endPos = is.available();
+
+    assertThat("consumed bytes equal to produced bytes", startPos - endPos, equalTo(bytes.length));
   }
 
   //////////////////////////////////////////////////////////////////////////
