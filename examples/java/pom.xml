@@ -200,7 +200,7 @@
       </plugin>
 
       <!-- Override parent configuration.
-           Spark/Flink runner dependencies are nessaccerry to be in shaded jar
+           Spark/Flink runner dependencies are necessary to be in shaded jar
            in order to run WordCountIT with Spark/Flink runner -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
