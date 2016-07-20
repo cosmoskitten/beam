@@ -42,11 +42,11 @@ class DoFnLifecycleManager {
     return new DoFnLifecycleManager(original);
   }
 
-  private final DoFn<?, ?> original;
+  private final byte[] original;
   private final ConcurrentMap<Thread, DoFn<?, ?>> outstanding;
 
   private DoFnLifecycleManager(DoFn<?, ?> original) {
-    this.original = original;
+    this.original = SerializableUtils.serializeToByteArray(original);
     this.outstanding = new ConcurrentHashMap<>();
   }
 
@@ -54,7 +54,10 @@ class DoFnLifecycleManager {
     Thread currentThread = Thread.currentThread();
     DoFn<?, ?> fn = outstanding.get(currentThread);
     if (fn == null) {
-      fn = SerializableUtils.clone(original);
+      fn =
+          (DoFn<?, ?>)
+              SerializableUtils.deserializeFromByteArray(
+                  original, "DoFn Copy in thread " + currentThread.getName());
       outstanding.put(currentThread, fn);
       fn.setup();
     }
