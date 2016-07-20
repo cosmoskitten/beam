@@ -345,16 +345,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>By default, does nothing.
    */
-  public void setup() throws Exception {
-  }
+  public void setup() throws Exception {}
 
   /**
    * Prepares this {@code DoFn} instance for processing a batch of elements.
    *
    * <p>By default, does nothing.
    */
-  public void startBundle(Context c) throws Exception {
-  }
+  public void startBundle(Context c) throws Exception {}
 
   /**
    * Processes one input element.
@@ -379,8 +377,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>By default, does nothing.
    */
-  public void finishBundle(Context c) throws Exception {
-  }
+  public void finishBundle(Context c) throws Exception {}
 
   /**
    * Cleans up this {@link DoFn}.
@@ -391,8 +388,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>By default, does nothing.
    */
-  public void teardown() throws Exception {
-  }
+  public void teardown() throws Exception {}
 
   /**
    * {@inheritDoc}
