@@ -125,7 +125,6 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public void cleanup() {}
 
-
   /**
    * A {@link UnboundedReadEvaluator} produces elements from an underlying {@link UnboundedSource},
    * discarding all input elements. Within the call to {@link #finishBundle()}, the evaluator

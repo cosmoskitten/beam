@@ -439,7 +439,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     private boolean shouldShutdown() {
       boolean shouldShutdown = exceptionThrown || evaluationContext.isDone();
       if (shouldShutdown) {
-        LOG.debug("Pipeline has terminated. Shutting down. {}");
+        LOG.debug("Pipeline has terminated. Shutting down.");
         executorService.shutdown();
         try {
           registry.cleanup();

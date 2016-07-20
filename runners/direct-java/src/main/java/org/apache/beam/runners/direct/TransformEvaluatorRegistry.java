@@ -95,7 +95,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
     Collection<Exception> thrownInCleanup = new ArrayList<>();
     for (TransformEvaluatorFactory factory : factories.values()) {
       try {
-      factory.cleanup();
+        factory.cleanup();
       } catch (Exception e) {
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
