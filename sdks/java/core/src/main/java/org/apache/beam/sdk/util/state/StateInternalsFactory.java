@@ -29,7 +29,7 @@ import java.io.Serializable;
  * it is marked {@link Serializable}.
  */
 @Experimental(Kind.STATE)
-public interface StateInternalsFactory<K> extends Serializable {
+public interface StateInternalsFactory<K> {
 
   /** Returns {@link StateInternals} for the provided key. */
   StateInternals<K> stateInternalsForKey(K key);
