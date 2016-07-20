@@ -259,7 +259,8 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
           try {
             doFn.teardown();
           } catch (Exception e) {
-            throw new SparkProcessException(e);
+            LOG.error(
+                "Suppressing teardown exception that occurred after processing entire input", e);
           }
           return endOfData();
         }
