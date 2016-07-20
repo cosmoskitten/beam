@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 /**
- * Created by tgroh on 7/20/16.
+ * Utility methods for interacting with {@link DoFnLifecycleManager DoFnLifecycleManagers}.
  */
 class DoFnLifecycleManagers {
   private DoFnLifecycleManagers() {
