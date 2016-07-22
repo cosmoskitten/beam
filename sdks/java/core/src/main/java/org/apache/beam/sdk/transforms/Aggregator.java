@@ -23,8 +23,8 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * An {@code Aggregator<InputT>} enables monitoring of values of type {@code InputT},
  * to be combined across all bundles.
  *
- * <p>Aggregators are created by calling {@link DoFn#createAggregator DoFn.createAggregator},
- * typically from the {@link DoFn} constructor. Elements can be added to the
+ * <p>Aggregators are created by calling {@link OldDoFn#createAggregator OldDoFn.createAggregator},
+ * typically from the {@link OldDoFn} constructor. Elements can be added to the
  * {@code Aggregator} by calling {@link Aggregator#addValue}.
  *
  * <p>Aggregators are visible in the monitoring UI, when the pipeline is run
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  *
  * <p>Example:
  * <pre> {@code
- * class MyDoFn extends DoFn<String, String> {
+ * class MyDoFn extends OldDoFn<String, String> {
  *   private Aggregator<Integer, Integer> myAggregator;
  *
  *   public MyDoFn() {
@@ -72,7 +72,7 @@ public interface Aggregator<InputT, OutputT> {
 
   // TODO: Consider the following additional API conveniences:
   // - In addition to createAggregator(), consider adding getAggregator() to
-  //   avoid the need to store the aggregator locally in a DoFn, i.e., create
+  //   avoid the need to store the aggregator locally in a OldDoFn, i.e., create
   //   if not already present.
   // - Add a shortcut for the most common aggregator:
   //   c.createAggregator("name", new Sum.SumIntegerFn()).
