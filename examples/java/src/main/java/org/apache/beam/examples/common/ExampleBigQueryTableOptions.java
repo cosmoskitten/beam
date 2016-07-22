@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.common;
 
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -50,7 +51,7 @@ public interface ExampleBigQueryTableOptions extends GcpOptions {
   static class BigQueryTableFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      return options.as(ExampleOptions.class).getNormalizedUniqueName()
+      return options.as(ApplicationNameOptions.class).getNormalizedUniqueName()
           .replace('-', '_');
     }
   }
