@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.common;
 
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -39,7 +40,7 @@ public interface ExamplePubsubTopicOptions extends GcpOptions {
     @Override
     public String create(PipelineOptions options) {
       return "projects/" + options.as(GcpOptions.class).getProject()
-          + "/topics/" + options.as(ExampleOptions.class).getNormalizedUniqueName();
+          + "/topics/" + options.as(ApplicationNameOptions.class).getNormalizedUniqueName();
     }
   }
 }

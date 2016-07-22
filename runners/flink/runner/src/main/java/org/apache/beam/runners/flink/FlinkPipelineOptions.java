@@ -26,10 +26,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.joda.time.DateTimeUtils;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 import java.util.List;
 
@@ -98,21 +94,9 @@ public interface FlinkPipelineOptions extends PipelineOptions, ApplicationNameOp
 
 
   class JobNameFactory implements DefaultValueFactory<String> {
-    private static final DateTimeFormatter FORMATTER =
-        DateTimeFormat.forPattern("MMddHHmmss").withZone(DateTimeZone.UTC);
-
     @Override
     public String create(PipelineOptions options) {
-      String appName = options.as(ApplicationNameOptions.class).getAppName();
-      String normalizedAppName = appName == null || appName.length() == 0 ? "FlinkRunner"
-          : appName.toLowerCase()
-          .replaceAll("[^a-z0-9]", "0")
-          .replaceAll("^[^a-z]", "a");
-      String userName = System.getProperty("user.name", "");
-      String normalizedUserName = userName.toLowerCase()
-          .replaceAll("[^a-z0-9]", "0");
-      String datePart = FORMATTER.print(DateTimeUtils.currentTimeMillis());
-      return normalizedAppName + "-" + normalizedUserName + "-" + datePart;
+      return options.as(ApplicationNameOptions.class).getNormalizedUniqueName();
     }
   }
 }

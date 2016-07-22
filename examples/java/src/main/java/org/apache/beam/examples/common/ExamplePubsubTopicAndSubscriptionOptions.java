@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.common;
 
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -39,7 +40,7 @@ public interface ExamplePubsubTopicAndSubscriptionOptions extends ExamplePubsubT
     @Override
     public String create(PipelineOptions options) {
       return "projects/" + options.as(GcpOptions.class).getProject()
-          + "/subscriptions/" + options.as(ExampleOptions.class).getNormalizedUniqueName();
+          + "/subscriptions/" + options.as(ApplicationNameOptions.class).getNormalizedUniqueName();
     }
   }
 }
