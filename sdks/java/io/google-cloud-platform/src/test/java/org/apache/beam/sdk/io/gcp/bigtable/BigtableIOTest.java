@@ -22,12 +22,15 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
@@ -46,14 +49,15 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-import com.google.bigtable.v1.Cell;
-import com.google.bigtable.v1.Column;
-import com.google.bigtable.v1.Family;
-import com.google.bigtable.v1.Mutation;
-import com.google.bigtable.v1.Mutation.SetCell;
-import com.google.bigtable.v1.Row;
-import com.google.bigtable.v1.RowFilter;
-import com.google.bigtable.v1.SampleRowKeysResponse;
+import com.google.bigtable.v2.Cell;
+import com.google.bigtable.v2.Column;
+import com.google.bigtable.v2.Family;
+import com.google.bigtable.v2.MutateRowResponse;
+import com.google.bigtable.v2.Mutation;
+import com.google.bigtable.v2.Mutation.SetCell;
+import com.google.bigtable.v2.Row;
+import com.google.bigtable.v2.RowFilter;
+import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
@@ -64,9 +68,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
-
-import io.grpc.Status;
 
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -81,12 +82,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -109,8 +108,7 @@ public class BigtableIOTest {
   private static final BigtableOptions BIGTABLE_OPTIONS =
       new BigtableOptions.Builder()
           .setProjectId("project")
-          .setClusterId("cluster")
-          .setZoneId("zone")
+          .setInstanceId("instance")
           .build();
   private static BigtableIO.Read defaultRead =
       BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS);
@@ -133,8 +131,7 @@ public class BigtableIOTest {
     BigtableIO.Read read =
         BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS).withTableId("table");
     assertEquals("project", read.getBigtableOptions().getProjectId());
-    assertEquals("cluster", read.getBigtableOptions().getClusterId());
-    assertEquals("zone", read.getBigtableOptions().getZoneId());
+    assertEquals("instance", read.getBigtableOptions().getInstanceId());
     assertEquals("table", read.getTableId());
   }
 
@@ -143,8 +140,7 @@ public class BigtableIOTest {
     BigtableIO.Read read =
         BigtableIO.read().withTableId("table").withBigtableOptions(BIGTABLE_OPTIONS);
     assertEquals("project", read.getBigtableOptions().getProjectId());
-    assertEquals("cluster", read.getBigtableOptions().getClusterId());
-    assertEquals("zone", read.getBigtableOptions().getZoneId());
+    assertEquals("instance", read.getBigtableOptions().getInstanceId());
     assertEquals("table", read.getTableId());
   }
 
@@ -154,17 +150,15 @@ public class BigtableIOTest {
         BigtableIO.write().withBigtableOptions(BIGTABLE_OPTIONS).withTableId("table");
     assertEquals("table", write.getTableId());
     assertEquals("project", write.getBigtableOptions().getProjectId());
-    assertEquals("zone", write.getBigtableOptions().getZoneId());
-    assertEquals("cluster", write.getBigtableOptions().getClusterId());
+    assertEquals("instance", write.getBigtableOptions().getInstanceId());
   }
 
   @Test
   public void testWriteBuildsCorrectlyInDifferentOrder() {
     BigtableIO.Write write =
         BigtableIO.write().withTableId("table").withBigtableOptions(BIGTABLE_OPTIONS);
-    assertEquals("cluster", write.getBigtableOptions().getClusterId());
     assertEquals("project", write.getBigtableOptions().getProjectId());
-    assertEquals("zone", write.getBigtableOptions().getZoneId());
+    assertEquals("instance", write.getBigtableOptions().getInstanceId());
     assertEquals("table", write.getTableId());
   }
 
@@ -424,7 +418,10 @@ public class BigtableIOTest {
 
     DisplayData displayData = DisplayData.from(read);
 
-    assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
+    assertThat(displayData, hasDisplayItem(allOf(
+        hasKey("tableId"),
+        hasLabel("Table ID"),
+        hasValue("fooTable"))));
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
@@ -528,55 +525,64 @@ public class BigtableIOTest {
   }
 
   @Test
-  public void testAddBulkOptions() {
-    BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
-    optionsBuilder = BigtableIO.addBulkOptions(optionsBuilder);
+  public void testReadWithBigTableOptionsSetsRetryOptions() {
+    final int initialBackoffMillis = -1;
 
-    BulkOptions bulkOptions = optionsBuilder.build().getBulkOptions();
-    assertEquals(BulkOptions.BIGTABLE_ASYNC_MUTATOR_COUNT_DEFAULT,
-        bulkOptions.getAsyncMutatorCount());
-    assertEquals(true, bulkOptions.useBulkApi());
-    assertEquals(BulkOptions.BIGTABLE_BULK_MAX_ROW_KEY_COUNT_DEFAULT,
-        bulkOptions.getBulkMaxRowKeyCount());
-    assertEquals(BulkOptions.BIGTABLE_BULK_MAX_REQUEST_SIZE_BYTES_DEFAULT,
-        bulkOptions.getBulkMaxRequestSize());
-    assertEquals(BulkOptions.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT
-        * optionsBuilder.getDataChannelCount(), bulkOptions.getMaxInflightRpcs());
-    assertEquals(BulkOptions.BIGTABLE_MAX_MEMORY_DEFAULT, bulkOptions.getMaxMemory());
+    BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
+
+    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
+    retryOptionsBuilder.setInitialBackoffMillis(initialBackoffMillis);
+
+    optionsBuilder.setRetryOptions(retryOptionsBuilder.build());
+
+    BigtableIO.Read read =
+        BigtableIO.read().withBigtableOptions(optionsBuilder.build());
+
+    BigtableOptions options = read.getBigtableOptions();
+    assertEquals(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE,
+        options.getRetryOptions().getStreamingBatchSize());
+    assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
+
+    assertThat(options.getRetryOptions(),
+        Matchers.equalTo(retryOptionsBuilder
+            .setStreamingBatchSize(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE)
+            .build()));
   }
 
   @Test
-  public void testAddRetryOptions() {
-    final double delta = 0.0000001;
+  public void testWriteWithBigTableOptionsSetsBulkOptionsAndRetryOptions() {
+    final int maxInflightRpcs = 1;
+    final int initialBackoffMillis = -1;
+
     BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
-    optionsBuilder = BigtableIO.addRetryOptions(optionsBuilder);
 
-    RetryOptions retryOptions = optionsBuilder.build().getRetryOptions();
-    assertEquals(RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES, retryOptions.enableRetries());
-    assertEquals(RetryOptions.DEFAULT_INITIAL_BACKOFF_MILLIS,
-        retryOptions.getInitialBackoffMillis());
-    assertEquals(RetryOptions.DEFAULT_BACKOFF_MULTIPLIER, retryOptions.getBackoffMultiplier(),
-        delta);
-    assertEquals(RetryOptions.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS,
-        retryOptions.getMaxElaspedBackoffMillis());
-    assertEquals(RetryOptions.DEFAULT_STREAMING_BUFFER_SIZE, retryOptions.getStreamingBufferSize());
-    assertEquals(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE, retryOptions.getStreamingBatchSize());
-    assertEquals(RetryOptions.DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS,
-        retryOptions.getReadPartialRowTimeoutMillis());
-    assertEquals(RetryOptions.DEFAULT_MAX_SCAN_TIMEOUT_RETRIES,
-        retryOptions.getMaxScanTimeoutRetries());
-    assertFalse(retryOptions.allowRetriesWithoutTimestamp());
+    BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder();
+    bulkOptionsBuilder.setMaxInflightRpcs(maxInflightRpcs);
 
-    Set<Status.Code> statusToRetryOn = new HashSet<>();
-    for (Status.Code code : Status.Code.values()) {
-      if (retryOptions.isRetryable(code)) {
-        statusToRetryOn.add(code);
-      }
-    }
+    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
+    retryOptionsBuilder.setInitialBackoffMillis(initialBackoffMillis);
 
-    Set<Status.Code> defaultStatusToRetryOn =
-        new HashSet<>(RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES_SET);
-    assertThat(statusToRetryOn, Matchers.containsInAnyOrder(defaultStatusToRetryOn.toArray()));
+    optionsBuilder.setBulkOptions(bulkOptionsBuilder.build())
+        .setRetryOptions(retryOptionsBuilder.build());
+
+    BigtableIO.Write write =
+        BigtableIO.write().withBigtableOptions(optionsBuilder.build());
+
+    BigtableOptions options = write.getBigtableOptions();
+    assertEquals(true, options.getBulkOptions().useBulkApi());
+    assertEquals(maxInflightRpcs, options.getBulkOptions().getMaxInflightRpcs());
+    assertEquals(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE,
+        options.getRetryOptions().getStreamingBatchSize());
+    assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
+
+    assertThat(options.getBulkOptions(),
+        Matchers.equalTo(bulkOptionsBuilder
+            .setUseBulkApi(true)
+            .build()));
+    assertThat(options.getRetryOptions(),
+        Matchers.equalTo(retryOptionsBuilder
+            .setStreamingBatchSize(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE)
+            .build()));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
@@ -780,7 +786,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public ListenableFuture<Empty> writeRecord(KV<ByteString, Iterable<Mutation>> record) {
+    public ListenableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record) {
       service.verifyTableExists(tableId);
       Map<ByteString, ByteString> table = service.getTable(tableId);
       ByteString key = record.getKey();
@@ -791,7 +798,7 @@ public class BigtableIOTest {
         }
         table.put(key, cell.getValue());
       }
-      return Futures.immediateFuture(Empty.getDefaultInstance());
+      return Futures.immediateFuture(MutateRowResponse.getDefaultInstance());
     }
 
     @Override

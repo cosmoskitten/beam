@@ -71,7 +71,7 @@
                 <location>${basedir}/../javadoc/apiclient-docs</location>
               </offlineLink>
               <offlineLink>
-                <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
+                <url>http://avro.apache.org/docs/${avro.version}/api/java/</url>
                 <location>${basedir}/../javadoc/avro-docs</location>
               </offlineLink>
               <offlineLink>
@@ -291,7 +291,25 @@
   <dependencies>
     <dependency>
       <groupId>io.grpc</groupId>
+      <artifactId>grpc-auth</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty</artifactId>
+    </dependency>
+
+    <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+         scope and depend on it at runtime. -->
+    <dependency>
+      <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -311,7 +329,6 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-handler</artifactId>
-      <version>4.1.0.CR1</version>
     </dependency>
 
     <dependency>
@@ -324,6 +341,12 @@
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+        <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+          scope and depend on it at runtime. -->
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>grpc-all</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -383,16 +406,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-proto-client</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-protos</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcsio</artifactId>
     </dependency>
@@ -441,6 +454,11 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>net.bytebuddy</groupId>
+      <artifactId>byte-buddy</artifactId>
     </dependency>
 
     <dependency>

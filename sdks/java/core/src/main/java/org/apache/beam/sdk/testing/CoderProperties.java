@@ -38,7 +38,9 @@ import org.apache.beam.sdk.util.UnownedInputStream;
 import org.apache.beam.sdk.util.UnownedOutputStream;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.io.CountingInputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -61,7 +63,7 @@ public class CoderProperties {
   /**
    * All the contexts, for use in test cases.
    */
-   public static final List<Coder.Context> ALL_CONTEXTS = Arrays.asList(
+   public static final List<Coder.Context> ALL_CONTEXTS = ImmutableList.of(
        Coder.Context.OUTER, Coder.Context.NESTED);
 
   /**
@@ -340,8 +342,20 @@ public class CoderProperties {
     @SuppressWarnings("unchecked")
     Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
 
-    ByteArrayInputStream is = new ByteArrayInputStream(bytes);
-    return deserializedCoder.decode(new UnownedInputStream(is), context);
+    byte[] buffer;
+    if (context == Coder.Context.NESTED) {
+      buffer = new byte[bytes.length + 1];
+      System.arraycopy(bytes, 0, buffer, 0, bytes.length);
+      buffer[bytes.length] = 1;
+    } else {
+      buffer = bytes;
+    }
+
+    CountingInputStream cis = new CountingInputStream(new ByteArrayInputStream(buffer));
+    T value = deserializedCoder.decode(new UnownedInputStream(cis), context);
+    assertThat("consumed bytes equal to encoded bytes", cis.getCount(),
+        equalTo((long) bytes.length));
+    return value;
   }
 
   private static <T> T decodeEncode(Coder<T> coder, Coder.Context context, T value)

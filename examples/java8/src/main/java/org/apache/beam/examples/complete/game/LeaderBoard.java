@@ -17,8 +17,8 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
-import org.apache.beam.examples.common.DataflowExampleUtils;
+import org.apache.beam.examples.common.ExampleOptions;
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
@@ -102,7 +103,7 @@ public class LeaderBoard extends HourlyTeamScore {
   /**
    * Options supported by {@link LeaderBoard}.
    */
-  static interface Options extends HourlyTeamScore.Options, DataflowExampleOptions {
+  static interface Options extends HourlyTeamScore.Options, ExampleOptions, StreamingOptions {
 
     @Description("Pub/Sub topic to read from")
     @Validation.Required
@@ -178,7 +179,7 @@ public class LeaderBoard extends HourlyTeamScore {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
-    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
+    ExampleUtils exampleUtils = new ExampleUtils(options);
     Pipeline pipeline = Pipeline.create(options);
 
     // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
@@ -231,6 +232,6 @@ public class LeaderBoard extends HourlyTeamScore {
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
     // command line.
     PipelineResult result = pipeline.run();
-    dataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 }

@@ -88,7 +88,7 @@
               <location>${basedir}/../../sdks/java/javadoc/apiclient-docs</location>
             </offlineLink>
             <offlineLink>
-              <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
+              <url>http://avro.apache.org/docs/${avro.version}/api/java/</url>
               <location>${basedir}/../../sdks/java/javadoc/avro-docs</location>
             </offlineLink>
             <offlineLink>
@@ -204,6 +204,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
     </dependency>
@@ -268,6 +273,7 @@
       <artifactId>beam-runners-direct-java</artifactId>
       <version>${project.version}</version>
       <scope>runtime</scope>
+      <optional>true</optional>
     </dependency>
 
     <dependency>

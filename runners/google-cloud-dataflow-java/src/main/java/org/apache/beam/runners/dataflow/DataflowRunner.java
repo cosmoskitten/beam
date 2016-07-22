@@ -60,7 +60,6 @@ import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.AvroIO;
-import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.PubsubIO;
@@ -181,16 +180,15 @@ import java.util.TreeSet;
 import javax.annotation.Nullable;
 
 /**
- * A {@link PipelineRunner} that executes the operations in the
- * pipeline by first translating them to the Dataflow representation
- * using the {@link DataflowPipelineTranslator} and then submitting
+ * A {@link PipelineRunner} that executes the operations in the pipeline by first translating them
+ * to the Dataflow representation using the {@link DataflowPipelineTranslator} and then submitting
  * them to a Dataflow service for execution.
  *
  * <p><h3>Permissions</h3>
- * When reading from a Dataflow source or writing to a Dataflow sink using
- * {@code DataflowRunner}, the Google cloudservices account and the Google compute engine
- * service account of the GCP project running the Dataflow Job will need access to the corresponding
- * source/sink.
+ *
+ * When reading from a Dataflow source or writing to a Dataflow sink using {@code DataflowRunner},
+ * the Google cloudservices account and the Google compute engine service account of the GCP project
+ * running the Dataflow Job will need access to the corresponding source/sink.
  *
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
@@ -219,9 +217,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // Default Docker container images that execute Dataflow worker harness, residing in Google
   // Container Registry, separately for Batch and Streaming.
   public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE
-      = "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20160613";
+      = "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20160714";
   public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE
-      = "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20160613";
+      = "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20160714";
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -259,27 +257,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     PathValidator validator = dataflowOptions.getPathValidator();
-    checkArgument(!(isNullOrEmpty(dataflowOptions.getTempLocation())
-        && isNullOrEmpty(dataflowOptions.getStagingLocation())),
-        "Missing required value: at least one of tempLocation or stagingLocation must be set.");
-
-    if (dataflowOptions.getStagingLocation() != null) {
-      validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
-    }
-    if (dataflowOptions.getTempLocation() != null) {
-      validator.validateOutputFilePrefixSupported(dataflowOptions.getTempLocation());
-    }
-    if (isNullOrEmpty(dataflowOptions.getTempLocation())) {
-      dataflowOptions.setTempLocation(dataflowOptions.getStagingLocation());
-    } else if (isNullOrEmpty(dataflowOptions.getStagingLocation())) {
-      try {
-        dataflowOptions.setStagingLocation(
-            IOChannelUtils.resolve(dataflowOptions.getTempLocation(), "staging"));
-      } catch (IOException e) {
-        throw new IllegalArgumentException("Unable to resolve PipelineOptions.stagingLocation "
-            + "from PipelineOptions.tempLocation. Please set the staging location explicitly.", e);
-      }
-    }
+    checkArgument(
+        !isNullOrEmpty(dataflowOptions.getGcpTempLocation()),
+        "DataflowRunner requires gcpTempLocation, and it is missing in PipelineOptions.");
+    validator.validateOutputFilePrefixSupported(dataflowOptions.getGcpTempLocation());
+    checkArgument(
+        !isNullOrEmpty(dataflowOptions.getStagingLocation()),
+        "DataflowRunner requires stagingLocation, and it is missing in PipelineOptions.");
+    validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
 
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(
@@ -538,9 +523,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     newJob.getEnvironment().setUserAgent(ReleaseInfo.getReleaseInfo());
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
-    if (!isNullOrEmpty(options.getTempLocation())) {
+    if (!isNullOrEmpty(options.getGcpTempLocation())) {
       newJob.getEnvironment().setTempStoragePrefix(
-          dataflowOptions.getPathValidator().verifyPath(options.getTempLocation()));
+          dataflowOptions.getPathValidator().verifyPath(options.getGcpTempLocation()));
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
     newJob.getEnvironment().setExperiments(options.getExperiments());
@@ -2830,14 +2815,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public UnsupportedIO(DataflowRunner runner, AvroIO.Read.Bound<?> transform) {
-      this.transform = transform;
-    }
-
-    /**
-     * Builds an instance of this class from the overridden transform.
-     */
-    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public UnsupportedIO(DataflowRunner runner, BigQueryIO.Read.Bound transform) {
       this.transform = transform;
     }
 

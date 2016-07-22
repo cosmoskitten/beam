@@ -22,8 +22,10 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -39,13 +41,17 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.TextIO.TextSource;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -54,6 +60,8 @@ import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.collect.ImmutableList;
 
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -79,6 +87,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -94,6 +103,11 @@ import javax.annotation.Nullable;
 public class TextIOTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException expectedException = ExpectedException.none();
+
+  @BeforeClass
+  public static void setupClass() {
+    IOChannelUtils.registerStandardIOFactories(TestPipeline.testingPipelineOptions());
+  }
 
   <T> void runTestRead(T[] expected, Coder<T> coder) throws Exception {
     File tmpFile = tmpFolder.newFile("file.txt");
@@ -185,6 +199,20 @@ public class TextIOTest {
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
+  @Test
+  @Category(RunnableOnService.class)
+  public void testPrimitiveReadDisplayData() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+    TextIO.Read.Bound<String> read = TextIO.Read
+        .from("foobar")
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("TextIO.Read should include the file prefix in its primitive display data",
+        displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
+  }
+
   <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
     runTestWrite(elems, coder, 1);
   }
@@ -210,14 +238,11 @@ public class TextIOTest {
     } else if (numShards > 0) {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
-    int numOutputShards = (numShards > 0) ? numShards : 1;
-
     input.apply(write);
 
     p.run();
 
-    assertOutputFiles(elems, coder, numOutputShards, tmpFolder, outputName,
-        write.getShardNameTemplate());
+    assertOutputFiles(elems, coder, numShards, tmpFolder, outputName, write.getShardNameTemplate());
   }
 
   public static <T> void assertOutputFiles(
@@ -229,11 +254,19 @@ public class TextIOTest {
       String shardNameTemplate)
       throws Exception {
     List<File> expectedFiles = new ArrayList<>();
-    for (int i = 0; i < numShards; i++) {
-      expectedFiles.add(
-          new File(
-              rootLocation.getRoot(),
-              IOChannelUtils.constructName(outputName, shardNameTemplate, "", i, numShards)));
+    if (numShards == 0) {
+      String pattern =
+          IOChannelUtils.resolve(rootLocation.getRoot().getAbsolutePath(), outputName + "*");
+      for (String expected : IOChannelUtils.getFactory(pattern).match(pattern)) {
+        expectedFiles.add(new File(expected));
+      }
+    } else {
+      for (int i = 0; i < numShards; i++) {
+        expectedFiles.add(
+            new File(
+                rootLocation.getRoot(),
+                IOChannelUtils.constructName(outputName, shardNameTemplate, "", i, numShards)));
+      }
     }
 
     List<String> actual = new ArrayList<>();
@@ -312,6 +345,23 @@ public class TextIOTest {
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
+  public void testPrimitiveWriteDisplayData() throws IOException {
+    PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
+    String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
+    String outputPath = IOChannelUtils.getFactory(tempRoot).resolve(tempRoot, "foobar");
+
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+    TextIO.Write.Bound<?> write = TextIO.Write.to(outputPath);
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("TextIO.Write should include the file prefix in its primitive display data",
+        displayData, hasItem(hasDisplayItem(hasValue(startsWith(outputPath)))));
   }
 
   @Test

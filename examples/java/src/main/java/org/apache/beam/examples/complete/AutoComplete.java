@@ -20,20 +20,20 @@ package org.apache.beam.examples.complete;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
-import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
-import org.apache.beam.examples.common.ExamplePubsubTopicOptions;
+import org.apache.beam.examples.common.ExampleOptions;
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.BigQueryIO;
-import org.apache.beam.sdk.io.DatastoreIO;
-import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
@@ -418,7 +417,8 @@ public class AutoComplete {
    *
    * <p>Inherits standard Dataflow configuration options.
    */
-  private static interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+  private static interface Options
+      extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Input text file")
     @Validation.Required
     String getInputFile();
@@ -453,28 +453,23 @@ public class AutoComplete {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
     options.setBigQuerySchema(FormatForBigquery.getSchema());
-    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
+    ExampleUtils exampleUtils = new ExampleUtils(options);
 
     // We support running the same pipeline in either
     // batch or windowed streaming mode.
-    PTransform<? super PBegin, PCollection<String>> readSource;
     WindowFn<Object, ?> windowFn;
     if (options.isStreaming()) {
       checkArgument(
           !options.getOutputToDatastore(), "DatastoreIO is not supported in streaming.");
-      dataflowUtils.setupPubsub();
-
-      readSource = PubsubIO.Read.topic(options.getPubsubTopic());
       windowFn = SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5));
     } else {
-      readSource = TextIO.Read.from(options.getInputFile());
       windowFn = new GlobalWindows();
     }
 
     // Create the pipeline.
     Pipeline p = Pipeline.create(options);
     PCollection<KV<String, List<CompletionCandidate>>> toWrite = p
-      .apply(readSource)
+      .apply(TextIO.Read.from(options.getInputFile()))
       .apply(ParDo.of(new ExtractHashtags()))
       .apply(Window.<String>into(windowFn))
       .apply(ComputeTopCompletions.top(10, options.getRecursive()));
@@ -482,11 +477,11 @@ public class AutoComplete {
     if (options.getOutputToDatastore()) {
       toWrite
       .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind())))
-      .apply(DatastoreIO.writeTo(MoreObjects.firstNonNull(
+      .apply(DatastoreIO.v1beta3().write().withProjectId(MoreObjects.firstNonNull(
           options.getOutputProject(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {
-      dataflowUtils.setupBigQueryTable();
+      exampleUtils.setupBigQueryTable();
 
       TableReference tableRef = new TableReference();
       tableRef.setProjectId(options.getProject());
@@ -507,12 +502,7 @@ public class AutoComplete {
     // Run the pipeline.
     PipelineResult result = p.run();
 
-    if (options.isStreaming() && !options.getInputFile().isEmpty()) {
-      // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
-      dataflowUtils.runInjectorPipeline(options.getInputFile(), options.getPubsubTopic());
-    }
-
     // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
-    dataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 }
