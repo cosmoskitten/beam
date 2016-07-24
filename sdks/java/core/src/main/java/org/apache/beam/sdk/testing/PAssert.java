@@ -1049,14 +1049,7 @@ public class PAssert {
 
     @Override
     public void processElement(ProcessContext c) {
-      try {
-        doChecks(c.element(), checkerFn, success, failure);
-      } catch (Throwable t) {
-        // Suppress exception in streaming
-        if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
-          throw t;
-        }
-      }
+      doChecks(c.element(), checkerFn, success, failure);
     }
   }
 
@@ -1081,15 +1074,8 @@ public class PAssert {
 
     @Override
     public void processElement(ProcessContext c) {
-      try {
-        ActualT actualContents = Iterables.getOnlyElement(c.element());
-        doChecks(actualContents, checkerFn, success, failure);
-      } catch (Throwable t) {
-        // Suppress exception in streaming
-        if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
-          throw t;
-        }
-      }
+      ActualT actualContents = Iterables.getOnlyElement(c.element());
+      doChecks(actualContents, checkerFn, success, failure);
     }
   }
 
