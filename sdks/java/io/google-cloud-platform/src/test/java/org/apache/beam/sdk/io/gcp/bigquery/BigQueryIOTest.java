@@ -30,6 +30,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.Pipeline;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryTableSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.StreamingWriteFn;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TransformingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -1434,5 +1436,67 @@ public class BigQueryIOTest implements Serializable {
     tester.processElement(null);
 
     logged.verifyInfo("Starting BigQuery copy job");
+  }
+
+  public void testStreamingWriteAppend() throws Exception {
+    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
+        .thenReturn(new Table());
+    TableReference ref = BigQueryIO
+        .parseTableSpec("project:dataset.table");
+
+    StreamingWriteFn.getOrCreateTable(
+        mockDatasetService,
+        ref,
+        BigQueryIO.Write.WriteDisposition.WRITE_APPEND,
+        BigQueryIO.Write.CreateDisposition.CREATE_NEVER,
+        null);
+
+    verify(mockDatasetService).getTable(anyString(), anyString(), anyString());
+}
+
+  @Test
+  public void testStreamingWriteEmpty() throws Exception {
+    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
+        .thenReturn(new Table());
+    when(mockDatasetService.isTableEmpty(anyString(), anyString(), anyString()))
+        .thenReturn(true);
+
+    TableReference ref = BigQueryIO
+        .parseTableSpec("project:dataset.table");
+
+    StreamingWriteFn.getOrCreateTable(
+        mockDatasetService,
+        ref,
+        BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
+        BigQueryIO.Write.CreateDisposition.CREATE_NEVER,
+        null);
+
+    verify(mockDatasetService).getTable(anyString(), anyString(), anyString());
+    verify(mockDatasetService).isTableEmpty(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  public void testStreamingWriteEmptyFail() throws Exception {
+    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
+        .thenReturn(new Table());
+    when(mockDatasetService.isTableEmpty(anyString(), anyString(), anyString()))
+        .thenReturn(false);
+
+    thrown.expect(IOException.class);
+
+    TableReference ref = BigQueryIO
+        .parseTableSpec("project:dataset.table");
+
+    try {
+      StreamingWriteFn.getOrCreateTable(
+          mockDatasetService,
+          ref,
+          BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
+          BigQueryIO.Write.CreateDisposition.CREATE_NEVER,
+          null);
+    } finally {
+      verify(mockDatasetService).getTable(anyString(), anyString(), anyString());
+      verify(mockDatasetService).isTableEmpty(anyString(), anyString(), anyString());
+    }
   }
 }
