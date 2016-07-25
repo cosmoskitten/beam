@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.io.FileUtils;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -51,6 +52,23 @@ public class SimpleWordCountTest {
   private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
   private static final Set<String> EXPECTED_COUNT_SET =
       ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
+
+    @Test
+   public void testWithProvidedContext() throws Exception {
+    JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
+    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    options.setProvidedJavaSparkContext(true);
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
+      PCollection<String> output = inputWords.apply(new WordCount.CountWords())
+              .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+    PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
+    EvaluationResult res = SparkRunner.create(options, jsc).run(p);
+    res.close();
+    jsc.stop();
+  }
 
   @Test
   public void testInMem() throws Exception {
