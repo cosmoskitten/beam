@@ -17,12 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Verify.verifyNotNull;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -54,11 +58,14 @@ import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.cloud.hadoop.util.RetryBoundedBackOff;
 import com.google.common.collect.ImmutableList;
 
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -334,6 +341,117 @@ public class BigQueryServicesImplTest {
       verify(response, times(1)).getContent();
       verify(response, times(1)).getContentType();
       throw e.getCause();
+    }
+  }
+
+  /**
+   * Tests that {@link DatasetService#createTable} succeeds on the first try.
+   */
+  @Test
+  public void testCreateTableSucceeds() throws Exception {
+    Table testTable = new Table().setTableReference(new TableReference()
+        .setProjectId("project")
+        .setDatasetId("dataset")
+        .setTableId("table"));
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200);
+    when(response.getContent()).thenReturn(toStream(testTable));
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    dataService.createTable(testTable, Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
+
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  /**
+   * Tests that {@link DatasetService#createTable} succeeds when the table already exists.
+   */
+  @Test
+  public void testCreateTableSucceedsAlreadyExists() throws Exception {
+    Table testTable = new Table().setTableReference(new TableReference()
+        .setProjectId("project")
+        .setDatasetId("dataset")
+        .setTableId("table"));
+
+    when(response.getStatusCode()).thenReturn(409); // 409 means already exists
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    dataService.createTable(testTable, Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
+
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  /**
+   * Tests that {@link DatasetService#createTable} retries quota rate limited attempts.
+   */
+  @Test
+  public void testCreateTableRetry() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    Table testTable = new Table().setTableReference(ref);
+
+    // First response is 403 rate limited, second response has valid payload.
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
+        .thenReturn(toStream(testTable));
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    dataService.createTable(testTable, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
+    expectedLogs.verifyInfo(
+        "Quota limit reached when creating table project:dataset.table, "
+            + "retrying up to 5.0 minutes");
+  }
+
+  /**
+   * Tests that {@link DatasetService#createTable} does not retry non-rate-limited attempts.
+   */
+  @Test
+  public void testCreateTableDoesNotRetry() throws Exception {
+    Table testTable = new Table().setTableReference(new TableReference()
+        .setProjectId("project")
+        .setDatasetId("dataset")
+        .setTableId("table"));
+
+    // First response is 403 not-rate-limited, second response has valid payload but should not
+    // be invoked.
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
+        .thenReturn(toStream(testTable));
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage("aborting after 0 retries");
+    thrown.expectCause(ThrowableMessageMatcher.hasMessage(
+        Matchers.containsString("actually forbidden")));
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    try {
+      dataService.createTable(testTable, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+      fail();
+    } catch (IOException e) {
+      verify(response, times(1)).getStatusCode();
+      verify(response, times(1)).getContent();
+      verify(response, times(1)).getContentType();
+      throw e;
     }
   }
 
