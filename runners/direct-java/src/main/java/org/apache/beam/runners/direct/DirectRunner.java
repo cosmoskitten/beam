@@ -375,7 +375,7 @@ public class DirectRunner
     }
 
     @Override
-    public State waitToFinish(Duration duration)
+    public State waitUntilFinish(Duration duration)
         throws IOException, InterruptedException {
       throw new UnsupportedOperationException(
           "DirectPipelineResult does not support waitToFinish.");

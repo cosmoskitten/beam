@@ -159,7 +159,7 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   @Nullable
-  public State waitToFinish(Duration duration)
+  public State waitUntilFinish(Duration duration)
           throws IOException, InterruptedException {
     return waitToFinish(duration, new MonitoringUtil.LoggingHandler());
   }

@@ -296,7 +296,7 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   @Override
-  public State waitToFinish(Duration duration)
+  public State waitUntilFinish(Duration duration)
       throws IOException, InterruptedException {
     throw new UnsupportedOperationException(
         "Spark runner EvaluationContext does not support waitToFinish.");
