@@ -75,7 +75,6 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
@@ -2083,7 +2082,7 @@ public class BigQueryIO {
     }
 
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
-        throws IOException {
+        throws Exception {
       TableReference tableReference = parseTableSpec(tableSpec);
       if (!createdTables.contains(tableSpec)) {
         synchronized (createdTables) {
@@ -2092,9 +2091,8 @@ public class BigQueryIO {
           // every thread from attempting a create and overwhelming our BigQuery quota.
           if (!createdTables.contains(tableSpec)) {
             TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
-            Bigquery client = Transport.newBigQueryClient(options).build();
-            BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
-            inserter.getOrCreateTable(tableReference, WriteDisposition.WRITE_APPEND,
+            BigQueryUtil bqUtil = new BigQueryUtil(bqServices.getDatasetService(options));
+            bqUtil.getOrCreateTable(tableReference, WriteDisposition.WRITE_APPEND,
                 CreateDisposition.CREATE_IF_NEEDED, tableSchema);
             createdTables.add(tableSpec);
           }
