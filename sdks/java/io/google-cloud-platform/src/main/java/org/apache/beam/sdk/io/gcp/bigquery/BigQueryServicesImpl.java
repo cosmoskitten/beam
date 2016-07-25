@@ -344,13 +344,91 @@ class BigQueryServicesImpl implements BigQueryServices {
         throws IOException, InterruptedException {
       BackOff backoff =
           new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
-      return executeWithRetries(
-          client.tables().get(projectId, datasetId, tableId),
-          String.format(
-              "Unable to get table: %s, aborting after %d retries.",
-              tableId, MAX_RPC_ATTEMPTS),
+      return getTable(
+          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId),
           Sleeper.DEFAULT,
           backoff);
+    }
+
+    @VisibleForTesting
+    Table getTable(TableReference tableRef, Sleeper sleeper, BackOff backoff)
+        throws IOException, InterruptedException {
+      Exception lastException;
+      do {
+        try {
+          return client.tables()
+              .get(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId())
+              .execute();
+        } catch (GoogleJsonResponseException e) {
+          if (errorExtractor.itemNotFound(e)) {
+            return null;
+          }
+          // ignore and retry
+          LOG.warn("Ignore the error and retry getting the table.", e);
+          lastException = e;
+        } catch (IOException e) {
+          LOG.warn("Ignore the error and retry getting the table.", e);
+          lastException = e;
+        }
+      } while (nextBackOff(sleeper, backoff));
+      throw new IOException(
+          String.format(
+              "Unable to create table: %s, aborting after %d retries.",
+              tableRef, MAX_RPC_ATTEMPTS),
+          lastException);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds max RPC .
+     */
+    @Override
+    public void createTable(Table table) throws InterruptedException, IOException {
+      BackOff backoff =
+          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+      createTable(table, Sleeper.DEFAULT, backoff);
+    }
+
+    @VisibleForTesting
+    void createTable(Table table, Sleeper sleeper, BackOff backoff)
+        throws InterruptedException, IOException {
+      Exception lastException;
+      int retryCount = 0;
+      do {
+        try {
+          client.tables().insert(
+              table.getTableReference().getProjectId(),
+              table.getTableReference().getDatasetId(),
+              table).execute();
+          return; // SUCCEEDED
+        } catch (GoogleJsonResponseException e) {
+          if (errorExtractor.itemAlreadyExists(e)) {
+            return; // SUCCEEDED
+          } else if (errorExtractor.rateLimited(e)) {
+            // Retry on rateLimited.
+            LOG.info("Quota limit reached when creating table {}", table.getTableReference());
+          } else if (errorExtractor.accessDenied(e)) {
+            // Do not retry on accessDenied.
+            lastException = e;
+            break;
+          }
+          // ignore and retry
+          LOG.warn("Ignore the error and retry creating the table.", e);
+          lastException = e;
+        } catch (IOException e) {
+          LOG.warn("Ignore the error and retry creating the table.", e);
+          lastException = e;
+        }
+        ++retryCount;
+      } while (nextBackOff(sleeper, backoff));
+      throw new IOException(
+          String.format(
+              "Unable to create table: %s, aborting after %d retries.",
+              table, retryCount),
+          lastException);
     }
 
     /**
@@ -463,7 +541,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       } while (nextBackOff(sleeper, backoff));
       throw new IOException(
           String.format(
-              "Unable to create dataset: %s, aborting after %d .",
+              "Unable to create dataset: %s, aborting after %d retries.",
               datasetId, MAX_RPC_ATTEMPTS),
           lastException);
     }
