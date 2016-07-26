@@ -25,6 +25,13 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
@@ -39,6 +46,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Sum.SumLongFn;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -50,9 +58,6 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.Counter.AggregationKind;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateNamespaces;
@@ -63,22 +68,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for {@link EvaluationContext}.
@@ -243,33 +238,30 @@ public class EvaluationContextTest {
   }
 
   @Test
-  public void handleResultMergesCounters() {
-    CounterSet counters = context.createCounterSet();
-    Counter<Long> myCounter = Counter.longs("foo", AggregationKind.SUM);
-    counters.addCounter(myCounter);
+  public void handleResultCommitsCounters() {
+    AggregatorContainer container = context.getAggregatorContainer();
+    AggregatorContainer.Mutator mutator = container.createMutator();
+    mutator.createAggregator("foo", new SumLongFn()).addValue(4L);
 
-    myCounter.addValue(4L);
     TransformResult result =
         StepTransformResult.withoutHold(created.getProducingTransformInternal())
-            .withCounters(counters)
+            .withAggregatorChanges(mutator)
             .build();
     context.handleResult(null, ImmutableList.<TimerData>of(), result);
-    assertThat((Long) context.getCounters().getExistingCounter("foo").getAggregate(), equalTo(4L));
+    assertThat((Long) context.getAggregatorContainer().getAggregate("foo"), equalTo(4L));
 
-    CounterSet againCounters = context.createCounterSet();
-    Counter<Long> myLongCounterAgain = Counter.longs("foo", AggregationKind.SUM);
-    againCounters.add(myLongCounterAgain);
-    myLongCounterAgain.addValue(8L);
+    AggregatorContainer.Mutator mutatorAgain = container.createMutator();
+    mutatorAgain.createAggregator("foo", new SumLongFn()).addValue(12L);
 
     TransformResult secondResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
-            .withCounters(againCounters)
+            .withAggregatorChanges(mutatorAgain)
             .build();
     context.handleResult(
         context.createRootBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         secondResult);
-    assertThat((Long) context.getCounters().getExistingCounter("foo").getAggregate(), equalTo(12L));
+    assertThat((Long) context.getAggregatorContainer().getAggregate("foo"), equalTo(16L));
   }
 
   @Test
