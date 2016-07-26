@@ -27,6 +27,7 @@ import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
@@ -62,6 +63,13 @@ public abstract class StepTransformResult implements TransformResult {
   @Override
   public abstract TimerUpdate getTimerUpdate();
 
+  @Override
+  public boolean producedOutput() {
+    return !Iterables.isEmpty(getOutputBundles()) || isProducedAdditionalOutput();
+  }
+
+  abstract boolean isProducedAdditionalOutput();
+
   public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
   }
@@ -80,6 +88,7 @@ public abstract class StepTransformResult implements TransformResult {
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
     private CounterSet counters;
+    private boolean producedAdditionalOutput;
     private final Instant watermarkHold;
 
     private Builder(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
@@ -98,7 +107,8 @@ public abstract class StepTransformResult implements TransformResult {
           counters,
           watermarkHold,
           state,
-          timerUpdate);
+          timerUpdate,
+          producedAdditionalOutput);
     }
 
     public Builder withCounters(CounterSet counters) {
@@ -130,6 +140,11 @@ public abstract class StepTransformResult implements TransformResult {
 
     public Builder addOutput(Collection<UncommittedBundle<?>> outputBundles) {
       bundlesBuilder.addAll(outputBundles);
+      return this;
+    }
+
+    public Builder withAdditionalOutput(boolean producedAdditionalOutput) {
+      this.producedAdditionalOutput = producedAdditionalOutput;
       return this;
     }
   }

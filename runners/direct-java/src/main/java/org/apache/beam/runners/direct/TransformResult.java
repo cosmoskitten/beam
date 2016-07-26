@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
+import org.apache.beam.sdk.values.PCollectionView;
 
 import org.joda.time.Instant;
 
@@ -81,4 +82,11 @@ public interface TransformResult {
    * <p>If this evaluation did not add or remove any timers, returns an empty TimerUpdate.
    */
   TimerUpdate getTimerUpdate();
+
+  /**
+   * Returns whether output was produced by the evaluation of this transform. True if
+   * {@link #getOutputBundles()} is nonempty, or if pipeline-visible state has changed (for example,
+   * the contents of a {@link PCollectionView} were updated).
+   */
+  boolean producedOutput();
 }
