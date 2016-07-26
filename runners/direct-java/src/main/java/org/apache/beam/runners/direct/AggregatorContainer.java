@@ -24,7 +24,9 @@ import com.google.common.base.Preconditions;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 /**
  * AccumT container for the current values associated with {@link Aggregator Aggregators}.
@@ -35,6 +37,7 @@ public class AggregatorContainer {
       implements Aggregator<InputT, OutputT> {
     private final String name;
     private final CombineFn<InputT, AccumT, OutputT> combiner;
+    @GuardedBy("this")
     private AccumT accumulator = null;
     private boolean committed = false;
 
@@ -44,7 +47,7 @@ public class AggregatorContainer {
     }
 
     @Override
-    public void addValue(InputT input) {
+    public synchronized void addValue(InputT input) {
       Preconditions.checkState(!committed, "Cannot addValue after committing");
       if (accumulator == null) {
         accumulator = combiner.createAccumulator();
@@ -52,18 +55,19 @@ public class AggregatorContainer {
       accumulator = combiner.addInput(accumulator, input);
     }
 
-    public OutputT getOutput() {
+    public synchronized OutputT getOutput() {
       return accumulator == null ? null : combiner.extractOutput(accumulator);
     }
 
     private void merge(AggregatorInfo<?, ?, ?> other) {
-      // TODO: Make sure the CombineFn and accumulators are compatible.
+      // Aggregators are only merged if they are the same (same step, same name).
+      // As a result, they should also have the same CombineFn, so this is safe.
       AggregatorInfo<InputT, AccumT, OutputT> otherSafe =
           (AggregatorInfo<InputT, AccumT, OutputT>) other;
       mergeSafe(otherSafe);
     }
 
-    private void mergeSafe(AggregatorInfo<InputT, AccumT, OutputT> other) {
+    private synchronized void mergeSafe(AggregatorInfo<InputT, AccumT, OutputT> other) {
       if (accumulator == null) {
         accumulator = other.accumulator;
       } else if (other.accumulator != null) {
@@ -82,7 +86,8 @@ public class AggregatorContainer {
     }
   }
 
-  private final HashMap<String, AggregatorInfo<?, ?, ?>> accumulators = new HashMap<>();
+  private final ConcurrentHashMap<String, AggregatorInfo<?, ?, ?>> accumulators =
+      new ConcurrentHashMap<>();
 
   private AggregatorContainer() {
   }
@@ -107,7 +112,7 @@ public class AggregatorContainer {
    */
   public static class Mutator implements AggregatorFactory {
 
-    private final HashMap<String, AggregatorInfo<?, ?, ?>> accumulatorDeltas = new HashMap<>();
+    private final Map<String, AggregatorInfo<?, ?, ?>> accumulatorDeltas = new HashMap<>();
     private final AggregatorContainer container;
     private boolean committed = false;
 
@@ -118,16 +123,16 @@ public class AggregatorContainer {
     public void commit() {
       Preconditions.checkState(!committed, "Should not be already committed");
       committed = true;
-      synchronized (container) {
-        for (Map.Entry<String, AggregatorInfo<?, ?, ?>> entry : accumulatorDeltas.entrySet()) {
-          AggregatorInfo<?, ?, ?> previous = container.accumulators.get(entry.getKey());
-          entry.getValue().committed = true;
-          if (previous == null) {
-            container.accumulators.put(entry.getKey(), entry.getValue());
-          } else {
-            previous.merge(entry.getValue());
-            previous.committed = true;
-          }
+
+      for (Map.Entry<String, AggregatorInfo<?, ?, ?>> entry : accumulatorDeltas.entrySet()) {
+        AggregatorInfo<?, ?, ?> previous = container.accumulators.get(entry.getKey());
+        entry.getValue().committed = true;
+        if (previous == null) {
+          previous = container.accumulators.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+        if (previous != null) {
+          previous.merge(entry.getValue());
+          previous.committed = true;
         }
       }
     }

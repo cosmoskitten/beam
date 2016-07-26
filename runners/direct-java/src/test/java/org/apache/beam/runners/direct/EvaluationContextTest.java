@@ -238,7 +238,7 @@ public class EvaluationContextTest {
   }
 
   @Test
-  public void handleResultCommitsCounters() {
+  public void handleResultCommitsAggregators() {
     AggregatorContainer container = context.getAggregatorContainer();
     AggregatorContainer.Mutator mutator = container.createMutator();
     mutator.createAggregator("foo", new SumLongFn()).addValue(4L);

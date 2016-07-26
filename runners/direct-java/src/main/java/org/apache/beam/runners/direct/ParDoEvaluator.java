@@ -56,7 +56,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
     DirectExecutionContext executionContext =
         evaluationContext.getExecutionContext(application, inputBundle.getKey());
 
-    AggregatorContainer.Mutator counterChanges = evaluationContext.getAggregatorMutator();
+    AggregatorContainer.Mutator aggregatorChanges = evaluationContext.getAggregatorMutator();
 
     Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
@@ -76,7 +76,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
             mainOutputTag,
             sideOutputTags,
             stepContext,
-            counterChanges,
+            aggregatorChanges,
             application.getInput().getWindowingStrategy());
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =
         PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
@@ -88,7 +88,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
     }
 
     return new ParDoEvaluator<>(
-        runner, application, counterChanges, outputBundles.values(), stepContext);
+        runner, application, aggregatorChanges, outputBundles.values(), stepContext);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
