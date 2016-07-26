@@ -17,18 +17,23 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ExecutionContext;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
+import org.apache.beam.sdk.util.SystemReduceFn;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -62,11 +67,10 @@ import javax.annotation.Nullable;
  * Flink operator for executing window {@link DoFn DoFns}.
  *
  * @param <InputT>
- * @param <FnOutputT>
  * @param <OutputT>
  */
-public class WindowDoFnOperator<K, InputT, FnOutputT, OutputT>
-    extends DoFnOperator<KeyedWorkItem<K, InputT>, FnOutputT, OutputT> {
+public class WindowDoFnOperator<K, InputT, OutputT>
+    extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>> {
 
   private final Coder<K> keyCoder;
   private final TimerInternals.TimerDataCoder timerCoder;
@@ -76,19 +80,21 @@ public class WindowDoFnOperator<K, InputT, FnOutputT, OutputT>
 
   private FlinkStateInternals<K> stateInternals;
 
+  private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
+
   public WindowDoFnOperator(
-      DoFn<KeyedWorkItem<K, InputT>, FnOutputT> doFn,
+      SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn,
       TypeInformation<WindowedValue<KeyedWorkItem<K, InputT>>> inputType,
-      TupleTag<FnOutputT> mainOutputTag,
+      TupleTag<KV<K, OutputT>> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
-      OutputManagerFactory<OutputT> outputManagerFactory,
+      OutputManagerFactory<WindowedValue<KV<K, OutputT>>> outputManagerFactory,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
       Coder<K> keyCoder) {
     super(
-        doFn,
+        null,
         inputType,
         mainOutputTag,
         sideOutputTags,
@@ -97,15 +103,38 @@ public class WindowDoFnOperator<K, InputT, FnOutputT, OutputT>
         sideInputTagMapping,
         sideInputs,
         options);
+
+    this.systemReduceFn = systemReduceFn;
+
     this.keyCoder = keyCoder;
     this.timerCoder =
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
   }
 
+  @Override
+  protected DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
+    StateInternalsFactory<K> stateInternalsFactory = new StateInternalsFactory<K>() {
+      @Override
+      public StateInternals<K> stateInternalsForKey(K key) {
+        //this will implicitly be keyed by the key of the incoming
+        // element or by the key of a firing timer
+        return stateInternals;
+      }
+    };
+
+    // we have to do the unchecked cast because GroupAlsoByWindowViaWindowSetDoFn.create
+    // has the window type as generic parameter while WindowingStrategy is almost always
+    // untyped.
+    @SuppressWarnings("unchecked")
+    DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
+        GroupAlsoByWindowViaWindowSetDoFn.create(
+            windowingStrategy, stateInternalsFactory, (SystemReduceFn) systemReduceFn);
+    return doFn;
+  }
+
 
   @Override
   public void open() throws Exception {
-    super.open();
 
     // might already be initialized from restoreTimers()
     if (watermarkTimers == null) {
@@ -124,6 +153,10 @@ public class WindowDoFnOperator<K, InputT, FnOutputT, OutputT>
     }
 
     stateInternals = new FlinkStateInternals<>(getStateBackend(), keyCoder);
+
+    // call super at the end because this will call getDoFn() which requires stateInternals
+    // to be set
+    super.open();
   }
 
   @Override
@@ -265,11 +298,6 @@ public class WindowDoFnOperator<K, InputT, FnOutputT, OutputT>
    * accessing state or timer internals.
    */
   protected class StepContext extends DoFnOperator.StepContext {
-
-    @Override
-    public StateInternals<?> stateInternals() {
-      return stateInternals;
-    }
 
     @Override
     public TimerInternals timerInternals() {

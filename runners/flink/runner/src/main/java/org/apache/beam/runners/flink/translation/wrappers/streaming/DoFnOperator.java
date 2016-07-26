@@ -85,7 +85,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   protected final Collection<PCollectionView<?>> sideInputs;
   protected final Map<Integer, PCollectionView<?>> sideInputTagMapping;
 
-  protected final boolean requiresWindowAccess;
   protected final boolean hasSideInputs;
 
   protected final WindowingStrategy<?, ?> windowingStrategy;
@@ -125,7 +124,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
 
-    this.requiresWindowAccess = doFn instanceof DoFn.RequiresWindowAccess;
     this.hasSideInputs = !sideInputs.isEmpty();
 
     this.pushedBackDescriptor =
@@ -136,6 +134,12 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected ExecutionContext.StepContext createStepContext() {
     return new StepContext();
+  }
+
+  // allow overriding this in WindowDoFnOperator because this one dynamically creates
+  // the DoFn
+  protected DoFn<InputT, FnOutputT> getDoFn() {
+    return doFn;
   }
 
   @Override
@@ -162,7 +166,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           ByteBuffer.wrap(CoderUtils.encodeToByteArray(VarIntCoder.of(), 0)));
 
       StateInternals<Integer> sideInputStateInternals =
-          new FlinkStateInternals<Integer>(sideInputStateBackend, VarIntCoder.of());
+          new FlinkStateInternals<>(sideInputStateBackend, VarIntCoder.of());
 
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
       sideInputReader = sideInputHandler;
@@ -170,7 +174,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.createDefault(
         serializedOptions.getPipelineOptions(),
-        doFn,
+        getDoFn(),
         sideInputReader,
         outputManagerFactory.create(output),
         mainOutputTag,

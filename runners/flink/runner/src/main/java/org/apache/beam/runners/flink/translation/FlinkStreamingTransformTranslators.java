@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.flink.translation;
 
-import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.FlinkCoder;
@@ -51,7 +50,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.SystemReduceFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -78,7 +76,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.functions.IngestionTimeExtractor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.util.Collector;
@@ -229,7 +226,8 @@ public class FlinkStreamingTransformTranslators {
         UnboundedFlinkSource<T> flinkSourceFunction =
             (UnboundedFlinkSource<T>) transform.getSource();
 
-        final AssignerWithPeriodicWatermarks<T> flinkAssigner = flinkSourceFunction.getFlinkTimestampAssigner();
+        final AssignerWithPeriodicWatermarks<T> flinkAssigner =
+            flinkSourceFunction.getFlinkTimestampAssigner();
 
         DataStream<T> flinkSource = context.getExecutionEnvironment()
             .addSource(flinkSourceFunction.getFlinkSource());
@@ -737,11 +735,6 @@ public class FlinkStreamingTransformTranslators {
       SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, BoundedWindow> reduceFn =
           SystemReduceFn.buffering(inputKvCoder.getValueCoder());
 
-
-      DoFn<KeyedWorkItem<K, InputT>, KV<K, Iterable<InputT>>> windowDoFn =
-          GroupAlsoByWindowViaWindowSetDoFn.create(windowingStrategy, reduceFn);
-
-
       TypeInformation<WindowedValue<KV<K, Iterable<InputT>>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
@@ -749,13 +742,9 @@ public class FlinkStreamingTransformTranslators {
             WindowedValue<KV<K, Iterable<InputT>>>> outputManagerFactory =
           new DoFnOperator.DefaultOutputManagerFactory<>();
 
-      WindowDoFnOperator<
-            K,
-            InputT,
-            KV<K, Iterable<InputT>>,
-            WindowedValue<KV<K, Iterable<InputT>>>> doFnOperator =
+      WindowDoFnOperator<K, InputT, Iterable<InputT>> doFnOperator =
           new WindowDoFnOperator<>(
-              windowDoFn,
+              reduceFn,
               (TypeInformation) workItemTypeInfo,
               new TupleTag<KV<K, Iterable<InputT>>>("main output"),
               Collections.<TupleTag<?>>emptyList(),
@@ -830,10 +819,6 @@ public class FlinkStreamingTransformTranslators {
           AppliedCombineFn.withInputCoder(
               transform.getFn(), input.getPipeline().getCoderRegistry(), inputKvCoder));
 
-
-      DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> windowDoFn =
-          GroupAlsoByWindowViaWindowSetDoFn.create(windowingStrategy, reduceFn);
-
       TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
@@ -842,9 +827,9 @@ public class FlinkStreamingTransformTranslators {
 
       if (sideInputs.isEmpty()) {
 
-        WindowDoFnOperator<K, InputT, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>> doFnOperator =
+        WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
-                windowDoFn,
+                reduceFn,
                 (TypeInformation) workItemTypeInfo,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
@@ -858,17 +843,18 @@ public class FlinkStreamingTransformTranslators {
         // our operator excepts WindowedValue<KeyedWorkItem> while our input stream
         // is WindowedValue<SingletonKeyedWorkItem>, which is fine but Java doesn't like it ...
         @SuppressWarnings("unchecked")
-        SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream = keyedWorkItemStream
-            .transform(transform.getName(), outputTypeInfo, (OneInputStreamOperator) doFnOperator);
+        SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream =
+            keyedWorkItemStream.transform(
+                transform.getName(), outputTypeInfo, (OneInputStreamOperator) doFnOperator);
 
         context.setOutputDataStream(context.getOutput(transform), outDataStream);
       } else {
         Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformSideInputs =
             transformSideInputs(sideInputs, context);
 
-        WindowDoFnOperator<K, InputT, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>> doFnOperator =
+        WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
-                windowDoFn,
+                reduceFn,
                 (TypeInformation) workItemTypeInfo,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
