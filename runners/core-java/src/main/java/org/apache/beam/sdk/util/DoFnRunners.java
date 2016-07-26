@@ -85,8 +85,14 @@ public class DoFnRunners {
       StepContext stepContext,
       CounterSet.AddCounterMutator addCounterMutator,
       WindowingStrategy<?, ?> windowingStrategy) {
-    return simpleRunner(options, fn, sideInputReader, outputManager,
-        mainOutputTag, sideOutputTags, stepContext, CounterAggregator.factoryFor(addCounterMutator),
+    return simpleRunner(options,
+        fn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        sideOutputTags,
+        stepContext,
+        CounterAggregator.factoryFor(addCounterMutator),
         windowingStrategy);
   }
 
