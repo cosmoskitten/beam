@@ -19,21 +19,17 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.runners.direct.AggregatorContainer.Mutator;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Instant;
-
 import java.util.Collection;
-
 import javax.annotation.Nullable;
 
 /**
@@ -45,7 +41,7 @@ public class StepTransformResult implements TransformResult {
   private final Iterable<? extends WindowedValue<?>> unprocessedElements;
   @Nullable private final CopyOnAccessInMemoryStateInternals<?> state;
   private final TimerUpdate timerUpdate;
-  @Nullable private final CounterSet counters;
+  @Nullable private final AggregatorContainer.Mutator aggregatorChanges;
   private final Instant watermarkHold;
 
   private StepTransformResult(
@@ -54,14 +50,14 @@ public class StepTransformResult implements TransformResult {
       Iterable<? extends WindowedValue<?>> unprocessedElements,
       CopyOnAccessInMemoryStateInternals<?> state,
       TimerUpdate timerUpdate,
-      CounterSet counters,
+      AggregatorContainer.Mutator aggregatorChanges,
       Instant watermarkHold) {
     this.transform = checkNotNull(transform);
     this.bundles = checkNotNull(outputBundles);
     this.unprocessedElements = checkNotNull(unprocessedElements);
     this.state = state;
     this.timerUpdate = checkNotNull(timerUpdate);
-    this.counters = counters;
+    this.aggregatorChanges = aggregatorChanges;
     this.watermarkHold = checkNotNull(watermarkHold);
   }
 
@@ -76,8 +72,8 @@ public class StepTransformResult implements TransformResult {
   }
 
   @Override
-  public CounterSet getCounters() {
-    return counters;
+  public AggregatorContainer.Mutator getAggregatorChanges() {
+    return aggregatorChanges;
   }
 
   @Override
@@ -125,7 +121,7 @@ public class StepTransformResult implements TransformResult {
     private final ImmutableList.Builder<WindowedValue<?>> unprocessedElementsBuilder;
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
-    private CounterSet counters;
+    private Mutator aggregatorChanges;
     private final Instant watermarkHold;
 
     private Builder(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
@@ -143,12 +139,12 @@ public class StepTransformResult implements TransformResult {
           unprocessedElementsBuilder.build(),
           state,
           timerUpdate,
-          counters,
+          aggregatorChanges,
           watermarkHold);
     }
 
-    public Builder withCounters(CounterSet counters) {
-      this.counters = counters;
+    public Builder withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
+      this.aggregatorChanges = aggregatorChanges;
       return this;
     }
 
