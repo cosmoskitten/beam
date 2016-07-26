@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -86,7 +87,7 @@ public class AggregatorContainer {
     }
   }
 
-  private final ConcurrentHashMap<String, AggregatorInfo<?, ?, ?>> accumulators =
+  private final ConcurrentMap<String, AggregatorInfo<?, ?, ?>> accumulators =
       new ConcurrentHashMap<>();
 
   private AggregatorContainer() {
