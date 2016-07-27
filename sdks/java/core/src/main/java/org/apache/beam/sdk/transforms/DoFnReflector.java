@@ -42,6 +42,7 @@ import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 
 import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.ParameterList;
@@ -71,6 +72,7 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatchers;
 
+import net.bytebuddy.utility.RandomString;
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -386,6 +388,8 @@ public abstract class DoFnReflector {
    */
   private static class GenericDoFnReflector extends DoFnReflector {
 
+    private final RandomString randomString;
+
     private final Method startBundle;
     private final Method processElement;
     private final Method finishBundle;
@@ -396,6 +400,8 @@ public abstract class DoFnReflector {
 
     private GenericDoFnReflector(
         @SuppressWarnings("rawtypes") Class<? extends DoFnWithContext> fn) {
+      this.randomString = new RandomString();
+
       // Locate the annotated methods
       this.processElement = findAnnotatedMethod(ProcessElement.class, fn, true);
       this.startBundle = findAnnotatedMethod(StartBundle.class, fn, false);
@@ -499,7 +505,18 @@ public abstract class DoFnReflector {
      */
     private Constructor<? extends DoFnInvoker<?, ?>> createInvokerConstructor(
         @SuppressWarnings("rawtypes") Class<? extends DoFnWithContext> clazz) {
+
+      final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(clazz);
+
       DynamicType.Builder<?> builder = new ByteBuddy()
+          // Create subclasses inside the target class's package
+          .with(new NamingStrategy.SuffixingRandom("auxiliary") {
+                @Override
+                public String subclass(TypeDescription.Generic superClass) {
+                  return super.name(clazzDescription);
+                }
+              })
+          // Create a subclass of DoFnInvoker
           .subclass(DoFnInvoker.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
           .defineField(FN_DELEGATE_FIELD_NAME, clazz, Visibility.PRIVATE, FieldManifestation.FINAL)
           // Define a constructor to populate fields appropriately.
