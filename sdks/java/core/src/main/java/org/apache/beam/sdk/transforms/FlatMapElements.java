@@ -27,7 +27,7 @@ import java.lang.reflect.ParameterizedType;
  * {@link PCollection} and merging the results.
  */
 public class FlatMapElements<InputT, OutputT>
-extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   /**
    * For a {@code SerializableFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
    * returns a {@link PTransform} that applies {@code fn} to every element of the input
@@ -45,7 +45,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    * descriptor need not be provided.
    */
   public static <InputT, OutputT> MissingOutputTypeDescriptor<InputT, OutputT>
-  via(SerializableFunction<InputT, ? extends Iterable<OutputT>> fn) {
+  via(SerializableFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
     return new MissingOutputTypeDescriptor<>(fn);
   }
 
@@ -72,7 +72,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    * <p>To use a Java 8 lambda, see {@link #via(SerializableFunction)}.
    */
   public static <InputT, OutputT> FlatMapElements<InputT, OutputT>
-  via(SimpleFunction<InputT, ? extends Iterable<OutputT>> fn) {
+  via(SimpleFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
 
     @SuppressWarnings({"rawtypes", "unchecked"}) // safe by static typing
     TypeDescriptor<Iterable<?>> iterableType = (TypeDescriptor) fn.getOutputTypeDescriptor();
@@ -91,10 +91,10 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    */
   public static final class MissingOutputTypeDescriptor<InputT, OutputT> {
 
-    private final SerializableFunction<InputT, ? extends Iterable<OutputT>> fn;
+    private final SerializableFunction<? super InputT, ? extends Iterable<OutputT>> fn;
 
     private MissingOutputTypeDescriptor(
-        SerializableFunction<InputT, ? extends Iterable<OutputT>> fn) {
+        SerializableFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
       this.fn = fn;
     }
 
@@ -121,18 +121,18 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private final SerializableFunction<InputT, ? extends Iterable<OutputT>> fn;
+  private final SerializableFunction<? super InputT, ? extends Iterable<OutputT>> fn;
   private final transient TypeDescriptor<OutputT> outputType;
 
   private FlatMapElements(
-      SerializableFunction<InputT, ? extends Iterable<OutputT>> fn,
+      SerializableFunction<? super InputT, ? extends Iterable<OutputT>> fn,
       TypeDescriptor<OutputT> outputType) {
     this.fn = fn;
     this.outputType = outputType;
   }
 
   @Override
-  public PCollection<OutputT> apply(PCollection<InputT> input) {
+  public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
     return input.apply("Map", ParDo.of(new DoFn<InputT, OutputT>() {
       private static final long serialVersionUID = 0L;
       @Override
