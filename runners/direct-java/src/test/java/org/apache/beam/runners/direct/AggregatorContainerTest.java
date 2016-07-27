@@ -25,6 +25,10 @@ import org.apache.beam.sdk.transforms.Sum.SumIntegerFn;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for {@link AggregatorContainer}.
@@ -83,5 +87,28 @@ public class AggregatorContainerTest {
 
     thrown.expect(IllegalStateException.class);
     aggregator.addValue(5);
+  }
+
+  @Test
+  public void concurrentWrites() throws InterruptedException {
+    ExecutorService executor = Executors.newFixedThreadPool(20);
+    int sum = 0;
+    for (int i = 0; i < 100; i++) {
+      sum += i;
+      final int value = i;
+      final AggregatorContainer.Mutator mutator = container.createMutator();
+      executor.submit(new Runnable() {
+        @Override
+        public void run() {
+          mutator.createAggregator("sum_int", new SumIntegerFn()).addValue(value);
+          mutator.commit();
+        }
+      });
+    }
+    executor.shutdown();
+    assertThat("Expected all threads to complete after 5 seconds",
+        executor.awaitTermination(5, TimeUnit.SECONDS), equalTo(true));
+
+    assertThat((Integer) container.getAggregate("sum_int"), equalTo(sum));
   }
 }
