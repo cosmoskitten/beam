@@ -25,7 +25,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}.
  */
 public class MapElements<InputT, OutputT>
-extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
 
   /**
    * For a {@code SerializableFunction<InputT, OutputT>} {@code fn} and output type descriptor,
@@ -44,7 +44,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    * descriptor need not be provided.
    */
   public static <InputT, OutputT> MissingOutputTypeDescriptor<InputT, OutputT>
-  via(SerializableFunction<InputT, OutputT> fn) {
+  via(SerializableFunction<? super InputT, OutputT> fn) {
     return new MissingOutputTypeDescriptor<>(fn);
   }
 
@@ -68,7 +68,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    * }</pre>
    */
   public static <InputT, OutputT> MapElements<InputT, OutputT>
-  via(final SimpleFunction<InputT, OutputT> fn) {
+  via(final SimpleFunction<? super InputT, OutputT> fn) {
     return new MapElements<>(fn, fn.getOutputTypeDescriptor());
   }
 
@@ -79,9 +79,9 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    */
   public static final class MissingOutputTypeDescriptor<InputT, OutputT> {
 
-    private final SerializableFunction<InputT, OutputT> fn;
+    private final SerializableFunction<? super InputT, OutputT> fn;
 
-    private MissingOutputTypeDescriptor(SerializableFunction<InputT, OutputT> fn) {
+    private MissingOutputTypeDescriptor(SerializableFunction<? super InputT, OutputT> fn) {
       this.fn = fn;
     }
 
@@ -92,18 +92,18 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
   ///////////////////////////////////////////////////////////////////
 
-  private final SerializableFunction<InputT, OutputT> fn;
+  private final SerializableFunction<? super InputT, OutputT> fn;
   private final transient TypeDescriptor<OutputT> outputType;
 
   private MapElements(
-      SerializableFunction<InputT, OutputT> fn,
+      SerializableFunction<? super InputT, OutputT> fn,
       TypeDescriptor<OutputT> outputType) {
     this.fn = fn;
     this.outputType = outputType;
   }
 
   @Override
-  public PCollection<OutputT> apply(PCollection<InputT> input) {
+  public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
     return input.apply("Map", ParDo.of(new DoFn<InputT, OutputT>() {
       @Override
       public void processElement(ProcessContext c) {
