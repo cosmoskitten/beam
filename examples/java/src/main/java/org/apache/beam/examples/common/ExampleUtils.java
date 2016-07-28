@@ -308,7 +308,7 @@ public class ExampleUtils {
         addShutdownHook(jobsToCancel);
       }
       try {
-        job.waitUntilFinish(Duration.standardSeconds(-1));
+        job.waitUntilFinish();
       } catch (Exception e) {
         throw new RuntimeException("Failed to wait for job to finish: " + job.getJobId());
       }
