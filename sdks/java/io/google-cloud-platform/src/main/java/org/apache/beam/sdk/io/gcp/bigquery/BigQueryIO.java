@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -31,8 +31,13 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.BigQueryIO.Write.CreateDisposition;
-import org.apache.beam.sdk.io.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.AvroSource;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -48,12 +53,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
-import org.apache.beam.sdk.util.AvroUtils;
-import org.apache.beam.sdk.util.BigQueryServices;
-import org.apache.beam.sdk.util.BigQueryServices.DatasetService;
-import org.apache.beam.sdk.util.BigQueryServices.JobService;
-import org.apache.beam.sdk.util.BigQueryServicesImpl;
-import org.apache.beam.sdk.util.BigQueryTableInserter;
 import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -1047,7 +1046,7 @@ public class BigQueryIO {
           new SerializableFunction<GenericRecord, TableRow>() {
             @Override
             public TableRow apply(GenericRecord input) {
-              return AvroUtils.convertGenericRecordToTableRow(
+              return BigQueryAvroUtils.convertGenericRecordToTableRow(
                   input, fromJsonString(jsonSchema, TableSchema.class));
             }};
 
@@ -1669,11 +1668,13 @@ public class BigQueryIO {
       @Override
       public PDone apply(PCollection<TableRow> input) {
         BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+        BigQueryServices bqServices = getBigQueryServices();
 
         // In a streaming job, or when a tablespec function is defined, we use StreamWithDeDup
         // and BigQuery's streaming import API.
         if (options.isStreaming() || tableRefFunction != null) {
-          return input.apply(new StreamWithDeDup(getTable(), tableRefFunction, getSchema()));
+          return input.apply(
+              new StreamWithDeDup(getTable(), tableRefFunction, getSchema(), bqServices));
         }
 
         TableReference table = fromJsonString(jsonTableRef, TableReference.class);
@@ -1694,7 +1695,6 @@ public class BigQueryIO {
               e);
         }
 
-        BigQueryServices bqServices = getBigQueryServices();
         return input.apply("Write", org.apache.beam.sdk.io.Write.to(
             new BigQuerySink(
                 jobIdToken,
@@ -2019,6 +2019,8 @@ public class BigQueryIO {
     /** TableSchema in JSON. Use String to make the class Serializable. */
     private final String jsonTableSchema;
 
+    private final BigQueryServices bqServices;
+
     /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
     private transient Map<String, List<TableRow>> tableRows;
 
@@ -2035,8 +2037,9 @@ public class BigQueryIO {
         createAggregator("ByteCount", new Sum.SumLongFn());
 
     /** Constructor. */
-    StreamingWriteFn(TableSchema schema) {
-      jsonTableSchema = toJsonString(schema);
+    StreamingWriteFn(TableSchema schema, BigQueryServices bqServices) {
+      this.jsonTableSchema = toJsonString(schema);
+      this.bqServices = checkNotNull(bqServices, "bqServices");
     }
 
     /** Prepares a target BigQuery table. */
@@ -2061,11 +2064,10 @@ public class BigQueryIO {
     @Override
     public void finishBundle(Context context) throws Exception {
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-      Bigquery client = Transport.newBigQueryClient(options).build();
 
       for (Map.Entry<String, List<TableRow>> entry : tableRows.entrySet()) {
         TableReference tableReference = getOrCreateTable(options, entry.getKey());
-        flushRows(client, tableReference, entry.getValue(),
+        flushRows(tableReference, entry.getValue(),
             uniqueIdsForTableRows.get(entry.getKey()), options);
       }
       tableRows.clear();
@@ -2101,13 +2103,17 @@ public class BigQueryIO {
       return tableReference;
     }
 
-    /** Writes the accumulated rows into BigQuery with streaming API. */
-    private void flushRows(Bigquery client, TableReference tableReference,
-        List<TableRow> tableRows, List<String> uniqueIds, BigQueryOptions options) {
+    /**
+     * Writes the accumulated rows into BigQuery with streaming API.
+     */
+    private void flushRows(TableReference tableReference,
+        List<TableRow> tableRows, List<String> uniqueIds, BigQueryOptions options)
+            throws InterruptedException {
       if (!tableRows.isEmpty()) {
         try {
-          BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
-          inserter.insertAll(tableReference, tableRows, uniqueIds, byteCountAggregator);
+          long totalBytes = bqServices.getDatasetService(options).insertAll(
+              tableReference, tableRows, uniqueIds);
+          byteCountAggregator.addValue(totalBytes);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -2321,14 +2327,17 @@ public class BigQueryIO {
     private final transient TableReference tableReference;
     private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
     private final transient TableSchema tableSchema;
+    private final BigQueryServices bqServices;
 
     /** Constructor. */
     StreamWithDeDup(TableReference tableReference,
         SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
-        TableSchema tableSchema) {
+        TableSchema tableSchema,
+        BigQueryServices bqServices) {
       this.tableReference = tableReference;
       this.tableRefFunction = tableRefFunction;
       this.tableSchema = tableSchema;
+      this.bqServices = checkNotNull(bqServices, "bqServices");
     }
 
     @Override
@@ -2359,7 +2368,7 @@ public class BigQueryIO {
       tagged
           .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
           .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
-          .apply(ParDo.of(new StreamingWriteFn(tableSchema)));
+          .apply(ParDo.of(new StreamingWriteFn(tableSchema, bqServices)));
 
       // Note that the implementation to return PDone here breaks the
       // implicit assumption about the job execution order. If a user
