@@ -24,6 +24,7 @@ import org.apache.beam.runners.dataflow.internal.DataflowMetricUpdateExtractor;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.runners.AggregatorRetrievalException;
 import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -189,7 +190,26 @@ public class DataflowPipelineJob implements PipelineResult {
   public State waitUntilFinish(
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler) throws IOException, InterruptedException {
-    return waitUntilFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+    // We ignore the potential race condition here (Ctrl-C after job submission but before the
+    // shutdown hook is registered). Even if we tried to do something smarter (eg., SettableFuture)
+    // the run method (which produces the job) could fail or be Ctrl-C'd before it had returned a
+    // job. The display of the command to cancel the job is best-effort anyways -- RPC's could fail,
+    // etc. If the user wants to verify the job was cancelled they should look at the job status.
+    Thread shutdownHook = new Thread() {
+      @Override
+      public void run() {
+        LOG.warn("Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
+            + "To cancel the job in the cloud, run:\n> {}",
+            MonitoringUtil.getGcloudCancelCommand(dataflowOptions, getJobId()));
+      }
+    };
+
+    try {
+      Runtime.getRuntime().addShutdownHook(shutdownHook);
+      return waitUntilFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+    } finally {
+      Runtime.getRuntime().removeShutdownHook(shutdownHook);
+    }
   }
 
   /**
@@ -213,8 +233,7 @@ public class DataflowPipelineJob implements PipelineResult {
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
-      NanoClock nanoClock)
-          throws IOException, InterruptedException {
+      NanoClock nanoClock) throws IOException, InterruptedException {
     MonitoringUtil monitor = new MonitoringUtil(projectId, dataflowOptions.getDataflowClient());
 
     long lastTimestamp = 0;
@@ -257,6 +276,19 @@ public class DataflowPipelineJob implements PipelineResult {
         backoff.reset();
         // Check if the job is done.
         if (state.isTerminal()) {
+          if (state == State.UPDATED) {
+            LOG.info("Job {} has been updated and is running as the new job with id {}."
+                + "To access the updated job on the Dataflow monitoring console, "
+                + "please navigate to {}",
+                getJobId(),
+                getReplacedByJob().getJobId(),
+                MonitoringUtil.getJobMonitoringPageURL(
+                    getReplacedByJob().getProjectId(), getReplacedByJob().getJobId()));
+          } else if (state == State.CANCELLED) {
+            LOG.info(String.format("Job %s cancelled by user", getJobId()));
+          } else if (state != State.DONE) {
+            LOG.info(String.format("Job %s failed with status %s", getJobId(), state));
+          }
           return state;
         }
       }
