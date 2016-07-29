@@ -54,6 +54,29 @@ public class MapElementsTest implements Serializable {
   public transient ExpectedException thrown = ExpectedException.none();
 
   /**
+   * A {@link SimpleFunction} to test that the coder registry can propagate coders
+   * that are bound to type variables.
+   */
+  private static class GenericIdentityFunction<T> extends SimpleFunction<T, T> {
+    @Override
+    public T apply(T input) {
+      return input;
+    }
+  }
+
+  /**
+   * A {@link SimpleFunction} to test that the coder registry can propagate coders
+   * that are bound to type variables, when the variable appears nested in the
+   * output.
+   */
+  private static class GenericKvFunction<T> extends SimpleFunction<T, KV<T, String>> {
+    @Override
+    public KV<T, String> apply(T input) {
+      return KV.of(input, "hello");
+    }
+  }
+
+  /**
    * Basic test of {@link MapElements} with a {@link SimpleFunction}.
    */
   @Test
@@ -71,6 +94,55 @@ public class MapElementsTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(-2, -1, -3);
     pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction}.
+   */
+  @Test
+  public void testSimpleTypeVariablePropagation() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+
+        // This is the function that needs to propagate the input T to output T
+        .apply("Generic Identity", MapElements.via(new GenericIdentityFunction<Integer>()))
+
+        // This is a consumer to ensure that all coder inference logic is executed.
+        .apply("Test Consumer", MapElements.via(new SimpleFunction<Integer, Integer>() {
+          @Override
+          public Integer apply(Integer input) {
+            return input;
+          }
+        }));
+  }
+
+  /**
+   * Test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction}
+   * where the type variable occurs nested within other concrete type constructors.
+   */
+  @Test
+  public void testNestedTypeVariablePropagation() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+
+            // This is the function that needs to propagate the input T to output T
+            .apply(
+                "Generic KV",
+                MapElements.via(new GenericKvFunction<Integer>()))
+
+            // This is a consumer to ensure that all coder inference logic is executed.
+            .apply(
+                "Test Consumer",
+                MapElements.via(
+                    new SimpleFunction<KV<Integer, String>, Integer>() {
+                      @Override
+                      public Integer apply(KV<Integer, String> input) {
+                        return 42;
+                      }
+                    }));
   }
 
   /**
@@ -147,6 +219,18 @@ public class MapElementsTest implements Serializable {
         hasDisplayItem("mapFn", serializableFn.getClass()));
   }
 
+  @Test
+  public void testSimpleFunctionClassDisplayData() {
+    SimpleFunction<?, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
+      @Override
+      public Integer apply(Integer input) {
+        return input;
+      }
+    };
+
+    MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
+  }
   @Test
   public void testSimpleFunctionDisplayData() {
     SimpleFunction<?, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
