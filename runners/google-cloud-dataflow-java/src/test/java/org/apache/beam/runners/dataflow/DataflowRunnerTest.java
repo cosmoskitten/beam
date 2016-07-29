@@ -62,6 +62,7 @@ import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.runners.dataflow.TestCountingSource;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -109,6 +110,7 @@ import org.mockito.stubbing.Answer;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.channels.FileChannel;
@@ -122,6 +124,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+
+import autovalue.shaded.com.google.common.common.base.Throwables;
 
 /**
  * Tests for the {@link DataflowRunner}.
@@ -232,6 +236,34 @@ public class DataflowRunnerTest {
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
     return options;
+  }
+
+  @Test
+  public void testPathValidation() {
+    String[] args = new String[] {
+        "--runner=DataflowRunner",
+        "--tempLocation=/tmp/not/a/gs/path",
+    };
+
+    try {
+      TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
+      fail();
+    } catch (RuntimeException e) {
+      assertThat(
+          Throwables.getStackTraceAsString(e),
+          containsString("DataflowRunner requires gcpTempLocation"));
+    }
+  }
+
+  @Test
+  public void testPathValidatorOverride() {
+    String[] args = new String[] {
+        "--runner=DataflowRunner",
+        "--tempLocation=/tmp/testing",
+        "--pathValidatorClass=org.apache.beam.sdk.util.NoopPathValidator"
+    };
+    // Should not crash, because gcpTempLocation should get set from tempLocation
+    TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
   }
 
   @Test
