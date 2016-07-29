@@ -103,7 +103,6 @@ public class DataflowExampleUtils {
       options.setStreaming(true);
     }
     setup();
-    setupRunner();
   }
 
   /**
@@ -246,14 +245,6 @@ public class DataflowExampleUtils {
     }
   }
 
-  public void setupRunner() {
-    if (options.isStreaming() && options.getRunner().equals(BlockingDataflowRunner.class)) {
-      // In order to cancel the pipelines automatically,
-      // {@literal DataflowRunner} is forced to be used.
-      options.setRunner(DataflowRunner.class);
-    }
-  }
-
   /**
    * Runs the batch injector for the streaming pipeline.
    *
@@ -294,7 +285,7 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * If {@literal DataflowRunner} or {@literal BlockingDataflowRunner} is used,
+   * If {@literal DataflowRunner} is used,
    * waits for the pipeline to finish and cancels it (and the injector) before the program exists.
    */
   public void waitToFinish(PipelineResult result) {

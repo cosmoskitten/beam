@@ -36,15 +36,13 @@ import org.junit.runners.JUnit4;
 public class DataflowPipelineRegistrarTest {
   @Test
   public void testCorrectOptionsAreReturned() {
-    assertEquals(ImmutableList.of(DataflowPipelineOptions.class,
-                                  BlockingDataflowPipelineOptions.class),
+    assertEquals(ImmutableList.of(DataflowPipelineOptions.class),
         new DataflowPipelineRegistrar.Options().getPipelineOptions());
   }
 
   @Test
   public void testCorrectRunnersAreReturned() {
-    assertEquals(ImmutableList.of(DataflowRunner.class,
-                                  BlockingDataflowRunner.class),
+    assertEquals(ImmutableList.of(DataflowRunner.class),
         new DataflowPipelineRegistrar.Runner().getPipelineRunners());
   }
 

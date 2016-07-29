@@ -163,6 +163,9 @@ public class DataflowPipelineJobTest {
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_" + state.name());
+    if (state == State.UPDATED) {
+      statusResponse.setReplacedByJobId("replacementJobId");
+    }
 
     when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
