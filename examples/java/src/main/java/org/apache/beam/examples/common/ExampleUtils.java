@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.common;
 
-import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -80,7 +79,6 @@ public class ExampleUtils {
    */
   public ExampleUtils(PipelineOptions options) {
     this.options = options;
-    setupRunner();
   }
 
   /**
@@ -281,21 +279,7 @@ public class ExampleUtils {
   }
 
   /**
-   * Do some runner setup: check that the DirectRunner is not used in conjunction with
-   * streaming, and if streaming is specified, use the DataflowRunner.
-   */
-  private void setupRunner() {
-    Class<? extends PipelineRunner<?>> runner = options.getRunner();
-    if (options.as(StreamingOptions.class).isStreaming()
-        && runner.equals(BlockingDataflowRunner.class)) {
-      // In order to cancel the pipelines automatically,
-      // {@literal DataflowRunner} is forced to be used.
-      options.setRunner(DataflowRunner.class);
-    }
-  }
-
-  /**
-   * If {@literal DataflowRunner} or {@literal BlockingDataflowRunner} is used,
+   * If {@literal DataflowRunner} is used,
    * waits for the pipeline to finish and cancels it (and the injector) before the program exists.
    */
   public void waitToFinish(PipelineResult result) {
