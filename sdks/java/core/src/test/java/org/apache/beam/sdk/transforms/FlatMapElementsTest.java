@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -24,6 +26,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -100,6 +103,19 @@ public class FlatMapElementsTest implements Serializable {
 
     // Make sure the pipeline runs
     pipeline.run();
+  }
+
+  @Test
+  public void testSimpleFunctionClassDisplayData() {
+    SimpleFunction<Integer, List<Integer>> simpleFn = new SimpleFunction<Integer, List<Integer>>() {
+      @Override
+      public List<Integer> apply(Integer input) {
+        return Collections.emptyList();
+      }
+    };
+
+    FlatMapElements<?, ?> simpleMap = FlatMapElements.via(simpleFn);
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
   }
 
   @Test
