@@ -87,13 +87,16 @@ public class WriteTest {
   // Static counts of the number of records per shard.
   private static List<Integer> recordsPerShard = new ArrayList<>();
 
-  private static final MapElements<String, String> IDENTITY_MAP =
-      MapElements.via(new SimpleFunction<String, String>() {
-        @Override
-        public String apply(String input) {
-          return input;
-        }
-      });
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static final PTransform<PCollection<String>, PCollection<String>> IDENTITY_MAP =
+      (PTransform)
+          MapElements.via(
+              new SimpleFunction<String, String>() {
+                @Override
+                public String apply(String input) {
+                  return input;
+                }
+              });
 
   private static class WindowAndReshuffle<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private final Window.Bound<T> window;
