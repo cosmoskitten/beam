@@ -147,6 +147,18 @@ public class MapElementsTest implements Serializable {
   }
 
   @Test
+  public void testSimpleFunctionClassDisplayData() {
+    SimpleFunction<?, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
+      @Override
+      public Integer apply(Integer input) {
+        return input;
+      }
+    };
+
+    MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
+  }
+  @Test
   public void testSimpleFunctionDisplayData() {
     SimpleFunction<?, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
       @Override
