@@ -25,9 +25,7 @@
  * {@link org.apache.beam.sdk.runners.DataflowRunner} submits a
  * {@code Pipeline} to the Dataflow service, which executes it on Dataflow-managed Compute Engine
  * instances. {@code DataflowRunner} returns
- * as soon as the {@code Pipeline} has been submitted. Use
- * {@link org.apache.beam.sdk.runners.BlockingDataflowRunner} to have execution
- * updates printed to the console.
+ * as soon as the {@code Pipeline} has been submitted.
  *
  * <p>The runner is specified as part {@link org.apache.beam.sdk.options.PipelineOptions}.
  */
