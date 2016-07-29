@@ -390,7 +390,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>See {@link #getOutputTypeDescriptor} for more discussion.
    */
   protected TypeDescriptor<InputT> getInputTypeDescriptor() {
-    return new TypeDescriptor<InputT>(getClass()) {};
+    return new TypeDescriptor<InputT>(this) {};
   }
 
   /**
@@ -405,7 +405,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * {@code PCollection<OutputT>}.
    */
   protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-    return new TypeDescriptor<OutputT>(getClass()) {};
+    return new TypeDescriptor<OutputT>(this) {};
   }
 
   /**
