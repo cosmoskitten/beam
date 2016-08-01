@@ -32,6 +32,7 @@ import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.MapAggregatorValues;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.repackaged.com.google.common.base.Throwables;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.NanoClock;
@@ -271,9 +272,17 @@ public class DataflowPipelineJob implements PipelineResult {
     content.setProjectId(projectId);
     content.setId(jobId);
     content.setRequestedState("JOB_STATE_CANCELLED");
-    dataflowOptions.getDataflowClient().projects().jobs()
-        .update(projectId, jobId, content)
-        .execute();
+    try {
+      dataflowOptions.getDataflowClient().projects().jobs()
+          .update(projectId, jobId, content)
+          .execute();
+    } catch (IOException e) {
+      String errorMsg = String.format(
+          "Failed to cancel the job, please go to the Developers Console to cancel it manually: %s",
+          MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+      LOG.warn(errorMsg);
+      throw new IOException(errorMsg, e);
+    }
     return State.CANCELLED;
   }
 
