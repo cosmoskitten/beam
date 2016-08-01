@@ -280,6 +280,8 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
       <version>${project.version}</version>
+      <scope>runtime</scope>
+      <optional>true</optional>
     </dependency>
 
     <dependency>
