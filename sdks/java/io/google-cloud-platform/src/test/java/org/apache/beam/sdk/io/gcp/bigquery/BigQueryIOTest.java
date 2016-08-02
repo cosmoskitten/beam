@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Bound.MAX_RETRY_JOBS;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.fromJsonString;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
@@ -49,7 +48,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WritePartition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteRename;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteTempTables;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteTables;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -80,6 +79,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.api.client.util.Data;
 import com.google.api.client.util.Strings;
@@ -605,7 +605,6 @@ public class BigQueryIOTest implements Serializable {
     p.run();
 
     logged.verifyInfo("Starting BigQuery load job");
-    logged.verifyInfo("Starting BigQuery copy job");
     File tempDir = new File(bqOptions.getTempLocation());
     assertEquals(0, tempDir.listFiles(new FileFilter() {
       @Override
@@ -1251,6 +1250,16 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  public void testWritePartitionSinglePartition() throws Exception {
+    final long numFiles = BigQueryIO.Write.Bound.MAX_NUM_FILES;
+    final long fileSize = 1;
+
+    // One partition is needed for each group of three files
+    final long expectedNumPartitions = 1;
+    testWritePartition(numFiles, fileSize, expectedNumPartitions);
+  }
+
+  @Test
   public void testWritePartitionManyFiles() throws Exception {
     final long numFiles = BigQueryIO.Write.Bound.MAX_NUM_FILES * 3;
     final long fileSize = 1;
@@ -1285,18 +1294,29 @@ public class BigQueryIOTest implements Serializable {
       files.add(KV.of(fileName, fileSize));
     }
 
+    TupleTag<KV<Long, List<String>>> multiPartitionsTag
+        = new TupleTag<KV<Long, List<String>>>("multiPartitionsTag") {};
+    TupleTag<KV<Long, List<String>>> singlePartitionTag
+        = new TupleTag<KV<Long, List<String>>>("singlePartitionTag") {};
+
     final PCollectionView<Iterable<KV<String, Long>>> filesView = PCollectionViews.iterableView(
         TestPipeline.create(),
         WindowingStrategy.globalDefault(),
         KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
 
-    WritePartition writePartition = new WritePartition(filesView);
+    WritePartition writePartition
+        = new WritePartition(filesView, multiPartitionsTag, singlePartitionTag);
 
-    DoFnTester<Void, KV<Long, List<String>>> tester = DoFnTester.of(writePartition);
+    DoFnTester<String, KV<Long, List<String>>> tester = DoFnTester.of(writePartition);
     tester.setSideInput(filesView, GlobalWindow.INSTANCE, files);
     tester.processElement(null);
 
-    List<KV<Long, List<String>>> partitions = tester.takeOutputElements();
+    List<KV<Long, List<String>>> partitions;
+    if (expectedNumPartitions != 1) {
+      partitions = tester.takeSideOutputElements(multiPartitionsTag);
+    } else {
+      partitions = tester.takeSideOutputElements(singlePartitionTag);
+    }
     List<Long> partitionIds = Lists.newArrayList();
     List<String> partitionFileNames = Lists.newArrayList();
     for (KV<Long, List<String>> partition : partitions) {
@@ -1336,14 +1356,17 @@ public class BigQueryIOTest implements Serializable {
       expectedTempTables.add(String.format("{\"tableId\":\"%s_%05d\"}", jobIdToken, i));
     }
 
-    WriteTempTables writeTempTables = new WriteTempTables(
+    WriteTables writeTables = new WriteTables(
+        false,
         fakeBqServices,
         jobIdToken,
         tempFilePrefix,
         jsonTable,
-        jsonSchema);
+        jsonSchema,
+        WriteDisposition.WRITE_EMPTY,
+        CreateDisposition.CREATE_IF_NEEDED);
 
-    DoFnTester<KV<Long, Iterable<List<String>>>, String> tester = DoFnTester.of(writeTempTables);
+    DoFnTester<KV<Long, Iterable<List<String>>>, String> tester = DoFnTester.of(writeTables);
     for (KV<Long, Iterable<List<String>>> partition : partitions) {
       tester.processElement(partition);
     }
@@ -1384,7 +1407,7 @@ public class BigQueryIOTest implements Serializable {
         CreateDisposition.CREATE_IF_NEEDED,
         tempTablesView);
 
-    DoFnTester<Void, Void> tester = DoFnTester.of(writeRename);
+    DoFnTester<String, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(tempTablesView, GlobalWindow.INSTANCE, tempTables);
     tester.processElement(null);
 
