@@ -643,7 +643,7 @@ public class DoFnTester<InputT, OutputT> {
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       throw new IllegalStateException("Aggregators should not be created within ProcessContext. "
-          + "Instead, create an aggregator at DoFn construction time with createAggregatorForDoFn,"
+          + "Instead, create an aggregator at DoFn construction time with createAggregator,"
           + " and ensure they are set up by the time startBundle is called "
           + "with setupDelegateAggregators.");
     }
