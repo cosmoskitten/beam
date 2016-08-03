@@ -19,6 +19,7 @@
 package org.apache.beam.examples;
 
 import org.apache.beam.examples.WordCount.WordCountOptions;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -39,8 +40,13 @@ public class WordCountIT {
 
   /**
    * Options for the WordCount Integration Test.
+   *
+   * Define expected output file checksum to verify WordCount pipeline result with customized input.
    */
   public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
+    @Default.String("8ae94f799f97cfd1cb5e8125951b32dfb52e1f12")
+    String getOutputChecksum();
+    void setOutputChecksum(String value);
   }
 
   @Test
@@ -54,8 +60,7 @@ public class WordCountIT {
         "output",
         "results"));
     options.setOnSuccessMatcher(
-        new FileChecksumMatcher("8ae94f799f97cfd1cb5e8125951b32dfb52e1f12",
-            options.getOutput() + "*"));
+        new FileChecksumMatcher(options.getOutputChecksum(), options.getOutput() + "*"));
 
     WordCount.main(TestPipeline.convertToArgs(options));
   }
