@@ -48,5 +48,5 @@ before_install:
   - export BEAM_SUREFIRE_ARGLINE="-Xmx512m"
 
 script:
-  - travis_retry mvn --batch-mode --update-snapshots $MAVEN_OVERRIDE verify
+  - travis_retry mvn --settings .travis/settings.xml --batch-mode --update-snapshots $MAVEN_OVERRIDE verify
   - travis_retry testing/travis/test_wordcount.sh
