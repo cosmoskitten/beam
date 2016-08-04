@@ -54,6 +54,7 @@ import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -92,6 +93,9 @@ public class DataflowPipelineJobTest {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
+
+  @Rule
+  public ExpectedLogs expectedLogs = ExpectedLogs.none(DataflowPipelineJob.class);
 
   private TestDataflowPipelineOptions options;
 
@@ -185,6 +189,7 @@ public class DataflowPipelineJobTest {
   @Test
   public void testWaitToFinishDone() throws Exception {
     assertEquals(State.DONE, mockWaitToFinishInState(State.DONE));
+    expectedLogs.verifyInfo("Job finished with status DONE");
   }
 
   /**
@@ -212,6 +217,15 @@ public class DataflowPipelineJobTest {
   @Test
   public void testWaitToFinishUpdated() throws Exception {
     assertEquals(State.UPDATED, mockWaitToFinishInState(State.UPDATED));
+  }
+
+  /**
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#UNKNOWN UNKNOWN}
+   * state is terminal.
+   */
+  @Test
+  public void testWaitToFinishUnknown() throws Exception {
+    assertEquals(null, mockWaitToFinishInState(State.UNKNOWN));
   }
 
   @Test

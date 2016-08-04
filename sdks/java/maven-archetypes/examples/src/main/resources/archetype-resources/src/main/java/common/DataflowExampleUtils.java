@@ -37,7 +37,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
