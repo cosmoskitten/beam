@@ -280,9 +280,9 @@ public class DataflowPipelineJob implements PipelineResult {
                 MonitoringUtil.getJobMonitoringPageURL(
                     getReplacedByJob().getProjectId(), getReplacedByJob().getJobId()));
           } else if (state == State.CANCELLED) {
-            LOG.info(String.format("Job %s cancelled by user", getJobId()));
+            LOG.info("Job {} finished with status CANCELLED", getJobId());
           } else if (state != State.DONE) {
-            LOG.info(String.format("Job %s failed with status %s", getJobId(), state));
+            LOG.info("Job {} failed with status {}", getJobId(), state);
           }
           return state;
         }
