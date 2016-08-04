@@ -48,8 +48,13 @@ before_install:
   - export BEAM_SUREFIRE_ARGLINE="-Xmx512m"
 
 install:
+  - rm -rf "$HOME/.m2/repository/org/apache/beam"
   - travis_retry mvn -B install clean -U -DskipTests=true
 
 script:
   - travis_retry mvn -B $MAVEN_OVERRIDE install -U
   - travis_retry testing/travis/test_wordcount.sh
+
+cache:
+  directories:
+    - $HOME/.m2
