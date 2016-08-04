@@ -44,7 +44,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -96,7 +96,6 @@ import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.apache.avro.generic.GenericRecord;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -126,7 +125,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nullable;
 
 /**
@@ -324,7 +322,7 @@ public class BigQueryIO {
    * <p>Each {@link TableRow} contains values indexed by column name. Here is a
    * sample processing function that processes a "line" column from rows:
    * <pre>{@code
-   * static class ExtractWordsFn extends OldDoFn<TableRow, String> {
+   * static class ExtractWordsFn extends DoFn<TableRow, String> {
    *   public void processElement(ProcessContext c) {
    *     // Get the "line" field of the TableRow object, split it into words, and emit them.
    *     TableRow row = c.element();
@@ -696,8 +694,8 @@ public class BigQueryIO {
       input.getPipeline()
           .apply("Create(CleanupOperation)", Create.of(cleanupOperation))
           .apply("Cleanup", ParDo.of(
-              new OldDoFn<CleanupOperation, Void>() {
-                @Override
+              new DoFn<CleanupOperation, Void>() {
+                @ProcessElement
                 public void processElement(ProcessContext c)
                     throws Exception {
                   c.element().cleanup(c.getPipelineOptions());
@@ -707,8 +705,8 @@ public class BigQueryIO {
       return outputs.get(mainOutput);
     }
 
-    private static class IdentityFn<T> extends OldDoFn<T, T> {
-      @Override
+    private static class IdentityFn<T> extends DoFn<T, T> {
+      @ProcessElement
       public void processElement(ProcessContext c) {
         c.output(c.element());
       }
@@ -1262,7 +1260,7 @@ public class BigQueryIO {
    * <p>Here is a sample transform that produces TableRow values containing
    * "word" and "count" columns:
    * <pre>{@code
-   * static class FormatCountsFn extends OldDoFn<KV<String, Long>, TableRow> {
+   * static class FormatCountsFn extends DoFn<KV<String, Long>, TableRow> {
    *   public void processElement(ProcessContext c) {
    *     TableRow row = new TableRow()
    *         .set("word", c.element().getKey())
@@ -2011,11 +2009,11 @@ public class BigQueryIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Implementation of OldDoFn to perform streaming BigQuery write.
+   * Implementation of DoFn to perform streaming BigQuery write.
    */
   @SystemDoFnInternal
   private static class StreamingWriteFn
-      extends OldDoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
+      extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
     /** TableSchema in JSON. Use String to make the class Serializable. */
     private final String jsonTableSchema;
 
@@ -2043,14 +2041,14 @@ public class BigQueryIO {
     }
 
     /** Prepares a target BigQuery table. */
-    @Override
+    @StartBundle
     public void startBundle(Context context) {
       tableRows = new HashMap<>();
       uniqueIdsForTableRows = new HashMap<>();
     }
 
     /** Accumulates the input into JsonTableRows and uniqueIdsForTableRows. */
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext context) {
       String tableSpec = context.element().getKey().getKey();
       List<TableRow> rows = getOrCreateMapListValue(tableRows, tableSpec);
@@ -2061,7 +2059,7 @@ public class BigQueryIO {
     }
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
-    @Override
+    @FinishBundle
     public void finishBundle(Context context) throws Exception {
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
 
@@ -2248,8 +2246,7 @@ public class BigQueryIO {
    * id is created by concatenating this randomUUID with a sequential number.
    */
   private static class TagWithUniqueIdsAndTable
-      extends OldDoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>>
-      implements OldDoFn.RequiresWindowAccess {
+      extends DoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>> {
     /** TableSpec to write to. */
     private final String tableSpec;
 
@@ -2275,18 +2272,18 @@ public class BigQueryIO {
     }
 
 
-    @Override
+    @StartBundle
     public void startBundle(Context context) {
       randomUUID = UUID.randomUUID().toString();
     }
 
     /** Tag the input with a unique id. */
-    @Override
-    public void processElement(ProcessContext context) throws IOException {
+    @ProcessElement
+    public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
       String uniqueId = randomUUID + sequenceNo++;
       ThreadLocalRandom randomGenerator = ThreadLocalRandom.current();
       String tableSpec = tableSpecFromWindow(
-          context.getPipelineOptions().as(BigQueryOptions.class), context.window());
+          context.getPipelineOptions().as(BigQueryOptions.class), window);
       // We output on keys 0-50 to ensure that there's enough batching for
       // BigQuery.
       context.output(KV.of(ShardedKey.of(tableSpec, randomGenerator.nextInt(0, 50)),
