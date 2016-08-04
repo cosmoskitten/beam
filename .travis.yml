@@ -53,3 +53,7 @@ install:
 script:
   - travis_retry mvn -B $MAVEN_OVERRIDE install -U
   - travis_retry testing/travis/test_wordcount.sh
+
+cache:
+  directories:
+    - $HOME/.m2
