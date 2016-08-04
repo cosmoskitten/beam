@@ -1,0 +1,15 @@
+<settings>
+  <servers>
+    <server>
+      <id>central</id>
+      <configuration>
+        <httpConfiguration>
+          <all>
+            <connectionTimeout>1000</connectionTimeout>
+          </all>
+        </httpConfiguration>
+        <timeout>5000</timeout>
+      </configuration>
+    </server>
+  </servers>
+</settings>
