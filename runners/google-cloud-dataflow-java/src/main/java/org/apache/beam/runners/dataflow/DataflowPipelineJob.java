@@ -271,6 +271,7 @@ public class DataflowPipelineJob implements PipelineResult {
         backoff.reset();
         // Check if the job is done.
         if (state.isTerminal()) {
+          LOG.info("Job finished with status {}", state);
           if (state == State.UPDATED) {
             LOG.info("Job {} has been updated and is running as the new job with id {}."
                 + "To access the updated job on the Dataflow monitoring console, "
@@ -280,9 +281,9 @@ public class DataflowPipelineJob implements PipelineResult {
                 MonitoringUtil.getJobMonitoringPageURL(
                     getReplacedByJob().getProjectId(), getReplacedByJob().getJobId()));
           } else if (state == State.CANCELLED) {
-            LOG.info(String.format("Job %s cancelled by user", getJobId()));
+            LOG.info("Job {} finished with status CANCELLED", getJobId());
           } else if (state != State.DONE) {
-            LOG.info(String.format("Job %s failed with status %s", getJobId(), state));
+            LOG.info("Job {} failed with status {}", getJobId(), state);
           }
           return state;
         }
