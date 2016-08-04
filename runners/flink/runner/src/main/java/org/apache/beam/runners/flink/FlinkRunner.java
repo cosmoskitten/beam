@@ -22,12 +22,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -185,38 +183,6 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
               .build();
 
       return Pipeline.applyTransform(input, customTransform);
-//    } else if (transform instanceof Combine.PerKey && ((Combine.PerKey) transform).getSideInputs().isEmpty()) {
-//      @SuppressWarnings("unchecked")
-//      OutputT output = (OutputT) Pipeline.applyTransform(
-//          input,
-//          new StreamingCombineWithoutSideInput(
-//              transform.getName(),
-//              (Combine.PerKey) transform));
-//      return output;
-
-      // For both Dataflow runners (streaming and batch), GroupByKey and GroupedValues are
-      // primitives. Returning a primitive output instead of the expanded definition
-      // signals to the translator that translation is necessary.
-//      @SuppressWarnings("unchecked")
-//      PCollection<?> pc = (PCollection<?>) input;
-//
-//      @SuppressWarnings("unchecked")
-//      OutputT outputT = null;
-//      try {
-//
-//        KvCoder coder = (KvCoder) ((PCollection<?>) input).getCoder();
-//
-//        outputT = (OutputT) PCollection.createPrimitiveOutputInternal(
-//            pc.getPipeline(),
-//            pc.getWindowingStrategy(),
-//            pc.isBounded())
-//            .setCoder(((Combine.PerKey) transform).getFn().getDefaultOutputCoder(
-//                input.getPipeline().getCoderRegistry(), coder.getKeyCoder(), coder.getValueCoder()));
-//
-//      } catch (CannotProvideCoderException e) {
-//        throw new RuntimeException("CANNO PRO", e);
-//      }
-//      return outputT;
     } else {
       return super.apply(transform, input);
     }
@@ -586,41 +552,4 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
       return view;
     }
   }
-
-  /**
-   * Special {@link PTransform} for the Flink Runner that replaces a
-   * {@link org.apache.beam.sdk.transforms.Combine.PerKey} without side inputs. Only without
-   * side inputs can we do eager merging.
-   */
-  public static class StreamingCombineWithoutSideInput<K, InputT, OutputT>
-      extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
-
-    private final Combine.PerKey<K, InputT, OutputT> originalCombine;
-
-    public StreamingCombineWithoutSideInput(
-        String name,
-        Combine.PerKey originalTransform) {
-      super(name);
-      this.originalCombine = originalTransform;
-    }
-
-    public CombineFnBase.PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> getFn() {
-      return originalCombine.getFn();
-    }
-
-    @Override
-    public PCollection<KV<K, OutputT>> apply(PCollection<KV<K, InputT>> input) {
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          input.getWindowingStrategy(),
-          input.isBounded()).setCoder((Coder) StringUtf8Coder.of());
-    }
-
-    @Override
-    protected String getKindString() {
-      return "StreamingCombineWithoutSideInput";
-    }
-  }
-
-
 }

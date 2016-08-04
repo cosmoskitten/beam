@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -78,6 +79,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -126,8 +128,7 @@ public class FlinkStreamingTransformTranslators {
 
     TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorStreaming());
     TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslator());
-//    TRANSLATORS.put(
-//        FlinkRunner.StreamingCombineWithoutSideInput.class, new CombinePerKeyTranslator());
+    TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslator());
   }
 
   public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator(
@@ -140,7 +141,7 @@ public class FlinkStreamingTransformTranslators {
   // --------------------------------------------------------------------------------------------
 
   private static class TextIOWriteBoundStreamingTranslator<T>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
         TextIO.Write.Bound<T>> {
 
     private static final Logger LOG =
@@ -187,7 +188,7 @@ public class FlinkStreamingTransformTranslators {
   }
 
   private static class WriteSinkStreamingTranslator<T>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Write.Bound<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Write.Bound<T>> {
 
     @Override
     public void translateNode(Write.Bound<T> transform, FlinkStreamingTranslationContext context) {
@@ -212,7 +213,7 @@ public class FlinkStreamingTransformTranslators {
   }
 
   private static class UnboundedReadSourceTranslator<T>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Unbounded<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Unbounded<T>> {
 
     @Override
     public void translateNode(
@@ -270,7 +271,7 @@ public class FlinkStreamingTransformTranslators {
   }
 
   private static class BoundedReadSourceTranslator<T>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Bounded<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Bounded<T>> {
 
     @Override
     public void translateNode(
@@ -299,7 +300,7 @@ public class FlinkStreamingTransformTranslators {
   }
 
   private static class ParDoBoundStreamingTranslator<InputT, OutputT>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
         ParDo.Bound<InputT, OutputT>> {
 
     @Override
@@ -361,7 +362,7 @@ public class FlinkStreamingTransformTranslators {
             context.getInputDataStream(context.getInput(transform));
 
         SingleOutputStreamOperator<WindowedValue<OutputT>> outDataStream = inputDataStream
-            .connect(transformedSideInputs.f1)
+            .connect(transformedSideInputs.f1.broadcast())
             .transform(transform.getName(), typeInfo, doFnOperator);
 
         context.setOutputDataStream(context.getOutput(transform), outDataStream);
@@ -448,7 +449,7 @@ public class FlinkStreamingTransformTranslators {
 
 
   private static class ParDoBoundMultiStreamingTranslator<InputT, OutputT>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
       ParDo.BoundMulti<InputT, OutputT>> {
 
     @Override
@@ -524,7 +525,7 @@ public class FlinkStreamingTransformTranslators {
             context.getInputDataStream(context.getInput(transform));
 
         unionOutputStream = inputDataStream
-            .connect(transformedSideInputs.f1)
+            .connect(transformedSideInputs.f1.broadcast())
             .transform(transform.getName(), outputUnionTypeInformation, doFnOperator);
       }
 
@@ -580,7 +581,7 @@ public class FlinkStreamingTransformTranslators {
   }
 
   private static class CreateViewStreamingTranslator<ElemT, ViewT>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
       FlinkRunner.CreateFlinkPCollectionView<ElemT, ViewT>> {
 
     @Override
@@ -598,7 +599,7 @@ public class FlinkStreamingTransformTranslators {
   }
 
   private static class WindowBoundTranslator<T>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Window.Bound<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Window.Bound<T>> {
 
     @Override
     public void translateNode(
@@ -674,7 +675,7 @@ public class FlinkStreamingTransformTranslators {
   }
 
   private static class ReshuffleTranslatorStreaming<K, InputT>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Reshuffle<K, InputT>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Reshuffle<K, InputT>> {
 
     @Override
     public void translateNode(
@@ -691,7 +692,7 @@ public class FlinkStreamingTransformTranslators {
 
 
   private static class GroupByKeyTranslator<K, InputT>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<GroupByKey<K, InputT>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<GroupByKey<K, InputT>> {
 
     @Override
     public void translateNode(
@@ -771,12 +772,29 @@ public class FlinkStreamingTransformTranslators {
   }
 
   private static class CombinePerKeyTranslator<K, InputT, OutputT>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-      FlinkRunner.StreamingCombineWithoutSideInput<K, InputT, OutputT>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+      Combine.PerKey<K, InputT, OutputT>> {
+
+    @Override
+    boolean canTranslate(
+        Combine.PerKey<K, InputT, OutputT> transform,
+        FlinkStreamingTranslationContext context) {
+
+      // if we have a merging window strategy and side inputs we cannot
+      // translate as a proper combine. We have to group and then run the combine
+      // over the final grouped values.
+      PCollection<KV<K, InputT>> input = context.getInput(transform);
+
+      @SuppressWarnings("unchecked")
+      WindowingStrategy<?, BoundedWindow> windowingStrategy =
+          (WindowingStrategy<?, BoundedWindow>) input.getWindowingStrategy();
+
+      return windowingStrategy.getWindowFn().isNonMerging() || transform.getSideInputs().isEmpty();
+    }
 
     @Override
     public void translateNode(
-        FlinkRunner.StreamingCombineWithoutSideInput<K, InputT, OutputT> transform,
+        Combine.PerKey<K, InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
       PCollection<KV<K, InputT>> input = context.getInput(transform);
@@ -793,7 +811,6 @@ public class FlinkStreamingTransformTranslators {
           input.getWindowingStrategy().getWindowFn().windowCoder());
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
-
 
       WindowedValue.
           FullWindowedValueCoder<SingletonKeyedWorkItem<K, InputT>> windowedWorkItemCoder =
@@ -822,8 +839,7 @@ public class FlinkStreamingTransformTranslators {
       TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
-//      List<PCollectionView<?>> sideInputs = transform.getSideInputs();
-      List<PCollectionView<?>> sideInputs = new ArrayList<>();
+      List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
       if (sideInputs.isEmpty()) {
 
@@ -865,16 +881,30 @@ public class FlinkStreamingTransformTranslators {
                 context.getPipelineOptions(),
                 inputKvCoder.getKeyCoder());
 
-        // our operator excepts WindowedValue<KeyedWorkItem> while our input stream
-        // is WindowedValue<SingletonKeyedWorkItem>, which is fine but Java doesn't like it ...
-        @SuppressWarnings("unchecked")
+        // we have to manually contruct the two-input transform because we're not
+        // allowed to have only one input keyed, normally.
+
+        TwoInputTransformation<
+            WindowedValue<SingletonKeyedWorkItem<K, InputT>>,
+            RawUnionValue,
+            WindowedValue<KV<K, OutputT>>> rawFlinkTransform = new TwoInputTransformation<>(
+            keyedWorkItemStream.getTransformation(),
+            transformSideInputs.f1.broadcast().getTransformation(),
+            transform.getName(),
+            (TwoInputStreamOperator) doFnOperator,
+            outputTypeInfo,
+            keyedWorkItemStream.getParallelism());
+
+        rawFlinkTransform.setStateKeyType(keyedWorkItemStream.getKeyType());
+        rawFlinkTransform.setStateKeySelectors(keyedWorkItemStream.getKeySelector(), null);
+
+        @SuppressWarnings({ "unchecked", "rawtypes" })
         SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream =
-            keyedWorkItemStream
-                .connect(transformSideInputs.f1)
-                .transform(
-                    transform.getName(),
-                    outputTypeInfo,
-                    (TwoInputStreamOperator) doFnOperator);
+            new SingleOutputStreamOperator(
+                keyedWorkItemStream.getExecutionEnvironment(),
+                rawFlinkTransform) {}; // we have to cheat around the ctor being protected
+
+        keyedWorkItemStream.getExecutionEnvironment().addOperator(rawFlinkTransform);
 
         context.setOutputDataStream(context.getOutput(transform), outDataStream);
       }
@@ -907,7 +937,7 @@ public class FlinkStreamingTransformTranslators {
   }
 
   private static class FlattenPCollectionTranslator<T>
-      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
         Flatten.FlattenPCollectionList<T>> {
 
     @Override

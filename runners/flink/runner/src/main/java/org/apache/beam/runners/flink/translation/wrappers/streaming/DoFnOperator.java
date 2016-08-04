@@ -42,11 +42,12 @@ import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.common.collect.Iterables;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
@@ -166,7 +167,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
       sideInputStateBackend = this
           .getContainingTask()
-          .createStateBackend(operatorIdentifier, IntSerializer.INSTANCE);
+          .createStateBackend(operatorIdentifier,
+              new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()));
 
       if (restoredSideInputState != null) {
         @SuppressWarnings("unchecked,rawtypes")
@@ -310,17 +312,21 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     StreamTaskState streamTaskState = super.snapshotOperatorState(checkpointId, timestamp);
 
-    // we have to manually checkpoint the side-input state backend and store
-    // the handle in the "user state" of the task state
-    HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> sideInputSnapshot =
-        sideInputStateBackend.snapshotPartitionedState(checkpointId, timestamp);
+    if (sideInputStateBackend != null) {
+      // we have to manually checkpoint the side-input state backend and store
+      // the handle in the "user state" of the task state
+      HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> sideInputSnapshot =
+          sideInputStateBackend.snapshotPartitionedState(checkpointId, timestamp);
 
-    @SuppressWarnings("unchecked,rawtypes")
-    StateHandle<Serializable> sideInputStateHandle =
-        (StateHandle) sideInputStateBackend.checkpointStateSerializable(
-            sideInputSnapshot, checkpointId, timestamp);
+      if (sideInputSnapshot != null) {
+        @SuppressWarnings("unchecked,rawtypes")
+        StateHandle<Serializable> sideInputStateHandle =
+            (StateHandle) sideInputStateBackend.checkpointStateSerializable(
+                sideInputSnapshot, checkpointId, timestamp);
 
-    streamTaskState.setFunctionState(sideInputStateHandle);
+        streamTaskState.setFunctionState(sideInputStateHandle);
+      }
+    }
 
     return streamTaskState;
   }
@@ -333,7 +339,9 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     StateHandle<HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>>> sideInputStateHandle =
         (StateHandle) state.getFunctionState();
 
-    restoredSideInputState = sideInputStateHandle.getState(getUserCodeClassloader());
+    if (sideInputStateHandle != null) {
+      restoredSideInputState = sideInputStateHandle.getState(getUserCodeClassloader());
+    }
   }
 
   /**
