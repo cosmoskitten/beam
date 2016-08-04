@@ -31,7 +31,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -1107,7 +1107,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   // StatsFn
   // ================================================================================
 
-  private static class StatsFn<T> extends DoFn<T, T> {
+  private static class StatsFn<T> extends OldDoFn<T, T> {
     private final Aggregator<Long, Long> elementCounter =
         createAggregator("elements", new Sum.SumLongFn());
 
@@ -1296,8 +1296,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     return input.getPipeline().begin()
                 .apply(Read.from(new PubsubSource<T>(this)))
-                .apply(ParDo.named("PubsubUnboundedSource.Stats")
-                            .of(new StatsFn<T>(pubsubFactory, subscription,
-                                               timestampLabel, idLabel)));
+                .apply("PubsubUnboundedSource.Stats",
+                    ParDo.of(new StatsFn<T>(pubsubFactory, subscription, timestampLabel, idLabel)));
   }
 }

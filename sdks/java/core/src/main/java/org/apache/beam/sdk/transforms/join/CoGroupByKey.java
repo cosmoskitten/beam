@@ -19,9 +19,9 @@ package org.apache.beam.sdk.transforms.join;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
@@ -57,7 +57,7 @@ import java.util.List;
  *
  * PCollection<T> finalResultCollection =
  *   coGbkResultCollection.apply(ParDo.of(
- *     new DoFn<KV<K, CoGbkResult>, T>() {
+ *     new OldDoFn<KV<K, CoGbkResult>, T>() {
  *       @Override
  *       public void processElement(ProcessContext c) {
  *         KV<K, CoGbkResult> e = c.element();
@@ -128,9 +128,8 @@ public class CoGroupByKey<K> extends
         flattenedTable.apply(GroupByKey.<K, RawUnionValue>create());
 
     CoGbkResultSchema tupleTags = input.getCoGbkResultSchema();
-    PCollection<KV<K, CoGbkResult>> result = groupedTable.apply(
-        ParDo.of(new ConstructCoGbkResultFn<K>(tupleTags))
-          .named("ConstructCoGbkResultFn"));
+    PCollection<KV<K, CoGbkResult>> result = groupedTable.apply("ConstructCoGbkResultFn",
+        ParDo.of(new ConstructCoGbkResultFn<K>(tupleTags)));
     result.setCoder(KvCoder.of(keyCoder,
         CoGbkResultCoder.of(tupleTags, unionCoder)));
 
@@ -163,18 +162,17 @@ public class CoGroupByKey<K> extends
       PCollection<KV<K, V>> pCollection,
       KvCoder<K, RawUnionValue> unionTableEncoder) {
 
-    return pCollection.apply(ParDo.of(
-        new ConstructUnionTableFn<K, V>(index)).named("MakeUnionTable" + index))
-                                               .setCoder(unionTableEncoder);
+    return pCollection.apply("MakeUnionTable" + index,
+        ParDo.of(new ConstructUnionTableFn<K, V>(index))).setCoder(unionTableEncoder);
   }
 
   /**
-   * A DoFn to construct a UnionTable (i.e., a
+   * A OldDoFn to construct a UnionTable (i.e., a
    * {@code PCollection<KV<K, RawUnionValue>>} from a
    * {@code PCollection<KV<K, V>>}.
    */
   private static class ConstructUnionTableFn<K, V> extends
-      DoFn<KV<K, V>, KV<K, RawUnionValue>> {
+      OldDoFn<KV<K, V>, KV<K, RawUnionValue>> {
 
     private final int index;
 
@@ -190,12 +188,12 @@ public class CoGroupByKey<K> extends
   }
 
   /**
-   * A DoFn to construct a CoGbkResult from an input grouped union
+   * A OldDoFn to construct a CoGbkResult from an input grouped union
    * table.
     */
   private static class ConstructCoGbkResultFn<K>
-    extends DoFn<KV<K, Iterable<RawUnionValue>>,
-                 KV<K, CoGbkResult>> {
+    extends OldDoFn<KV<K, Iterable<RawUnionValue>>,
+                     KV<K, CoGbkResult>> {
 
     private final CoGbkResultSchema schema;
 

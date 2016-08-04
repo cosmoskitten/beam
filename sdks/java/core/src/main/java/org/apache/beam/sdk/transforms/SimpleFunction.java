@@ -22,14 +22,14 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link SerializableFunction} which is not a <i>functional interface</i>.
  * Concrete subclasses allow us to infer type information, which in turn aids
- * {@link Coder} inference.
+ * {@link org.apache.beam.sdk.coders.Coder Coder} inference.
  */
 public abstract class SimpleFunction<InputT, OutputT>
     implements SerializableFunction<InputT, OutputT> {
 
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the input type of this {@code DoFn} instance's most-derived
+   * about the input type of this {@code OldDoFn} instance's most-derived
    * class.
    *
    * <p>See {@link #getOutputTypeDescriptor} for more discussion.
@@ -40,10 +40,10 @@ public abstract class SimpleFunction<InputT, OutputT>
 
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the output type of this {@code DoFn} instance's
+   * about the output type of this {@code OldDoFn} instance's
    * most-derived class.
    *
-   * <p>In the normal case of a concrete {@code DoFn} subclass with
+   * <p>In the normal case of a concrete {@code OldDoFn} subclass with
    * no generic type parameters of its own (including anonymous inner
    * classes), this will be a complete non-generic type, which is good
    * for choosing a default output {@code Coder<OutputT>} for the output

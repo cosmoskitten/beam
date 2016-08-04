@@ -173,8 +173,8 @@ public class Flatten {
       @SuppressWarnings("unchecked")
       Coder<T> elemCoder = ((IterableLikeCoder<T, ?>) inCoder).getElemCoder();
 
-      return in.apply(ParDo.named("FlattenIterables").of(
-          new DoFn<Iterable<T>, T>() {
+      return in.apply("FlattenIterables", ParDo.of(
+          new OldDoFn<Iterable<T>, T>() {
             @Override
             public void processElement(ProcessContext c) {
               for (T i : c.element()) {

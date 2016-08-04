@@ -20,19 +20,19 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -78,7 +78,7 @@ import javax.annotation.Nullable;
  * <li>We try to send messages in batches while also limiting send latency.
  * <li>No stats are logged. Rather some counters are used to keep track of elements and batches.
  * <li>Though some background threads are used by the underlying netty system all actual Pubsub
- * calls are blocking. We rely on the underlying runner to allow multiple {@link DoFn} instances
+ * calls are blocking. We rely on the underlying runner to allow multiple {@link OldDoFn} instances
  * to execute concurrently and hide latency.
  * <li>A failed bundle will cause messages to be resent. Thus we rely on the Pubsub consumer
  * to dedup messages.
@@ -105,7 +105,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Coder for conveying outgoing messages between internal stages.
    */
-  private static class OutgoingMessageCoder extends CustomCoder<OutgoingMessage> {
+  private static class OutgoingMessageCoder extends AtomicCoder<OutgoingMessage> {
     private static final NullableCoder<String> RECORD_ID_CODER =
         NullableCoder.of(StringUtf8Coder.of());
 
@@ -155,7 +155,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Convert elements to messages and shard them.
    */
-  private static class ShardFn<T> extends DoFn<T, KV<Integer, OutgoingMessage>> {
+  private static class ShardFn<T> extends OldDoFn<T, KV<Integer, OutgoingMessage>> {
     private final Aggregator<Long, Long> elementCounter =
         createAggregator("elements", new Sum.SumLongFn());
     private final Coder<T> elementCoder;
@@ -207,7 +207,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    * Publish messages to Pubsub in batches.
    */
   private static class WriterFn
-      extends DoFn<KV<Integer, Iterable<OutgoingMessage>>, Void> {
+      extends OldDoFn<KV<Integer, Iterable<OutgoingMessage>>, Void> {
     private final PubsubClientFactory pubsubFactory;
     private final TopicPath topic;
     private final String timestampLabel;
@@ -420,22 +420,20 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
 
   @Override
   public PDone apply(PCollection<T> input) {
-    input.apply(
-        Window.named("PubsubUnboundedSink.Window")
-            .<T>into(new GlobalWindows())
-            .triggering(
-                Repeatedly.forever(
-                    AfterFirst.of(AfterPane.elementCountAtLeast(publishBatchSize),
-                                  AfterProcessingTime.pastFirstElementInPane()
-                                                     .plusDelayOf(maxLatency))))
+    input.apply("PubsubUnboundedSink.Window", Window.<T>into(new GlobalWindows())
+        .triggering(
+            Repeatedly.forever(
+                AfterFirst.of(AfterPane.elementCountAtLeast(publishBatchSize),
+                    AfterProcessingTime.pastFirstElementInPane()
+                    .plusDelayOf(maxLatency))))
             .discardingFiredPanes())
-         .apply(ParDo.named("PubsubUnboundedSink.Shard")
-                     .of(new ShardFn<T>(elementCoder, numShards, recordIdMethod)))
+         .apply("PubsubUnboundedSink.Shard",
+             ParDo.of(new ShardFn<T>(elementCoder, numShards, recordIdMethod)))
          .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
          .apply(GroupByKey.<Integer, OutgoingMessage>create())
-         .apply(ParDo.named("PubsubUnboundedSink.Writer")
-                     .of(new WriterFn(pubsubFactory, topic, timestampLabel, idLabel,
-                                      publishBatchSize, publishBatchBytes)));
+         .apply("PubsubUnboundedSink.Writer",
+             ParDo.of(new WriterFn(pubsubFactory, topic, timestampLabel, idLabel,
+                 publishBatchSize, publishBatchBytes)));
     return PDone.in(input.getPipeline());
   }
 }

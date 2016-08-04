@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -29,8 +31,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
-import com.google.common.base.Preconditions;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -39,7 +39,7 @@ import java.util.Random;
  * {@code PTransform}s for taking samples of the elements in a
  * {@code PCollection}, or samples of the values associated with each
  * key in a {@code PCollection} of {@code KV}s.
- **/
+ */
 public class Sample {
 
   /**
@@ -139,7 +139,7 @@ public class Sample {
      * elements of its input {@code PCollection}.
      */
     private SampleAny(long limit) {
-      Preconditions.checkArgument(limit >= 0, "Expected non-negative limit, received %s.", limit);
+      checkArgument(limit >= 0, "Expected non-negative limit, received %s.", limit);
       this.limit = limit;
     }
 
@@ -164,9 +164,9 @@ public class Sample {
   }
 
   /**
-   * A {@link DoFn} that returns up to limit elements from the side input PCollection.
+   * A {@link OldDoFn} that returns up to limit elements from the side input PCollection.
    */
-  private static class SampleAnyDoFn<T> extends DoFn<Void, T> {
+  private static class SampleAnyDoFn<T> extends OldDoFn<Void, T> {
     long limit;
     final PCollectionView<Iterable<T>> iterableView;
 

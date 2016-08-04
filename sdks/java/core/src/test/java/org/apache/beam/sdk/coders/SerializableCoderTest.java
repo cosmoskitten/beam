@@ -22,10 +22,11 @@ import static org.junit.Assert.assertNull;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -80,14 +82,14 @@ public class SerializableCoderTest implements Serializable {
     }
   }
 
-  static class StringToRecord extends DoFn<String, MyRecord> {
+  static class StringToRecord extends OldDoFn<String, MyRecord> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(new MyRecord(c.element()));
     }
   }
 
-  static class RecordToString extends DoFn<MyRecord, String> {
+  static class RecordToString extends OldDoFn<MyRecord, String> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().value);
@@ -128,6 +130,13 @@ public class SerializableCoderTest implements Serializable {
   }
 
   @Test
+  public void testNullEquals() {
+    SerializableCoder<MyRecord> coder = SerializableCoder.of(MyRecord.class);
+    Assert.assertFalse(coder.equals(null));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testDefaultCoder() throws Exception {
     Pipeline p = TestPipeline.create();
 
@@ -141,6 +150,8 @@ public class SerializableCoderTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder("Hello", "World");
+
+    p.run();
   }
 
   @Test

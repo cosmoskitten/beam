@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.complete;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.TextIO;
@@ -27,8 +26,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableComparator;
@@ -86,7 +85,7 @@ public class TopWikipediaSessions {
   /**
    * Extracts user and timestamp from a TableRow representing a Wikipedia edit.
    */
-  static class ExtractUserAndTimestamp extends DoFn<TableRow, String> {
+  static class ExtractUserAndTimestamp extends OldDoFn<TableRow, String> {
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
@@ -133,7 +132,7 @@ public class TopWikipediaSessions {
     }
   }
 
-  static class SessionsToStringsDoFn extends DoFn<KV<String, Long>, KV<String, Long>>
+  static class SessionsToStringsDoFn extends OldDoFn<KV<String, Long>, KV<String, Long>>
       implements RequiresWindowAccess {
 
     @Override
@@ -143,7 +142,7 @@ public class TopWikipediaSessions {
     }
   }
 
-  static class FormatOutputDoFn extends DoFn<List<KV<String, Long>>, String>
+  static class FormatOutputDoFn extends OldDoFn<List<KV<String, Long>>, String>
       implements RequiresWindowAccess {
     @Override
     public void processElement(ProcessContext c) {
@@ -168,8 +167,8 @@ public class TopWikipediaSessions {
       return input
           .apply(ParDo.of(new ExtractUserAndTimestamp()))
 
-          .apply(ParDo.named("SampleUsers").of(
-              new DoFn<String, String>() {
+          .apply("SampleUsers", ParDo.of(
+              new OldDoFn<String, String>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   if (Math.abs(c.element().hashCode()) <= Integer.MAX_VALUE * samplingThreshold) {
@@ -179,10 +178,9 @@ public class TopWikipediaSessions {
               }))
 
           .apply(new ComputeSessions())
-
-          .apply(ParDo.named("SessionsToStrings").of(new SessionsToStringsDoFn()))
+          .apply("SessionsToStrings", ParDo.of(new SessionsToStringsDoFn()))
           .apply(new TopPerMonth())
-          .apply(ParDo.named("FormatOutput").of(new FormatOutputDoFn()));
+          .apply("FormatOutput", ParDo.of(new FormatOutputDoFn()));
     }
   }
 
@@ -208,9 +206,8 @@ public class TopWikipediaSessions {
     Options options = PipelineOptionsFactory.fromArgs(args)
         .withValidation()
         .as(Options.class);
-    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
 
-    Pipeline p = Pipeline.create(dataflowOptions);
+    Pipeline p = Pipeline.create(options);
 
     double samplingThreshold = 0.1;
 
@@ -218,7 +215,7 @@ public class TopWikipediaSessions {
         .from(options.getInput())
         .withCoder(TableRowJsonCoder.of()))
      .apply(new ComputeTopSessions(samplingThreshold))
-     .apply(TextIO.Write.named("Write").withoutSharding().to(options.getOutput()));
+     .apply("Write", TextIO.Write.withoutSharding().to(options.getOutput()));
 
     p.run();
   }
