@@ -28,7 +28,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
 import org.junit.After;
@@ -54,8 +54,8 @@ public class SideEffectsTest implements Serializable {
 
     p.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
-    p.apply(Create.of("a")).apply(ParDo.of(new OldDoFn<String, String>() {
-      @Override
+    p.apply(Create.of("a")).apply(ParDo.of(new DoFn<String, String>() {
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         throw new UserException();
       }
