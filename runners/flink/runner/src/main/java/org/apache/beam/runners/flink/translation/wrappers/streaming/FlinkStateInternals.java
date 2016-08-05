@@ -36,10 +36,12 @@ import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.util.state.StateBinder;
 import org.apache.beam.sdk.util.state.StateContext;
 import org.apache.beam.sdk.util.state.StateContexts;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateNamespace;
+import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
@@ -106,45 +108,49 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       StateTag<? super K, T> address,
       final StateContext<?> context) {
 
-    return address.bind(new StateTag.StateBinder<K>() {
+    return address.getSpec().bind(address.getId(), new StateBinder<K>() {
 
       @Override
       public <T> ValueState<T> bindValue(
-          StateTag<? super K, ValueState<T>> address,
+          String id,
+          StateSpec<? super K, ValueState<T>> spec,
           Coder<T> coder) {
 
-        return new FlinkValueState<>(flinkStateBackend, address, namespace, coder);
+        return new FlinkValueState<>(flinkStateBackend, id, namespace, coder);
       }
 
       @Override
       public <T> BagState<T> bindBag(
-          StateTag<? super K, BagState<T>> address,
+          String id,
+          StateSpec<? super K, BagState<T>> spec,
           Coder<T> elemCoder) {
 
-        return new FlinkBagState<>(flinkStateBackend, address, namespace, elemCoder);
+        return new FlinkBagState<>(flinkStateBackend, id, namespace, elemCoder);
       }
 
       @Override
       public <InputT, AccumT, OutputT>
           AccumulatorCombiningState<InputT, AccumT, OutputT>
       bindCombiningValue(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+          String id,
+          StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
           Coder<AccumT> accumCoder,
           Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
 
         return new FlinkAccumulatorCombiningState<>(
-            flinkStateBackend, address, combineFn, namespace, accumCoder);
+            flinkStateBackend, id, combineFn, namespace, accumCoder);
       }
 
       @Override
       public <InputT, AccumT, OutputT>
           AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+              String id,
+          StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
           Coder<AccumT> accumCoder,
           final Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
         return new FlinkKeyedAccumulatorCombiningState<>(
             flinkStateBackend,
-            address,
+            id,
             combineFn,
             namespace,
             accumCoder,
@@ -154,13 +160,14 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       @Override
       public <InputT, AccumT, OutputT>
           AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+              String id,
+          StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
           Coder<AccumT> accumCoder,
           CombineWithContext.KeyedCombineFnWithContext<
               ? super K, InputT, AccumT, OutputT> combineFn) {
         return new FlinkAccumulatorCombiningStateWithContext<>(
             flinkStateBackend,
-            address,
+            id,
             combineFn,
             namespace,
             accumCoder,
@@ -170,11 +177,12 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
       @Override
       public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
-          StateTag<? super K, WatermarkHoldState<W>> address,
+          String id,
+          StateSpec<? super K, WatermarkHoldState<W>> spec,
           OutputTimeFn<? super W> outputTimeFn) {
 
         return new FlinkWatermarkHoldState<>(
-            flinkStateBackend, FlinkStateInternals.this, address, namespace, outputTimeFn);
+            flinkStateBackend, FlinkStateInternals.this, id, namespace, outputTimeFn);
       }
     });
   }
@@ -182,23 +190,25 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   private static class FlinkValueState<K, T> implements ValueState<T> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, ValueState<T>> address;
+    private final String id;
+    private final Coder<T> coder;
     private final ValueStateDescriptor<T> flinkStateDescriptor;
     private final AbstractStateBackend flinkStateBackend;
 
     FlinkValueState(
         AbstractStateBackend flinkStateBackend,
-        StateTag<? super K, ValueState<T>> address,
+        String id,
         StateNamespace namespace,
         Coder<T> coder) {
 
       this.namespace = namespace;
-      this.address = address;
+      this.id = id;
+      this.coder = coder;
       this.flinkStateBackend = flinkStateBackend;
 
       CoderTypeInformation<T> typeInfo = new CoderTypeInformation<>(coder);
 
-      flinkStateDescriptor = new ValueStateDescriptor<>(address.getId(), typeInfo, null);
+      flinkStateDescriptor = new ValueStateDescriptor<>(id, typeInfo, null);
     }
 
     @Override
@@ -253,14 +263,14 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
       FlinkValueState<?, ?> that = (FlinkValueState<?, ?>) o;
 
-      return namespace.equals(that.namespace) && address.equals(that.address);
-
+      return namespace.equals(that.namespace) && id.equals(that.id) && this.coder.equals(that.coder);
     }
 
     @Override
     public int hashCode() {
       int result = namespace.hashCode();
-      result = 31 * result + address.hashCode();
+      result = 31 * result + id.hashCode();
+      result = 31 * result + coder.hashCode();
       return result;
     }
   }
@@ -268,23 +278,25 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   private static class FlinkBagState<K, T> implements BagState<T> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, BagState<T>> address;
+    private final String id;
+    private final Coder<T> coder;
     private final ListStateDescriptor<T> flinkStateDescriptor;
     private final AbstractStateBackend flinkStateBackend;
 
     FlinkBagState(
         AbstractStateBackend flinkStateBackend,
-        StateTag<? super K, BagState<T>> address,
+        String id,
         StateNamespace namespace,
         Coder<T> coder) {
 
       this.namespace = namespace;
-      this.address = address;
+      this.id = id;
+      this.coder = coder;
       this.flinkStateBackend = flinkStateBackend;
 
       CoderTypeInformation<T> typeInfo = new CoderTypeInformation<>(coder);
 
-      flinkStateDescriptor = new ListStateDescriptor<>(address.getId(), typeInfo);
+      flinkStateDescriptor = new ListStateDescriptor<>(id, typeInfo);
     }
 
     @Override
@@ -365,14 +377,16 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
       FlinkBagState<?, ?> that = (FlinkBagState<?, ?>) o;
 
-      return namespace.equals(that.namespace) && address.equals(that.address);
-
+      return namespace.equals(that.namespace)
+          && id.equals(that.id)
+          && coder.equals(that.coder);
     }
 
     @Override
     public int hashCode() {
       int result = namespace.hashCode();
-      result = 31 * result + address.hashCode();
+      result = 31 * result + id.hashCode();
+      result = 31 * result + coder.hashCode();
       return result;
     }
   }
@@ -381,26 +395,28 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
+    private final String id;
+    private final Coder<AccumT> accumCoder;
     private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
     private final AbstractStateBackend flinkStateBackend;
 
     FlinkAccumulatorCombiningState(
         AbstractStateBackend flinkStateBackend,
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+        String id,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder) {
 
       this.namespace = namespace;
-      this.address = address;
+      this.id = id;
+      this.accumCoder = accumCoder;
       this.combineFn = combineFn;
       this.flinkStateBackend = flinkStateBackend;
 
       CoderTypeInformation<AccumT> typeInfo = new CoderTypeInformation<>(accumCoder);
 
-      flinkStateDescriptor = new ValueStateDescriptor<>(address.getId(), typeInfo, null);
+      flinkStateDescriptor = new ValueStateDescriptor<>(id, typeInfo, null);
     }
 
     @Override
@@ -533,14 +549,16 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       FlinkAccumulatorCombiningState<?, ?, ?, ?> that =
           (FlinkAccumulatorCombiningState<?, ?, ?, ?>) o;
 
-      return namespace.equals(that.namespace) && address.equals(that.address);
-
+      return namespace.equals(that.namespace)
+          && id.equals(that.id)
+          && accumCoder.equals(that.accumCoder);
     }
 
     @Override
     public int hashCode() {
       int result = namespace.hashCode();
-      result = 31 * result + address.hashCode();
+      result = 31 * result + id.hashCode();
+      result = 31 * result + accumCoder.hashCode();
       return result;
     }
   }
@@ -549,7 +567,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
+    private final String id;
+    private final Coder<AccumT> accumCoder;
     private final Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
     private final AbstractStateBackend flinkStateBackend;
@@ -557,21 +576,22 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
     FlinkKeyedAccumulatorCombiningState(
         AbstractStateBackend flinkStateBackend,
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+        String id,
         Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
         FlinkStateInternals<K> flinkStateInternals) {
 
       this.namespace = namespace;
-      this.address = address;
+      this.id = id;
+      this.accumCoder = accumCoder;
       this.combineFn = combineFn;
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateInternals = flinkStateInternals;
 
       CoderTypeInformation<AccumT> typeInfo = new CoderTypeInformation<>(accumCoder);
 
-      flinkStateDescriptor = new ValueStateDescriptor<>(address.getId(), typeInfo, null);
+      flinkStateDescriptor = new ValueStateDescriptor<>(id, typeInfo, null);
     }
 
     @Override
@@ -708,14 +728,16 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       FlinkKeyedAccumulatorCombiningState<?, ?, ?, ?> that =
           (FlinkKeyedAccumulatorCombiningState<?, ?, ?, ?>) o;
 
-      return namespace.equals(that.namespace) && address.equals(that.address);
-
+      return namespace.equals(that.namespace)
+          && id.equals(that.id)
+          && accumCoder.equals(that.accumCoder);
     }
 
     @Override
     public int hashCode() {
       int result = namespace.hashCode();
-      result = 31 * result + address.hashCode();
+      result = 31 * result + id.hashCode();
+      result = 31 * result + accumCoder.hashCode();
       return result;
     }
   }
@@ -724,7 +746,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
+    private final String id;
+    private final Coder<AccumT> accumCoder;
     private final CombineWithContext.KeyedCombineFnWithContext<
         ? super K, InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
@@ -734,7 +757,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
     FlinkAccumulatorCombiningStateWithContext(
         AbstractStateBackend flinkStateBackend,
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+        String id,
         CombineWithContext.KeyedCombineFnWithContext<
             ? super K, InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
@@ -743,7 +766,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
         CombineWithContext.Context context) {
 
       this.namespace = namespace;
-      this.address = address;
+      this.id = id;
+      this.accumCoder = accumCoder;
       this.combineFn = combineFn;
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateInternals = flinkStateInternals;
@@ -751,7 +775,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
       CoderTypeInformation<AccumT> typeInfo = new CoderTypeInformation<>(accumCoder);
 
-      flinkStateDescriptor = new ValueStateDescriptor<>(address.getId(), typeInfo, null);
+      flinkStateDescriptor = new ValueStateDescriptor<>(id, typeInfo, null);
     }
 
     @Override
@@ -883,21 +907,24 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       FlinkAccumulatorCombiningStateWithContext<?, ?, ?, ?> that =
           (FlinkAccumulatorCombiningStateWithContext<?, ?, ?, ?>) o;
 
-      return namespace.equals(that.namespace) && address.equals(that.address);
+      return namespace.equals(that.namespace)
+          && id.equals(that.id)
+          && accumCoder.equals(that.accumCoder);
 
     }
 
     @Override
     public int hashCode() {
       int result = namespace.hashCode();
-      result = 31 * result + address.hashCode();
+      result = 31 * result + id.hashCode();
+      result = 31 * result + accumCoder.hashCode();
       return result;
     }
   }
 
   private static class FlinkWatermarkHoldState<K, W extends BoundedWindow>
       implements WatermarkHoldState<W> {
-    private final StateTag<? super K, WatermarkHoldState<W>> address;
+    private final String id;
     private final OutputTimeFn<? super W> outputTimeFn;
     private final StateNamespace namespace;
     private final AbstractStateBackend flinkStateBackend;
@@ -907,17 +934,17 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     public FlinkWatermarkHoldState(
         AbstractStateBackend flinkStateBackend,
         FlinkStateInternals<K> flinkStateInternals,
-        StateTag<? super K, WatermarkHoldState<W>> address,
+        String id,
         StateNamespace namespace,
         OutputTimeFn<? super W> outputTimeFn) {
-      this.address = address;
+      this.id = id;
       this.outputTimeFn = outputTimeFn;
       this.namespace = namespace;
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateInternals = flinkStateInternals;
 
       CoderTypeInformation<Instant> typeInfo = new CoderTypeInformation<>(InstantCoder.of());
-      flinkStateDescriptor = new ValueStateDescriptor<>(address.getId(), typeInfo, null);
+      flinkStateDescriptor = new ValueStateDescriptor<>(id, typeInfo, null);
     }
 
     @Override
@@ -1016,7 +1043,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
       FlinkWatermarkHoldState<?, ?> that = (FlinkWatermarkHoldState<?, ?>) o;
 
-      if (!address.equals(that.address)) {
+      if (!id.equals(that.id)) {
         return false;
       }
       if (!outputTimeFn.equals(that.outputTimeFn)) {
@@ -1028,7 +1055,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
     @Override
     public int hashCode() {
-      int result = address.hashCode();
+      int result = id.hashCode();
       result = 31 * result + outputTimeFn.hashCode();
       result = 31 * result + namespace.hashCode();
       return result;

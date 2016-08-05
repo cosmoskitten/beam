@@ -31,7 +31,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.state.StateTag.StateBinder;
 import org.joda.time.Instant;
 
 /**
@@ -105,20 +104,21 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
 
     @Override
     public <T> ValueState<T> bindValue(
-        StateTag<? super K, ValueState<T>> address, Coder<T> coder) {
+        String id, StateSpec<? super K, ValueState<T>> address, Coder<T> coder) {
       return new InMemoryValue<T>();
     }
 
     @Override
     public <T> BagState<T> bindBag(
-        final StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
+        String id, final StateSpec<? super K, BagState<T>> address, Coder<T> elemCoder) {
       return new InMemoryBag<T>();
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-        bindCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+    public <InputT, AccumT, OutputT>
+        AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+            String id,
+            StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             final CombineFn<InputT, AccumT, OutputT> combineFn) {
       return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn.<K>asKeyedFn());
@@ -126,7 +126,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
 
     @Override
     public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
-        StateTag<? super K, WatermarkHoldState<W>> address,
+        String id,
+        StateSpec<? super K, WatermarkHoldState<W>> address,
         OutputTimeFn<? super W> outputTimeFn) {
       return new InMemoryWatermarkHold<W>(outputTimeFn);
     }
@@ -134,7 +135,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     @Override
     public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            String id,
+            StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
       return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn);
@@ -143,10 +145,12 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     @Override
     public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValueWithContext(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            String id,
+            StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
-      return bindKeyedCombiningValue(address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
+      return bindKeyedCombiningValue(
+          id, address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
     }
   }
 
