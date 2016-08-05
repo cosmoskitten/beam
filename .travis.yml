@@ -52,4 +52,4 @@ install:
 
 script:
   - travis_retry mvn --settings .travis/settings.xml -B $MAVEN_OVERRIDE install -U
-  - travis_retry testing/travis/test_wordcount.sh
+  - travis_retry .travis/test_wordcount.sh
