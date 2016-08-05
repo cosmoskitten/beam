@@ -17,7 +17,13 @@
  */
 package org.apache.beam.runners.direct;
 
+<<<<<<< HEAD
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
+=======
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
+import org.apache.beam.runners.direct.StepTransformResult.Builder;
+>>>>>>> origin/master
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -77,7 +83,12 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       @Override
       public TransformResult finishBundle() {
         writer.add(elements);
-        return StepTransformResult.withoutHold(application).build();
+        Builder resultBuilder = StepTransformResult.withoutHold(application);
+        if (!elements.isEmpty()) {
+          resultBuilder = resultBuilder.withAdditionalOutput(OutputType.PCOLLECTION_VIEW);
+        }
+        return resultBuilder
+            .build();
       }
     };
   }
