@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -27,8 +28,6 @@ import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-
-import java.util.Objects;
 
 /** Static utility methods for creating {@link StateSpec} instances. */
 @Experimental(Kind.STATE)
@@ -168,8 +167,8 @@ public class StateSpecs {
     }
 
     @Override
-    public ValueState<T> bind(StateSpec.StateBinder<?> visitor) {
-      return visitor.bindValue(this, coder);
+    public ValueState<T> bind(String id, StateBinder<?> visitor) {
+      return visitor.bindValue(id, this, coder);
     }
 
     @Override
@@ -236,8 +235,8 @@ public class StateSpecs {
 
     @Override
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
-        StateBinder<? extends K> visitor) {
-      return visitor.bindKeyedCombiningValueWithContext(this, accumCoder, combineFn);
+        String id, StateBinder<? extends K> visitor) {
+      return visitor.bindKeyedCombiningValueWithContext(id, this, accumCoder, combineFn);
     }
 
     @Override
@@ -287,8 +286,8 @@ public class StateSpecs {
 
     @Override
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
-        StateBinder<? extends K> visitor) {
-      return visitor.bindKeyedCombiningValue(this, accumCoder, keyedCombineFn);
+        String id, StateBinder<? extends K> visitor) {
+      return visitor.bindKeyedCombiningValue(id, this, accumCoder, keyedCombineFn);
     }
 
     @Override
@@ -331,8 +330,8 @@ public class StateSpecs {
     }
 
     @Override
-    public BagState<T> bind(StateBinder<?> visitor) {
-      return visitor.bindBag(this, elemCoder);
+    public BagState<T> bind(String id, StateBinder<?> visitor) {
+      return visitor.bindBag(id, this, elemCoder);
     }
 
     @Override
@@ -370,8 +369,8 @@ public class StateSpecs {
     }
 
     @Override
-    public WatermarkHoldState<W> bind(StateBinder<?> visitor) {
-      return visitor.bindWatermark(this, outputTimeFn);
+    public WatermarkHoldState<W> bind(String id, StateBinder<?> visitor) {
+      return visitor.bindWatermark(id, this, outputTimeFn);
     }
 
     @Override
