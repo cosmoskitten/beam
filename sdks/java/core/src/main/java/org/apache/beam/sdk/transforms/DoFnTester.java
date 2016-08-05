@@ -90,13 +90,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   /**
    * Returns a {@code DoFnTester} supporting unit-testing of the given
-   * {@link OldDoFn}.
-   *
-   * @see #of(DoFn)
+   * {@link DoFn}. By default, uses {@link CloningBehavior#CLONE_ONCE}.
    */
   @SuppressWarnings("unchecked")
-   public static <InputT, OutputT> DoFnTester<InputT, OutputT>
-      of(OldDoFn<InputT, OutputT> fn) {
+  public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
     return new DoFnTester<>(fn);
   }
 

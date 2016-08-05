@@ -517,7 +517,7 @@ public class ParDo {
    * properties can be set on it first.
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-    return of(adapt(fn), fn.getClass());
+    return new Unbound().of(adapt(fn), fn, fn.getClass());
   }
 
   /**
@@ -534,12 +534,7 @@ public class ParDo {
    */
   @Deprecated
   public static <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
-    return of(fn, fn.getClass());
-  }
-
-  private static <InputT, OutputT> Bound<InputT, OutputT> of(
-          OldDoFn<InputT, OutputT> fn, Class<?> fnClass) {
-    return new Unbound().of(fn, fnClass);
+    return new Unbound().of(fn, fn.toDoFn(), fn.getClass());
   }
 
   private static <InputT, OutputT> OldDoFn<InputT, OutputT>
@@ -620,7 +615,7 @@ public class ParDo {
      * still be specified.
      */
     public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-      return of(adapt(fn), fn.getClass());
+      return of(adapt(fn), fn, fn.getClass());
     }
 
     /**
@@ -634,13 +629,13 @@ public class ParDo {
      * @deprecated please port your {@link OldDoFn} to a {@link DoFn}
      */
     @Deprecated
-    public <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
-      return of(fn, fn.getClass());
+    public <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> oldFn) {
+      return of(oldFn, oldFn.toDoFn(), oldFn.getClass());
     }
 
     private <InputT, OutputT> Bound<InputT, OutputT> of(
-        OldDoFn<InputT, OutputT> fn, Class<?> fnClass) {
-      return new Bound<>(name, sideInputs, fn, fnClass);
+        OldDoFn<InputT, OutputT> oldFn, DoFn<InputT, OutputT> fn, Class<?> fnClass) {
+      return new Bound<>(name, sideInputs, oldFn, fn, fnClass);
     }
   }
 
@@ -660,16 +655,20 @@ public class ParDo {
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     // Inherits name.
     private final List<PCollectionView<?>> sideInputs;
-    private final OldDoFn<InputT, OutputT> fn;
+    private final OldDoFn<InputT, OutputT> oldFn;
+    private final DoFn<InputT, OutputT> fn;
     private final Class<?> fnClass;
 
-    Bound(String name,
-          List<PCollectionView<?>> sideInputs,
-          OldDoFn<InputT, OutputT> fn,
-          Class<?> fnClass) {
+    Bound(
+        String name,
+        List<PCollectionView<?>> sideInputs,
+        OldDoFn<InputT, OutputT> oldFn, // All callers must pass both of these, as a migration
+        DoFn<InputT, OutputT> fn,       // path. Adapters are easy in both directions.
+        Class<?> fnClass) {
       super(name);
       this.sideInputs = sideInputs;
-      this.fn = SerializableUtils.clone(fn);
+      this.oldFn = SerializableUtils.clone(oldFn);
+      this.fn = fn;
       this.fnClass = fnClass;
     }
 
@@ -698,7 +697,7 @@ public class ParDo {
       ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
       builder.addAll(this.sideInputs);
       builder.addAll(sideInputs);
-      return new Bound<>(name, builder.build(), fn, fnClass);
+      return new Bound<>(name, builder.build(), oldFn, oldFn.toDoFn(), fnClass);
     }
 
     /**
@@ -712,7 +711,7 @@ public class ParDo {
     public BoundMulti<InputT, OutputT> withOutputTags(TupleTag<OutputT> mainOutputTag,
                                            TupleTagList sideOutputTags) {
       return new BoundMulti<>(
-          name, sideInputs, mainOutputTag, sideOutputTags, fn, fnClass);
+          name, sideInputs, mainOutputTag, sideOutputTags, oldFn, fnClass);
     }
 
     @Override
@@ -721,7 +720,7 @@ public class ParDo {
               input.getPipeline(),
               input.getWindowingStrategy(),
               input.isBounded())
-          .setTypeDescriptorInternal(fn.getOutputTypeDescriptor());
+          .setTypeDescriptorInternal(oldFn.getOutputTypeDescriptor());
     }
 
     @Override
@@ -729,14 +728,14 @@ public class ParDo {
     protected Coder<OutputT> getDefaultOutputCoder(PCollection<? extends InputT> input)
         throws CannotProvideCoderException {
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
-          fn.getOutputTypeDescriptor(),
-          fn.getInputTypeDescriptor(),
+          oldFn.getOutputTypeDescriptor(),
+          oldFn.getInputTypeDescriptor(),
           ((PCollection<InputT>) input).getCoder());
     }
 
     @Override
     protected String getKindString() {
-      Class<?> clazz = DoFnAdapters.getDoFnClass(fn);
+      Class<?> clazz = DoFnAdapters.getDoFnClass(oldFn);
       if (clazz.isAnonymousClass()) {
         return "AnonymousParDo";
       } else {
@@ -754,10 +753,28 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, fn, fnClass);
+      ParDo.populateDisplayData(builder, oldFn, fnClass);
     }
 
+    /**
+     * @deprecated this method to be converted to return {@link DoFn}. If you want to receive
+     * an {@link OldDoFn} you should (temporarily) use {@link #getOldFn}.
+     */
+    @Deprecated
     public OldDoFn<InputT, OutputT> getFn() {
+      return oldFn;
+    }
+
+    /**
+     * @deprecated please migrate to {@link #getNewFn} until {@link #getFn} is migrated to return
+     * a {@link DoFn}.
+     */
+    @Deprecated
+    public OldDoFn<InputT, OutputT> getOldFn() {
+      return oldFn;
+    }
+
+    public DoFn<InputT, OutputT> getNewFn() {
       return fn;
     }
 
