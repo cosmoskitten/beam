@@ -515,6 +515,8 @@ public class ParDo {
    * {@code PCollection<OutputT>}, inferred from the types of the argument
    * {@code DoFn<InputT, OutputT>}. It is ready to be applied, or further
    * properties can be set on it first.
+   *
+   * @deprecated please port your {@link OldDoFn} to a {@link DoFn}
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     return new Unbound().of(adapt(fn), fn, fn.getClass());
