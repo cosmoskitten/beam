@@ -54,16 +54,20 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -83,6 +87,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @RunWith(JUnit4.class)
 public class WriteTest {
+  @Rule public ExpectedException thrown;
+
   // Static store that can be accessed within the writer
   private static List<String> sinkContents = new ArrayList<>();
   // Static count of output shards
@@ -287,6 +293,19 @@ public class WriteTest {
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFrom(sink));
     assertThat(displayData, hasDisplayItem("numShards", 1));
+  }
+
+  @Test
+  public void testWriteUnbounded() {
+    TestPipeline p = TestPipeline.create();
+    PCollection<String> unbounded = PCollection.createPrimitiveOutputInternal(p,
+        WindowingStrategy.globalDefault(),
+        IsBounded.UNBOUNDED);
+
+    TestSink sink = new TestSink();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Write can only be applied to a Bounded PCollection");
+    unbounded.apply(Write.to(sink));
   }
 
   /**
