@@ -321,6 +321,25 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     T get();
   }
 
+  /** For testing only, this {@link ExtraContextFactory} returns {@code null} for all parameters. */
+  public static class FakeExtraContextFactory<InputT, OutputT>
+      implements ExtraContextFactory<InputT, OutputT> {
+    @Override
+    public BoundedWindow window() {
+      return null;
+    }
+
+    @Override
+    public InputProvider<InputT> inputProvider() {
+      return null;
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver() {
+      return null;
+    }
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
   /**
