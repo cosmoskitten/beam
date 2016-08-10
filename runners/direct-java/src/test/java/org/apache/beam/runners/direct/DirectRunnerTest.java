@@ -34,7 +34,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.OldDoFn;
@@ -157,7 +156,7 @@ public class DirectRunnerTest implements Serializable {
     DirectPipelineResult otherResult = ((DirectPipelineResult) p.run());
     otherResult.awaitCompletion();
 
-    assertThat(changed.get(), equalTo(6));
+    assertThat("Each element should have been processed twice", changed.get(), equalTo(6));
   }
 
   @Test(timeout = 5000L)
