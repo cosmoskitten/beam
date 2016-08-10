@@ -17,74 +17,213 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
-import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
+import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.NamingStrategy.SuffixingRandom;
-import net.bytebuddy.description.field.FieldDescription;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.modifier.FieldManifestation;
-import net.bytebuddy.description.modifier.Visibility;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.description.type.TypeDescription.Generic;
-import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy.Default;
-import net.bytebuddy.implementation.Implementation;
-import net.bytebuddy.implementation.MethodCall.MethodLocator;
-import net.bytebuddy.implementation.bind.MethodDelegationBinder.MethodInvoker;
-import net.bytebuddy.implementation.bind.annotation.TargetMethodAnnotationDrivenBinder.TerminationHandler;
-import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import net.bytebuddy.implementation.bytecode.StackManipulation;
-import net.bytebuddy.implementation.bytecode.Throw;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
-import net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import net.bytebuddy.jar.asm.Label;
-import net.bytebuddy.jar.asm.MethodVisitor;
-import net.bytebuddy.jar.asm.Opcodes;
-import net.bytebuddy.matcher.ElementMatchers;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
-
-import java.io.IOException;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 
-import javax.annotation.Nullable;
-
-/** Utility implementing the necessary reflection for working with {@link DoFn}s. */
+/**
+ * Parses a {@link DoFn} and computes its {@link DoFnSignature}. See {@link #getSignature}.
+ */
 public abstract class DoFnReflector {
+  private DoFnReflector() {}
 
-  private static final String FN_DELEGATE_FIELD_NAME = "delegate";
+  private static final Map<Class<?>, DoFnSignature> SIGNATURE_CACHE = new LinkedHashMap<>();
 
-  static Collection<Method> declaredMethodsWithAnnotation(
+  /** @return the {@link DoFnReflector} for the given {@link DoFn}. */
+  static synchronized DoFnSignature getSignature(
+      @SuppressWarnings("rawtypes") Class<? extends DoFn> fn) {
+    DoFnSignature signature = SIGNATURE_CACHE.get(fn);
+    if (signature != null) {
+      return signature;
+    }
+
+    signature = getSignatureImpl(fn);
+    SIGNATURE_CACHE.put(fn, signature);
+    return signature;
+  }
+
+  /** Analyzes a given {@link DoFn} class and extracts its {@link DoFnSignature}. */
+  private static DoFnSignature getSignatureImpl(Class<? extends DoFn> fnClass) {
+    TypeToken<?> inputT = null;
+    TypeToken<?> outputT = null;
+
+    // Extract the input and output type.
+    if (!DoFn.class.isAssignableFrom(fnClass)) {
+      throw new IllegalArgumentException(
+          String.format("%s must be subtype of DoFn", fnClass.getSimpleName()));
+    }
+    for (TypeToken<?> supertype : TypeToken.of(fnClass).getTypes()) {
+      if (!supertype.getRawType().equals(DoFn.class)) {
+        continue;
+      }
+      Type[] args = ((ParameterizedType) supertype.getType()).getActualTypeArguments();
+      inputT = TypeToken.of(args[0]);
+      outputT = TypeToken.of(args[1]);
+    }
+    assert inputT != null;
+
+    Method processElementMethod = findAnnotatedMethod(DoFn.ProcessElement.class, fnClass, true);
+    Method startBundleMethod = findAnnotatedMethod(DoFn.StartBundle.class, fnClass, false);
+    Method finishBundleMethod = findAnnotatedMethod(DoFn.FinishBundle.class, fnClass, false);
+
+    return new DoFnSignature(
+        fnClass,
+        inputT,
+        outputT,
+        analyzeProcessElementMethod(processElementMethod, inputT, outputT),
+        (startBundleMethod == null)
+            ? null
+            : analyzeBundleMethod(startBundleMethod, inputT, outputT),
+        (finishBundleMethod == null)
+            ? null
+            : analyzeBundleMethod(finishBundleMethod, inputT, outputT));
+  }
+
+  private static <InputT, OutputT>
+      TypeToken<DoFn<InputT, OutputT>.ProcessContext> doFnProcessContextTypeOf(
+          TypeToken<InputT> inputT, TypeToken<OutputT> outputT) {
+    return new TypeToken<DoFn<InputT, OutputT>.ProcessContext>() {}.where(
+            new TypeParameter<InputT>() {}, inputT)
+        .where(new TypeParameter<OutputT>() {}, outputT);
+  }
+
+  private static <InputT, OutputT> TypeToken<DoFn<InputT, OutputT>.Context> doFnContextTypeOf(
+      TypeToken<InputT> inputT, TypeToken<OutputT> outputT) {
+    return new TypeToken<DoFn<InputT, OutputT>.Context>() {}.where(
+            new TypeParameter<InputT>() {}, inputT)
+        .where(new TypeParameter<OutputT>() {}, outputT);
+  }
+
+  private static <InputT> TypeToken<DoFn.InputProvider<InputT>> inputProviderTypeOf(
+      TypeToken<InputT> inputT) {
+    return new TypeToken<DoFn.InputProvider<InputT>>() {}.where(
+        new TypeParameter<InputT>() {}, inputT);
+  }
+
+  private static <OutputT> TypeToken<DoFn.OutputReceiver<OutputT>> outputReceiverTypeOf(
+      TypeToken<OutputT> inputT) {
+    return new TypeToken<DoFn.OutputReceiver<OutputT>>() {}.where(
+        new TypeParameter<OutputT>() {}, inputT);
+  }
+
+  static DoFnSignature.ProcessElementMethod analyzeProcessElementMethod(
+      Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
+    if (!void.class.equals(m.getReturnType())) {
+      throw new IllegalArgumentException(
+          String.format("%s must have a void return type", format(m)));
+    }
+    if (m.isVarArgs()) {
+      throw new IllegalArgumentException(String.format("%s must not have var args", format(m)));
+    }
+
+    TypeToken<?> processContextToken = doFnProcessContextTypeOf(inputT, outputT);
+
+    Type[] params = m.getGenericParameterTypes();
+    TypeToken<?> contextToken = null;
+    if (params.length > 0) {
+      contextToken = TypeToken.of(params[0]);
+    }
+    if (contextToken == null
+        || !contextToken.getRawType().equals(processContextToken.getRawType())) {
+      throw new IllegalArgumentException(
+          String.format(
+              "%s must take a %s as its first argument",
+              format(m), processContextToken.getRawType().getSimpleName()));
+    }
+
+    List<DoFnSignature.ProcessElementMethod.Parameter> extraParameters = new ArrayList<>();
+    TypeToken<?> expectedInputProviderT = inputProviderTypeOf(inputT);
+    TypeToken<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
+    for (int i = 1; i < params.length; ++i) {
+      TypeToken<?> param = TypeToken.of(params[i]);
+      if (param.isSubtypeOf(BoundedWindow.class)) {
+        if (extraParameters.contains(DoFnSignature.ProcessElementMethod.Parameter.BOUNDED_WINDOW)) {
+          throw new IllegalArgumentException("Multiple BoundedWindow parameters");
+        }
+        extraParameters.add(DoFnSignature.ProcessElementMethod.Parameter.BOUNDED_WINDOW);
+      } else if (param.isSubtypeOf(DoFn.InputProvider.class)) {
+        if (extraParameters.contains(DoFnSignature.ProcessElementMethod.Parameter.INPUT_PROVIDER)) {
+          throw new IllegalArgumentException("Multiple InputProvider parameters");
+        }
+        if (!param.isSupertypeOf(expectedInputProviderT)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Wrong type of InputProvider parameter for method %s: %s, should be %s",
+                  format(m), formatType(param), formatType(expectedInputProviderT)));
+        }
+        extraParameters.add(DoFnSignature.ProcessElementMethod.Parameter.INPUT_PROVIDER);
+      } else if (param.isSubtypeOf(DoFn.OutputReceiver.class)) {
+        if (extraParameters.contains(
+            DoFnSignature.ProcessElementMethod.Parameter.OUTPUT_RECEIVER)) {
+          throw new IllegalArgumentException("Multiple OutputReceiver parameters");
+        }
+        if (!param.isSupertypeOf(expectedOutputReceiverT)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Wrong type of OutputReceiver parameter for method %s: %s, should be %s",
+                  format(m), formatType(param), formatType(expectedOutputReceiverT)));
+        }
+        extraParameters.add(DoFnSignature.ProcessElementMethod.Parameter.OUTPUT_RECEIVER);
+      } else {
+        List<String> allowedParamTypes =
+            Arrays.asList(formatType(new TypeToken<BoundedWindow>() {}));
+        throw new IllegalArgumentException(
+            String.format(
+                "%s is not a valid context parameter for method %s. Should be one of %s",
+                formatType(param), format(m), allowedParamTypes));
+      }
+    }
+
+    return new DoFnSignature.ProcessElementMethod(m, extraParameters);
+  }
+
+  static DoFnSignature.BundleMethod analyzeBundleMethod(
+      Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
+    if (!void.class.equals(m.getReturnType())) {
+      throw new IllegalArgumentException(
+          String.format("%s must have a void return type", format(m)));
+    }
+    if (m.isVarArgs()) {
+      throw new IllegalArgumentException(String.format("%s must not have var args", format(m)));
+    }
+
+    TypeToken<?> expectedContextToken = doFnContextTypeOf(inputT, outputT);
+
+    Type[] params = m.getGenericParameterTypes();
+    if (params.length != 1) {
+      throw new IllegalArgumentException(
+          String.format(
+              "%s must have a single argument of type %s",
+              format(m), formatType(expectedContextToken)));
+    }
+    TypeToken<?> contextToken = TypeToken.of(params[0]);
+    if (!contextToken.getRawType().equals(expectedContextToken.getRawType())) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Wrong type of context argument to %s: %s, must be %s",
+              format(m), formatType(contextToken), formatType(expectedContextToken)));
+    }
+
+    return new DoFnSignature.BundleMethod(m);
+  }
+
+  private static Collection<Method> declaredMethodsWithAnnotation(
       Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
     Collection<Method> matches = new ArrayList<>();
 
@@ -113,7 +252,7 @@ public abstract class DoFnReflector {
     return matches;
   }
 
-  static Method findAnnotatedMethod(
+  private static Method findAnnotatedMethod(
       Class<? extends Annotation> anno, Class<?> fnClazz, boolean required) {
     Collection<Method> matches = declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 
@@ -155,599 +294,11 @@ public abstract class DoFnReflector {
     return first;
   }
 
-  /** @return true if the reflected {@link DoFn} uses a Single Window. */
-  public abstract boolean usesSingleWindow();
-
-  /** Create an {@link DoFnInvoker} bound to the given {@link OldDoFn}. */
-  public abstract <InputT, OutputT> DoFnInvoker<InputT, OutputT> bindInvoker(
-      DoFn<InputT, OutputT> fn);
-
-  private static final Map<Class<?>, DoFnReflector> REFLECTOR_CACHE = new LinkedHashMap<>();
-
-  /** @return the {@link DoFnReflector} for the given {@link DoFn}. */
-  public static DoFnReflector of(@SuppressWarnings("rawtypes") Class<? extends DoFn> fn) {
-    DoFnReflector reflector = REFLECTOR_CACHE.get(fn);
-    if (reflector != null) {
-      return reflector;
-    }
-
-    reflector = new GenericDoFnReflector(fn);
-    REFLECTOR_CACHE.put(fn, reflector);
-    return reflector;
-  }
-
-  /** Create a {@link OldDoFn} that the {@link DoFn}. */
-  public <InputT, OutputT> OldDoFn<InputT, OutputT> toDoFn(DoFn<InputT, OutputT> fn) {
-    if (usesSingleWindow()) {
-      return new WindowDoFnAdapter<>(this, fn);
-    } else {
-      return new SimpleDoFnAdapter<>(this, fn);
-    }
-  }
-
-  static String format(Method m) {
+  private static String format(Method m) {
     return ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(m);
   }
 
-  static String formatType(TypeToken<?> t) {
+  private static String formatType(TypeToken<?> t) {
     return ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(t.getType());
-  }
-
-  /** Interface for invoking the {@code OldDoFn} processing methods. */
-  public interface DoFnInvoker<InputT, OutputT> {
-    /** Invoke {@link OldDoFn#startBundle} on the bound {@code OldDoFn}. */
-    void invokeStartBundle(DoFn<InputT, OutputT>.Context c);
-    /** Invoke {@link OldDoFn#finishBundle} on the bound {@code OldDoFn}. */
-    void invokeFinishBundle(DoFn<InputT, OutputT>.Context c);
-
-    /** Invoke {@link OldDoFn#processElement} on the bound {@code OldDoFn}. */
-    void invokeProcessElement(
-        DoFn<InputT, OutputT>.ProcessContext c, ExtraContextFactory<InputT, OutputT> extra);
-  }
-
-  /** Implementation of {@link DoFnReflector} for the arbitrary {@link DoFn}. */
-  private static class GenericDoFnReflector extends DoFnReflector {
-    private final DoFnSignature signature;
-    private final Constructor<?> constructor;
-
-    private GenericDoFnReflector(@SuppressWarnings("rawtypes") Class<? extends DoFn> fnClass) {
-      this.signature = DoFnSignature.fromFnClass(fnClass);
-
-      Class<? extends DoFnInvoker<?, ?>> wrapperClass = createWrapperClass(fnClass);
-      try {
-        this.constructor = wrapperClass.getConstructor(fnClass);
-      } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    @Override
-    public boolean usesSingleWindow() {
-      return signature.processElement.boundedWindowParamIndex != -1;
-    }
-
-    private Class<? extends DoFnInvoker<?, ?>> createWrapperClass(Class<? extends DoFn> clazz) {
-      final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(clazz);
-
-      DynamicType.Builder<?> builder =
-          new ByteBuddy()
-              // Create subclasses inside the target class, to have access to
-              // private and package-private bits
-              .with(
-                  new SuffixingRandom("auxiliary") {
-                    @Override
-                    public String subclass(Generic superClass) {
-                      return super.name(clazzDescription);
-                    }
-                  })
-              // Create a subclass of DoFnInvoker
-              .subclass(DoFnInvoker.class, Default.NO_CONSTRUCTORS)
-              .defineField(
-                  FN_DELEGATE_FIELD_NAME, clazz, Visibility.PRIVATE, FieldManifestation.FINAL)
-              .defineConstructor(Visibility.PUBLIC)
-              .withParameter(clazz)
-              .intercept(new InvokerConstructor())
-              // Delegate processElement(), startBundle() and finishBundle() to the fn.
-              .method(ElementMatchers.named("invokeProcessElement"))
-              .intercept(new ProcessElementDelegation(signature.processElement))
-              .method(ElementMatchers.named("invokeStartBundle"))
-              .intercept(new BundleMethodDelegation(signature.startBundle))
-              .method(ElementMatchers.named("invokeFinishBundle"))
-              .intercept(new BundleMethodDelegation(signature.finishBundle));
-
-      DynamicType.Unloaded<?> unloaded = builder.make();
-
-      @SuppressWarnings("unchecked")
-      Class<? extends DoFnInvoker<?, ?>> res =
-          (Class<? extends DoFnInvoker<?, ?>>)
-              unloaded
-                  .load(getClass().getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
-                  .getLoaded();
-      return res;
-    }
-
-    @Override
-    public <InputT, OutputT> DoFnInvoker<InputT, OutputT> bindInvoker(DoFn<InputT, OutputT> fn) {
-      try {
-        @SuppressWarnings("unchecked")
-        DoFnInvoker<InputT, OutputT> invoker =
-            (DoFnInvoker<InputT, OutputT>) constructor.newInstance(fn);
-        return invoker;
-      } catch (InstantiationException
-          | IllegalAccessException
-          | IllegalArgumentException
-          | InvocationTargetException
-          | SecurityException e) {
-        throw new RuntimeException("Unable to bind invoker for " + fn.getClass(), e);
-      }
-    }
-  }
-
-  private static class ContextAdapter<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
-
-    private OldDoFn<InputT, OutputT>.Context context;
-
-    private ContextAdapter(DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.Context context) {
-      fn.super();
-      this.context = context;
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return context.getPipelineOptions();
-    }
-
-    @Override
-    public void output(OutputT output) {
-      context.output(output);
-    }
-
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      context.outputWithTimestamp(output, timestamp);
-    }
-
-    @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      context.sideOutput(tag, output);
-    }
-
-    @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.sideOutputWithTimestamp(tag, output, timestamp);
-    }
-
-    @Override
-    public BoundedWindow window() {
-      // The DoFn doesn't allow us to ask for these outside ProcessElements, so this
-      // should be unreachable.
-      throw new UnsupportedOperationException("Can only get the window in ProcessElements");
-    }
-
-    @Override
-    public DoFn.InputProvider<InputT> inputProvider() {
-      throw new UnsupportedOperationException("inputProvider() exists only for testing");
-    }
-
-    @Override
-    public DoFn.OutputReceiver<OutputT> outputReceiver() {
-      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
-    }
-  }
-
-  private static class ProcessContextAdapter<InputT, OutputT>
-      extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
-
-    private OldDoFn<InputT, OutputT>.ProcessContext context;
-
-    private ProcessContextAdapter(
-        DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.ProcessContext context) {
-      fn.super();
-      this.context = context;
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return context.getPipelineOptions();
-    }
-
-    @Override
-    public <T> T sideInput(PCollectionView<T> view) {
-      return context.sideInput(view);
-    }
-
-    @Override
-    public void output(OutputT output) {
-      context.output(output);
-    }
-
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      context.outputWithTimestamp(output, timestamp);
-    }
-
-    @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      context.sideOutput(tag, output);
-    }
-
-    @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.sideOutputWithTimestamp(tag, output, timestamp);
-    }
-
-    @Override
-    public InputT element() {
-      return context.element();
-    }
-
-    @Override
-    public Instant timestamp() {
-      return context.timestamp();
-    }
-
-    @Override
-    public PaneInfo pane() {
-      return context.pane();
-    }
-
-    @Override
-    public BoundedWindow window() {
-      return context.window();
-    }
-
-    @Override
-    public DoFn.InputProvider<InputT> inputProvider() {
-      throw new UnsupportedOperationException("inputProvider() exists only for testing");
-    }
-
-    @Override
-    public DoFn.OutputReceiver<OutputT> outputReceiver() {
-      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
-    }
-  }
-
-  static Class<?> getDoFnClass(OldDoFn<?, ?> fn) {
-    if (fn instanceof SimpleDoFnAdapter) {
-      return ((SimpleDoFnAdapter<?, ?>) fn).fn.getClass();
-    } else {
-      return fn.getClass();
-    }
-  }
-
-  private static class SimpleDoFnAdapter<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
-
-    private final DoFn<InputT, OutputT> fn;
-    private transient DoFnInvoker<InputT, OutputT> invoker;
-
-    private SimpleDoFnAdapter(DoFnReflector reflector, DoFn<InputT, OutputT> fn) {
-      super(fn.aggregators);
-      this.fn = fn;
-      this.invoker = reflector.bindInvoker(fn);
-    }
-
-    @Override
-    public void startBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
-      this.fn.prepareForProcessing();
-      invoker.invokeStartBundle(new ContextAdapter<>(fn, c));
-    }
-
-    @Override
-    public void finishBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
-      invoker.invokeFinishBundle(new ContextAdapter<>(fn, c));
-    }
-
-    @Override
-    public void processElement(OldDoFn<InputT, OutputT>.ProcessContext c) throws Exception {
-      ProcessContextAdapter<InputT, OutputT> adapter = new ProcessContextAdapter<>(fn, c);
-      invoker.invokeProcessElement(adapter, adapter);
-    }
-
-    @Override
-    protected TypeDescriptor<InputT> getInputTypeDescriptor() {
-      return fn.getInputTypeDescriptor();
-    }
-
-    @Override
-    protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-      return fn.getOutputTypeDescriptor();
-    }
-
-    @Override
-    public Duration getAllowedTimestampSkew() {
-      return fn.getAllowedTimestampSkew();
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      builder.include(fn);
-    }
-
-    private void readObject(java.io.ObjectInputStream in)
-        throws IOException, ClassNotFoundException {
-      in.defaultReadObject();
-      invoker = DoFnReflector.of(fn.getClass()).bindInvoker(fn);
-    }
-  }
-
-  private static class WindowDoFnAdapter<InputT, OutputT> extends SimpleDoFnAdapter<InputT, OutputT>
-      implements OldDoFn.RequiresWindowAccess {
-
-    private WindowDoFnAdapter(DoFnReflector reflector, DoFn<InputT, OutputT> fn) {
-      super(reflector, fn);
-    }
-  }
-
-  private abstract static class MethodDelegation implements Implementation {
-    FieldDescription delegateField;
-
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      // Remember the field description of the instrumented type.
-      delegateField =
-          instrumentedType
-              .getDeclaredFields()
-              .filter(ElementMatchers.named(FN_DELEGATE_FIELD_NAME))
-              .getOnly();
-
-      // Delegating the method call doesn't require any changes to the instrumented type.
-      return instrumentedType;
-    }
-
-    @Override
-    public ByteCodeAppender appender(final Target implementationTarget) {
-      return new ByteCodeAppender() {
-        @Override
-        public Size apply(
-            MethodVisitor methodVisitor,
-            Context implementationContext,
-            MethodDescription instrumentedMethod) {
-          StackManipulation manipulation =
-              isRequired()
-                  ? new StackManipulation.Compound(
-                      // Push "this" reference to the stack
-                      MethodVariableAccess.REFERENCE.loadOffset(0),
-                      // Access the delegate field of the the invoker
-                      FieldAccess.forField(delegateField).getter(),
-                      invokeTargetMethod(instrumentedMethod))
-                  : MethodReturn.VOID;
-          StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
-        }
-      };
-    }
-
-    protected abstract boolean isRequired();
-
-    protected abstract StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod);
-  }
-
-  private static final class ProcessElementDelegation extends MethodDelegation {
-    private static final MethodDescription WINDOW_METHOD;
-    private static final MethodDescription INPUT_PROVIDER_METHOD;
-    private static final MethodDescription OUTPUT_RECEIVER_METHOD;
-
-    static {
-      try {
-        WINDOW_METHOD =
-            new MethodDescription.ForLoadedMethod(ExtraContextFactory.class.getMethod("window"));
-        INPUT_PROVIDER_METHOD =
-            new MethodDescription.ForLoadedMethod(
-                ExtraContextFactory.class.getMethod("inputProvider"));
-        OUTPUT_RECEIVER_METHOD =
-            new MethodDescription.ForLoadedMethod(
-                ExtraContextFactory.class.getMethod("outputReceiver"));
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    private final DoFnSignature.ProcessElementMethod signature;
-
-    private ProcessElementDelegation(DoFnSignature.ProcessElementMethod signature) {
-      this.signature = signature;
-    }
-
-    @Override
-    protected boolean isRequired() {
-      return true;
-    }
-
-    @Override
-    protected StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod) {
-      MethodDescription targetMethod =
-          new MethodLocator.ForExplicitMethod(
-                  new MethodDescription.ForLoadedMethod(signature.targetMethod))
-              .resolve(instrumentedMethod);
-
-      // Parameters of the wrapper OldDoFn method:
-      //   DoFn.ProcessContext, ExtraContextFactory.
-      // Parameters of the wrapped DoFn method:
-      //   DoFn.ProcessContext, [BoundedWindow, InputProvider, OutputReceiver] in any order
-      ArrayList<StackManipulation> parameters = new ArrayList<>();
-      // Push the ProcessContext argument.
-      parameters.add(MethodVariableAccess.REFERENCE.loadOffset(1));
-      // Push the extra arguments in their actual order.
-      StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadOffset(2);
-      for (int i = 1; i < signature.numExtraParameters() + 1; ++i) {
-        if (i == signature.boundedWindowParamIndex) {
-          parameters.add(
-              new StackManipulation.Compound(
-                  pushExtraContextFactory, MethodInvocation.invoke(WINDOW_METHOD)));
-        } else if (i == signature.inputProviderParamIndex) {
-          parameters.add(
-              new StackManipulation.Compound(
-                  pushExtraContextFactory, MethodInvocation.invoke(INPUT_PROVIDER_METHOD)));
-        } else if (i == signature.outputReceiverParamIndex) {
-          parameters.add(
-              new StackManipulation.Compound(
-                  pushExtraContextFactory, MethodInvocation.invoke(OUTPUT_RECEIVER_METHOD)));
-        } else {
-          throw new IllegalStateException("Unexpected parameter #" + i);
-        }
-      }
-
-      return new StackManipulation.Compound(
-          // Push the parameters
-          new StackManipulation.Compound(parameters),
-          // Invoke the target method
-          wrapWithUserCodeException(MethodInvoker.Simple.INSTANCE.invoke(targetMethod)),
-          // Return from the instrumented method
-          TerminationHandler.Returning.INSTANCE.resolve(
-              Assigner.DEFAULT, instrumentedMethod, targetMethod));
-    }
-  }
-
-  private static final class BundleMethodDelegation extends MethodDelegation {
-    private final DoFnSignature.BundleMethod signature;
-
-    private BundleMethodDelegation(@Nullable DoFnSignature.BundleMethod signature) {
-      this.signature = signature;
-    }
-
-    @Override
-    protected boolean isRequired() {
-      return signature != null;
-    }
-
-    @Override
-    protected StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod) {
-      MethodDescription targetMethod =
-          new MethodLocator.ForExplicitMethod(
-                  new MethodDescription.ForLoadedMethod(checkNotNull(signature).targetMethod))
-              .resolve(instrumentedMethod);
-      return new StackManipulation.Compound(
-          // Push the parameters
-          MethodVariableAccess.REFERENCE.loadOffset(1),
-          // Invoke the target method
-          wrapWithUserCodeException(MethodInvoker.Simple.INSTANCE.invoke(targetMethod)),
-          // Return from the instrumented method
-          TerminationHandler.Returning.INSTANCE.resolve(
-              Assigner.DEFAULT, instrumentedMethod, targetMethod));
-    }
-  }
-
-  /**
-   * Wrap a given stack manipulation in a try catch block. Any exceptions thrown within the try are
-   * wrapped with a {@link UserCodeException}.
-   */
-  private static StackManipulation wrapWithUserCodeException(final StackManipulation tryBody) {
-    final MethodDescription createUserCodeException;
-    try {
-      createUserCodeException =
-          new MethodDescription.ForLoadedMethod(
-              UserCodeException.class.getDeclaredMethod("wrap", Throwable.class));
-    } catch (NoSuchMethodException | SecurityException e) {
-      throw new RuntimeException("Unable to find UserCodeException.wrap", e);
-    }
-
-    return new StackManipulation() {
-      @Override
-      public boolean isValid() {
-        return tryBody.isValid();
-      }
-
-      @Override
-      public Size apply(MethodVisitor mv, Implementation.Context implementationContext) {
-        Label tryBlockStart = new Label();
-        Label tryBlockEnd = new Label();
-        Label catchBlockStart = new Label();
-        Label catchBlockEnd = new Label();
-
-        String throwableName = new TypeDescription.ForLoadedType(Throwable.class).getInternalName();
-        mv.visitTryCatchBlock(tryBlockStart, tryBlockEnd, catchBlockStart, throwableName);
-
-        // The try block attempts to perform the expected operations, then jumps to success
-        mv.visitLabel(tryBlockStart);
-        Size trySize = tryBody.apply(mv, implementationContext);
-        mv.visitJumpInsn(Opcodes.GOTO, catchBlockEnd);
-        mv.visitLabel(tryBlockEnd);
-
-        // The handler wraps the exception, and then throws.
-        mv.visitLabel(catchBlockStart);
-        // Add the exception to the frame
-        mv.visitFrame(
-            Opcodes.F_SAME1,
-            // No local variables
-            0,
-            new Object[] {},
-            // 1 stack element (the throwable)
-            1,
-            new Object[] {throwableName});
-
-        Size catchSize =
-            new Compound(MethodInvocation.invoke(createUserCodeException), Throw.INSTANCE)
-                .apply(mv, implementationContext);
-
-        mv.visitLabel(catchBlockEnd);
-        // The frame contents after the try/catch block is the same
-        // as it was before.
-        mv.visitFrame(
-            Opcodes.F_SAME,
-            // No local variables
-            0,
-            new Object[] {},
-            // No new stack variables
-            0,
-            new Object[] {});
-
-        return new Size(
-            trySize.getSizeImpact(),
-            Math.max(trySize.getMaximalSize(), catchSize.getMaximalSize()));
-      }
-    };
-  }
-
-  /**
-   * A constructor {@link Implementation} for a {@link DoFnInvoker class}. Produces the byte code
-   * for a constructor that takes a single argument and assigns it to the delegate field.
-   */
-  private static final class InvokerConstructor implements Implementation {
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
-    }
-
-    @Override
-    public ByteCodeAppender appender(final Target implementationTarget) {
-      return new ByteCodeAppender() {
-        @Override
-        public Size apply(
-            MethodVisitor methodVisitor,
-            Context implementationContext,
-            MethodDescription instrumentedMethod) {
-          StackManipulation.Size size =
-              new StackManipulation.Compound(
-                      // Load the this reference
-                      MethodVariableAccess.REFERENCE.loadOffset(0),
-                      // Invoke the super constructor (default constructor of Object)
-                      MethodInvocation.invoke(
-                          new TypeDescription.ForLoadedType(Object.class)
-                              .getDeclaredMethods()
-                              .filter(
-                                  ElementMatchers.isConstructor()
-                                      .and(ElementMatchers.takesArguments(0)))
-                              .getOnly()),
-                      // Load the this reference
-                      MethodVariableAccess.REFERENCE.loadOffset(0),
-                      // Load the delegate argument
-                      MethodVariableAccess.REFERENCE.loadOffset(1),
-                      // Assign the delegate argument to the delegate field
-                      FieldAccess.forField(
-                              implementationTarget
-                                  .getInstrumentedType()
-                                  .getDeclaredFields()
-                                  .filter(ElementMatchers.named(FN_DELEGATE_FIELD_NAME))
-                                  .getOnly())
-                          .putter(),
-                      // Return void.
-                      MethodReturn.VOID)
-                  .apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
-        }
-      };
-    }
   }
 }

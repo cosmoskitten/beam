@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.junit.Rule;
-import org.junit.rules.ExpectedException;
+/** Interface for invoking the {@code OldDoFn} processing methods. */
+public interface DoFnInvoker<InputT, OutputT> {
+  /** Invoke {@link OldDoFn#startBundle} on the bound {@code OldDoFn}. */
+  void invokeStartBundle(DoFn<InputT, OutputT>.Context c);
+  /** Invoke {@link OldDoFn#finishBundle} on the bound {@code OldDoFn}. */
+  void invokeFinishBundle(DoFn<InputT, OutputT>.Context c);
 
-/**
- * Tests for {@link DoFnSignature}.
- */
-public class DoFnSignatureTest {
-  @Rule public ExpectedException thrown = ExpectedException.none();
-
+  /** Invoke {@link OldDoFn#processElement} on the bound {@code OldDoFn}. */
+  void invokeProcessElement(
+      DoFn<InputT, OutputT>.ProcessContext c, DoFn.ExtraContextFactory<InputT, OutputT> extra);
 }
