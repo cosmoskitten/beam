@@ -72,7 +72,7 @@ public class DoFnFunction<InputT, OutputT>
     } catch (Exception e) {
       try {
         // this teardown handles exceptions encountered in setup() and startBundle(). teardown
-        // after execution or do to exceptions in process element is called in the iterator
+        // after execution or due to exceptions in process element is called in the iterator
         // produced by ctxt.getOutputIterable returned from this method.
         mFunction.teardown();
       } catch (Exception teardownException) {
