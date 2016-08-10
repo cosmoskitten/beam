@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.common.base.Predicate;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
@@ -91,6 +92,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 
@@ -121,20 +123,35 @@ public abstract class DoFnReflector {
     /** Any {@link BoundedWindow} parameter is populated by the window of the current element. */
     WINDOW_OF_ELEMENT(Availability.PROCESS_ELEMENT_ONLY, BoundedWindow.class, "window") {
       @Override
-      public <InputT, OutputT> TypeToken<?>
-          tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
+      public <InputT, OutputT> TypeToken<?> tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
         return TypeToken.of(BoundedWindow.class);
       }
     },
 
-    WINDOWING_INTERNALS(Availability.PROCESS_ELEMENT_ONLY,
-        WindowingInternals.class, "windowingInternals") {
+    INPUT_PROVIDER(Availability.PROCESS_ELEMENT_ONLY, DoFn.InputProvider.class, "inputProvider") {
       @Override
-      public <InputT, OutputT> TypeToken<?> tokenFor(
-          TypeToken<InputT> in, TypeToken<OutputT> out) {
-        return new TypeToken<WindowingInternals<InputT, OutputT>>() {}
-            .where(new TypeParameter<InputT>() {}, in)
-            .where(new TypeParameter<OutputT>() {}, out);
+      public <InputT, OutputT> TypeToken<?> tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
+        return new TypeToken<DoFn.InputProvider<InputT>>() {}.where(
+            new TypeParameter<InputT>() {}, in);
+      }
+
+      @Override
+      public boolean isForTestingOnly() {
+        return true;
+      }
+    },
+
+    OUTPUT_RECEIVER(
+        Availability.PROCESS_ELEMENT_ONLY, DoFn.OutputReceiver.class, "outputReceiver") {
+      @Override
+      public <InputT, OutputT> TypeToken<?> tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
+        return new TypeToken<DoFn.OutputReceiver<OutputT>>() {}.where(
+            new TypeParameter<OutputT>() {}, out);
+      }
+
+      @Override
+      public boolean isForTestingOnly() {
+        return true;
       }
     };
 
@@ -145,6 +162,14 @@ public abstract class DoFnReflector {
      */
     abstract <InputT, OutputT> TypeToken<?> tokenFor(
         TypeToken<InputT> in, TypeToken<OutputT> out);
+
+    /**
+     * Indicates whether this enum is for testing only, hence should not appear in error messages,
+     * etc. Defaults to {@code false}.
+     */
+    boolean isForTestingOnly() {
+      return false;
+    }
 
     private final Class<?> rawType;
     private final Availability availability;
@@ -241,16 +266,17 @@ public abstract class DoFnReflector {
       final TypeToken<?> in, final TypeToken<?> out) {
     return FluentIterable
         .from(extraProcessContexts.values())
-        .transform(new Function<AdditionalParameter, String>() {
-
+        .filter(new Predicate<AdditionalParameter>() {
           @Override
-          @Nullable
-          public String apply(@Nullable AdditionalParameter input) {
-            if (input == null) {
-              return null;
-            } else {
-              return formatType(input.tokenFor(in, out));
-            }
+          public boolean apply(@Nonnull AdditionalParameter additionalParameter) {
+            return !additionalParameter.isForTestingOnly();
+          }
+        })
+        .transform(new Function<AdditionalParameter, String>() {
+          @Override
+          @Nonnull
+          public String apply(@Nonnull AdditionalParameter input) {
+            return formatType(input.tokenFor(in, out));
           }
         })
         .toSortedSet(String.CASE_INSENSITIVE_ORDER);
@@ -285,10 +311,9 @@ public abstract class DoFnReflector {
    * <li>The method has at least one argument.
    * <li>The first argument is of type firstContextArg.
    * <li>The remaining arguments have raw types that appear in {@code contexts}
-   * <li>Any generics on the extra context arguments match what is expected. Eg.,
-   *     {@code WindowingInternals<InputT, OutputT>} either matches the
-   *     {@code InputT} and {@code OutputT} parameters of the
-   *     {@code OldDoFn<InputT, OutputT>.ProcessContext}, or it uses a wildcard, etc.
+   * <li>Any generics on the extra context arguments match what is expected. Currently, this
+   * is exercised only by placeholders. For example, {@code InputReceiver<InputT> must either match
+   * the {@code InputT} {@code OldDoFn<InputT, OutputT>.ProcessContext} or use a wildcard, etc.
    * </ol>
    *
    * @param m the method to verify
@@ -298,7 +323,8 @@ public abstract class DoFnReflector {
    * @param iParam TypeParameter representing the input type
    * @param oParam TypeParameter representing the output type
    */
-  @VisibleForTesting static <InputT, OutputT> List<AdditionalParameter> verifyMethodArguments(
+  @VisibleForTesting
+  static <InputT, OutputT> List<AdditionalParameter> verifyMethodArguments(
       Method m,
       Map<Class<?>, AdditionalParameter> contexts,
       TypeToken<?> firstContextArg,
@@ -607,11 +633,13 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      // The DoFn doesn't allow us to ask for these outside ProcessElements, so this
-      // should be unreachable.
-      throw new UnsupportedOperationException(
-          "Can only get the windowingInternals in ProcessElements");
+    public DoFn.InputProvider<InputT> inputProvider() {
+      throw new UnsupportedOperationException("inputProvider() exists only for testing");
+    }
+
+    @Override
+    public DoFn.OutputReceiver<OutputT> outputReceiver() {
+      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
     }
   }
 
@@ -679,8 +707,13 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      return context.windowingInternals();
+    public DoFn.InputProvider<InputT> inputProvider() {
+      throw new UnsupportedOperationException("inputProvider() exists only for testing");
+    }
+
+    @Override
+    public DoFn.OutputReceiver<OutputT> outputReceiver() {
+      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
     }
   }
 
