@@ -27,14 +27,22 @@ import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 
 import com.google.auto.service.AutoService;
+import com.google.common.base.MoreObjects;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import org.joda.time.DateTimeUtils;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+
 import java.lang.reflect.Proxy;
 import java.util.ServiceLoader;
+import java.util.concurrent.ThreadLocalRandom;
+
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -261,6 +269,13 @@ public interface PipelineOptions extends HasDisplayData {
   String getTempLocation();
   void setTempLocation(String value);
 
+  @Description("Name of the pipeline execution."
+      + "It must match the regular expression '[a-z]([-a-z0-9]{0,38}[a-z0-9])?'."
+      + "It defaults to ApplicationName-UserName-Date-RandomInteger")
+  @Default.InstanceFactory(JobNameFactory.class)
+  String getJobName();
+  void setJobName(String numWorkers);
+
   /**
    * A {@link DefaultValueFactory} that obtains the class of the {@code DirectRunner} if it exists
    * on the classpath, and throws an exception otherwise.
@@ -285,6 +300,35 @@ public interface PipelineOptions extends HasDisplayData {
                 + "    Adding the DirectRunner to the classpath%n"
                 + "    Calling 'PipelineOptions.setRunner(PipelineRunner)' directly"));
       }
+    }
+  }
+
+  /**
+   * Returns a normalized job name constructed from {@link ApplicationNameOptions#getAppName()},
+   * the local system user name (if available), the current time, and a random integer.
+   *
+   * <p>The normalization makes sure that the name matches the pattern of
+   * [a-z]([-a-z0-9]*[a-z0-9])?.
+   */
+  static class JobNameFactory implements DefaultValueFactory<String> {
+    private static final DateTimeFormatter FORMATTER =
+        DateTimeFormat.forPattern("MMddHHmmss").withZone(DateTimeZone.UTC);
+
+    @Override
+    public String create(PipelineOptions options) {
+      String appName = options.as(ApplicationNameOptions.class).getAppName();
+      String normalizedAppName = appName == null || appName.length() == 0 ? "BeamApp"
+          : appName.toLowerCase()
+                   .replaceAll("[^a-z0-9]", "0")
+                   .replaceAll("^[^a-z]", "a");
+      String userName = MoreObjects.firstNonNull(System.getProperty("user.name"), "");
+      String normalizedUserName = userName.toLowerCase()
+                                          .replaceAll("[^a-z0-9]", "0");
+      String datePart = FORMATTER.print(DateTimeUtils.currentTimeMillis());
+
+      String randomPart = Integer.toHexString(ThreadLocalRandom.current().nextInt());
+      return String.format("%s-%s-%s-%s",
+          normalizedAppName, normalizedUserName, datePart, randomPart);
     }
   }
 }
