@@ -135,7 +135,7 @@ public abstract class DoFnReflector {
       }
 
       @Override
-      public boolean isForTestingOnly() {
+      public boolean isHidden() {
         return true;
       }
     },
@@ -149,7 +149,7 @@ public abstract class DoFnReflector {
       }
 
       @Override
-      public boolean isForTestingOnly() {
+      public boolean isHidden() {
         return true;
       }
     };
@@ -166,7 +166,7 @@ public abstract class DoFnReflector {
      * Indicates whether this enum is for testing only, hence should not appear in error messages,
      * etc. Defaults to {@code false}.
      */
-    boolean isForTestingOnly() {
+    boolean isHidden() {
       return false;
     }
 
@@ -268,7 +268,7 @@ public abstract class DoFnReflector {
         .filter(new Predicate<AdditionalParameter>() {
           @Override
           public boolean apply(@Nonnull AdditionalParameter additionalParameter) {
-            return !additionalParameter.isForTestingOnly();
+            return !additionalParameter.isHidden();
           }
         })
         .transform(new Function<AdditionalParameter, String>() {
