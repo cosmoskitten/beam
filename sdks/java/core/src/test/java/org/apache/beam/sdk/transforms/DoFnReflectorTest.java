@@ -31,8 +31,7 @@ import java.lang.reflect.Method;
 @RunWith(JUnit4.class)
 public class DoFnReflectorTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @SuppressWarnings({"unused"})
   private void missingProcessContext() {}
@@ -118,138 +117,22 @@ public class DoFnReflectorTest {
   }
 
   @SuppressWarnings("unused")
-  private void goodGenerics(
+  private void goodConcreteTypes(
       DoFn<Integer, String>.ProcessContext c,
       DoFn.InputProvider<Integer> input,
       DoFn.OutputReceiver<String> output) {}
 
   @Test
-  public void testValidGenerics() throws Exception {
+  public void testGoodConcreteTypes() throws Exception {
     Method method =
         getClass()
             .getDeclaredMethod(
-                "goodGenerics",
+                "goodConcreteTypes",
                 DoFn.ProcessContext.class,
                 DoFn.InputProvider.class,
                 DoFn.OutputReceiver.class);
     DoFnReflector.analyzeProcessElementMethod(
         method, TypeToken.of(Integer.class), TypeToken.of(String.class));
-  }
-
-  @SuppressWarnings("unused")
-  private void goodWildcards(
-      DoFn<Integer, String>.ProcessContext c,
-      DoFn.InputProvider<?> input,
-      DoFn.OutputReceiver<?> output) {}
-
-  @Test
-  public void testGoodWildcards() throws Exception {
-    Method method =
-        getClass()
-            .getDeclaredMethod(
-                "goodWildcards",
-                DoFn.ProcessContext.class,
-                DoFn.InputProvider.class,
-                DoFn.OutputReceiver.class);
-    DoFnReflector.analyzeProcessElementMethod(
-        method, TypeToken.of(Integer.class), TypeToken.of(String.class));
-  }
-
-  @SuppressWarnings("unused")
-  private void goodBoundedWildcards(
-      DoFn<Integer, String>.ProcessContext c,
-      DoFn.InputProvider<? extends Integer> input,
-      DoFn.OutputReceiver<? super String> output) {}
-
-  @Test
-  public void testGoodBoundedWildcards() throws Exception {
-    Method method =
-        getClass()
-            .getDeclaredMethod(
-                "goodBoundedWildcards",
-                DoFn.ProcessContext.class,
-                DoFn.InputProvider.class,
-                DoFn.OutputReceiver.class);
-    DoFnReflector.analyzeProcessElementMethod(
-        method, TypeToken.of(Integer.class), TypeToken.of(String.class));
-  }
-
-  private static class FooBase {}
-  private static class FooDerived extends FooBase {}
-  private static class BarBase {}
-  private static class BarDerived extends BarBase {}
-
-  @SuppressWarnings("unused")
-  private void goodVariance(
-      DoFn<FooDerived, BarBase>.ProcessContext c,
-      DoFn.InputProvider<FooBase> input,
-      DoFn.OutputReceiver<BarDerived> output) {}
-
-  @Test
-  public void testGoodVariance() throws Exception {
-    Method method =
-        getClass()
-            .getDeclaredMethod(
-                "goodVariance",
-                DoFn.ProcessContext.class,
-                DoFn.InputProvider.class,
-                DoFn.OutputReceiver.class);
-    DoFnReflector.analyzeProcessElementMethod(
-        method, TypeToken.of(FooBase.class), TypeToken.of(BarDerived.class));
-  }
-
-  @SuppressWarnings("unused")
-  private void badInputVariance(
-      DoFn<FooBase, BarBase>.ProcessContext c,
-      DoFn.InputProvider<FooDerived> input,
-      DoFn.OutputReceiver<BarDerived> output) {}
-
-  @Test
-  public void testBadInputVariance() throws Exception {
-    Method method =
-        getClass()
-            .getDeclaredMethod(
-                "badInputVariance",
-                DoFn.ProcessContext.class,
-                DoFn.InputProvider.class,
-                DoFn.OutputReceiver.class);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Wrong type of InputProvider parameter "
-            + "for method "
-            + getClass().getName()
-            + "#badInputVariance(ProcessContext, InputProvider, OutputReceiver): "
-            + "InputProvider<FooDerived>, should be "
-            + "InputProvider<? super FooBase>");
-    DoFnReflector.analyzeProcessElementMethod(
-        method, TypeToken.of(FooBase.class), TypeToken.of(BarBase.class));
-  }
-
-  @SuppressWarnings("unused")
-  private void badOutputVariance(
-      DoFn<FooDerived, BarDerived>.ProcessContext c,
-      DoFn.InputProvider<FooBase> input,
-      DoFn.OutputReceiver<BarBase> output) {}
-
-  @Test
-  public void testBadOutputVariance() throws Exception {
-    Method method =
-        getClass()
-            .getDeclaredMethod(
-                "badOutputVariance",
-                DoFn.ProcessContext.class,
-                DoFn.InputProvider.class,
-                DoFn.OutputReceiver.class);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Wrong type of OutputReceiver parameter "
-            + "for method "
-            + getClass().getName()
-            + "#badInputVariance(ProcessContext, InputProvider, OutputReceiver): "
-            + "OutputReceiver<BarBase>, should be "
-            + "OutputReceiver<? extends BarDerived>");
-    DoFnReflector.analyzeProcessElementMethod(
-        method, TypeToken.of(FooDerived.class), TypeToken.of(BarDerived.class));
   }
 
   private static class GoodTypeVariables<InputT, OutputT> extends DoFn<InputT, OutputT> {
@@ -344,7 +227,6 @@ public class DoFnReflectorTest {
 
     DoFnReflector.getOrParseSignature(BadTypeVariables.class);
   }
-
 
   @Test
   public void testNoProcessElement() throws Exception {

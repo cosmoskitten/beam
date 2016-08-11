@@ -127,14 +127,18 @@ public abstract class DoFnReflector {
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
-  /** Generates a type token for {@code DoFn.InputProvider<? extends InputT>} given {@code InputT}. */
+  /**
+   * Generates a type token for {@code DoFn.InputProvider<InputT>} given {@code InputT}.
+   */
   private static <InputT> TypeToken<DoFn.InputProvider<InputT>> inputProviderTypeOf(
       TypeToken<InputT> inputT) {
     return new TypeToken<DoFn.InputProvider<InputT>>() {}.where(
         new TypeParameter<InputT>() {}, inputT);
   }
 
-  /** Generates a type token for {@code DoFn.OutputReceiver<? super OutputT>} given {@code OutputT}. */
+  /**
+   * Generates a type token for {@code DoFn.OutputReceiver<OutputT>} given {@code OutputT}.
+   */
   private static <OutputT> TypeToken<DoFn.OutputReceiver<OutputT>> outputReceiverTypeOf(
       TypeToken<OutputT> inputT) {
     return new TypeToken<DoFn.OutputReceiver<OutputT>>() {}.where(
@@ -178,7 +182,7 @@ public abstract class DoFnReflector {
             "Multiple InputProvider parameters in %s",
             format(m));
         checkArgument(
-            param.isSupertypeOf(expectedInputProviderT),
+            param.equals(expectedInputProviderT),
             "Wrong type of InputProvider parameter for method %s: %s, should be %s",
             format(m),
             formatType(param),
@@ -190,7 +194,7 @@ public abstract class DoFnReflector {
             "Multiple OutputReceiver parameters in %s",
             format(m));
         checkArgument(
-            param.isSupertypeOf(expectedOutputReceiverT),
+            param.equals(expectedOutputReceiverT),
             "Wrong type of OutputReceiver parameter for method %s: %s, should be %s",
             format(m),
             formatType(param),

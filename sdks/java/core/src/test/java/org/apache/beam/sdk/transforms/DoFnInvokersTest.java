@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.transforms.dofnreflector.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,9 +31,7 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link DoFnInvokers}.
- */
+/** Tests for {@link DoFnInvokers}. */
 public class DoFnInvokersTest {
   /** A convenience struct holding flags that indicate whether a particular method was invoked. */
   public static class Invocations {
@@ -48,11 +45,9 @@ public class DoFnInvokersTest {
     }
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Mock
-  private DoFn<String, String>.ProcessContext mockContext;
+  @Mock private DoFn<String, String>.ProcessContext mockContext;
   @Mock private BoundedWindow mockWindow;
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
@@ -140,7 +135,8 @@ public class DoFnInvokersTest {
           }
         };
 
-    assertFalse(DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+    assertFalse(
+        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
@@ -178,7 +174,8 @@ public class DoFnInvokersTest {
   @Test
   public void testDoFnWithProcessElementInterface() throws Exception {
     IdentityUsingInterfaceWithProcessElement fn = new IdentityUsingInterfaceWithProcessElement();
-    assertFalse(DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+    assertFalse(
+        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
     checkInvokeProcessElementWorks(fn, fn.invocations);
   }
 
@@ -207,14 +204,16 @@ public class DoFnInvokersTest {
   @Test
   public void testDoFnWithMethodInSuperclass() throws Exception {
     IdentityChildWithoutOverride fn = new IdentityChildWithoutOverride();
-    assertFalse(DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+    assertFalse(
+        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
     checkInvokeProcessElementWorks(fn, fn.parentInvocations);
   }
 
   @Test
   public void testDoFnWithMethodInSubclass() throws Exception {
     IdentityChildWithOverride fn = new IdentityChildWithOverride();
-    assertFalse(DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+    assertFalse(
+        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
     checkInvokeProcessElementWorks(fn, fn.parentInvocations, fn.childInvocations);
   }
 
@@ -231,7 +230,8 @@ public class DoFnInvokersTest {
           }
         };
 
-    assertTrue(DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+    assertTrue(
+        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
@@ -249,7 +249,8 @@ public class DoFnInvokersTest {
           }
         };
 
-    assertFalse(DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+    assertFalse(
+        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
@@ -267,7 +268,8 @@ public class DoFnInvokersTest {
           }
         };
 
-    assertFalse(DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+    assertFalse(
+        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }

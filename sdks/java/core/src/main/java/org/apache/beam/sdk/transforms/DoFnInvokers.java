@@ -24,7 +24,8 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.util.UserCodeException;
 
-import autovalue.shaded.com.google.common.common.base.Preconditions;
+import com.google.common.base.Preconditions;
+
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.description.field.FieldDescription;
