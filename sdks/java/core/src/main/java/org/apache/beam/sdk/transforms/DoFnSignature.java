@@ -29,7 +29,6 @@ import java.util.List;
  * <p>See <a href="https://s.apache.org/a-new-dofn">A new DoFn</a>.
  */
 class DoFnSignature {
-  private final Class<? extends DoFn> fnClass;
   private final TypeToken<?> inputT;
   private final TypeToken<?> outputT;
   private final ProcessElementMethod processElement;
@@ -37,22 +36,16 @@ class DoFnSignature {
   private final BundleMethod finishBundle;
 
   DoFnSignature(
-      Class<? extends DoFn> fnClass,
       TypeToken<?> inputT,
       TypeToken<?> outputT,
       ProcessElementMethod processElement,
       BundleMethod startBundle,
       BundleMethod finishBundle) {
-    this.fnClass = fnClass;
     this.inputT = inputT;
     this.outputT = outputT;
     this.processElement = processElement;
     this.startBundle = startBundle;
     this.finishBundle = finishBundle;
-  }
-
-  public Class<? extends DoFn> getFnClass() {
-    return fnClass;
   }
 
   public TypeToken<?> getInputT() {

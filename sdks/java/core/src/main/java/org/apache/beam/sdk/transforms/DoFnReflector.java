@@ -83,7 +83,6 @@ public abstract class DoFnReflector {
     Method finishBundleMethod = findAnnotatedMethod(DoFn.FinishBundle.class, fnClass, false);
 
     return new DoFnSignature(
-        fnClass,
         inputT,
         outputT,
         analyzeProcessElementMethod(processElementMethod, inputT, outputT),
