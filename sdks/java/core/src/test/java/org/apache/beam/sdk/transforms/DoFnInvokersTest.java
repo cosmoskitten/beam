@@ -140,7 +140,7 @@ public class DoFnInvokersTest {
           }
         };
 
-    assertFalse(DoFnReflector.getSignature(fn.getClass()).processElement.usesSingleWindow());
+    assertFalse(DoFnReflector.getSignature(fn.getClass()).getProcessElement().usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
@@ -178,7 +178,7 @@ public class DoFnInvokersTest {
   @Test
   public void testDoFnWithProcessElementInterface() throws Exception {
     IdentityUsingInterfaceWithProcessElement fn = new IdentityUsingInterfaceWithProcessElement();
-    assertFalse(DoFnReflector.getSignature(fn.getClass()).processElement.usesSingleWindow());
+    assertFalse(DoFnReflector.getSignature(fn.getClass()).getProcessElement().usesSingleWindow());
     checkInvokeProcessElementWorks(fn, fn.invocations);
   }
 
@@ -207,14 +207,14 @@ public class DoFnInvokersTest {
   @Test
   public void testDoFnWithMethodInSuperclass() throws Exception {
     IdentityChildWithoutOverride fn = new IdentityChildWithoutOverride();
-    assertFalse(DoFnReflector.getSignature(fn.getClass()).processElement.usesSingleWindow());
+    assertFalse(DoFnReflector.getSignature(fn.getClass()).getProcessElement().usesSingleWindow());
     checkInvokeProcessElementWorks(fn, fn.parentInvocations);
   }
 
   @Test
   public void testDoFnWithMethodInSubclass() throws Exception {
     IdentityChildWithOverride fn = new IdentityChildWithOverride();
-    assertFalse(DoFnReflector.getSignature(fn.getClass()).processElement.usesSingleWindow());
+    assertFalse(DoFnReflector.getSignature(fn.getClass()).getProcessElement().usesSingleWindow());
     checkInvokeProcessElementWorks(fn, fn.parentInvocations, fn.childInvocations);
   }
 
@@ -231,7 +231,7 @@ public class DoFnInvokersTest {
           }
         };
 
-    assertTrue(DoFnReflector.getSignature(fn.getClass()).processElement.usesSingleWindow());
+    assertTrue(DoFnReflector.getSignature(fn.getClass()).getProcessElement().usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
@@ -249,7 +249,7 @@ public class DoFnInvokersTest {
           }
         };
 
-    assertFalse(DoFnReflector.getSignature(fn.getClass()).processElement.usesSingleWindow());
+    assertFalse(DoFnReflector.getSignature(fn.getClass()).getProcessElement().usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
@@ -267,7 +267,7 @@ public class DoFnInvokersTest {
           }
         };
 
-    assertFalse(DoFnReflector.getSignature(fn.getClass()).processElement.usesSingleWindow());
+    assertFalse(DoFnReflector.getSignature(fn.getClass()).getProcessElement().usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
