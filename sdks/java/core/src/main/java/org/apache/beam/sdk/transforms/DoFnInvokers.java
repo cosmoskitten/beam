@@ -19,14 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
@@ -55,10 +48,7 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
 
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -71,11 +61,25 @@ import javax.annotation.Nullable;
 
 /** Dynamically generates {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
 public abstract class DoFnInvokers {
+  /**
+   * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
+   * Needed because generating an invoker class is expensive.
+   */
+  private static final Map<Class<?>, Constructor<?>> BYTE_BUDDY_INVOKER_CONSTRUCTOR_CACHE =
+      new LinkedHashMap<>();
+
+  private static final String FN_DELEGATE_FIELD_NAME = "delegate";
+
+  /** This is a factory class that should not be instantiated. */
   private DoFnInvokers() {}
 
+  /**
+   * If this is an {@link OldDoFn} produced via {@link #toOldDoFn}, returns the class of the
+   * original {@link DoFn}, otherwise returns {@code fn.getClass()}.
+   */
   public static Class<?> getDoFnClass(OldDoFn<?, ?> fn) {
-    if (fn instanceof SimpleDoFnAdapter) {
-      return ((SimpleDoFnAdapter<?, ?>) fn).fn.getClass();
+    if (fn instanceof DoFnAdapters.SimpleDoFnAdapter) {
+      return ((DoFnAdapters.SimpleDoFnAdapter<?, ?>) fn).fn.getClass();
     } else {
       return fn.getClass();
     }
@@ -85,9 +89,9 @@ public abstract class DoFnInvokers {
   public static <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
     DoFnSignature signature = DoFnReflector.getSignature(fn.getClass());
     if (signature.getProcessElement().usesSingleWindow()) {
-      return new WindowDoFnAdapter<>(fn);
+      return new DoFnAdapters.WindowDoFnAdapter<>(fn);
     } else {
-      return new SimpleDoFnAdapter<>(fn);
+      return new DoFnAdapters.SimpleDoFnAdapter<>(fn);
     }
   }
 
@@ -109,9 +113,10 @@ public abstract class DoFnInvokers {
     }
   }
 
-  private static final Map<Class<?>, Constructor<?>> BYTE_BUDDY_INVOKER_CONSTRUCTOR_CACHE =
-      new LinkedHashMap<>();
-
+  /**
+   * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFn} class and
+   * caches it.
+   */
   private static synchronized Constructor<?> getByteBuddyInvokerConstructor(
       Class<? extends DoFn> fnClass) {
     Constructor<?> constructor = BYTE_BUDDY_INVOKER_CONSTRUCTOR_CACHE.get(fnClass);
@@ -127,196 +132,6 @@ public abstract class DoFnInvokers {
     BYTE_BUDDY_INVOKER_CONSTRUCTOR_CACHE.put(fnClass, constructor);
     return constructor;
   }
-
-  private static class ContextAdapter<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
-
-    private OldDoFn<InputT, OutputT>.Context context;
-
-    private ContextAdapter(DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.Context context) {
-      fn.super();
-      this.context = context;
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return context.getPipelineOptions();
-    }
-
-    @Override
-    public void output(OutputT output) {
-      context.output(output);
-    }
-
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      context.outputWithTimestamp(output, timestamp);
-    }
-
-    @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      context.sideOutput(tag, output);
-    }
-
-    @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.sideOutputWithTimestamp(tag, output, timestamp);
-    }
-
-    @Override
-    public BoundedWindow window() {
-      // The DoFn doesn't allow us to ask for these outside ProcessElements, so this
-      // should be unreachable.
-      throw new UnsupportedOperationException("Can only get the window in ProcessElements");
-    }
-
-    @Override
-    public DoFn.InputProvider<InputT> inputProvider() {
-      throw new UnsupportedOperationException("inputProvider() exists only for testing");
-    }
-
-    @Override
-    public DoFn.OutputReceiver<OutputT> outputReceiver() {
-      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
-    }
-  }
-
-  private static class ProcessContextAdapter<InputT, OutputT>
-      extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
-
-    private OldDoFn<InputT, OutputT>.ProcessContext context;
-
-    private ProcessContextAdapter(
-        DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.ProcessContext context) {
-      fn.super();
-      this.context = context;
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return context.getPipelineOptions();
-    }
-
-    @Override
-    public <T> T sideInput(PCollectionView<T> view) {
-      return context.sideInput(view);
-    }
-
-    @Override
-    public void output(OutputT output) {
-      context.output(output);
-    }
-
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      context.outputWithTimestamp(output, timestamp);
-    }
-
-    @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      context.sideOutput(tag, output);
-    }
-
-    @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.sideOutputWithTimestamp(tag, output, timestamp);
-    }
-
-    @Override
-    public InputT element() {
-      return context.element();
-    }
-
-    @Override
-    public Instant timestamp() {
-      return context.timestamp();
-    }
-
-    @Override
-    public PaneInfo pane() {
-      return context.pane();
-    }
-
-    @Override
-    public BoundedWindow window() {
-      return context.window();
-    }
-
-    @Override
-    public DoFn.InputProvider<InputT> inputProvider() {
-      throw new UnsupportedOperationException("inputProvider() exists only for testing");
-    }
-
-    @Override
-    public DoFn.OutputReceiver<OutputT> outputReceiver() {
-      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
-    }
-  }
-
-  private static class SimpleDoFnAdapter<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
-    private final DoFn<InputT, OutputT> fn;
-    private transient DoFnInvoker<InputT, OutputT> invoker;
-
-    private SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
-      super(fn.aggregators);
-      this.fn = fn;
-      this.invoker = newByteBuddyInvoker(fn);
-    }
-
-    @Override
-    public void startBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
-      this.fn.prepareForProcessing();
-      invoker.invokeStartBundle(new ContextAdapter<>(fn, c));
-    }
-
-    @Override
-    public void finishBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
-      invoker.invokeFinishBundle(new ContextAdapter<>(fn, c));
-    }
-
-    @Override
-    public void processElement(OldDoFn<InputT, OutputT>.ProcessContext c) throws Exception {
-      ProcessContextAdapter<InputT, OutputT> adapter = new ProcessContextAdapter<>(fn, c);
-      invoker.invokeProcessElement(adapter, adapter);
-    }
-
-    @Override
-    protected TypeDescriptor<InputT> getInputTypeDescriptor() {
-      return fn.getInputTypeDescriptor();
-    }
-
-    @Override
-    protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-      return fn.getOutputTypeDescriptor();
-    }
-
-    @Override
-    public Duration getAllowedTimestampSkew() {
-      return fn.getAllowedTimestampSkew();
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      builder.include(fn);
-    }
-
-    private void readObject(java.io.ObjectInputStream in)
-        throws IOException, ClassNotFoundException {
-      in.defaultReadObject();
-      this.invoker = newByteBuddyInvoker(fn);
-    }
-  }
-
-  private static class WindowDoFnAdapter<InputT, OutputT> extends SimpleDoFnAdapter<InputT, OutputT>
-      implements OldDoFn.RequiresWindowAccess {
-
-    private WindowDoFnAdapter(DoFn<InputT, OutputT> fn) {
-      super(fn);
-    }
-  }
-
-  private static final String FN_DELEGATE_FIELD_NAME = "delegate";
 
   private static Class<? extends DoFnInvoker<?, ?>> createWrapperClass(
       Class<? extends DoFn> clazz) {
@@ -346,9 +161,15 @@ public abstract class DoFnInvokers {
             .method(ElementMatchers.named("invokeProcessElement"))
             .intercept(new ProcessElementDelegation(signature.getProcessElement()))
             .method(ElementMatchers.named("invokeStartBundle"))
-            .intercept(new BundleMethodDelegation(signature.getStartBundle()))
+            .intercept(
+                signature.getStartBundle() == null
+                    ? new NoopMethodImplementation()
+                    : new BundleMethodDelegation(signature.getStartBundle()))
             .method(ElementMatchers.named("invokeFinishBundle"))
-            .intercept(new BundleMethodDelegation(signature.getFinishBundle()));
+            .intercept(
+                signature.getFinishBundle() == null
+                    ? new NoopMethodImplementation()
+                    : new BundleMethodDelegation(signature.getFinishBundle()));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
 
@@ -359,6 +180,28 @@ public abstract class DoFnInvokers {
                 .load(DoFnInvokers.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded();
     return res;
+  }
+
+  private static class NoopMethodImplementation implements Implementation {
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return new ByteCodeAppender() {
+        @Override
+        public Size apply(
+            MethodVisitor methodVisitor,
+            Context implementationContext,
+            MethodDescription instrumentedMethod) {
+          StackManipulation manipulation = MethodReturn.VOID;
+          StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
+          return new Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
+        }
+      };
+    }
   }
 
   private abstract static class MethodDelegation implements Implementation {
@@ -386,21 +229,17 @@ public abstract class DoFnInvokers {
             Context implementationContext,
             MethodDescription instrumentedMethod) {
           StackManipulation manipulation =
-              isRequired()
-                  ? new StackManipulation.Compound(
-                      // Push "this" reference to the stack
-                      MethodVariableAccess.REFERENCE.loadOffset(0),
-                      // Access the delegate field of the the invoker
-                      FieldAccess.forField(delegateField).getter(),
-                      invokeTargetMethod(instrumentedMethod))
-                  : MethodReturn.VOID;
+              new StackManipulation.Compound(
+                  // Push "this" reference to the stack
+                  MethodVariableAccess.REFERENCE.loadOffset(0),
+                  // Access the delegate field of the the invoker
+                  FieldAccess.forField(delegateField).getter(),
+                  invokeTargetMethod(instrumentedMethod));
           StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
           return new Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
         }
       };
     }
-
-    protected abstract boolean isRequired();
 
     protected abstract StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod);
   }
@@ -435,11 +274,6 @@ public abstract class DoFnInvokers {
 
     private ProcessElementDelegation(DoFnSignature.ProcessElementMethod signature) {
       this.signature = signature;
-    }
-
-    @Override
-    protected boolean isRequired() {
-      return true;
     }
 
     @Override
@@ -482,11 +316,6 @@ public abstract class DoFnInvokers {
 
     private BundleMethodDelegation(@Nullable DoFnSignature.BundleMethod signature) {
       this.signature = signature;
-    }
-
-    @Override
-    protected boolean isRequired() {
-      return signature != null;
     }
 
     @Override
