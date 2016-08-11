@@ -26,12 +26,15 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.lang.reflect.Method;
+import java.util.List;
 
 /** Tests for {@link DoFnReflector}. */
 @RunWith(JUnit4.class)
 public class DoFnReflectorTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  private static class FakeDoFn extends DoFn<Integer, String> {}
 
   @SuppressWarnings({"unused"})
   private void missingProcessContext() {}
@@ -41,9 +44,10 @@ public class DoFnReflectorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         getClass().getName()
-            + "#missingProcessContext() must take a ProcessContext as its first argument");
+            + "#missingProcessContext() must take a ProcessContext<> as its first argument");
 
     DoFnReflector.analyzeProcessElementMethod(
+        TypeToken.of(FakeDoFn.class),
         getClass().getDeclaredMethod("missingProcessContext"),
         TypeToken.of(Integer.class),
         TypeToken.of(String.class));
@@ -57,9 +61,10 @@ public class DoFnReflectorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         getClass().getName()
-            + "#badProcessContext(String) must take a ProcessContext as its first argument");
+            + "#badProcessContext(String) must take a ProcessContext<> as its first argument");
 
     DoFnReflector.analyzeProcessElementMethod(
+        TypeToken.of(FakeDoFn.class),
         getClass().getDeclaredMethod("badProcessContext", String.class),
         TypeToken.of(Integer.class),
         TypeToken.of(String.class));
@@ -76,6 +81,7 @@ public class DoFnReflectorTest {
             + "#badExtraContext(Context, int) must have a single argument of type Context");
 
     DoFnReflector.analyzeBundleMethod(
+        TypeToken.of(FakeDoFn.class),
         getClass().getDeclaredMethod("badExtraContext", DoFn.Context.class, int.class),
         TypeToken.of(Integer.class),
         TypeToken.of(String.class));
@@ -94,6 +100,7 @@ public class DoFnReflectorTest {
             + ". Should be one of [BoundedWindow]");
 
     DoFnReflector.analyzeProcessElementMethod(
+        TypeToken.of(FakeDoFn.class),
         getClass()
             .getDeclaredMethod("badExtraProcessContext", DoFn.ProcessContext.class, Integer.class),
         TypeToken.of(Integer.class),
@@ -111,6 +118,7 @@ public class DoFnReflectorTest {
     thrown.expectMessage(getClass().getName() + "#badReturnType() must have a void return type");
 
     DoFnReflector.analyzeProcessElementMethod(
+        TypeToken.of(FakeDoFn.class),
         getClass().getDeclaredMethod("badReturnType"),
         TypeToken.of(Integer.class),
         TypeToken.of(String.class));
@@ -132,6 +140,7 @@ public class DoFnReflectorTest {
                 DoFn.InputProvider.class,
                 DoFn.OutputReceiver.class);
     DoFnReflector.analyzeProcessElementMethod(
+        TypeToken.of(FakeDoFn.class),
         method, TypeToken.of(Integer.class), TypeToken.of(String.class));
   }
 
@@ -147,6 +156,21 @@ public class DoFnReflectorTest {
   @Test
   public void testGoodTypeVariables() throws Exception {
     DoFnReflector.getOrParseSignature(GoodTypeVariables.class);
+  }
+
+  private static class IdentityFn<T> extends DoFn<T, T> {
+    @ProcessElement
+    @SuppressWarnings("unused")
+    public void processElement(ProcessContext c, InputProvider<T> input, OutputReceiver<T> output) {
+      c.output(c.element());
+    }
+  }
+
+  private static class IdentityListFn<T> extends IdentityFn<List<T>> { }
+
+  @Test
+  public void testIdentityFnApplied() throws Exception {
+    DoFnReflector.getOrParseSignature(new IdentityFn<String>() {}.getClass());
   }
 
   @SuppressWarnings("unused")
@@ -175,6 +199,7 @@ public class DoFnReflectorTest {
             + "OutputReceiver<String>");
 
     DoFnReflector.analyzeProcessElementMethod(
+        TypeToken.of(FakeDoFn.class),
         method, TypeToken.of(Integer.class), TypeToken.of(String.class));
   }
 
@@ -203,6 +228,7 @@ public class DoFnReflectorTest {
             + "OutputReceiver<String>");
 
     DoFnReflector.analyzeProcessElementMethod(
+        TypeToken.of(FakeDoFn.class),
         method, TypeToken.of(Integer.class), TypeToken.of(String.class));
   }
 

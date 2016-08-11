@@ -62,7 +62,7 @@ public abstract class DoFnReflector {
   }
 
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
-  static <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
+  public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFn<InputT, OutputT> fn) {
     return DoFnInvokers.newByteBuddyInvoker(getOrParseSignature(fn.getClass()), fn);
   }
@@ -77,7 +77,8 @@ public abstract class DoFnReflector {
         DoFn.class.isAssignableFrom(fnClass),
         "%s must be subtype of DoFn",
         fnClass.getSimpleName());
-    for (TypeToken<?> supertype : TypeToken.of(fnClass).getTypes()) {
+    TypeToken<? extends DoFn> fnToken = TypeToken.of(fnClass);
+    for (TypeToken<?> supertype : fnToken.getTypes()) {
       if (!supertype.getRawType().equals(DoFn.class)) {
         continue;
       }
@@ -95,13 +96,13 @@ public abstract class DoFnReflector {
         fnClass,
         inputT,
         outputT,
-        analyzeProcessElementMethod(processElementMethod, inputT, outputT),
+        analyzeProcessElementMethod(fnToken, processElementMethod, inputT, outputT),
         (startBundleMethod == null)
             ? null
-            : analyzeBundleMethod(startBundleMethod, inputT, outputT),
+            : analyzeBundleMethod(fnToken, startBundleMethod, inputT, outputT),
         (finishBundleMethod == null)
             ? null
-            : analyzeBundleMethod(finishBundleMethod, inputT, outputT));
+            : analyzeBundleMethod(fnToken, finishBundleMethod, inputT, outputT));
   }
 
   /**
@@ -146,7 +147,7 @@ public abstract class DoFnReflector {
   }
 
   static DoFnSignature.ProcessElementMethod analyzeProcessElementMethod(
-      Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
+      TypeToken<? extends DoFn> fnClass, Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
     checkArgument(
         void.class.equals(m.getReturnType()), "%s must have a void return type", format(m));
     checkArgument(!m.isVarArgs(), "%s must not have var args", format(m));
@@ -156,19 +157,19 @@ public abstract class DoFnReflector {
     Type[] params = m.getGenericParameterTypes();
     TypeToken<?> contextToken = null;
     if (params.length > 0) {
-      contextToken = TypeToken.of(params[0]);
+      contextToken = fnClass.resolveType(params[0]);
     }
     checkArgument(
         contextToken != null && contextToken.equals(processContextToken),
         "%s must take a %s as its first argument",
         format(m),
-        processContextToken.getRawType().getSimpleName());
+        formatType(processContextToken));
 
     List<DoFnSignature.ProcessElementMethod.Parameter> extraParameters = new ArrayList<>();
     TypeToken<?> expectedInputProviderT = inputProviderTypeOf(inputT);
     TypeToken<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
     for (int i = 1; i < params.length; ++i) {
-      TypeToken<?> param = TypeToken.of(params[i]);
+      TypeToken<?> param = fnClass.resolveType(params[i]);
       Class<?> rawType = param.getRawType();
       if (rawType.equals(BoundedWindow.class)) {
         checkArgument(
@@ -216,7 +217,7 @@ public abstract class DoFnReflector {
   }
 
   static DoFnSignature.BundleMethod analyzeBundleMethod(
-      Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
+      TypeToken<? extends DoFn> fnToken, Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
     checkArgument(
         void.class.equals(m.getReturnType()), "%s must have a void return type", format(m));
     checkArgument(!m.isVarArgs(), "%s must not have var args", format(m));
@@ -229,7 +230,7 @@ public abstract class DoFnReflector {
         "%s must have a single argument of type %s",
         format(m),
         formatType(expectedContextToken));
-    TypeToken<?> contextToken = TypeToken.of(params[0]);
+    TypeToken<?> contextToken = fnToken.resolveType(params[0]);
     checkArgument(
         contextToken.equals(expectedContextToken),
         "Wrong type of context argument to %s: %s, must be %s",

@@ -24,7 +24,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.DoFnInvoker;
-import org.apache.beam.sdk.transforms.DoFnInvokers;
 import org.apache.beam.sdk.transforms.DoFnReflector;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -69,7 +68,7 @@ public class DoFnReflectorBenchmark {
   @Setup
   public void setUp() {
     adaptedDoFnWithContext = DoFnAdapters.toOldDoFn(doFn);
-    invoker = DoFnInvokers.newByteBuddyInvoker(doFn);
+    invoker = DoFnReflector.newByteBuddyInvoker(doFn);
   }
 
   @Benchmark
