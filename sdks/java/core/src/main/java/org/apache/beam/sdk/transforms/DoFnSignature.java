@@ -21,6 +21,7 @@ import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Describes the signature of a {@link DoFn}, in particular, which features it uses, which extra
@@ -29,23 +30,29 @@ import java.util.List;
  * <p>See <a href="https://s.apache.org/a-new-dofn">A new DoFn</a>.
  */
 class DoFnSignature {
+  private final Class<? extends DoFn> fnClass;
   private final TypeToken<?> inputT;
   private final TypeToken<?> outputT;
   private final ProcessElementMethod processElement;
-  private final BundleMethod startBundle;
-  private final BundleMethod finishBundle;
+  @Nullable private final BundleMethod startBundle;
+  @Nullable private final BundleMethod finishBundle;
 
   DoFnSignature(
-      TypeToken<?> inputT,
+      Class<? extends DoFn> fnClass, TypeToken<?> inputT,
       TypeToken<?> outputT,
       ProcessElementMethod processElement,
-      BundleMethod startBundle,
-      BundleMethod finishBundle) {
+      @Nullable BundleMethod startBundle,
+      @Nullable BundleMethod finishBundle) {
+    this.fnClass = fnClass;
     this.inputT = inputT;
     this.outputT = outputT;
     this.processElement = processElement;
     this.startBundle = startBundle;
     this.finishBundle = finishBundle;
+  }
+
+  public Class<? extends DoFn> getFnClass() {
+    return fnClass;
   }
 
   public TypeToken<?> getInputT() {
@@ -60,11 +67,11 @@ class DoFnSignature {
     return processElement;
   }
 
-  public BundleMethod getStartBundle() {
+  @Nullable public BundleMethod getStartBundle() {
     return startBundle;
   }
 
-  public BundleMethod getFinishBundle() {
+  @Nullable public BundleMethod getFinishBundle() {
     return finishBundle;
   }
 

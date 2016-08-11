@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-/** Interface for invoking the {@code OldDoFn} processing methods. */
+/** Interface for invoking the {@code DoFn} processing methods. */
 public interface DoFnInvoker<InputT, OutputT> {
   /** Invoke the {@link DoFn.StartBundle} method on the bound {@link DoFn}. */
   void invokeStartBundle(DoFn<InputT, OutputT>.Context c);

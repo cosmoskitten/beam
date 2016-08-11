@@ -91,7 +91,7 @@ public class DoFnTester<InputT, OutputT> {
   @SuppressWarnings("unchecked")
   public static <InputT, OutputT> DoFnTester<InputT, OutputT>
       of(DoFn<InputT, OutputT> fn) {
-    return new DoFnTester<InputT, OutputT>(DoFnInvokers.toOldDoFn(fn));
+    return new DoFnTester<InputT, OutputT>(DoFnAdapters.toOldDoFn(fn));
   }
 
   /**

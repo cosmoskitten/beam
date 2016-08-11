@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
+import com.google.common.base.Preconditions;
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 
@@ -38,36 +41,42 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Parses a {@link DoFn} and computes its {@link DoFnSignature}. See {@link #getSignature}.
+ * Parses a {@link DoFn} and computes its {@link DoFnSignature}. See {@link #getOrParseSignature}.
  */
 public abstract class DoFnReflector {
   private DoFnReflector() {}
 
   private static final Map<Class<?>, DoFnSignature> SIGNATURE_CACHE = new LinkedHashMap<>();
 
-  /** @return the {@link DoFnReflector} for the given {@link DoFn}. */
-  static synchronized DoFnSignature getSignature(
+  /** @return the {@link DoFnSignature} for the given {@link DoFn}. */
+  static synchronized DoFnSignature getOrParseSignature(
       @SuppressWarnings("rawtypes") Class<? extends DoFn> fn) {
     DoFnSignature signature = SIGNATURE_CACHE.get(fn);
     if (signature != null) {
       return signature;
     }
 
-    signature = getSignatureImpl(fn);
+    signature = parseSignature(fn);
     SIGNATURE_CACHE.put(fn, signature);
     return signature;
   }
 
+  /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
+  static <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
+      DoFn<InputT, OutputT> fn) {
+    return DoFnInvokers.newByteBuddyInvoker(getOrParseSignature(fn.getClass()), fn);
+  }
+
   /** Analyzes a given {@link DoFn} class and extracts its {@link DoFnSignature}. */
-  private static DoFnSignature getSignatureImpl(Class<? extends DoFn> fnClass) {
+  private static DoFnSignature parseSignature(Class<? extends DoFn> fnClass) {
     TypeToken<?> inputT = null;
     TypeToken<?> outputT = null;
 
     // Extract the input and output type.
-    if (!DoFn.class.isAssignableFrom(fnClass)) {
-      throw new IllegalArgumentException(
-          String.format("%s must be subtype of DoFn", fnClass.getSimpleName()));
-    }
+    checkArgument(
+        DoFn.class.isAssignableFrom(fnClass),
+        "%s must be subtype of DoFn",
+        fnClass.getSimpleName());
     for (TypeToken<?> supertype : TypeToken.of(fnClass).getTypes()) {
       if (!supertype.getRawType().equals(DoFn.class)) {
         continue;
@@ -76,13 +85,14 @@ public abstract class DoFnReflector {
       inputT = TypeToken.of(args[0]);
       outputT = TypeToken.of(args[1]);
     }
-    assert inputT != null;
+    Preconditions.checkNotNull(inputT, "Unable to determine input type from %s", fnClass);
 
     Method processElementMethod = findAnnotatedMethod(DoFn.ProcessElement.class, fnClass, true);
     Method startBundleMethod = findAnnotatedMethod(DoFn.StartBundle.class, fnClass, false);
     Method finishBundleMethod = findAnnotatedMethod(DoFn.FinishBundle.class, fnClass, false);
 
     return new DoFnSignature(
+        fnClass,
         inputT,
         outputT,
         analyzeProcessElementMethod(processElementMethod, inputT, outputT),
@@ -94,6 +104,10 @@ public abstract class DoFnReflector {
             : analyzeBundleMethod(finishBundleMethod, inputT, outputT));
   }
 
+  /**
+   * Generates a type token for {@code DoFn<InputT, OutputT>.ProcessContext} given {@code InputT}
+   * and {@code OutputT}.
+   */
   private static <InputT, OutputT>
       TypeToken<DoFn<InputT, OutputT>.ProcessContext> doFnProcessContextTypeOf(
           TypeToken<InputT> inputT, TypeToken<OutputT> outputT) {
@@ -102,6 +116,10 @@ public abstract class DoFnReflector {
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
+  /**
+   * Generates a type token for {@code DoFn<InputT, OutputT>.Context} given {@code InputT} and
+   * {@code OutputT}.
+   */
   private static <InputT, OutputT> TypeToken<DoFn<InputT, OutputT>.Context> doFnContextTypeOf(
       TypeToken<InputT> inputT, TypeToken<OutputT> outputT) {
     return new TypeToken<DoFn<InputT, OutputT>.Context>() {}.where(
@@ -109,12 +127,14 @@ public abstract class DoFnReflector {
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
+  /** Generates a type token for {@code DoFn.InputProvider<? extends InputT>} given {@code InputT}. */
   private static <InputT> TypeToken<DoFn.InputProvider<InputT>> inputProviderTypeOf(
       TypeToken<InputT> inputT) {
     return new TypeToken<DoFn.InputProvider<InputT>>() {}.where(
         new TypeParameter<InputT>() {}, inputT);
   }
 
+  /** Generates a type token for {@code DoFn.OutputReceiver<? super OutputT>} given {@code OutputT}. */
   private static <OutputT> TypeToken<DoFn.OutputReceiver<OutputT>> outputReceiverTypeOf(
       TypeToken<OutputT> inputT) {
     return new TypeToken<DoFn.OutputReceiver<OutputT>>() {}.where(
@@ -123,13 +143,9 @@ public abstract class DoFnReflector {
 
   static DoFnSignature.ProcessElementMethod analyzeProcessElementMethod(
       Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
-    if (!void.class.equals(m.getReturnType())) {
-      throw new IllegalArgumentException(
-          String.format("%s must have a void return type", format(m)));
-    }
-    if (m.isVarArgs()) {
-      throw new IllegalArgumentException(String.format("%s must not have var args", format(m)));
-    }
+    checkArgument(
+        void.class.equals(m.getReturnType()), "%s must have a void return type", format(m));
+    checkArgument(!m.isVarArgs(), "%s must not have var args", format(m));
 
     TypeToken<?> processContextToken = doFnProcessContextTypeOf(inputT, outputT);
 
@@ -138,54 +154,57 @@ public abstract class DoFnReflector {
     if (params.length > 0) {
       contextToken = TypeToken.of(params[0]);
     }
-    if (contextToken == null
-        || !contextToken.getRawType().equals(processContextToken.getRawType())) {
-      throw new IllegalArgumentException(
-          String.format(
-              "%s must take a %s as its first argument",
-              format(m), processContextToken.getRawType().getSimpleName()));
-    }
+    checkArgument(
+        contextToken != null && contextToken.equals(processContextToken),
+        "%s must take a %s as its first argument",
+        format(m),
+        processContextToken.getRawType().getSimpleName());
 
     List<DoFnSignature.ProcessElementMethod.Parameter> extraParameters = new ArrayList<>();
     TypeToken<?> expectedInputProviderT = inputProviderTypeOf(inputT);
     TypeToken<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
     for (int i = 1; i < params.length; ++i) {
       TypeToken<?> param = TypeToken.of(params[i]);
-      if (param.isSubtypeOf(BoundedWindow.class)) {
-        if (extraParameters.contains(DoFnSignature.ProcessElementMethod.Parameter.BOUNDED_WINDOW)) {
-          throw new IllegalArgumentException("Multiple BoundedWindow parameters");
-        }
+      Class<?> rawType = param.getRawType();
+      if (rawType.equals(BoundedWindow.class)) {
+        checkArgument(
+            !extraParameters.contains(DoFnSignature.ProcessElementMethod.Parameter.BOUNDED_WINDOW),
+            "Multiple BoundedWindow parameters in %s",
+            format(m));
         extraParameters.add(DoFnSignature.ProcessElementMethod.Parameter.BOUNDED_WINDOW);
-      } else if (param.isSubtypeOf(DoFn.InputProvider.class)) {
-        if (extraParameters.contains(DoFnSignature.ProcessElementMethod.Parameter.INPUT_PROVIDER)) {
-          throw new IllegalArgumentException("Multiple InputProvider parameters");
-        }
-        if (!param.isSupertypeOf(expectedInputProviderT)) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Wrong type of InputProvider parameter for method %s: %s, should be %s",
-                  format(m), formatType(param), formatType(expectedInputProviderT)));
-        }
+      } else if (rawType.equals(DoFn.InputProvider.class)) {
+        checkArgument(
+            !extraParameters.contains(DoFnSignature.ProcessElementMethod.Parameter.INPUT_PROVIDER),
+            "Multiple InputProvider parameters in %s",
+            format(m));
+        checkArgument(
+            param.isSupertypeOf(expectedInputProviderT),
+            "Wrong type of InputProvider parameter for method %s: %s, should be %s",
+            format(m),
+            formatType(param),
+            formatType(expectedInputProviderT));
         extraParameters.add(DoFnSignature.ProcessElementMethod.Parameter.INPUT_PROVIDER);
-      } else if (param.isSubtypeOf(DoFn.OutputReceiver.class)) {
-        if (extraParameters.contains(
-            DoFnSignature.ProcessElementMethod.Parameter.OUTPUT_RECEIVER)) {
-          throw new IllegalArgumentException("Multiple OutputReceiver parameters");
-        }
-        if (!param.isSupertypeOf(expectedOutputReceiverT)) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Wrong type of OutputReceiver parameter for method %s: %s, should be %s",
-                  format(m), formatType(param), formatType(expectedOutputReceiverT)));
-        }
+      } else if (rawType.equals(DoFn.OutputReceiver.class)) {
+        checkArgument(
+            !extraParameters.contains(DoFnSignature.ProcessElementMethod.Parameter.OUTPUT_RECEIVER),
+            "Multiple OutputReceiver parameters in %s",
+            format(m));
+        checkArgument(
+            param.isSupertypeOf(expectedOutputReceiverT),
+            "Wrong type of OutputReceiver parameter for method %s: %s, should be %s",
+            format(m),
+            formatType(param),
+            formatType(expectedOutputReceiverT));
         extraParameters.add(DoFnSignature.ProcessElementMethod.Parameter.OUTPUT_RECEIVER);
       } else {
         List<String> allowedParamTypes =
             Arrays.asList(formatType(new TypeToken<BoundedWindow>() {}));
-        throw new IllegalArgumentException(
-            String.format(
-                "%s is not a valid context parameter for method %s. Should be one of %s",
-                formatType(param), format(m), allowedParamTypes));
+        checkArgument(
+            false,
+            "%s is not a valid context parameter for method %s. Should be one of %s",
+            formatType(param),
+            format(m),
+            allowedParamTypes);
       }
     }
 
@@ -194,30 +213,25 @@ public abstract class DoFnReflector {
 
   static DoFnSignature.BundleMethod analyzeBundleMethod(
       Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
-    if (!void.class.equals(m.getReturnType())) {
-      throw new IllegalArgumentException(
-          String.format("%s must have a void return type", format(m)));
-    }
-    if (m.isVarArgs()) {
-      throw new IllegalArgumentException(String.format("%s must not have var args", format(m)));
-    }
+    checkArgument(
+        void.class.equals(m.getReturnType()), "%s must have a void return type", format(m));
+    checkArgument(!m.isVarArgs(), "%s must not have var args", format(m));
 
     TypeToken<?> expectedContextToken = doFnContextTypeOf(inputT, outputT);
 
     Type[] params = m.getGenericParameterTypes();
-    if (params.length != 1) {
-      throw new IllegalArgumentException(
-          String.format(
-              "%s must have a single argument of type %s",
-              format(m), formatType(expectedContextToken)));
-    }
+    checkArgument(
+        params.length == 1,
+        "%s must have a single argument of type %s",
+        format(m),
+        formatType(expectedContextToken));
     TypeToken<?> contextToken = TypeToken.of(params[0]);
-    if (!contextToken.getRawType().equals(expectedContextToken.getRawType())) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Wrong type of context argument to %s: %s, must be %s",
-              format(m), formatType(contextToken), formatType(expectedContextToken)));
-    }
+    checkArgument(
+        contextToken.equals(expectedContextToken),
+        "Wrong type of context argument to %s: %s, must be %s",
+        format(m),
+        formatType(contextToken),
+        formatType(expectedContextToken));
 
     return new DoFnSignature.BundleMethod(m);
   }
@@ -256,14 +270,12 @@ public abstract class DoFnReflector {
     Collection<Method> matches = declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 
     if (matches.size() == 0) {
-      if (required) {
-        throw new IllegalArgumentException(
-            String.format(
-                "No method annotated with @%s found in %s",
-                anno.getSimpleName(), fnClazz.getName()));
-      } else {
-        return null;
-      }
+      checkArgument(
+          !required,
+          "No method annotated with @%s found in %s",
+          anno.getSimpleName(),
+          fnClazz.getName());
+      return null;
     }
 
     // If we have at least one match, then either it should be the only match
@@ -271,24 +283,22 @@ public abstract class DoFnReflector {
     // classes).
     Method first = matches.iterator().next();
     for (Method other : matches) {
-      if (!first.getName().equals(other.getName())
-          || !Arrays.equals(first.getParameterTypes(), other.getParameterTypes())) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Found multiple methods annotated with @%s. [%s] and [%s]",
-                anno.getSimpleName(), format(first), format(other)));
-      }
+      checkArgument(
+          first.getName().equals(other.getName())
+              && Arrays.equals(first.getParameterTypes(), other.getParameterTypes()),
+          "Found multiple methods annotated with @%s. [%s] and [%s]",
+          anno.getSimpleName(),
+          format(first),
+          format(other));
     }
 
     // We need to be able to call it. We require it is public.
-    if ((first.getModifiers() & Modifier.PUBLIC) == 0) {
-      throw new IllegalArgumentException(format(first) + " must be public");
-    }
+    checkArgument(
+        (first.getModifiers() & Modifier.PUBLIC) != 0, "%s must be public", format(first));
 
     // And make sure its not static.
-    if ((first.getModifiers() & Modifier.STATIC) != 0) {
-      throw new IllegalArgumentException(format(first) + " must not be static");
-    }
+    checkArgument(
+        (first.getModifiers() & Modifier.STATIC) == 0, "%s must not be static", format(first));
 
     return first;
   }

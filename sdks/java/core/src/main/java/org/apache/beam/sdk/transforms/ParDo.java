@@ -528,7 +528,7 @@ public class ParDo {
 
   private static <InputT, OutputT> OldDoFn<InputT, OutputT>
       adapt(DoFn<InputT, OutputT> fn) {
-    return DoFnInvokers.toOldDoFn(fn);
+    return DoFnAdapters.toOldDoFn(fn);
   }
 
   /**
@@ -736,7 +736,7 @@ public class ParDo {
 
     @Override
     protected String getKindString() {
-      Class<?> clazz = DoFnInvokers.getDoFnClass(fn);
+      Class<?> clazz = DoFnAdapters.getDoFnClass(fn);
       if (clazz.isAnonymousClass()) {
         return "AnonymousParDo";
       } else {
@@ -957,7 +957,7 @@ public class ParDo {
 
     @Override
     protected String getKindString() {
-      Class<?> clazz = DoFnInvokers.getDoFnClass(fn);
+      Class<?> clazz = DoFnAdapters.getDoFnClass(fn);
       if (clazz.isAnonymousClass()) {
         return "AnonymousParMultiDo";
       } else {

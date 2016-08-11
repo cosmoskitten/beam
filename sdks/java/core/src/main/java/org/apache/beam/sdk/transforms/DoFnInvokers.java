@@ -19,8 +19,12 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.util.UserCodeException;
 
+import autovalue.shaded.com.google.common.common.base.Preconditions;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.description.field.FieldDescription;
@@ -60,10 +64,11 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /** Dynamically generates {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
-public abstract class DoFnInvokers {
+abstract class DoFnInvokers {
   /**
    * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
-   * Needed because generating an invoker class is expensive.
+   * Needed because generating an invoker class is expensive, and to avoid generating an excessive
+   * number of classes consuming PermGen memory.
    */
   private static final Map<Class<?>, Constructor<?>> BYTE_BUDDY_INVOKER_CONSTRUCTOR_CACHE =
       new LinkedHashMap<>();
@@ -73,36 +78,19 @@ public abstract class DoFnInvokers {
   /** This is a factory class that should not be instantiated. */
   private DoFnInvokers() {}
 
-  /**
-   * If this is an {@link OldDoFn} produced via {@link #toOldDoFn}, returns the class of the
-   * original {@link DoFn}, otherwise returns {@code fn.getClass()}.
-   */
-  public static Class<?> getDoFnClass(OldDoFn<?, ?> fn) {
-    if (fn instanceof DoFnAdapters.SimpleDoFnAdapter) {
-      return ((DoFnAdapters.SimpleDoFnAdapter<?, ?>) fn).fn.getClass();
-    } else {
-      return fn.getClass();
-    }
-  }
-
-  /** Create a {@link OldDoFn} that the {@link DoFn}. */
-  public static <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnReflector.getSignature(fn.getClass());
-    if (signature.getProcessElement().usesSingleWindow()) {
-      return new DoFnAdapters.WindowDoFnAdapter<>(fn);
-    } else {
-      return new DoFnAdapters.SimpleDoFnAdapter<>(fn);
-    }
-  }
-
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
-  public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
-      DoFn<InputT, OutputT> fn) {
+  static <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
+      DoFnSignature signature, DoFn<InputT, OutputT> fn) {
+    Preconditions.checkArgument(
+        signature.getFnClass().equals(fn.getClass()),
+        "Signature is for class %s, but fn is of class %s",
+        signature.getFnClass(),
+        fn.getClass());
     try {
       @SuppressWarnings("unchecked")
       DoFnInvoker<InputT, OutputT> invoker =
           (DoFnInvoker<InputT, OutputT>)
-              getByteBuddyInvokerConstructor(fn.getClass()).newInstance(fn);
+              getOrGenerateByteBuddyInvokerConstructor(signature).newInstance(fn);
       return invoker;
     } catch (InstantiationException
         | IllegalAccessException
@@ -117,15 +105,16 @@ public abstract class DoFnInvokers {
    * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFn} class and
    * caches it.
    */
-  private static synchronized Constructor<?> getByteBuddyInvokerConstructor(
-      Class<? extends DoFn> fnClass) {
+  private static synchronized Constructor<?> getOrGenerateByteBuddyInvokerConstructor(
+      DoFnSignature signature) {
+    Class<? extends DoFn> fnClass = signature.getFnClass();
     Constructor<?> constructor = BYTE_BUDDY_INVOKER_CONSTRUCTOR_CACHE.get(fnClass);
     if (constructor != null) {
       return constructor;
     }
-    Class<? extends DoFnInvoker<?, ?>> wrapperClass = createWrapperClass(fnClass);
+    Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
     try {
-      constructor = wrapperClass.getConstructor(fnClass);
+      constructor = invokerClass.getConstructor(fnClass);
     } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
       throw new RuntimeException(e);
     }
@@ -133,11 +122,11 @@ public abstract class DoFnInvokers {
     return constructor;
   }
 
-  private static Class<? extends DoFnInvoker<?, ?>> createWrapperClass(
-      Class<? extends DoFn> clazz) {
-    final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(clazz);
+  /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
+  private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(DoFnSignature signature) {
+    Class<? extends DoFn> fnClass = signature.getFnClass();
 
-    DoFnSignature signature = DoFnReflector.getSignature(clazz);
+    final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
 
     DynamicType.Builder<?> builder =
         new ByteBuddy()
@@ -153,9 +142,9 @@ public abstract class DoFnInvokers {
             // Create a subclass of DoFnInvoker
             .subclass(DoFnInvoker.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
             .defineField(
-                FN_DELEGATE_FIELD_NAME, clazz, Visibility.PRIVATE, FieldManifestation.FINAL)
+                FN_DELEGATE_FIELD_NAME, fnClass, Visibility.PRIVATE, FieldManifestation.FINAL)
             .defineConstructor(Visibility.PUBLIC)
-            .withParameter(clazz)
+            .withParameter(fnClass)
             .intercept(new InvokerConstructor())
             // Delegate processElement(), startBundle() and finishBundle() to the fn.
             .method(ElementMatchers.named("invokeProcessElement"))
@@ -182,6 +171,7 @@ public abstract class DoFnInvokers {
     return res;
   }
 
+  /** Implements an invoker method by doing nothing and immediately returning void. */
   private static class NoopMethodImplementation implements Implementation {
     @Override
     public InstrumentedType prepare(InstrumentedType instrumentedType) {
@@ -204,6 +194,10 @@ public abstract class DoFnInvokers {
     }
   }
 
+  /**
+   * Base class for implementing an invoker method by delegating to a method of the target {@link
+   * DoFn}.
+   */
   private abstract static class MethodDelegation implements Implementation {
     FieldDescription delegateField;
 
@@ -241,9 +235,18 @@ public abstract class DoFnInvokers {
       };
     }
 
+    /**
+     * Generates code to invoke the target method. When this is called the delegate field will be on
+     * top of the stack. This should add any necessary arguments to the stack and then perform the
+     * method invocation.
+     */
     protected abstract StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod);
   }
 
+  /**
+   * Implements the invoker's {@link DoFnInvoker#invokeProcessElement} method by delegating to the
+   * {@link DoFn.ProcessElement} method.
+   */
   private static final class ProcessElementDelegation extends MethodDelegation {
     private static final Map<DoFnSignature.ProcessElementMethod.Parameter, MethodDescription>
         EXTRA_CONTEXT_FACTORY_METHODS;
@@ -272,6 +275,7 @@ public abstract class DoFnInvokers {
 
     private final DoFnSignature.ProcessElementMethod signature;
 
+    /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
     private ProcessElementDelegation(DoFnSignature.ProcessElementMethod signature) {
       this.signature = signature;
     }
@@ -283,7 +287,7 @@ public abstract class DoFnInvokers {
                   new MethodDescription.ForLoadedMethod(signature.getTargetMethod()))
               .resolve(instrumentedMethod);
 
-      // Parameters of the wrapper OldDoFn method:
+      // Parameters of the wrapper invoker method:
       //   DoFn.ProcessContext, ExtraContextFactory.
       // Parameters of the wrapped DoFn method:
       //   DoFn.ProcessContext, [BoundedWindow, InputProvider, OutputReceiver] in any order
@@ -311,6 +315,10 @@ public abstract class DoFnInvokers {
     }
   }
 
+  /**
+   * Implements {@link DoFnInvoker#invokeStartBundle} or {@link DoFnInvoker#invokeFinishBundle} by
+   * delegating respectively to the {@link StartBundle} and {@link FinishBundle} methods.
+   */
   private static final class BundleMethodDelegation extends MethodDelegation {
     private final DoFnSignature.BundleMethod signature;
 
@@ -337,7 +345,7 @@ public abstract class DoFnInvokers {
   }
 
   /**
-   * Wrap a given stack manipulation in a try catch block. Any exceptions thrown within the try are
+   * Wraps a given stack manipulation in a try catch block. Any exceptions thrown within the try are
    * wrapped with a {@link UserCodeException}.
    */
   private static StackManipulation wrapWithUserCodeException(final StackManipulation tryBody) {

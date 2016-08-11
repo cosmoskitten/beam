@@ -31,19 +31,44 @@ import org.joda.time.Instant;
 import java.io.IOException;
 
 /** Utility class containing adapters for running a {@link DoFn} as an {@link OldDoFn}. */
-class DoFnAdapters {
+public class DoFnAdapters {
+  /** Should not be instantiated. */
+  private DoFnAdapters() {}
+
+  /**
+   * If this is an {@link OldDoFn} produced via {@link #toOldDoFn}, returns the class of the
+   * original {@link DoFn}, otherwise returns {@code fn.getClass()}.
+   */
+  public static Class<?> getDoFnClass(OldDoFn<?, ?> fn) {
+    if (fn instanceof SimpleDoFnAdapter) {
+      return ((SimpleDoFnAdapter<?, ?>) fn).fn.getClass();
+    } else {
+      return fn.getClass();
+    }
+  }
+
+  /** Create a {@link OldDoFn} that the {@link DoFn}. */
+  public static <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
+    DoFnSignature signature = DoFnReflector.getOrParseSignature(fn.getClass());
+    if (signature.getProcessElement().usesSingleWindow()) {
+      return new WindowDoFnAdapter<>(fn);
+    } else {
+      return new SimpleDoFnAdapter<>(fn);
+    }
+  }
+
   /**
    * Wraps a {@link DoFn} that doesn't require access to {@link BoundedWindow} as an {@link
    * OldDoFn}.
    */
-  static class SimpleDoFnAdapter<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
-    final DoFn<InputT, OutputT> fn;
+  private static class SimpleDoFnAdapter<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
+    private final DoFn<InputT, OutputT> fn;
     private transient DoFnInvoker<InputT, OutputT> invoker;
 
     SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
       super(fn.aggregators);
       this.fn = fn;
-      this.invoker = DoFnInvokers.newByteBuddyInvoker(fn);
+      this.invoker = DoFnReflector.newByteBuddyInvoker(fn);
     }
 
     @Override
@@ -86,12 +111,12 @@ class DoFnAdapters {
     private void readObject(java.io.ObjectInputStream in)
         throws IOException, ClassNotFoundException {
       in.defaultReadObject();
-      this.invoker = DoFnInvokers.newByteBuddyInvoker(fn);
+      this.invoker = DoFnReflector.newByteBuddyInvoker(fn);
     }
   }
 
   /** Wraps a {@link DoFn} that requires access to {@link BoundedWindow} as an {@link OldDoFn}. */
-  static class WindowDoFnAdapter<InputT, OutputT> extends SimpleDoFnAdapter<InputT, OutputT>
+  private static class WindowDoFnAdapter<InputT, OutputT> extends SimpleDoFnAdapter<InputT, OutputT>
       implements OldDoFn.RequiresWindowAccess {
 
     WindowDoFnAdapter(DoFn<InputT, OutputT> fn) {
