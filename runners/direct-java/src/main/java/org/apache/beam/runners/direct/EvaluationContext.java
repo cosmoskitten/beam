@@ -119,7 +119,7 @@ class EvaluationContext {
       Map<AppliedPTransform<?, ?, ?>, String> stepNames,
       Collection<PCollectionView<?>> views) {
     this.options = checkNotNull(options);
-    this.clock = options.getClock();
+    this.clock = options.as(DirectRunner.InternalOptions.class).getClock();
     this.bundleFactory = checkNotNull(bundleFactory);
     checkNotNull(rootTransforms);
     checkNotNull(valueToConsumers);

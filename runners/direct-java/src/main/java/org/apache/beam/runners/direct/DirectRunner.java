@@ -27,7 +27,12 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -50,14 +55,18 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * An In-Memory implementation of the Dataflow Programming Model. Supports Unbounded
@@ -230,14 +239,24 @@ public class DirectRunner
             consumerTrackingVisitor.getViews());
 
     // independent executor service for each run
-    ExecutorService executorService =
-        context.getPipelineOptions().getExecutorServiceFactory().create();
+    ExecutorService executorService = context.getPipelineOptions()
+        .as(InternalOptions.class)
+        .getExecutorServiceFactory()
+        .get();
+
+    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry();
+    for (Map.Entry<Class<? extends PTransform>,
+        OptionsSupplier<TransformEvaluatorFactory>> additional :
+        options.as(InternalOptions.class).getAdditionalTransformEvaluators().entrySet()) {
+      registry = registry.withEvaluatorFactory(additional.getKey(), additional.getValue().get());
+    }
+
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             executorService,
             consumerTrackingVisitor.getValueToConsumers(),
             keyedPValueVisitor.getKeyedPValues(),
-            TransformEvaluatorRegistry.defaultRegistry(),
+            registry,
             defaultModelEnforcements(options),
             context);
     executor.start(consumerTrackingVisitor.getRootTransforms());
@@ -390,6 +409,84 @@ public class DirectRunner
     public State waitUntilFinish(Duration duration) throws IOException {
       throw new UnsupportedOperationException(
           "DirectPipelineResult does not support waitUntilFinish.");
+    }
+  }
+
+  /**
+   * Internal configuration options for the {@link DirectRunner}. Deals with internal implementation
+   * details.
+   */
+  public interface InternalOptions extends DirectOptions {
+    /**
+     * Gets the {@link ExecutorServiceFactory} to use to create instances of {@link ExecutorService}
+     * to execute {@link PTransform PTransforms}.
+     *
+     * <p>Defaults to a {@link FixedThreadPoolSupplier}, which produces instances of
+     * {@link Executors#newFixedThreadPool(int)}.
+     */
+    @JsonIgnore
+    @Required
+    @Hidden
+    @Default.InstanceFactory(FixedThreadPoolSupplier.class)
+    OptionsSupplier<ExecutorService> getExecutorServiceFactory();
+
+    void setExecutorServiceFactory(OptionsSupplier<ExecutorService> executorService);
+
+    /**
+     * Gets the {@link Clock} used by this pipeline. The clock is used in place of accessing the
+     * system time when time values are required by the evaluator.
+     */
+    @Default.InstanceFactory(NanosOffsetClock.Factory.class)
+    @JsonIgnore
+    @Required
+    @Hidden
+    @Description(
+        "The processing time source used by the pipeline. When the current time is "
+            + "needed by the evaluator, the result of clock#now() is used.")
+    Clock getClock();
+
+    void setClock(Clock clock);
+
+    /**
+     * Gets the {@link TransformEvaluatorRegistry} used to evaluate this {@link Pipeline}.
+     */
+    @Default.InstanceFactory(EmptyMapFactory.class)
+    @Required
+    @JsonIgnore
+    @Hidden
+    Map<Class<? extends PTransform>, OptionsSupplier<TransformEvaluatorFactory>>
+    getAdditionalTransformEvaluators();
+
+    void setAdditionalTransformEvaluators(
+        Map<Class<? extends PTransform>, OptionsSupplier<TransformEvaluatorFactory>> additional);
+  }
+
+  private static class EmptyMapFactory implements
+      DefaultValueFactory<Map<Object, Object>> {
+
+    @Override
+    public Map<Object, Object> create(PipelineOptions options) {
+      return Collections.emptyMap();
+    }
+  }
+
+
+  /**
+   * A {@link DefaultValueFactory} which provides an {@link OptionsSupplier} that creates a
+   * {@link ExecutorService} based on {@link Executors#newFixedThreadPool(int)}.
+   */
+  public static class FixedThreadPoolSupplier
+      implements DefaultValueFactory<OptionsSupplier<ExecutorService>> {
+    @Override
+    public OptionsSupplier<ExecutorService> create(PipelineOptions options) {
+      return new AvailableProcessorsSupplier();
+    }
+
+    private static class AvailableProcessorsSupplier implements OptionsSupplier<ExecutorService> {
+      @Override
+      public ExecutorService get() {
+        return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+      }
     }
   }
 }
