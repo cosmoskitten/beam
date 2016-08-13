@@ -17,14 +17,33 @@
  */
 package org.apache.beam.sdk.transforms;
 
-/** Interface for invoking the {@code DoFn} processing methods. */
+/**
+ * Interface for invoking the {@code DoFn} processing methods.
+ *
+ * Instantiating a {@link DoFnInvoker} associates it with a specific {@link DoFn} instance,
+ * referred to as the bound {@link DoFn}.
+ */
 public interface DoFnInvoker<InputT, OutputT> {
-  /** Invoke the {@link DoFn.StartBundle} method on the bound {@link DoFn}. */
+  /**
+   * Invoke the {@link DoFn.StartBundle} method on the bound {@link DoFn}.
+   *
+   * @param c The {@link DoFn.Context} to invoke the fn with.
+   */
   void invokeStartBundle(DoFn<InputT, OutputT>.Context c);
-  /** Invoke the {@link DoFn.FinishBundle} method on the bound {@link DoFn}. */
+
+  /**
+   * Invoke the {@link DoFn.FinishBundle} method on the bound {@link DoFn}.
+   *
+   * @param c The {@link DoFn.Context} to invoke the fn with.
+   */
   void invokeFinishBundle(DoFn<InputT, OutputT>.Context c);
 
-  /** Invoke the {@link DoFn.ProcessElement} method on the bound {@link DoFn}. */
+  /**
+   * Invoke the {@link DoFn.ProcessElement} method on the bound {@link DoFn}.
+   *
+   * @param c The {@link DoFn.ProcessContext} to invoke the fn with.
+   * @param extra Factory for producing extra parameter objects (such as window), if necessary.
+   */
   void invokeProcessElement(
       DoFn<InputT, OutputT>.ProcessContext c, DoFn.ExtraContextFactory<InputT, OutputT> extra);
 }
