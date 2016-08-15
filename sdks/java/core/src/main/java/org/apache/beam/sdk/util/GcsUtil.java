@@ -380,6 +380,16 @@ public class GcsUtil {
      }
   }
 
+  private static ListenableFuture<Void> executeBatch(
+      final BatchRequest batch, ListeningExecutorService executor) {
+    return executor.submit(new Callable<Void>() {
+      public Void call() throws IOException {
+        batch.execute();
+        return null;
+      }
+    });
+  }
+
   public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
     checkArgument(
         srcFilenames.size() == destFilenames.size(),
@@ -393,17 +403,15 @@ public class GcsUtil {
       final GcsPath sourcePath = GcsPath.fromUri(srcFilenames.get(i));
       final GcsPath destPath = GcsPath.fromUri(destFilenames.get(i));
       enqueueCopy(sourcePath, destPath, batch);
-      if ((i + 1) % MAX_REQUESTS_PER_BATCH == 0 || (i + 1) == srcFilenames.size()) {
-        final BatchRequest thisBatch = batch;
-        futures.add(executor.submit(new Callable<Void>() {
-          public Void call() throws IOException {
-            thisBatch.execute();
-            return null;
-          }
-        }));
+      if (batch.size() >= MAX_REQUESTS_PER_BATCH) {
+        futures.add(executeBatch(batch, executor));
         batch = storageClient.batch();
       }
     }
+    if (batch.size() > 0) {
+      futures.add(executeBatch(batch, executor));
+    }
+
     try {
       Futures.allAsList(futures).get();
     } catch (InterruptedException e) {
@@ -427,18 +435,14 @@ public class GcsUtil {
     List<ListenableFuture<Void>> futures = new LinkedList<>();
     for (List<String> filesToDelete :
         Lists.partition(Lists.newArrayList(filenames), MAX_REQUESTS_PER_BATCH)) {
-      final BatchRequest batch = storageClient.batch();
+      BatchRequest batch = storageClient.batch();
       for (String file : filesToDelete) {
         final GcsPath filePath = GcsPath.fromUri(file);
-        enqueueDelete(filePath, batch);
+        enqueueDelete(GcsPath.fromUri(file), batch);
       }
-      futures.add(executor.submit(new Callable<Void>() {
-        public Void call() throws IOException {
-          batch.execute();
-          return null;
-        }
-      }));
+      futures.add(executeBatch(batch, executor));
     }
+
     try {
       Futures.allAsList(futures).get();
     } catch (InterruptedException e) {
