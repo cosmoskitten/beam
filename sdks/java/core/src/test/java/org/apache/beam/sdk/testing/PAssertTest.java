@@ -39,7 +39,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import com.google.common.collect.Iterables;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -282,10 +281,10 @@ public class PAssertTest implements Serializable {
             TimestampedValue.of(22, new Instant(-250L))))
             .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(500L))));
     PAssert.thatSingleton(pcollection)
-        .inWindow(new IntervalWindow(new Instant(0L), new Instant(500L)))
+        .inOnlyPane(new IntervalWindow(new Instant(0L), new Instant(500L)))
         .isEqualTo(43);
     PAssert.thatSingleton(pcollection)
-        .inWindow(new IntervalWindow(new Instant(-500L), new Instant(0L)))
+        .inOnlyPane(new IntervalWindow(new Instant(-500L), new Instant(0L)))
         .isEqualTo(22);
     pipeline.run();
   }

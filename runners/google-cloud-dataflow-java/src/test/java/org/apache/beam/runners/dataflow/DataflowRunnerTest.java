@@ -55,9 +55,6 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.AvroIO;
-import org.apache.beam.sdk.io.AvroSource;
-import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -65,6 +62,7 @@ import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.runners.dataflow.TestCountingSource;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -73,6 +71,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.NoopCredentialFactory;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.TestCredential;
@@ -82,16 +81,15 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -189,7 +187,14 @@ public class DataflowRunnerTest {
     return mockDataflowClient;
   }
 
-  private GcsUtil buildMockGcsUtil(boolean bucketExists) throws IOException {
+  /**
+   * Build a mock {@link GcsUtil} with return values.
+   *
+   * @param bucketExist first return value
+   * @param bucketExists next return values
+   */
+  private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketExists)
+      throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .then(new Answer<SeekableByteChannel>() {
@@ -208,7 +213,7 @@ public class DataflowRunnerTest {
         return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
       }
     });
-    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExists);
+    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExist, bucketExists);
     return mockGcsUtil;
   }
 
@@ -229,6 +234,38 @@ public class DataflowRunnerTest {
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
     return options;
+  }
+
+  @Test
+  public void testPathValidation() {
+    String[] args = new String[] {
+        "--runner=DataflowRunner",
+        "--tempLocation=/tmp/not/a/gs/path",
+        "--project=test-project",
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getCanonicalName(),
+    };
+
+    try {
+      TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
+      fail();
+    } catch (RuntimeException e) {
+      assertThat(
+          Throwables.getStackTraceAsString(e),
+          containsString("DataflowRunner requires gcpTempLocation"));
+    }
+  }
+
+  @Test
+  public void testPathValidatorOverride() {
+    String[] args = new String[] {
+        "--runner=DataflowRunner",
+        "--tempLocation=/tmp/testing",
+        "--project=test-project",
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getCanonicalName(),
+        "--pathValidatorClass=" + NoopPathValidator.class.getCanonicalName(),
+    };
+    // Should not crash, because gcpTempLocation should get set from tempLocation
+    TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
   }
 
   @Test
@@ -510,16 +547,29 @@ public class DataflowRunnerTest {
   }
 
   @Test
-  public void testInvalidTempLocation() throws IOException {
+  public void testInvalidGcpTempLocation() throws IOException {
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setGcpTempLocation("file://temp/location");
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
+    DataflowRunner.fromOptions(options);
+    assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
+  public void testNonGcsTempLocation() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
     options.setTempLocation("file://temp/location");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
+    thrown.expectMessage(
+        "DataflowRunner requires gcpTempLocation, and it is missing in PipelineOptions.");
     DataflowRunner.fromOptions(options);
-    assertValidJob(jobCaptor.getValue());
   }
 
   @Test
@@ -545,10 +595,11 @@ public class DataflowRunnerTest {
   public void testNonExistentTempLocation() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
-    GcsUtil mockGcsUtil = buildMockGcsUtil(false /* bucket exists */);
+    GcsUtil mockGcsUtil =
+        buildMockGcsUtil(false /* temp bucket exists */, true /* staging bucket exists */);
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
     options.setGcsUtil(mockGcsUtil);
-    options.setTempLocation("gs://non-existent-bucket/location");
+    options.setGcpTempLocation("gs://non-existent-bucket/location");
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString(
@@ -561,8 +612,10 @@ public class DataflowRunnerTest {
   public void testNonExistentStagingLocation() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
-    GcsUtil mockGcsUtil = buildMockGcsUtil(false /* bucket exists */);
+    GcsUtil mockGcsUtil =
+        buildMockGcsUtil(true /* temp bucket exists */, false /* staging bucket exists */);
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setGcpTempLocation(options.getTempLocation()); // bypass validation for GcpTempLocation
     options.setGcsUtil(mockGcsUtil);
     options.setStagingLocation("gs://non-existent-bucket/location");
 
@@ -595,7 +648,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("foo-12345");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
 
@@ -608,7 +661,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("google.com:some-project-12345");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
 
@@ -621,7 +674,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("12345");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     thrown.expect(IllegalArgumentException.class);
@@ -637,7 +690,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("some project");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     thrown.expect(IllegalArgumentException.class);
@@ -653,7 +706,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("foo-12345");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     options.as(DataflowPipelineDebugOptions.class).setNumberOfWorkerHarnessThreads(-1);
@@ -673,8 +726,7 @@ public class DataflowRunnerTest {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "Missing required value: at least one of tempLocation or stagingLocation must be set.");
-
+        "DataflowRunner requires gcpTempLocation, and it is missing in PipelineOptions.");
     DataflowRunner.fromOptions(options);
   }
 
@@ -684,7 +736,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo-project");
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     DataflowRunner.fromOptions(options);
@@ -898,58 +950,8 @@ public class DataflowRunnerTest {
   }
 
   @Test
-  public void testBoundedSourceUnsupportedInStreaming() throws Exception {
-    testUnsupportedSource(
-        AvroSource.readFromFileWithClass("foo", String.class), "Read.Bounded", true);
-  }
-
-  @Test
-  public void testBigQueryIOSourceUnsupportedInStreaming() throws Exception {
-    testUnsupportedSource(
-        BigQueryIO.Read.from("project:bar.baz").withoutValidation(), "BigQueryIO.Read", true);
-  }
-
-  @Test
-  public void testAvroIOSourceUnsupportedInStreaming() throws Exception {
-    testUnsupportedSource(
-        AvroIO.Read.from("foo"), "AvroIO.Read", true);
-  }
-
-  @Test
-  public void testTextIOSourceUnsupportedInStreaming() throws Exception {
-    testUnsupportedSource(TextIO.Read.from("foo"), "TextIO.Read", true);
-  }
-
-  @Test
-  public void testReadBoundedSourceUnsupportedInStreaming() throws Exception {
-    testUnsupportedSource(Read.from(AvroSource.from("/tmp/test")), "Read.Bounded", true);
-  }
-
-  @Test
   public void testReadUnboundedUnsupportedInBatch() throws Exception {
     testUnsupportedSource(Read.from(new TestCountingSource(1)), "Read.Unbounded", false);
-  }
-
-  private void testUnsupportedSink(
-      PTransform<PCollection<String>, PDone> sink, String name, boolean streaming)
-          throws Exception {
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage(
-        "The DataflowRunner in streaming mode does not support " + name);
-
-    Pipeline p = Pipeline.create(makeOptions(streaming));
-    p.apply(Create.of("foo")).apply(sink);
-    p.run();
-  }
-
-  @Test
-  public void testAvroIOSinkUnsupportedInStreaming() throws Exception {
-    testUnsupportedSink(AvroIO.Write.to("foo").withSchema(String.class), "AvroIO.Write", true);
-  }
-
-  @Test
-  public void testTextIOSinkUnsupportedInStreaming() throws Exception {
-    testUnsupportedSink(TextIO.Write.to("foo"), "TextIO.Write", true);
   }
 
   @Test
@@ -1069,8 +1071,6 @@ public class DataflowRunnerTest {
             keyCoder,
             ismCoder,
             false /* unique keys */));
-    doFnTester.setSideOutputTags(TupleTagList.of(
-        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
 
     IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
@@ -1171,8 +1171,6 @@ public class DataflowRunnerTest {
             keyCoder,
             ismCoder,
             true /* unique keys */));
-    doFnTester.setSideOutputTags(TupleTagList.of(
-        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
 
     IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
 
@@ -1212,8 +1210,6 @@ public class DataflowRunnerTest {
                IsmRecord<WindowedValue<Long>>> doFnTester = DoFnTester.of(
         new BatchViewAsMultimap.ToIsmMetadataRecordForSizeDoFn<Long, Long, IntervalWindow>(
             windowCoder));
-    doFnTester.setSideOutputTags(TupleTagList.of(
-        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
 
     IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
@@ -1265,8 +1261,6 @@ public class DataflowRunnerTest {
                IsmRecord<WindowedValue<Long>>> doFnTester = DoFnTester.of(
         new BatchViewAsMultimap.ToIsmMetadataRecordForKeyDoFn<Long, Long, IntervalWindow>(
             keyCoder, windowCoder));
-    doFnTester.setSideOutputTags(TupleTagList.of(
-        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
 
     IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));

@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>Example of use:
  * <pre> {@code
  * PCollection<KV<String, Long>> wordCounts = ...;
- * PCollection<Long> counts = wordCounts.apply(Values.<String>create());
+ * PCollection<Long> counts = wordCounts.apply(Values.<Long>create());
  * } </pre>
  *
  * <p>Each output element has the same timestamp and is in the same windows
@@ -59,7 +59,7 @@ public class Values<V> extends PTransform<PCollection<? extends KV<?, V>>,
   public PCollection<V> apply(PCollection<? extends KV<?, V>> in) {
     return
         in.apply("Values", ParDo.of(new DoFn<KV<?, V>, V>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             c.output(c.element().getValue());
           }

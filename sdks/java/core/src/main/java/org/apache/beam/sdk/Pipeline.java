@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -24,6 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -34,7 +37,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
@@ -46,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -249,7 +252,7 @@ public class Pipeline {
      */
     public enum CompositeBehavior {
       ENTER_TRANSFORM,
-      DO_NOT_ENTER_TRANSFORM;
+      DO_NOT_ENTER_TRANSFORM
     }
 
     /**
@@ -492,8 +495,8 @@ public class Pipeline {
   public String getFullNameForTesting(PTransform<?, ?> transform) {
     Collection<AppliedPTransform<?, ?, ?>> uses =
         transformApplicationsForTesting.get(transform);
-    Preconditions.checkState(uses.size() > 0, "Unknown transform: " + transform);
-    Preconditions.checkState(uses.size() <= 1, "Transform used multiple times: " + transform);
+    checkState(uses.size() > 0, "Unknown transform: " + transform);
+    checkState(uses.size() <= 1, "Transform used multiple times: " + transform);
     return Iterables.getOnlyElement(uses).getFullName();
   }
 
@@ -514,6 +517,14 @@ public class Pipeline {
       // A duplicate!  Retry.
       name = origName + suffixNum++;
     }
+  }
+
+  /**
+   * Returns a {@link Map} from each {@link Aggregator} in the {@link Pipeline} to the {@link
+   * PTransform PTransforms} in which it is used.
+   */
+  public Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> getAggregatorSteps() {
+    return new AggregatorPipelineExtractor(this).getAggregatorSteps();
   }
 
   /**

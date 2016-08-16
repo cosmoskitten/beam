@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
@@ -28,9 +30,9 @@ import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Determine the timing and other properties of a new pane for a given computation, key and window.
@@ -69,6 +71,8 @@ public class PaneInfoTracker {
 
     return new ReadableState<PaneInfo>() {
       @Override
+      @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+          justification = "prefetch side effect")
       public ReadableState<PaneInfo> readLater() {
         previousPaneFuture.readLater();
         return this;
@@ -132,21 +136,21 @@ public class PaneInfoTracker {
       // Timing transitions should follow EARLY* ON_TIME? LATE*
       switch (previousTiming) {
         case EARLY:
-          Preconditions.checkState(
+          checkState(
               timing == Timing.EARLY || timing == Timing.ON_TIME || timing == Timing.LATE,
               "EARLY cannot transition to %s", timing);
           break;
         case ON_TIME:
-          Preconditions.checkState(
+          checkState(
               timing == Timing.LATE, "ON_TIME cannot transition to %s", timing);
           break;
         case LATE:
-          Preconditions.checkState(timing == Timing.LATE, "LATE cannot transtion to %s", timing);
+          checkState(timing == Timing.LATE, "LATE cannot transtion to %s", timing);
           break;
         case UNKNOWN:
           break;
       }
-      Preconditions.checkState(!previousPane.isLast(), "Last pane was not last after all.");
+      checkState(!previousPane.isLast(), "Last pane was not last after all.");
     }
 
     return PaneInfo.createPane(isFirst, isFinal, timing, index, nonSpeculativeIndex);

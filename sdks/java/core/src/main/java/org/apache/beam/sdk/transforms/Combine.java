@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -28,7 +30,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractGlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractPerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -48,7 +49,6 @@ import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.common.Counter;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -58,7 +58,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -723,19 +722,7 @@ public class Combine {
     @Override
     public Coder<int[]> getAccumulatorCoder(CoderRegistry registry, Coder<Integer> inputCoder) {
       return DelegateCoder.of(
-          inputCoder,
-          new DelegateCoder.CodingFunction<int[], Integer>() {
-            @Override
-            public Integer apply(int[] accumulator) {
-              return accumulator[0];
-            }
-          },
-          new DelegateCoder.CodingFunction<Integer, int[]>() {
-            @Override
-            public int[] apply(Integer value) {
-              return wrap(value);
-            }
-          });
+          inputCoder, new ToIntegerCodingFunction(), new FromIntegerCodingFunction());
     }
 
     @Override
@@ -744,12 +731,44 @@ public class Combine {
       return inputCoder;
     }
 
-    private int[] wrap(int value) {
+    private static int[] wrap(int value) {
       return new int[] { value };
     }
 
-    public Counter<Integer> getCounter(String name) {
-      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
+    private static final class ToIntegerCodingFunction
+        implements DelegateCoder.CodingFunction<int[], Integer> {
+      @Override
+      public Integer apply(int[] accumulator) {
+        return accumulator[0];
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof ToIntegerCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
+    }
+
+    private static final class FromIntegerCodingFunction
+        implements DelegateCoder.CodingFunction<Integer, int[]> {
+      @Override
+      public int[] apply(Integer value) {
+        return wrap(value);
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof FromIntegerCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
     }
   }
 
@@ -803,20 +822,7 @@ public class Combine {
 
     @Override
     public Coder<long[]> getAccumulatorCoder(CoderRegistry registry, Coder<Long> inputCoder) {
-      return DelegateCoder.of(
-          inputCoder,
-          new DelegateCoder.CodingFunction<long[], Long>() {
-            @Override
-            public Long apply(long[] accumulator) {
-              return accumulator[0];
-            }
-          },
-          new DelegateCoder.CodingFunction<Long, long[]>() {
-            @Override
-            public long[] apply(Long value) {
-              return wrap(value);
-            }
-          });
+      return DelegateCoder.of(inputCoder, new ToLongCodingFunction(), new FromLongCodingFunction());
     }
 
     @Override
@@ -824,12 +830,44 @@ public class Combine {
       return inputCoder;
     }
 
-    private long[] wrap(long value) {
+    private static long[] wrap(long value) {
       return new long[] { value };
     }
 
-    public Counter<Long> getCounter(String name) {
-      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
+    private static final class ToLongCodingFunction
+        implements DelegateCoder.CodingFunction<long[], Long> {
+      @Override
+      public Long apply(long[] accumulator) {
+        return accumulator[0];
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof ToLongCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
+    }
+
+    private static final class FromLongCodingFunction
+        implements DelegateCoder.CodingFunction<Long, long[]> {
+      @Override
+      public long[] apply(Long value) {
+        return wrap(value);
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof FromLongCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
     }
   }
 
@@ -885,19 +923,7 @@ public class Combine {
     @Override
     public Coder<double[]> getAccumulatorCoder(CoderRegistry registry, Coder<Double> inputCoder) {
       return DelegateCoder.of(
-          inputCoder,
-          new DelegateCoder.CodingFunction<double[], Double>() {
-            @Override
-            public Double apply(double[] accumulator) {
-              return accumulator[0];
-            }
-          },
-          new DelegateCoder.CodingFunction<Double, double[]>() {
-            @Override
-            public double[] apply(Double value) {
-              return wrap(value);
-            }
-          });
+          inputCoder, new ToDoubleCodingFunction(), new FromDoubleCodingFunction());
     }
 
     @Override
@@ -905,12 +931,44 @@ public class Combine {
       return inputCoder;
     }
 
-    private double[] wrap(double value) {
+    private static double[] wrap(double value) {
       return new double[] { value };
     }
 
-    public Counter<Double> getCounter(String name) {
-      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
+    private static final class ToDoubleCodingFunction
+        implements DelegateCoder.CodingFunction<double[], Double> {
+      @Override
+      public Double apply(double[] accumulator) {
+        return accumulator[0];
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof ToDoubleCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
+    }
+
+    private static final class FromDoubleCodingFunction
+        implements DelegateCoder.CodingFunction<Double, double[]> {
+      @Override
+      public double[] apply(Double value) {
+        return wrap(value);
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof FromDoubleCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
     }
   }
 
@@ -1349,7 +1407,7 @@ public class Combine {
      */
     public Globally<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      Preconditions.checkState(fn instanceof RequiresContextInternal);
+      checkState(fn instanceof RequiresContextInternal);
       return new Globally<>(name, fn, fnDisplayData, insertDefault, fanout,
           ImmutableList.copyOf(sideInputs));
     }
@@ -1403,8 +1461,8 @@ public class Combine {
           .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
           .apply("ProduceDefault", ParDo.withSideInputs(maybeEmptyView).of(
               new DoFn<Void, OutputT>() {
-                @Override
-                public void processElement(DoFn<Void, OutputT>.ProcessContext c) {
+                @ProcessElement
+                public void processElement(ProcessContext c) {
                   Iterator<OutputT> combined = c.sideInput(maybeEmptyView).iterator();
                   if (!combined.hasNext()) {
                     c.output(defaultValue);
@@ -1733,7 +1791,7 @@ public class Combine {
      */
     public PerKey<K, InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      Preconditions.checkState(fn instanceof RequiresContextInternal);
+      checkState(fn instanceof RequiresContextInternal);
       return new PerKey<>(name, fn, fnDisplayData, fewKeys,
           ImmutableList.copyOf(sideInputs));
     }
@@ -2028,13 +2086,13 @@ public class Combine {
       PCollectionTuple split = input.apply("AddNonce", ParDo.of(
           new DoFn<KV<K, InputT>, KV<K, InputT>>() {
             transient int counter;
-            @Override
+            @StartBundle
             public void startBundle(Context c) {
               counter = ThreadLocalRandom.current().nextInt(
                   Integer.MAX_VALUE);
             }
 
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               KV<K, InputT> kv = c.element();
               int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
@@ -2065,8 +2123,8 @@ public class Combine {
           .apply("PreCombineHot", Combine.perKey(hotPreCombine))
           .apply("StripNonce", ParDo.of(
               new DoFn<KV<KV<K, Integer>, AccumT>,
-                       KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @Override
+                                     KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(
                       c.element().getKey().getKey(),
@@ -2081,7 +2139,7 @@ public class Combine {
           .setCoder(inputCoder)
           .apply("PrepareCold", ParDo.of(
               new DoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(c.element().getKey(),
                                  InputOrAccum.<InputT, AccumT>input(c.element().getValue())));
@@ -2288,12 +2346,17 @@ public class Combine {
       final PerKeyCombineFnRunner<? super K, ? super InputT, ?, OutputT> combineFnRunner =
           PerKeyCombineFnRunners.create(fn);
       PCollection<KV<K, OutputT>> output = input.apply(ParDo.of(
-          new DoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
+          new OldDoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
             @Override
             public void processElement(ProcessContext c) {
               K key = c.element().getKey();
 
               c.output(KV.of(key, combineFnRunner.apply(key, c.element().getValue(), c)));
+            }
+
+            @Override
+            public void populateDisplayData(DisplayData.Builder builder) {
+              Combine.GroupedValues.this.populateDisplayData(builder);
             }
           }).withSideInputs(sideInputs));
 

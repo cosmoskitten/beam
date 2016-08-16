@@ -19,10 +19,12 @@
 package org.apache.beam.examples;
 
 import org.apache.beam.examples.WordCount.WordCountOptions;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import com.google.common.base.Joiner;
+import org.apache.beam.sdk.util.IOChannelUtils;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,16 +40,28 @@ public class WordCountIT {
 
   /**
    * Options for the WordCount Integration Test.
+   *
+   * <p>Define expected output file checksum to verify WordCount pipeline result
+   * with customized input.
    */
   public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
+    @Default.String("c04722202dee29c442b55ead54c6000693e85e77")
+    String getOutputChecksum();
+    void setOutputChecksum(String value);
   }
 
   @Test
   public void testE2EWordCount() throws Exception {
     PipelineOptionsFactory.register(WordCountITOptions.class);
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
-    options.setOutput(Joiner.on("/").join(new String[]{options.getTempRoot(),
-        String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()), "output", "results"}));
+
+    options.setOutput(IOChannelUtils.resolve(
+        options.getTempRoot(),
+        String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+        "output",
+        "results"));
+    options.setOnSuccessMatcher(
+        new FileChecksumMatcher(options.getOutputChecksum(), options.getOutput() + "*"));
 
     WordCount.main(TestPipeline.convertToArgs(options));
   }

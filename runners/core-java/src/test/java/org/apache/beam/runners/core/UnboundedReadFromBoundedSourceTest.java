@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint;
@@ -169,6 +170,10 @@ public class UnboundedReadFromBoundedSourceTest {
         checkpoint.finalizeCheckpoint();
       }
     }
+    Checkpoint<T> checkpointDone = reader.getCheckpointMark();
+    assertTrue(checkpointDone.getResidualElements() == null
+        || checkpointDone.getResidualElements().isEmpty());
+
     assertEquals(expectedElements.size(), actual.size());
     assertEquals(Sets.newHashSet(expectedElements), Sets.newHashSet(actual));
   }
@@ -230,6 +235,10 @@ public class UnboundedReadFromBoundedSourceTest {
         hasNext = reader.advance();
       }
     }
+    Checkpoint<T> checkpointDone = reader.getCheckpointMark();
+    assertTrue(checkpointDone.getResidualElements() == null
+        || checkpointDone.getResidualElements().isEmpty());
+
     assertEquals(expectedElements.size(), actual.size());
     assertEquals(Sets.newHashSet(expectedElements), Sets.newHashSet(actual));
   }
@@ -351,7 +360,7 @@ public class UnboundedReadFromBoundedSourceTest {
         if (channel.read(buff) != 1) {
           return false;
         }
-        current = new Byte(buff.get(0));
+        current = buff.get(0);
         offset += 1;
         return true;
       }

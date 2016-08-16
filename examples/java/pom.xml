@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-examples-parent</artifactId>
-    <version>0.2.0-incubating-SNAPSHOT</version>
+    <version>0.3.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -33,6 +33,10 @@
   artifact includes all Apache Beam Java SDK examples.</description>
 
   <packaging>jar</packaging>
+
+  <properties>
+    <spark.version>1.6.2</spark.version>
+  </properties>
 
   <build>
     <plugins>
@@ -45,7 +49,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
-            <beamUseDummyRunner></beamUseDummyRunner>
+            <beamUseDummyRunner />
             <beamTestPipelineOptions>
             </beamTestPipelineOptions>
           </systemPropertyVariables>
@@ -88,7 +92,7 @@
               <location>${basedir}/../../sdks/java/javadoc/apiclient-docs</location>
             </offlineLink>
             <offlineLink>
-              <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
+              <url>http://avro.apache.org/docs/${avro.version}/api/java/</url>
               <location>${basedir}/../../sdks/java/javadoc/avro-docs</location>
             </offlineLink>
             <offlineLink>
@@ -187,6 +191,8 @@
               <goal>verify</goal>
             </goals>
             <configuration>
+              <parallel>all</parallel>
+              <threadCount>4</threadCount>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
               </systemPropertyVariables>
@@ -204,13 +210,13 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.api-client</groupId>
-      <artifactId>google-api-client</artifactId>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>com.google.apis</groupId>
-      <artifactId>google-api-services-dataflow</artifactId>
+      <groupId>com.google.api-client</groupId>
+      <artifactId>google-api-client</artifactId>
     </dependency>
 
     <dependency>
@@ -240,7 +246,7 @@
 
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
-      <artifactId>jsr305</artifactId>
+      <artifactId>annotations</artifactId>
     </dependency>
 
     <dependency>
@@ -268,12 +274,42 @@
       <artifactId>beam-runners-direct-java</artifactId>
       <version>${project.version}</version>
       <scope>runtime</scope>
+      <optional>true</optional>
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
       <version>${project.version}</version>
+      <scope>runtime</scope>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-flink_2.10</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-spark</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_2.10</artifactId>
+      <version>${spark.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-streaming_2.10</artifactId>
+      <version>${spark.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>

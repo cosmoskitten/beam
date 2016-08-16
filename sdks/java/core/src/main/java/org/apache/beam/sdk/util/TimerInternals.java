@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -29,11 +30,10 @@ import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
+import com.google.common.collect.ComparisonChain;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -206,9 +206,21 @@ public interface TimerInternals {
           .toString();
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>The ordering of {@link TimerData} that are not in the same namespace or domain is
+     * arbitrary.
+     */
     @Override
     public int compareTo(TimerData o) {
-      return Long.compare(timestamp.getMillis(), o.getTimestamp().getMillis());
+      ComparisonChain chain =
+          ComparisonChain.start().compare(timestamp, o.getTimestamp()).compare(domain, o.domain);
+      if (chain.result() == 0) {
+        // Obtaining the stringKey may be expensive; only do so if required
+        chain = chain.compare(namespace.stringKey(), o.namespace.stringKey());
+      }
+      return chain.result();
     }
   }
 
@@ -229,8 +241,7 @@ public interface TimerInternals {
     public static TimerDataCoder of(
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
         List<Coder<?>> components) {
-      Preconditions.checkArgument(components.size() == 1,
-          "Expecting 1 components, got " + components.size());
+      checkArgument(components.size() == 1, "Expecting 1 components, got %s", components.size());
       return of((Coder<? extends BoundedWindow>) components.get(0));
     }
 

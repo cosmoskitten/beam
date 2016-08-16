@@ -83,14 +83,14 @@ public class SerializableCoderTest implements Serializable {
   }
 
   static class StringToRecord extends DoFn<String, MyRecord> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new MyRecord(c.element()));
     }
   }
 
   static class RecordToString extends DoFn<MyRecord, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().value);
     }
@@ -127,6 +127,12 @@ public class SerializableCoderTest implements Serializable {
 
     Coder<?> decoded = Serializer.deserialize(encoding, Coder.class);
     Assert.assertThat(decoded, Matchers.instanceOf(SerializableCoder.class));
+  }
+
+  @Test
+  public void testNullEquals() {
+    SerializableCoder<MyRecord> coder = SerializableCoder.of(MyRecord.class);
+    Assert.assertFalse(coder.equals(null));
   }
 
   @Test
