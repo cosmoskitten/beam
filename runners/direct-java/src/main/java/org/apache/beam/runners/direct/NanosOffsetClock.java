@@ -50,10 +50,15 @@ public class NanosOffsetClock implements Clock {
   /**
    * Creates instances of {@link NanosOffsetClock}.
    */
-  public static class Factory implements DefaultValueFactory<Clock> {
+  public static class Factory implements DefaultValueFactory<OptionsSupplier<Clock>> {
     @Override
-    public Clock create(PipelineOptions options) {
-      return new NanosOffsetClock();
+    public OptionsSupplier<Clock> create(PipelineOptions options) {
+      return new OptionsSupplier<Clock>() {
+        @Override
+        public Clock get() {
+          return new NanosOffsetClock();
+        }
+      };
     }
   }
 }
