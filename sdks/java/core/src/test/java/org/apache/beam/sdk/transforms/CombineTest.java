@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -38,7 +38,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -96,27 +95,34 @@ public class CombineTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
 
-  static final List<KV<String, Integer>> TABLE = Arrays.asList(
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  static final KV<String, Integer>[] TABLE = new KV[] {
     KV.of("a", 1),
     KV.of("a", 1),
     KV.of("a", 4),
     KV.of("b", 1),
-    KV.of("b", 13)
-  );
+    KV.of("b", 13),
+  };
 
-  static final List<KV<String, Integer>> EMPTY_TABLE = Collections.emptyList();
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
+  };
+
+  static final Integer[] NUMBERS = new Integer[] {
+    1, 1, 2, 3, 5, 8, 13, 21, 34, 55
+  };
 
   @Mock private DoFn<?, ?>.ProcessContext processContext;
 
   PCollection<KV<String, Integer>> createInput(Pipeline p,
-                                               List<KV<String, Integer>> table) {
-    return p.apply(Create.of(table).withCoder(
+                                               KV<String, Integer>[] table) {
+    return p.apply(Create.of(Arrays.asList(table)).withCoder(
         KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
-  private void runTestSimpleCombine(List<KV<String, Integer>> table,
+  private void runTestSimpleCombine(KV<String, Integer>[] table,
                                     int globalSum,
-                                    List<KV<String, String>> perKeyCombines) {
+                                    KV<String, String>[] perKeyCombines) {
     Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
@@ -134,9 +140,9 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  private void runTestSimpleCombineWithContext(List<KV<String, Integer>> table,
+  private void runTestSimpleCombineWithContext(KV<String, Integer>[] table,
                                                int globalSum,
-                                               List<KV<String, String>> perKeyCombines,
+                                               KV<String, String>[] perKeyCombines,
                                                String[] globallyCombines) {
     Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> perKeyInput = createInput(pipeline, table);
@@ -168,7 +174,8 @@ public class CombineTest implements Serializable {
   @Category(RunnableOnService.class)
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombine() {
-    runTestSimpleCombine(TABLE, 20, Arrays.asList(KV.of("a", "114a"), KV.of("b", "113b")));
+    runTestSimpleCombine(TABLE, 20, new KV[] {
+        KV.of("a", "114a"), KV.of("b", "113b") });
   }
 
   @Test
@@ -176,27 +183,28 @@ public class CombineTest implements Serializable {
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombineWithContext() {
     runTestSimpleCombineWithContext(TABLE, 20,
-        Arrays.asList(KV.of("a", "01124a"), KV.of("b", "01123b")),
+        new KV[] {KV.of("a", "01124a"), KV.of("b", "01123b") },
         new String[] {"01111234G"});
   }
 
   @Test
   @Category(RunnableOnService.class)
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombineWithContextEmpty() {
-    runTestSimpleCombineWithContext(
-        EMPTY_TABLE, 0, Collections.<KV<String, String>>emptyList(), new String[] {});
+    runTestSimpleCombineWithContext(EMPTY_TABLE, 0, new KV[] {}, new String[] {});
   }
 
   @Test
   @Category(RunnableOnService.class)
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombineEmpty() {
-    runTestSimpleCombine(EMPTY_TABLE, 0, Collections.<KV<String, String>>emptyList());
+    runTestSimpleCombine(EMPTY_TABLE, 0, new KV[] { });
   }
 
   @SuppressWarnings("unchecked")
-  private void runTestBasicCombine(List<KV<String, Integer>> table,
+  private void runTestBasicCombine(KV<String, Integer>[] table,
                                    Set<Integer> globalUnique,
-                                   List<KV<String, Set<Integer>>> perKeyUnique) {
+                                   KV<String, Set<Integer>>[] perKeyUnique) {
     Pipeline pipeline = TestPipeline.create();
     pipeline.getCoderRegistry().registerCoder(Set.class, SetCoder.class);
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
@@ -217,22 +225,23 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public void testBasicCombine() {
-    runTestBasicCombine(TABLE, ImmutableSet.of(1, 13, 4), Arrays.asList(
+    runTestBasicCombine(TABLE, ImmutableSet.of(1, 13, 4), new KV[] {
         KV.of("a", (Set<Integer>) ImmutableSet.of(1, 4)),
-        KV.of("b", (Set<Integer>) ImmutableSet.of(1, 13))));
+        KV.of("b", (Set<Integer>) ImmutableSet.of(1, 13)) });
   }
 
   @Test
   @Category(RunnableOnService.class)
+  @SuppressWarnings("rawtypes")
   public void testBasicCombineEmpty() {
-    runTestBasicCombine(
-        EMPTY_TABLE, ImmutableSet.<Integer>of(), Collections.<KV<String, Set<Integer>>>emptyList());
+    runTestBasicCombine(EMPTY_TABLE, ImmutableSet.<Integer>of(), new KV[] { });
   }
 
-  private void runTestAccumulatingCombine(List<KV<String, Integer>> table,
+  private void runTestAccumulatingCombine(KV<String, Integer>[] table,
                                           Double globalMean,
-                                          List<KV<String, Double>> perKeyMeans) {
+                                          KV<String, Double>[] perKeyMeans) {
     Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
@@ -256,7 +265,8 @@ public class CombineTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
-        pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 1L, 6L, 7L, 8L))
+        pipeline.apply(Create.timestamped(Arrays.asList(TABLE),
+                                   Arrays.asList(0L, 1L, 6L, 7L, 8L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
          .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(2))));
 
@@ -282,7 +292,8 @@ public class CombineTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> perKeyInput =
-        pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 1L, 6L, 7L, 8L))
+        pipeline.apply(Create.timestamped(Arrays.asList(TABLE),
+                                   Arrays.asList(0L, 1L, 6L, 7L, 8L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
          .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(2))));
 
@@ -319,7 +330,8 @@ public class CombineTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> perKeyInput =
-        pipeline.apply(Create.timestamped(TABLE, Arrays.asList(2L, 3L, 8L, 9L, 10L))
+        pipeline.apply(Create.timestamped(Arrays.asList(TABLE),
+                                   Arrays.asList(2L, 3L, 8L, 9L, 10L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
          .apply(Window.<KV<String, Integer>>into(SlidingWindows.of(Duration.millis(2))));
 
@@ -395,7 +407,8 @@ public class CombineTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
-        pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 4L, 7L, 10L, 16L))
+        pipeline.apply(Create.timestamped(Arrays.asList(TABLE),
+                                   Arrays.asList(0L, 4L, 7L, 10L, 16L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
          .apply(Window.<KV<String, Integer>>into(Sessions.withGapDuration(Duration.millis(5))));
 
@@ -420,7 +433,8 @@ public class CombineTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> perKeyInput =
-        pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 4L, 7L, 10L, 16L))
+        pipeline.apply(Create.timestamped(Arrays.asList(TABLE),
+                                   Arrays.asList(0L, 4L, 7L, 10L, 16L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<Integer> globallyInput = perKeyInput.apply(Values.<Integer>create());
@@ -474,13 +488,14 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testAccumulatingCombine() {
-    runTestAccumulatingCombine(TABLE, 4.0, Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0)));
+    runTestAccumulatingCombine(TABLE, 4.0, new KV[] {
+        KV.of("a", 2.0), KV.of("b", 7.0) });
   }
 
   @Test
   @Category(RunnableOnService.class)
   public void testAccumulatingCombineEmpty() {
-    runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.<KV<String, Double>>emptyList());
+    runTestAccumulatingCombine(EMPTY_TABLE, 0.0, new KV[] { });
   }
 
   // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine),
@@ -682,7 +697,7 @@ public class CombineTest implements Serializable {
     assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
     assertThat(displayData, hasDisplayItem("emitDefaultOnEmptyInput", true));
     assertThat(displayData, hasDisplayItem("fanout", 1234));
-    assertThat(displayData, includesDisplayDataFor("combineFn", combineFn));
+    assertThat(displayData, includesDisplayDataFrom(combineFn));
   }
 
   @Test

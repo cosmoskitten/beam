@@ -187,7 +187,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
     Iterable<WindowedValue<?>> elements = state.read();
 
-    return sideInput.getViewFn().apply(elements);
+    return sideInput.fromIterableInternal(elements);
   }
 
   @Override

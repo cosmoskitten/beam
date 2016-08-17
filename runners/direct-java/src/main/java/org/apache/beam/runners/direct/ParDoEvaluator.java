@@ -60,7 +60,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
       outputBundles.put(
           outputEntry.getKey(),
-          evaluationContext.createBundle(outputEntry.getValue()));
+          evaluationContext.createBundle(inputBundle, outputEntry.getValue()));
     }
 
     ReadyCheckingSideInputReader sideInputReader =
@@ -160,14 +160,15 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
       undeclaredOutputs = new HashMap<>();
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+      @SuppressWarnings("rawtypes")
       UncommittedBundle bundle = bundles.get(tag);
       if (bundle == null) {
-        List<WindowedValue<T>> undeclaredContents = (List) undeclaredOutputs.get(tag);
+        List undeclaredContents = undeclaredOutputs.get(tag);
         if (undeclaredContents == null) {
-          undeclaredContents = new ArrayList<>();
+          undeclaredContents = new ArrayList<T>();
           undeclaredOutputs.put(tag, undeclaredContents);
         }
         undeclaredContents.add(output);

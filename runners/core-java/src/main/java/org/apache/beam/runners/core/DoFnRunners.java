@@ -43,7 +43,7 @@ public class DoFnRunners {
     /**
      * Outputs a single element to the receiver indicated by the given {@link TupleTag}.
      */
-    <T> void output(TupleTag<T> tag, WindowedValue<T> output);
+    public <T> void output(TupleTag<T> tag, WindowedValue<T> output);
   }
 
   /**

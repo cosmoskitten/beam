@@ -127,19 +127,20 @@ public class MongoDbIOTest implements Serializable {
   public void testFullRead() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
-    PCollection<Document> output = pipeline.apply(
+    PCollection<String> output = pipeline.apply(
         MongoDbIO.read()
           .withUri("mongodb://localhost:" + PORT)
           .withDatabase(DATABASE)
           .withCollection(COLLECTION));
 
-    PAssert.thatSingleton(output.apply("Count All", Count.<Document>globally()))
+    PAssert.thatSingleton(output.apply("Count All", Count.<String>globally()))
         .isEqualTo(1000L);
 
     PAssert.that(output
-        .apply("Map Scientist", MapElements.via(new SimpleFunction<Document, KV<String, Void>>() {
-          public KV<String, Void> apply(Document input) {
-            return KV.of(input.getString("scientist"), null);
+        .apply("Map Scientist", MapElements.via(new SimpleFunction<String, KV<String, Void>>() {
+          public KV<String, Void> apply(String input) {
+            Document bson = Document.parse(input);
+            return KV.of(bson.getString("scientist"), null);
           }
         }))
         .apply("Count Scientist", Count.<String, Void>perKey())
@@ -161,14 +162,14 @@ public class MongoDbIOTest implements Serializable {
   public void testReadWithFilter() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
-    PCollection<Document> output = pipeline.apply(
+    PCollection<String> output = pipeline.apply(
         MongoDbIO.read()
         .withUri("mongodb://localhost:" + PORT)
         .withDatabase(DATABASE)
         .withCollection(COLLECTION)
         .withFilter("{\"scientist\":\"Einstein\"}"));
 
-    PAssert.thatSingleton(output.apply("Count", Count.<Document>globally()))
+    PAssert.thatSingleton(output.apply("Count", Count.<String>globally()))
         .isEqualTo(100L);
 
     pipeline.run();
@@ -179,9 +180,9 @@ public class MongoDbIOTest implements Serializable {
   public void testWrite() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
-    ArrayList<Document> data = new ArrayList<>();
+    ArrayList<String> data = new ArrayList<>();
     for (int i = 0; i < 10000; i++) {
-      data.add(Document.parse(String.format("{\"scientist\":\"Test %s\"}", i)));
+      data.add(String.format("{\"scientist\":\"Test %s\"}", i));
     }
     pipeline.apply(Create.of(data))
         .apply(MongoDbIO.write().withUri("mongodb://localhost:" + PORT).withDatabase("test")

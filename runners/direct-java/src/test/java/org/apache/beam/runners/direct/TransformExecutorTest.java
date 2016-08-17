@@ -72,7 +72,6 @@ public class TransformExecutorTest {
   private RegisteringCompletionCallback completionCallback;
   private TransformExecutorService transformEvaluationState;
   private BundleFactory bundleFactory;
-  @Mock private DirectMetrics metrics;
   @Mock private EvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
 
@@ -91,8 +90,6 @@ public class TransformExecutorTest {
     TestPipeline p = TestPipeline.create();
     created = p.apply(Create.of("foo", "spam", "third"));
     downstream = created.apply(WithKeys.<Integer, String>of(3));
-
-    when(evaluationContext.getMetrics()).thenReturn(metrics);
   }
 
   @Test
@@ -119,7 +116,6 @@ public class TransformExecutorTest {
 
     TransformExecutor<Object> executor =
         TransformExecutor.create(
-            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             null,
@@ -130,7 +126,7 @@ public class TransformExecutorTest {
 
     assertThat(finishCalled.get(), is(true));
     assertThat(completionCallback.handledResult, equalTo(result));
-    assertThat(completionCallback.handledException, is(nullValue()));
+    assertThat(completionCallback.handledThrowable, is(nullValue()));
   }
 
   @Test
@@ -139,7 +135,6 @@ public class TransformExecutorTest {
 
     TransformExecutor<Object> executor =
         TransformExecutor.create(
-            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             null,
@@ -150,7 +145,7 @@ public class TransformExecutorTest {
 
     assertThat(completionCallback.handledResult, is(nullValue()));
     assertThat(completionCallback.handledEmpty, equalTo(true));
-    assertThat(completionCallback.handledException, is(nullValue()));
+    assertThat(completionCallback.handledThrowable, is(nullValue()));
   }
 
   @Test
@@ -176,13 +171,12 @@ public class TransformExecutorTest {
     WindowedValue<String> spam = WindowedValue.valueInGlobalWindow("spam");
     WindowedValue<String> third = WindowedValue.valueInGlobalWindow("third");
     CommittedBundle<String> inputBundle =
-        bundleFactory.createBundle(created).add(foo).add(spam).add(third).commit(Instant.now());
+        bundleFactory.createRootBundle(created).add(foo).add(spam).add(third).commit(Instant.now());
     when(registry.<String>forApplication(downstream.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
     TransformExecutor<String> executor =
         TransformExecutor.create(
-            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             inputBundle,
@@ -196,7 +190,7 @@ public class TransformExecutorTest {
 
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
     assertThat(completionCallback.handledResult, equalTo(result));
-    assertThat(completionCallback.handledException, is(nullValue()));
+    assertThat(completionCallback.handledThrowable, is(nullValue()));
   }
 
   @Test
@@ -219,13 +213,12 @@ public class TransformExecutorTest {
 
     WindowedValue<String> foo = WindowedValue.valueInGlobalWindow("foo");
     CommittedBundle<String> inputBundle =
-        bundleFactory.createBundle(created).add(foo).commit(Instant.now());
+        bundleFactory.createRootBundle(created).add(foo).commit(Instant.now());
     when(registry.<String>forApplication(downstream.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
     TransformExecutor<String> executor =
         TransformExecutor.create(
-            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             inputBundle,
@@ -237,7 +230,7 @@ public class TransformExecutorTest {
     evaluatorCompleted.await();
 
     assertThat(completionCallback.handledResult, is(nullValue()));
-    assertThat(completionCallback.handledException, Matchers.<Throwable>equalTo(exception));
+    assertThat(completionCallback.handledThrowable, Matchers.<Throwable>equalTo(exception));
   }
 
   @Test
@@ -255,13 +248,12 @@ public class TransformExecutorTest {
         };
 
     CommittedBundle<String> inputBundle =
-        bundleFactory.createBundle(created).commit(Instant.now());
+        bundleFactory.createRootBundle(created).commit(Instant.now());
     when(registry.<String>forApplication(downstream.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
     TransformExecutor<String> executor =
         TransformExecutor.create(
-            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             inputBundle,
@@ -273,7 +265,7 @@ public class TransformExecutorTest {
     evaluatorCompleted.await();
 
     assertThat(completionCallback.handledResult, is(nullValue()));
-    assertThat(completionCallback.handledException, Matchers.<Throwable>equalTo(exception));
+    assertThat(completionCallback.handledThrowable, Matchers.<Throwable>equalTo(exception));
   }
 
   @Test
@@ -302,7 +294,6 @@ public class TransformExecutorTest {
 
     TransformExecutor<String> executor =
         TransformExecutor.create(
-            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             null,
@@ -337,14 +328,13 @@ public class TransformExecutorTest {
     WindowedValue<String> fooElem = WindowedValue.valueInGlobalWindow("foo");
     WindowedValue<String> barElem = WindowedValue.valueInGlobalWindow("bar");
     CommittedBundle<String> inputBundle =
-        bundleFactory.createBundle(created).add(fooElem).add(barElem).commit(Instant.now());
+        bundleFactory.createRootBundle(created).add(fooElem).add(barElem).commit(Instant.now());
     when(registry.forApplication(downstream.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
     TestEnforcementFactory enforcement = new TestEnforcementFactory();
     TransformExecutor<String> executor =
         TransformExecutor.create(
-            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>singleton(enforcement),
             inputBundle,
@@ -396,13 +386,12 @@ public class TransformExecutorTest {
 
     WindowedValue<byte[]> fooBytes = WindowedValue.valueInGlobalWindow("foo".getBytes());
     CommittedBundle<byte[]> inputBundle =
-        bundleFactory.createBundle(pcBytes).add(fooBytes).commit(Instant.now());
+        bundleFactory.createRootBundle(pcBytes).add(fooBytes).commit(Instant.now());
     when(registry.forApplication(pcBytes.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
     TransformExecutor<byte[]> executor =
         TransformExecutor.create(
-            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>singleton(ImmutabilityEnforcementFactory.create()),
             inputBundle,
@@ -453,13 +442,12 @@ public class TransformExecutorTest {
 
     WindowedValue<byte[]> fooBytes = WindowedValue.valueInGlobalWindow("foo".getBytes());
     CommittedBundle<byte[]> inputBundle =
-        bundleFactory.createBundle(pcBytes).add(fooBytes).commit(Instant.now());
+        bundleFactory.createRootBundle(pcBytes).add(fooBytes).commit(Instant.now());
     when(registry.forApplication(pcBytes.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
     TransformExecutor<byte[]> executor =
         TransformExecutor.create(
-            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>singleton(ImmutabilityEnforcementFactory.create()),
             inputBundle,
@@ -479,7 +467,7 @@ public class TransformExecutorTest {
   private static class RegisteringCompletionCallback implements CompletionCallback {
     private TransformResult handledResult = null;
     private boolean handledEmpty = false;
-    private Exception handledException = null;
+    private Throwable handledThrowable = null;
     private final CountDownLatch onMethod;
 
     private RegisteringCompletionCallback(CountDownLatch onMethod) {
@@ -512,8 +500,8 @@ public class TransformExecutorTest {
     }
 
     @Override
-    public void handleException(CommittedBundle<?> inputBundle, Exception e) {
-      handledException = e;
+    public void handleThrowable(CommittedBundle<?> inputBundle, Throwable t) {
+      handledThrowable = t;
       onMethod.countDown();
     }
   }

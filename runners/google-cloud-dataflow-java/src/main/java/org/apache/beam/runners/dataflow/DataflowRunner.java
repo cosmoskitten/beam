@@ -132,7 +132,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -174,12 +173,11 @@ import org.slf4j.LoggerFactory;
  * to the Dataflow representation using the {@link DataflowPipelineTranslator} and then submitting
  * them to a Dataflow service for execution.
  *
- * <h3>Permissions</h3>
+ * <p><h3>Permissions</h3>
  *
- * <p>When reading from a Dataflow source or writing to a Dataflow sink using
- * {@code DataflowRunner}, the Google cloudservices account and the Google compute engine service
- * account of the GCP project running the Dataflow Job will need access to the corresponding
- * source/sink.
+ * When reading from a Dataflow source or writing to a Dataflow sink using {@code DataflowRunner},
+ * the Google cloudservices account and the Google compute engine service account of the GCP project
+ * running the Dataflow Job will need access to the corresponding source/sink.
  *
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
@@ -208,9 +206,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // Default Docker container images that execute Dataflow worker harness, residing in Google
   // Container Registry, separately for Batch and Streaming.
   public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE =
-      "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20161017";
+      "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20160826";
   public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE =
-      "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20161017";
+      "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20160826";
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -1824,7 +1822,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // outputting to all the outputs defined above.
       PCollectionTuple outputTuple = input
            .apply("GBKaSVForData", new GroupByKeyHashAndSortByKeyAndWindow<K, V, W>(ismCoder))
-           .apply(ParDo.of(new ToIsmRecordForMapLikeDoFn<>(
+           .apply(ParDo.of(new ToIsmRecordForMapLikeDoFn<K, V, W>(
                    outputForSizeTag, outputForEntrySetTag,
                    windowCoder, inputCoder.getKeyCoder(), ismCoder, uniqueKeysExpected))
                        .withOutputTags(mainOutputTag,
@@ -2082,17 +2080,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator<>());
+          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator());
     }
   }
 
   /**
    * Rewrite {@link StreamingPubsubIORead} to the appropriate internal node.
    */
-  private static class StreamingPubsubIOReadTranslator<T> implements
-      TransformTranslator<StreamingPubsubIORead<T>> {
+  private static class StreamingPubsubIOReadTranslator implements
+      TransformTranslator<StreamingPubsubIORead> {
     @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
+        StreamingPubsubIORead transform,
+        TranslationContext context) {
+      translateTyped(transform, context);
+    }
+
+    private <T> void translateTyped(
         StreamingPubsubIORead<T> transform,
         TranslationContext context) {
       checkArgument(context.getPipelineOptions().isStreaming(),
@@ -2116,7 +2121,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (overriddenTransform.getIdLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
-      context.addValueOnlyOutput(context.getOutput(transform));
+      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
   }
 
@@ -2151,18 +2156,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIOWrite.class, new StreamingPubsubIOWriteTranslator<>());
+          StreamingPubsubIOWrite.class, new StreamingPubsubIOWriteTranslator());
     }
   }
 
   /**
    * Rewrite {@link StreamingPubsubIOWrite} to the appropriate internal node.
    */
-  private static class StreamingPubsubIOWriteTranslator<T> implements
-      TransformTranslator<StreamingPubsubIOWrite<T>> {
+  private static class StreamingPubsubIOWriteTranslator implements
+      TransformTranslator<StreamingPubsubIOWrite> {
 
     @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
+        StreamingPubsubIOWrite transform,
+        TranslationContext context) {
+      translateTyped(transform, context);
+    }
+
+    private <T> void translateTyped(
         StreamingPubsubIOWrite<T> transform,
         TranslationContext context) {
       checkArgument(context.getPipelineOptions().isStreaming(),
@@ -2215,10 +2227,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       source.validate();
 
       if (source.requiresDeduping()) {
-        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
+        return Pipeline.applyTransform(input, new ReadWithIds<T>(source))
             .apply(new Deduplicate<T>());
       } else {
-        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
+        return Pipeline.applyTransform(input, new ReadWithIds<T>(source))
             .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
       }
     }
@@ -2244,14 +2256,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       @Override
       protected Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
         return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getDefaultOutputCoder());
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        builder
-            .add(DisplayData.item("source", source.getClass()))
-            .include("source", source);
       }
 
       public UnboundedSource<T, ?> getSource() {
@@ -2349,7 +2353,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     public static <T> StreamingPCollectionViewWriterFn<T> create(
         PCollectionView<?> view, Coder<T> dataCoder) {
-      return new StreamingPCollectionViewWriterFn<>(view, dataCoder);
+      return new StreamingPCollectionViewWriterFn<T>(view, dataCoder);
     }
 
     private StreamingPCollectionViewWriterFn(PCollectionView<?> view, Coder<T> dataCoder) {
@@ -2649,7 +2653,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class Concatenate<T> extends CombineFn<T, List<T>, List<T>> {
     @Override
     public List<T> createAccumulator() {
-      return new ArrayList<>();
+      return new ArrayList<T>();
     }
 
     @Override

@@ -18,9 +18,6 @@
 package org.apache.beam.sdk;
 
 import java.io.IOException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.joda.time.Duration;
 
@@ -84,7 +81,7 @@ public interface PipelineResult {
   // TODO: method to retrieve error messages.
 
   /** Named constants for common values for the job state. */
-  enum State {
+  public enum State {
 
     /** The job state could not be obtained or was not specified. */
     UNKNOWN(false, false),
@@ -111,7 +108,7 @@ public interface PipelineResult {
 
     private final boolean hasReplacement;
 
-    State(boolean terminal, boolean hasReplacement) {
+    private State(boolean terminal, boolean hasReplacement) {
       this.terminal = terminal;
       this.hasReplacement = hasReplacement;
     }
@@ -130,12 +127,4 @@ public interface PipelineResult {
       return hasReplacement;
     }
   }
-
-  /**
-   * Return the object to access metrics from the pipeline.
-   *
-   * @throws UnsupportedOperationException if the runner doesn't support retrieving metrics.
-   */
-  @Experimental(Kind.METRICS)
-  MetricResults metrics();
 }

@@ -57,8 +57,7 @@ interface BigQueryServices extends Serializable {
    * Returns a real, mock, or fake {@link BigQueryJsonReader} to query tables.
    */
   BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
-      @Nullable Boolean useLegacySql);
+      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten);
 
   /**
    * An interface for the Cloud BigQuery load service.
@@ -98,13 +97,13 @@ interface BigQueryServices extends Serializable {
     /**
      * Dry runs the query in the given project.
      */
-    JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig)
+    JobStatistics dryRunQuery(String projectId, String query)
         throws InterruptedException, IOException;
 
     /**
      * Gets the specified {@link Job} by the given {@link JobReference}.
      *
-     * <p>Returns null if the job is not found.
+     * Returns null if the job is not found.
      */
     Job getJob(JobReference jobRef) throws IOException, InterruptedException;
   }
@@ -141,8 +140,7 @@ interface BigQueryServices extends Serializable {
     /**
      * Create a {@link Dataset} with the given {@code location} and {@code description}.
      */
-    void createDataset(
-        String projectId, String datasetId, @Nullable String location, @Nullable String description)
+    void createDataset(String projectId, String datasetId, String location, String description)
         throws IOException, InterruptedException;
 
     /**

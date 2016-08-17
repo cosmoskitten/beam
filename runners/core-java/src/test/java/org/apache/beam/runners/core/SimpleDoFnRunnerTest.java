@@ -36,7 +36,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link SimpleDoFnRunner} functionality.
+ * Tests for base {@link DoFnRunnerBase} functionality.
  */
 @RunWith(JUnit4.class)
 public class SimpleDoFnRunnerTest {

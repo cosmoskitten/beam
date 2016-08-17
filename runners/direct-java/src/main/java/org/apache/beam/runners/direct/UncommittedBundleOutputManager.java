@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * An {@link OutputManager} that outputs to {@link CommittedBundle Bundles} used by the
  * {@link DirectRunner}.
  */
-class UncommittedBundleOutputManager implements OutputManager {
+public class UncommittedBundleOutputManager implements OutputManager {
   private final Map<TupleTag<?>, UncommittedBundle<?>> bundles;
 
   public static UncommittedBundleOutputManager create(
@@ -36,7 +36,7 @@ class UncommittedBundleOutputManager implements OutputManager {
     return new UncommittedBundleOutputManager(outputBundles);
   }
 
-  UncommittedBundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
+  public UncommittedBundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
     this.bundles = bundles;
   }
 

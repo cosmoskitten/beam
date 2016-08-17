@@ -35,7 +35,6 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -88,7 +87,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link DatastoreV1} provides an API to Read, Write and Delete {@link PCollection PCollections}
+ * <p>{@link DatastoreV1} provides an API to Read, Write and Delete {@link PCollection PCollections}
  * of <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1
  * {@link Entity} objects.
  *
@@ -195,7 +194,7 @@ public class DatastoreV1 {
    * {@link DatastoreV1.Read#withNamespace}, {@link DatastoreV1.Read#withNumQuerySplits}.
    */
   public DatastoreV1.Read read() {
-    return new AutoValue_DatastoreV1_Read.Builder().setNumQuerySplits(0).build();
+    return new DatastoreV1.Read(null, null, null, 0);
   }
 
   /**
@@ -204,8 +203,7 @@ public class DatastoreV1 {
    *
    * @see DatastoreIO
    */
-  @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<Entity>> {
+  public static class Read extends PTransform<PBegin, PCollection<Entity>> {
     private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 
     /** An upper bound on the number of splits for a query. */
@@ -224,23 +222,16 @@ public class DatastoreV1 {
      */
     static final int QUERY_BATCH_LIMIT = 500;
 
-    @Nullable public abstract String getProjectId();
-    @Nullable public abstract Query getQuery();
-    @Nullable public abstract String getNamespace();
-    public abstract int getNumQuerySplits();
+    @Nullable
+    private final String projectId;
 
-    public abstract String toString();
+    @Nullable
+    private final Query query;
 
-    abstract Builder toBuilder();
+    @Nullable
+    private final String namespace;
 
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setProjectId(String projectId);
-      abstract Builder setQuery(Query query);
-      abstract Builder setNamespace(String namespace);
-      abstract Builder setNumQuerySplits(int numQuerySplits);
-      abstract Read build();
-    }
+    private final int numQuerySplits;
 
     /**
      * Computes the number of splits to be performed on the given query by querying the estimated
@@ -354,12 +345,25 @@ public class DatastoreV1 {
     }
 
     /**
+     * Note that only {@code namespace} is really {@code @Nullable}. The other parameters may be
+     * {@code null} as a matter of build order, but if they are {@code null} at instantiation time,
+     * an error will be thrown.
+     */
+    private Read(@Nullable String projectId, @Nullable Query query, @Nullable String namespace,
+        int numQuerySplits) {
+      this.projectId = projectId;
+      this.query = query;
+      this.namespace = namespace;
+      this.numQuerySplits = numQuerySplits;
+    }
+
+    /**
      * Returns a new {@link DatastoreV1.Read} that reads from the Cloud Datastore for the specified
      * project.
      */
     public DatastoreV1.Read withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return toBuilder().setProjectId(projectId).build();
+      return new DatastoreV1.Read(projectId, query, namespace, numQuerySplits);
     }
 
     /**
@@ -374,14 +378,14 @@ public class DatastoreV1 {
       checkNotNull(query, "query");
       checkArgument(!query.hasLimit() || query.getLimit().getValue() > 0,
           "Invalid query limit %s: must be positive", query.getLimit().getValue());
-      return toBuilder().setQuery(query).build();
+      return new DatastoreV1.Read(projectId, query, namespace, numQuerySplits);
     }
 
     /**
      * Returns a new {@link DatastoreV1.Read} that reads from the given namespace.
      */
     public DatastoreV1.Read withNamespace(String namespace) {
-      return toBuilder().setNamespace(namespace).build();
+      return new DatastoreV1.Read(projectId, query, namespace, numQuerySplits);
     }
 
     /**
@@ -401,11 +405,29 @@ public class DatastoreV1 {
      * </ul>
      */
     public DatastoreV1.Read withNumQuerySplits(int numQuerySplits) {
-      return toBuilder()
-          .setNumQuerySplits(Math.min(Math.max(numQuerySplits, 0), NUM_QUERY_SPLITS_MAX))
-          .build();
+      return new DatastoreV1.Read(projectId, query, namespace,
+          Math.min(Math.max(numQuerySplits, 0), NUM_QUERY_SPLITS_MAX));
     }
 
+    @Nullable
+    public Query getQuery() {
+      return query;
+    }
+
+    @Nullable
+    public String getProjectId() {
+      return projectId;
+    }
+
+    @Nullable
+    public String getNamespace() {
+      return namespace;
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public PCollection<Entity> apply(PBegin input) {
       V1Options v1Options = V1Options.from(getProjectId(), getQuery(),
@@ -429,8 +451,8 @@ public class DatastoreV1 {
        *   a {@code PCollection<Entity>}.
        */
       PCollection<KV<Integer, Query>> queries = input
-          .apply(Create.of(getQuery()))
-          .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
+          .apply(Create.of(query))
+          .apply(ParDo.of(new SplitQueryFn(v1Options, numQuerySplits)));
 
       PCollection<Query> shardedQueries = queries
           .apply(GroupByKey.<Integer, Query>create())
@@ -445,20 +467,29 @@ public class DatastoreV1 {
 
     @Override
     public void validate(PBegin input) {
-      checkNotNull(getProjectId(), "projectId");
-      checkNotNull(getQuery(), "query");
+      checkNotNull(projectId, "projectId");
+      checkNotNull(query, "query");
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotNull(DisplayData.item("projectId", getProjectId())
+          .addIfNotNull(DisplayData.item("projectId", projectId)
               .withLabel("ProjectId"))
-          .addIfNotNull(DisplayData.item("namespace", getNamespace())
+          .addIfNotNull(DisplayData.item("namespace", namespace)
               .withLabel("Namespace"))
-          .addIfNotNull(DisplayData.item("query", getQuery().toString())
+          .addIfNotNull(DisplayData.item("query", query.toString())
               .withLabel("Query"));
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("projectId", projectId)
+          .add("query", query)
+          .add("namespace", namespace)
+          .toString();
     }
 
     /**
@@ -565,7 +596,7 @@ public class DatastoreV1 {
       }
 
       @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
+      public void populateDisplayData(Builder builder) {
         super.populateDisplayData(builder);
         builder
             .addIfNotNull(DisplayData.item("projectId", options.getProjectId())
@@ -802,7 +833,7 @@ public class DatastoreV1 {
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId)
               .withLabel("Output Project"))
-          .include("mutationFn", mutationFn);
+          .include(mutationFn);
     }
 
     public String getProjectId() {

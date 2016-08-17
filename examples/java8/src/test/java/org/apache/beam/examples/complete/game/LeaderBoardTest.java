@@ -18,6 +18,7 @@
 
 package org.apache.beam.examples.complete.game;
 
+import static org.apache.beam.sdk.testing.PAssert.that;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
@@ -106,7 +107,7 @@ public class LeaderBoardTest implements Serializable {
 
     String blueTeam = TestUser.BLUE_ONE.getTeam();
     String redTeam = TestUser.RED_ONE.getTeam();
-    PAssert.that(teamScores)
+    that(teamScores)
         .inOnTimePane(new IntervalWindow(baseTime, TEAM_WINDOW_DURATION))
         .containsInAnyOrder(KV.of(blueTeam, 12), KV.of(redTeam, 4));
 
@@ -338,7 +339,7 @@ public class LeaderBoardTest implements Serializable {
     // User scores are emitted in speculative panes in the Global Window - this matcher choice
     // ensures that panes emitted by the watermark advancing to positive infinity are not included,
     // as that will not occur outside of tests
-    PAssert.that(userScores)
+    that(userScores)
         .inEarlyGlobalWindowPanes()
         .containsInAnyOrder(KV.of(TestUser.BLUE_ONE.getUser(), 15),
             KV.of(TestUser.RED_ONE.getUser(), 7),

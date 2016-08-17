@@ -27,7 +27,6 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,14 +50,6 @@ public class StructuralKeyTest {
     StructuralKey<byte[]> key = StructuralKey.of(original, ByteArrayCoder.of());
 
     assertThat(key.getKey(), not(theInstance(original)));
-  }
-
-  @Test
-  public void emptyKeysNotEqual() {
-    StructuralKey<?> empty = StructuralKey.empty();
-
-    assertThat(empty, not(Matchers.<StructuralKey<?>>equalTo(StructuralKey.empty())));
-    assertThat(empty, Matchers.<StructuralKey<?>>equalTo(empty));
   }
 
   @Test

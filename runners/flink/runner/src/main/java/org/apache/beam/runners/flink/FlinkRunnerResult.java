@@ -23,7 +23,6 @@ import java.util.Map;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.joda.time.Duration;
 
@@ -33,12 +32,9 @@ import org.joda.time.Duration;
  * {@link org.apache.beam.sdk.transforms.Aggregator}s.
  */
 public class FlinkRunnerResult implements PipelineResult {
-
   private final Map<String, Object> aggregators;
-
   private final long runtime;
-
-  FlinkRunnerResult(Map<String, Object> aggregators, long runtime) {
+  public FlinkRunnerResult(Map<String, Object> aggregators, long runtime) {
     this.aggregators = (aggregators == null || aggregators.isEmpty())
         ? Collections.<String, Object>emptyMap()
         : Collections.unmodifiableMap(aggregators);
@@ -47,7 +43,7 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public State getState() {
-    return State.DONE;
+    return null;
   }
 
   @Override
@@ -83,16 +79,11 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    return State.DONE;
+    return waitUntilFinish(Duration.millis(-1));
   }
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    return State.DONE;
-  }
-
-  @Override
-  public MetricResults metrics() {
-    throw new UnsupportedOperationException("The FlinkRunner does not currently support metrics.");
+    throw new UnsupportedOperationException("FlinkRunnerResult does not support waitUntilFinish.");
   }
 }

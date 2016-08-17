@@ -19,13 +19,12 @@ package org.apache.beam.sdk.io.kinesis;
 
 import java.util.NoSuchElementException;
 
-/**
+/***
  * Similar to Guava {@code Optional}, but throws {@link NoSuchElementException} for missing element.
  */
 abstract class CustomOptional<T> {
-    @SuppressWarnings("unchecked")
     public static <T> CustomOptional<T> absent() {
-        return (Absent<T>) Absent.INSTANCE;
+        return Absent.INSTANCE;
     }
 
     public static <T> CustomOptional<T> of(T v) {
@@ -68,7 +67,7 @@ abstract class CustomOptional<T> {
     }
 
     private static class Absent<T> extends CustomOptional<T> {
-        private static final Absent<Object> INSTANCE = new Absent<>();
+        public static final Absent INSTANCE = new Absent();
 
         private Absent() {
         }

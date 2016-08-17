@@ -15,35 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.flink;
 
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 
 /**
- * Noop implementation of {@link PathValidator}. All paths are allowed and returned unchanged.
+ * {@link DefaultValueFactory} for getting a default value for the parallelism option
+ * on {@link FlinkPipelineOptions}.
+ *
+ * <p>This will return either the default value from {@link GlobalConfiguration} or {@code 1}.
+ * A valid {@link GlobalConfiguration} is only available if the program is executed by the Flink
+ * run scripts.
  */
-public class NoopPathValidator implements PathValidator {
-
-  private NoopPathValidator() {
-  }
-
-  public static PathValidator fromOptions(
-      @SuppressWarnings("unused") PipelineOptions options) {
-    return new NoopPathValidator();
-  }
-
+public class DefaultParallelismFactory implements DefaultValueFactory<Integer> {
   @Override
-  public String validateInputFilePatternSupported(String filepattern) {
-    return filepattern;
-  }
-
-  @Override
-  public String validateOutputFilePrefixSupported(String filePrefix) {
-    return filePrefix;
-  }
-
-  @Override
-  public String verifyPath(String path) {
-    return path;
+  public Integer create(PipelineOptions options) {
+    return GlobalConfiguration.getInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, 1);
   }
 }

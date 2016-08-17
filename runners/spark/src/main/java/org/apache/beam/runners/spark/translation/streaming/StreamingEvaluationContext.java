@@ -18,19 +18,14 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 
-import com.google.common.collect.Iterables;
-
-import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
-import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -46,7 +41,6 @@ import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.joda.time.Duration;
 
 
 /**
@@ -88,17 +82,11 @@ public class StreamingEvaluationContext extends EvaluationContext {
     @SuppressWarnings("unchecked")
     JavaDStream<WindowedValue<T>> getDStream() {
       if (dStream == null) {
-        WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
-            WindowedValue.getValueOnlyCoder(coder);
-        // create the DStream from queue
+        // create the DStream from values
         Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
         for (Iterable<T> v : values) {
-          Iterable<WindowedValue<T>> windowedValues =
-              Iterables.transform(v, WindowingHelpers.<T>windowValueFunction());
-          JavaRDD<WindowedValue<T>> rdd = getSparkContext().parallelize(
-              CoderHelpers.toByteArrays(windowedValues, windowCoder)).map(
-                  CoderHelpers.fromByteFunction(windowCoder));
-          rddQueue.offer(rdd);
+          setOutputRDDFromValues(currentTransform.getTransform(), v, coder);
+          rddQueue.offer((JavaRDD<WindowedValue<T>>) getOutputRDD(currentTransform.getTransform()));
         }
         // create dstream from queue, one at a time, no defaults
         // mainly for unit test so no reason to have this configurable
@@ -114,10 +102,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   <T> void setStream(PTransform<?, ?> transform, JavaDStream<WindowedValue<T>> dStream) {
-    setStream((PValue) getOutput(transform), dStream);
-  }
-
-  <T> void setStream(PValue pvalue, JavaDStream<WindowedValue<T>> dStream) {
+    PValue pvalue = (PValue) getOutput(transform);
     DStreamHolder<T> dStreamHolder = new DStreamHolder<>(dStream);
     pstreams.put(pvalue, dStreamHolder);
     leafStreams.add(dStreamHolder);
@@ -125,10 +110,6 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   boolean hasStream(PTransform<?, ?> transform) {
     PValue pvalue = (PValue) getInput(transform);
-    return hasStream(pvalue);
-  }
-
-  boolean hasStream(PValue pvalue) {
     return pstreams.containsKey(pvalue);
   }
 
@@ -160,37 +141,32 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   @Override
   public void computeOutputs() {
-    super.computeOutputs(); // in case the pipeline contains bounded branches as well.
     for (DStreamHolder<?> streamHolder : leafStreams) {
       computeOutput(streamHolder);
-    } // force a DStream action
+    }
   }
 
   private static <T> void computeOutput(DStreamHolder<T> streamHolder) {
-    JavaDStream<WindowedValue<T>> dStream = streamHolder.getDStream();
-    // cache in DStream level not RDD
-    // because there could be a difference in StorageLevel if the DStream is windowed.
-    dStream.dstream().cache();
-    dStream.foreachRDD(new VoidFunction<JavaRDD<WindowedValue<T>>>() {
+    streamHolder.getDStream().foreachRDD(new VoidFunction<JavaRDD<WindowedValue<T>>>() {
       @Override
       public void call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
+        rdd.rdd().cache();
         rdd.count();
       }
-    });
+    }); // force a DStream action
   }
 
   @Override
-  public void close(boolean gracefully) {
+  public void close() {
     if (timeout > 0) {
       jssc.awaitTerminationOrTimeout(timeout);
     } else {
       jssc.awaitTermination();
     }
-    // stop streaming context gracefully, so checkpointing (and other computations) get to
-    // finish before shutdown.
-    jssc.stop(false, gracefully);
+    //TODO: stop gracefully ?
+    jssc.stop(false, false);
     state = State.DONE;
-    super.close(false);
+    super.close();
   }
 
   private State state = State.RUNNING;
@@ -198,26 +174,6 @@ public class StreamingEvaluationContext extends EvaluationContext {
   @Override
   public State getState() {
     return state;
-  }
-
-  @Override
-  public State cancel() throws IOException {
-    throw new UnsupportedOperationException(
-        "Spark runner StreamingEvaluationContext does not support cancel.");
-  }
-
-  @Override
-  public State waitUntilFinish()
-      throws IOException, InterruptedException {
-    throw new UnsupportedOperationException(
-        "Spark runner StreamingEvaluationContext does not support waitUntilFinish.");
-  }
-
-  @Override
-  public State waitUntilFinish(Duration duration)
-      throws IOException, InterruptedException {
-    throw new UnsupportedOperationException(
-        "Spark runner StreamingEvaluationContext does not support waitUntilFinish.");
   }
 
   //---------------- override in order to expose in package
@@ -241,7 +197,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   @Override
-  public void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
+  protected void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
     super.setCurrentTransform(transform);
   }
 

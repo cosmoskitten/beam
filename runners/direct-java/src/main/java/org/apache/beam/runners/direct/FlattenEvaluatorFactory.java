@@ -40,10 +40,12 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
+      AppliedPTransform<?, ?, ?> application,
+      CommittedBundle<?> inputBundle
+      ) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
-    TransformEvaluator<InputT> evaluator =
-        (TransformEvaluator<InputT>) createInMemoryEvaluator((AppliedPTransform) application);
+    TransformEvaluator<InputT> evaluator = (TransformEvaluator<InputT>) createInMemoryEvaluator(
+            (AppliedPTransform) application, inputBundle);
     return evaluator;
   }
 
@@ -53,9 +55,16 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   private <InputT> TransformEvaluator<InputT> createInMemoryEvaluator(
       final AppliedPTransform<
               PCollectionList<InputT>, PCollection<InputT>, FlattenPCollectionList<InputT>>
-          application) {
+          application,
+      final CommittedBundle<InputT> inputBundle) {
+    if (inputBundle == null) {
+      // it is impossible to call processElement on a flatten with no input bundle. A Flatten with
+      // no input bundle occurs as an output of Flatten.pcollections(PCollectionList.empty())
+      return new FlattenEvaluator<>(
+          null, StepTransformResult.withoutHold(application).build());
+    }
     final UncommittedBundle<InputT> outputBundle =
-        evaluationContext.createBundle(application.getOutput());
+        evaluationContext.createBundle(inputBundle, application.getOutput());
     final TransformResult result =
         StepTransformResult.withoutHold(application).addOutput(outputBundle).build();
     return new FlattenEvaluator<>(outputBundle, result);

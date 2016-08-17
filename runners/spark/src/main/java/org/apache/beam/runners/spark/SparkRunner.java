@@ -18,32 +18,31 @@
 
 package org.apache.beam.runners.spark;
 
-import java.util.Collection;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
+import org.apache.beam.runners.spark.translation.SparkPipelineEvaluator;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
-import org.apache.beam.runners.spark.translation.TransformEvaluator;
+import org.apache.beam.runners.spark.translation.SparkProcessContext;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
-import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
 import org.apache.beam.runners.spark.translation.streaming.StreamingEvaluationContext;
+import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
+import org.apache.beam.runners.spark.util.SinglePrimitiveOutputPTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformTreeNode;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,17 +55,17 @@ import org.slf4j.LoggerFactory;
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
- * EvaluationResult result = (EvaluationResult) p.run();
+ * EvaluationResult result = SparkRunner.create().run(p);
  * }
  *
- * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
+ * To create a pipeline runner to run against a different spark cluster, with a custom master url
  * we would do the following:
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
- * EvaluationResult result = (EvaluationResult) p.run();
+ * EvaluationResult result = SparkRunner.create(options).run(p);
  * }
  */
 public final class SparkRunner extends PipelineRunner<EvaluationResult> {
@@ -122,6 +121,9 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     if (transform instanceof GroupByKey) {
       return (OutputT) ((PCollection) input).apply(
           new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
+    } else if (transform instanceof Create.Values) {
+      return (OutputT) super.apply(
+        new SinglePrimitiveOutputPTransform((Create.Values) transform), input);
     } else {
       return super.apply(transform, input);
     }
@@ -141,27 +143,40 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   public EvaluationResult run(Pipeline pipeline) {
     try {
       LOG.info("Executing pipeline using the SparkRunner.");
-
+      JavaSparkContext jsc;
+      if (mOptions.getUsesProvidedSparkContext()) {
+        LOG.info("Using a provided Spark Context");
+        jsc = mOptions.getProvidedSparkContext();
+        if (jsc == null || jsc.sc().isStopped()){
+          LOG.error("The provided Spark context "
+                  + jsc + " was not created or was stopped");
+          throw new RuntimeException("The provided Spark context was not created or was stopped");
+        }
+      } else {
+        LOG.info("Creating a new Spark Context");
+        jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster(), mOptions.getAppName());
+      }
       if (mOptions.isStreaming()) {
-        SparkRunnerStreamingContextFactory contextFactory =
-            new SparkRunnerStreamingContextFactory(pipeline, mOptions);
-        JavaStreamingContext jssc = JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(),
-            contextFactory);
+        SparkPipelineTranslator translator =
+            new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());
+        Duration batchInterval = new Duration(mOptions.getBatchIntervalMillis());
+        LOG.info("Setting Spark streaming batchInterval to {} msec", batchInterval.milliseconds());
 
-        LOG.info("Starting streaming pipeline execution.");
-        jssc.start();
+        EvaluationContext ctxt = createStreamingEvaluationContext(jsc, pipeline, batchInterval);
+        pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
+        ctxt.computeOutputs();
 
-        // if recovering from checkpoint, we have to reconstruct the EvaluationResult instance.
-        return contextFactory.getCtxt() == null ? new StreamingEvaluationContext(jssc.sc(),
-            pipeline, jssc, mOptions.getTimeout()) : contextFactory.getCtxt();
+        LOG.info("Streaming pipeline construction complete. Starting execution..");
+        ((StreamingEvaluationContext) ctxt).getStreamingContext().start();
+
+        return ctxt;
       } else {
         if (mOptions.getTimeout() > 0) {
           LOG.info("Timeout is ignored by the SparkRunner in batch.");
         }
-        JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
         EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
         SparkPipelineTranslator translator = new TransformTranslator.Translator();
-        pipeline.traverseTopologically(new Evaluator(translator, ctxt));
+        pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
         ctxt.computeOutputs();
 
         LOG.info("Pipeline execution complete.");
@@ -172,11 +187,12 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
       // won't let you catch something that is not declared, so we can't catch
       // SparkException here. Instead we do an instanceof check.
-      // Then we find the cause by seeing if it's a user exception (wrapped by Beam's
-      // UserCodeException), or just use the SparkException cause.
+      // Then we find the cause by seeing if it's a user exception (wrapped by our
+      // SparkProcessException), or just use the SparkException cause.
       if (e instanceof SparkException && e.getCause() != null) {
-        if (e.getCause() instanceof UserCodeException && e.getCause().getCause() != null) {
-          throw UserCodeException.wrap(e.getCause().getCause());
+        if (e.getCause() instanceof SparkProcessContext.SparkProcessException
+            && e.getCause().getCause() != null) {
+          throw new RuntimeException(e.getCause().getCause());
         } else {
           throw new RuntimeException(e.getCause());
         }
@@ -186,18 +202,23 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     }
   }
 
+  private EvaluationContext
+      createStreamingEvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
+      Duration batchDuration) {
+    JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
+    return new StreamingEvaluationContext(jsc, pipeline, jssc, mOptions.getTimeout());
+  }
+
   /**
    * Evaluator on the pipeline.
    */
-  public static class Evaluator extends Pipeline.PipelineVisitor.Defaults {
-    private static final Logger LOG = LoggerFactory.getLogger(Evaluator.class);
+  public abstract static class Evaluator extends Pipeline.PipelineVisitor.Defaults {
+    protected static final Logger LOG = LoggerFactory.getLogger(Evaluator.class);
 
-    private final EvaluationContext ctxt;
-    private final SparkPipelineTranslator translator;
+    protected final SparkPipelineTranslator translator;
 
-    public Evaluator(SparkPipelineTranslator translator, EvaluationContext ctxt) {
+    protected Evaluator(SparkPipelineTranslator translator) {
       this.translator = translator;
-      this.ctxt = ctxt;
     }
 
     @Override
@@ -221,62 +242,8 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       doVisitTransform(node);
     }
 
-    <TransformT extends PTransform<? super PInput, POutput>> void
-        doVisitTransform(TransformTreeNode node) {
-      @SuppressWarnings("unchecked")
-      TransformT transform = (TransformT) node.getTransform();
-      @SuppressWarnings("unchecked")
-      Class<TransformT> transformClass = (Class<TransformT>) (Class<?>) transform.getClass();
-      @SuppressWarnings("unchecked") TransformEvaluator<TransformT> evaluator =
-          translate(node, transform, transformClass);
-      LOG.info("Evaluating {}", transform);
-      AppliedPTransform<PInput, POutput, TransformT> appliedTransform =
-          AppliedPTransform.of(node.getFullName(), node.getInput(), node.getOutput(), transform);
-      ctxt.setCurrentTransform(appliedTransform);
-      evaluator.evaluate(transform, ctxt);
-      ctxt.setCurrentTransform(null);
-    }
-
-    /**
-     *  Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded, and
-     *  translate with the proper translator.
-     */
-    private <TransformT extends PTransform<? super PInput, POutput>> TransformEvaluator<TransformT>
-        translate(TransformTreeNode node, TransformT transform, Class<TransformT> transformClass) {
-      //--- determine if node is bounded/unbounded.
-      // usually, the input determines if the PCollection to apply the next transformation to
-      // is BOUNDED or UNBOUNDED, meaning RDD/DStream.
-      Collection<? extends PValue> pValues;
-      PInput pInput = node.getInput();
-      if (pInput instanceof PBegin) {
-        // in case of a PBegin, it's the output.
-        pValues = node.getOutput().expand();
-      } else {
-        pValues = pInput.expand();
-      }
-      PCollection.IsBounded isNodeBounded = isBoundedCollection(pValues);
-      // translate accordingly.
-      LOG.debug("Translating {} as {}", transform, isNodeBounded);
-      return isNodeBounded.equals(PCollection.IsBounded.BOUNDED)
-          ? translator.translateBounded(transformClass)
-              : translator.translateUnbounded(transformClass);
-    }
-
-    private PCollection.IsBounded isBoundedCollection(Collection<? extends PValue> pValues) {
-      // anything that is not a PCollection, is BOUNDED.
-      // For PCollections:
-      // BOUNDED behaves as the Identity Element, BOUNDED + BOUNDED = BOUNDED
-      // while BOUNDED + UNBOUNDED = UNBOUNDED.
-      PCollection.IsBounded isBounded = PCollection.IsBounded.BOUNDED;
-      for (PValue pValue: pValues) {
-        if (pValue instanceof PCollection) {
-          isBounded = isBounded.and(((PCollection) pValue).isBounded());
-        } else {
-          isBounded = isBounded.and(PCollection.IsBounded.BOUNDED);
-        }
-      }
-      return isBounded;
-    }
+    protected abstract <TransformT extends PTransform<? super PInput, POutput>> void
+        doVisitTransform(TransformTreeNode node);
   }
 }
 

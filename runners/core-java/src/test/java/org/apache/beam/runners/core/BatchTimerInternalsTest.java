@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.runners.core;
 
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
+import org.apache.beam.sdk.util.state.StateNamespace;
+import org.apache.beam.sdk.util.state.StateNamespaceForTest;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,15 +31,15 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /**
- * Tests for {@link InMemoryTimerInternals}.
+ * Tests for {@link BatchTimerInternals}.
  */
 @RunWith(JUnit4.class)
-public class InMemoryTimerInternalsTest {
+public class BatchTimerInternalsTest {
 
   private static final StateNamespace NS1 = new StateNamespaceForTest("NS1");
 
   @Mock
-  private TimerCallback timerCallback;
+  private ReduceFnRunner<?, ?, ?, ?> mockRunner;
 
   @Before
   public void setUp() {
@@ -46,36 +48,36 @@ public class InMemoryTimerInternalsTest {
 
   @Test
   public void testFiringTimers() throws Exception {
-    InMemoryTimerInternals underTest = new InMemoryTimerInternals();
+    BatchTimerInternals underTest = new BatchTimerInternals(new Instant(0));
     TimerData processingTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);
     TimerData processingTime2 = TimerData.of(NS1, new Instant(29), TimeDomain.PROCESSING_TIME);
 
     underTest.setTimer(processingTime1);
     underTest.setTimer(processingTime2);
 
-    underTest.advanceProcessingTime(timerCallback, new Instant(20));
-    Mockito.verify(timerCallback).onTimer(processingTime1);
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    underTest.advanceProcessingTime(mockRunner, new Instant(20));
+    Mockito.verify(mockRunner).onTimer(processingTime1);
+    Mockito.verifyNoMoreInteractions(mockRunner);
 
     // Advancing just a little shouldn't refire
-    underTest.advanceProcessingTime(timerCallback, new Instant(21));
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    underTest.advanceProcessingTime(mockRunner, new Instant(21));
+    Mockito.verifyNoMoreInteractions(mockRunner);
 
     // Adding the timer and advancing a little should refire
     underTest.setTimer(processingTime1);
-    Mockito.verify(timerCallback).onTimer(processingTime1);
-    underTest.advanceProcessingTime(timerCallback, new Instant(21));
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    Mockito.verify(mockRunner).onTimer(processingTime1);
+    underTest.advanceProcessingTime(mockRunner, new Instant(21));
+    Mockito.verifyNoMoreInteractions(mockRunner);
 
     // And advancing the rest of the way should still have the other timer
-    underTest.advanceProcessingTime(timerCallback, new Instant(30));
-    Mockito.verify(timerCallback).onTimer(processingTime2);
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    underTest.advanceProcessingTime(mockRunner, new Instant(30));
+    Mockito.verify(mockRunner).onTimer(processingTime2);
+    Mockito.verifyNoMoreInteractions(mockRunner);
   }
 
   @Test
   public void testTimerOrdering() throws Exception {
-    InMemoryTimerInternals underTest = new InMemoryTimerInternals();
+    BatchTimerInternals underTest = new BatchTimerInternals(new Instant(0));
     TimerData watermarkTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.EVENT_TIME);
     TimerData processingTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);
     TimerData watermarkTime2 = TimerData.of(NS1, new Instant(29), TimeDomain.EVENT_TIME);
@@ -86,31 +88,31 @@ public class InMemoryTimerInternalsTest {
     underTest.setTimer(processingTime2);
     underTest.setTimer(watermarkTime2);
 
-    underTest.advanceInputWatermark(timerCallback, new Instant(30));
-    Mockito.verify(timerCallback).onTimer(watermarkTime1);
-    Mockito.verify(timerCallback).onTimer(watermarkTime2);
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    underTest.advanceInputWatermark(mockRunner, new Instant(30));
+    Mockito.verify(mockRunner).onTimer(watermarkTime1);
+    Mockito.verify(mockRunner).onTimer(watermarkTime2);
+    Mockito.verifyNoMoreInteractions(mockRunner);
 
-    underTest.advanceProcessingTime(timerCallback, new Instant(30));
-    Mockito.verify(timerCallback).onTimer(processingTime1);
-    Mockito.verify(timerCallback).onTimer(processingTime2);
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    underTest.advanceProcessingTime(mockRunner, new Instant(30));
+    Mockito.verify(mockRunner).onTimer(processingTime1);
+    Mockito.verify(mockRunner).onTimer(processingTime2);
+    Mockito.verifyNoMoreInteractions(mockRunner);
   }
 
   @Test
   public void testDeduplicate() throws Exception {
-    InMemoryTimerInternals underTest = new InMemoryTimerInternals();
+    BatchTimerInternals underTest = new BatchTimerInternals(new Instant(0));
     TimerData watermarkTime = TimerData.of(NS1, new Instant(19), TimeDomain.EVENT_TIME);
     TimerData processingTime = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);
     underTest.setTimer(watermarkTime);
     underTest.setTimer(watermarkTime);
     underTest.setTimer(processingTime);
     underTest.setTimer(processingTime);
-    underTest.advanceProcessingTime(timerCallback, new Instant(20));
-    underTest.advanceInputWatermark(timerCallback, new Instant(20));
+    underTest.advanceProcessingTime(mockRunner, new Instant(20));
+    underTest.advanceInputWatermark(mockRunner, new Instant(20));
 
-    Mockito.verify(timerCallback).onTimer(processingTime);
-    Mockito.verify(timerCallback).onTimer(watermarkTime);
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    Mockito.verify(mockRunner).onTimer(processingTime);
+    Mockito.verify(mockRunner).onTimer(watermarkTime);
+    Mockito.verifyNoMoreInteractions(mockRunner);
   }
 }

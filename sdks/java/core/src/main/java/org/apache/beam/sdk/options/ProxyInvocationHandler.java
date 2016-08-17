@@ -65,8 +65,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
-import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -86,7 +84,7 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
  * {@link PipelineOptions#as(Class)}.
  */
 @ThreadSafe
-class ProxyInvocationHandler implements InvocationHandler {
+class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
   private static final ObjectMapper MAPPER = new ObjectMapper();
   /**
    * No two instances of this class are considered equivalent hence we generate a random hash code.
@@ -134,11 +132,16 @@ class ProxyInvocationHandler implements InvocationHandler {
       @SuppressWarnings("unchecked")
       Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
       return as(clazz);
+    } else if (args != null && "cloneAs".equals(method.getName()) && args[0] instanceof Class) {
+      @SuppressWarnings("unchecked")
+      Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
+      return cloneAs(proxy, clazz);
     } else if (args != null && "populateDisplayData".equals(method.getName())
         && args[0] instanceof DisplayData.Builder) {
       @SuppressWarnings("unchecked")
       DisplayData.Builder builder = (DisplayData.Builder) args[0];
-      builder.delegate(new PipelineOptionsDisplayData());
+      // Explicitly set display data namespace so thrown exceptions will have sensible type.
+      builder.include(this, PipelineOptions.class);
       return Void.TYPE;
     }
     String methodName = method.getName();
@@ -195,11 +198,11 @@ class ProxyInvocationHandler implements InvocationHandler {
    * Backing implementation for {@link PipelineOptions#as(Class)}.
    *
    * @param iface The interface that the returned object needs to implement.
-   * @return An object that implements the interface {@code <T>}.
+   * @return An object that implements the interface <T>.
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
     checkNotNull(iface);
-    checkArgument(iface.isInterface(), "Not an interface: %s", iface);
+    checkArgument(iface.isInterface());
     if (!interfaceToProxyCache.containsKey(iface)) {
       Registration<T> registration =
           PipelineOptionsFactory.validateWellFormed(iface, knownInterfaces);
@@ -215,6 +218,24 @@ class ProxyInvocationHandler implements InvocationHandler {
               .build());
     }
     return interfaceToProxyCache.getInstance(iface);
+  }
+
+  /**
+   * Backing implementation for {@link PipelineOptions#cloneAs(Class)}.
+   *
+   * @return A copy of the PipelineOptions.
+   */
+  synchronized <T extends PipelineOptions> T cloneAs(Object proxy, Class<T> iface) {
+    PipelineOptions clonedOptions;
+    try {
+      clonedOptions = MAPPER.readValue(MAPPER.writeValueAsBytes(proxy), PipelineOptions.class);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to serialize the pipeline options to JSON.", e);
+    }
+    for (Class<? extends PipelineOptions> knownIface : knownInterfaces) {
+      clonedOptions.as(knownIface);
+    }
+    return clonedOptions.as(iface);
   }
 
   /**
@@ -242,115 +263,69 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
-   * Nested class to handle display data in order to set the display data namespace to something
-   * sensible.
+   * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly set
+   * pipeline options will be added as display data.
    */
-  class PipelineOptionsDisplayData implements HasDisplayData {
-    /**
-     * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly set
-     * pipeline options will be added as display data.
-     */
-    public void populateDisplayData(DisplayData.Builder builder) {
-      Set<PipelineOptionSpec> optionSpecs =
-          PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
+  public void populateDisplayData(DisplayData.Builder builder) {
+    Set<PipelineOptionSpec> optionSpecs = PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
+    Multimap<String, PipelineOptionSpec> optionsMap = buildOptionNameToSpecMap(optionSpecs);
 
-      Multimap<String, PipelineOptionSpec> optionsMap = buildOptionNameToSpecMap(optionSpecs);
-
-      for (Map.Entry<String, BoundValue> option : options.entrySet()) {
-        BoundValue boundValue = option.getValue();
-        if (boundValue.isDefault()) {
-          continue;
-        }
-
-        DisplayDataValue resolved = DisplayDataValue.resolve(boundValue.getValue());
-        HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(option.getKey()));
-
-        for (PipelineOptionSpec optionSpec : specs) {
-          if (!optionSpec.shouldSerialize()) {
-            // Options that are excluded for serialization (i.e. those with @JsonIgnore) are also
-            // excluded from display data. These options are generally not useful for display.
-            continue;
-          }
-
-          builder.add(DisplayData.item(option.getKey(), resolved.getType(), resolved.getValue())
-              .withNamespace(optionSpec.getDefiningInterface()));
-        }
+    for (Map.Entry<String, BoundValue> option : options.entrySet()) {
+      BoundValue boundValue = option.getValue();
+      if (boundValue.isDefault()) {
+        continue;
       }
 
-      for (Map.Entry<String, JsonNode> jsonOption : jsonOptions.entrySet()) {
-        if (options.containsKey(jsonOption.getKey())) {
-          // Option overwritten since deserialization; don't re-write
+      Object value = boundValue.getValue() == null ? "" : boundValue.getValue();
+      DisplayData.Type type = DisplayData.inferType(value);
+      HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(option.getKey()));
+
+      for (PipelineOptionSpec optionSpec : specs) {
+        if (!optionSpec.shouldSerialize()) {
+          // Options that are excluded for serialization (i.e. those with @JsonIgnore) are also
+          // excluded from display data. These options are generally not useful for display.
           continue;
         }
 
-        HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(jsonOption.getKey()));
-        if (specs.isEmpty()) {
-          // No PipelineOptions interface for this key not currently loaded
-          builder.add(DisplayData.item(jsonOption.getKey(), jsonOption.getValue().toString())
-              .withNamespace(UnknownPipelineOptions.class));
-          continue;
+        Class<?> pipelineInterface = optionSpec.getDefiningInterface();
+        if (type != null) {
+          builder.add(DisplayData.item(option.getKey(), type, value)
+              .withNamespace(pipelineInterface));
+        } else {
+          builder.add(DisplayData.item(option.getKey(), value.toString())
+              .withNamespace(pipelineInterface));
         }
+      }
+    }
 
+    for (Map.Entry<String, JsonNode> jsonOption : jsonOptions.entrySet()) {
+      if (options.containsKey(jsonOption.getKey())) {
+        // Option overwritten since deserialization; don't re-write
+        continue;
+      }
+
+      HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(jsonOption.getKey()));
+      if (specs.isEmpty()) {
+        builder.add(DisplayData.item(jsonOption.getKey(), jsonOption.getValue().toString())
+          .withNamespace(UnknownPipelineOptions.class));
+      } else {
         for (PipelineOptionSpec spec : specs) {
           if (!spec.shouldSerialize()) {
             continue;
           }
 
           Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
-          DisplayDataValue resolved = DisplayDataValue.resolve(value);
-          builder.add(DisplayData.item(jsonOption.getKey(), resolved.getType(), resolved.getValue())
-              .withNamespace(spec.getDefiningInterface()));
+          value = value == null ? "" : value;
+          DisplayData.Type type = DisplayData.inferType(value);
+          if (type != null) {
+            builder.add(DisplayData.item(jsonOption.getKey(), type, value)
+                .withNamespace(spec.getDefiningInterface()));
+          } else {
+            builder.add(DisplayData.item(jsonOption.getKey(), value.toString())
+                .withNamespace(spec.getDefiningInterface()));
+          }
         }
       }
-    }
-  }
-
-  /**
-   * Helper class to resolve a {@link DisplayData} type and value from {@link PipelineOptions}.
-   */
-  @AutoValue
-  abstract static class DisplayDataValue {
-    /**
-     * The resolved display data value. May differ from the input to {@link #resolve(Object)}
-     */
-    abstract Object getValue();
-
-    /** The resolved display data type. */
-    abstract DisplayData.Type getType();
-
-    /**
-     * Infer the value and {@link DisplayData.Type type} for the given
-     * {@link PipelineOptions} value.
-     */
-    static DisplayDataValue resolve(@Nullable Object value) {
-      DisplayData.Type type = DisplayData.inferType(value);
-
-      if (type == null) {
-        value = displayDataString(value);
-        type = DisplayData.Type.STRING;
-      }
-
-      return new AutoValue_ProxyInvocationHandler_DisplayDataValue(value, type);
-    }
-
-    /**
-     * Safe {@link Object#toString()} wrapper to extract display data values for various types.
-     */
-    private static String displayDataString(@Nullable Object value) {
-      if (value == null) {
-        return "";
-      }
-      if (!value.getClass().isArray()) {
-        return value.toString();
-      }
-      if (!value.getClass().getComponentType().isPrimitive()) {
-        return Arrays.deepToString((Object[]) value);
-      }
-
-      // At this point, we have some type of primitive array. Arrays.deepToString(..) requires an
-      // Object array, but will unwrap nested primitive arrays.
-      String wrapped = Arrays.deepToString(new Object[]{value});
-      return wrapped.substring(1, wrapped.length() - 1);
     }
   }
 
@@ -475,33 +450,35 @@ class ProxyInvocationHandler implements InvocationHandler {
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   private Object getDefault(PipelineOptions proxy, Method method) {
-    if (method.getReturnType().equals(RuntimeValueProvider.class)) {
-      throw new RuntimeException(String.format(
-        "Method %s should not have return type "
-        + "RuntimeValueProvider, use ValueProvider instead.", method.getName()));
-    }
-    if (method.getReturnType().equals(StaticValueProvider.class)) {
-      throw new RuntimeException(String.format(
-        "Method %s should not have return type "
-        + "StaticValueProvider, use ValueProvider instead.", method.getName()));
-    }
-    @Nullable Object defaultObject = null;
     for (Annotation annotation : method.getAnnotations()) {
-      defaultObject = returnDefaultHelper(annotation, proxy, method);
-      if (defaultObject != null) {
-        break;
+      if (annotation instanceof Default.Class) {
+        return ((Default.Class) annotation).value();
+      } else if (annotation instanceof Default.String) {
+        return ((Default.String) annotation).value();
+      } else if (annotation instanceof Default.Boolean) {
+        return ((Default.Boolean) annotation).value();
+      } else if (annotation instanceof Default.Character) {
+        return ((Default.Character) annotation).value();
+      } else if (annotation instanceof Default.Byte) {
+        return ((Default.Byte) annotation).value();
+      } else if (annotation instanceof Default.Short) {
+        return ((Default.Short) annotation).value();
+      } else if (annotation instanceof Default.Integer) {
+        return ((Default.Integer) annotation).value();
+      } else if (annotation instanceof Default.Long) {
+        return ((Default.Long) annotation).value();
+      } else if (annotation instanceof Default.Float) {
+        return ((Default.Float) annotation).value();
+      } else if (annotation instanceof Default.Double) {
+        return ((Default.Double) annotation).value();
+      } else if (annotation instanceof Default.Enum) {
+        return Enum.valueOf((Class<Enum>) method.getReturnType(),
+            ((Default.Enum) annotation).value());
+      } else if (annotation instanceof Default.InstanceFactory) {
+        return InstanceBuilder.ofType(((Default.InstanceFactory) annotation).value())
+            .build()
+            .create(proxy);
       }
-    }
-    if (method.getReturnType().equals(ValueProvider.class)) {
-      return defaultObject == null
-        ? new RuntimeValueProvider(
-          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
-          proxy.getOptionsId())
-        : new RuntimeValueProvider(
-          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
-          defaultObject, proxy.getOptionsId());
-    } else if (defaultObject != null) {
-      return defaultObject;
     }
 
     /*
@@ -509,43 +486,6 @@ class ProxyInvocationHandler implements InvocationHandler {
      * a default value as defined by the JLS.
      */
     return Defaults.defaultValue(method.getReturnType());
-  }
-
-  /**
-   * Helper method to return standard Default cases.
-   */
-  @Nullable
-  private Object returnDefaultHelper(
-    Annotation annotation, PipelineOptions proxy, Method method) {
-    if (annotation instanceof Default.Class) {
-      return ((Default.Class) annotation).value();
-    } else if (annotation instanceof Default.String) {
-      return ((Default.String) annotation).value();
-    } else if (annotation instanceof Default.Boolean) {
-      return ((Default.Boolean) annotation).value();
-    } else if (annotation instanceof Default.Character) {
-      return ((Default.Character) annotation).value();
-    } else if (annotation instanceof Default.Byte) {
-      return ((Default.Byte) annotation).value();
-    } else if (annotation instanceof Default.Short) {
-      return ((Default.Short) annotation).value();
-    } else if (annotation instanceof Default.Integer) {
-      return ((Default.Integer) annotation).value();
-    } else if (annotation instanceof Default.Long) {
-      return ((Default.Long) annotation).value();
-    } else if (annotation instanceof Default.Float) {
-      return ((Default.Float) annotation).value();
-    } else if (annotation instanceof Default.Double) {
-      return ((Default.Double) annotation).value();
-    } else if (annotation instanceof Default.Enum) {
-      return Enum.valueOf((Class<Enum>) method.getReturnType(),
-                          ((Default.Enum) annotation).value());
-    } else if (annotation instanceof Default.InstanceFactory) {
-      return InstanceBuilder.ofType(((Default.InstanceFactory) annotation).value())
-        .build()
-        .create(proxy);
-    }
-    return null;
   }
 
   /**
@@ -614,7 +554,7 @@ class ProxyInvocationHandler implements InvocationHandler {
 
         List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
         DisplayData displayData = DisplayData.from(value);
-        for (DisplayData.Item item : displayData.items()) {
+        for (DisplayData.Item<?> item : displayData.items()) {
           @SuppressWarnings("unchecked")
           Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
           serializedDisplayData.add(serializedItem);
@@ -699,7 +639,6 @@ class ProxyInvocationHandler implements InvocationHandler {
       PipelineOptions options =
           new ProxyInvocationHandler(Maps.<String, BoundValue>newHashMap(), fields)
               .as(PipelineOptions.class);
-      ValueProvider.RuntimeValueProvider.setRuntimeOptions(options);
       return options;
     }
   }

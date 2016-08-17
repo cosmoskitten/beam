@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -35,7 +34,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -50,17 +48,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.testing.NeedsRunner;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
-import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
@@ -81,7 +73,7 @@ public class ProxyInvocationHandlerTest {
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /** A test interface with some primitives and objects. */
-  public interface Simple extends PipelineOptions {
+  public static interface Simple extends PipelineOptions {
     boolean isOptionEnabled();
     void setOptionEnabled(boolean value);
     int getPrimitive();
@@ -103,7 +95,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface containing all the JLS default values. */
-  public interface JLSDefaults extends PipelineOptions {
+  public static interface JLSDefaults extends PipelineOptions {
     boolean getBoolean();
     void setBoolean(boolean value);
     char getChar();
@@ -163,7 +155,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface containing all the {@link Default} annotations. */
-  public interface DefaultAnnotations extends PipelineOptions {
+  public static interface DefaultAnnotations extends PipelineOptions {
     @Default.Boolean(true)
     boolean getBoolean();
     void setBoolean(boolean value);
@@ -252,14 +244,12 @@ public class ProxyInvocationHandlerTest {
   public void testToStringAfterDeserializationContainsJsonEntries() throws Exception {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
     Simple proxy = handler.as(Simple.class);
-    Long optionsId = proxy.getOptionsId();
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
     proxy2.setLong(57L);
-    assertEquals(String.format("Current Settings:\n"
+    assertEquals("Current Settings:\n"
         + "  long: 57\n"
-        + "  optionsId: %d\n"
-        + "  string: \"stringValue\"\n", optionsId),
+        + "  string: \"stringValue\"\n",
         serializeDeserialize(PipelineOptions.class, proxy2).toString());
   }
 
@@ -267,21 +257,19 @@ public class ProxyInvocationHandlerTest {
   public void testToStringAfterDeserializationContainsOverriddenEntries() throws Exception {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
     Simple proxy = handler.as(Simple.class);
-    Long optionsId = proxy.getOptionsId();
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
     proxy2.setLong(57L);
     Simple deserializedOptions = serializeDeserialize(Simple.class, proxy2);
     deserializedOptions.setString("overriddenValue");
-    assertEquals(String.format("Current Settings:\n"
+    assertEquals("Current Settings:\n"
         + "  long: 57\n"
-        + "  optionsId: %d\n"
-        + "  string: overriddenValue\n", optionsId),
+        + "  string: overriddenValue\n",
         deserializedOptions.toString());
   }
 
   /** A test interface containing an unknown method. */
-  public interface UnknownMethod {
+  public static interface UnknownMethod {
     void unknownMethod();
   }
 
@@ -297,7 +285,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface that extends another interface. */
-  public interface SubClass extends Simple {
+  public static interface SubClass extends Simple {
     String getExtended();
     void setExtended(String value);
   }
@@ -332,7 +320,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface that is a sibling to {@link SubClass}. */
-  public interface Sibling extends Simple {
+  public static interface Sibling extends Simple {
     String getSibling();
     void setSibling(String value);
   }
@@ -348,7 +336,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface that has the same methods as the parent. */
-  public interface MethodConflict extends Simple {
+  public static interface MethodConflict extends Simple {
     @Override
     String getString();
     @Override
@@ -366,7 +354,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface that has the same methods as its parent and grandparent. */
-  public interface DeepMethodConflict extends MethodConflict {
+  public static interface DeepMethodConflict extends MethodConflict {
     @Override
     String getString();
     @Override
@@ -396,7 +384,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface that shares the same methods as {@link Sibling}. */
-  public interface SimpleSibling extends PipelineOptions {
+  public static interface SimpleSibling extends PipelineOptions {
     String getString();
     void setString(String value);
   }
@@ -411,7 +399,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface that joins two sibling interfaces that have conflicting methods. */
-  public interface SiblingMethodConflict extends Simple, SimpleSibling {
+  public static interface SiblingMethodConflict extends Simple, SimpleSibling {
   }
 
   @Test
@@ -425,7 +413,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** A test interface that has only the getter and only a setter overriden. */
-  public interface PartialMethodConflict extends Simple {
+  public static interface PartialMethodConflict extends Simple {
     @Override
     String getString();
     @Override
@@ -468,7 +456,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for JSON conversion of simple types. */
-  private interface SimpleTypes extends PipelineOptions {
+  private static interface SimpleTypes extends PipelineOptions {
     int getInteger();
     void setInteger(int value);
     String getString();
@@ -525,7 +513,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for JSON conversion of container types. */
-  private interface ContainerTypes extends PipelineOptions {
+  private static interface ContainerTypes extends PipelineOptions {
     List<String> getList();
     void setList(List<String> values);
     Map<String, String> getMap();
@@ -595,7 +583,7 @@ public class ProxyInvocationHandlerTest {
     }
   }
 
-  private interface ComplexTypes extends PipelineOptions {
+  private static interface ComplexTypes extends PipelineOptions {
     ComplexType getComplexType();
     void setComplexType(ComplexType value);
   }
@@ -615,7 +603,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface for testing ignored properties during serialization. */
-  private interface IgnoredProperty extends PipelineOptions {
+  private static interface IgnoredProperty extends PipelineOptions {
     @JsonIgnore
     String getValue();
     void setValue(String value);
@@ -643,7 +631,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /** Test interface containing a class that is not serializable by Jackson. */
-  private interface NotSerializableProperty extends PipelineOptions {
+  private static interface NotSerializableProperty extends PipelineOptions {
     NotSerializable getValue();
     void setValue(NotSerializable value);
   }
@@ -662,7 +650,7 @@ public class ProxyInvocationHandlerTest {
    * Test interface that has {@link JsonIgnore @JsonIgnore} on a property that Jackson
    * can't serialize.
    */
-  private interface IgnoredNotSerializableProperty extends PipelineOptions {
+  private static interface IgnoredNotSerializableProperty extends PipelineOptions {
     @JsonIgnore
     NotSerializable getValue();
     void setValue(NotSerializable value);
@@ -696,7 +684,7 @@ public class ProxyInvocationHandlerTest {
    * Test interface containing a property that is serializable by Jackson only with
    * the additional metadata.
    */
-  private interface SerializableWithMetadataProperty extends PipelineOptions {
+  private static interface SerializableWithMetadataProperty extends PipelineOptions {
     SerializableWithMetadata getValue();
     void setValue(SerializableWithMetadata value);
   }
@@ -761,38 +749,6 @@ public class ProxyInvocationHandlerTest {
 
     Object getObject();
     void setObject(Object value);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void pipelineOptionsDisplayDataExceptionShouldFail() {
-    Object brokenValueType = new Object() {
-      @JsonValue
-      public int getValue () {
-        return 42;
-      }
-
-      @Override
-      public String toString() {
-        throw new RuntimeException("oh noes!!");
-      }
-    };
-
-    Pipeline p = TestPipeline.create();
-    p.getOptions().as(ObjectPipelineOptions.class).setValue(brokenValueType);
-
-    p.apply(Create.of(1, 2, 3));
-
-    expectedException.expectMessage(
-        ProxyInvocationHandler.PipelineOptionsDisplayData.class.getName());
-    expectedException.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!!")));
-    p.run();
-  }
-
-  /** {@link PipelineOptions} to inject bad object implementations. */
-  public interface ObjectPipelineOptions extends PipelineOptions {
-    Object getValue();
-    void setValue(Object value);
   }
 
   @Test
@@ -895,29 +851,6 @@ public class ProxyInvocationHandlerTest {
     FooOptions deserializedOptions = serializeDeserialize(FooOptions.class, options);
     DisplayData deserializedData = DisplayData.from(deserializedOptions);
     assertThat(deserializedData, hasDisplayItem("foo", ""));
-  }
-
-  @Test
-  public void testDisplayDataArrayValue() throws Exception {
-    ArrayOptions options = PipelineOptionsFactory.as(ArrayOptions.class);
-    options.setDeepArray(new String[][] {new String[] {"a", "b"}, new String[] {"c"}});
-    options.setDeepPrimitiveArray(new int[][] {new int[] {1, 2}, new int[] {3}});
-
-    DisplayData data = DisplayData.from(options);
-    assertThat(data, hasDisplayItem("deepArray", "[[a, b], [c]]"));
-    assertThat(data, hasDisplayItem("deepPrimitiveArray", "[[1, 2], [3]]"));
-
-    ArrayOptions deserializedOptions = serializeDeserialize(ArrayOptions.class, options);
-    DisplayData deserializedData = DisplayData.from(deserializedOptions);
-    assertThat(deserializedData, hasDisplayItem("deepPrimitiveArray", "[[1, 2], [3]]"));
-  }
-
-  private interface ArrayOptions extends PipelineOptions {
-    String[][] getDeepArray();
-    void setDeepArray(String[][] value);
-
-    int[][] getDeepPrimitiveArray();
-    void setDeepPrimitiveArray(int[][] value);
   }
 
   @Test

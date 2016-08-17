@@ -61,7 +61,7 @@ public class DoFnSignaturesProcessElementTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Integer is not a valid context parameter. "
-            + "Should be one of [BoundedWindow, RestrictionTracker<?>]");
+            + "Should be one of [BoundedWindow]");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
@@ -72,7 +72,7 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testBadReturnType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must return void or ProcessContinuation");
+    thrown.expectMessage("Must return void");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
@@ -141,7 +141,7 @@ public class DoFnSignaturesProcessElementTest {
         "Wrong type of OutputReceiver parameter: "
             + "OutputReceiver<InputT>, should be OutputReceiver<OutputT>");
 
-    DoFnSignatures.INSTANCE.getSignature(BadTypeVariables.class);
+    DoFnSignatures.INSTANCE.getOrParseSignature(BadTypeVariables.class);
   }
 
   @Test
@@ -149,7 +149,7 @@ public class DoFnSignaturesProcessElementTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("No method annotated with @ProcessElement found");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnSignatures.INSTANCE.getSignature(new DoFn<String, String>() {}.getClass());
+    DoFnSignatures.INSTANCE.getOrParseSignature(new DoFn<String, String>() {}.getClass());
   }
 
   @Test
@@ -159,7 +159,7 @@ public class DoFnSignaturesProcessElementTest {
     thrown.expectMessage("foo()");
     thrown.expectMessage("bar()");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnSignatures.INSTANCE.getSignature(
+    DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void foo() {}
@@ -175,7 +175,7 @@ public class DoFnSignaturesProcessElementTest {
     thrown.expectMessage("process()");
     thrown.expectMessage("Must be public");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnSignatures.INSTANCE.getSignature(
+    DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
           @ProcessElement
           private void process() {}
@@ -193,7 +193,7 @@ public class DoFnSignaturesProcessElementTest {
 
   @Test
   public void testGoodTypeVariables() throws Exception {
-    DoFnSignatures.INSTANCE.getSignature(GoodTypeVariables.class);
+    DoFnSignatures.INSTANCE.getOrParseSignature(GoodTypeVariables.class);
   }
 
   private static class IdentityFn<T> extends DoFn<T, T> {
@@ -208,6 +208,6 @@ public class DoFnSignaturesProcessElementTest {
 
   @Test
   public void testIdentityFnApplied() throws Exception {
-    DoFnSignatures.INSTANCE.getSignature(new IdentityFn<String>() {}.getClass());
+    DoFnSignatures.INSTANCE.getOrParseSignature(new IdentityFn<String>() {}.getClass());
   }
 }

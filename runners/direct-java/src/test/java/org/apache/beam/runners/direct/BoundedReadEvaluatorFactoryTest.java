@@ -17,26 +17,19 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.beam.runners.direct.BoundedReadEvaluatorFactory.BoundedSourceShard;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -45,16 +38,13 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -62,8 +52,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link BoundedReadEvaluatorFactory}.
@@ -72,7 +60,7 @@ import org.mockito.stubbing.Answer;
 public class BoundedReadEvaluatorFactoryTest {
   private BoundedSource<Long> source;
   private PCollection<Long> longs;
-  private BoundedReadEvaluatorFactory factory;
+  private TransformEvaluatorFactory factory;
   @Mock private EvaluationContext context;
   private BundleFactory bundleFactory;
 
@@ -89,103 +77,78 @@ public class BoundedReadEvaluatorFactoryTest {
 
   @Test
   public void boundedSourceInMemoryTransformEvaluatorProducesElements() throws Exception {
-    when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
-    UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(longs);
-    when(context.createBundle(longs)).thenReturn(outputBundle);
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(longs);
+    when(context.createRootBundle(longs)).thenReturn(output);
 
-    Collection<CommittedBundle<?>> initialInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(longs.getProducingTransformInternal(), 1);
-    List<WindowedValue<?>> outputs = new ArrayList<>();
-    for (CommittedBundle<?> shardBundle : initialInputs) {
-      TransformEvaluator<?> evaluator =
-          factory.forApplication(longs.getProducingTransformInternal(), null);
-      for (WindowedValue<?> shard : shardBundle.getElements()) {
-        evaluator.processElement((WindowedValue) shard);
-      }
-      TransformResult result = evaluator.finishBundle();
-      assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
-      assertThat(
-          Iterables.size(result.getOutputBundles()),
-          equalTo(Iterables.size(shardBundle.getElements())));
-      for (UncommittedBundle<?> output : result.getOutputBundles()) {
-        CommittedBundle<?> committed = output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
-        for (WindowedValue<?> val : committed.getElements()) {
-          outputs.add(val);
-        }
-      }
-    }
-
+    TransformEvaluator<?> evaluator =
+        factory.forApplication(longs.getProducingTransformInternal(), null);
+    TransformResult result = evaluator.finishBundle();
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertThat(
-        outputs,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(),
+        containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
+  /**
+   * Demonstrate that acquiring multiple {@link TransformEvaluator TransformEvaluators} for the same
+   * {@link Bounded Read.Bounded} application with the same evaluation context only produces the
+   * elements once.
+   */
   @Test
-  public void getInitialInputsSplitsIntoBundles() throws Exception {
-    when(context.createRootBundle())
-        .thenAnswer(
-            new Answer<UncommittedBundle<?>>() {
-              @Override
-              public UncommittedBundle<?> answer(InvocationOnMock invocation) throws Throwable {
-                return bundleFactory.createRootBundle();
-              }
-            });
-    Collection<CommittedBundle<?>> initialInputs =
-        new BoundedReadEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(longs.getProducingTransformInternal(), 3);
+  public void boundedSourceInMemoryTransformEvaluatorAfterFinishIsEmpty() throws Exception {
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(longs);
+    when(context.createRootBundle(longs)).thenReturn(output);
 
-    assertThat(initialInputs, hasSize(allOf(greaterThanOrEqualTo(3), lessThanOrEqualTo(4))));
+    TransformEvaluator<?> evaluator =
+        factory.forApplication(longs.getProducingTransformInternal(), null);
+    TransformResult result = evaluator.finishBundle();
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    Iterable<? extends WindowedValue<Long>> outputElements =
+        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements();
+    assertThat(
+        outputElements,
+        containsInAnyOrder(
+            gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
 
-    Collection<BoundedSource<Long>> sources = new ArrayList<>();
-    for (CommittedBundle<?> initialInput : initialInputs) {
-      Iterable<WindowedValue<BoundedSourceShard<Long>>> shards =
-          (Iterable) initialInput.getElements();
-      WindowedValue<BoundedSourceShard<Long>> shard = Iterables.getOnlyElement(shards);
-      assertThat(shard.getWindows(), Matchers.<BoundedWindow>contains(GlobalWindow.INSTANCE));
-      assertThat(shard.getTimestamp(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
-      sources.add(shard.getValue().getSource());
-    }
-
-    SourceTestUtils.assertSourcesEqualReferenceSource(source,
-        (List<? extends BoundedSource<Long>>) sources,
-        PipelineOptionsFactory.create());
+    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
+    when(context.createRootBundle(longs)).thenReturn(secondOutput);
+    TransformEvaluator<?> secondEvaluator =
+        factory.forApplication(longs.getProducingTransformInternal(), null);
+    assertThat(secondEvaluator, nullValue());
   }
 
+  /**
+   * Demonstrates that acquiring multiple evaluators from the factory are independent, but
+   * the elements in the source are only produced once.
+   */
   @Test
-  public void boundedSourceInMemoryTransformEvaluatorShardsOfSource() throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
-    List<? extends BoundedSource<Long>> splits =
-        source.splitIntoBundles(source.getEstimatedSizeBytes(options) / 2, options);
+  public void boundedSourceEvaluatorSimultaneousEvaluations() throws Exception {
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(longs);
+    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
+    when(context.createRootBundle(longs)).thenReturn(output).thenReturn(secondOutput);
 
-    UncommittedBundle<BoundedSourceShard<Long>> rootBundle = bundleFactory.createRootBundle();
-    for (BoundedSource<Long> split : splits) {
-      BoundedSourceShard<Long> shard = BoundedSourceShard.of(split);
-      rootBundle.add(WindowedValue.valueInGlobalWindow(shard));
-    }
-    CommittedBundle<BoundedSourceShard<Long>> shards = rootBundle.commit(Instant.now());
+    // create both evaluators before finishing either.
+    TransformEvaluator<?> evaluator =
+        factory.forApplication(longs.getProducingTransformInternal(), null);
+    TransformEvaluator<?> secondEvaluator =
+        factory.forApplication(longs.getProducingTransformInternal(), null);
+    assertThat(secondEvaluator, nullValue());
 
-    TransformEvaluator<BoundedSourceShard<Long>> evaluator =
-        factory.forApplication(longs.getProducingTransformInternal(), shards);
-    for (WindowedValue<BoundedSourceShard<Long>> shard : shards.getElements()) {
-      UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(longs);
-      when(context.createBundle(longs)).thenReturn(outputBundle);
-      evaluator.processElement(shard);
-    }
     TransformResult result = evaluator.finishBundle();
-    assertThat(Iterables.size(result.getOutputBundles()), equalTo(splits.size()));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    Iterable<? extends WindowedValue<Long>> outputElements =
+        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements();
 
-    List<WindowedValue<?>> outputElems = new ArrayList<>();
-    for (UncommittedBundle<?> outputBundle : result.getOutputBundles()) {
-      CommittedBundle<?> outputs = outputBundle.commit(Instant.now());
-      for (WindowedValue<?> outputElem : outputs.getElements()) {
-        outputElems.add(outputElem);
-      }
-    }
     assertThat(
-        outputElems,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        outputElements,
+        containsInAnyOrder(
+            gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
+    assertThat(
+        secondOutput.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(), emptyIterable());
+    assertThat(
+        outputElements,
+        containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
@@ -197,13 +160,10 @@ public class BoundedReadEvaluatorFactoryTest {
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
 
-    UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
-    when(context.createBundle(pcollection)).thenReturn(output);
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
+    when(context.createRootBundle(pcollection)).thenReturn(output);
 
-    TransformEvaluator<BoundedSourceShard<Long>> evaluator =
-        factory.forApplication(
-            sourceTransform, bundleFactory.createRootBundle().commit(Instant.now()));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)));
+    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null);
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(committed.getElements(), containsInAnyOrder(gw(2L), gw(3L), gw(1L)));
@@ -218,13 +178,10 @@ public class BoundedReadEvaluatorFactoryTest {
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
 
-    UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
-    when(context.createBundle(pcollection)).thenReturn(output);
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
+    when(context.createRootBundle(pcollection)).thenReturn(output);
 
-    TransformEvaluator<BoundedSourceShard<Long>> evaluator =
-        factory.forApplication(
-            sourceTransform, bundleFactory.createRootBundle().commit(Instant.now()));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)));
+    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null);
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(committed.getElements(), emptyIterable());

@@ -187,9 +187,9 @@ public class DataflowRunnerTest {
    * Build a mock {@link GcsUtil} with return values.
    *
    * @param bucketExist first return value
-   * @param bucketAccessible next return values
+   * @param bucketExists next return values
    */
-  private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketAccessible)
+  private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketExists)
       throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
@@ -209,8 +209,7 @@ public class DataflowRunnerTest {
         return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
       }
     });
-    when(mockGcsUtil.bucketAccessible(any(GcsPath.class)))
-        .thenReturn(bucketExist, bucketAccessible);
+    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExist, bucketExists);
     return mockGcsUtil;
   }
 
@@ -895,7 +894,7 @@ public class DataflowRunnerTest {
             // Note: This is about the minimum needed to fake out a
             // translation. This obviously isn't a real translation.
             context.addStep(transform, "TestTranslate");
-            context.addOutput(context.getOutput(transform));
+            context.addOutput("output", context.getOutput(transform));
           }
         });
 
@@ -1098,7 +1097,7 @@ public class DataflowRunnerTest {
 
     DoFnTester<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>,
                IsmRecord<WindowedValue<Long>>> doFnTester =
-        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<>(
+        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<Long, Long, IntervalWindow>(
             outputForSizeTag,
             outputForEntrySetTag,
             windowCoder,
@@ -1198,7 +1197,7 @@ public class DataflowRunnerTest {
 
     DoFnTester<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>,
                IsmRecord<WindowedValue<Long>>> doFnTester =
-        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<>(
+        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<Long, Long, IntervalWindow>(
             outputForSizeTag,
             outputForEntrySetTag,
             windowCoder,

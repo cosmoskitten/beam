@@ -18,8 +18,6 @@
 package org.apache.beam.runners.core;
 
 import org.apache.beam.runners.core.DoFnRunner.ReduceFnExecutor;
-import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
-import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Sum;
@@ -83,9 +81,6 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
         new ReduceFnRunner<>(
             key,
             windowingStrategy,
-            ExecutableTriggerStateMachine.create(
-                TriggerStateMachines.stateMachineForTrigger(
-                    windowingStrategy.getTrigger().getSpec())),
             stateInternals,
             timerInternals,
             c.windowingInternals(),

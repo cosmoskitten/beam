@@ -15,18 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.triggers;
+package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.util.BitSetCoder;
+import org.apache.beam.sdk.util.ExecutableTrigger;
+import org.apache.beam.sdk.util.FinishedTriggers;
+import org.apache.beam.sdk.util.FinishedTriggersBitSet;
 import org.apache.beam.sdk.util.Timers;
+import org.apache.beam.sdk.util.TriggerContextFactory;
 import org.apache.beam.sdk.util.state.MergingStateAccessor;
 import org.apache.beam.sdk.util.state.StateAccessor;
 import org.apache.beam.sdk.util.state.StateTag;
@@ -41,7 +48,7 @@ import org.joda.time.Instant;
  * <p>Specifically, the responsibilities are:
  *
  * <ul>
- *   <li>Invoking the trigger's methods via its {@link ExecutableTriggerStateMachine} wrapper by
+ *   <li>Invoking the trigger's methods via its {@link ExecutableTrigger} wrapper by
  *       constructing the appropriate trigger contexts.</li>
  *   <li>Committing a record of which subtriggers are finished to persistent state.</li>
  *   <li>Restoring the record of which subtriggers are finished from persistent state.</li>
@@ -51,21 +58,19 @@ import org.joda.time.Instant;
  *
  * <p>These responsibilities are intertwined: trigger contexts include mutable information about
  * which subtriggers are finished. This class provides the information when building the contexts
- * and commits the information when the method of the {@link ExecutableTriggerStateMachine} returns.
+ * and commits the information when the method of the {@link ExecutableTrigger} returns.
  *
  * @param <W> The kind of windows being processed.
  */
-public class TriggerStateMachineRunner<W extends BoundedWindow> {
+public class TriggerRunner<W extends BoundedWindow> {
   @VisibleForTesting
-  public static final StateTag<Object, ValueState<BitSet>> FINISHED_BITS_TAG =
+  static final StateTag<Object, ValueState<BitSet>> FINISHED_BITS_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("closed", BitSetCoder.of()));
 
-  private final ExecutableTriggerStateMachine rootTrigger;
-  private final TriggerStateMachineContextFactory<W> contextFactory;
+  private final ExecutableTrigger rootTrigger;
+  private final TriggerContextFactory<W> contextFactory;
 
-  public TriggerStateMachineRunner(
-      ExecutableTriggerStateMachine rootTrigger,
-      TriggerStateMachineContextFactory<W> contextFactory) {
+  public TriggerRunner(ExecutableTrigger rootTrigger, TriggerContextFactory<W> contextFactory) {
     checkState(rootTrigger.getTriggerIndex() == 0);
     this.rootTrigger = rootTrigger;
     this.contextFactory = contextFactory;
@@ -99,6 +104,8 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     return readFinishedBits(state.access(FINISHED_BITS_TAG)).isFinished(rootTrigger);
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch side effect")
   public void prefetchForValue(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
@@ -107,6 +114,8 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
         contextFactory.createStateAccessor(window, rootTrigger));
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch side effect")
   public void prefetchOnFire(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
@@ -114,6 +123,8 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     rootTrigger.getSpec().prefetchOnFire(contextFactory.createStateAccessor(window, rootTrigger));
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch side effect")
   public void prefetchShouldFire(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
@@ -130,12 +141,14 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     FinishedTriggersBitSet finishedSet =
         readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
-    TriggerStateMachine.OnElementContext triggerContext = contextFactory.createOnElementContext(
+    Trigger.OnElementContext triggerContext = contextFactory.createOnElementContext(
         window, timers, timestamp, rootTrigger, finishedSet);
     rootTrigger.invokeOnElement(triggerContext);
     persistFinishedSet(state, finishedSet);
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch side effect")
   public void prefetchForMerge(
       W window, Collection<W> mergingWindows, MergingStateAccessor<?, W> state) {
     if (isFinishedSetNeeded()) {
@@ -166,7 +179,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     }
     ImmutableMap<W, FinishedTriggers> mergingFinishedSets = builder.build();
 
-    TriggerStateMachine.OnMergeContext mergeContext = contextFactory.createOnMergeContext(
+    Trigger.OnMergeContext mergeContext = contextFactory.createOnMergeContext(
         window, timers, rootTrigger, finishedSet, mergingFinishedSets);
 
     // Run the merge from the trigger
@@ -177,7 +190,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
 
   public boolean shouldFire(W window, Timers timers, StateAccessor<?> state) throws Exception {
     FinishedTriggers finishedSet = readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
-    TriggerStateMachine.TriggerContext context = contextFactory.base(window, timers,
+    Trigger.TriggerContext context = contextFactory.base(window, timers,
         rootTrigger, finishedSet);
     return rootTrigger.invokeShouldFire(context);
   }
@@ -187,7 +200,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     // However it is too expensive to assert.
     FinishedTriggersBitSet finishedSet =
         readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
-    TriggerStateMachine.TriggerContext context = contextFactory.base(window, timers,
+    Trigger.TriggerContext context = contextFactory.base(window, timers,
         rootTrigger, finishedSet);
     rootTrigger.invokeOnFire(context);
     persistFinishedSet(state, finishedSet);
@@ -229,6 +242,6 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
   private boolean isFinishedSetNeeded() {
     // TODO: If we know that no trigger in the tree will ever finish, we don't need to do the
     // lookup. Right now, we special case this for the DefaultTrigger.
-    return !(rootTrigger.getSpec() instanceof DefaultTriggerStateMachine);
+    return !(rootTrigger.getSpec() instanceof DefaultTrigger);
   }
 }

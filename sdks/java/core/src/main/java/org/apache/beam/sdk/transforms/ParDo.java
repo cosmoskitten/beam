@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -29,8 +27,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
@@ -42,9 +38,10 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypedPValue;
 
 /**
- * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
- * function on each of the elements of the input {@link PCollection} to produce zero or more output
- * elements, all of which are collected into the output {@link PCollection}.
+ * {@link ParDo} is the core element-wise transform in Google Cloud
+ * Dataflow, invoking a user-specified function on each of the elements of the input
+ * {@link PCollection} to produce zero or more output elements, all
+ * of which are collected into the output {@link PCollection}.
  *
  * <p>Elements are processed independently, and possibly in parallel across
  * distributed cloud resources.
@@ -87,14 +84,14 @@ import org.apache.beam.sdk.values.TypedPValue;
  *     provided, will be called on the discarded instance.</li>
  * </ol>
  *
- * <p>Each of the calls to any of the {@link DoFn DoFn's} processing
+ * Each of the calls to any of the {@link DoFn DoFn's} processing
  * methods can produce zero or more output elements. All of the
  * of output elements from all of the {@link DoFn} instances
  * are included in the output {@link PCollection}.
  *
  * <p>For example:
  *
- * <pre><{@code
+ * <pre><code>
  * PCollection<String> lines = ...;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFn<String, String>() {
@@ -113,7 +110,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  *           Integer length = word.length();
  *           c.output(length);
  *         }}));
- * }</pre>
+ * </code></pre>
  *
  * <p>Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
@@ -149,7 +146,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * the {@link DoFn} operations via {@link DoFn.ProcessContext#sideInput sideInput}.
  * For example:
  *
- * <pre>{@code
+ * <pre><code>
  * PCollection<String> words = ...;
  * PCollection<Integer> maxWordLengthCutOff = ...; // Singleton PCollection
  * final PCollectionView<Integer> maxWordLengthCutOffView =
@@ -165,7 +162,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  *             c.output(word);
  *           }
  *         }}));
- * }</pre>
+ * </code></pre>
  *
  * <h2>Side Outputs</h2>
  *
@@ -182,7 +179,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * {@link DoFn.Context#output}, while an element is added to a side output
  * {@link PCollection} using {@link DoFn.Context#sideOutput}. For example:
  *
- * <pre>{@code
+ * <pre><code>
  * PCollection<String> words = ...;
  * // Select words whose length is below a cut off,
  * // plus the lengths of words that are above the cut off.
@@ -233,7 +230,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  *     results.get(wordLengthsAboveCutOffTag);
  * PCollection<String> markedWords =
  *     results.get(markedWordsTag);
- * }</pre>
+ * </code></pre>
  *
  * <h2>Properties May Be Specified In Any Order</h2>
  *
@@ -520,8 +517,7 @@ public class ParDo {
    * properties can be set on it first.
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-    validate(fn);
-    return of(adapt(fn), displayDataForFn(fn));
+    return of(adapt(fn), fn.getClass());
   }
 
   /**
@@ -538,62 +534,16 @@ public class ParDo {
    */
   @Deprecated
   public static <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
-    return of(fn, displayDataForFn(fn));
+    return of(fn, fn.getClass());
   }
 
   private static <InputT, OutputT> Bound<InputT, OutputT> of(
-          OldDoFn<InputT, OutputT> fn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-    return new Unbound().of(fn, fnDisplayData);
+          OldDoFn<InputT, OutputT> fn, Class<?> fnClass) {
+    return new Unbound().of(fn, fnClass);
   }
 
-  private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
-    return DisplayData.item("fn", fn.getClass())
-        .withLabel("Transform Function");
-  }
-
-  /**
-   * Perform common validations of the {@link DoFn}, for example ensuring that state is used
-   * correctly and that its features can be supported.
-   */
-  private static <InputT, OutputT> void validate(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass());
-
-    // To be removed when the features are complete and runners have their own adequate
-    // rejection logic
-    if (!signature.stateDeclarations().isEmpty()) {
-      throw new UnsupportedOperationException(
-          String.format("Found %s annotations on %s, but %s cannot yet be used with state.",
-              DoFn.StateId.class.getSimpleName(),
-              fn.getClass().getName(),
-              DoFn.class.getSimpleName()));
-    }
-
-    // To be removed when the features are complete and runners have their own adequate
-    // rejection logic
-    if (!signature.timerDeclarations().isEmpty()) {
-      throw new UnsupportedOperationException(
-          String.format("Found %s annotations on %s, but %s cannot yet be used with timers.",
-              DoFn.TimerId.class.getSimpleName(),
-              fn.getClass().getName(),
-              DoFn.class.getSimpleName()));
-    }
-
-    // State is semantically incompatible with splitting
-    if (!signature.stateDeclarations().isEmpty() && signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format("%s is splittable and uses state, but these are not compatible",
-              fn.getClass().getName()));
-    }
-
-    // Timers are semantically incompatible with splitting
-    if (!signature.timerDeclarations().isEmpty() && signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format("%s is splittable and uses timers, but these are not compatible",
-              fn.getClass().getName()));
-    }
-  }
-
-  private static <InputT, OutputT> OldDoFn<InputT, OutputT> adapt(DoFn<InputT, OutputT> fn) {
+  private static <InputT, OutputT> OldDoFn<InputT, OutputT>
+      adapt(DoFn<InputT, OutputT> fn) {
     return DoFnAdapters.toOldDoFn(fn);
   }
 
@@ -670,8 +620,7 @@ public class ParDo {
      * still be specified.
      */
     public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-      validate(fn);
-      return of(adapt(fn), displayDataForFn(fn));
+      return of(adapt(fn), fn.getClass());
     }
 
     /**
@@ -686,12 +635,12 @@ public class ParDo {
      */
     @Deprecated
     public <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
-      return of(fn, displayDataForFn(fn));
+      return of(fn, fn.getClass());
     }
 
     private <InputT, OutputT> Bound<InputT, OutputT> of(
-        OldDoFn<InputT, OutputT> fn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      return new Bound<>(name, sideInputs, fn, fnDisplayData);
+        OldDoFn<InputT, OutputT> fn, Class<?> fnClass) {
+      return new Bound<>(name, sideInputs, fn, fnClass);
     }
   }
 
@@ -712,16 +661,16 @@ public class ParDo {
     // Inherits name.
     private final List<PCollectionView<?>> sideInputs;
     private final OldDoFn<InputT, OutputT> fn;
-    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final Class<?> fnClass;
 
     Bound(String name,
           List<PCollectionView<?>> sideInputs,
           OldDoFn<InputT, OutputT> fn,
-          DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+          Class<?> fnClass) {
       super(name);
       this.sideInputs = sideInputs;
       this.fn = SerializableUtils.clone(fn);
-      this.fnDisplayData = fnDisplayData;
+      this.fnClass = fnClass;
     }
 
     /**
@@ -749,7 +698,7 @@ public class ParDo {
       ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
       builder.addAll(this.sideInputs);
       builder.addAll(sideInputs);
-      return new Bound<>(name, builder.build(), fn, fnDisplayData);
+      return new Bound<>(name, builder.build(), fn, fnClass);
     }
 
     /**
@@ -763,13 +712,11 @@ public class ParDo {
     public BoundMulti<InputT, OutputT> withOutputTags(TupleTag<OutputT> mainOutputTag,
                                            TupleTagList sideOutputTags) {
       return new BoundMulti<>(
-          name, sideInputs, mainOutputTag, sideOutputTags, fn, fnDisplayData);
+          name, sideInputs, mainOutputTag, sideOutputTags, fn, fnClass);
     }
 
     @Override
     public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
-      checkArgument(
-          !isSplittable(fn), "Splittable DoFn not supported by the current runner");
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
               input.getWindowingStrategy(),
@@ -807,7 +754,7 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, fn, fnDisplayData);
+      ParDo.populateDisplayData(builder, fn, fnClass);
     }
 
     public OldDoFn<InputT, OutputT> getFn() {
@@ -887,8 +834,7 @@ public class ParDo {
      * more properties can still be specified.
      */
     public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-      validate(fn);
-      return of(adapt(fn), displayDataForFn(fn));
+      return of(adapt(fn), fn.getClass());
     }
 
     /**
@@ -903,13 +849,12 @@ public class ParDo {
      */
     @Deprecated
     public <InputT> BoundMulti<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
-      return of(fn, displayDataForFn(fn));
+      return of(fn, fn.getClass());
     }
 
-    private <InputT> BoundMulti<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+    private <InputT> BoundMulti<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn, Class<?> fnClass) {
       return new BoundMulti<>(
-              name, sideInputs, mainOutputTag, sideOutputTags, fn, fnDisplayData);
+              name, sideInputs, mainOutputTag, sideOutputTags, fn, fnClass);
     }
   }
 
@@ -931,20 +876,20 @@ public class ParDo {
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList sideOutputTags;
     private final OldDoFn<InputT, OutputT> fn;
-    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final Class<?> fnClass;
 
     BoundMulti(String name,
                List<PCollectionView<?>> sideInputs,
                TupleTag<OutputT> mainOutputTag,
                TupleTagList sideOutputTags,
                OldDoFn<InputT, OutputT> fn,
-               DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+               Class<?> fnClass) {
       super(name);
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.sideOutputTags = sideOutputTags;
       this.fn = SerializableUtils.clone(fn);
-      this.fnDisplayData = fnDisplayData;
+      this.fnClass = fnClass;
     }
 
     /**
@@ -975,15 +920,12 @@ public class ParDo {
       builder.addAll(sideInputs);
       return new BoundMulti<>(
           name, builder.build(),
-          mainOutputTag, sideOutputTags, fn, fnDisplayData);
+          mainOutputTag, sideOutputTags, fn, fnClass);
     }
 
 
     @Override
     public PCollectionTuple apply(PCollection<? extends InputT> input) {
-      checkArgument(
-          !isSplittable(fn), "Splittable DoFn not supported by the current runner");
-
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
@@ -1029,7 +971,7 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, fn, fnDisplayData);
+      ParDo.populateDisplayData(builder, fn, fnClass);
     }
 
     public OldDoFn<InputT, OutputT> getFn() {
@@ -1050,21 +992,10 @@ public class ParDo {
   }
 
   private static void populateDisplayData(
-      DisplayData.Builder builder, OldDoFn<?, ?> fn,
-      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+      DisplayData.Builder builder, OldDoFn<?, ?> fn, Class<?> fnClass) {
     builder
-        .include("fn", fn)
-        .add(fnDisplayData);
-  }
-
-  private static boolean isSplittable(OldDoFn<?, ?> oldDoFn) {
-    DoFn<?, ?> fn = DoFnAdapters.getDoFn(oldDoFn);
-    if (fn == null) {
-      return false;
-    }
-    return DoFnSignatures.INSTANCE
-        .getSignature(fn.getClass())
-        .processElement()
-        .isSplittable();
+        .include(fn)
+        .add(DisplayData.item("fn", fnClass)
+            .withLabel("Transform Function"));
   }
 }
