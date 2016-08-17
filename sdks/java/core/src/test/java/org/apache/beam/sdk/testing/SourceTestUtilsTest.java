@@ -26,7 +26,6 @@ import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,9 +50,9 @@ public class SourceTestUtilsTest {
     BoundedReader<Long> unsplittableReader = unsplittableSource.createReader(options);
     assertNull(unsplittableReader.splitAtFraction(0.5));
 
-    Assert.assertEquals(0, unsplittableReader.getFractionConsumed(), 1e-15);
+    assertEquals(0, unsplittableReader.getFractionConsumed(), 1e-15);
     SourceTestUtils.readNItemsFromUnstartedReader(unsplittableReader, 50);
     SourceTestUtils.readRemainingFromReader(unsplittableReader, true);
-    Assert.assertEquals(1, unsplittableReader.getFractionConsumed(), 1e-15);
+    assertEquals(1, unsplittableReader.getFractionConsumed(), 1e-15);
   }
 }
