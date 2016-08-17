@@ -30,17 +30,23 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 
 import com.google.common.collect.ImmutableList;
 
+import org.joda.time.Instant;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -683,6 +689,12 @@ public class SourceTestUtils {
 
   /**
    * Returns an equivalent unsplittable {@code BoundedSource<T>}.
+   * <p>It forwards most methods to the given {@code boundedSource}, except:
+   * <ol>
+   * <li> {@link BoundedSource#splitIntoBundles} disables initial splitting
+   * by returning itself in a list.
+   * <li> {@link BoundedReader#splitAtFraction} disables dynamic splitting by returning null.
+   * </ol>
    */
   public static <T> BoundedSource<T> toUnsplittableSource(BoundedSource<T> boundedSource) {
     return new UnsplittableSource<>(boundedSource);
@@ -692,8 +704,13 @@ public class SourceTestUtils {
 
     private final BoundedSource<T> boundedSource;
 
-    private  UnsplittableSource(BoundedSource<T> boundedSource) {
+    private UnsplittableSource(BoundedSource<T> boundedSource) {
       this.boundedSource = checkNotNull(boundedSource, "boundedSource");
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      this.boundedSource.populateDisplayData(builder);
     }
 
     @Override
@@ -766,6 +783,27 @@ public class SourceTestUtils {
       @Nullable
       public BoundedSource<T> splitAtFraction(double fraction) {
         return null;
+      }
+
+      @Override
+      @Nullable
+      public Double getFractionConsumed() {
+        return boundedReader.getFractionConsumed();
+      }
+
+      @Override
+      public long getSplitPointsConsumed() {
+        return boundedReader.getSplitPointsConsumed();
+      }
+
+      @Override
+      public long getSplitPointsRemaining() {
+        return boundedReader.getSplitPointsRemaining();
+      }
+
+      @Override
+      public Instant getCurrentTimestamp() throws NoSuchElementException {
+        return boundedReader.getCurrentTimestamp();
       }
     }
   }
