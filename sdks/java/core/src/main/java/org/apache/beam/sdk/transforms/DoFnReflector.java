@@ -223,7 +223,7 @@ public abstract class DoFnReflector {
    */
   public abstract boolean usesSingleWindow();
 
-  /** Create an {@link DoFnInvoker} bound to the given {@link OldDoFn}. */
+  /** Create an {@link DoFnInvoker} bound to the given {@link DoFn}. */
   public abstract <InputT, OutputT> DoFnInvoker<InputT, OutputT> bindInvoker(
       DoFn<InputT, OutputT> fn);
 
@@ -416,7 +416,7 @@ public abstract class DoFnReflector {
         DoFn<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra);
 
-    /** Invoke {@link OldDoFn#teardown()} on the bound {@code DoFn}. */
+    /** Invoke {@link OldDoFn#teardown()} on the bound {@code OldDoFn}. */
     void invokeTeardown();
 
     /** Invoke {@link OldDoFn#processElement} on the bound {@code OldDoFn}. */

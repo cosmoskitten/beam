@@ -147,7 +147,7 @@ import java.io.Serializable;
  * implementing {@code Serializable}.
  *
  * <p>{@code PTransform} is marked {@code Serializable} solely
- * because it is common for an anonymous {@code OldDoFn},
+ * because it is common for an anonymous {@link DoFn},
  * instance to be created within an
  * {@code apply()} method of a composite {@code PTransform}.
  *

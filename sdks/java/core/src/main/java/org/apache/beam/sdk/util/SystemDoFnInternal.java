@@ -31,7 +31,7 @@ import java.lang.annotation.Target;
  * <p>Currently, the only effect of this is to mark any aggregators reported by an annotated
  * {@code OldDoFn} as a system counter (as opposed to a user counter).
  *
- * <p>This is internal to the Dataflow SDK.
+ * <p>This is internal to the Beam SDK.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
