@@ -37,14 +37,14 @@ import org.apache.beam.sdk.util.ExecutionContext;
  *
  * <p>Example:
  * <pre> {@code
- * class MyDoFn extends OldDoFn<String, String> {
+ * class MyDoFn extends DoFn<String, String> {
  *   private Aggregator<Integer, Integer> myAggregator;
  *
  *   public MyDoFn() {
  *     myAggregator = createAggregatorForDoFn("myAggregator", new Sum.SumIntegerFn());
  *   }
  *
- *   @Override
+ *   @ProcessElement
  *   public void processElement(ProcessContext c) {
  *     myAggregator.addValue(1);
  *   }

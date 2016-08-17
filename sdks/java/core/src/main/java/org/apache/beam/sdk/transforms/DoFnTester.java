@@ -55,7 +55,7 @@ import java.util.Map;
  * <p>For example:
  *
  * <pre> {@code
- * OldDoFn<InputT, OutputT> fn = ...;
+ * DoFn<InputT, OutputT> fn = ...;
  *
  * DoFnTester<InputT, OutputT> fnTester = DoFnTester.of(fn);
  *
@@ -81,8 +81,7 @@ public class DoFnTester<InputT, OutputT> {
    * {@link DoFn}.
    */
   @SuppressWarnings("unchecked")
-  public static <InputT, OutputT> DoFnTester<InputT, OutputT>
-  of(DoFn<InputT, OutputT> fn) {
+  public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     return new DoFnTester<InputT, OutputT>(DoFnReflector.of(fn.getClass()).toDoFn(fn));
   }
 
@@ -182,9 +181,9 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
-   * Calls the {@link DoFn.StartBundle} on the {@link DoFn} under test.
+   * Calls the {@link DoFn.StartBundle} method on the {@link DoFn} under test.
    *
-   * <p>If needed, first creates a fresh instance of the OldDoFn under test.
+   * <p>If needed, first creates a fresh instance of the {@link DoFn} under test.
    */
   public void startBundle() throws Exception {
     resetState();
@@ -674,7 +673,7 @@ public class DoFnTester<InputT, OutputT> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** The possible states of processing a OldDoFn. */
+  /** The possible states of processing a {@link DoFn}. */
   enum State {
     UNSTARTED,
     STARTED,
@@ -683,7 +682,7 @@ public class DoFnTester<InputT, OutputT> {
 
   private final PipelineOptions options = PipelineOptionsFactory.create();
 
-  /** The original OldDoFn under test. */
+  /** The original {@link OldDoFn} under test. */
   private final OldDoFn<InputT, OutputT> origFn;
 
   /**
@@ -693,13 +692,13 @@ public class DoFnTester<InputT, OutputT> {
    */
   private CloningBehavior cloningBehavior = CloningBehavior.CLONE;
 
-  /** The side input values to provide to the OldDoFn under test. */
+  /** The side input values to provide to the {@link DoFn} under test. */
   private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
       new HashMap<>();
 
   private Map<String, Object> accumulators;
 
-  /** The output tags used by the OldDoFn under test. */
+  /** The output tags used by the {@link DoFn} under test. */
   private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
   /** The original OldDoFn under test, if started. */
@@ -708,7 +707,7 @@ public class DoFnTester<InputT, OutputT> {
   /** The ListOutputManager to examine the outputs. */
   private Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
 
-  /** The state of processing of the OldDoFn under test. */
+  /** The state of processing of the {@link DoFn} under test. */
   private State state;
 
   private DoFnTester(OldDoFn<InputT, OutputT> origFn) {

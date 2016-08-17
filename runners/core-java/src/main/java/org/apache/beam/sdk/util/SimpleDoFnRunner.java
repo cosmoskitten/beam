@@ -28,8 +28,8 @@ import java.util.List;
 /**
  * Runs a {@link OldDoFn} by constructing the appropriate contexts and passing them in.
  *
- * @param <InputT> the type of the OldDoFn's (main) input elements
- * @param <OutputT> the type of the OldDoFn's (main) output elements
+ * @param <InputT> the type of the {@link OldDoFn} (main) input elements
+ * @param <OutputT> the type of the {@link OldDoFn} (main) output elements
  */
 public class SimpleDoFnRunner<InputT, OutputT> extends DoFnRunnerBase<InputT, OutputT>{
 

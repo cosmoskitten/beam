@@ -405,21 +405,21 @@ public abstract class DoFnReflector {
 
   /** Interface for invoking the {@code OldDoFn} processing methods. */
   public interface DoFnInvoker<InputT, OutputT>  {
-    /** Invoke {@link OldDoFn#setup} on the bound {@code OldDoFn}. */
+    /** Invoke {@link OldDoFn#setup} on the bound {@link DoFn}. */
     void invokeSetup();
-    /** Invoke {@link OldDoFn#startBundle} on the bound {@code OldDoFn}. */
+    /** Invoke {@link OldDoFn#startBundle} on the bound {@link DoFn}. */
     void invokeStartBundle(
         DoFn<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra);
-    /** Invoke {@link OldDoFn#finishBundle} on the bound {@code OldDoFn}. */
+    /** Invoke {@link OldDoFn#finishBundle} on the bound {@link DoFn}. */
     void invokeFinishBundle(
         DoFn<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra);
 
-    /** Invoke {@link OldDoFn#teardown()} on the bound {@code OldDoFn}. */
+    /** Invoke {@link OldDoFn#teardown()} on the bound {@link DoFn}. */
     void invokeTeardown();
 
-    /** Invoke {@link OldDoFn#processElement} on the bound {@code OldDoFn}. */
+    /** Invoke {@link OldDoFn#processElement} on the bound {@link DoFn}. */
     public void invokeProcessElement(
         DoFn<InputT, OutputT>.ProcessContext c,
         ExtraContextFactory<InputT, OutputT> extra);
