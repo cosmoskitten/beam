@@ -70,7 +70,7 @@ public class CombineFns {
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
-   * <pre>{ @code
+   * <pre><code>
    * PCollection<KV<K, Integer>> latencies = ...;
    *
    * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
@@ -78,7 +78,7 @@ public class CombineFns {
    *
    * SimpleFunction<Integer, Integer> identityFn =
    *     new SimpleFunction<Integer, Integer>() {
-   *       @Override
+   *      {@literal @}Override
    *       public Integer apply(Integer input) {
    *           return input;
    *       }};
@@ -90,8 +90,8 @@ public class CombineFns {
    *
    * PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
-   *         new OldDoFn<KV<K, CoCombineResult>, T>() {
-   *           @Override
+   *         new DoFn<KV<K, CoCombineResult>, T>() {
+   *          {@literal @}ProcessElement
    *           public void processElement(ProcessContext c) throws Exception {
    *             KV<K, CoCombineResult> e = c.element();
    *             Integer maxLatency = e.getValue().get(maxLatencyTag);
@@ -100,7 +100,7 @@ public class CombineFns {
    *             c.output(...some T...);
    *           }
    *         }));
-   * } </pre>
+   * </code></pre>
    */
   public static ComposeKeyedCombineFnBuilder composeKeyed() {
     return new ComposeKeyedCombineFnBuilder();
@@ -113,7 +113,7 @@ public class CombineFns {
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
-   * <pre>{ @code
+   * <pre><code>
    * PCollection<Integer> globalLatencies = ...;
    *
    * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
@@ -133,8 +133,8 @@ public class CombineFns {
    *
    * PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
-   *         new OldDoFn<CoCombineResult, T>() {
-   *           @Override
+   *         new DoFn<CoCombineResult, T>() {
+   *          {@literal @}ProcessElement
    *           public void processElement(ProcessContext c) throws Exception {
    *             CoCombineResult e = c.element();
    *             Integer maxLatency = e.get(maxLatencyTag);
@@ -143,7 +143,7 @@ public class CombineFns {
    *             c.output(...some T...);
    *           }
    *         }));
-   * } </pre>
+   * </code></pre>
    */
   public static ComposeCombineFnBuilder compose() {
     return new ComposeCombineFnBuilder();
