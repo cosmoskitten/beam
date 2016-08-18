@@ -19,31 +19,59 @@ package org.apache.beam.runners.apex;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
+
+import java.io.IOException;
+
+import org.apache.beam.sdk.AggregatorRetrievalException;
+import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.joda.time.Duration;
 
 import com.datatorrent.api.DAG;
+import com.datatorrent.api.LocalMode;
 
 /**
- * Result of executing a {@link Pipeline} with Apex.
+ * Result of executing a {@link Pipeline} with Apex in embedded mode.
  */
 public class ApexRunnerResult implements PipelineResult {
   private final DAG apexDAG;
-  
-  public ApexRunnerResult(DAG dag) {
+  private final LocalMode.Controller ctrl;
+  private State state = State.UNKNOWN;
+
+  public ApexRunnerResult(DAG dag, LocalMode.Controller ctrl) {
     this.apexDAG = dag;
+    this.ctrl = ctrl;
   }
-  
+
   @Override
   public State getState() {
-    return null;
+    return state;
   }
 
   @Override
   public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
       throws AggregatorRetrievalException {
     return null;
+  }
+
+  @Override
+  public State cancel() throws IOException
+  {
+    ctrl.shutdown();
+    state = State.CANCELLED;
+    return state;
+  }
+
+  @Override
+  public State waitUntilFinish(Duration duration) throws IOException, InterruptedException
+  {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public State waitUntilFinish() throws IOException, InterruptedException
+  {
+    throw new UnsupportedOperationException();
   }
 
   /**
@@ -53,5 +81,5 @@ public class ApexRunnerResult implements PipelineResult {
   public DAG getApexDAG() {
     return apexDAG;
   }
-  
+
 }

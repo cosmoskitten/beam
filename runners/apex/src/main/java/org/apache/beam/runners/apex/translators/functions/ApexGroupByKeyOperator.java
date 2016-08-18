@@ -18,6 +18,7 @@
 package org.apache.beam.runners.apex.translators.functions;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,8 +36,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.KeyedWorkItem;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -62,8 +64,8 @@ import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
-import com.google.api.client.repackaged.com.google.common.base.Throwables;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
@@ -89,7 +91,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
   private Map<K, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
 
   private transient ProcessContext context;
-  private transient DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> fn;
+  private transient OldDoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> fn;
   private transient ApexTimerInternals timerInternals = new ApexTimerInternals();
   private Instant inputWatermark = new Instant(0);
 
@@ -144,7 +146,8 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
   @Override
   public void setup(OperatorContext context)
   {
-    this.fn = GroupAlsoByWindowViaWindowSetDoFn.create(this.windowingStrategy,
+    StateInternalsFactory<K> stateInternalsFactory = new GroupByKeyStateInternalsFactory();
+    this.fn = GroupAlsoByWindowViaWindowSetDoFn.create(this.windowingStrategy, stateInternalsFactory,
         SystemReduceFn.<K, V, BoundedWindow>buffering(this.valueCoder));
     this.context = new ProcessContext(fn, this.timerInternals);
   }
@@ -252,7 +255,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
     private StateInternals<K> stateInternals;
     private KeyedWorkItem<K, V> element;
 
-    public ProcessContext(DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> function,
+    public ProcessContext(OldDoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> function,
                           ApexTimerInternals timerInternals) {
       function.super();
       this.timerInternals = Preconditions.checkNotNull(timerInternals);
@@ -410,6 +413,15 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
       return null;
     }
 
+  }
+
+  private class GroupByKeyStateInternalsFactory implements StateInternalsFactory<K>, Serializable
+  {
+    @Override
+    public StateInternals<K> stateInternalsForKey(K key)
+    {
+      return getStateInternalsForKey(key);
+    }
   }
 
 }

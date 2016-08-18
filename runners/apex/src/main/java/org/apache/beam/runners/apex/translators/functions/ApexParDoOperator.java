@@ -18,23 +18,22 @@
 
 package org.apache.beam.runners.apex.translators.functions;
 
-import java.util.Collection;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translators.utils.NoOpStepContext;
 import org.apache.beam.runners.apex.translators.utils.SerializablePipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.AggregatorRetriever;
+import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.DoFnRunner;
 import org.apache.beam.sdk.util.DoFnRunners;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
+import org.apache.beam.sdk.util.ExecutionContext;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
@@ -57,7 +56,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions pipelineOptions;
   @Bind(JavaSerializer.class)
-  private final DoFn<InputT, OutputT> doFn;
+  private final OldDoFn<InputT, OutputT> doFn;
   @Bind(JavaSerializer.class)
   private final WindowingStrategy<?, ?> windowingStrategy;
   @Bind(JavaSerializer.class)
@@ -65,7 +64,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
 
   public ApexParDoOperator(
       ApexPipelineOptions pipelineOptions,
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       SideInputReader sideInputReader) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
@@ -102,18 +101,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     output.emit(ApexStreamTuple.DataTuple.of(tuple));
   }
 
-  private transient CounterSet counterSet;
-
   @Override
   public void setup(OperatorContext context)
   {
-    this.counterSet = new CounterSet() {
-      @Override
-      public boolean addCounter(Counter<?> counter) {
-        System.out.println("\n\nCounter: " + counter);
-        return add(counter);
-      }
-    };
     this.doFnRunner = DoFnRunners.simpleRunner(pipelineOptions.get(),
         doFn,
         sideInputReader,
@@ -121,7 +111,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
         mainTag,
         TupleTagList.empty().getAll(),
         new NoOpStepContext(),
-        this.counterSet.getAddCounterMutator(),
+        new NoOpAggregatorFactory(),
         windowingStrategy
         );
   }
@@ -143,4 +133,45 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   {
     doFnRunner.finishBundle();
   }
+
+  /**
+   * TODO: Placeholder for aggregation, to be implemented for embedded and cluster mode.
+   * It is called from {@link org.apache.beam.sdk.util.SimpleDoFnRunner}.
+   */
+  public class NoOpAggregatorFactory implements AggregatorFactory {
+
+    private NoOpAggregatorFactory() {
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
+        Class<?> fnClass, ExecutionContext.StepContext step,
+        String name, CombineFn<InputT, AccumT, OutputT> combine) {
+      return new Aggregator<InputT, OutputT>() {
+
+        @Override
+        public void addValue(InputT value)
+        {
+        }
+
+        @Override
+        public String getName()
+        {
+          // TODO Auto-generated method stub
+          return null;
+        }
+
+        @Override
+        public CombineFn<InputT, ?, OutputT> getCombineFn()
+        {
+          // TODO Auto-generated method stub
+          return null;
+        }
+
+      };
+    }
+  }
+
+
+
 }

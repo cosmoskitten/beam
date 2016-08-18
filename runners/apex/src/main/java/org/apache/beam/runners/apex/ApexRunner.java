@@ -112,11 +112,10 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       } else {
         lc.runAsync();
       }
+      return new ApexRunnerResult(lma.getDAG(), lc);
     } catch (Exception e) {
-      Throwables.propagate(e);
+      throw Throwables.propagate(e);
     }
-
-    return new ApexRunnerResult(lma.getDAG());
   }
 
   /**
@@ -157,7 +156,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   private static class IdentityFn<T> extends DoFn<T, T> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element());
     }

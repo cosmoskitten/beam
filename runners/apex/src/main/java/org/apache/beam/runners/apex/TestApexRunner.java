@@ -38,8 +38,8 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   public static TestApexRunner fromOptions(PipelineOptions options) {
-    ApexPipelineOptions flinkOptions = PipelineOptionsValidator.validate(ApexPipelineOptions.class, options);
-    return new TestApexRunner(flinkOptions);
+    ApexPipelineOptions apexOptions = PipelineOptionsValidator.validate(ApexPipelineOptions.class, options);
+    return new TestApexRunner(apexOptions);
   }
 
   @Override

@@ -29,7 +29,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -110,7 +110,7 @@ public class GroupByKeyTranslatorTest {
   }
 
   @SuppressWarnings("serial")
-  private static class EmbeddedCollector extends DoFn<Object, Void> {
+  private static class EmbeddedCollector extends OldDoFn<Object, Void> {
     protected static final HashSet<Object> results = new HashSet<>();
 
     public EmbeddedCollector() {
@@ -122,7 +122,7 @@ public class GroupByKeyTranslatorTest {
     }
   }
 
-  private static class KeyedByTimestamp<T> extends DoFn<T, KV<Instant, T>> {
+  private static class KeyedByTimestamp<T> extends OldDoFn<T, KV<Instant, T>> {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {

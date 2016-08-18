@@ -52,7 +52,7 @@ public class StreamingWordCountTest {
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().trim().isEmpty()) {
         emptyLines.addValue(1L);
@@ -74,7 +74,7 @@ public class StreamingWordCountTest {
     private static final Logger LOG = LoggerFactory.getLogger(FormatAsStringFn.class);
     static final ConcurrentHashMap<String, Long> RESULTS = new ConcurrentHashMap<>();
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String row = c.element().getKey() + " - " + c.element().getValue() +
           " @ " + c.timestamp().toString();

@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
 import com.datatorrent.api.DAG;
@@ -79,7 +80,7 @@ public class ReadUnboundTranslatorTest {
   }
 
   @SuppressWarnings("serial")
-  private static class EmbeddedCollector extends DoFn<Object, Void> {
+  private static class EmbeddedCollector extends OldDoFn<Object, Void> {
     protected static final HashSet<Object> results = new HashSet<>();
 
     public EmbeddedCollector() {

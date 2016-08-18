@@ -20,7 +20,7 @@ package org.apache.beam.runners.apex.translators;
 
 import org.apache.beam.runners.apex.translators.functions.ApexParDoOperator;
 import org.apache.beam.runners.apex.translators.utils.NoOpSideInputReader;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -33,7 +33,7 @@ public class ParDoBoundTranslator<InputT, OutputT> implements
 
   @Override
   public void translate(ParDo.Bound<InputT, OutputT> transform, TranslationContext context) {
-    DoFn<InputT, OutputT> doFn = transform.getFn();
+    OldDoFn<InputT, OutputT> doFn = transform.getFn();
     PCollection<OutputT> output = context.getOutput();
     ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(context.getPipelineOptions(),
         doFn, output.getWindowingStrategy(), new NoOpSideInputReader());

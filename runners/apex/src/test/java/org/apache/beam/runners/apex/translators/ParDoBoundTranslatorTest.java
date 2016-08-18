@@ -29,6 +29,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -96,7 +97,7 @@ public class ParDoBoundTranslatorTest {
   }
 
   @SuppressWarnings("serial")
-  private static class Add extends DoFn<Integer, Integer> {
+  private static class Add extends OldDoFn<Integer, Integer> {
     private final Integer number;
 
     public Add(Integer number) {
@@ -110,7 +111,7 @@ public class ParDoBoundTranslatorTest {
   }
 
   @SuppressWarnings("serial")
-  private static class EmbeddedCollector extends DoFn<Object, Void> {
+  private static class EmbeddedCollector extends OldDoFn<Object, Void> {
     protected static final HashSet<Object> results = new HashSet<>();
 
     public EmbeddedCollector() {

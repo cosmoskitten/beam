@@ -37,6 +37,7 @@
   <properties>
     <apex.core.version>3.4.0</apex.core.version>
     <apex.malhar.version>3.4.0</apex.malhar.version>
+    <skipIntegrationTests>true</skipIntegrationTests>
     <!-- memory limit for embedded cluster -->
     <surefire.args>-Xmx2048m</surefire.args>
   </properties>
@@ -50,8 +51,18 @@
     </dependency>
     <dependency>
       <groupId>org.apache.apex</groupId>
-      <artifactId>malhar-stream</artifactId>
+      <artifactId>malhar-library</artifactId>
       <version>${apex.malhar.version}</version>
+    </dependency>
+    <dependency>
+       <groupId>com.fasterxml.jackson.core</groupId>
+       <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.apex</groupId>
+      <artifactId>apex-engine</artifactId>
+      <version>${apex.core.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <!--- Beam -->
@@ -75,6 +86,12 @@
           <artifactId>slf4j-jdk14</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+		<!-- javax.annotation.Nullable -->
+       <groupId>com.google.code.findbugs</groupId>
+       <artifactId>annotations</artifactId>
     </dependency>
 
     <!-- Test scoped -->
@@ -121,11 +138,11 @@
       <scope>test</scope>
     </dependency-->
     <!-- Optional Pipeline Registration -->
-    <dependency>
+    <!--dependency>
       <groupId>com.google.auto.service</groupId>
       <artifactId>auto-service</artifactId>
       <optional>true</optional>
-    </dependency>
+    </dependency-->
   </dependencies>
 
   <build>
@@ -173,6 +190,31 @@
                   ]
                 </beamTestPipelineOptions>
               </systemPropertyVariables>
+              <skipTests>${skipIntegrationTests}</skipTests>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>analyze-only</goal>
+            </goals>
+            <configuration>
+              <ignoredUsedUndeclaredDependencies>
+                <ignoredUsedUndeclaredDependency>org.apache.apex:apex-api:jar:3.4.0</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>org.apache.commons:commons-lang3::3.1</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>com.esotericsoftware.kryo:kryo::2.24.0</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>com.datatorrent:netlet::1.2.1</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>org.slf4j:slf4j-api:jar:1.7.14</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>org.apache.hadoop:hadoop-common:jar:2.2.0</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>joda-time:joda-time:jar:2.4</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>com.google.guava:guava:jar:19.0</ignoredUsedUndeclaredDependency>
+              </ignoredUsedUndeclaredDependencies>
             </configuration>
           </execution>
         </executions>
