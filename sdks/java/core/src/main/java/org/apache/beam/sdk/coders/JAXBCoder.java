@@ -31,6 +31,7 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -46,7 +47,7 @@ import javax.xml.bind.Unmarshaller;
 public class JAXBCoder<T> extends AtomicCoder<T> {
 
   private final Class<T> jaxbClass;
-  private transient JAXBContext jaxbContext;
+  private final AtomicReference<JAXBContext> jaxbContext = new AtomicReference<>();
 
   public Class<T> getJAXBClass() {
     return jaxbClass;
@@ -111,14 +112,13 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   }
 
   private JAXBContext getContext() throws JAXBException {
-    if (jaxbContext == null) {
-      synchronized (this) {
-        if (jaxbContext == null) {
-          jaxbContext = JAXBContext.newInstance(jaxbClass);
-        }
-      }
+    JAXBContext context = this.jaxbContext.get();
+    if (context == null) {
+      context = JAXBContext.newInstance(jaxbClass);
+      // We don't care about which context wins
+      jaxbContext.set(context);
     }
-    return jaxbContext;
+    return context;
   }
 
   @Override
