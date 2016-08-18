@@ -46,7 +46,7 @@ import javax.xml.bind.Unmarshaller;
 public class JAXBCoder<T> extends AtomicCoder<T> {
 
   private final Class<T> jaxbClass;
-  private transient JAXBContext jaxbContext;
+  private transient volatile JAXBContext jaxbContext;
 
   public Class<T> getJAXBClass() {
     return jaxbClass;
@@ -112,11 +112,8 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
 
   private JAXBContext getContext() throws JAXBException {
     if (jaxbContext == null) {
-      synchronized (this) {
-        if (jaxbContext == null) {
-          jaxbContext = JAXBContext.newInstance(jaxbClass);
-        }
-      }
+      // Lazy initialization. The winning context doesn't matter.
+      jaxbContext = JAXBContext.newInstance(jaxbClass);
     }
     return jaxbContext;
   }
