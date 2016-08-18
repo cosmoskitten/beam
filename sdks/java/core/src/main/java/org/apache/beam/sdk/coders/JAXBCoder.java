@@ -110,13 +110,10 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
     }
   }
 
-  private JAXBContext getContext() throws JAXBException {
+  private synchronized JAXBContext getContext() throws JAXBException {
     if (jaxbContext == null) {
-      synchronized (this) {
-        if (jaxbContext == null) {
-          jaxbContext = JAXBContext.newInstance(jaxbClass);
-        }
-      }
+      // Lazily initialized. The Context can't be serialized with the rest of the coder.
+      jaxbContext = JAXBContext.newInstance(jaxbClass);
     }
     return jaxbContext;
   }
