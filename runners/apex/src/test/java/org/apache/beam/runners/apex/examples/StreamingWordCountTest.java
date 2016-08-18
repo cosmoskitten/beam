@@ -103,7 +103,6 @@ public class StreamingWordCountTest {
 
     wordCounts.apply(ParDo.of(new FormatAsStringFn()));
 
-    p.run();
     ApexRunnerResult result = (ApexRunnerResult)p.run();
     Assert.assertNotNull(result.getApexDAG().getOperatorMeta("Read(UnboundedTextSource)"));
     long timeout = System.currentTimeMillis() + 30000;
@@ -113,6 +112,7 @@ public class StreamingWordCountTest {
       }
       Thread.sleep(1000);
     }
+    result.cancel();
     Assert.assertTrue(FormatAsStringFn.RESULTS.containsKey("foo") && FormatAsStringFn.RESULTS.containsKey("bar"));
     FormatAsStringFn.RESULTS.clear();
 
