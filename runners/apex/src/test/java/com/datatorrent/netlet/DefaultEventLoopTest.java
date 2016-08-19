@@ -315,6 +315,7 @@ public class DefaultEventLoopTest
     } catch (UnknownHostException e) {
       logger.error("", e);
     }
+    fail();
   }
 
 }
