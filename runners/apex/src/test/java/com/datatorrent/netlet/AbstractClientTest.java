@@ -16,6 +16,7 @@
 package com.datatorrent.netlet;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -144,8 +145,8 @@ public class AbstractClientTest
 
     new Thread(el).start();
 
-    el.start("localhost", port, si);
-    el.connect(new InetSocketAddress("localhost", port), ci);
+    el.start(null, port, si);
+    el.connect(new InetSocketAddress(InetAddress.getLoopbackAddress().getHostName(), port), ci);
 
     ByteBuffer outboundBuffer = ByteBuffer.allocate(ClientImpl.BUFFER_CAPACITY);
     LongBuffer lb = outboundBuffer.asLongBuffer();

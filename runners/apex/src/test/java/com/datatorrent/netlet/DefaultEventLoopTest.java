@@ -16,7 +16,9 @@
 package com.datatorrent.netlet;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
@@ -298,6 +300,21 @@ public class DefaultEventLoopTest
     defaultEventLoop.stop();
     thread.join();
     assertFalse(client2.isConnected());
+  }
+
+  @Test
+  public void testLocalhost()
+  {
+    try {
+      logger.info("{}", InetAddress.getLoopbackAddress());
+      final InetSocketAddress address = new InetSocketAddress("localhost", 0);
+      logger.info("{}", address.isUnresolved());
+      for (InetAddress localhost : InetAddress.getAllByName("localhost")) {
+        logger.info("{}", localhost);
+      }
+    } catch (UnknownHostException e) {
+      logger.error("", e);
+    }
   }
 
 }
