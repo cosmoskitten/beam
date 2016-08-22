@@ -36,7 +36,9 @@ import org.apache.beam.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -47,6 +49,7 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class DoFnTesterTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void processElement() throws Exception {
@@ -126,6 +129,15 @@ public class DoFnTesterTest {
     // verify finishBundle() was called.
     assertTrue(deserializedDoFn.wasStartBundleCalled());
     assertTrue(deserializedDoFn.wasFinishBundleCalled());
+  }
+
+  @Test
+  public void processElementAfterFinish() throws Exception {
+    DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn());
+    tester.finishBundle();
+
+    thrown.expect(IllegalStateException.class);
+    tester.processElement(1L);
   }
 
   @Test
