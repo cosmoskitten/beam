@@ -55,4 +55,12 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
   boolean isTestImmutability();
 
   void setTestImmutability(boolean test);
+
+  @Default.Boolean(true)
+  @Description(
+      "Controls whether the runner should ensure that all of the elements of every "
+          + "PCollection are encodable. All elements in a PCollection must be encodable.")
+  // All non-null elements will be encoded if isTestImmutability set to true
+  boolean isTestEncodability();
+  void setTestEncodability(boolean test);
 }

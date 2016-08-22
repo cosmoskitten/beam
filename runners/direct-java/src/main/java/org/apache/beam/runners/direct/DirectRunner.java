@@ -294,6 +294,9 @@ public class DirectRunner
     if (options.isTestImmutability()) {
       enforcements.add(ImmutabilityEnforcementFactory.create());
     }
+    if (options.isTestEncodability()) {
+      enforcements.add(EncodabilityEnforcementFactory.create());
+    }
     return enforcements.build();
   }
 

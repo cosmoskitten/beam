@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -47,8 +49,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
 import com.google.common.collect.ImmutableMap;
+
 import com.fasterxml.jackson.annotation.JsonValue;
+
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,6 +61,7 @@ import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -377,5 +383,32 @@ public class DirectRunnerTest implements Serializable {
     thrown.expectMessage("Input");
     thrown.expectMessage("must not be mutated");
     pipeline.run();
+  }
+
+  @Test
+  public void testUnencodableElement() throws Exception {
+    Pipeline p = getPipeline();
+    PCollection<Long> pcollection =
+        p.apply(Create.of((Void) null)).apply(ParDo.of(new DoFn<Void, Long>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            c.output(null);
+          }
+        })).setCoder(VarLongCoder.of());
+    pcollection
+        .apply(
+            ParDo.of(
+                new DoFn<Long, Long>() {
+                  @ProcessElement
+                  public void unreachable(ProcessContext c) {
+                    fail("Pipeline should fail to encode a null Long in VarLongCoder");
+                  }
+                }));
+
+    thrown.expectCause(isA(IllegalStateException.class));
+    thrown.expectMessage("Could not encode");
+    thrown.expectMessage(pcollection.getName());
+    thrown.expectMessage("VarLongCoder");
+    p.run();
   }
 }
