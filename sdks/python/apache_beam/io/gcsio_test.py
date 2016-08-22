@@ -218,6 +218,13 @@ class TestGCSIO(unittest.TestCase):
     self.assertTrue(self.gcs.exists(file_name))
     self.assertEqual(1234, self.gcs.size(file_name))
 
+  def test_file_mode(self):
+    file_name = 'gs://gcsio-test/dummy_mode_file'
+    with self.gcs.open(file_name, 'wb') as f:
+      assert f.mode == 'wb'
+    with self.gcs.open(file_name, 'rb') as f:
+      assert f.mode == 'rb'
+
   def test_delete(self):
     file_name = 'gs://gcsio-test/delete_me'
     file_size = 1024
