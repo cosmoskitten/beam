@@ -34,7 +34,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Never;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
@@ -175,6 +175,13 @@ public class PAssert {
      * specified window.
      */
     IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window);
+
+    /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on panes in the {@link GlobalWindow} that were emitted before the {@link GlobalWindow}
+     * closed. These panes have {@link Timing#EARLY}.
+     */
+    IterableAssert<T> inEarlyGlobalWindowPanes();
 
     /**
      * Asserts that the iterable in question contains the provided elements.
@@ -382,6 +389,11 @@ public class PAssert {
       return withPane(window, PaneExtractors.<T>nonLatePanes());
     }
 
+    @Override
+    public IterableAssert<T> inEarlyGlobalWindowPanes() {
+      return withPane(GlobalWindow.INSTANCE, PaneExtractors.<T>earlyPanes());
+    }
+
     private PCollectionContentsAssert<T> withPane(
         BoundedWindow window,
         SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor) {
@@ -556,6 +568,11 @@ public class PAssert {
     @Override
     public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPanes(window, PaneExtractors.<Iterable<T>>nonLatePanes());
+    }
+
+    @Override
+    public IterableAssert<T> inEarlyGlobalWindowPanes() {
+      return withPanes(GlobalWindow.INSTANCE, PaneExtractors.<Iterable<T>>earlyPanes());
     }
 
     private PCollectionSingletonIterableAssert<T> withPanes(
@@ -763,7 +780,7 @@ public class PAssert {
           .apply(
               ParDo.of(
                   new DoFn<T, T>() {
-                    @Override
+                    @ProcessElement
                     public void processElement(ProcessContext context) throws CoderException {
                       context.output(CoderUtils.clone(coder, context.element()));
                     }
@@ -885,7 +902,7 @@ public class PAssert {
   }
 
   private static final class ConcatFn<T> extends DoFn<Iterable<Iterable<T>>, Iterable<T>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(Iterables.concat(c.element()));
     }
@@ -1015,7 +1032,7 @@ public class PAssert {
       this.actual = actual;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       try {
         ActualT actualContents = c.sideInput(actual);
@@ -1047,7 +1064,7 @@ public class PAssert {
       this.checkerFn = checkerFn;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       try {
         doChecks(c.element(), checkerFn, success, failure);
@@ -1079,7 +1096,7 @@ public class PAssert {
       this.checkerFn = checkerFn;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       try {
         ActualT actualContents = Iterables.getOnlyElement(c.element());
@@ -1324,10 +1341,10 @@ public class PAssert {
       return input.apply("FilterWindows", ParDo.of(new Fn()));
     }
 
-    private class Fn extends DoFn<T, T> implements RequiresWindowAccess {
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
-        if (windows.getWindows().contains(c.window())) {
+    private class Fn extends DoFn<T, T> {
+      @ProcessElement
+      public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+        if (windows.getWindows().contains(window)) {
           c.output(c.element());
         }
       }

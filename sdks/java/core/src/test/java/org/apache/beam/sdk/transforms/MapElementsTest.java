@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
@@ -53,6 +54,29 @@ public class MapElementsTest implements Serializable {
   public transient ExpectedException thrown = ExpectedException.none();
 
   /**
+   * A {@link SimpleFunction} to test that the coder registry can propagate coders
+   * that are bound to type variables.
+   */
+  private static class PolymorphicSimpleFunction<T> extends SimpleFunction<T, T> {
+    @Override
+    public T apply(T input) {
+      return input;
+    }
+  }
+
+  /**
+   * A {@link SimpleFunction} to test that the coder registry can propagate coders
+   * that are bound to type variables, when the variable appears nested in the
+   * output.
+   */
+  private static class NestedPolymorphicSimpleFunction<T> extends SimpleFunction<T, KV<T, String>> {
+    @Override
+    public KV<T, String> apply(T input) {
+      return KV.of(input, "hello");
+    }
+  }
+
+  /**
    * Basic test of {@link MapElements} with a {@link SimpleFunction}.
    */
   @Test
@@ -70,6 +94,55 @@ public class MapElementsTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(-2, -1, -3);
     pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction}.
+   */
+  @Test
+  public void testPolymorphicSimpleFunction() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+
+        // This is the function that needs to propagate the input T to output T
+        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<Integer>()))
+
+        // This is a consumer to ensure that all coder inference logic is executed.
+        .apply("Test Consumer", MapElements.via(new SimpleFunction<Integer, Integer>() {
+          @Override
+          public Integer apply(Integer input) {
+            return input;
+          }
+        }));
+  }
+
+  /**
+   * Test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction}
+   * where the type variable occurs nested within other concrete type constructors.
+   */
+  @Test
+  public void testNestedPolymorphicSimpleFunction() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+
+            // This is the function that needs to propagate the input T to output T
+            .apply(
+                "Polymorphic Identity",
+                MapElements.via(new NestedPolymorphicSimpleFunction<Integer>()))
+
+            // This is a consumer to ensure that all coder inference logic is executed.
+            .apply(
+                "Test Consumer",
+                MapElements.via(
+                    new SimpleFunction<KV<Integer, String>, Integer>() {
+                      @Override
+                      public Integer apply(KV<Integer, String> input) {
+                        return 42;
+                      }
+                    }));
   }
 
   /**
@@ -147,7 +220,7 @@ public class MapElementsTest implements Serializable {
   }
 
   @Test
-  public void testSimpleFunctionDisplayData() {
+  public void testSimpleFunctionClassDisplayData() {
     SimpleFunction<?, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
       @Override
       public Integer apply(Integer input) {
@@ -158,21 +231,41 @@ public class MapElementsTest implements Serializable {
     MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
   }
+  @Test
+  public void testSimpleFunctionDisplayData() {
+    SimpleFunction<Integer, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
+      @Override
+      public Integer apply(Integer input) {
+        return input;
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "baz"));
+      }
+    };
+
+
+
+    MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("foo", "baz"));
+  }
 
   @Test
   @Category(RunnableOnService.class)
   public void testPrimitiveDisplayData() {
-    SimpleFunction<?, ?> mapFn = new SimpleFunction<Integer, Integer>() {
+    SimpleFunction<Integer, ?> mapFn = new SimpleFunction<Integer, Integer>() {
       @Override
       public Integer apply(Integer input) {
         return input;
       }
     };
 
-    MapElements<?, ?> map = MapElements.via(mapFn);
+    MapElements<Integer, ?> map = MapElements.via(mapFn);
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(map);
+    Set<DisplayData> displayData = evaluator.<Integer>displayDataForPrimitiveTransforms(map);
     assertThat("MapElements should include the mapFn in its primitive display data",
         displayData, hasItem(hasDisplayItem("mapFn", mapFn.getClass())));
   }

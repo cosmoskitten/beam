@@ -34,9 +34,11 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.values.KV;
@@ -94,7 +96,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.annotation.Nullable;
 
 /**
@@ -551,7 +552,7 @@ public class KafkaIO {
           .apply(begin)
           .apply("Remove Kafka Metadata",
               ParDo.of(new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext ctx) {
                   ctx.output(ctx.element().getKV());
                 }
@@ -1059,7 +1060,7 @@ public class KafkaIO {
         try {
           offsetConsumer.seekToEnd(p.topicPartition);
           long offset = offsetConsumer.position(p.topicPartition);
-          p.setLatestOffset(offset);;
+          p.setLatestOffset(offset);
         } catch (Exception e) {
           LOG.warn("{}: exception while fetching latest offsets. ignored.",  this, e);
           p.setLatestOffset(-1L); // reset
@@ -1315,10 +1316,10 @@ public class KafkaIO {
     public PDone apply(PCollection<V> input) {
       return input
         .apply("Kafka values with default key",
-          ParDo.of(new DoFn<V, KV<Void, V>>() {
+          MapElements.via(new SimpleFunction<V, KV<Void, V>>() {
             @Override
-            public void processElement(ProcessContext ctx) throws Exception {
-              ctx.output(KV.<Void, V>of(null, ctx.element()));
+            public KV<Void, V> apply(V element) {
+              return KV.<Void, V>of(null, element);
             }
           }))
         .setCoder(KvCoder.of(VoidCoder.of(), kvWriteTransform.valueCoder))
@@ -1328,7 +1329,7 @@ public class KafkaIO {
 
   private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
-    @Override
+    @StartBundle
     public void startBundle(Context c) throws Exception {
       // Producer initialization is fairly costly. Move this to future initialization api to avoid
       // creating a producer for each bundle.
@@ -1341,7 +1342,7 @@ public class KafkaIO {
       }
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext ctx) throws Exception {
       checkForFailures();
 
@@ -1351,7 +1352,7 @@ public class KafkaIO {
           new SendCallback());
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) throws Exception {
       producer.flush();
       producer.close();

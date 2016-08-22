@@ -17,16 +17,16 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import static com.google.datastore.v1beta3.client.DatastoreHelper.getString;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
+import static com.google.datastore.v1.client.DatastoreHelper.getString;
+import static com.google.datastore.v1.client.DatastoreHelper.makeFilter;
+import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
+import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,15 +36,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 
-import com.google.datastore.v1beta3.Entity;
-import com.google.datastore.v1beta3.Key;
-import com.google.datastore.v1beta3.PropertyFilter;
-import com.google.datastore.v1beta3.Query;
-import com.google.datastore.v1beta3.Value;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.PropertyFilter;
+import com.google.datastore.v1.Query;
+import com.google.datastore.v1.Value;
 
 import java.util.Map;
 import java.util.UUID;
-
 import javax.annotation.Nullable;
 
 /**
@@ -80,11 +79,11 @@ import javax.annotation.Nullable;
 public class DatastoreWordCount {
 
   /**
-   * A DoFn that gets the content of an entity (one line in a
+   * A {@link DoFn} that gets the content of an entity (one line in a
    * Shakespeare play) and converts it to a string.
    */
   static class GetContentFn extends DoFn<Entity, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Map<String, Value> props = c.element().getProperties();
       Value value = props.get("content");
@@ -109,7 +108,7 @@ public class DatastoreWordCount {
   }
 
   /**
-   * A DoFn that creates entity for every line in Shakespeare.
+   * A {@link DoFn} that creates an entity for every line in Shakespeare.
    */
   static class CreateEntityFn extends DoFn<String, Entity> {
     private final String namespace;
@@ -141,7 +140,7 @@ public class DatastoreWordCount {
       return entityBuilder.build();
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(makeEntity(c.element()));
     }
@@ -195,7 +194,7 @@ public class DatastoreWordCount {
       Pipeline p = Pipeline.create(options);
       p.apply("ReadLines", TextIO.Read.from(options.getInput()))
        .apply(ParDo.of(new CreateEntityFn(options.getNamespace(), options.getKind())))
-       .apply(DatastoreIO.v1beta3().write().withProjectId(options.getProject()));
+       .apply(DatastoreIO.v1().write().withProjectId(options.getProject()));
 
       p.run();
   }
@@ -226,7 +225,7 @@ public class DatastoreWordCount {
     Query query = makeAncestorKindQuery(options);
 
     // For Datastore sources, the read namespace can be set on the entire query.
-    V1Beta3.Read read = DatastoreIO.v1beta3().read()
+    DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(options.getProject())
         .withQuery(query)
         .withNamespace(options.getNamespace());

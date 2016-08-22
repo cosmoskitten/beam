@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-examples-parent</artifactId>
-    <version>0.2.0-incubating-SNAPSHOT</version>
+    <version>0.3.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -33,6 +33,82 @@
   artifact includes all Apache Beam Java SDK examples.</description>
 
   <packaging>jar</packaging>
+
+  <properties>
+    <spark.version>1.6.2</spark.version>
+  </properties>
+
+  <profiles>
+    <!--
+      A default profile that includes optional dependencies
+      on all of our runners. This is aimed at making it very
+      easy for users to run examples with any runner without
+      any configuration. It is not needed or desirable when
+      testing the examples with a particular runner.
+
+      This profile can be disabled on the command line
+      by specifying -P !include-runners.
+
+      This profile cannot be lifted to examples-parent because
+      it would be automatically deactivated when the Java 8
+      profile were activated.
+    -->
+    <profile>
+      <id>include-runners</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-direct-java</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-flink_2.10</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-spark</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-core_2.10</artifactId>
+          <version>${spark.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-streaming_2.10</artifactId>
+          <version>${spark.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 
   <build>
     <plugins>
@@ -45,7 +121,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
-            <beamUseDummyRunner></beamUseDummyRunner>
+            <beamUseDummyRunner />
             <beamTestPipelineOptions>
             </beamTestPipelineOptions>
           </systemPropertyVariables>
@@ -187,6 +263,8 @@
               <goal>verify</goal>
             </goals>
             <configuration>
+              <parallel>all</parallel>
+              <threadCount>4</threadCount>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
               </systemPropertyVariables>
@@ -211,11 +289,6 @@
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.apis</groupId>
-      <artifactId>google-api-services-dataflow</artifactId>
     </dependency>
 
     <dependency>
@@ -250,12 +323,12 @@
 
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-proto-client</artifactId>
+      <artifactId>datastore-v1-proto-client</artifactId>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-protos</artifactId>
+      <artifactId>datastore-v1-protos</artifactId>
     </dependency>
 
     <dependency>
@@ -269,23 +342,10 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <version>${project.version}</version>
-      <scope>runtime</scope>
-      <optional>true</optional>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
       <scope>runtime</scope>
+      <optional>true</optional>
     </dependency>
 
     <!-- Hamcrest and JUnit are required dependencies of PAssert,
@@ -299,6 +359,19 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+    </dependency>
+
+    <!-- Test dependencies -->
+
+    <!--
+      For testing the example itself, use the direct runner. This is separate from
+      the use of RunnableOnService tests for testing a particular runner.
+    -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>

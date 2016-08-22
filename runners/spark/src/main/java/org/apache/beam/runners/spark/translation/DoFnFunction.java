@@ -19,11 +19,13 @@
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.util.BroadcastHelper;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -39,7 +41,9 @@ import java.util.Map;
 public class DoFnFunction<InputT, OutputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>,
     WindowedValue<OutputT>> {
-  private final DoFn<InputT, OutputT> mFunction;
+  private final OldDoFn<InputT, OutputT> mFunction;
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnFunction.class);
+
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
@@ -48,7 +52,7 @@ public class DoFnFunction<InputT, OutputT>
    * @param runtime    Runtime to apply function in.
    * @param sideInputs Side inputs used in DoFunction.
    */
-  public DoFnFunction(DoFn<InputT, OutputT> fn,
+  public DoFnFunction(OldDoFn<InputT, OutputT> fn,
                SparkRuntimeContext runtime,
                Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     this.mFunction = fn;
@@ -61,15 +65,30 @@ public class DoFnFunction<InputT, OutputT>
       Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
     ctxt.setup();
-    mFunction.startBundle(ctxt);
-    return ctxt.getOutputIterable(iter, mFunction);
+    try {
+      mFunction.setup();
+      mFunction.startBundle(ctxt);
+      return ctxt.getOutputIterable(iter, mFunction);
+    } catch (Exception e) {
+      try {
+        // this teardown handles exceptions encountered in setup() and startBundle(). teardown
+        // after execution or due to exceptions in process element is called in the iterator
+        // produced by ctxt.getOutputIterable returned from this method.
+        mFunction.teardown();
+      } catch (Exception teardownException) {
+        LOG.error(
+            "Suppressing exception while tearing down Function {}", mFunction, teardownException);
+        e.addSuppressed(teardownException);
+      }
+      throw e;
+    }
   }
 
   private class ProcCtxt extends SparkProcessContext<InputT, OutputT, WindowedValue<OutputT>> {
 
     private final List<WindowedValue<OutputT>> outputs = new LinkedList<>();
 
-    ProcCtxt(DoFn<InputT, OutputT> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
+    ProcCtxt(OldDoFn<InputT, OutputT> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
         BroadcastHelper<?>> sideInputs) {
       super(fn, runtimeContext, sideInputs);
     }

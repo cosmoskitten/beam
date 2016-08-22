@@ -17,9 +17,10 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.values.PCollection;
@@ -30,6 +31,9 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Map;
 
 /**
@@ -37,60 +41,70 @@ import java.util.Map;
  * {@link BoundMulti} primitive {@link PTransform}.
  */
 class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
-  private final LoadingCache<AppliedPTransform<?, ?, BoundMulti<?, ?>>, ThreadLocal<DoFn<?, ?>>>
+  private static final Logger LOG = LoggerFactory.getLogger(ParDoMultiEvaluatorFactory.class);
+  private final LoadingCache<AppliedPTransform<?, ?, BoundMulti<?, ?>>, DoFnLifecycleManager>
       fnClones;
 
   public ParDoMultiEvaluatorFactory() {
-    fnClones =
-        CacheBuilder.newBuilder()
-            .build(
-                new CacheLoader<
-                    AppliedPTransform<?, ?, BoundMulti<?, ?>>, ThreadLocal<DoFn<?, ?>>>() {
-                  @Override
-                  public ThreadLocal<DoFn<?, ?>> load(AppliedPTransform<?, ?, BoundMulti<?, ?>> key)
-                      throws Exception {
-                    @SuppressWarnings({"unchecked", "rawtypes"})
-                    ThreadLocal threadLocal =
-                        (ThreadLocal) CloningThreadLocal.of(key.getTransform().getFn());
-                    return threadLocal;
-                  }
-                });
+    fnClones = CacheBuilder.newBuilder()
+        .build(new CacheLoader<AppliedPTransform<?, ?, BoundMulti<?, ?>>, DoFnLifecycleManager>() {
+          @Override
+          public DoFnLifecycleManager load(AppliedPTransform<?, ?, BoundMulti<?, ?>> key)
+              throws Exception {
+            return DoFnLifecycleManager.of(key.getTransform().getFn());
+          }
+        });
   }
 
   @Override
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application,
       CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) {
+      EvaluationContext evaluationContext) throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
         createMultiEvaluator((AppliedPTransform) application, inputBundle, evaluationContext);
     return evaluator;
   }
 
+  @Override
+  public void cleanup() throws Exception {
+    DoFnLifecycleManagers.removeAllFromManagers(fnClones.asMap().values());
+  }
+
   private <InT, OuT> TransformEvaluator<InT> createMultiEvaluator(
       AppliedPTransform<PCollection<InT>, PCollectionTuple, BoundMulti<InT, OuT>> application,
       CommittedBundle<InT> inputBundle,
-      EvaluationContext evaluationContext) {
+      EvaluationContext evaluationContext) throws Exception {
     Map<TupleTag<?>, PCollection<?>> outputs = application.getOutput().getAll();
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    ThreadLocal<DoFn<InT, OuT>> fnLocal =
-        (ThreadLocal) fnClones.getUnchecked((AppliedPTransform) application);
+    DoFnLifecycleManager fnLocal = fnClones.getUnchecked((AppliedPTransform) application);
+    String stepName = evaluationContext.getStepName(application);
+    DirectStepContext stepContext =
+        evaluationContext.getExecutionContext(application, inputBundle.getKey())
+            .getOrCreateStepContext(stepName, stepName);
     try {
+      @SuppressWarnings({"unchecked", "rawtypes"})
       TransformEvaluator<InT> parDoEvaluator =
           ParDoEvaluator.create(
               evaluationContext,
+              stepContext,
               inputBundle,
               application,
-              fnLocal.get(),
+              (OldDoFn) fnLocal.get(),
               application.getTransform().getSideInputs(),
               application.getTransform().getMainOutputTag(),
               application.getTransform().getSideOutputTags().getAll(),
               outputs);
-      return ThreadLocalInvalidatingTransformEvaluator.wrapping(parDoEvaluator, fnLocal);
+      return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(parDoEvaluator, fnLocal);
     } catch (Exception e) {
-      fnLocal.remove();
+      try {
+        fnLocal.remove();
+      } catch (Exception removalException) {
+        LOG.error("Exception encountered while cleaning up in ParDo evaluator construction",
+            removalException);
+        e.addSuppressed(removalException);
+      }
       throw e;
     }
   }

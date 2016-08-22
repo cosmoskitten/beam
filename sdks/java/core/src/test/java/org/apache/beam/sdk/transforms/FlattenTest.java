@@ -99,7 +99,7 @@ public class FlattenTest implements Serializable {
     PCollection<String> output =
         makePCollectionListOfStrings(p, inputs)
         .apply(Flatten.<String>pCollections())
-        .apply(ParDo.of(new IdentityFn<String>(){}));
+        .apply(ParDo.of(new IdentityFn<String>()));
 
     PAssert.that(output).containsInAnyOrder(flattenLists(inputs));
     p.run();
@@ -131,7 +131,7 @@ public class FlattenTest implements Serializable {
     PCollection<String> output = p
         .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
         .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
-                  @Override
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (String side : c.sideInput(view)) {
                       c.output(side);
@@ -152,7 +152,7 @@ public class FlattenTest implements Serializable {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of())
-        .apply(ParDo.of(new IdentityFn<String>(){}));
+        .apply(ParDo.of(new IdentityFn<String>()));
 
     PAssert.that(output).empty();
     p.run();
@@ -340,7 +340,7 @@ public class FlattenTest implements Serializable {
   /////////////////////////////////////////////////////////////////////////////
 
   private static class IdentityFn<T> extends DoFn<T, T> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element());
     }
