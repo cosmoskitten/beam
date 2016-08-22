@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.PropertyNames;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -45,9 +46,16 @@ import java.util.Objects;
  * @param <V> the type of the value
  */
 public class TimestampedValue<V> {
+  /**
+   * Returns a new {@link TimestampedValue} with the default timestamp,
+   * represented by {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
+   */
+  public static <V> TimestampedValue<V> of(V value) {
+    return of(value, BoundedWindow.TIMESTAMP_MIN_VALUE);
+  }
 
   /**
-   * Returns a new {@code TimestampedValue} with the given value and timestamp.
+   * Returns a new {@link TimestampedValue} with the given value and timestamp.
    */
   public static <V> TimestampedValue<V> of(V value, Instant timestamp) {
     return new TimestampedValue<>(value, timestamp);
@@ -149,6 +157,8 @@ public class TimestampedValue<V> {
   private final Instant timestamp;
 
   protected TimestampedValue(V value, Instant timestamp) {
+    checkNotNull(timestamp, "timestamp must be non-null");
+
     this.value = value;
     this.timestamp = timestamp;
   }
