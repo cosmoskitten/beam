@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
@@ -68,6 +69,35 @@ public class SimpleWordCountTest {
     EvaluationResult res = SparkRunner.create(options, jsc).run(p);
     res.close();
     jsc.stop();
+  }
+
+  /**
+   * A SparkRunner with a stopped provided Spark context cannot run pipelines.
+   * @throws Exception
+   */
+  @Test
+  public void testWithStoppedProvidedContext() throws Exception {
+    JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
+    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    options.setProvidedJavaSparkContext(true);
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
+            .of()));
+    PCollection<String> output = inputWords.apply(new CountWords());
+
+    PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
+
+    // Stop the provided Spark context
+    jsc.stop();
+
+    try {
+      SparkRunner.create(options, jsc).run(p);
+      fail("Should throw an exception when The provided Spark context is stopped");
+    } catch (RuntimeException e){
+      assert(e.getMessage().contains("The provided Spark context is stopped"));
+    }
   }
 
   @Test
