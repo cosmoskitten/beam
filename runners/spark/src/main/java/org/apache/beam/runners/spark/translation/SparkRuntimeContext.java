@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.aggregators.AggAccumParam;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -37,8 +38,11 @@ import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.spark.Accumulator;
+import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.metrics.MetricsSystem;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -66,8 +70,8 @@ public class SparkRuntimeContext implements Serializable {
   private transient CoderRegistry coderRegistry;
 
   SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
-    this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
-    this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
+    accum = registerMetrics(jsc);
+    serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
   }
 
   private static String serializePipelineOptions(PipelineOptions pipelineOptions) {
@@ -84,6 +88,17 @@ public class SparkRuntimeContext implements Serializable {
     } catch (IOException e) {
       throw new IllegalStateException("Failed to deserialize the pipeline options.", e);
     }
+  }
+
+  private Accumulator<NamedAggregators> registerMetrics(JavaSparkContext jsc) {
+    final NamedAggregators initialValue = new NamedAggregators();
+    final Accumulator<NamedAggregators> accum = jsc.accumulator(initialValue, new AggAccumParam());
+    final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+    final AggregatorMetricSource aggregatorMetricSource = new AggregatorMetricSource(initialValue);
+    // in case the context was not cleared
+    metricsSystem.removeSource(aggregatorMetricSource);
+    metricsSystem.registerSource(aggregatorMetricSource);
+    return accum;
   }
 
   /**

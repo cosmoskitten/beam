@@ -23,7 +23,10 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine;
 
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -69,6 +72,22 @@ public class NamedAggregators implements Serializable {
    */
   public <T> T getValue(String name, Class<T> typeClass) {
     return typeClass.cast(mNamedAggregators.get(name).render());
+  }
+
+  /**
+   * @return a map of all the aggregator names and their <b>rendered </b>values
+   */
+  public Map<String, ?> renderAll() {
+    return
+        ImmutableMap.copyOf(
+            Maps.transformValues(mNamedAggregators,
+                new Function<State<?, ?, ?>, Object>() {
+
+                  @Override
+                  public Object apply(State<?, ?, ?> state) {
+                    return state.render();
+                  }
+                }));
   }
 
   /**
@@ -118,6 +137,7 @@ public class NamedAggregators implements Serializable {
    * @param <OutputT>   Output data type
    */
   public interface State<InputT, InterT, OutputT> extends Serializable {
+
     /**
      * @param element new element to update state
      */

@@ -19,8 +19,12 @@
 package org.apache.beam.runners.spark;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
+
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.runners.spark.aggregators.metrics.sink.InMemoryMetrics;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -37,6 +41,7 @@ import com.google.common.collect.Sets;
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -48,6 +53,10 @@ import java.util.Set;
  * Simple word count test.
  */
 public class SimpleWordCountTest {
+
+  @Rule
+  public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
+
   private static final String[] WORDS_ARRAY = {
       "hi there", "hi", "hi sue bob",
       "hi sue", "", "bob hi"};
@@ -57,6 +66,8 @@ public class SimpleWordCountTest {
 
   @Test
   public void testInMem() throws Exception {
+    assertThat(InMemoryMetrics.valueOf("emptyLines"), is(nullValue()));
+
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(options);
@@ -69,6 +80,8 @@ public class SimpleWordCountTest {
 
     EvaluationResult res = (EvaluationResult) p.run();
     res.close();
+
+    assertThat(InMemoryMetrics.<Double>valueOf("emptyLines"), is(1d));
   }
 
   @Rule
