@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.aggregators.AggAccumParam;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -38,7 +39,9 @@ import com.google.common.collect.ImmutableList;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.spark.Accumulator;
+import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.metrics.MetricsSystem;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -66,7 +69,7 @@ public class SparkRuntimeContext implements Serializable {
   private transient CoderRegistry coderRegistry;
 
   SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
-    this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
+    accum = registerMetrics(jsc);
     this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
   }
 
@@ -84,6 +87,17 @@ public class SparkRuntimeContext implements Serializable {
     } catch (IOException e) {
       throw new IllegalStateException("Failed to deserialize the pipeline options.", e);
     }
+  }
+
+  private Accumulator<NamedAggregators> registerMetrics(JavaSparkContext jsc) {
+    final NamedAggregators initialValue = new NamedAggregators();
+    final Accumulator<NamedAggregators> accum = jsc.accumulator(initialValue, new AggAccumParam());
+    final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+    final AggregatorMetricSource aggregatorMetricSource = new AggregatorMetricSource(initialValue);
+    // in case the context was not cleared
+    metricsSystem.removeSource(aggregatorMetricSource);
+    metricsSystem.registerSource(aggregatorMetricSource);
+    return accum;
   }
 
   /**
@@ -130,17 +144,17 @@ public class SparkRuntimeContext implements Serializable {
    * @return Specified aggregator
    */
   public synchronized <InputT, InterT, OutputT> Aggregator<InputT, OutputT> createAggregator(
-      String named,
-      Combine.CombineFn<? super InputT, InterT, OutputT> combineFn) {
+    String named,
+    Combine.CombineFn<? super InputT, InterT, OutputT> combineFn) {
     @SuppressWarnings("unchecked")
     Aggregator<InputT, OutputT> aggregator = (Aggregator<InputT, OutputT>) aggregators.get(named);
     if (aggregator == null) {
       @SuppressWarnings("unchecked")
       NamedAggregators.CombineFunctionState<InputT, InterT, OutputT> state =
-          new NamedAggregators.CombineFunctionState<>(
-              (Combine.CombineFn<InputT, InterT, OutputT>) combineFn,
-              (Coder<InputT>) getCoder(combineFn),
-              this);
+        new NamedAggregators.CombineFunctionState<>(
+          (Combine.CombineFn<InputT, InterT, OutputT>) combineFn,
+          (Coder<InputT>) getCoder(combineFn),
+          this);
       accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator<>(named, state);
       aggregators.put(named, aggregator);
@@ -178,7 +192,7 @@ public class SparkRuntimeContext implements Serializable {
         return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Double.class));
       } else {
         throw new IllegalArgumentException("unsupported combiner in Aggregator: "
-            + combiner.getClass().getName());
+          + combiner.getClass().getName());
       }
     } catch (CannotProvideCoderException e) {
       throw new IllegalStateException("Could not determine default coder for combiner", e);
@@ -191,7 +205,7 @@ public class SparkRuntimeContext implements Serializable {
    * @param <InputT> Type of element fed in to aggregator.
    */
   private static class SparkAggregator<InputT, OutputT>
-      implements Aggregator<InputT, OutputT>, Serializable {
+    implements Aggregator<InputT, OutputT>, Serializable {
     private final String name;
     private final NamedAggregators.State<InputT, ?, OutputT> state;
 
