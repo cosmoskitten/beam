@@ -38,6 +38,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -282,6 +283,14 @@ public class DirectRunner
     Collection<ModelEnforcementFactory> parDoEnforcements = createParDoEnforcements(options);
     enforcements.put(ParDo.Bound.class, parDoEnforcements);
     enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
+    if (options.isTestEncodability()) {
+      enforcements.put(
+          Read.Unbounded.class,
+          ImmutableSet.<ModelEnforcementFactory>of(EncodabilityEnforcementFactory.create()));
+      enforcements.put(
+          Read.Bounded.class,
+          ImmutableSet.<ModelEnforcementFactory>of(EncodabilityEnforcementFactory.create()));
+    }
     return enforcements.build();
   }
 
@@ -290,6 +299,9 @@ public class DirectRunner
     ImmutableList.Builder<ModelEnforcementFactory> enforcements = ImmutableList.builder();
     if (options.isTestImmutability()) {
       enforcements.add(ImmutabilityEnforcementFactory.create());
+    }
+    if (options.isTestEncodability()) {
+      enforcements.add(EncodabilityEnforcementFactory.create());
     }
     return enforcements.build();
   }
