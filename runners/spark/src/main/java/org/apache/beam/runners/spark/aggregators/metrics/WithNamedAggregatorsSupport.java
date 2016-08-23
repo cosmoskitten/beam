@@ -42,10 +42,10 @@ import java.util.SortedMap;
  * A {@link MetricRegistry} decorator-like* that supports {@link AggregatorMetric} by exposing
  * the underlying * {@link org.apache.beam.runners.spark.aggregators.NamedAggregators}'
  * aggregators as {@link Gauge}s.
- * <br/>
- * <br/>
+ * <p>
  * *{@link MetricRegistry} is not an interface, so this is not a by-the-book decorator.
  * That said, it delegates all metric related getters to the "decorated" instance.
+ * </p>
  */
 public class WithNamedAggregatorsSupport extends MetricRegistry {
 
@@ -100,13 +100,10 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
 
             @Override
             public Double getValue() {
-              // at the moment the metric's type is assumed
-              // to be
-              // compatible with Double. While far from
-              // perfect, it seems reasonable at this point in
-              // time
-              return
-                Double.parseDouble(rawGaugeObj.toString());
+              // at the moment the metric's type is assumed to be
+              // compatible with Double. While far from perfect, it seems reasonable at
+              // this point in time
+              return Double.parseDouble(rawGaugeObj.toString());
             }
           };
         }

@@ -25,9 +25,7 @@ import com.codahale.metrics.MetricRegistry;
 
 import org.apache.spark.metrics.sink.Sink;
 
-
 import java.util.Properties;
-
 
 /**
  * An in-memory {@link Sink} implementation for tests.

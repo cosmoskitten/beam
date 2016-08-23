@@ -31,9 +31,6 @@ import java.util.Locale;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-
-
-
 /**
  * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics
  * to a CSV file.
