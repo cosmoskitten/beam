@@ -38,6 +38,7 @@ import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.spark.Accumulator;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -70,7 +71,7 @@ public class SparkRuntimeContext implements Serializable {
 
   SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
     accum = registerMetrics(jsc);
-    this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
+    serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
   }
 
   private static String serializePipelineOptions(PipelineOptions pipelineOptions) {
@@ -144,17 +145,17 @@ public class SparkRuntimeContext implements Serializable {
    * @return Specified aggregator
    */
   public synchronized <InputT, InterT, OutputT> Aggregator<InputT, OutputT> createAggregator(
-    String named,
-    Combine.CombineFn<? super InputT, InterT, OutputT> combineFn) {
+      String named,
+      Combine.CombineFn<? super InputT, InterT, OutputT> combineFn) {
     @SuppressWarnings("unchecked")
     Aggregator<InputT, OutputT> aggregator = (Aggregator<InputT, OutputT>) aggregators.get(named);
     if (aggregator == null) {
       @SuppressWarnings("unchecked")
       NamedAggregators.CombineFunctionState<InputT, InterT, OutputT> state =
-        new NamedAggregators.CombineFunctionState<>(
-          (Combine.CombineFn<InputT, InterT, OutputT>) combineFn,
-          (Coder<InputT>) getCoder(combineFn),
-          this);
+          new NamedAggregators.CombineFunctionState<>(
+              (Combine.CombineFn<InputT, InterT, OutputT>) combineFn,
+              (Coder<InputT>) getCoder(combineFn),
+              this);
       accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator<>(named, state);
       aggregators.put(named, aggregator);
@@ -192,7 +193,7 @@ public class SparkRuntimeContext implements Serializable {
         return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Double.class));
       } else {
         throw new IllegalArgumentException("unsupported combiner in Aggregator: "
-          + combiner.getClass().getName());
+            + combiner.getClass().getName());
       }
     } catch (CannotProvideCoderException e) {
       throw new IllegalStateException("Could not determine default coder for combiner", e);
@@ -205,7 +206,7 @@ public class SparkRuntimeContext implements Serializable {
    * @param <InputT> Type of element fed in to aggregator.
    */
   private static class SparkAggregator<InputT, OutputT>
-    implements Aggregator<InputT, OutputT>, Serializable {
+      implements Aggregator<InputT, OutputT>, Serializable {
     private final String name;
     private final NamedAggregators.State<InputT, ?, OutputT> state;
 
