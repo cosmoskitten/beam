@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -108,7 +109,7 @@ public class Credentials {
     String keyFile = options.getServiceAccountKeyfile();
     String accountName = options.getServiceAccountName();
 
-    if (keyFile != null && accountName != null) {
+    if (keyFile != null || accountName != null) {
       try {
         return getCredentialFromFile(keyFile, accountName, SCOPES);
       } catch (GeneralSecurityException e) {
@@ -137,13 +138,27 @@ public class Credentials {
   private static Credential getCredentialFromFile(
       String keyFile, String accountId, Collection<String> scopes)
       throws IOException, GeneralSecurityException {
-    GoogleCredential credential = new GoogleCredential.Builder()
+
+    GoogleCredential credential;
+    if (keyFile.toLowerCase().endsWith("json")) {
+      if (accountId != null) {
+        throw new IOException("Only use an accountId with legacy P12 key files.");
+      }
+      credential = GoogleCredential.fromStream(new FileInputStream(keyFile))
+        .createScoped(SCOPES);
+    } else {
+      if (accountId == null) {
+        throw new IOException("You need an accountId with P12 key files "
+          + "or use preferred JSON key files");
+      }
+      credential = new GoogleCredential.Builder()
         .setTransport(Transport.getTransport())
         .setJsonFactory(Transport.getJsonFactory())
         .setServiceAccountId(accountId)
         .setServiceAccountScopes(scopes)
         .setServiceAccountPrivateKeyFromP12File(new File(keyFile))
         .build();
+    }
 
     LOG.info("Created credential from file {}", keyFile);
     return credential;
