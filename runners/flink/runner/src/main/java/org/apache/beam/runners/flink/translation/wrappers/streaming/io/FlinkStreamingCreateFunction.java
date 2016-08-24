@@ -17,17 +17,15 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
+import java.io.ByteArrayInputStream;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
-
-import java.io.ByteArrayInputStream;
-import java.util.List;
 
 /**
  * This flat map function bootstraps from collection elements and turns them into WindowedValues

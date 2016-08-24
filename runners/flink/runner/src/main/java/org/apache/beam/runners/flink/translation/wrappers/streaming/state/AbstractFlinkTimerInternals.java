@@ -17,18 +17,15 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
+import java.io.IOException;
+import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimerInternals;
-
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.io.Serializable;
-
-import javax.annotation.Nullable;
 
 /**
  * An implementation of Beam's {@link TimerInternals}, that also provides serialization functionality.

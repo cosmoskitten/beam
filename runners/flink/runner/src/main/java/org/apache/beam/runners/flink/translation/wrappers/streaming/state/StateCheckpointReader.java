@@ -17,15 +17,12 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
-import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
-
 import com.google.protobuf.ByteString;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.joda.time.Instant;
-
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.joda.time.Instant;
 
 public class StateCheckpointReader {
 

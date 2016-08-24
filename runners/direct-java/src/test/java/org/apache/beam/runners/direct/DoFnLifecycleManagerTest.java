@@ -25,11 +25,6 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.transforms.OldDoFn;
-
-import org.hamcrest.Matchers;
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -38,6 +33,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.hamcrest.Matchers;
+import org.junit.Test;
 
 /**
  * Tests for {@link DoFnLifecycleManager}.

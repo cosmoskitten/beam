@@ -34,7 +34,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.apache.commons.lang.SerializationUtils;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.runners.flink.FlinkTestPipeline;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkGroupAlsoByWindowWrapper;
 import org.apache.beam.sdk.Pipeline;
@@ -40,7 +43,6 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
-
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -49,10 +51,6 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
-
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
 
