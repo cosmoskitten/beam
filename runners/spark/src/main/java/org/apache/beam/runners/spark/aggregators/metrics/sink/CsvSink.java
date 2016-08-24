@@ -25,7 +25,6 @@ import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.metrics.sink.Sink;
 import java.util.Properties;
 
-
 /**
  * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics
  * to a CSV file.
@@ -35,6 +34,5 @@ public class CsvSink extends org.apache.spark.metrics.sink.CsvSink {
                  final MetricRegistry metricRegistry,
                  final org.apache.spark.SecurityManager securityMgr) {
     super(properties, WithNamedAggregatorsSupport.forRegistry(metricRegistry), securityMgr);
-
   }
 }

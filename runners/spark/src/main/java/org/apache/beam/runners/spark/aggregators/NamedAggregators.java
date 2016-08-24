@@ -155,16 +155,16 @@ public class NamedAggregators implements Serializable {
   /**
    * =&gt; combineFunction in data flow.
    */
-  public static class CombineFunctionState<InputT, InterT, OutpuT>
-      implements State<InputT, InterT, OutpuT> {
+  public static class CombineFunctionState<InputT, InterT, OutputT>
+      implements State<InputT, InterT, OutputT> {
 
-    private Combine.CombineFn<InputT, InterT, OutpuT> combineFn;
+    private Combine.CombineFn<InputT, InterT, OutputT> combineFn;
     private Coder<InputT> inCoder;
     private SparkRuntimeContext ctxt;
     private transient InterT state;
 
     public CombineFunctionState(
-        Combine.CombineFn<InputT, InterT, OutpuT> combineFn,
+        Combine.CombineFn<InputT, InterT, OutputT> combineFn,
         Coder<InputT> inCoder,
         SparkRuntimeContext ctxt) {
       this.combineFn = combineFn;
@@ -179,7 +179,7 @@ public class NamedAggregators implements Serializable {
     }
 
     @Override
-    public State<InputT, InterT, OutpuT> merge(State<InputT, InterT, OutpuT> other) {
+    public State<InputT, InterT, OutputT> merge(State<InputT, InterT, OutputT> other) {
       this.state = combineFn.mergeAccumulators(ImmutableList.of(current(), other.current()));
       return this;
     }
@@ -190,12 +190,12 @@ public class NamedAggregators implements Serializable {
     }
 
     @Override
-    public OutpuT render() {
+    public OutputT render() {
       return combineFn.extractOutput(state);
     }
 
     @Override
-    public Combine.CombineFn<InputT, InterT, OutpuT> getCombineFn() {
+    public Combine.CombineFn<InputT, InterT, OutputT> getCombineFn() {
       return combineFn;
     }
 
@@ -214,7 +214,7 @@ public class NamedAggregators implements Serializable {
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
       ctxt = (SparkRuntimeContext) ois.readObject();
-      combineFn = (Combine.CombineFn<InputT, InterT, OutpuT>) ois.readObject();
+      combineFn = (Combine.CombineFn<InputT, InterT, OutputT>) ois.readObject();
       inCoder = (Coder<InputT>) ois.readObject();
       try {
         state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
