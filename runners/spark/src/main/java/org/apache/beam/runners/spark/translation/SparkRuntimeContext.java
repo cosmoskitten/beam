@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggAccumParam;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
@@ -70,8 +71,9 @@ public class SparkRuntimeContext implements Serializable {
   private transient CoderRegistry coderRegistry;
 
   SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
-    accum = registerMetrics(jsc);
-    serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
+    final SparkPipelineOptions opts = pipeline.getOptions().as(SparkPipelineOptions.class);
+    accum = registerMetrics(jsc, opts);
+    serializedPipelineOptions = serializePipelineOptions(opts);
   }
 
   private static String serializePipelineOptions(PipelineOptions pipelineOptions) {
@@ -90,14 +92,20 @@ public class SparkRuntimeContext implements Serializable {
     }
   }
 
-  private Accumulator<NamedAggregators> registerMetrics(JavaSparkContext jsc) {
+  private Accumulator<NamedAggregators> registerMetrics(final JavaSparkContext jsc,
+                                                        final SparkPipelineOptions opts) {
     final NamedAggregators initialValue = new NamedAggregators();
     final Accumulator<NamedAggregators> accum = jsc.accumulator(initialValue, new AggAccumParam());
-    final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
-    final AggregatorMetricSource aggregatorMetricSource = new AggregatorMetricSource(initialValue);
-    // in case the context was not cleared
-    metricsSystem.removeSource(aggregatorMetricSource);
-    metricsSystem.registerSource(aggregatorMetricSource);
+
+    if (opts.getEnableSparkSinks()) {
+      final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+      final AggregatorMetricSource aggregatorMetricSource =
+          new AggregatorMetricSource(initialValue);
+      // in case the context was not cleared
+      metricsSystem.removeSource(aggregatorMetricSource);
+      metricsSystem.registerSource(aggregatorMetricSource);
+    }
+
     return accum;
   }
 
