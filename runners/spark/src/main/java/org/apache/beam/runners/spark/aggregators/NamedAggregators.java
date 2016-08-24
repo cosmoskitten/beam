@@ -64,17 +64,6 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * Helper method to merge States whose generic types aren't provably the same,
-   * so require some casting.
-   */
-  @SuppressWarnings("unchecked")
-  private static <InputT, InterT, OutputT> State<InputT, InterT, OutputT> merge(
-    State<?, ?, ?> s1,
-    State<?, ?, ?> s2) {
-    return ((State<InputT, InterT, OutputT>) s1).merge((State<InputT, InterT, OutputT>) s2);
-  }
-
-  /**
    * @param name      Name of aggregator to retrieve.
    * @param typeClass Type class to cast the value to.
    * @param <T>       Type to be returned.
@@ -89,13 +78,13 @@ public class NamedAggregators implements Serializable {
    */
   public Map<String, ?> renderAll() {
     return Maps.transformValues(mNamedAggregators,
-      new Function<State<?, ?, ?>, Object>() {
+        new Function<State<?, ?, ?>, Object>() {
 
-        @Override
-        public Object apply(State<?, ?, ?> state) {
-          return state.render();
-        }
-      });
+          @Override
+          public Object apply(State<?, ?, ?> state) {
+            return state.render();
+          }
+        });
   }
 
   /**
@@ -117,6 +106,17 @@ public class NamedAggregators implements Serializable {
       }
     }
     return this;
+  }
+
+  /**
+   * Helper method to merge States whose generic types aren't provably the same,
+   * so require some casting.
+   */
+  @SuppressWarnings("unchecked")
+  private static <InputT, InterT, OutputT> State<InputT, InterT, OutputT> merge(
+      State<?, ?, ?> s1,
+      State<?, ?, ?> s2) {
+    return ((State<InputT, InterT, OutputT>) s1).merge((State<InputT, InterT, OutputT>) s2);
   }
 
   @Override
@@ -153,7 +153,7 @@ public class NamedAggregators implements Serializable {
    * =&gt; combineFunction in data flow.
    */
   public static class CombineFunctionState<InputT, InterT, OutpuT>
-    implements State<InputT, InterT, OutpuT> {
+      implements State<InputT, InterT, OutpuT> {
 
     private Combine.CombineFn<InputT, InterT, OutpuT> combineFn;
     private Coder<InputT> inCoder;
@@ -161,9 +161,9 @@ public class NamedAggregators implements Serializable {
     private transient InterT state;
 
     public CombineFunctionState(
-      Combine.CombineFn<InputT, InterT, OutpuT> combineFn,
-      Coder<InputT> inCoder,
-      SparkRuntimeContext ctxt) {
+        Combine.CombineFn<InputT, InterT, OutpuT> combineFn,
+        Coder<InputT> inCoder,
+        SparkRuntimeContext ctxt) {
       this.combineFn = combineFn;
       this.inCoder = inCoder;
       this.ctxt = ctxt;
@@ -202,7 +202,7 @@ public class NamedAggregators implements Serializable {
       oos.writeObject(inCoder);
       try {
         combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-          .encode(state, oos, Coder.Context.NESTED);
+            .encode(state, oos, Coder.Context.NESTED);
       } catch (CannotProvideCoderException e) {
         throw new IllegalStateException("Could not determine coder for accumulator", e);
       }
@@ -215,7 +215,7 @@ public class NamedAggregators implements Serializable {
       inCoder = (Coder<InputT>) ois.readObject();
       try {
         state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-          .decode(ois, Coder.Context.NESTED);
+            .decode(ois, Coder.Context.NESTED);
       } catch (CannotProvideCoderException e) {
         throw new IllegalStateException("Could not determine coder for accumulator", e);
       }

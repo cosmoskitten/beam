@@ -48,11 +48,11 @@ public class CsvSink implements Sink {
     period = Long.parseLong(properties.getProperty("period"));
     timeUnit = TimeUnit.valueOf(properties.getProperty("unit", "SECONDS").toUpperCase());
     metricReporter =
-      CsvReporter.forRegistry(WithNamedAggregatorsSupport.forRegistry(metricRegistry))
-        .formatFor(Locale.US)
-        .convertDurationsTo(TimeUnit.MILLISECONDS)
-        .convertRatesTo(TimeUnit.SECONDS)
-        .build(new File(properties.getProperty("directory")));
+        CsvReporter.forRegistry(WithNamedAggregatorsSupport.forRegistry(metricRegistry))
+            .formatFor(Locale.US)
+            .convertDurationsTo(TimeUnit.MILLISECONDS)
+            .convertRatesTo(TimeUnit.SECONDS)
+            .build(new File(properties.getProperty("directory")));
   }
 
   @Override

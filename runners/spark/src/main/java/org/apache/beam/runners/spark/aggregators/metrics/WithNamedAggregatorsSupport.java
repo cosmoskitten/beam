@@ -56,7 +56,7 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
   }
 
   public static WithNamedAggregatorsSupport forRegistry(final MetricRegistry
-                                                          metricRegistry) {
+                                                            metricRegistry) {
     return new WithNamedAggregatorsSupport(metricRegistry);
   }
 
@@ -83,50 +83,50 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
   @Override
   public SortedMap<String, Gauge> getGauges(final MetricFilter filter) {
     return
-      new ImmutableSortedMap.Builder<String, Gauge>(
-        Ordering.from(String.CASE_INSENSITIVE_ORDER))
-        .putAll(internalMetricRegistry.getGauges(filter))
-        .putAll(extractGauges(internalMetricRegistry, filter))
-        .build();
+        new ImmutableSortedMap.Builder<String, Gauge>(
+            Ordering.from(String.CASE_INSENSITIVE_ORDER))
+            .putAll(internalMetricRegistry.getGauges(filter))
+            .putAll(extractGauges(internalMetricRegistry, filter))
+            .build();
   }
 
   private Map<String, Gauge> transformToGauges(final AggregatorMetric metric) {
     return Maps.transformValues(metric.getNamedAggregators().renderAll(),
-      new Function<Object, Gauge>() {
+        new Function<Object, Gauge>() {
 
-        @Override
-        public Gauge apply(final Object rawGaugeObj) {
-          return new Gauge<Double>() {
+          @Override
+          public Gauge apply(final Object rawGaugeObj) {
+            return new Gauge<Double>() {
 
-            @Override
-            public Double getValue() {
-              // at the moment the metric's type is assumed to be
-              // compatible with Double. While far from perfect, it seems reasonable at
-              // this point in time
-              return Double.parseDouble(rawGaugeObj.toString());
-            }
-          };
-        }
-      });
+              @Override
+              public Double getValue() {
+                // at the moment the metric's type is assumed to be
+                // compatible with Double. While far from perfect, it seems reasonable at
+                // this point in time
+                return Double.parseDouble(rawGaugeObj.toString());
+              }
+            };
+          }
+        });
   }
 
   private Map<String, Gauge> extractGauges(final MetricRegistry metricRegistry,
                                            final MetricFilter filter) {
     // find the AggregatorMetric metrics from within all currently registered metrics
     final Optional<Map.Entry<String, Metric>> aggregatorMetricEntryOp =
-      FluentIterable
-        .from(metricRegistry.getMetrics().entrySet())
-        .firstMatch(new Predicate<Map.Entry<String, Metric>>() {
+        FluentIterable
+            .from(metricRegistry.getMetrics().entrySet())
+            .firstMatch(new Predicate<Map.Entry<String, Metric>>() {
 
-          @Override
-          public boolean apply(Map.Entry<String, Metric> metricEntry) {
-            return (metricEntry.getValue() instanceof AggregatorMetric)
-              && (filter.matches(metricEntry.getKey(), metricEntry.getValue()));
-          }
-        });
+              @Override
+              public boolean apply(Map.Entry<String, Metric> metricEntry) {
+                return (metricEntry.getValue() instanceof AggregatorMetric)
+                    && (filter.matches(metricEntry.getKey(), metricEntry.getValue()));
+              }
+            });
 
     return aggregatorMetricEntryOp.isPresent()
-      ? transformToGauges((AggregatorMetric) aggregatorMetricEntryOp.get().getValue()) :
-      ImmutableSortedMap.<String, Gauge>of();
+        ? transformToGauges((AggregatorMetric) aggregatorMetricEntryOp.get().getValue()) :
+        ImmutableSortedMap.<String, Gauge>of();
   }
 }

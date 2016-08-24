@@ -50,12 +50,12 @@ public class GraphiteSink implements Sink {
     final String host = properties.getProperty("host");
     final int port = Integer.parseInt(properties.getProperty("port"));
     metricReporter =
-      GraphiteReporter
-        .forRegistry(WithNamedAggregatorsSupport.forRegistry(metricRegistry))
-        .convertDurationsTo(TimeUnit.MILLISECONDS)
-        .convertRatesTo(TimeUnit.SECONDS)
-        .prefixedWith("")
-        .build(new Graphite(new InetSocketAddress(host, port)));
+        GraphiteReporter
+            .forRegistry(WithNamedAggregatorsSupport.forRegistry(metricRegistry))
+            .convertDurationsTo(TimeUnit.MILLISECONDS)
+            .convertRatesTo(TimeUnit.SECONDS)
+            .prefixedWith("")
+            .build(new Graphite(new InetSocketAddress(host, port)));
   }
 
   @Override

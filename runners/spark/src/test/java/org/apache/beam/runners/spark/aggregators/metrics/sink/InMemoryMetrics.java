@@ -47,7 +47,7 @@ public class InMemoryMetrics implements Sink {
     T retVal;
 
     if (extendedMetricsRegistry != null
-      && extendedMetricsRegistry.getGauges().containsKey(name)) {
+        && extendedMetricsRegistry.getGauges().containsKey(name)) {
       retVal = (T) extendedMetricsRegistry.getGauges().get(name).getValue();
     } else {
       retVal = null;
