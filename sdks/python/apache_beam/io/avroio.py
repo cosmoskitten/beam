@@ -19,6 +19,7 @@
 
 import os
 import StringIO
+import threading
 import zlib
 
 from avro import datafile
@@ -94,6 +95,7 @@ class _AvroSource(filebasedsource.FileBasedSource):
     self._avro_schema = None
     self._codec = None
     self._sync_marker = None
+    self._progress_lock = threading.Lock()
 
   class AvroBlock(object):
     """Represents a block of an Avro file."""
@@ -137,6 +139,26 @@ class _AvroSource(filebasedsource.FileBasedSource):
       return self._offset
 
   def read_records(self, file_name, range_tracker):
+    current_block_offset = -1
+    current_block_size = -1
+
+    def _callback(stop_position):
+      if range_tracker.done():
+        return 0
+
+      # Locking progressing to next block  to provide a consistent result
+      with self._progress_lock:
+        if (current_block_offset + current_block_size >=
+            range_tracker.stop_position()):
+          # This block ends after the last byte that belongs to the position
+          # range of the source. Hence this has to be the last block that
+          # belongs to the position range.
+          return 1
+        return filebasedsource.FileBasedSource.remaining_split_points_helper(
+            stop_position, current_block_offset, range_tracker.done())
+
+    range_tracker.set_split_points_remaining_callback(_callback)
+
     start_offset = range_tracker.start_position()
     if start_offset is None:
       start_offset = 0
@@ -156,12 +178,17 @@ class _AvroSource(filebasedsource.FileBasedSource):
           return
         next_block = self.read_next_block(f)
         if next_block:
+          with self._progress_lock:
+            current_block_offset = next_block.offset()
+            current_block_size = next_block.size()
+
           for record in next_block.records():
             yield record
         else:
           return
     finally:
       f.close()
+      range_tracker.set_done()
 
   def advance_pass_next_sync_marker(self, f):
     buf_size = 10000

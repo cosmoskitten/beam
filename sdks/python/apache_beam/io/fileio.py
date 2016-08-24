@@ -796,7 +796,7 @@ class TextFileReader(iobase.NativeSourceReader,
         # that the end offset of the range may be smaller than the original
         # end offset defined when creating the reader due to reader accepting
         # a dynamic split request from the service.
-        return
+        break
       line = self._file.readline()
       self.notify_observers(line, is_encoded=True)
       self.current_offset += len(line)
@@ -804,9 +804,16 @@ class TextFileReader(iobase.NativeSourceReader,
         line = line.rstrip('\n')
       yield self.source.coder.decode(line)
 
+    self.range_tracker.set_done()
+
   def get_progress(self):
-    return iobase.ReaderProgress(position=iobase.ReaderPosition(
-        byte_offset=self.range_tracker.last_record_start))
+    consumed_split_points, remaining_split_points = (
+        self.range_tracker.split_points())
+    return iobase.ReaderProgress(
+        position=iobase.ReaderPosition(
+            byte_offset=self.range_tracker.last_record_start),
+        consumed_split_points=consumed_split_points,
+        remaining_split_points=remaining_split_points)
 
   def request_dynamic_split(self, dynamic_split_request):
     assert dynamic_split_request is not None
