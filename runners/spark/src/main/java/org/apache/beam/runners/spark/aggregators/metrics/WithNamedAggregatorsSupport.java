@@ -140,7 +140,7 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
               return Double.parseDouble(rawValue.toString());
             } catch (final Exception e) {
               LOG.warn("Failed reporting metric with name [{}], of type [{}], since it could not be"
-                  + " converted to double", name, rawValue.getClass().getSimpleName());
+                  + " converted to double", name, rawValue.getClass().getSimpleName(), e);
               return null;
             }
           }
