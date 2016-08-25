@@ -271,25 +271,28 @@ public class DataflowPipelineJob implements PipelineResult {
         backoff.reset();
         // Check if the job is done.
         if (state.isTerminal()) {
-          LOG.info("Job finished with status {}", state);
-          if (state == State.UPDATED) {
-            LOG.info("Job {} has been updated and is running as the new job with id {}."
-                + "To access the updated job on the Dataflow monitoring console, "
-                + "please navigate to {}",
-                getJobId(),
-                getReplacedByJob().getJobId(),
-                MonitoringUtil.getJobMonitoringPageURL(
-                    getReplacedByJob().getProjectId(), getReplacedByJob().getJobId()));
-          } else if (state == State.CANCELLED) {
-            LOG.info("Job {} finished with status CANCELLED", getJobId());
-          } else if (state != State.DONE) {
-            LOG.info("Job {} failed with status {}", getJobId(), state);
+          switch (state) {
+            case DONE:
+            case CANCELLED:
+              LOG.info("Job {} finished with status {}.", getJobId(), state);
+              break;
+            case UPDATED:
+              LOG.info("Job {} has been updated and is running as the new job with id {}. "
+                  + "To access the updated job on the Dataflow monitoring console, "
+                  + "please navigate to {}",
+                  getJobId(),
+                  getReplacedByJob().getJobId(),
+                  MonitoringUtil.getJobMonitoringPageURL(
+                      getReplacedByJob().getProjectId(), getReplacedByJob().getJobId()));
+              break;
+            default:
+              LOG.info("Job {} failed with status {}.", getJobId(), state);
           }
           return state;
         }
       }
     } while(BackOffUtils.next(sleeper, backoff));
-    LOG.warn("No terminal state was returned.  State value {}", state);
+    LOG.warn("No terminal state was returned. State value {}", state);
     return null;  // Timed out.
   }
 
