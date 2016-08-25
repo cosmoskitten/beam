@@ -20,11 +20,13 @@ package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.fail;
 
+import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import com.google.common.collect.ImmutableSet;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -61,36 +63,19 @@ public class ProvidedSparkContextTest {
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
         .of()));
-    PCollection<String> output = inputWords.apply(new SimpleWordCountTest.CountWords());
+    PCollection<String> output = inputWords.apply(new WordCount.CountWords())
+            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
+    // Run test from pipeline
     p.run();
-    jsc.stop();
-  }
 
-  /**
-   * Provide a context and call SparkRunner run.
-   * @throws Exception
-   */
-  @Test
-  public void testWithProvidedContextRunner() throws Exception {
-    JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
-
-    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    options.setUsesProvidedSparkContext(true);
-    options.setProvidedSparkContext(jsc);
-
-    Pipeline p = Pipeline.create(options);
-    PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
-            .of()));
-    PCollection<String> output = inputWords.apply(new SimpleWordCountTest.CountWords());
-
-    PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
-
+    // Run test from Runner
     EvaluationResult res = SparkRunner.create(options).run(p);
     res.close();
+
+    jsc.stop();
   }
 
   /**
@@ -111,7 +96,8 @@ public class ProvidedSparkContextTest {
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
             .of()));
-    PCollection<String> output = inputWords.apply(new SimpleWordCountTest.CountWords());
+    PCollection<String> output = inputWords.apply(new WordCount.CountWords())
+            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
