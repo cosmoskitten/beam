@@ -56,9 +56,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.FlexibleBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -117,8 +118,9 @@ public class BigQueryServicesImplTest {
     when(response.getContent()).thenReturn(toStream(testJob));
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        5 /* attempts */, 1000 /* initialIntervalMillis */);
+    BackOff backoff =
+        FlexibleBackoff.of()
+            .withMaxAttempts(5).withInitialBackoff(Duration.standardSeconds(1));
     JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
 
     verify(response, times(1)).getStatusCode();
@@ -141,8 +143,9 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(409); // 409 means already exists
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        5 /* attempts */, 1000 /* initialIntervalMillis */);
+    BackOff backoff =
+        FlexibleBackoff.of()
+            .withMaxAttempts(5).withInitialBackoff(Duration.standardSeconds(1));
     JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
 
     verify(response, times(1)).getStatusCode();
@@ -169,8 +172,9 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(testJob));
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        5 /* attempts */, 1000 /* initialIntervalMillis */);
+    BackOff backoff =
+        FlexibleBackoff.of()
+            .withMaxAttempts(5).withInitialBackoff(Duration.standardSeconds(1));
     JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
 
     verify(response, times(2)).getStatusCode();
