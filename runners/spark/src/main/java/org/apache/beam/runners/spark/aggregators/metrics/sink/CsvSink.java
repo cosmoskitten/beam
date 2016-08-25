@@ -18,12 +18,13 @@
 
 package org.apache.beam.runners.spark.aggregators.metrics.sink;
 
+import com.codahale.metrics.MetricRegistry;
+
+import java.util.Properties;
+
 import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.aggregators.metrics.WithNamedAggregatorsSupport;
-
-import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.metrics.sink.Sink;
-import java.util.Properties;
 
 /**
  * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics

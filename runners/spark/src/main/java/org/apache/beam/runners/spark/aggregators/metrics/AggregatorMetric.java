@@ -18,9 +18,9 @@
 
 package org.apache.beam.runners.spark.aggregators.metrics;
 
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-
 import com.codahale.metrics.Metric;
+
+import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 
 /**
  * An adapter between the {@link NamedAggregators} and codahale's {@link Metric}

@@ -21,9 +21,14 @@ package org.apache.beam.runners.spark;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
-
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
+import java.io.File;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import org.apache.beam.runners.spark.aggregators.metrics.sink.InMemoryMetrics;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
@@ -34,20 +39,11 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
-
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
-
-import java.io.File;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Simple word count test.

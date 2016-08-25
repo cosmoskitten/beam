@@ -18,7 +18,14 @@
 
 package org.apache.beam.runners.spark.aggregators.metrics;
 
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -30,17 +37,10 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Metric;
-import com.codahale.metrics.MetricFilter;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Timer;
-
 import java.util.Map;
 import java.util.SortedMap;
+
+import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 
 /**
  * A {@link MetricRegistry} decorator-like* that supports {@link AggregatorMetric} by exposing
