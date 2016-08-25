@@ -89,7 +89,7 @@ import org.apache.beam.sdk.values.PCollection;
  *   --output=gs://YOUR_OUTPUT_PREFIX
  * }</pre>
  *
- * <p>The input file defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt} and can be
+ * <p>The input file defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt} and can be
  * overridden with {@code --inputFile}.
  */
 public class WordCount {

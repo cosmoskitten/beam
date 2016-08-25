@@ -100,7 +100,7 @@ import org.slf4j.LoggerFactory;
  * that changing the default worker log level to TRACE or DEBUG will significantly increase
  * the amount of logs output.
  *
- * <p>The input file defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt} and can be
+ * <p>The input file defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt} and can be
  * overridden with {@code --inputFile}.
  */
 public class DebuggingWordCount {
