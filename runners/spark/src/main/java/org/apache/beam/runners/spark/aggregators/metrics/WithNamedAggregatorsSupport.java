@@ -41,6 +41,8 @@ import java.util.Map;
 import java.util.SortedMap;
 
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link MetricRegistry} decorator-like* that supports {@link AggregatorMetric} by exposing
@@ -52,6 +54,8 @@ import org.apache.beam.runners.spark.aggregators.NamedAggregators;
  * </p>
  */
 public class WithNamedAggregatorsSupport extends MetricRegistry {
+
+  private static final Logger LOG = LoggerFactory.getLogger(WithNamedAggregatorsSupport.class);
 
   private MetricRegistry internalMetricRegistry;
 
@@ -114,17 +118,17 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
       @Override
       public Map<String, Gauge> apply(final Map.Entry<String, Metric> entry) {
         final NamedAggregators agg = ((AggregatorMetric) entry.getValue()).getNamedAggregators();
-        final Map<String, Gauge> gaugeMap = Maps.transformValues(agg.renderAll(), toGauge());
+        final Map<String, Gauge> gaugeMap = Maps.transformEntries(agg.renderAll(), toGauge());
         return Maps.filterValues(gaugeMap, Predicates.notNull());
       }
     };
   }
 
-  private Function<Object, Gauge> toGauge() {
-    return new Function<Object, Gauge>() {
+  private Maps.EntryTransformer<String, Object, Gauge> toGauge() {
+    return new Maps.EntryTransformer<String, Object, Gauge>() {
 
       @Override
-      public Gauge apply(final Object rawGaugeObj) {
+      public Gauge transformEntry(final String name, final Object rawValue) {
         return new Gauge<Double>() {
 
           @Override
@@ -133,9 +137,10 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
             // compatible with Double. While far from perfect, it seems reasonable at
             // this point in time
             try {
-              return Double.parseDouble(rawGaugeObj.toString());
+              return Double.parseDouble(rawValue.toString());
             } catch (final Exception e) {
-              // log?
+              LOG.warn("Failed reporting metric with name [{}], of type [{}], since it could not be"
+                  + " converted to double", name, rawValue.getClass().getSimpleName());
               return null;
             }
           }
