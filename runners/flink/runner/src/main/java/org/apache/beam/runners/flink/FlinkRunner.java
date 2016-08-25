@@ -245,11 +245,6 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
       @SuppressWarnings({"rawtypes", "unchecked"})
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
-      try {
-        inputCoder.getKeyCoder().verifyDeterministic();
-      } catch (Coder.NonDeterministicException e) {
-//        runner.recordViewUsesNonDeterministicKeyCoder(this);
-      }
 
       return input
           .apply(Combine.globally(new Concatenate<KV<K, V>>()).withoutDefaults())
@@ -287,11 +282,6 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
       @SuppressWarnings({"rawtypes", "unchecked"})
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
-      try {
-        inputCoder.getKeyCoder().verifyDeterministic();
-      } catch (Coder.NonDeterministicException e) {
-//        runner.recordViewUsesNonDeterministicKeyCoder(this);
-      }
 
       return input
           .apply(Combine.globally(new Concatenate<KV<K, V>>()).withoutDefaults())
