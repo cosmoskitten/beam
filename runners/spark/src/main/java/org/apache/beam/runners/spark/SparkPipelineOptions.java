@@ -23,6 +23,8 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.spark.api.java.JavaSparkContext;
 
 /**
  * Spark runner pipeline options.
@@ -49,9 +51,13 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   @Default.String("spark dataflow pipeline job")
   String getAppName();
 
-  @Description("If the spark runner will be initialized with an existing Spark Context")
+  @Description("If the spark runner will be initialized with a provided Spark Context")
   @Default.Boolean(false)
-  boolean isProvidedJavaSparkContext();
+  boolean getUsesProvidedSparkContext();
+  void setUsesProvidedSparkContext(boolean value);
 
-  void setProvidedJavaSparkContext(boolean value);
+  @Description("Provided Java Spark Context")
+  @JsonIgnore
+  JavaSparkContext getProvidedSparkContext();
+  void setProvidedSparkContext(JavaSparkContext jsc);
 }

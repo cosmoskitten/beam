@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
@@ -33,15 +32,13 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.io.FileUtils;
-import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.beam.sdk.testing.PAssert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.apache.commons.io.FileUtils;
 
 /**
  * Simple word count test.
@@ -53,52 +50,6 @@ public class SimpleWordCountTest {
   private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
   private static final Set<String> EXPECTED_COUNT_SET =
       ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
-
-    @Test
-   public void testWithProvidedContext() throws Exception {
-    JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
-    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    options.setProvidedJavaSparkContext(true);
-
-    Pipeline p = Pipeline.create(options);
-    PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
-      PCollection<String> output = inputWords.apply(new WordCount.CountWords())
-              .apply(MapElements.via(new WordCount.FormatAsTextFn()));
-    PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
-    EvaluationResult res = SparkRunner.create(options, jsc).run(p);
-    res.close();
-    jsc.stop();
-  }
-
-  /**
-   * A SparkRunner with a stopped provided Spark context cannot run pipelines.
-   * @throws Exception
-   */
-  @Test
-  public void testWithStoppedProvidedContext() throws Exception {
-    JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
-    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    options.setProvidedJavaSparkContext(true);
-
-    Pipeline p = Pipeline.create(options);
-    PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
-            .of()));
-    PCollection<String> output = inputWords.apply(new CountWords());
-
-    PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
-
-    // Stop the provided Spark context
-    jsc.stop();
-
-    try {
-      SparkRunner.create(options, jsc).run(p);
-      fail("Should throw an exception when The provided Spark context is stopped");
-    } catch (RuntimeException e){
-      assert(e.getMessage().contains("The provided Spark context is stopped"));
-    }
-  }
 
   @Test
   public void testInMem() throws Exception {

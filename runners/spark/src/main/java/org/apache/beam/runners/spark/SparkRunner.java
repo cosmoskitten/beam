@@ -77,12 +77,6 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   private final SparkPipelineOptions mOptions;
 
   /**
-   *
-   * A provided Java Spark context.
-    */
-  private JavaSparkContext providedJavaSparkContext;
-
-  /**
    * Creates and returns a new SparkRunner with default options. In particular, against a
    * spark instance running in local mode.
    *
@@ -105,16 +99,6 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
   /**
    * Creates and returns a new SparkRunner with specified options.
-   * @param options The SparkPipelineOptions to use when executing the job.
-   * @param pjsc A provided JavaSparkContext to be used with the SparkRunner.
-   * @return A pipeline runner that will execute with specified op
-   */
-  public static SparkRunner create(SparkPipelineOptions options, JavaSparkContext pjsc) {
-    return new SparkRunner(options, pjsc);
-  }
-
-  /**
-   * Creates and returns a new SparkRunner with specified options.
    *
    * @param options The PipelineOptions to use when executing the job.
    * @return A pipeline runner that will execute with specified options.
@@ -124,21 +108,6 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
     return new SparkRunner(sparkOptions);
   }
-
-  /**
-   * Creates and returns a new SparkPipelineRunner with specified options.
-   * The Pipeline will be run with the provided Java Spark Context.
-   *
-   * @param options The PipelineOptions to use when executing the job.
-   * @param pjsc a provided Spark Java context to use when executing the job.
-   * @return A pipeline runner that will execute with specified options.
-   */
-  public static SparkRunner fromOptions(PipelineOptions options, JavaSparkContext pjsc) {
-    SparkPipelineOptions sparkOptions =
-            PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
-    LOG.info("Creating a SparkPipelineRunner with the provided Spark Java Context : " + pjsc);
-    return new SparkRunner(sparkOptions, pjsc);
-   }
 
   /**
    * Overrides for this runner.
@@ -159,7 +128,6 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     }
   }
 
-
   /**
    * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
    * thread.
@@ -168,28 +136,18 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     mOptions = options;
   }
 
-  /**
-   * Constructs a Spark pipeline runner with a provided Spark context.
-   */
-   private SparkRunner(SparkPipelineOptions options, JavaSparkContext pjsc) {
-     mOptions = options;
-     this.providedJavaSparkContext = pjsc;
-   }
-
-
   @Override
   public EvaluationResult run(Pipeline pipeline) {
     try {
       LOG.info("Executing pipeline using the SparkRunner.");
-      JavaSparkContext jsc;
-      if (mOptions.isProvidedJavaSparkContext() && this.providedJavaSparkContext != null) {
-          LOG.info("Using a provided Spark Java Context.");
-        if (this.providedJavaSparkContext.sc().isStopped()){
+      JavaSparkContext jsc = mOptions.getProvidedSparkContext();
+      if (mOptions.getUsesProvidedSparkContext() && jsc != null) {
+        LOG.info("Using a provided Spark Context");
+        if (jsc.sc().isStopped()){
           LOG.error("The provided Spark context "
-                  + this.providedJavaSparkContext + " is stopped");
+                  + jsc + " is stopped");
           throw new RuntimeException("The provided Spark context is stopped");
         }
-          jsc = this.providedJavaSparkContext;
       } else {
         LOG.info("Creating a new Spark Java Context");
         jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster(), mOptions.getAppName());
