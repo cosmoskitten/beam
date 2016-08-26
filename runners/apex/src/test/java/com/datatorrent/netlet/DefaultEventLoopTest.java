@@ -311,12 +311,14 @@ public class DefaultEventLoopTest
       String line;
       System.out.println("host name: " + InetAddress.getLocalHost());
       Process p = Runtime.getRuntime().exec("/bin/hostname", null);
+      System.out.println("/bin/hostname");
       BufferedReader bro = new BufferedReader(new InputStreamReader(p.getInputStream()));
       while ((line = bro.readLine()) != null) {
         System.out.println(line);
       }
       p.waitFor();
       System.out.println("exit code " + p.exitValue());
+      System.out.println("/bin/hostname -I");
       p = Runtime.getRuntime().exec("/bin/hostname -I", null);
       bro = new BufferedReader(new InputStreamReader(p.getInputStream()));
       while ((line = bro.readLine()) != null) {
@@ -324,7 +326,8 @@ public class DefaultEventLoopTest
       }
       p.waitFor();
       System.out.println("exit code " + p.exitValue());
-      p = Runtime.getRuntime().exec("/bin/uname -a", null);
+      System.out.println("/bin/hostname -i");
+      p = Runtime.getRuntime().exec("/bin/hostname -i", null);
       bro = new BufferedReader(new InputStreamReader(p.getInputStream()));
       while ((line = bro.readLine()) != null) {
         System.out.println(line);
