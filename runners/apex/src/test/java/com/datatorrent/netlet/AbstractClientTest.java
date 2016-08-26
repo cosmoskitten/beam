@@ -146,7 +146,7 @@ public class AbstractClientTest
     new Thread(el).start();
 
     el.start(null, port, si);
-    el.connect(new InetSocketAddress(InetAddress.getLoopbackAddress().getHostName(), port), ci);
+    el.connect(new InetSocketAddress(InetAddress.getLocalHost(), port), ci);
 
     ByteBuffer outboundBuffer = ByteBuffer.allocate(ClientImpl.BUFFER_CAPACITY);
     LongBuffer lb = outboundBuffer.asLongBuffer();

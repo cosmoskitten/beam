@@ -311,6 +311,7 @@ public class DefaultEventLoopTest
       logger.info("is {} resolved {}", address, !address.isUnresolved());
       logger.info("InetAddress.getByName {}", new InetSocketAddress(InetAddress.getByName(null), 0));
       logger.info("InetAddress.getLocalHost {}", new InetSocketAddress(InetAddress.getLocalHost(), 0));
+      logger.info("NetAddress {}", InetSocketAddress.createUnresolved("localhost", 0).getAddress());
       final InetAddress inetAddress = new InetSocketAddress(InetAddress.getLocalHost(), 0).getAddress();
       logger.info("InetAddress {} is local {} is loopback {}", inetAddress, inetAddress.isAnyLocalAddress(), inetAddress.isLoopbackAddress());
       for (InetAddress localhost : InetAddress.getAllByName("localhost")) {
