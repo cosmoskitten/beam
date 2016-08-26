@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.api.client.util.BackOff.*;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -25,6 +24,7 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 
+import com.google.api.client.util.BackOff;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -116,20 +116,20 @@ public class FlexibleBackoffTest {
             .withInitialBackoff(Duration.millis(500))
             .withMaxAttempts(1);
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
-    assertThat(backOff.nextBackOffMillis(), equalTo(STOP));
-    assertThat(backOff.nextBackOffMillis(), equalTo(STOP));
-    assertThat(backOff.nextBackOffMillis(), equalTo(STOP));
-    assertThat(backOff.nextBackOffMillis(), equalTo(STOP));
+    assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
+    assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
+    assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
+    assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
 
     backOff.reset();
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
-    assertThat(backOff.nextBackOffMillis(), equalTo(STOP));
+    assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
   }
 
   private static long countMaximumBackoff(FlexibleBackoff backOff) {
     long cumulativeBackoffMillis = 0;
     long currentBackoffMillis = backOff.nextBackOffMillis();
-    while (currentBackoffMillis != STOP) {
+    while (currentBackoffMillis != BackOff.STOP) {
       cumulativeBackoffMillis += currentBackoffMillis;
       currentBackoffMillis = backOff.nextBackOffMillis();
     }
@@ -169,7 +169,7 @@ public class FlexibleBackoffTest {
 
     long cumulativeBackoffMillis = 0;
     long currentBackoffMillis = backOff.nextBackOffMillis();
-    while (currentBackoffMillis != STOP) {
+    while (currentBackoffMillis != BackOff.STOP) {
       cumulativeBackoffMillis += currentBackoffMillis;
       currentBackoffMillis = backOff.nextBackOffMillis();
     }
