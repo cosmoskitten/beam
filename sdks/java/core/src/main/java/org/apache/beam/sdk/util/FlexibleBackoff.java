@@ -58,7 +58,7 @@ public final class FlexibleBackoff implements BackOff {
 
   public FlexibleBackoff withInitialBackoff(Duration initialBackoff) {
     checkArgument(
-        initialBackoff.getMillis() > 0,
+        initialBackoff.isLongerThan(Duration.ZERO),
         "initialBackoff %s must be at least 1 millisecond",
         initialBackoff);
     return new FlexibleBackoff(
@@ -100,7 +100,7 @@ public final class FlexibleBackoff implements BackOff {
       return BackOff.STOP;
     }
     // Maximum cumulative backoff reached.
-    if (currentCumulativeBackoff.equals(maxCumulativeBackoff)) {
+    if (currentCumulativeBackoff.compareTo(maxCumulativeBackoff) >= 0) {
       return BackOff.STOP;
     }
 
