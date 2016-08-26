@@ -41,12 +41,13 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
           + "execution is stopped")
   @Default.Long(-1)
   Long getTimeout();
-  void setTimeout(Long batchInterval);
+  void setTimeout(Long timeoutMillis);
 
   @Description("Batch interval for Spark streaming in milliseconds.")
   @Default.Long(1000)
   Long getBatchIntervalMillis();
   void setBatchIntervalMillis(Long batchInterval);
+
 
   @Description("If the spark runner will be initialized with a provided Spark Context")
   @Default.Boolean(false)
@@ -57,4 +58,10 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   @JsonIgnore
   JavaSparkContext getProvidedSparkContext();
   void setProvidedSparkContext(JavaSparkContext jsc);
+
+  @Description("Enable/disable sending aggregator values to Spark's metric sinks")
+  @Default.Boolean(true)
+  Boolean getEnableSparkSinks();
+  void setEnableSparkSinks(Boolean enableSparkSinks);
+
 }
