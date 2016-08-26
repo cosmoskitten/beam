@@ -15,7 +15,9 @@
  */
 package com.datatorrent.netlet;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -303,9 +305,32 @@ public class DefaultEventLoopTest
   }
 
   @Test
-  public void testLocalhost()
+  public void testLocalhost() throws Exception
   {
     try {
+      String line;
+      System.out.println("host name: " + InetAddress.getLocalHost());
+      Process p = Runtime.getRuntime().exec("/bin/hostname", null);
+      BufferedReader bro = new BufferedReader(new InputStreamReader(p.getInputStream()));
+      while ((line = bro.readLine()) != null) {
+        System.out.println(line);
+      }
+      p.waitFor();
+      System.out.println("exit code " + p.exitValue());
+      p = Runtime.getRuntime().exec("/bin/hostname -i", null);
+      bro = new BufferedReader(new InputStreamReader(p.getInputStream()));
+      while ((line = bro.readLine()) != null) {
+        System.out.println(line);
+      }
+      p.waitFor();
+      System.out.println("exit code " + p.exitValue());
+      p = Runtime.getRuntime().exec("cat /etc/hosts", null);
+      bro = new BufferedReader(new InputStreamReader(p.getInputStream()));
+      while ((line = bro.readLine()) != null) {
+        System.out.println(line);
+      }
+      p.waitFor();
+      System.out.println("exit code " + p.exitValue());
       logger.info("loopback {}", InetAddress.getLoopbackAddress());
       final InetSocketAddress address = new InetSocketAddress("localhost", 0);
       logger.info("is {} resolved {}", address, !address.isUnresolved());
