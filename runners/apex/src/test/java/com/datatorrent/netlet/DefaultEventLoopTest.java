@@ -310,21 +310,21 @@ public class DefaultEventLoopTest
     try {
       String line;
       System.out.println("host name: " + InetAddress.getLocalHost());
-      Process p = Runtime.getRuntime().exec("/bin/hostname", null);
+      Process p = Runtime.getRuntime().exec("/bin/hostname -v", null);
       BufferedReader bro = new BufferedReader(new InputStreamReader(p.getInputStream()));
       while ((line = bro.readLine()) != null) {
         System.out.println(line);
       }
       p.waitFor();
       System.out.println("exit code " + p.exitValue());
-      p = Runtime.getRuntime().exec("/bin/hostname -i", null);
+      p = Runtime.getRuntime().exec("/bin/hostname -v -i", null);
       bro = new BufferedReader(new InputStreamReader(p.getInputStream()));
       while ((line = bro.readLine()) != null) {
         System.out.println(line);
       }
       p.waitFor();
       System.out.println("exit code " + p.exitValue());
-      p = Runtime.getRuntime().exec("cat /etc/hosts", null);
+      p = Runtime.getRuntime().exec("cat /etc/sysconfig/network", null);
       bro = new BufferedReader(new InputStreamReader(p.getInputStream()));
       while ((line = bro.readLine()) != null) {
         System.out.println(line);
