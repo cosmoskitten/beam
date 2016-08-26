@@ -48,10 +48,6 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   Long getBatchIntervalMillis();
   void setBatchIntervalMillis(Long batchInterval);
 
-  @Override
-  @Default.String("spark dataflow pipeline job")
-  String getAppName();
-
   @Description("If the spark runner will be initialized with a provided Spark Context")
   @Default.Boolean(false)
   boolean getUsesProvidedSparkContext();

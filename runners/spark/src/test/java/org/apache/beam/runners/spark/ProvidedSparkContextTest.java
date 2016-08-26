@@ -70,11 +70,36 @@ public class ProvidedSparkContextTest {
     // Run test from pipeline
     p.run();
 
-    // Run test from Runner
-    EvaluationResult res = SparkRunner.create(options).run(p);
-    res.close();
-
     jsc.stop();
+  }
+
+  /**
+   * Provide a context and call pipeline run.
+   * @throws Exception
+   */
+  @Test
+  public void testWithNullContext() throws Exception {
+    JavaSparkContext jsc = null;
+
+    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    options.setUsesProvidedSparkContext(true);
+    options.setProvidedSparkContext(jsc);
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
+            .of()));
+    PCollection<String> output = inputWords.apply(new WordCount.CountWords())
+            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+
+    PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
+
+    try {
+      p.run();
+      fail("Should throw an exception when The provided Spark context is null");
+    } catch (RuntimeException e){
+      assert(e.getMessage().contains("The provided Spark context was not created or was stopped"));
+    }
   }
 
   /**
@@ -104,7 +129,7 @@ public class ProvidedSparkContextTest {
       p.run();
       fail("Should throw an exception when The provided Spark context is stopped");
     } catch (RuntimeException e){
-      assert(e.getMessage().contains("The provided Spark context is stopped"));
+      assert(e.getMessage().contains("The provided Spark context was not created or was stopped"));
     }
   }
 
