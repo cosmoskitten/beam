@@ -118,23 +118,23 @@ public class AddressResolutionTest
 
     try {
       LOG.info("Writing to {} {}", "localhost", portInfo_bufferServerPort);
-        socket = new Socket("localhost", portInfo_bufferServerPort);
-        socket.getOutputStream().write("hello".getBytes());
-        socket.getOutputStream().flush();
+      socket = new Socket("localhost", portInfo_bufferServerPort);
+      socket.getOutputStream().write("hello".getBytes());
+      socket.getOutputStream().flush();
     } finally {
+      if (socket != null)
         socket.close();
     }
-
 
     try {
       LOG.info("Writing to {} {}", portInfo_bufferServerHost, portInfo_bufferServerPort);
-        socket = new Socket(portInfo_bufferServerHost, portInfo_bufferServerPort);
-        socket.getOutputStream().write("hello".getBytes());
-        socket.getOutputStream().flush();
+      socket = new Socket(portInfo_bufferServerHost, portInfo_bufferServerPort);
+      socket.getOutputStream().write("hello".getBytes());
+      socket.getOutputStream().flush();
     } finally {
+      if (socket != null)
         socket.close();
     }
-
 
 
   }

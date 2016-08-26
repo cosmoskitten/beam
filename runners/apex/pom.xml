@@ -35,7 +35,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <apex.core.version>3.4.0</apex.core.version>
+    <apex.core.version>3.4.1-SNAPSHOT</apex.core.version>
     <apex.malhar.version>3.4.0</apex.malhar.version>
     <skipIntegrationTests>true</skipIntegrationTests>
     <!-- memory limit for embedded cluster -->
