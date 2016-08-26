@@ -24,7 +24,18 @@ import org.joda.time.Duration;
 
 
 /**
- * A {@link BackOff} for which the retry algorithm is customizable.
+ * A {@link BackOff} for which the retry algorithm is customizable. By default the
+ * {@link FlexibleBackoff} uses exponential backoff (base exponent 1.5) with an initial backoff of
+ * 1 second. These parameters can be overridden with {@link FlexibleBackoff#withExponent(double)}
+ * and {@link FlexibleBackoff#withInitialBackoff(Duration)}, respectively, and the maximum backoff
+ * after exponential increase can be capped using {@link FlexibleBackoff#withMaxBackoff(Duration)}.
+ *
+ * <p>By default, and after modifying any of the above parameters, {@link FlexibleBackoff} does not
+ * limit the number of attempts. To limit the backoff, the maximum total number of tries can be set
+ * using {@link FlexibleBackoff#withMaxAttempts(int)}. The total time spent in backoff can be
+ * time-bounded as well by configuring {@link FlexibleBackoff#withMaxCumulativeBackoff(Duration)}.
+ * If either of these limits are reached, the {@link FlexibleBackoff#nextBackOffMillis()} will
+ * return {@link BackOff#STOP} to signal that no more retries should continue.
  */
 public final class FlexibleBackoff implements BackOff {
   private static final double DEFAULT_EXPONENT = 1.5;
@@ -43,6 +54,12 @@ public final class FlexibleBackoff implements BackOff {
   private Duration currentCumulativeBackoff;
   private int currentAttempt;
 
+  /**
+   * Instantiates a {@link FlexibleBackoff} with the default exponential backoff and initial
+   * backoff.
+   *
+   * @see FlexibleBackoff
+   */
   public static FlexibleBackoff of() {
     return new FlexibleBackoff(
         DEFAULT_EXPONENT,
@@ -50,12 +67,28 @@ public final class FlexibleBackoff implements BackOff {
         DEFAULT_MAX_ATTEMPTS);
   }
 
+  /**
+   * Returns a copy of this {@link FlexibleBackoff} that instead uses the specified exponent to
+   * control the exponential growth of delay.
+   *
+   * <p>Does not modify this object.
+   *
+   * @see FlexibleBackoff
+   */
   public FlexibleBackoff withExponent(double exponent) {
     checkArgument(exponent > 0, "exponent %s must be greater than 0", exponent);
     return new FlexibleBackoff(
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxAttempts);
   }
 
+  /**
+   * Returns a copy of this {@link FlexibleBackoff} that instead uses the specified initial backoff
+   * duration.
+   *
+   * <p>Does not modify this object.
+   *
+   * @see FlexibleBackoff
+   */
   public FlexibleBackoff withInitialBackoff(Duration initialBackoff) {
     checkArgument(
         initialBackoff.isLongerThan(Duration.ZERO),
@@ -65,6 +98,14 @@ public final class FlexibleBackoff implements BackOff {
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxAttempts);
   }
 
+  /**
+   * Returns a copy of this {@link FlexibleBackoff} that limits the maximum backoff of an individual
+   * attempt to the specified duration.
+   *
+   * <p>Does not modify this object.
+   *
+   * @see FlexibleBackoff
+   */
   public FlexibleBackoff withMaxBackoff(Duration maxBackoff) {
     checkArgument(
         maxBackoff.getMillis() > 0,
@@ -74,6 +115,14 @@ public final class FlexibleBackoff implements BackOff {
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxAttempts);
   }
 
+  /**
+   * Returns a copy of this {@link FlexibleBackoff} that limits the total time spent in backoff
+   * returned across all calls to {@link #nextBackOffMillis()}.
+   *
+   * <p>Does not modify this object.
+   *
+   * @see FlexibleBackoff
+   */
   public FlexibleBackoff withMaxCumulativeBackoff(Duration maxCumulativeBackoff) {
     checkArgument(maxCumulativeBackoff.isLongerThan(Duration.ZERO),
         "maxCumulativeBackoff %s must be at least 1 millisecond", maxCumulativeBackoff);
@@ -81,6 +130,15 @@ public final class FlexibleBackoff implements BackOff {
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxAttempts);
   }
 
+  /**
+   * Returns a copy of this {@link FlexibleBackoff} that limits the total number of attempts, aka
+   * the total number of calls to {@link #nextBackOffMillis()} before returning
+   * {@link BackOff#STOP}.
+   *
+   * <p>Does not modify this object.
+   *
+   * @see FlexibleBackoff
+   */
   public FlexibleBackoff withMaxAttempts(int maxAttempts) {
     checkArgument(maxAttempts >= 1, "maxAttempts %s must be at least 1", maxAttempts);
     return new FlexibleBackoff(
@@ -121,6 +179,11 @@ public final class FlexibleBackoff implements BackOff {
     return nextBackoffMillis;
   }
 
+  /**
+   * Makes an initialized copy of this {@link FlexibleBackoff}.
+   *
+   * <p>Does not modify this object.
+   */
   public FlexibleBackoff copy() {
     return new FlexibleBackoff(
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxAttempts);
