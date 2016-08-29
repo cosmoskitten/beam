@@ -146,7 +146,9 @@ class _AvroSource(filebasedsource.FileBasedSource):
       if range_tracker.done():
         return 0
 
-      # Locking progressing to next block  to provide a consistent result
+      # Locking progressing to next block  to provide a consistent result.
+      # This makes sure that values of parameters used within this method are
+      # for a single Avro block.
       with self._progress_lock:
         if (current_block_offset + current_block_size >=
             range_tracker.stop_position()):
