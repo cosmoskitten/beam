@@ -19,12 +19,10 @@
 """Unit tests for local and GCS sources and sinks."""
 
 import glob
-import gzip
 import logging
 import os
 import tempfile
 import unittest
-import zlib
 
 import apache_beam as beam
 from apache_beam import coders
@@ -346,57 +344,6 @@ class NativeTestTextFileSink(unittest.TestCase):
         writer.Write(line)
     with open(file_path, 'r') as f:
       self.assertEqual(f.read().splitlines(), lines)
-
-
-class TestTextFileSink(unittest.TestCase):
-
-  def setUp(self):
-    self.lines = ['Line %d' % d for d in range(100)]
-    self.path = tempfile.NamedTemporaryFile().name
-
-  def _write_lines(self, sink, lines):
-    f = sink.open(self.path)
-    for line in lines:
-      sink.write_record(f, line)
-    sink.close(f)
-
-  def test_write_text_file(self):
-    sink = fileio.TextFileSink(self.path)
-    self._write_lines(sink, self.lines)
-
-    with open(self.path, 'r') as f:
-      self.assertEqual(f.read().splitlines(), self.lines)
-
-  def test_write_deflate_file(self):
-    sink = fileio.TextFileSink(self.path,
-                               compression_type=fileio.CompressionTypes.DEFLATE)
-    self._write_lines(sink, self.lines)
-
-    with open(self.path, 'r') as f:
-      content = f.read()
-      self.assertEqual(
-          zlib.decompress(content, -zlib.MAX_WBITS).splitlines(), self.lines)
-
-  def test_write_gzip_file(self):
-    sink = fileio.TextFileSink(self.path,
-                               compression_type=fileio.CompressionTypes.GZIP)
-    self._write_lines(sink, self.lines)
-
-    with gzip.GzipFile(self.path, 'r') as f:
-      self.assertEqual(f.read().splitlines(), self.lines)
-
-  def test_write_zlib_file(self):
-    sink = fileio.TextFileSink(self.path,
-                               compression_type=fileio.CompressionTypes.ZLIB)
-    self._write_lines(sink, self.lines)
-
-    with open(self.path, 'r') as f:
-      content = f.read()
-      # Below decompress option should work for both zlib/gzip header
-      # auto detection.
-      self.assertEqual(
-          zlib.decompress(content, zlib.MAX_WBITS | 32).splitlines(),
-          self.lines)
 
 
 class MyFileSink(fileio.FileSink):
