@@ -20,7 +20,10 @@ package org.apache.beam.runners.apex;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.runners.apex.translators.TranslationContext;
+import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
+import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Create;
@@ -32,6 +35,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AssignWindows;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -75,6 +79,8 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
               input.getPipeline(),
               WindowingStrategy.globalDefault(),
               PCollection.IsBounded.BOUNDED);
+    } else if (Read.Bounded.class.equals(transform.getClass())) {
+      return (OutputT) ((PBegin) input).apply(new UnboundedReadFromBoundedSource<>(((Read.Bounded)transform).getSource()));
     } else {
       return super.apply(transform, input);
     }

@@ -25,14 +25,17 @@ import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperato
 import org.apache.beam.runners.apex.translators.utils.CollectionSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
 import com.datatorrent.api.DAG;
+import com.google.common.collect.ContiguousSet;
+import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 
 import org.junit.Assert;
@@ -42,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * integration test for {@link ReadUnboundedTranslator}.
@@ -53,6 +57,7 @@ public class ReadUnboundTranslatorTest {
   public void test() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.create()
         .as(ApexPipelineOptions.class);
+    EmbeddedCollector.results.clear();
     options.setApplicationName("ReadUnbound");
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
@@ -77,6 +82,36 @@ public class ReadUnboundTranslatorTest {
       Thread.sleep(1000);
     }
     Assert.assertEquals(Sets.newHashSet(collection), EmbeddedCollector.results);
+  }
+
+  @Test
+  public void testReadBounded() throws Exception {
+    ApexPipelineOptions options = PipelineOptionsFactory.create()
+        .as(ApexPipelineOptions.class);
+    EmbeddedCollector.results.clear();
+    options.setApplicationName("ReadBounded");
+    options.setRunner(ApexRunner.class);
+    Pipeline p = Pipeline.create(options);
+
+    Set<Long> expected = ContiguousSet.create(Range.closedOpen(0L, 10L), DiscreteDomain.longs());
+    p.apply(Read.from(CountingSource.upTo(10)))
+        .apply(ParDo.of(new EmbeddedCollector()));
+
+    ApexRunnerResult result = (ApexRunnerResult)p.run();
+    DAG dag = result.getApexDAG();
+    DAG.OperatorMeta om = dag.getOperatorMeta("Read(BoundedCountingSource)/Read(BoundedCountingSource)/Read(BoundedToUnboundedSourceAdapter)");
+    Assert.assertNotNull(om);
+    Assert.assertEquals(om.getOperator().getClass(), ApexReadUnboundedInputOperator.class);
+
+    long timeout = System.currentTimeMillis() + 30000;
+    while (System.currentTimeMillis() < timeout) {
+      if (EmbeddedCollector.results.containsAll(expected)) {
+        break;
+      }
+      LOG.info("Waiting for expected results.");
+      Thread.sleep(1000);
+    }
+    Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.results);
   }
 
   @SuppressWarnings("serial")
