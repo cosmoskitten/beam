@@ -19,6 +19,17 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -37,19 +48,8 @@ import org.apache.beam.sdk.util.ExecutionContext.StepContext;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * A base implementation of {@link DoFnRunner}.
@@ -58,10 +58,10 @@ import java.util.Set;
  */
 public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
-  /** The OldDoFn being run. */
+  /** The {@link OldDoFn} being run. */
   public final OldDoFn<InputT, OutputT> fn;
 
-  /** The context used for running the OldDoFn. */
+  /** The context used for running the {@link OldDoFn}. */
   public final DoFnContext<InputT, OutputT> context;
 
   protected DoFnRunnerBase(
@@ -164,8 +164,8 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
   /**
    * A concrete implementation of {@code OldDoFn.Context} used for running a {@link OldDoFn}.
    *
-   * @param <InputT> the type of the OldDoFn's (main) input elements
-   * @param <OutputT> the type of the OldDoFn's (main) output elements
+   * @param <InputT> the type of the {@link OldDoFn} (main) input elements
+   * @param <OutputT> the type of the {@link OldDoFn} (main) output elements
    */
   private static class DoFnContext<InputT, OutputT>
       extends OldDoFn<InputT, OutputT>.Context {
@@ -344,13 +344,13 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
     @Override
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      checkNotNull(combiner, "Combiner passed to createAggregatorForDoFn cannot be null");
+      checkNotNull(combiner, "Combiner passed to createAggregatorInternal cannot be null");
       return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
     }
   }
 
   /**
-   * Returns a new {@code OldDoFn.ProcessContext} for the given element.
+   * Returns a new {@link OldDoFn.ProcessContext} for the given element.
    */
   protected OldDoFn<InputT, OutputT>.ProcessContext createProcessContext(
       WindowedValue<InputT> elem) {
@@ -366,11 +366,11 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
   }
 
   /**
-   * A concrete implementation of {@code OldDoFn.ProcessContext} used for
+   * A concrete implementation of {@link OldDoFn.ProcessContext} used for
    * running a {@link OldDoFn} over a single element.
    *
-   * @param <InputT> the type of the OldDoFn's (main) input elements
-   * @param <OutputT> the type of the OldDoFn's (main) output elements
+   * @param <InputT> the type of the {@link OldDoFn} (main) input elements
+   * @param <OutputT> the type of the {@link OldDoFn} (main) output elements
    */
   static class DoFnProcessContext<InputT, OutputT>
       extends OldDoFn<InputT, OutputT>.ProcessContext {

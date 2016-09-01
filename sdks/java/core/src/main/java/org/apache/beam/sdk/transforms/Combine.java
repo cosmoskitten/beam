@@ -19,6 +19,18 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -57,21 +69,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * {@code PTransform}s for combining {@code PCollection} elements
@@ -2121,14 +2118,14 @@ public class Combine {
                                inputCoder.getValueCoder()))
           .setWindowingStrategyInternal(preCombineStrategy)
           .apply("PreCombineHot", Combine.perKey(hotPreCombine))
-          .apply("StripNonce", ParDo.of(
-              new DoFn<KV<KV<K, Integer>, AccumT>,
-                                     KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  c.output(KV.of(
-                      c.element().getKey().getKey(),
-                      InputOrAccum.<InputT, AccumT>accum(c.element().getValue())));
+          .apply("StripNonce", MapElements.via(
+              new SimpleFunction<KV<KV<K, Integer>, AccumT>,
+                       KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @Override
+                public KV<K, InputOrAccum<InputT, AccumT>> apply(KV<KV<K, Integer>, AccumT> elem) {
+                  return KV.of(
+                      elem.getKey().getKey(),
+                      InputOrAccum.<InputT, AccumT>accum(elem.getValue()));
                 }
               }))
           .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder))
@@ -2137,12 +2134,12 @@ public class Combine {
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> preprocessedCold = split
           .get(cold)
           .setCoder(inputCoder)
-          .apply("PrepareCold", ParDo.of(
-              new DoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  c.output(KV.of(c.element().getKey(),
-                                 InputOrAccum.<InputT, AccumT>input(c.element().getValue())));
+          .apply("PrepareCold", MapElements.via(
+              new SimpleFunction<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @Override
+                public KV<K, InputOrAccum<InputT, AccumT>> apply(KV<K, InputT> element) {
+                  return KV.of(element.getKey(),
+                                 InputOrAccum.<InputT, AccumT>input(element.getValue()));
                 }
               }))
           .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder));

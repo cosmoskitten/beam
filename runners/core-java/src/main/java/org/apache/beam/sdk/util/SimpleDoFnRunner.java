@@ -17,19 +17,19 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.util.ExecutionContext.StepContext;
 import org.apache.beam.sdk.values.TupleTag;
-import java.util.List;
 
 /**
  * Runs a {@link OldDoFn} by constructing the appropriate contexts and passing them in.
  *
- * @param <InputT> the type of the OldDoFn's (main) input elements
- * @param <OutputT> the type of the OldDoFn's (main) output elements
+ * @param <InputT> the type of the {@link OldDoFn} (main) input elements
+ * @param <OutputT> the type of the {@link OldDoFn} (main) output elements
  */
 public class SimpleDoFnRunner<InputT, OutputT> extends DoFnRunnerBase<InputT, OutputT>{
 

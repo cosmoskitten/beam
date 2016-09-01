@@ -18,6 +18,8 @@
 
 package org.apache.beam.examples;
 
+import com.google.common.io.Resources;
+import java.util.Date;
 import org.apache.beam.examples.WordCount.WordCountOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -25,12 +27,9 @@ import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.IOChannelUtils;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Date;
 
 /**
  * End-to-end tests of WordCount.
@@ -62,6 +61,14 @@ public class WordCountIT {
         "results"));
     options.setOnSuccessMatcher(
         new FileChecksumMatcher(options.getOutputChecksum(), options.getOutput() + "*"));
+
+    String e2eTestInputPath = "gs://apache-beam-samples/apache/LICENSE";
+    // Spark runner currently doesn't support GCS I/O, change default input to:
+    // .../src/test/resources/LICENSE
+    if (options.getRunner().getName().contains("SparkRunner")) {
+      e2eTestInputPath = Resources.getResource("LICENSE").getPath();
+    }
+    options.setInputFile(e2eTestInputPath);
 
     WordCount.main(TestPipeline.convertToArgs(options));
   }

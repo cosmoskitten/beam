@@ -17,6 +17,8 @@
  */
 package org.apache.beam.examples.complete;
 
+import com.google.api.services.bigquery.model.TableRow;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.TextIO;
@@ -38,13 +40,8 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.api.services.bigquery.model.TableRow;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.util.List;
 
 /**
  * An example that reads Wikipedia edit data from Cloud Storage and computes the user with
@@ -67,7 +64,7 @@ import java.util.List;
  *   --output=gs://YOUR_OUTPUT_PREFIX
  * }</pre>
  *
- * <p>The default input is {@code gs://dataflow-samples/wikipedia_edits/*.json} and can be
+ * <p>The default input is {@code gs://apache-beam-samples/wikipedia_edits/*.json} and can be
  * overridden with {@code --input}.
  *
  * <p>The input for this example is large enough that it's a good place to enable (experimental)
@@ -80,7 +77,8 @@ import java.util.List;
  * This will automatically scale the number of workers up over time until the job completes.
  */
 public class TopWikipediaSessions {
-  private static final String EXPORTED_WIKI_TABLE = "gs://dataflow-samples/wikipedia_edits/*.json";
+  private static final String EXPORTED_WIKI_TABLE =
+      "gs://apache-beam-samples/wikipedia_edits/*.json";
 
   /**
    * Extracts user and timestamp from a TableRow representing a Wikipedia edit.
@@ -184,7 +182,7 @@ public class TopWikipediaSessions {
   /**
    * Options supported by this class.
    *
-   * <p>Inherits standard Dataflow configuration options.
+   * <p>Inherits standard Beam configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description(

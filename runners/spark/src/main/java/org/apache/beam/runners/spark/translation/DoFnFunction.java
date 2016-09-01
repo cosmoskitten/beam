@@ -18,22 +18,20 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.util.BroadcastHelper;
-import org.apache.beam.sdk.transforms.OldDoFn;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
-
-import org.apache.spark.api.java.function.FlatMapFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.spark.api.java.function.FlatMapFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Dataflow's Do functions correspond to Spark's FlatMap functions.
+ * Beam's Do functions correspond to Spark's FlatMap functions.
  *
  * @param <InputT> Input element type.
  * @param <OutputT> Output element type.

@@ -17,7 +17,8 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.runners.spark.SparkRunner;
+import com.google.common.base.Strings;
+import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -37,11 +38,6 @@ import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.base.Strings;
-import com.google.common.io.Resources;
-
-import java.io.IOException;
 
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
@@ -92,8 +88,8 @@ import java.io.IOException;
  *   --output=gs://YOUR_OUTPUT_PREFIX
  * }</pre>
  *
- * <p>The input file defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt} and can be
- * overridden with {@code --inputFile}.
+ * <p>The input file defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt}
+ * and can be overridden with {@code --inputFile}.
  */
 public class WordCount {
 
@@ -168,7 +164,7 @@ public class WordCount {
    */
   public static interface WordCountOptions extends PipelineOptions {
     @Description("Path of the file to read from")
-    @Default.InstanceFactory(InputFactory.class)
+    @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
     String getInputFile();
     void setInputFile(String value);
 
@@ -194,27 +190,6 @@ public class WordCount {
           }
         } else {
           throw new IllegalArgumentException("Must specify --output or --tempLocation");
-        }
-      }
-    }
-
-    /**
-     * Return default input file path according to runner type.
-     *
-     * <p><ul>
-     *   <li>SparkRunner:
-     *   .../src/test/resources/LICENSE</li>
-     *   <li>other runners:
-     *   gs://apache-beam-samples/apache/LICENSE</li>
-     * </ul>
-     */
-    public static class InputFactory implements DefaultValueFactory<String> {
-      @Override
-      public String create(PipelineOptions options) {
-        if (options.getRunner().isAssignableFrom(SparkRunner.class)) {
-          return Resources.getResource("LICENSE").getPath();
-        } else {
-          return "gs://apache-beam-samples/apache/LICENSE";
         }
       }
     }
