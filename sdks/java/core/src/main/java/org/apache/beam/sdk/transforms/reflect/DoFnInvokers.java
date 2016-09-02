@@ -224,13 +224,6 @@ public class DoFnInvokers {
             .intercept(delegateWithDowncastOrThrow(signature.newTracker()));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
-    try {
-      try (FileOutputStream w = new FileOutputStream("/tmp/foo.class")) {
-        w.write(unloaded.getBytes());
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
 
     @SuppressWarnings("unchecked")
     Class<? extends DoFnInvoker<?, ?>> res =
@@ -443,8 +436,7 @@ public class DoFnInvokers {
    * downcasting parameters to the proper type.
    */
   private static class SimpleMethodDelegation extends DoFnMethodDelegation {
-
-    protected SimpleMethodDelegation(Method method) {
+    SimpleMethodDelegation(Method method) {
       super(new MethodDescription.ForLoadedMethod(method));
     }
 
@@ -501,8 +493,8 @@ public class DoFnInvokers {
 
     private final MethodDescription createUserCodeException;
 
-    public UserCodeMethodInvocation(
-        Integer returnVarIndex,
+    UserCodeMethodInvocation(
+        @Nullable Integer returnVarIndex,
         MethodDescription targetMethod,
         MethodDescription instrumentedMethod) {
       this.returnVarIndex = returnVarIndex;
