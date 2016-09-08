@@ -118,7 +118,7 @@ class FileBasedSource(iobase.BoundedSource):
                   decompressing the whole file.
     Raises:
       TypeError: when compression_type is not valid or if file_pattern is not a
-                string.
+                 string.
       ValueError: when compression and splittable files are specified.
     """
     if not isinstance(file_pattern, basestring):
@@ -262,7 +262,7 @@ class _SingleFileSource(iobase.BoundedSource):
         yield iobase.SourceBundle(
             bundle_stop - bundle_start,
             _SingleFileSource(
-                # Copying this so that each sub-source get's a fresh instance.
+                # Copying this so that each sub-source gets a fresh instance.
                 pickler.loads(pickler.dumps(self._file_based_source)),
                 self._file_name,
                 bundle_start,
