@@ -39,18 +39,18 @@ public class WindowedWordCountIT {
   /**
    * Options for the {@link WindowedWordCount} Integration Test.
    */
-  public interface TestOptions extends Options, TestPipelineOptions, StreamingOptions{
+  public interface TestOptions extends Options, TestPipelineOptions, StreamingOptions {
   }
 
   @Test
   public void testWindowedWordCountInBatch() throws IOException {
-    testWindowedWordCountPipeline(false);
+    testWindowedWordCountPipeline(false /* isStreaming */);
   }
 
   @Test
   @Category(StreamingIT.class)
   public void testWindowedWordCountInStreaming() throws IOException {
-    testWindowedWordCountPipeline(true);
+    testWindowedWordCountPipeline(true /* isStreaming */);
   }
 
   private void testWindowedWordCountPipeline(boolean isStreaming) throws IOException {
