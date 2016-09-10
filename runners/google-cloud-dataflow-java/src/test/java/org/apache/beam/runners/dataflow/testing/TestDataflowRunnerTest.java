@@ -408,7 +408,7 @@ public class TestDataflowRunnerTest {
             false /* multipleWatermarks */,
             false /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertFalse(runner.checkMaxWatermark(job));
+    assertFalse(runner.atMaxWatermark(job));
   }
 
   @Test
@@ -426,7 +426,7 @@ public class TestDataflowRunnerTest {
             false /* multipleWatermarks */,
             false /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertTrue(runner.checkMaxWatermark(job));
+    assertTrue(runner.atMaxWatermark(job));
   }
 
   @Test
@@ -444,7 +444,7 @@ public class TestDataflowRunnerTest {
             false /* multipleWatermarks */,
             false /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertFalse(runner.checkMaxWatermark(job));
+    assertFalse(runner.atMaxWatermark(job));
   }
 
   @Test
@@ -462,7 +462,7 @@ public class TestDataflowRunnerTest {
             true /* multipleWatermarks */,
             true /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertTrue(runner.checkMaxWatermark(job));
+    assertTrue(runner.atMaxWatermark(job));
   }
 
   @Test
@@ -480,7 +480,7 @@ public class TestDataflowRunnerTest {
             true /* multipleWatermarks */,
             false /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertFalse(runner.checkMaxWatermark(job));
+    assertFalse(runner.atMaxWatermark(job));
   }
 
   @Test

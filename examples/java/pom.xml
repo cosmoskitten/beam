@@ -117,7 +117,7 @@
 
     <!--
       This profile disable streaming integration tests which
-      have @Category(StreamingITs.class) annotation.
+      have @Category(StreamingIT.class) annotation.
 
       This profile can be abled on the command line
       by specifying -P disable-streaming-ITs.
