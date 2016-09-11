@@ -120,7 +120,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             try {
               for (;;) {
                 Optional<Boolean> result = checkForSuccess(job);
-                if (result.isPresent() && (!result.get() || checkMaxWatermark(job))) {
+                if (result.isPresent() && (!result.get() || atMaxWatermark(job))) {
                   return result;
                 }
                 Thread.sleep(10000L);
@@ -227,9 +227,18 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Optional.<Boolean>absent();
   }
 
-  boolean checkMaxWatermark(DataflowPipelineJob job) throws IOException {
-    JobMetrics metrics = options.getDataflowClient().projects().jobs()
-        .getMetrics(job.getProjectId(), job.getJobId()).execute();
+  /**
+   * Check if all data watermark value for each step of the pipeline reach to max.
+   */
+  boolean atMaxWatermark(DataflowPipelineJob job) {
+    JobMetrics metrics;
+    try {
+      metrics = options.getDataflowClient().projects().jobs()
+          .getMetrics(job.getProjectId(), job.getJobId()).execute();
+    } catch (IOException e) {
+      LOG.error("Failed to retrieve job metrics. {}", e);
+      return false;
+    }
 
     if (metrics == null || metrics.getMetrics() == null) {
       LOG.warn("Metrics not present for Dataflow job {}.", job.getJobId());
@@ -245,7 +254,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         BigDecimal watermark = (BigDecimal) metric.getScalar();
         hasMaxWatermark = watermark.longValue() == MAX_WATERMARK_VALUE;
         if (!hasMaxWatermark) {
-          break;
+          LOG.info("At lease one data watermark is not max for job {}", job.getJobId());
+          return false;
         }
       }
       if (hasMaxWatermark) {
