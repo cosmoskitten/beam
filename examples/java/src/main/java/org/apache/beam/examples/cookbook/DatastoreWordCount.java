@@ -47,25 +47,26 @@ import org.apache.beam.sdk.transforms.ParDo;
 /**
  * A WordCount example using DatastoreIO.
  *
- * <p>This example shows how to use DatastoreIO to read from Datastore and
+ * <p>This example shows how to use DatastoreIO to read from Cloud Datastore and
  * write the results to Cloud Storage.  Note that this example will write
- * data to Datastore, which may incur charge for Datastore operations.
+ * data to Cloud Datastore, which may incur charge for Cloud Datastore operations.
  *
- * <p>To run this example, users need to use gcloud to get credential for Datastore:
+ * <p>To run this example, users need to use gcloud to get credential for Cloud Datastore:
  * <pre>{@code
  * $ gcloud auth login
  * }</pre>
  *
  * <p>To run this pipeline locally, the following options must be provided:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PATH]
  * }</pre>
  *
- * <p>To run this example using Dataflow service, you must additionally
- * provide either {@literal --tempLocation} or {@literal --tempLocation}, and
- * select one of the Dataflow pipeline runners, eg
- * {@literal --runner=BlockingDataflowRunner}.
+ * <p>To change the runner, specify:
+ * <pre>{@code
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p><b>Note:</b> this example creates entities with <i>Ancestor keys</i> to ensure that all
  * entities created are in the same entity group. Similarly, the query used to read from the Cloud
@@ -150,7 +151,7 @@ public class DatastoreWordCount {
    * <p>Inherits standard configuration options.
    */
   public static interface Options extends PipelineOptions {
-    @Description("Path of the file to read from and store to Datastore")
+    @Description("Path of the file to read from and store to Cloud Datastore")
     @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
     String getInput();
     void setInput(String value);
@@ -160,17 +161,17 @@ public class DatastoreWordCount {
     String getOutput();
     void setOutput(String value);
 
-    @Description("Project ID to read from datastore")
+    @Description("Project ID to read from Cloud Datastore")
     @Validation.Required
     String getProject();
     void setProject(String value);
 
-    @Description("Datastore Entity kind")
+    @Description("Cloud Datastore Entity kind")
     @Default.String("shakespeare-demo")
     String getKind();
     void setKind(String value);
 
-    @Description("Datastore Namespace")
+    @Description("Cloud Datastore Namespace")
     String getNamespace();
     void setNamespace(@Nullable String value);
 
@@ -186,7 +187,7 @@ public class DatastoreWordCount {
 
   /**
    * An example that creates a pipeline to populate DatastoreIO from a
-   * text input.  Forces use of DirectRunner for local execution mode.
+   * text input. Forces use of DirectRunner for local execution mode.
    */
   public static void writeDataToDatastore(Options options) {
       Pipeline p = Pipeline.create(options);
@@ -217,7 +218,7 @@ public class DatastoreWordCount {
   }
 
   /**
-   * An example that creates a pipeline to do DatastoreIO.Read from Datastore.
+   * An example that creates a pipeline to do DatastoreIO.Read from Cloud Datastore.
    */
   public static void readDataFromDatastore(Options options) {
     Query query = makeAncestorKindQuery(options);
@@ -239,13 +240,9 @@ public class DatastoreWordCount {
   }
 
   /**
-   * An example to demo how to use {@link DatastoreIO}.  The runner here is
-   * customizable, which means users could pass either {@code DirectRunner}
-   * or {@code DataflowRunner} in the pipeline options.
+   * An example to demo how to use {@link DatastoreIO}.
    */
   public static void main(String args[]) {
-    // The options are used in two places, for Dataflow service, and
-    // building DatastoreIO.Read object
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
     if (!options.isReadOnly()) {

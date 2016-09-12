@@ -77,26 +77,19 @@ import org.joda.time.Duration;
  * <p>Concepts: Using the same pipeline in both streaming and batch, combiners,
  *              composite transforms.
  *
- * <p>To execute this pipeline using the Dataflow service in batch mode,
- * specify pipeline configuration:
+ * <p>To execute this pipeline in streaming mode, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=DataflowRunner
- *   --inputFile=gs://path/to/input*.txt
- * }</pre>
- *
- * <p>To execute this pipeline using the Dataflow service in streaming mode,
- * specify pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=DataflowRunner
- *   --inputFile=gs://YOUR_INPUT_DIRECTORY/*.txt
  *   --streaming
  * }</pre>
  *
- * <p>This will update the datastore every 10 seconds based on the last
+ * <p>To change the runner, specify:
+ * <pre>{@code
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
+ *
+ * <p>This will update the Cloud Datastore every 10 seconds based on the last
  * 30 minutes of data received.
  */
 public class AutoComplete {
@@ -380,7 +373,7 @@ public class AutoComplete {
 
   /**
    * Takes as input a the top candidates per prefix, and emits an entity
-   * suitable for writing to Datastore.
+   * suitable for writing to Cloud Datastore.
    *
    * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
    * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
@@ -417,7 +410,7 @@ public class AutoComplete {
   /**
    * Options supported by this class.
    *
-   * <p>Inherits standard Dataflow configuration options.
+   * <p>Inherits standard Beam example configuration options.
    */
   private static interface Options
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
@@ -431,7 +424,7 @@ public class AutoComplete {
     Boolean getRecursive();
     void setRecursive(Boolean value);
 
-    @Description("Datastore entity kind")
+    @Description("Cloud Datastore entity kind")
     @Default.String("autocomplete-demo")
     String getKind();
     void setKind(String value);
@@ -441,17 +434,17 @@ public class AutoComplete {
     Boolean getOutputToBigQuery();
     void setOutputToBigQuery(Boolean value);
 
-    @Description("Whether output to Datastore")
+    @Description("Whether output to Cloud Datastore")
     @Default.Boolean(false)
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
 
-    @Description("Datastore ancestor key")
+    @Description("Cloud Datastore ancestor key")
     @Default.String("root")
     String getDatastoreAncestorKey();
     void setDatastoreAncestorKey(String value);
 
-    @Description("Datastore output project ID, defaults to project ID")
+    @Description("Cloud Datastore output project ID, defaults to project ID")
     String getOutputProject();
     void setOutputProject(String value);
   }
@@ -510,7 +503,7 @@ public class AutoComplete {
     // Run the pipeline.
     PipelineResult result = p.run();
 
-    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
   }
 }

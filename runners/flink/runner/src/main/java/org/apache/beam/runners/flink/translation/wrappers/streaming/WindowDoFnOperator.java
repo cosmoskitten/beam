@@ -34,6 +34,7 @@ import java.util.Queue;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
+import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ExecutionContext;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
-import org.apache.beam.sdk.util.SystemReduceFn;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -248,8 +248,8 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
-  public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-    super.restoreState(state, recoveryTimestamp);
+  public void restoreState(StreamTaskState state) throws Exception {
+    super.restoreState(state);
 
     @SuppressWarnings("unchecked")
     StateHandle<DataInputView> operatorState =
@@ -265,7 +265,17 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     int numWatermarkTimers = dataIn.readInt();
 
     watermarkTimers = new HashSet<>(numWatermarkTimers);
-    watermarkTimersQueue = new PriorityQueue<>(Math.max(numWatermarkTimers, 1));
+
+    watermarkTimersQueue = new PriorityQueue<>(
+            Math.max(numWatermarkTimers, 1),
+            new Comparator<Tuple2<ByteBuffer, TimerInternals.TimerData>>() {
+              @Override
+              public int compare(
+                      Tuple2<ByteBuffer, TimerInternals.TimerData> o1,
+                      Tuple2<ByteBuffer, TimerInternals.TimerData> o2) {
+                return o1.f1.compareTo(o2.f1);
+              }
+            });
 
     for (int i = 0; i < numWatermarkTimers; i++) {
       int length = dataIn.readInt();

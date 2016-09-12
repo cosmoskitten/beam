@@ -448,7 +448,31 @@ public class TextIO {
       return new Bound<>(DEFAULT_TEXT_CODER).withoutValidation();
     }
 
-    // TODO: appendingNewlines, header, footer, etc.
+    /**
+     * Returns a transform for writing to text files that adds a header string to the files
+     * it writes. Note that a newline character will be added after the header.
+     *
+     * <p>A {@code null} value will clear any previously configured header.
+     *
+     * @param header the string to be added as file header
+     */
+    public static Bound<String> withHeader(@Nullable String header) {
+      return new Bound<>(DEFAULT_TEXT_CODER).withHeader(header);
+    }
+
+    /**
+     * Returns a transform for writing to text files that adds a footer string to the files
+     * it writes. Note that a newline character will be added after the header.
+     *
+     * <p>A {@code null} value will clear any previously configured footer.
+     *
+     * @param footer the string to be added as file footer
+     */
+    public static Bound<String> withFooter(@Nullable String footer) {
+      return new Bound<>(DEFAULT_TEXT_CODER).withFooter(footer);
+    }
+
+    // TODO: appendingNewlines, etc.
 
     /**
      * A PTransform that writes a bounded PCollection to a text file (or
@@ -465,6 +489,12 @@ public class TextIO {
       /** The suffix of each file written, combined with prefix and shardTemplate. */
       private final String filenameSuffix;
 
+      /** An optional header to add to each file. */
+      @Nullable private final String header;
+
+      /** An optional footer to add to each file. */
+      @Nullable private final String footer;
+
       /** The Coder to use to decode each line. */
       private final Coder<T> coder;
 
@@ -478,12 +508,15 @@ public class TextIO {
       private final boolean validate;
 
       Bound(Coder<T> coder) {
-        this(null, null, "", coder, 0, DEFAULT_SHARD_TEMPLATE, true);
+        this(null, null, "", null, null, coder, 0, DEFAULT_SHARD_TEMPLATE, true);
       }
 
-      private Bound(String name, String filenamePrefix, String filenameSuffix, Coder<T> coder,
-          int numShards, String shardTemplate, boolean validate) {
+      private Bound(String name, String filenamePrefix, String filenameSuffix,
+          @Nullable String header, @Nullable String footer, Coder<T> coder, int numShards,
+          String shardTemplate, boolean validate) {
         super(name);
+        this.header = header;
+        this.footer = footer;
         this.coder = coder;
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
@@ -502,7 +535,7 @@ public class TextIO {
        */
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -516,7 +549,7 @@ public class TextIO {
        */
       public Bound<T> withSuffix(String nameExtension) {
         validateOutputComponent(nameExtension);
-        return new Bound<>(name, filenamePrefix, nameExtension, coder, numShards,
+        return new Bound<>(name, filenamePrefix, nameExtension, header, footer, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -536,7 +569,7 @@ public class TextIO {
        */
       public Bound<T> withNumShards(int numShards) {
         checkArgument(numShards >= 0);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -549,7 +582,7 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -567,7 +600,8 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutSharding() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, 1, "", validate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, 1, "",
+            validate);
       }
 
       /**
@@ -579,7 +613,7 @@ public class TextIO {
        * @param <X> the type of the elements of the input {@link PCollection}
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -594,7 +628,37 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutValidation() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+            shardTemplate, false);
+      }
+
+      /**
+       * Returns a transform for writing to text files that adds a header string to the files
+       * it writes. Note that a newline character will be added after the header.
+       *
+       * <p>A {@code null} value will clear any previously configured header.
+       *
+       * <p>Does not modify this object.
+       *
+       * @param header the string to be added as file header
+       */
+      public Bound<T> withHeader(@Nullable String header) {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+            shardTemplate, false);
+      }
+
+      /**
+       * Returns a transform for writing to text files that adds a footer string to the files
+       * it writes. Note that a newline character will be added after the header.
+       *
+       * <p>A {@code null} value will clear any previously configured footer.
+       *
+       * <p>Does not modify this object.
+       *
+       * @param footer the string to be added as file footer
+       */
+      public Bound<T> withFooter(@Nullable String footer) {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, false);
       }
 
@@ -607,7 +671,8 @@ public class TextIO {
 
         org.apache.beam.sdk.io.Write.Bound<T> write =
             org.apache.beam.sdk.io.Write.to(
-                new TextSink<>(filenamePrefix, filenameSuffix, shardTemplate, coder));
+                new TextSink<>(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
+                    coder));
         if (getNumShards() > 0) {
           write = write.withNumShards(getNumShards());
         }
@@ -629,7 +694,11 @@ public class TextIO {
             .addIfNotDefault(DisplayData.item("validation", validate)
               .withLabel("Validation Enabled"), true)
             .addIfNotDefault(DisplayData.item("numShards", numShards)
-              .withLabel("Maximum Output Shards"), 0);
+              .withLabel("Maximum Output Shards"), 0)
+            .addIfNotNull(DisplayData.item("fileHeader", header)
+              .withLabel("File Header"))
+            .addIfNotNull(DisplayData.item("fileFooter", footer)
+                .withLabel("File Footer"));
       }
 
       /**
@@ -662,6 +731,16 @@ public class TextIO {
 
       public Coder<T> getCoder() {
         return coder;
+      }
+
+      @Nullable
+      public String getHeader() {
+        return header;
+      }
+
+      @Nullable
+      public String getFooter() {
+        return footer;
       }
 
       public boolean needsValidation() {
@@ -728,7 +807,7 @@ public class TextIO {
   private TextIO() {}
 
   /**
-   * A {@link FileBasedSource} which can decode records delimited by new line characters.
+   * A {@link FileBasedSource} which can decode records delimited by newline characters.
    *
    * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or
    * {@code \r\n} as the delimiter. This source is not strict and supports decoding the last record
@@ -776,7 +855,7 @@ public class TextIO {
 
     /**
      * A {@link org.apache.beam.sdk.io.FileBasedSource.FileBasedReader FileBasedReader}
-     * which can decode records delimited by new line characters.
+     * which can decode records delimited by newline characters.
      *
      * See {@link TextSource} for further details.
      */
@@ -939,24 +1018,30 @@ public class TextIO {
   }
 
   /**
-   * A {@link FileBasedSink} for text files. Produces text files with the new line separator
+   * A {@link FileBasedSink} for text files. Produces text files with the newline separator
    * {@code '\n'} represented in {@code UTF-8} format as the record separator.
    * Each record (including the last) is terminated.
    */
   @VisibleForTesting
   static class TextSink<T> extends FileBasedSink<T> {
     private final Coder<T> coder;
+    @Nullable private final String header;
+    @Nullable private final String footer;
 
     @VisibleForTesting
     TextSink(
-        String baseOutputFilename, String extension, String fileNameTemplate, Coder<T> coder) {
+        String baseOutputFilename, String extension,
+        @Nullable String header, @Nullable String footer,
+        String fileNameTemplate, Coder<T> coder) {
       super(baseOutputFilename, extension, fileNameTemplate);
       this.coder = coder;
+      this.header = header;
+      this.footer = footer;
     }
 
     @Override
     public FileBasedSink.FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options) {
-      return new TextWriteOperation<>(this, coder);
+      return new TextWriteOperation<>(this, coder, header, footer);
     }
 
     /**
@@ -965,15 +1050,20 @@ public class TextIO {
      */
     private static class TextWriteOperation<T> extends FileBasedWriteOperation<T> {
       private final Coder<T> coder;
+      @Nullable private final String header;
+      @Nullable private final String footer;
 
-      private TextWriteOperation(TextSink<T> sink, Coder<T> coder) {
+      private TextWriteOperation(TextSink<T> sink, Coder<T> coder,
+          @Nullable String header, @Nullable String footer) {
         super(sink);
         this.coder = coder;
+        this.header = header;
+        this.footer = footer;
       }
 
       @Override
       public FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception {
-        return new TextWriter<>(this, coder);
+        return new TextWriter<>(this, coder, header, footer);
       }
     }
 
@@ -984,17 +1074,42 @@ public class TextIO {
     private static class TextWriter<T> extends FileBasedWriter<T> {
       private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
       private final Coder<T> coder;
+      @Nullable private final String header;
+      @Nullable private final String footer;
       private OutputStream out;
 
-      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder) {
+      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder,
+          @Nullable String header, @Nullable String footer) {
         super(writeOperation);
+        this.header = header;
+        this.footer = footer;
         this.mimeType = MimeTypes.TEXT;
         this.coder = coder;
+      }
+
+      /**
+       * Writes {@code value} followed by a newline if {@code value} is not null.
+       */
+      private void writeIfNotNull(@Nullable String value) throws IOException {
+        if (value != null) {
+          out.write(value.getBytes(StandardCharsets.UTF_8));
+          out.write(NEWLINE);
+        }
       }
 
       @Override
       protected void prepareWrite(WritableByteChannel channel) throws Exception {
         out = Channels.newOutputStream(channel);
+      }
+
+      @Override
+      protected void writeHeader() throws Exception {
+        writeIfNotNull(header);
+      }
+
+      @Override
+      protected void writeFooter() throws Exception {
+        writeIfNotNull(footer);
       }
 
       @Override

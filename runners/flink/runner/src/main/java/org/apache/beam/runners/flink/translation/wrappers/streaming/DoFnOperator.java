@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import avro.shaded.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.Serializable;
@@ -27,6 +27,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
@@ -40,11 +43,8 @@ import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.DoFnRunner;
-import org.apache.beam.sdk.util.DoFnRunners;
 import org.apache.beam.sdk.util.ExecutionContext;
 import org.apache.beam.sdk.util.NullSideInputReader;
-import org.apache.beam.sdk.util.PushbackSideInputDoFnRunner;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -79,8 +79,8 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
  *
  * @param <InputT> the input type of the {@link OldDoFn}
  * @param <FnOutputT> the output type of the {@link OldDoFn}
- * @param <OutputT> the output type of the operator, this can be different from the fn output type when we have
- *                 side outputs
+ * @param <OutputT> the output type of the operator, this can be different from the fn output
+ *                 type when we have side outputs
  */
 public class DoFnOperator<InputT, FnOutputT, OutputT>
     extends AbstractStreamOperator<OutputT>
@@ -166,7 +166,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     currentInputWatermark = Long.MIN_VALUE;
     currentOutputWatermark = currentInputWatermark;
 
-   	Aggregator.AggregatorFactory aggregatorFactory = new Aggregator.AggregatorFactory() {
+    Aggregator.AggregatorFactory aggregatorFactory = new Aggregator.AggregatorFactory() {
       @Override
       public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
           Class<?> fnClass,
@@ -199,7 +199,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       if (restoredSideInputState != null) {
         @SuppressWarnings("unchecked,rawtypes")
         HashMap<String, KvStateSnapshot> castRestored = (HashMap) restoredSideInputState;
-        sideInputStateBackend.injectKeyValueStateSnapshots(castRestored, 0L);
+        sideInputStateBackend.injectKeyValueStateSnapshots(castRestored);
         restoredSideInputState = null;
       }
 
@@ -306,15 +306,19 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
             pushedBackDescriptor);
 
     List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
-    for (WindowedValue<InputT> elem: pushedBack.get()) {
 
-      // we need to set the correct key in case the operator is
-      // a (keyed) window operator
-      setKeyContextElement1(new StreamRecord<>(elem));
+    Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.get();
+    if (pushedBackContents != null) {
+      for (WindowedValue<InputT> elem : pushedBackContents) {
 
-      Iterable<WindowedValue<InputT>> justPushedBack =
-          pushbackDoFnRunner.processElementInReadyWindows(elem);
-      Iterables.addAll(newPushedBack, justPushedBack);
+        // we need to set the correct key in case the operator is
+        // a (keyed) window operator
+        setKeyContextElement1(new StreamRecord<>(elem));
+
+        Iterable<WindowedValue<InputT>> justPushedBack =
+            pushbackDoFnRunner.processElementInReadyWindows(elem);
+        Iterables.addAll(newPushedBack, justPushedBack);
+      }
     }
 
 
@@ -385,8 +389,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   }
 
   @Override
-  public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-    super.restoreState(state, recoveryTimestamp);
+  public void restoreState(StreamTaskState state) throws Exception {
+    super.restoreState(state);
 
     @SuppressWarnings("unchecked,rawtypes")
     StateHandle<HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>>> sideInputStateHandle =
