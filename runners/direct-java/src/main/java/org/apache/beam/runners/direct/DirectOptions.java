@@ -52,15 +52,14 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
       "Controls whether the DirectRunner should ensure that all of the elements of every "
           + "PCollection are not mutated. PTransforms are not permitted to mutate input elements "
           + "at any point, or output elements after they are output.")
-  boolean isTestImmutability();
+  boolean isEnforceImmutability();
 
-  void setTestImmutability(boolean test);
+  void setEnforceImmutability(boolean test);
 
   @Default.Boolean(true)
   @Description(
       "Controls whether the DirectRunner should ensure that all of the elements of every "
           + "PCollection are encodable. All elements in a PCollection must be encodable.")
-  // All non-null elements will be encoded if isTestImmutability set to true
-  boolean isTestEncodability();
-  void setTestEncodability(boolean test);
+  boolean isEnforceEncodability();
+  void setEnforceEncodability(boolean test);
 }

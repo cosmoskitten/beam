@@ -387,7 +387,7 @@ public class DirectRunnerTest implements Serializable {
   }
 
   @Test
-  public void testUnencodableElement() throws Exception {
+  public void testUnencodableOutputElement() throws Exception {
     Pipeline p = getPipeline();
     PCollection<Long> pcollection =
         p.apply(Create.of((Void) null)).apply(ParDo.of(new DoFn<Void, Long>() {
@@ -412,7 +412,7 @@ public class DirectRunnerTest implements Serializable {
   }
 
   @Test
-  public void testUnencodableFromBoundedRead() throws Exception {
+  public void testUnencodableOutputFromBoundedRead() throws Exception {
     Pipeline p = getPipeline();
     PCollection<Long> pCollection =
         p.apply(CountingInput.upTo(10)).setCoder(new LongNoDecodeCoder());
@@ -423,7 +423,7 @@ public class DirectRunnerTest implements Serializable {
   }
 
   @Test
-  public void testUnencodableFromUnboundedRead() {
+  public void testUnencodableOutputFromUnboundedRead() {
     Pipeline p = getPipeline();
     PCollection<Long> pCollection =
         p.apply(CountingInput.unbounded()).setCoder(new LongNoDecodeCoder());
