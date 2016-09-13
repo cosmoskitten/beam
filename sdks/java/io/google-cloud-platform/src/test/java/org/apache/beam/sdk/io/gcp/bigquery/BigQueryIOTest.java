@@ -468,8 +468,9 @@ public class BigQueryIOTest implements Serializable {
   public void testValidateReadSetsDefaultProject() throws Exception {
     String projectId = "someproject";
     String datasetId = "somedataset";
-    BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    options.setProject(projectId);
+    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject(projectId);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
 
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(mockJobService)
@@ -477,7 +478,7 @@ public class BigQueryIOTest implements Serializable {
     when(mockDatasetService.getDataset(projectId, datasetId)).thenThrow(
         new RuntimeException("Unable to confirm BigQuery dataset presence"));
 
-    Pipeline p = TestPipeline.create(options);
+    Pipeline p = TestPipeline.create(bqOptions);
 
     TableReference tableRef = new TableReference();
     tableRef.setDatasetId(datasetId);
@@ -495,7 +496,11 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testBuildSourceWithoutTableQueryOrValidation() {
-    Pipeline p = TestPipeline.create();
+    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
         "Invalid BigQuery read operation, either table reference or query has to be set");
@@ -506,7 +511,11 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testBuildSourceWithTableAndQuery() {
-    Pipeline p = TestPipeline.create();
+    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
         "Invalid BigQuery read operation. Specifies both a query and a table, only one of these"
@@ -521,7 +530,11 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testBuildSourceWithTableAndFlatten() {
-    Pipeline p = TestPipeline.create();
+    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
         "Invalid BigQuery read operation. Specifies a"
@@ -536,7 +549,11 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testBuildSourceWithTableAndFlattenWithoutValidation() {
-    Pipeline p = TestPipeline.create();
+    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
         "Invalid BigQuery read operation. Specifies a"
