@@ -655,4 +655,50 @@ public class DataflowPipelineJobTest {
       fastNanoTime += millis * 1000000L + ThreadLocalRandom.current().nextInt(500000);
     }
   }
+
+  @Test
+  public void testCancelUnterminatedJob() throws IOException {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_RUNNING");
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    when(mockJobs.update(eq(PROJECT_ID), eq(JOB_ID), eq(content))).thenReturn(update);
+    when(update.execute()).thenReturn(new Job());
+
+    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+
+    assertEquals(State.RUNNING, job.getState());
+    assertEquals(State.CANCELLED, job.cancel());
+  }
+
+  @Test
+  public void testCancelTerminatedJob() throws IOException {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_FAILED");
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    when(mockJobs.update(eq(PROJECT_ID), eq(JOB_ID), eq(content))).thenReturn(update);
+    when(update.execute()).thenReturn(new Job());
+
+    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+
+    assertEquals(State.FAILED, job.getState());
+    assertEquals(State.FAILED, job.cancel());
+  }
 }
