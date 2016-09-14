@@ -283,7 +283,7 @@ public class DirectRunner
     Collection<ModelEnforcementFactory> parDoEnforcements = createParDoEnforcements(options);
     enforcements.put(ParDo.Bound.class, parDoEnforcements);
     enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
-    if (options.isTestEncodability()) {
+    if (options.isEnforceEncodability()) {
       enforcements.put(
           Read.Unbounded.class,
           ImmutableSet.<ModelEnforcementFactory>of(EncodabilityEnforcementFactory.create()));
@@ -297,10 +297,10 @@ public class DirectRunner
   private Collection<ModelEnforcementFactory> createParDoEnforcements(
       DirectOptions options) {
     ImmutableList.Builder<ModelEnforcementFactory> enforcements = ImmutableList.builder();
-    if (options.isTestImmutability()) {
+    if (options.isEnforceImmutability()) {
       enforcements.add(ImmutabilityEnforcementFactory.create());
     }
-    if (options.isTestEncodability()) {
+    if (options.isEnforceEncodability()) {
       enforcements.add(EncodabilityEnforcementFactory.create());
     }
     return enforcements.build();
@@ -308,7 +308,7 @@ public class DirectRunner
 
   private BundleFactory createBundleFactory(DirectOptions pipelineOptions) {
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
-    if (pipelineOptions.isTestImmutability()) {
+    if (pipelineOptions.isEnforceImmutability()) {
       bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
     }
     return bundleFactory;
