@@ -29,7 +29,13 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.NanoClock;
@@ -654,5 +660,50 @@ public class DataflowPipelineJobTest {
     public void sleep(long millis) throws InterruptedException {
       fastNanoTime += millis * 1000000L + ThreadLocalRandom.current().nextInt(500000);
     }
+  }
+
+  @Test
+  public void testCancelUnterminatedJob() throws IOException {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_RUNNING");
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    when(mockJobs.update(eq(PROJECT_ID), eq(JOB_ID), eq(content))).thenReturn(update);
+    when(update.execute()).thenReturn(new Job());
+
+    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+
+    assertEquals(State.RUNNING, job.getState());
+    assertEquals(State.CANCELLED, job.cancel());
+    verify(mockJobs, atLeastOnce()).get(anyString(), anyString());
+    verify(statusRequest, atLeastOnce()).execute();
+    verify(mockJobs, times(1)).update(anyString(), anyString(), any(Job.class));
+    verify(update, times(1)).execute();
+  }
+
+  @Test
+  public void testCancelTerminatedJob() throws IOException {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_FAILED");
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+
+    assertEquals(State.FAILED, job.getState());
+    assertEquals(State.FAILED, job.cancel());
+    verify(mockJobs, times(1)).get(anyString(), anyString());
+    verify(statusRequest, times(1)).execute();
+    verify(mockJobs, never()).update(anyString(), anyString(), any(Job.class));
   }
 }
