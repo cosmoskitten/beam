@@ -1225,8 +1225,9 @@ class ConcatSource(BoundedSource):
                     self._end[1] if source_ix == self._end[0] else None))
       return self._range_trackers[source_ix]
 
-  def __init__(self, sources):
+  def __init__(self, sources, weights=None):
     self._sources = sources
+    self._weights = weights
 
   @property
   def sources(self):
@@ -1255,7 +1256,8 @@ class ConcatSource(BoundedSource):
       start_position = (0, None)
     if stop_position is None:
       stop_position = (len(self._sources), None)
-    return self.ConcatRangeTracker(start_position, stop_position, self._sources)
+    return self.ConcatRangeTracker(start_position, stop_position,
+                                   self._sources, self._weights)
 
   def read(self, range_tracker):
     start_source, _ = range_tracker.start_position()
