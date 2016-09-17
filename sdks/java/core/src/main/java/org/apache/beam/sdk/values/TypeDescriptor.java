@@ -331,7 +331,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
    */
   @SuppressWarnings("unchecked")
   public <X> TypeDescriptor<T> where(TypeParameter<X> typeParameter,
-TypeDescriptor<X> typeDescriptor) {
+      TypeDescriptor<X> typeDescriptor) {
     TypeResolver resolver =
         new TypeResolver()
             .where(
