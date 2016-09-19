@@ -29,7 +29,11 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.NanoClock;
@@ -654,5 +658,81 @@ public class DataflowPipelineJobTest {
     public void sleep(long millis) throws InterruptedException {
       fastNanoTime += millis * 1000000L + ThreadLocalRandom.current().nextInt(500000);
     }
+  }
+
+  @Test
+  public void testCancelUnterminatedJobThatSucceeds() throws IOException {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_RUNNING");
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    when(mockJobs.update(eq(PROJECT_ID), eq(JOB_ID), eq(content))).thenReturn(update);
+    when(update.execute()).thenReturn(new Job());
+
+    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+
+    assertEquals(State.RUNNING, job.getState());
+    assertEquals(State.CANCELLED, job.cancel());
+    verify(mockJobs, times(1)).get(anyString(), anyString());
+    verify(mockJobs, times(1)).update(anyString(), anyString(), any(Job.class));
+  }
+
+  @Test
+  public void testCancelUnterminatedJobThatFails() throws IOException {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_RUNNING");
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    when(mockJobs.update(eq(PROJECT_ID), eq(JOB_ID), eq(content))).thenReturn(update);
+    when(update.execute()).thenThrow(new IOException());
+
+    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+
+    assertEquals(State.RUNNING, job.getState());
+    thrown.expect(IOException.class);
+    thrown.expectMessage("Failed to cancel the job, "
+        + "please go to the Developers Console to cancel it manually:");
+    job.cancel();
+  }
+
+  @Test
+  public void testCancelTerminatedJob() throws IOException {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_FAILED");
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    when(mockJobs.update(eq(PROJECT_ID), eq(JOB_ID), eq(content))).thenReturn(update);
+    when(update.execute()).thenThrow(new IOException());
+
+    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+
+    assertEquals(State.FAILED, job.getState());
+    assertEquals(State.FAILED, job.cancel());
+    verify(mockJobs, times(1)).get(anyString(), anyString());
+    verify(mockJobs, times(1)).update(anyString(), anyString(), any(Job.class));
   }
 }
