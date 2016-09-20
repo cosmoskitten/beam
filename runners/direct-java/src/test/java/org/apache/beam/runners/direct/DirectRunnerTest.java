@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.metrics.MetricMatchers.metricResult;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -31,9 +33,15 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricFilter;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -377,5 +385,28 @@ public class DirectRunnerTest implements Serializable {
     thrown.expectMessage("Input");
     thrown.expectMessage("must not be mutated");
     pipeline.run();
+  }
+
+  @Test
+  public void testMetrics() throws Exception {
+    Pipeline pipeline = getPipeline();
+    pipeline
+        .apply(Create.of(5, 8, 13))
+        .apply("MyStep", ParDo.of(new DoFn<Integer, Void>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            Counter cnt = Metrics.counter(DirectRunnerTest.class, "count");
+            Counter sum = Metrics.counter(DirectRunnerTest.class, "sum");
+            cnt.inc();
+            sum.inc(c.element());
+          }
+        }));
+    PipelineResult result = pipeline.run();
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricFilter.builder()
+        .addName(MetricName.named(DirectRunnerTest.class, null))
+        .build());
+    assertThat(metrics.counters(), containsInAnyOrder(
+        metricResult(DirectRunnerTest.class.getSimpleName(), "count", "MyStep", 3L, 3L),
+        metricResult(DirectRunnerTest.class.getSimpleName(), "sum", "MyStep", 26L, 26L)));
   }
 }
