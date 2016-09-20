@@ -47,6 +47,9 @@ import org.apache.beam.sdk.values.PCollectionList;
  * in the input {@code PCollectionList} (if the
  * {@code PCollectionList} is non-empty).
  *
+ * <p>If the same {@link PCollection} appears multiple times in the input {@link PCollectionList},
+ * the output {@link PCollection} will have {@code n} copies of each input element, where {@code n}
+ * is the number of times the {@link PCollection} appears in the input {@link PCollectionList}.
  */
 public class Flatten {
 
@@ -60,6 +63,11 @@ public class Flatten {
    * have the same timestamps as their corresponding input elements.  The output
    * {@code PCollection} will have the same
    * {@link WindowFn} as all of the inputs.
+   *
+   * <p>If the same {@link PCollection} appears multiple times in the input {@link PCollectionList},
+   * the output {@link PCollection} will have {@code n} copies of each input element, where
+   * {@code n} is the number of times the {@link PCollection} appears in the input
+   * {@link PCollectionList}.
    *
    * @param <T> the type of the elements in the input and output
    * {@code PCollection}s.

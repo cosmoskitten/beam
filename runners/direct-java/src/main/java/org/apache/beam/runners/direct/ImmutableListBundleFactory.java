@@ -32,15 +32,17 @@ import org.joda.time.Instant;
  * A factory that produces bundles that perform no additional validation.
  */
 class ImmutableListBundleFactory implements BundleFactory {
+  private static final ImmutableListBundleFactory FACTORY = new ImmutableListBundleFactory();
+
   public static ImmutableListBundleFactory create() {
-    return new ImmutableListBundleFactory();
+    return FACTORY;
   }
 
   private ImmutableListBundleFactory() {}
 
   @Override
   public <T> UncommittedBundle<T> createRootBundle() {
-    return UncommittedImmutableListBundle.create(null, StructuralKey.empty());
+    return UncommittedImmutableListBundle.create(output, StructuralKey.empty());
   }
 
   @Override

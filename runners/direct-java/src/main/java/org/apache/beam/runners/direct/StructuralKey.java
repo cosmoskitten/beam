@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 
 /**

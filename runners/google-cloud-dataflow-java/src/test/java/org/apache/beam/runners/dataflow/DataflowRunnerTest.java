@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.apache.beam.sdk.TestUtils.LINES;
+import static org.apache.beam.sdk.TestUtils.LINES2;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -44,6 +46,7 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -83,9 +86,11 @@ import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.runners.dataflow.TestCountingSource;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -103,6 +108,7 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.hamcrest.Description;
@@ -309,6 +315,24 @@ public class DataflowRunnerTest {
             + "different name using --jobName."));
       assertEquals(expected.getJob().getJobId(), resultJob.getId());
     }
+  }
+
+  @Test
+  public void testFlattenMultiCollectionJob() throws IOException {
+    Pipeline p = buildDataflowPipeline(buildPipelineOptions());
+
+    PCollection<String> lines = p.apply("mkLines", Create.of(LINES));
+    PCollection<String> lines2 = p.apply("mkOtherLines", Create.of(LINES2));
+
+    PCollection<String> flattened = PCollectionList.of(lines)
+        .and(lines2)
+        .and(lines)
+        .and(lines)
+        .apply(Flatten.<String>pCollections());
+
+    PAssert.that(flattened).containsInAnyOrder(Iterables.concat(LINES, LINES, LINES, LINES2));
+
+    p.run();
   }
 
   @Test
