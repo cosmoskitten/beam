@@ -109,7 +109,8 @@ public class DoFnSignatures {
         findAnnotatedMethod(errors, DoFn.GetRestrictionCoder.class, fnClass, false);
     Method newTrackerMethod = findAnnotatedMethod(errors, DoFn.NewTracker.class, fnClass, false);
 
-    ErrorReporter processElementErrors = errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
+    ErrorReporter processElementErrors =
+        errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
     DoFnSignature.ProcessElementMethod processElement =
         analyzeProcessElementMethod(
             processElementErrors, fnToken, processElementMethod, inputT, outputT);
@@ -374,7 +375,7 @@ public class DoFnSignatures {
     if (extraParameters.contains(DoFnSignature.Parameter.RESTRICTION_TRACKER)) {
       errors.checkArgument(
           extraParameters.size() == 1,
-          "Splittable and must not have any extra context arguments apart from %s, but has: %s",
+          "Splittable DoFn must not have any extra context arguments apart from %s, but has: %s",
           trackerT,
           extraParameters);
     }
@@ -432,14 +433,13 @@ public class DoFnSignatures {
       ErrorReporter errors, TypeToken<? extends DoFn> fnToken, Method m, TypeToken<?> inputT) {
     // Method is of the form:
     // @SplitRestriction
-    // List<RestrictionT> splitRestriction(InputT element, RestrictionT restriction, int numParts);
+    // List<RestrictionT> splitRestriction(InputT element, RestrictionT restriction);
     Type[] params = m.getGenericParameterTypes();
-    errors.checkArgument(params.length == 3, "Must have exactly 3 arguments");
+    errors.checkArgument(params.length == 2, "Must have exactly 2 arguments");
     errors.checkArgument(
         fnToken.resolveType(params[0]).equals(inputT),
         "First argument must be the element type %s",
         formatType(inputT));
-    errors.checkArgument(params[2].equals(int.class), "Third argument must be int");
 
     TypeToken<?> restrictionT = fnToken.resolveType(params[1]);
     TypeToken<? extends List<?>> expectedReturnT = listTypeOf(restrictionT);
@@ -561,7 +561,7 @@ public class DoFnSignatures {
   }
 
   private static String format(Method method) {
-    return ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(method);
+    return ReflectHelpers.METHOD_FORMATTER.apply(method);
   }
 
   private static String formatType(TypeToken<?> t) {
@@ -578,7 +578,9 @@ public class DoFnSignatures {
     ErrorReporter forMethod(Class<? extends Annotation> annotation, Method method) {
       return new ErrorReporter(
           this,
-          String.format("@%s %s", annotation, (method == null) ? "(absent)" : format(method)));
+          String.format(
+              "@%s %s",
+              annotation.getSimpleName(), (method == null) ? "(absent)" : format(method)));
     }
 
     void throwIllegalArgument(String message, Object... args) {

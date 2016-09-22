@@ -265,8 +265,7 @@ public class DoFnInvokersTest {
       }
 
       @SplitRestriction
-      public List<SomeRestriction> splitRestriction(
-          String element, SomeRestriction restriction, int numParts) {
+      public List<SomeRestriction> splitRestriction(String element, SomeRestriction restriction) {
         return null;
       }
 
@@ -290,7 +289,7 @@ public class DoFnInvokersTest {
     SomeRestriction part3 = new SomeRestriction();
     when(fn.getRestrictionCoder()).thenReturn(coder);
     when(fn.getInitialRestriction("blah")).thenReturn(restriction);
-    when(fn.splitRestriction("blah", restriction, 3))
+    when(fn.splitRestriction("blah", restriction))
         .thenReturn(Arrays.asList(part1, part2, part3));
     when(fn.newTracker(restriction)).thenReturn(tracker);
     when(fn.processElement(mockContext, tracker)).thenReturn(ProcessContinuation.resume());
@@ -298,7 +297,7 @@ public class DoFnInvokersTest {
     assertEquals(coder, invoker.invokeGetRestrictionCoder());
     assertEquals(restriction, invoker.invokeGetInitialRestriction("blah"));
     assertEquals(
-        Arrays.asList(part1, part2, part3), invoker.invokeSplitRestriction("blah", restriction, 3));
+        Arrays.asList(part1, part2, part3), invoker.invokeSplitRestriction("blah", restriction));
     assertEquals(tracker, invoker.invokeNewTracker(restriction));
     assertEquals(
         ProcessContinuation.resume(),
@@ -333,8 +332,7 @@ public class DoFnInvokersTest {
     DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
 
     assertEquals(StringUtf8Coder.of(), invoker.<String>invokeGetRestrictionCoder());
-    assertEquals(
-        Collections.singletonList("foo"), invoker.invokeSplitRestriction("blah", "foo", 3));
+    assertEquals(Collections.singletonList("foo"), invoker.invokeSplitRestriction("blah", "foo"));
     assertEquals(
         ProcessContinuation.stop(), invoker.invokeProcessElement(mockContext, extraContextFactory));
   }

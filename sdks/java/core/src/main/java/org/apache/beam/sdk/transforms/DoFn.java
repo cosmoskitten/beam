@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import java.io.Serializable;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -30,7 +31,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -397,18 +397,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <ul>
    * <li>Its first argument must be a {@link DoFn.ProcessContext}.
-   * <li>Its remaining arguments, if any, must be either {@link BoundedWindow} or a subtype of
-   *     {@link RestrictionTracker}. Each of these must appear at most once.
-   * <li>The {@link BoundedWindow} argument corresponds to the window of the current element. If
-   *     absent, a runner may perform additional optimizations.
-   * <li>If the {@link RestrictionTracker} argument is present, this {@link DoFn} is treated as <a
-   *     href="https://s.apache.org/splittable-do-fn">splittable</a> and there are additional
-   *     constraints on related methods {@link GetInitialRestriction}, {@link SplitRestriction},
-   *     {@link NewTracker}, {@link GetRestrictionCoder}, as well as the class-level annotations
-   *     {@link Bounded} and {@link Unbounded}.
-   * <li>If this {@link DoFn} is splittable, the {@link ProcessElement} method <i>may</i> return a
-   *     {@link ProcessContinuation} to indicate whether there is more work to be done for the
-   *     current element.
+   * <li>If one of its arguments is a subtype of {@link RestrictionTracker}, then it is a
+   *   <a href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} subject to
+   *   the separate requirements described below. Items below are assuming this is not a splittable
+   *   {@link DoFn}.
+   * <li>If one of its arguments is {@link BoundedWindow}, this argument corresponds to the window
+   *     of the current element. If absent, a runner may perform additional optimizations.
+   * <li>It must return {@code void}.
    * </ul>
    *
    * <h2>Splittable DoFn's (WARNING: work in progress, do not use)</h2>
@@ -432,6 +427,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *     by {@link GetInitialRestriction}.
    * <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
    * <li>The type of restrictions used by all of these methods must be the same.
+   * <li>Its {@link ProcessElement} method <i>may</i> return a {@link ProcessContinuation} to
+   *     indicate whether there is more work to be done for the current element.
+   * <li>Its {@link ProcessElement} method <i>must not</i> use any extra context parameters,
+   *     such as {@link BoundedWindow}.
    * <li>The {@link DoFn} itself <i>may</i> be annotated with {@link Bounded} or {@link Unbounded},
    *     but not both at the same time. If it's not annotated with either of these, it's assumed to
    *     be {@link Bounded} if its {@link ProcessElement} method returns {@code void} and {@link
@@ -509,28 +508,19 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * be processed in parallel.
    *
    * <p>Signature: {@code List<RestrictionT> splitRestriction(
-   *   InputT element, RestrictionT restriction, int numParts);}
-   *
-   * <p>{@code numParts} is a hint as to the number of parts into which the restriction should be
-   * split. The method is allowed to respect the hint or to ignore it and produce any number of
-   * parts. 0 means "no hint, choose a reasonable value".
+   *   InputT element, RestrictionT restriction);}
    *
    * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
    * defining the method and returning {@code Collections.singletonList(restriction)}).
    *
-   * TODO: Make the InputT and numParts parameters optional.
+   * TODO: Introduce a parameter for controlling granularity of splitting, e.g. numParts.
+   * TODO: Make the InputT parameter optional.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   @Experimental(Kind.SPLITTABLE_DO_FN)
-  public @interface SplitRestriction {
-    /**
-     * Means: the {@link SplitRestriction} method should choose a reasonable number of parts
-     * to split the restriction into.
-     */
-    int UNSPECIFIED_NUM_PARTS = 0;
-  }
+  public @interface SplitRestriction {}
 
   /**
    * Annotation for the method that creates a new {@link RestrictionTracker} for the restriction of
@@ -549,6 +539,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Annotation on a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}
    * specifying that the {@link DoFn} performs a bounded amount of work per input element, so
    * applying it to a bounded {@link PCollection} will produce also a bounded {@link PCollection}.
+   * It is an error to specify this on a non-splittable {@link DoFn}.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -560,6 +551,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Annotation on a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}
    * specifying that the {@link DoFn} performs an unbounded amount of work per input element, so
    * applying it to a bounded {@link PCollection} will produce an unbounded {@link PCollection}.
+   * It is an error to specify this on a non-splittable {@link DoFn}.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -586,9 +578,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     }
 
     private final Duration resumeDelay;
-    @Nullable private final Instant futureOutputWatermark;
+    private final Optional<Instant> futureOutputWatermark;
 
-    private ProcessContinuation(Duration resumeDelay, @Nullable Instant futureOutputWatermark) {
+    private ProcessContinuation(Duration resumeDelay, Optional<Instant> futureOutputWatermark) {
       this.resumeDelay = resumeDelay;
       this.futureOutputWatermark = futureOutputWatermark;
     }
@@ -602,13 +594,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     }
 
     /**
-     * A lower bound on timestamps of the output that will be emitted by future {@link
-     * ProcessElement} calls continuing processing of the current element.
+     * A lower bound provided by the {@link DoFn} on timestamps of the output that will be emitted
+     * by future {@link ProcessElement} calls continuing processing of the current element.
      *
-     * <p>By default, equivalent to timestamp of the input element.
+     * <p>A runner should treat an absent value as equivalent to the timestamp of the input element.
      */
-    @Nullable
-    public Instant getFutureOutputWatermark() {
+    public Optional<Instant> getFutureOutputWatermark() {
       return futureOutputWatermark;
     }
 
@@ -619,7 +610,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
     /** Builder method to set the value of {@link #getFutureOutputWatermark()}. */
     public ProcessContinuation withFutureOutputWatermark(Instant futureOutputWatermark) {
-      return new ProcessContinuation(resumeDelay, futureOutputWatermark);
+      return new ProcessContinuation(resumeDelay, Optional.of(futureOutputWatermark));
     }
 
     @Override

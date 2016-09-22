@@ -140,7 +140,7 @@ public class DoFnInvokers {
     /** Doesn't split the restriction. */
     @SuppressWarnings("unused")
     public static <InputT, RestrictionT> List<RestrictionT> invokeSplitRestriction(
-        InputT element, RestrictionT restriction, int numParts) {
+        InputT element, RestrictionT restriction) {
       return Collections.singletonList(restriction);
     }
   }
