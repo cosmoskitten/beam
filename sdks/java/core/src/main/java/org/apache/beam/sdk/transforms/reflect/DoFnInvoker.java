@@ -25,7 +25,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 /**
  * Interface for invoking the {@code DoFn} processing methods.
  *
- * Instantiating a {@link DoFnInvoker} associates it with a specific {@link DoFn} instance,
+ * <p>Instantiating a {@link DoFnInvoker} associates it with a specific {@link DoFn} instance,
  * referred to as the bound {@link DoFn}.
  */
 public interface DoFnInvoker<InputT, OutputT> {
@@ -46,8 +46,8 @@ public interface DoFnInvoker<InputT, OutputT> {
    *
    * @param c The {@link DoFn.ProcessContext} to invoke the fn with.
    * @param extra Factory for producing extra parameter objects (such as window), if necessary.
-   * @return The {@link DoFn.ProcessContinuation} returned by the underlying method,
-   *   or {@link DoFn.ProcessContinuation#stop()} if it returns {@code void}.
+   * @return The {@link DoFn.ProcessContinuation} returned by the underlying method, or {@link
+   *     DoFn.ProcessContinuation#stop()} if it returns {@code void}.
    */
   DoFn.ProcessContinuation invokeProcessElement(
       DoFn<InputT, OutputT>.ProcessContext c, DoFn.ExtraContextFactory<InputT, OutputT> extra);
@@ -60,9 +60,9 @@ public interface DoFnInvoker<InputT, OutputT> {
 
   /** Invoke the {@link DoFn.SplitRestriction} method on the bound {@link DoFn}. */
   <RestrictionT> List<RestrictionT> invokeSplitRestriction(
-      InputT element, RestrictionT restriction, int numParts);
+      InputT element, RestrictionT restriction);
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
-  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
-  TrackerT invokeNewTracker(RestrictionT restriction);
+  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> TrackerT invokeNewTracker(
+      RestrictionT restriction);
 }

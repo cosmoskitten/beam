@@ -107,7 +107,7 @@ public class SplittableDoFnTest {
     }
 
     @SplitRestriction
-    public List<OffsetRange> splitRange(String element, OffsetRange range, int numParts) {
+    public List<OffsetRange> splitRange(String element, OffsetRange range) {
       return Arrays.asList(
           new OffsetRange(range.from, (range.from + range.to) / 2),
           new OffsetRange((range.from + range.to) / 2, range.to));

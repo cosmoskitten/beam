@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
+/** Provides an implementation of {@link GBKIntoKeyedWorkItems} for the Direct Runner. */
 class DirectGBKIntoKeyedWorkItemsOverrideFactory implements PTransformOverrideFactory {
   @Override
   @SuppressWarnings("unchecked")
