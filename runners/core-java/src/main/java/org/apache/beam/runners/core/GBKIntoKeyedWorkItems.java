@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.KeyedWorkItem;
@@ -24,9 +25,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Interface for creating a runner-specific {@link GroupByKey}-like {@link PTransform} that produces
- * {@link KeyedWorkItem} in order to give the downstream transform access to timers.
+ * Interface for creating a runner-specific {@link GroupByKey GroupByKey-like} {@link PTransform}
+ * that produces {@link KeyedWorkItem KeyedWorkItems} so that downstream transforms can access state
+ * and timers.
  */
+@Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class GBKIntoKeyedWorkItems<KeyT, InputT>
     extends PTransform<PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>> {
   @Override

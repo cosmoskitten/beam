@@ -19,15 +19,19 @@ package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.UUID;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -46,7 +50,6 @@ import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -61,6 +64,7 @@ import org.joda.time.Instant;
  * <p>This transform is intended as a helper for internal use by runners when implementing {@code
  * ParDo.of(splittable DoFn)}, but not for direct use by pipeline writers.
  */
+@Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class SplittableParDo<
         InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
     extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
@@ -69,11 +73,9 @@ public class SplittableParDo<
   /**
    * Creates the transform for the given original {@link ParDo} and {@link DoFn}.
    *
-   * @param name Name for the transform
    * @param fn The splittable {@link DoFn} inside the original {@link ParDo} transform.
    */
-  public SplittableParDo(String name, DoFn<InputT, OutputT> fn) {
-    super(name);
+  public SplittableParDo(DoFn<InputT, OutputT> fn) {
     this.fn = fn;
   }
 
@@ -95,7 +97,7 @@ public class SplittableParDo<
         .setCoder(splitCoder)
         .apply(
             "Assign unique key",
-            ParDo.of(new AssignRandomUniqueKeyFn<ElementRestriction<InputT, RestrictionT>>()))
+            WithKeys.of(new RandomUniqueKeyFn<ElementRestriction<InputT, RestrictionT>>()))
         .apply(
             "Group by key",
             new GBKIntoKeyedWorkItems<String, ElementRestriction<InputT, RestrictionT>>())
@@ -114,10 +116,10 @@ public class SplittableParDo<
    * collection is effectively the same elements as input, but with access to per-element (per-key)
    * state and timers.
    */
-  private static class AssignRandomUniqueKeyFn<T> extends DoFn<T, KV<String, T>> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(KV.of(UUID.randomUUID().toString(), c.element()));
+  private static class RandomUniqueKeyFn<T> implements SerializableFunction<T, String> {
+    @Override
+    public String apply(T input) {
+      return UUID.randomUUID().toString();
     }
   }
 
@@ -167,7 +169,8 @@ public class SplittableParDo<
      * DoFn.ProcessContinuation#stop}.
      *
      * <p>A hold is needed to avoid letting the output watermark immediately progress together with
-     * the input watermark when the first {@link DoFn.ProcessElement} call completes.
+     * the input watermark when the first {@link DoFn.ProcessElement} call for this element
+     * completes.
      *
      * <p>The hold is updated with the future output watermark reported by ProcessContinuation.
      */
@@ -261,7 +264,7 @@ public class SplittableParDo<
       }
 
       // Save state for resuming.
-      if (cont == null) {
+      if (!cont.shouldResume()) {
         // All work for this element/restriction is completed. Clear state and release hold.
         elementState.clear();
         restrictionState.clear();
@@ -269,15 +272,16 @@ public class SplittableParDo<
         return;
       }
       restrictionState.write(residual[0]);
-      if (cont.getFutureOutputWatermark() != null) {
-        holdState.add(cont.getFutureOutputWatermark());
+      Optional<Instant> futureOutputWatermark = cont.futureOutputWatermark();
+      if (futureOutputWatermark.isPresent()) {
+        holdState.add(futureOutputWatermark.get());
       }
       // Set a timer to continue processing this element.
       TimerInternals timerInternals = c.windowingInternals().timerInternals();
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
               stateNamespace,
-              Instant.now().plus(cont.getResumeDelay()),
+              Instant.now().plus(cont.resumeDelay()),
               TimeDomain.PROCESSING_TIME));
     }
 
@@ -338,13 +342,17 @@ public class SplittableParDo<
         }
 
         public <T> void sideOutput(TupleTag<T> tag, T output) {
-          // TODO: I'm not sure this is correct, but there's no "internals.sideOutputWindowedValue".
-          baseContext.sideOutputWithTimestamp(tag, output, element.getTimestamp());
+          // TODO: I'm not sure how to implement this correctly: there's no
+          // "internals.sideOutputWindowedValue".
+          throw new UnsupportedOperationException(
+              "Side outputs not yet supported by splittable DoFn");
         }
 
         public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-          // TODO: I'm not sure this is correct, but there's no "internals.sideOutputWindowedValue".
-          baseContext.sideOutputWithTimestamp(tag, output, timestamp);
+          // TODO: I'm not sure how to implement this correctly: there's no
+          // "internals.sideOutputWindowedValue".
+          throw new UnsupportedOperationException(
+              "Side outputs not yet supported by splittable DoFn");
         }
       };
     }
@@ -354,16 +362,19 @@ public class SplittableParDo<
       return new DoFn.ExtraContextFactory<InputT, OutputT>() {
         @Override
         public BoundedWindow window() {
+          // DoFnSignatures should have verified that this DoFn doesn't access extra context.
           throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
         }
 
         @Override
         public DoFn.InputProvider<InputT> inputProvider() {
+          // DoFnSignatures should have verified that this DoFn doesn't access extra context.
           throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
         }
 
         @Override
         public DoFn.OutputReceiver<OutputT> outputReceiver() {
+          // DoFnSignatures should have verified that this DoFn doesn't access extra context.
           throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
         }
 
@@ -394,10 +405,7 @@ public class SplittableParDo<
     @ProcessElement
     public void processElement(ProcessContext c) {
       List<RestrictionT> parts =
-          invoker.invokeSplitRestriction(
-              c.element().element(),
-              c.element().restriction(),
-              SplitRestriction.UNSPECIFIED_NUM_PARTS);
+          invoker.invokeSplitRestriction(c.element().element(), c.element().restriction());
       for (RestrictionT part : parts) {
         c.output(ElementRestriction.of(c.element().element(), part));
       }

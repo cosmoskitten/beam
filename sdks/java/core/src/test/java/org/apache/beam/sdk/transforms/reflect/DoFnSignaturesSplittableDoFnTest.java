@@ -216,8 +216,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @SplitRestriction
-      public List<SomeRestriction> splitRestriction(
-          Integer element, SomeRestriction restriction, int numParts) {
+      public List<SomeRestriction> splitRestriction(Integer element, SomeRestriction restriction) {
         return null;
       }
 
@@ -262,8 +261,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @SplitRestriction
-      public List<RestrictionT> splitRestriction(
-          Integer element, RestrictionT restriction, int numParts) {
+      public List<RestrictionT> splitRestriction(Integer element, RestrictionT restriction) {
         return null;
       }
 
@@ -344,8 +342,8 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage(
-        "#getInitialRestriction(Integer): Uses restriction type String, but @NewTracker method");
-    thrown.expectMessage("#newTracker(SomeRestriction) uses restriction type SomeRestriction");
+        "getInitialRestriction(Integer): Uses restriction type String, but @NewTracker method");
+    thrown.expectMessage("newTracker(SomeRestriction) uses restriction type SomeRestriction");
     DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
   }
 
@@ -372,7 +370,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage(
-        "#getRestrictionCoder() returns KvCoder which is not a subtype of Coder<SomeRestriction>");
+        "getRestrictionCoder() returns KvCoder which is not a subtype of Coder<SomeRestriction>");
     DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
   }
 
@@ -383,7 +381,7 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeToken.of(FakeDoFn.class),
         new AnonymousMethod() {
-          List<String> method(Integer element, SomeRestriction restriction, int numParts) {
+          List<String> method(Integer element, SomeRestriction restriction) {
             return null;
           }
         }.getMethod(),
@@ -393,8 +391,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   @Test
   public void testSplitRestrictionWrongElementArgument() throws Exception {
     class BadFn {
-      private List<SomeRestriction> splitRestriction(
-          String element, SomeRestriction restriction, int numParts) {
+      private List<SomeRestriction> splitRestriction(String element, SomeRestriction restriction) {
         return null;
       }
     }
@@ -404,22 +401,7 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeToken.of(FakeDoFn.class),
         new AnonymousMethod() {
-          List<SomeRestriction> method(String element, SomeRestriction restriction, int numParts) {
-            return null;
-          }
-        }.getMethod(),
-        TypeToken.of(Integer.class));
-  }
-
-  @Test
-  public void testSplitRestrictionWrongNumPartsArgument() throws Exception {
-    thrown.expectMessage("Third argument must be int");
-    DoFnSignatures.analyzeSplitRestrictionMethod(
-        errors(),
-        TypeToken.of(FakeDoFn.class),
-        new AnonymousMethod() {
-          private List<SomeRestriction> method(
-              Integer element, SomeRestriction restriction, long numParts) {
+          List<SomeRestriction> method(String element, SomeRestriction restriction) {
             return null;
           }
         }.getMethod(),
@@ -428,13 +410,13 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   @Test
   public void testSplitRestrictionWrongNumArguments() throws Exception {
-    thrown.expectMessage("Must have exactly 3 arguments");
+    thrown.expectMessage("Must have exactly 2 arguments");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeToken.of(FakeDoFn.class),
         new AnonymousMethod() {
           private List<SomeRestriction> method(
-              Integer element, SomeRestriction restriction, int numParts, Object extra) {
+              Integer element, SomeRestriction restriction, Object extra) {
             return null;
           }
         }.getMethod(),
@@ -461,16 +443,16 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @DoFn.SplitRestriction
       public List<OtherRestriction> splitRestriction(
-          Integer element, OtherRestriction restriction, int numParts) {
+          Integer element, OtherRestriction restriction) {
         return null;
       }
     }
 
     thrown.expectMessage(
-        "#getInitialRestriction(Integer): Uses restriction type SomeRestriction, "
+        "getInitialRestriction(Integer): Uses restriction type SomeRestriction, "
             + "but @SplitRestriction method ");
     thrown.expectMessage(
-        "#splitRestriction(Integer, OtherRestriction, int) uses restriction type OtherRestriction");
+        "splitRestriction(Integer, OtherRestriction) uses restriction type OtherRestriction");
     DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
   }
 
@@ -488,8 +470,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @SplitRestriction
-      public List<SomeRestriction> splitRestriction(
-          Integer element, SomeRestriction restriction, int numParts) {
+      public List<SomeRestriction> splitRestriction(Integer element, SomeRestriction restriction) {
         return null;
       }
 

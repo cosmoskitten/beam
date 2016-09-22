@@ -50,6 +50,6 @@ class ParDoOverrideFactory implements PTransformOverrideFactory {
     if (!signature.processElement().isSplittable()) {
       return transform;
     }
-    return new SplittableParDo(that.getName(), fn);
+    return new SplittableParDo(fn);
   }
 }
