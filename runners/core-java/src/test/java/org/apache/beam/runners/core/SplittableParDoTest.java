@@ -91,17 +91,17 @@ public class SplittableParDoTest {
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        boundedPC.apply(new SplittableParDo<>("bounded to bounded", boundedFn)).isBounded());
+        boundedPC.apply("bounded to bounded", new SplittableParDo<>(boundedFn)).isBounded());
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        unboundedPC.apply(new SplittableParDo<>("bounded to unbounded", boundedFn)).isBounded());
+        unboundedPC.apply("bounded to unbounded", new SplittableParDo<>(boundedFn)).isBounded());
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        boundedPC.apply(new SplittableParDo<>("unbounded to bounded", unboundedFn)).isBounded());
+        boundedPC.apply("unbounded to bounded", new SplittableParDo<>(unboundedFn)).isBounded());
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         unboundedPC
-            .apply(new SplittableParDo<>("unbounded to unbounded", unboundedFn))
+            .apply("unbounded to unbounded", new SplittableParDo<>(unboundedFn))
             .isBounded());
   }
 }

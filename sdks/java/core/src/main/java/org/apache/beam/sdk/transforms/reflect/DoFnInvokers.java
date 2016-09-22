@@ -140,7 +140,7 @@ public class DoFnInvokers {
     /** Doesn't split the restriction. */
     @SuppressWarnings("unused")
     public static <InputT, RestrictionT> List<RestrictionT> invokeSplitRestriction(
-        InputT element, RestrictionT restriction, int numParts) {
+        InputT element, RestrictionT restriction) {
       return Collections.singletonList(restriction);
     }
   }
@@ -456,7 +456,7 @@ public class DoFnInvokers {
 
     @Override
     protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
-      if (TypeDescription.VOID.equals(targetMethod.getReturnType())) {
+      if (TypeDescription.VOID.equals(targetMethod.getReturnType().asErasure())) {
         return new StackManipulation.Compound(
             MethodInvocation.invoke(PROCESS_CONTINUATION_STOP_METHOD), MethodReturn.REFERENCE);
       } else {
