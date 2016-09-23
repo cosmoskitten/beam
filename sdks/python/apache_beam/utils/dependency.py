@@ -141,10 +141,11 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   local_packages = []
   for package in extra_packages:
     if not (os.path.basename(package).endswith('.tar') or
-            os.path.basename(package).endswith('.tar.gz')):
+            os.path.basename(package).endswith('.tar.gz') or
+            os.path.basename(package).endswith('.whl')):
       raise RuntimeError(
-          'The --extra_packages option expects a full path ending with '
-          '\'.tar\' or \'.tar.gz\' instead of %s' % package)
+          'The --extra_package option expects a full path ending with '
+          '\'.tar\', \'.tar.gz\' or \'.whl\' instead of %s' % package)
 
     if not os.path.isfile(package):
       if package.startswith('gs://'):
