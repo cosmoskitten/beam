@@ -33,7 +33,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
                                               ApplicationNameOptions {
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
-  @Default.String("local[1]")
+  @Default.String("local[4]")
   String getSparkMaster();
   void setSparkMaster(String master);
 
