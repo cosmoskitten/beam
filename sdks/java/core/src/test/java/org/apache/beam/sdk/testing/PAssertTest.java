@@ -386,7 +386,7 @@ public class PAssertTest implements Serializable {
     // is first caught by JUnit and causes a test failure.
     try {
       pipeline.run();
-    } catch (AssertionError exc) {
+    } catch (Exception exc) {
       return exc;
     }
     fail("assertion should have failed");
