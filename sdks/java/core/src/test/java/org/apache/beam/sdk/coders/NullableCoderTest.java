@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertEquals;
@@ -26,7 +27,9 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -132,6 +135,28 @@ public class NullableCoderTest {
 
     InputStream input = new ByteArrayInputStream(new byte[] {5});
     TEST_CODER.decode(input, Coder.Context.OUTER);
+  }
+
+  @Test
+  public void testSubcoderRecievesEntireStream() throws Exception {
+    NullableCoder<String> coder = NullableCoder.of(new AtomicCoder<String>() {
+      @Override
+      public void encode(
+          String value, OutputStream outStream, Context context) throws IOException {
+        checkArgument(context.isWholeStream, "Expected to get entire stream");
+        StringUtf8Coder.of().encode(value, outStream, context);
+      }
+
+      @Override
+      public String decode(InputStream inStream, Context context)
+          throws CoderException, IOException {
+        checkArgument(context.isWholeStream, "Expected to get entire stream");
+        return StringUtf8Coder.of().decode(inStream, context);
+      }
+    });
+
+    CoderProperties.coderDecodeEncodeEqual(coder, null);
+    CoderProperties.coderDecodeEncodeEqual(coder, "foo");
   }
 
   @Test
