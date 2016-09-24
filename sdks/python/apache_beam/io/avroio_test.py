@@ -239,6 +239,7 @@ class TestAvro(unittest.TestCase):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with beam.Pipeline('DirectPipelineRunner') as p:
+        # pylint: disable=expression-not-assigned
         p | beam.Create(self.RECORDS) | avroio.WriteToAvro(path, self.SCHEMA)
       with beam.Pipeline('DirectPipelineRunner') as p:
         # json used for stable sortability
@@ -249,8 +250,9 @@ class TestAvro(unittest.TestCase):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       data = [NonAvroRecord(1), NonAvroRecord('a')]
-      coder = coder=beam.coders.PickleCoder()
+      coder = beam.coders.PickleCoder()
       with beam.Pipeline('DirectPipelineRunner') as p:
+        # pylint: disable=expression-not-assigned
         p | beam.Create(data) | avroio.WriteToAvro(path, coder=coder)
       with beam.Pipeline('DirectPipelineRunner') as p:
         readback = p | avroio.ReadFromAvro(path + '*', coder=coder)
