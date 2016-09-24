@@ -245,6 +245,24 @@ class TestAvro(unittest.TestCase):
         readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
+  def test_coders(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      data = [NonAvroRecord(1), NonAvroRecord('a')]
+      coder = coder=beam.coders.PickleCoder()
+      with beam.Pipeline('DirectPipelineRunner') as p:
+        p | beam.Create(data) | avroio.WriteToAvro(path, coder=coder)
+      with beam.Pipeline('DirectPipelineRunner') as p:
+        readback = p | avroio.ReadFromAvro(path + '*', coder=coder)
+        assert_that(readback, equal_to(data))
+
+
+class NonAvroRecord(object):
+  def __init__(self, value):
+    self._value = value
+  def __cmp__(self, other):
+    return cmp(self._value, other._value)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
