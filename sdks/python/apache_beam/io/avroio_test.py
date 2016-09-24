@@ -260,8 +260,10 @@ class TestAvro(unittest.TestCase):
 
 
 class NonAvroRecord(object):
+
   def __init__(self, value):
     self._value = value
+
   def __cmp__(self, other):
     return cmp(self._value, other._value)
 
