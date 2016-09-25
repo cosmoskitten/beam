@@ -18,31 +18,43 @@
 
 package org.apache.beam.runners.apex.translators.functions;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translators.utils.NoOpStepContext;
 import org.apache.beam.runners.apex.translators.utils.SerializablePipelineOptions;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
+import org.apache.beam.sdk.repackaged.com.google.common.base.Throwables;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.ExecutionContext;
+import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultInputPort;
 import com.datatorrent.api.DefaultOutputPort;
+import com.datatorrent.api.annotation.InputPortFieldAnnotation;
 import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
+import com.google.common.collect.Iterables;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
 /**
@@ -51,7 +63,7 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
 public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements OutputManager {
 
   private transient final TupleTag<OutputT> mainTag = new TupleTag<OutputT>();
-  private transient DoFnRunner<InputT, OutputT> doFnRunner;
+  private transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackDoFnRunner;
 
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions pipelineOptions;
@@ -60,17 +72,28 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   @Bind(JavaSerializer.class)
   private final WindowingStrategy<?, ?> windowingStrategy;
   @Bind(JavaSerializer.class)
-  private final SideInputReader sideInputReader;
+  List<PCollectionView<?>> sideInputs;
+// TODO: not Kryo serializable, integrate codec
+//@Bind(JavaSerializer.class)
+private transient StateInternals<Void> sideInputStateInternals = InMemoryStateInternals.forKey(null);
+  private transient SideInputHandler sideInputHandler;
+  // TODO: not Kryo serializable, integrate codec
+  private List<WindowedValue<InputT>> pushedBack = new ArrayList<>();
+  private LongMin pushedBackWatermark = new LongMin();
+  private long currentInputWatermark = Long.MIN_VALUE;
+  private long currentOutputWatermark = currentInputWatermark;
 
   public ApexParDoOperator(
       ApexPipelineOptions pipelineOptions,
       OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
-      SideInputReader sideInputReader) {
+      List<PCollectionView<?>> sideInputs
+      )
+  {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
-    this.sideInputReader = sideInputReader;
+    this.sideInputs = sideInputs;
   }
 
   @SuppressWarnings("unused") // for Kryo
@@ -78,17 +101,57 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     this(null, null, null, null);
   }
 
+
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input = new DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>>()
   {
     @Override
     public void process(ApexStreamTuple<WindowedValue<InputT>> t)
     {
       if (t instanceof ApexStreamTuple.WatermarkTuple) {
-        output.emit(t);
+        System.out.println("\n" + Thread.currentThread().getName() + " watermark\n" + t + "\n");
+        processWatermark((ApexStreamTuple.WatermarkTuple<?>)t);
       } else {
         System.out.println("\n" + Thread.currentThread().getName() + "\n" + t.getValue() + "\n");
-        doFnRunner.processElement(t.getValue());
+        //pushbackDoFnRunner.processElement(t.getValue());
+        Iterable<WindowedValue<InputT>> justPushedBack =
+            pushbackDoFnRunner.processElementInReadyWindows(t.getValue());
+
+        for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
+          pushedBackWatermark.add(pushedBackValue.getTimestamp().getMillis());
+          pushedBack.add(pushedBackValue);
+        }
+
       }
+    }
+  };
+
+  @InputPortFieldAnnotation(optional=true)
+  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>> sideInput1 = new DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>>()
+  {
+    private final int sideInputIndex = 0;
+
+    @Override
+    public void process(ApexStreamTuple<WindowedValue<Iterable<?>>> t)
+    {
+      PCollectionView<?> sideInput = sideInputs.get(sideInputIndex);
+      sideInputHandler.addSideInputValue(sideInput, t.getValue());
+
+      List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
+      for (WindowedValue<InputT> elem : pushedBack) {
+        Iterable<WindowedValue<InputT>> justPushedBack =
+            pushbackDoFnRunner.processElementInReadyWindows(elem);
+        Iterables.addAll(newPushedBack, justPushedBack);
+      }
+
+      pushedBack.clear();
+      pushedBackWatermark.clear();
+      for (WindowedValue<InputT> pushedBackValue : newPushedBack) {
+        pushedBackWatermark.add(pushedBackValue.getTimestamp().getMillis());
+        pushedBack.add(pushedBackValue);
+      }
+
+      // potentially emit watermark
+      processWatermark(ApexStreamTuple.WatermarkTuple.of(currentInputWatermark));
     }
   };
 
@@ -101,25 +164,59 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     output.emit(ApexStreamTuple.DataTuple.of(tuple));
   }
 
+  private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark)
+  {
+    this.currentInputWatermark = mark.getTimestamp();
+
+    if (sideInputs.isEmpty()) {
+      output.emit(mark);
+      return;
+    }
+
+    long potentialOutputWatermark =
+        Math.min(pushedBackWatermark.get(), currentInputWatermark);
+    if (potentialOutputWatermark > currentOutputWatermark) {
+      currentOutputWatermark = potentialOutputWatermark;
+      output.emit(ApexStreamTuple.WatermarkTuple.of(currentOutputWatermark));
+    }
+  }
+
   @Override
   public void setup(OperatorContext context)
   {
-    this.doFnRunner = DoFnRunners.simpleRunner(pipelineOptions.get(),
+    SideInputReader sideInputReader = NullSideInputReader.of(sideInputs);
+    if (!sideInputs.isEmpty()) {
+      sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
+      sideInputReader = sideInputHandler;
+    }
+
+    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.createDefault(
+        pipelineOptions.get(),
         doFn,
         sideInputReader,
         this,
         mainTag,
-        TupleTagList.empty().getAll(),
+        TupleTagList.empty().getAll() /*sideOutputTags*/,
         new NoOpStepContext(),
         new NoOpAggregatorFactory(),
         windowingStrategy
         );
+
+    pushbackDoFnRunner =
+        PushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+
+    try {
+      doFn.setup();
+    } catch (Exception e) {
+      Throwables.propagate(e);
+    }
+
   }
 
   @Override
   public void beginWindow(long windowId)
   {
-    doFnRunner.startBundle();
+    pushbackDoFnRunner.startBundle();
     /*
     Collection<Aggregator<?, ?>> aggregators = AggregatorRetriever.getAggregators(doFn);
     if (!aggregators.isEmpty()) {
@@ -131,7 +228,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   @Override
   public void endWindow()
   {
-    doFnRunner.finishBundle();
+    pushbackDoFnRunner.finishBundle();
   }
 
   /**
@@ -172,6 +269,21 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     }
   }
 
+  private static class LongMin {
+    long state = Long.MAX_VALUE;
 
+    public void add(long l) {
+      state = Math.min(state, l);
+    }
+
+    public long get() {
+      return state;
+    }
+
+    public void clear() {
+      state = Long.MAX_VALUE;
+    }
+
+  }
 
 }

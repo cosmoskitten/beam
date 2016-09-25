@@ -19,13 +19,22 @@
 package org.apache.beam.runners.apex.examples;
 
 
-  import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+  import static org.apache.beam.sdk.TestUtils.LINES;
+import static org.apache.beam.sdk.TestUtils.LINES2;
+import static org.apache.beam.sdk.TestUtils.NO_LINES;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
   import static org.hamcrest.Matchers.is;
   import static org.junit.Assert.assertThat;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.TestApexRunner;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -34,8 +43,10 @@ import org.apache.beam.sdk.testing.NeedsRunner;
   import org.apache.beam.sdk.testing.RunnableOnService;
   import org.apache.beam.sdk.testing.TestPipeline;
   import org.apache.beam.sdk.transforms.Count;
-  import org.apache.beam.sdk.transforms.DoFn;
-  import org.apache.beam.sdk.transforms.Max;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Max;
   import org.apache.beam.sdk.transforms.Min;
   import org.apache.beam.sdk.transforms.PTransform;
   import org.apache.beam.sdk.transforms.ParDo;
@@ -45,7 +56,8 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
-  import org.joda.time.Duration;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.joda.time.Duration;
   import org.joda.time.Instant;
   import org.junit.Test;
   import org.junit.experimental.categories.Category;
@@ -87,6 +99,7 @@ import org.apache.beam.sdk.values.PCollection;
 
       addCountingAsserts(input, numElements);
       p.run();
+      System.out.println("running");
     }
 
     @Test
@@ -200,6 +213,63 @@ import org.apache.beam.sdk.values.PCollection;
         return new Instant(input);
       }
     }
+
+
+
+
+
+
+
+
+    private PCollectionList<String> makePCollectionListOfStrings(
+        Pipeline p,
+        List<List<String>> lists) {
+      return makePCollectionList(p, StringUtf8Coder.of(), lists);
+    }
+
+    private <T> PCollectionList<T> makePCollectionList(
+        Pipeline p,
+        Coder<T> coder,
+        List<List<T>> lists) {
+      List<PCollection<T>> pcs = new ArrayList<>();
+      int index = 0;
+      for (List<T> list : lists) {
+        PCollection<T> pc = p.apply("Create" + (index++), Create.of(list).withCoder(coder));
+        pcs.add(pc);
+      }
+      return PCollectionList.of(pcs);
+    }
+
+    private <T> List<T> flattenLists(List<List<T>> lists) {
+      List<T> flattened = new ArrayList<>();
+      for (List<T> list : lists) {
+        flattened.addAll(list);
+      }
+      return flattened;
+    }
+
+
+
+
+    @Test
+    @Category(RunnableOnService.class)
+    public void testFlattenPCollectionList() {
+//      Pipeline p = TestPipeline.create();
+      ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
+      options.setRunner(TestApexRunner.class);
+      Pipeline p = Pipeline.create(options);
+
+      List<List<String>> inputs = Arrays.asList(
+        LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
+
+      PCollection<String> output =
+          makePCollectionListOfStrings(p, inputs)
+          .apply(Flatten.<String>pCollections());
+
+      PAssert.that(output).containsInAnyOrder(flattenLists(inputs));
+      p.run();
+    }
+
 
 
 
