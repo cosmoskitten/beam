@@ -345,7 +345,7 @@ public class GcsUtil {
    * be accessible otherwise the permissions exception will be propagated.
    */
   public boolean bucketExists(GcsPath path) throws IOException {
-    return bucketExists(
+    return bucketAccessible(
         path,
         BACKOFF_FACTORY.backoff(),
         Sleeper.DEFAULT);
@@ -378,7 +378,7 @@ public class GcsUtil {
    * is inaccessible due to permissions.
    */
   @VisibleForTesting
-  boolean bucketExists(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+  boolean bucketAccessible(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     try {
       return getBucket(path, backoff, sleeper) != null;
     } catch (AccessDeniedException | FileNotFoundException e) {

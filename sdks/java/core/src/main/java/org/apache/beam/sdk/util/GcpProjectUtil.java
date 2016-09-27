@@ -67,7 +67,8 @@ public class GcpProjectUtil {
   }
 
   // Use this only for testing purposes.
-  protected void setCrmClient(CloudResourceManager crmClient) {
+  @VisibleForTesting
+  void setCrmClient(CloudResourceManager crmClient) {
     this.crmClient = crmClient;
   }
 

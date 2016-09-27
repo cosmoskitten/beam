@@ -307,7 +307,7 @@ public class GcsUtilTest {
     GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/accessdeniedfile");
     GoogleJsonResponseException expectedException =
         googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            "Waves hand mysteriously", "These aren't the buckets your looking for");
+            "Waves hand mysteriously", "These aren't the buckets you're looking for");
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get(pattern.getBucket(), pattern.getObject())).thenReturn(
@@ -418,7 +418,7 @@ public class GcsUtilTest {
     BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
     GoogleJsonResponseException expectedException =
         googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            "Waves hand mysteriously", "These aren't the buckets your looking for");
+            "Waves hand mysteriously", "These aren't the buckets you're looking for");
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.insert(
@@ -432,7 +432,7 @@ public class GcsUtilTest {
   }
 
   @Test
-  public void testBucketExists() throws IOException {
+  public void testBucketAccessible() throws IOException {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
@@ -450,7 +450,7 @@ public class GcsUtilTest {
         .thenThrow(new SocketTimeoutException("SocketException"))
         .thenReturn(new Bucket());
 
-    assertTrue(gcsUtil.bucketExists(GcsPath.fromComponents("testbucket", "testobject"),
+    assertTrue(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff, new FastNanoClockAndSleeper()));
   }
 
@@ -468,14 +468,14 @@ public class GcsUtilTest {
     BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
     GoogleJsonResponseException expectedException =
         googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            "Waves hand mysteriously", "These aren't the buckets your looking for");
+            "Waves hand mysteriously", "These aren't the buckets you're looking for");
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
     when(mockStorageGet.execute())
         .thenThrow(expectedException);
 
-    assertFalse(gcsUtil.bucketExists(GcsPath.fromComponents("testbucket", "testobject"),
+    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff, new FastNanoClockAndSleeper()));
   }
 
@@ -498,7 +498,7 @@ public class GcsUtilTest {
         .thenThrow(googleJsonResponseException(HttpStatusCodes.STATUS_CODE_NOT_FOUND,
             "It don't exist", "Nothing here to see"));
 
-    assertFalse(gcsUtil.bucketExists(GcsPath.fromComponents("testbucket", "testobject"),
+    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff, new FastNanoClockAndSleeper()));
   }
 
