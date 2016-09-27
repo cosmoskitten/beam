@@ -87,7 +87,8 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions serializedOptions;
   @Bind(JavaSerializer.class)
-  private Map<K, StateInternals<K>> perKeyStateInternals = new HashMap<>();
+// TODO: InMemoryStateInternals not serializable
+transient  private Map<K, StateInternals<K>> perKeyStateInternals = new HashMap<>();
   private Map<K, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
 
   private transient ProcessContext context;

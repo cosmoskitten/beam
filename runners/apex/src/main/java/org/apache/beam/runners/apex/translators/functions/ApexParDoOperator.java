@@ -133,6 +133,10 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     @Override
     public void process(ApexStreamTuple<WindowedValue<Iterable<?>>> t)
     {
+      if (t instanceof ApexStreamTuple.WatermarkTuple) {
+        // ignore side input watermarks
+        return;
+      }
       PCollectionView<?> sideInput = sideInputs.get(sideInputIndex);
       sideInputHandler.addSideInputValue(sideInput, t.getValue());
 
@@ -235,7 +239,7 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
    * TODO: Placeholder for aggregation, to be implemented for embedded and cluster mode.
    * It is called from {@link org.apache.beam.sdk.util.SimpleDoFnRunner}.
    */
-  public class NoOpAggregatorFactory implements AggregatorFactory {
+  public static class NoOpAggregatorFactory implements AggregatorFactory {
 
     private NoOpAggregatorFactory() {
     }
@@ -244,29 +248,35 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
         Class<?> fnClass, ExecutionContext.StepContext step,
         String name, CombineFn<InputT, AccumT, OutputT> combine) {
-      return new Aggregator<InputT, OutputT>() {
-
-        @Override
-        public void addValue(InputT value)
-        {
-        }
-
-        @Override
-        public String getName()
-        {
-          // TODO Auto-generated method stub
-          return null;
-        }
-
-        @Override
-        public CombineFn<InputT, ?, OutputT> getCombineFn()
-        {
-          // TODO Auto-generated method stub
-          return null;
-        }
-
-      };
+      return new NoOpAggregator<InputT, OutputT>();
     }
+
+    private static class NoOpAggregator<InputT, OutputT> implements Aggregator<InputT, OutputT>, java.io.Serializable
+    {
+      private static final long serialVersionUID = 1L;
+
+      @Override
+      public void addValue(InputT value)
+      {
+      }
+
+      @Override
+      public String getName()
+      {
+        // TODO Auto-generated method stub
+        return null;
+      }
+
+      @Override
+      public CombineFn<InputT, ?, OutputT> getCombineFn()
+      {
+        // TODO Auto-generated method stub
+        return null;
+      }
+
+    };
+
+
   }
 
   private static class LongMin {

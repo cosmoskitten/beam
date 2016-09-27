@@ -59,7 +59,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
   import org.joda.time.Instant;
-  import org.junit.Test;
+import org.junit.Ignore;
+import org.junit.Test;
   import org.junit.experimental.categories.Category;
   import org.junit.runner.RunWith;
   import org.junit.runners.JUnit4;
@@ -67,8 +68,9 @@ import org.joda.time.Duration;
   /**
    * Tests for {@link CountingInput}.
    */
+  @Ignore
   @RunWith(JUnit4.class)
-  public class IntTests {
+  public class IntTest {
     public static void addCountingAsserts(PCollection<Long> input, long numElements) {
       // Count == numElements
       PAssert.thatSingleton(input.apply("Count", Count.<Long>globally()))
