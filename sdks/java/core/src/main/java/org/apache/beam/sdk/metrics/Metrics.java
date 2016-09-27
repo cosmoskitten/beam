@@ -42,4 +42,18 @@ public class Metrics {
   public static Counter counter(Class<?> namespace, String name) {
     return new Counter(MetricName.named(namespace, name));
   }
+
+  /**
+   * Create a metric that records various statistics about the distribution of reported values.
+   */
+  public static Distribution distribution(String namespace, String name) {
+    return new Distribution(MetricName.named(namespace, name));
+  }
+
+  /**
+   * Create a metric that records various statistics about the distribution of reported values.
+   */
+  public static Distribution distribution(Class<?> namespace, String name) {
+    return new Distribution(MetricName.named(namespace, name));
+  }
 }

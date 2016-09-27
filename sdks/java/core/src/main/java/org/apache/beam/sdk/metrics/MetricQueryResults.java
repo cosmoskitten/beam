@@ -10,4 +10,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public interface MetricQueryResults {
   /** Return the metric results for the counters that matched the filter. */
   Iterable<MetricResult<Long>> counters();
+
+  /** Return the metric results for the distributions that matched the filter. */
+  Iterable<MetricResult<DistributionResult>> distributions();
 }

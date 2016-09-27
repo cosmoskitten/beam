@@ -48,9 +48,13 @@ public abstract class MetricUpdates {
   /** All of the counter updates. */
   public abstract Iterable<MetricUpdate<Long>> counterUpdates();
 
+  /** All of the distribution updates. */
+  public abstract Iterable<MetricUpdate<DistributionData>> distributionUpdates();
+
   /** Create a new {@link MetricUpdates} bundle. */
   public static MetricUpdates create(
-      Iterable<MetricUpdate<Long>> counterUpdates) {
-    return new AutoValue_MetricUpdates(counterUpdates);
+      Iterable<MetricUpdate<Long>> counterUpdates,
+      Iterable<MetricUpdate<DistributionData>> distributionUpdates) {
+    return new AutoValue_MetricUpdates(counterUpdates, distributionUpdates);
   }
 }

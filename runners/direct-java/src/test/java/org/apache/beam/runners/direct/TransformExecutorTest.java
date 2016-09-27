@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -102,7 +103,9 @@ public class TransformExecutorTest {
     final TransformResult result =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build()
             .withLogicalMetricUpdates(
-                MetricUpdates.create(Collections.<MetricUpdate<Long>>emptyList()));
+                MetricUpdates.create(
+                    Collections.<MetricUpdate<Long>>emptyList(),
+                    Collections.<MetricUpdate<DistributionData>>emptyList()));
     final AtomicBoolean finishCalled = new AtomicBoolean(false);
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {
@@ -161,8 +164,9 @@ public class TransformExecutorTest {
   public void inputBundleProcessesEachElementFinishesAndCompletes() throws Exception {
     final TransformResult result =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build()
-        .withLogicalMetricUpdates(
-            MetricUpdates.create(Collections.<MetricUpdate<Long>>emptyList()));
+        .withLogicalMetricUpdates(MetricUpdates.create(
+            Collections.<MetricUpdate<Long>>emptyList(),
+            Collections.<MetricUpdate<DistributionData>>emptyList()));
     final Collection<WindowedValue<String>> elementsProcessed = new ArrayList<>();
     TransformEvaluator<String> evaluator =
         new TransformEvaluator<String>() {
@@ -328,8 +332,9 @@ public class TransformExecutorTest {
   public void callWithEnforcementAppliesEnforcement() throws Exception {
     final TransformResult result =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build()
-            .withLogicalMetricUpdates(
-                MetricUpdates.create(Collections.<MetricUpdate<Long>>emptyList()));
+            .withLogicalMetricUpdates(MetricUpdates.create(
+                Collections.<MetricUpdate<Long>>emptyList(),
+                Collections.<MetricUpdate<DistributionData>>emptyList()));
 
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {

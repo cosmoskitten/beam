@@ -49,7 +49,7 @@ public class MetricsContainerTest {
     counter.inc();
     MetricsContainer.setMetricsContainer(c2);
     counter.dec();
-    MetricsContainer.unsetMetricsContainer();;
+    MetricsContainer.unsetMetricsContainer();
 
     MetricUpdates updates1 = c1.getDeltas();
     MetricUpdates updates2 = c2.getDeltas();
@@ -114,4 +114,53 @@ public class MetricsContainerTest {
         metricUpdate("ns", "name2", "step1", 4L)));
   }
 
+  @Test
+  public void testDistributionDeltas() {
+    MetricsContainer container = new MetricsContainer("step1");
+    DistributionCell c1 = container.getOrCreateDistribution(MetricName.named("ns", "name1"));
+    DistributionCell c2 = container.getOrCreateDistribution(MetricName.named("ns", "name2"));
+
+    MetricUpdates deltas = container.getDeltas();
+    // All distributions should have an initial zero-value reported to indicate their creation
+    assertThat(deltas.distributionUpdates(), containsInAnyOrder(
+        metricUpdate("ns", "name1", "step1", DistributionData.ZERO),
+        metricUpdate("ns", "name2", "step1", DistributionData.ZERO)));
+
+    // Committing should cause the deltas to be clean
+    container.commitDeltas(deltas);
+    deltas = container.getDeltas();
+    assertThat(deltas.distributionUpdates(), emptyIterable());
+
+    c1.report(5L);
+    c2.report(4L);
+
+    deltas = container.getDeltas();
+    assertThat(deltas.distributionUpdates(), containsInAnyOrder(
+        metricUpdate("ns", "name1", "step1", DistributionData.create(5, 1, 5, 5)),
+        metricUpdate("ns", "name2", "step1", DistributionData.create(4, 1, 4, 4))));
+
+    // Since we haven't committed yet, the delta is the same
+    deltas = container.getDeltas();
+    assertThat(deltas.distributionUpdates(), containsInAnyOrder(
+        metricUpdate("ns", "name1", "step1", DistributionData.create(5, 1, 5, 5)),
+        metricUpdate("ns", "name2", "step1", DistributionData.create(4, 1, 4, 4))));
+
+    // When we commit, the deltas should be empty again
+    container.commitDeltas(deltas);
+    deltas = container.getDeltas();
+    assertThat(deltas.distributionUpdates(), emptyIterable());
+
+    c1.report(8L);
+    c1.report(4L);
+    deltas = container.getDeltas();
+    assertThat(deltas.distributionUpdates(), contains(
+        metricUpdate("ns", "name1", "step1", DistributionData.create(12, 2, 4, 8))));
+    container.commitDeltas(deltas);
+
+    // And again (to make sure that we don't forget about earlier reported deltas)
+    c1.report(3L);
+    deltas = container.getDeltas();
+    assertThat(deltas.distributionUpdates(), contains(
+        metricUpdate("ns", "name1", "step1", DistributionData.create(3, 1, 3, 8))));
+  }
 }

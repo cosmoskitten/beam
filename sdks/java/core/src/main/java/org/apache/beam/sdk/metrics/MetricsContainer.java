@@ -66,6 +66,14 @@ public class MetricsContainer {
         }
       };
 
+  private MetricsMap<MetricName, DistributionCell> distributions =
+      new MetricsMap<MetricName, DistributionCell>() {
+        @Override
+        protected DistributionCell createInstance() {
+          return new DistributionCell();
+        }
+      };
+
   /**
    * Create a new {@link MetricsContainer} associated with the given {@code stepName}.
    */
@@ -106,20 +114,41 @@ public class MetricsContainer {
     return counters.getOrCreate(metricName);
   }
 
+  public DistributionCell getOrCreateDistribution(MetricName metricName) {
+    return distributions.getOrCreate(metricName);
+  }
+
+  private <UpdateT, CellT extends MetricCell<UpdateT>>
+  ImmutableList<MetricUpdate<UpdateT>> extractUpdates(
+      MetricsMap<MetricName, CellT> cells,
+      boolean includeZero) {
+    ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
+    for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
+      UpdateT update = cell.getValue().getDeltaUpdate(includeZero);
+      if (update != null) {
+        updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
+      }
+    }
+    return updates.build();
+  }
+
   /**
    * Return the delta updates for all metrics in this container.
    */
   public MetricUpdates getDeltas() {
     boolean includeZero = !committedFirstDelta.get();
-    ImmutableList.Builder<MetricUpdate<Long>> counterUpdates = ImmutableList.builder();
-    for (Map.Entry<MetricName, CounterCell> counter : counters.entries()) {
-      Long update = counter.getValue().getDeltaUpdate(includeZero);
-      if (update != null) {
-        counterUpdates.add(MetricUpdate.create(
-            MetricKey.create(stepName, counter.getKey()), update));
-      }
+    return MetricUpdates.create(
+        extractUpdates(counters, includeZero),
+        extractUpdates(distributions, includeZero));
+  }
+
+  private <UpdateT, CellT extends MetricCell<UpdateT>>
+  void commitDeltas(MetricsMap<MetricName, CellT> cells, Iterable<MetricUpdate<UpdateT>> updates) {
+    for (MetricUpdate<UpdateT> counterUpdate : updates) {
+      CellT cell = checkNotNull(cells.get(counterUpdate.getKey().metricName()),
+          "Metric cell %s in delta being committed should have already been defined.");
+      cell.commitDeltaUpdate(counterUpdate.getUpdate());
     }
-    return MetricUpdates.create(counterUpdates.build());
   }
 
   /**
@@ -130,13 +159,23 @@ public class MetricsContainer {
    * {@link #getDeltas()}.
    */
   public void commitDeltas(MetricUpdates deltas) {
-    for (MetricUpdate<Long> counterUpdate : deltas.counterUpdates()) {
-      CounterCell counter = checkNotNull(counters.get(counterUpdate.getKey().metricName()),
-          "Counter %s in delta being committed should be defined in the counters");
-      counter.commitDeltaUpdate(counterUpdate.getUpdate());
-    }
+    commitDeltas(counters, deltas.counterUpdates());
+    commitDeltas(distributions, deltas.distributionUpdates());
+
     committedFirstDelta.set(true);
   }
+
+  private <UpdateT, CellT extends MetricCell<UpdateT>>
+  ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(
+      MetricsMap<MetricName, CellT> cells) {
+    ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
+    for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
+      UpdateT update = checkNotNull(cell.getValue().getCumulativeUpdate());
+      updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
+    }
+    return updates.build();
+  }
+
   /**
    * Return the {@link MetricUpdates} representing the cumulative values of all metrics in this
    * container.
@@ -147,6 +186,16 @@ public class MetricsContainer {
       counterUpdates.add(MetricUpdate.create(
           MetricKey.create(stepName, counter.getKey()), counter.getValue().getCumulativeUpdate()));
     }
-    return MetricUpdates.create(counterUpdates.build());
+
+    ImmutableList.Builder<MetricUpdate<DistributionData>> distributionUpdates =
+        ImmutableList.builder();
+    for (Map.Entry<MetricName, DistributionCell> distribution : distributions.entries()) {
+      distributionUpdates.add(MetricUpdate.create(
+          MetricKey.create(stepName, distribution.getKey()),
+          distribution.getValue().getCumulativeUpdate()));
+    }
+    return MetricUpdates.create(
+        extractCumulatives(counters),
+        extractCumulatives(distributions));
   }
 }

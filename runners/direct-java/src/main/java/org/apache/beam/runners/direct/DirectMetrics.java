@@ -25,6 +25,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.sdk.metrics.DistributionData;
+import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricFilter;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -40,20 +43,20 @@ import org.apache.beam.sdk.metrics.MetricsMap;
  */
 class DirectMetrics extends MetricResults {
 
-  private interface DirectMetric<T> {
-    void applyPhysical(MetricUpdate<T> update);
-    void applyLogical(MetricUpdate<T> update);
-    T extractPhysical();
-    T extractLogical();
+  private interface DirectMetric<UpdateT, ResultT> {
+    void applyPhysical(UpdateT update);
+    void applyLogical(UpdateT update);
+    ResultT extractPhysical();
+    ResultT extractLogical();
   }
 
-  private static class DirectCounter implements DirectMetric<Long> {
+  private static class DirectCounter implements DirectMetric<Long, Long> {
     private final AtomicLong physicalValue = new AtomicLong();
     private final AtomicLong logicalValue = new AtomicLong();
 
     @Override
-    public void applyPhysical(MetricUpdate<Long> update) {
-      physicalValue.addAndGet(update.getUpdate());
+    public void applyPhysical(Long update) {
+      physicalValue.addAndGet(update);
     }
 
     @Override
@@ -62,8 +65,8 @@ class DirectMetrics extends MetricResults {
     }
 
     @Override
-    public void applyLogical(MetricUpdate<Long> update) {
-      logicalValue.addAndGet(update.getUpdate());
+    public void applyLogical(Long update) {
+      logicalValue.addAndGet(update);
     }
 
     @Override
@@ -72,19 +75,62 @@ class DirectMetrics extends MetricResults {
     }
   }
 
+  private static class DirectDistribution
+      implements DirectMetric<DistributionData, DistributionResult> {
+    private final AtomicReference<DistributionData> physicalValue =
+        new AtomicReference(DistributionData.ZERO);
+    private final AtomicReference<DistributionData> logicalValue =
+        new AtomicReference(DistributionData.ZERO);
+
+    @Override
+    public void applyPhysical(DistributionData update) {
+      DistributionData previous;
+      do {
+        previous = physicalValue.get();
+      } while (!physicalValue.compareAndSet(previous, previous.add(update)));
+    }
+
+    @Override
+    public DistributionResult extractPhysical() {
+      return physicalValue.get().extractResult();
+    }
+
+    @Override
+    public void applyLogical(DistributionData update) {
+      DistributionData previous;
+      do {
+        previous = logicalValue.get();
+      } while (!logicalValue.compareAndSet(previous, previous.add(update)));
+    }
+
+    @Override
+    public DistributionResult extractLogical() {
+      return logicalValue.get().extractResult();
+    }
+  }
+
   /** The current values of counters in memory. */
-  private MetricsMap<MetricKey, DirectMetric<Long>> counters =
-      new MetricsMap<MetricKey, DirectMetric<Long>>() {
+  private MetricsMap<MetricKey, DirectMetric<Long, Long>> counters =
+      new MetricsMap<MetricKey, DirectMetric<Long, Long>>() {
         @Override
-        protected DirectMetric<Long> createInstance() {
+        protected DirectMetric<Long, Long> createInstance() {
           return new DirectCounter();
+        }
+      };
+  private MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>> distributions =
+      new MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>>() {
+        @Override
+        protected DirectMetric<DistributionData, DistributionResult> createInstance() {
+          return new DirectDistribution();
         }
       };
 
   @AutoValue
   abstract static class DirectMetricQueryResults implements MetricQueryResults {
-    public static MetricQueryResults create(Iterable<MetricResult<Long>> counters) {
-      return new AutoValue_DirectMetrics_DirectMetricQueryResults(counters);
+    public static MetricQueryResults create(
+        Iterable<MetricResult<Long>> counters,
+        Iterable<MetricResult<DistributionResult>> distributions) {
+      return new AutoValue_DirectMetrics_DirectMetricQueryResults(counters, distributions);
     }
   }
 
@@ -100,17 +146,23 @@ class DirectMetrics extends MetricResults {
   @Override
   public MetricQueryResults queryMetrics(MetricFilter filter) {
     ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
-    for (Entry<MetricKey, DirectMetric<Long>> counter : counters.entries()) {
+    for (Entry<MetricKey, DirectMetric<Long, Long>> counter : counters.entries()) {
       maybeExtractResult(filter, counterResults, counter);
     }
+    ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults =
+        ImmutableList.builder();
+    for (Entry<MetricKey, DirectMetric<DistributionData, DistributionResult>> distribution
+        : distributions.entries()) {
+      maybeExtractResult(filter, distributionResults, distribution);
+    }
 
-    return DirectMetricQueryResults.create(counterResults.build());
+    return DirectMetricQueryResults.create(counterResults.build(), distributionResults.build());
   }
 
-  private <T> void maybeExtractResult(
+  private <ResultT> void maybeExtractResult(
       MetricFilter filter,
-      ImmutableList.Builder<MetricResult<T>> resultsBuilder,
-      Map.Entry<MetricKey, ? extends DirectMetric<T>> entry) {
+      ImmutableList.Builder<MetricResult<ResultT>> resultsBuilder,
+      Map.Entry<MetricKey, ? extends DirectMetric<?, ResultT>> entry) {
     if (matches(filter, entry.getKey())) {
       resultsBuilder.add(DirectMetricResult.create(
           entry.getKey().metricName(),
@@ -157,14 +209,20 @@ class DirectMetrics extends MetricResults {
   /** Apply metric updates that represent physical counter deltas to the current metric values. */
   public void applyPhysical(MetricUpdates updates) {
     for (MetricUpdate<Long> counter : updates.counterUpdates()) {
-      counters.getOrCreate(counter.getKey()).applyPhysical(counter);
+      counters.getOrCreate(counter.getKey()).applyPhysical(counter.getUpdate());
+    }
+    for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
+      distributions.getOrCreate(distribution.getKey()).applyPhysical(distribution.getUpdate());
     }
   }
 
   /** Apply metric updates that represent new logical values from a bundle being committed. */
   public void applyLogical(MetricUpdates updates) {
     for (MetricUpdate<Long> counter : updates.counterUpdates()) {
-      counters.getOrCreate(counter.getKey()).applyLogical(counter);
+      counters.getOrCreate(counter.getKey()).applyLogical(counter.getUpdate());
+    }
+    for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
+      distributions.getOrCreate(distribution.getKey()).applyLogical(distribution.getUpdate());
     }
   }
 }
