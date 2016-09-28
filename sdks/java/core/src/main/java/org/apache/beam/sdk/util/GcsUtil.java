@@ -341,10 +341,9 @@ public class GcsUtil {
   }
 
   /**
-   * Returns whether the GCS bucket exists. If the bucket exists, it must
-   * be accessible otherwise the permissions exception will be propagated.
+   * Returns whether the GCS bucket exists and is accessible.
    */
-  public boolean bucketExists(GcsPath path) throws IOException {
+  public boolean bucketAccessible(GcsPath path) throws IOException {
     return bucketAccessible(
         path,
         BACKOFF_FACTORY.backoff(),
