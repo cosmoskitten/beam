@@ -37,6 +37,8 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatistics;
+import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
@@ -215,6 +217,88 @@ public class BigQueryTableRowIteratorTest {
     verify(mockClient, times(2)).tables();
     verify(mockTables).get("project", "dataset", "table");
     verify(mockTablesGet).execute();
+    verify(mockTables).delete(anyString(), anyString(), anyString());
+    verify(mockTablesDelete).execute();
+    // Table data read.
+    verify(mockClient).tabledata();
+    verify(mockTabledata).list("project", "dataset", "table");
+    verify(mockTabledataList).execute();
+  }
+
+  /**
+   * Verifies that queries that reference no data can be read.
+   */
+  @Test
+  public void testReadFromQueryNoTables() throws IOException, InterruptedException {
+    // Mock job inserting.
+    Job dryRunJob = new Job().setStatistics(
+        new JobStatistics().setQuery(new JobStatistics2()));
+    Job insertedJob = new Job().setJobReference(new JobReference());
+    when(mockJobsInsert.execute()).thenReturn(dryRunJob, insertedJob);
+
+    // Mock job polling.
+    JobStatus status = new JobStatus().setState("DONE");
+    TableReference tableRef =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    JobConfigurationQuery queryConfig = new JobConfigurationQuery().setDestinationTable(tableRef);
+    Job getJob =
+        new Job()
+            .setJobReference(new JobReference())
+            .setStatus(status)
+            .setConfiguration(new JobConfiguration().setQuery(queryConfig));
+    when(mockJobsGet.execute()).thenReturn(getJob);
+
+    // Mock table schema fetch.
+    when(mockTablesGet.execute()).thenReturn(tableWithBasicSchema());
+
+    byte[] photoBytes = "photograph".getBytes();
+    String photoBytesEncoded = BaseEncoding.base64().encode(photoBytes);
+    // Mock table data fetch.
+    when(mockTabledataList.execute()).thenReturn(
+        rawDataList(rawRow("Arthur", 42, photoBytesEncoded,
+            "2000-01-01", "2000-01-01 00:00:00.000005", "00:00:00.000005")));
+
+    // Run query and verify
+    String query = "SELECT name, count, photo, anniversary_date, "
+        + "anniversary_datetime, anniversary_time from table";
+    try (BigQueryTableRowIterator iterator =
+        BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
+      iterator.open();
+      assertTrue(iterator.advance());
+      TableRow row = iterator.getCurrent();
+
+      assertTrue(row.containsKey("name"));
+      assertTrue(row.containsKey("answer"));
+      assertTrue(row.containsKey("photo"));
+      assertTrue(row.containsKey("anniversary_date"));
+      assertTrue(row.containsKey("anniversary_datetime"));
+      assertTrue(row.containsKey("anniversary_time"));
+      assertEquals("Arthur", row.get("name"));
+      assertEquals(42, row.get("answer"));
+      assertEquals(photoBytesEncoded, row.get("photo"));
+      assertEquals("2000-01-01", row.get("anniversary_date"));
+      assertEquals("2000-01-01 00:00:00.000005", row.get("anniversary_datetime"));
+      assertEquals("00:00:00.000005", row.get("anniversary_time"));
+
+      assertFalse(iterator.advance());
+    }
+
+    // Temp dataset created and later deleted.
+    verify(mockClient, times(2)).datasets();
+    verify(mockDatasets).insert(anyString(), any(Dataset.class));
+    verify(mockDatasetsInsert).execute();
+    verify(mockDatasets).delete(anyString(), anyString());
+    verify(mockDatasetsDelete).execute();
+    // Job inserted to run the query, polled once.
+    verify(mockClient, times(3)).jobs();
+    verify(mockJobs, times(2)).insert(anyString(), any(Job.class));
+    verify(mockJobsInsert, times(2)).execute();
+    verify(mockJobs).get(anyString(), anyString());
+    verify(mockJobsGet).execute();
+    // Temp table get after query finish, deleted after reading.
+    verify(mockClient, times(2)).tables();
+    verify(mockTables, times(1)).get(anyString(), anyString(), anyString());
+    verify(mockTablesGet, times(1)).execute();
     verify(mockTables).delete(anyString(), anyString(), anyString());
     verify(mockTablesDelete).execute();
     // Table data read.

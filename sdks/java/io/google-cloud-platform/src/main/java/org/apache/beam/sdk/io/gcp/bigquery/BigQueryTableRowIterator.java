@@ -36,6 +36,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
@@ -332,13 +333,30 @@ class BigQueryTableRowIterator implements AutoCloseable {
     return row;
   }
 
+  // Get the BiqQuery table.
+  private Table getTable(TableReference ref) throws IOException, InterruptedException {
+    Bigquery.Tables.Get get =
+        client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+
+    return executeWithBackOff(
+        get,
+        String.format(
+            "Error opening BigQuery table %s of dataset %s.",
+            ref.getTableId(),
+            ref.getDatasetId()));
+  }
+
   // Create a new BigQuery dataset
-  private void createDataset(String datasetId) throws IOException, InterruptedException {
+  private void createDataset(String datasetId, @Nullable String location)
+      throws IOException, InterruptedException {
     Dataset dataset = new Dataset();
     DatasetReference reference = new DatasetReference();
     reference.setProjectId(projectId);
     reference.setDatasetId(datasetId);
     dataset.setDatasetReference(reference);
+    if (location != null) {
+      dataset.setLocation(location);
+    }
 
     String createDatasetError =
         "Error when trying to create the temporary dataset " + datasetId + " in project "
@@ -372,13 +390,31 @@ class BigQueryTableRowIterator implements AutoCloseable {
    */
   private TableReference executeQueryAndWaitForCompletion()
       throws IOException, InterruptedException {
+    // Dry run query to get source table location
+    Job dryRunJob = new Job()
+        .setConfiguration(new JobConfiguration()
+            .setQuery(new JobConfigurationQuery()
+                .setQuery(query))
+            .setDryRun(true));
+    JobStatistics jobStats = executeWithBackOff(
+        client.jobs().insert(projectId, dryRunJob),
+        String.format("Error when trying to dry run query %s.", query)).getStatistics();
+
+    // Default to US if the query does not read any tables.
+    String location = null;
+    @Nullable List<TableReference> tables = jobStats.getQuery().getReferencedTables();
+    if (tables != null && !tables.isEmpty()) {
+      Table table = getTable(tables.get(0));
+      location = table.getLocation();
+    }
+
     // Create a temporary dataset to store results.
     // Starting dataset name with an "_" so that it is hidden.
     Random rnd = new Random(System.currentTimeMillis());
     temporaryDatasetId = "_dataflow_temporary_dataset_" + rnd.nextInt(1000000);
     temporaryTableId = "dataflow_temporary_table_" + rnd.nextInt(1000000);
 
-    createDataset(temporaryDatasetId);
+    createDataset(temporaryDatasetId, location);
     Job job = new Job();
     JobConfiguration config = new JobConfiguration();
     JobConfigurationQuery queryConfig = new JobConfigurationQuery();
