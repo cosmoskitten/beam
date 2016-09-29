@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
@@ -42,9 +41,9 @@ import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
  *   <li>Use {@link #getCumulative()} to get {@link org.apache.beam.sdk.metrics.MetricUpdates}
  *   representing all the metric changes and report/aggregate those appropriately.
  *   </li>
- *   <li>Optionally, use {@link #getDeltas()} to get only the changes to a metric since the last
+ *   <li>Optionally, use {@link #getUpdates()} to get only the changes to a metric since the last
  *   time and report those periodically. After reporting deltas and before the next call to
- *   {@link #getDeltas()} the runner should invoke {@link #commitDeltas} to indicate that those
+ *   {@link #getUpdates()} the runner should invoke {@link #commitUpdates} to indicate that those
  *   deltas have been incorporated.
  *   </li>
  * </ol>
@@ -54,7 +53,6 @@ public class MetricsContainer {
 
   private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD =
       new ThreadLocal<MetricsContainer>();
-  private final AtomicBoolean committedFirstDelta = new AtomicBoolean(false);
 
   private final String stepName;
 
@@ -120,11 +118,10 @@ public class MetricsContainer {
 
   private <UpdateT, CellT extends MetricCell<UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractUpdates(
-      MetricsMap<MetricName, CellT> cells,
-      boolean includeZero) {
+      MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
-      UpdateT update = cell.getValue().getDeltaUpdate(includeZero);
+      UpdateT update = cell.getValue().getUpdateIfDirty();
       if (update != null) {
         updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
       }
@@ -133,36 +130,28 @@ public class MetricsContainer {
   }
 
   /**
-   * Return the delta updates for all metrics in this container.
+   * Return the cumulative values for any metrics that have changed since the last time updates were
+   * committed.
    */
-  public MetricUpdates getDeltas() {
-    boolean includeZero = !committedFirstDelta.get();
+  public MetricUpdates getUpdates() {
     return MetricUpdates.create(
-        extractUpdates(counters, includeZero),
-        extractUpdates(distributions, includeZero));
+        extractUpdates(counters),
+        extractUpdates(distributions));
   }
 
-  private <UpdateT, CellT extends MetricCell<UpdateT>>
-  void commitDeltas(MetricsMap<MetricName, CellT> cells, Iterable<MetricUpdate<UpdateT>> updates) {
-    for (MetricUpdate<UpdateT> counterUpdate : updates) {
-      CellT cell = checkNotNull(cells.get(counterUpdate.getKey().metricName()),
-          "Metric cell %s in delta being committed should have already been defined.");
-      cell.commitDeltaUpdate(counterUpdate.getUpdate());
+  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
+    for (MetricCell<?> cell : cells.values()) {
+      cell.commitUpdate();
     }
   }
 
   /**
-   * Record all of the given deltas as reported.
-   *
-   * <p>The updates in {@code deltas} must have been produced by calling {@link #getDeltas()} on
-   * this metrics container, and no deltas should have been committed since the associated call to
-   * {@link #getDeltas()}.
+   * Mark all of the updates that were retrieved with the latest call to {@link #getUpdates()} as
+   * committed.
    */
-  public void commitDeltas(MetricUpdates deltas) {
-    commitDeltas(counters, deltas.counterUpdates());
-    commitDeltas(distributions, deltas.distributionUpdates());
-
-    committedFirstDelta.set(true);
+  public void commitUpdates() {
+    commitUpdates(counters);
+    commitUpdates(distributions);
   }
 
   private <UpdateT, CellT extends MetricCell<UpdateT>>
@@ -170,7 +159,7 @@ public class MetricsContainer {
       MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
-      UpdateT update = checkNotNull(cell.getValue().getCumulativeUpdate());
+      UpdateT update = checkNotNull(cell.getValue().getCumulative());
       updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
     }
     return updates.build();
@@ -184,7 +173,7 @@ public class MetricsContainer {
     ImmutableList.Builder<MetricUpdate<Long>> counterUpdates = ImmutableList.builder();
     for (Map.Entry<MetricName, CounterCell> counter : counters.entries()) {
       counterUpdates.add(MetricUpdate.create(
-          MetricKey.create(stepName, counter.getKey()), counter.getValue().getCumulativeUpdate()));
+          MetricKey.create(stepName, counter.getKey()), counter.getValue().getCumulative()));
     }
 
     ImmutableList.Builder<MetricUpdate<DistributionData>> distributionUpdates =
@@ -192,7 +181,7 @@ public class MetricsContainer {
     for (Map.Entry<MetricName, DistributionCell> distribution : distributions.entries()) {
       distributionUpdates.add(MetricUpdate.create(
           MetricKey.create(stepName, distribution.getKey()),
-          distribution.getValue().getCumulativeUpdate()));
+          distribution.getValue().getCumulative()));
     }
     return MetricUpdates.create(
         extractCumulatives(counters),

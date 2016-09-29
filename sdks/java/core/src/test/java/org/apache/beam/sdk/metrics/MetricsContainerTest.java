@@ -51,8 +51,8 @@ public class MetricsContainerTest {
     counter.dec();
     MetricsContainer.unsetMetricsContainer();
 
-    MetricUpdates updates1 = c1.getDeltas();
-    MetricUpdates updates2 = c2.getDeltas();
+    MetricUpdates updates1 = c1.getUpdates();
+    MetricUpdates updates2 = c2.getUpdates();
     assertThat(updates1.counterUpdates(), contains(metricUpdate("ns", "name", "step1", 1L)));
     assertThat(updates2.counterUpdates(), contains(metricUpdate("ns", "name", "step2", -1L)));
   }
@@ -70,20 +70,20 @@ public class MetricsContainerTest {
     CounterCell c1 = container.getOrCreateCounter(MetricName.named("ns", "name1"));
     CounterCell c2 = container.getOrCreateCounter(MetricName.named("ns", "name2"));
 
-    MetricUpdates deltas = container.getDeltas();
+    MetricUpdates deltas = container.getUpdates();
     // All counters should start out dirty
     assertThat(deltas.counterUpdates(), containsInAnyOrder(
         metricUpdate("ns", "name1", "step1", 0L),
         metricUpdate("ns", "name2", "step1", 0L)));
     // Committing should cause the deltas to be clean
-    container.commitDeltas(deltas);
-    deltas = container.getDeltas();
+    container.commitUpdates();
+    deltas = container.getUpdates();
     assertThat(deltas.counterUpdates(), emptyIterable());
 
     c1.add(5L);
     c2.add(4L);
 
-    deltas = container.getDeltas();
+    deltas = container.getUpdates();
     assertThat(deltas.counterUpdates(), containsInAnyOrder(
         metricUpdate("ns", "name1", "step1", 5L),
         metricUpdate("ns", "name2", "step1", 4L)));
@@ -92,21 +92,21 @@ public class MetricsContainerTest {
         metricUpdate("ns", "name2", "step1", 4L)));
 
     // Since we haven't committed yet, the delta is the same
-    deltas = container.getDeltas();
+    deltas = container.getUpdates();
     assertThat(deltas.counterUpdates(), containsInAnyOrder(
         metricUpdate("ns", "name1", "step1", 5L),
         metricUpdate("ns", "name2", "step1", 4L)));
 
     // When we commit, the deltas should be empty again, while the cumulative is still the same.
-    container.commitDeltas(deltas);
-    deltas = container.getDeltas();
+    container.commitUpdates();
+    deltas = container.getUpdates();
     assertThat(deltas.counterUpdates(), emptyIterable());
     assertThat(container.getCumulative().counterUpdates(), containsInAnyOrder(
         metricUpdate("ns", "name1", "step1", 5L),
         metricUpdate("ns", "name2", "step1", 4L)));
 
     c1.add(8L);
-    deltas = container.getDeltas();
+    deltas = container.getUpdates();
     assertThat(deltas.counterUpdates(), contains(
         metricUpdate("ns", "name1", "step1", 8L)));
     assertThat(container.getCumulative().counterUpdates(), containsInAnyOrder(
@@ -120,46 +120,46 @@ public class MetricsContainerTest {
     DistributionCell c1 = container.getOrCreateDistribution(MetricName.named("ns", "name1"));
     DistributionCell c2 = container.getOrCreateDistribution(MetricName.named("ns", "name2"));
 
-    MetricUpdates deltas = container.getDeltas();
+    MetricUpdates deltas = container.getUpdates();
     // All distributions should have an initial zero-value reported to indicate their creation
     assertThat(deltas.distributionUpdates(), containsInAnyOrder(
         metricUpdate("ns", "name1", "step1", DistributionData.ZERO),
         metricUpdate("ns", "name2", "step1", DistributionData.ZERO)));
 
     // Committing should cause the deltas to be clean
-    container.commitDeltas(deltas);
-    deltas = container.getDeltas();
+    container.commitUpdates();
+    deltas = container.getUpdates();
     assertThat(deltas.distributionUpdates(), emptyIterable());
 
     c1.report(5L);
     c2.report(4L);
 
-    deltas = container.getDeltas();
+    deltas = container.getUpdates();
     assertThat(deltas.distributionUpdates(), containsInAnyOrder(
         metricUpdate("ns", "name1", "step1", DistributionData.create(5, 1, 5, 5)),
         metricUpdate("ns", "name2", "step1", DistributionData.create(4, 1, 4, 4))));
 
     // Since we haven't committed yet, the delta is the same
-    deltas = container.getDeltas();
+    deltas = container.getUpdates();
     assertThat(deltas.distributionUpdates(), containsInAnyOrder(
         metricUpdate("ns", "name1", "step1", DistributionData.create(5, 1, 5, 5)),
         metricUpdate("ns", "name2", "step1", DistributionData.create(4, 1, 4, 4))));
 
     // When we commit, the deltas should be empty again
-    container.commitDeltas(deltas);
-    deltas = container.getDeltas();
+    container.commitUpdates();
+    deltas = container.getUpdates();
     assertThat(deltas.distributionUpdates(), emptyIterable());
 
     c1.report(8L);
     c1.report(4L);
-    deltas = container.getDeltas();
+    deltas = container.getUpdates();
     assertThat(deltas.distributionUpdates(), contains(
         metricUpdate("ns", "name1", "step1", DistributionData.create(12, 2, 4, 8))));
-    container.commitDeltas(deltas);
+    container.commitUpdates();
 
     // And again (to make sure that we don't forget about earlier reported deltas)
     c1.report(3L);
-    deltas = container.getDeltas();
+    deltas = container.getUpdates();
     assertThat(deltas.distributionUpdates(), contains(
         metricUpdate("ns", "name1", "step1", DistributionData.create(3, 1, 3, 8))));
   }

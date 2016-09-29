@@ -128,10 +128,10 @@ class TransformExecutor<T> implements Runnable {
       throw new RuntimeException(t);
     } finally {
       // Report the physical metrics from the end of this step.
-      MetricUpdates deltas = metricsContainer.getDeltas();
+      MetricUpdates deltas = metricsContainer.getUpdates();
       if (deltas != null) {
         context.getMetrics().applyPhysical(deltas);
-        metricsContainer.commitDeltas(deltas);
+        metricsContainer.commitUpdates();
       }
 
       MetricsContainer.unsetMetricsContainer();
@@ -155,10 +155,10 @@ class TransformExecutor<T> implements Runnable {
         evaluator.processElement(value);
 
         // Report the physical metrics in between elements.
-        MetricUpdates deltas = metricsContainer.getDeltas();
+        MetricUpdates deltas = metricsContainer.getUpdates();
         if (deltas != null) {
           context.getMetrics().applyPhysical(deltas);
-          metricsContainer.commitDeltas(deltas);
+          metricsContainer.commitUpdates();
         }
 
         for (ModelEnforcement<T> enforcement : enforcements) {

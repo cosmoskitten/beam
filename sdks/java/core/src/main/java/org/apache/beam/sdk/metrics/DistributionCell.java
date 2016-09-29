@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.metrics;
 
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -27,41 +26,23 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * Tracks the current value (and delta) for a Distribution metric.
  */
 @Experimental(Kind.METRICS)
-class DistributionCell implements MetricCell<DistributionData> {
+class DistributionCell extends MetricCell<DistributionData> {
 
   private final AtomicReference<DistributionData> value =
-      new AtomicReference<DistributionData>(DistributionData.ZERO);
-  private final AtomicReference<DistributionData> delta =
       new AtomicReference<DistributionData>(DistributionData.ZERO);
 
   /** Increment the counter by the given amount. */
   public void report(long n) {
-    DistributionData increment = DistributionData.singleton(n);
-    add(value, increment);
-    add(delta, increment);
-  }
+    markDirty();
 
-  private static void add(AtomicReference<DistributionData> data, DistributionData delta) {
     DistributionData original;
     do {
-      original = data.get();
-    } while (!data.compareAndSet(original, original.add(delta)));
-  }
-
-  @Nullable
-  @Override
-  public DistributionData getDeltaUpdate(boolean includeZero) {
-    DistributionData delta = this.delta.get();
-    return delta.count() == 0 && !includeZero ? null : delta;
+      original = value.get();
+    } while (!value.compareAndSet(original, original.add(DistributionData.singleton(n))));
   }
 
   @Override
-  public void commitDeltaUpdate(DistributionData deltaUpdate) {
-    add(delta, deltaUpdate.negate());
-  }
-
-  @Override
-  public DistributionData getCumulativeUpdate() {
+  public DistributionData getCumulative() {
     return value.get();
   }
 }

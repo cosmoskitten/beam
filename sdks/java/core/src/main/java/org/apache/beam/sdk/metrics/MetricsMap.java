@@ -72,9 +72,16 @@ public class MetricsMap<K, T> {
   }
 
   /**
-   * Return an iterator over all the entries in the given set.
+   * Return an iterable over the entries in the current {@link  MetricsMap}.
    */
   public Iterable<Map.Entry<K, T>> entries() {
     return Iterables.unmodifiableIterable(metrics.entrySet());
+  }
+
+  /**
+   * Return an iterable over the values in the current {@link MetricsMap}.
+   */
+  public Iterable<T> values() {
+    return Iterables.unmodifiableIterable(metrics.values());
   }
 }
