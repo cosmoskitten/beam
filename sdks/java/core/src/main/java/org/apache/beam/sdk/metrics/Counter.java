@@ -22,16 +22,19 @@ public class Counter {
 
   /** Increment the counter by the given amount. */
   public void inc(long n) {
-    MetricsContainer.getCurrentContainer().getOrCreateCounter(name).add(n);
+    MetricsContainer container = MetricsContainer.getCurrentContainer();
+    if (container != null) {
+      container.getOrCreateCounter(name).add(n);
+    }
   }
 
   /* Decrement the counter. */
   public void dec() {
-    dec(1);
+    inc(-1);
   }
 
   /* Decrement the counter by the given amount. */
   public void dec(long n) {
-    MetricsContainer.getCurrentContainer().getOrCreateCounter(name).add(-1 * n);
+    inc(-1 * n);
   }
 }

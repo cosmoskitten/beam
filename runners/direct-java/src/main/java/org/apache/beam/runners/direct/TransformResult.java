@@ -58,7 +58,7 @@ public interface TransformResult {
   @Nullable AggregatorContainer.Mutator getAggregatorChanges();
 
   /**
-   * Returns the logicgal metric updates.
+   * Returns the logical metric updates.
    */
   @Nullable MetricUpdates getLogicalMetricUpdates();
 

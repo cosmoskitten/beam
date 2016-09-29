@@ -312,7 +312,7 @@ public class DirectRunner
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
     private final EvaluationContext evaluationContext;
-    private final Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps;;
+    private final Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps;
     private State state;
 
     private DirectPipelineResult(

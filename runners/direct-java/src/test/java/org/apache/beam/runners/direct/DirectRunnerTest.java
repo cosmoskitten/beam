@@ -40,10 +40,10 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.MetricFilter;
-import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -405,8 +405,8 @@ public class DirectRunnerTest implements Serializable {
           }
         }));
     PipelineResult result = pipeline.run();
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricFilter.builder()
-        .addName(MetricName.named(DirectRunnerTest.class, null))
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(DirectRunnerTest.class))
         .build());
     assertThat(metrics.counters(), contains(
         metricResult(DirectRunnerTest.class.getSimpleName(), "count", "MyStep", 3L, 3L)));

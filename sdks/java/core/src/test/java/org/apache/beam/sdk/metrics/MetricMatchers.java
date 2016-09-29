@@ -29,6 +29,24 @@ import org.hamcrest.TypeSafeMatcher;
  */
 public class MetricMatchers {
 
+  public static <T> Matcher<MetricUpdate<T>> metricUpdate(final String name, final T update) {
+    return new TypeSafeMatcher<MetricUpdate<T>>() {
+      @Override
+      protected boolean matchesSafely(MetricUpdate<T> item) {
+        return Objects.equals(name, item.getKey().metricName().getName())
+            && Objects.equals(update, item.getUpdate());
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description
+            .appendText("MetricUpdate{name=").appendValue(name)
+            .appendText(", update=").appendValue(update)
+            .appendText("}");
+      }
+    };
+  }
+
   public static <T> Matcher<MetricUpdate<T>> metricUpdate(
       final String namespace, final String name, final String step, final T update) {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
@@ -43,7 +61,7 @@ public class MetricMatchers {
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricUpdate{namespace=").appendValue(namespace)
+            .appendText("MetricUpdate{inNamespace=").appendValue(namespace)
             .appendText(", name=").appendValue(name)
             .appendText(", step=").appendValue(step)
             .appendText(", update=").appendValue(update)
@@ -51,6 +69,7 @@ public class MetricMatchers {
       }
     };
   }
+
   public static <T> Matcher<MetricResult<T>> metricResult(
       final String namespace, final String name, final String step,
       final T logical, final T physical) {
@@ -67,7 +86,7 @@ public class MetricMatchers {
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricResult{namespace=").appendValue(namespace)
+            .appendText("MetricResult{inNamespace=").appendValue(namespace)
             .appendText(", name=").appendValue(name)
             .appendText(", step=").appendValue(step)
             .appendText(", logical=").appendValue(logical)

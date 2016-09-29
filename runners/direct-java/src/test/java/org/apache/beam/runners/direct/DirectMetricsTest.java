@@ -19,6 +19,7 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.metrics.MetricMatchers.metricResult;
+import static org.apache.beam.sdk.metrics.MetricNameFilter.inNamespace;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
@@ -26,12 +27,12 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.MetricFilter;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -42,26 +43,30 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DirectMetricsTest {
 
+  private final MetricName NAME1 = MetricName.named("ns1", "name1");
+  private final MetricName NAME2 = MetricName.named("ns1", "name2");
+  private final MetricName NAME3 = MetricName.named("ns2", "name1");
+
   private DirectMetrics metrics = new DirectMetrics();
 
   @Test
   public void testApplyLogicalQueryNoFilter() {
     metrics.applyLogical(MetricUpdates.create(
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step1", "ns1", "name1"), 5L),
-            MetricUpdate.create(MetricKey.create("step1", "ns1", "name2"), 8L)),
+            MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
+            MetricUpdate.create(MetricKey.create("step1", NAME2), 8L)),
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step1", "ns1", "name1"),
+            MetricUpdate.create(MetricKey.create("step1", NAME1),
                 DistributionData.create(8, 2, 3, 5)))));
     metrics.applyLogical(MetricUpdates.create(
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step2", "ns1", "name1"), 7L),
-            MetricUpdate.create(MetricKey.create("step1", "ns1", "name2"), 4L)),
+            MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
+            MetricUpdate.create(MetricKey.create("step1", NAME2), 4L)),
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step1", "ns1", "name1"),
+            MetricUpdate.create(MetricKey.create("step1", NAME1),
                 DistributionData.create(4, 1, 4, 4)))));
 
-    MetricQueryResults results = metrics.queryMetrics(MetricFilter.builder().build());
+    MetricQueryResults results = metrics.queryMetrics(MetricsFilter.builder().build());
     assertThat(results.counters(), containsInAnyOrder(
         metricResult("ns1", "name1", "step1", 5L, 0L),
         metricResult("ns1", "name2", "step1", 12L, 0L),
@@ -76,17 +81,17 @@ public class DirectMetricsTest {
   public void testApplyPhysicalCountersQueryOneNamespace() {
     metrics.applyPhysical(MetricUpdates.create(
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step1", "ns1", "name1"), 5L),
-            MetricUpdate.create(MetricKey.create("step1", "ns2", "name1"), 8L)),
+            MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
+            MetricUpdate.create(MetricKey.create("step1", NAME3), 8L)),
         ImmutableList.<MetricUpdate<DistributionData>>of()));
     metrics.applyPhysical(MetricUpdates.create(
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step2", "ns1", "name1"), 7L),
-            MetricUpdate.create(MetricKey.create("step1", "ns2", "name1"), 4L)),
+            MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
+            MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
         ImmutableList.<MetricUpdate<DistributionData>>of()));
 
     assertThat(metrics.queryMetrics(
-        MetricFilter.builder().addName(MetricName.named("ns1", null)).build()).counters(),
+        MetricsFilter.builder().addNameFilter(inNamespace("ns1")).build()).counters(),
         containsInAnyOrder(
             metricResult("ns1", "name1", "step1", 0L, 5L),
             metricResult("ns1", "name1", "step2", 0L, 7L)));
@@ -96,17 +101,17 @@ public class DirectMetricsTest {
   public void testApplyPhysicalQueryCompositeScope() {
     metrics.applyPhysical(MetricUpdates.create(
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Outer1/Inner1", "ns1", "name1"), 5L),
-            MetricUpdate.create(MetricKey.create("Outer1/Inner2", "ns1", "name1"), 8L)),
+            MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
+            MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L)),
         ImmutableList.<MetricUpdate<DistributionData>>of()));
     metrics.applyPhysical(MetricUpdates.create(
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Outer1/Inner1", "ns1", "name1"), 7L),
-            MetricUpdate.create(MetricKey.create("Outer2/Inner2", "ns1", "name1"), 4L)),
+            MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 7L),
+            MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 4L)),
         ImmutableList.<MetricUpdate<DistributionData>>of()));
 
     assertThat(metrics.queryMetrics(
-        MetricFilter.builder().addStep("Outer1").build()).counters(),
+        MetricsFilter.builder().addStep("Outer1").build()).counters(),
         containsInAnyOrder(
             metricResult("ns1", "name1", "Outer1/Inner1", 0L, 12L),
             metricResult("ns1", "name1", "Outer1/Inner2", 0L, 8L)));

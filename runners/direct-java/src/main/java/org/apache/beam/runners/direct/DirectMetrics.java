@@ -19,7 +19,6 @@ package org.apache.beam.runners.direct;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -28,9 +27,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.MetricFilter;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -78,9 +78,9 @@ class DirectMetrics extends MetricResults {
   private static class DirectDistribution
       implements DirectMetric<DistributionData, DistributionResult> {
     private final AtomicReference<DistributionData> physicalValue =
-        new AtomicReference(DistributionData.ZERO);
+        new AtomicReference(DistributionData.EMPTY);
     private final AtomicReference<DistributionData> logicalValue =
-        new AtomicReference(DistributionData.ZERO);
+        new AtomicReference(DistributionData.EMPTY);
 
     @Override
     public void applyPhysical(DistributionData update) {
@@ -146,7 +146,7 @@ class DirectMetrics extends MetricResults {
   }
 
   @Override
-  public MetricQueryResults queryMetrics(MetricFilter filter) {
+  public MetricQueryResults queryMetrics(MetricsFilter filter) {
     ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
     for (Entry<MetricKey, DirectMetric<Long, Long>> counter : counters.entries()) {
       maybeExtractResult(filter, counterResults, counter);
@@ -162,7 +162,7 @@ class DirectMetrics extends MetricResults {
   }
 
   private <ResultT> void maybeExtractResult(
-      MetricFilter filter,
+      MetricsFilter filter,
       ImmutableList.Builder<MetricResult<ResultT>> resultsBuilder,
       Map.Entry<MetricKey, ? extends DirectMetric<?, ResultT>> entry) {
     if (matches(filter, entry.getKey())) {
@@ -174,9 +174,9 @@ class DirectMetrics extends MetricResults {
     }
   }
 
-  private boolean matches(MetricFilter filter, MetricKey key) {
+  private boolean matches(MetricsFilter filter, MetricKey key) {
     return matchesName(key.metricName(), filter.names())
-        && matchesScope(key.stepName(), filter.scopes());
+        && matchesScope(key.stepName(), filter.steps());
   }
 
   private boolean matchesScope(String actualScope, Set<String> scopes) {
@@ -193,14 +193,14 @@ class DirectMetrics extends MetricResults {
     return false;
   }
 
-  private boolean matchesName(MetricName metricName, Set<MetricName> names) {
-    if (names.isEmpty() || names.contains(metricName)) {
+  private boolean matchesName(MetricName metricName, Set<MetricNameFilter> nameFilters) {
+    if (nameFilters.isEmpty()) {
       return true;
     }
 
-    for (MetricName candidate : names) {
-      if (Strings.isNullOrEmpty(candidate.getName())
-          && Objects.equal(metricName.getNamespace(), candidate.getNamespace())) {
+    for (MetricNameFilter nameFilter : nameFilters) {
+      if ((nameFilter.getName() == null || nameFilter.getName().equals(metricName.getName()))
+          && Objects.equal(metricName.getNamespace(), nameFilter.getNamespace())) {
         return true;
       }
     }

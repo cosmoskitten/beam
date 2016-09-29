@@ -29,7 +29,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 class DistributionCell extends MetricCell<DistributionData> {
 
   private final AtomicReference<DistributionData> value =
-      new AtomicReference<DistributionData>(DistributionData.ZERO);
+      new AtomicReference<DistributionData>(DistributionData.EMPTY);
 
   /** Increment the counter by the given amount. */
   public void report(long n) {

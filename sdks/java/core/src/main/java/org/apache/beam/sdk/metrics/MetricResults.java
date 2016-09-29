@@ -14,10 +14,13 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public abstract class MetricResults {
 
   /** Retrieve the current counter value. */
-  public MetricResult<Long> getCounter(MetricName name, @Nullable String scope) {
-    MetricFilter.Builder filter = MetricFilter.builder().addName(name);
-    if (scope != null) {
-      filter.addStep(scope);
+  public MetricResult<Long> getCounter(MetricNameFilter name, @Nullable String step) {
+    // TODO: Move these default implementations into a base class that may optionally be used.
+    // Some runners may support more efficient mechanisms for querying a specific metric, so
+    // wouldn't want to rely on "query for metrics then find the match".
+    MetricsFilter.Builder filter = MetricsFilter.builder().addNameFilter(name);
+    if (step != null) {
+      filter.addStep(step);
     }
     MetricQueryResults metrics = queryMetrics(filter.build());
     try {
@@ -27,8 +30,23 @@ public abstract class MetricResults {
     }
   }
 
+  /** Retrieve the current distribution value. */
+  public MetricResult<DistributionResult> getDistribution(
+      MetricNameFilter name, @Nullable String step) {
+    MetricsFilter.Builder filter = MetricsFilter.builder().addNameFilter(name);
+    if (step != null) {
+      filter.addStep(step);
+    }
+    MetricQueryResults metrics = queryMetrics(filter.build());
+    try {
+      return Iterables.getOnlyElement(metrics.distributions());
+    } catch (IllegalArgumentException e) {
+      throw new RuntimeException("Expected one matching distribution", e);
+    }
+  }
+
   /**
    * Query for all metrics that match the filter.
    */
-  public abstract MetricQueryResults queryMetrics(MetricFilter filter);
+  public abstract MetricQueryResults queryMetrics(MetricsFilter filter);
 }

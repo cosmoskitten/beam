@@ -26,22 +26,22 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * Simple POJO representing a filter for querying metrics.
  */
 @Experimental(Kind.METRICS)
-public class MetricFilter {
+public class MetricsFilter {
 
-  private final Set<MetricName> names;
-  private final Set<String> scopes;
+  private final Set<MetricNameFilter> names;
+  private final Set<String> steps;
 
-  private MetricFilter(Set<MetricName> names, Set<String> scopes) {
+  private MetricsFilter(Set<MetricNameFilter> names, Set<String> steps) {
     this.names = names;
-    this.scopes = scopes;
+    this.steps = steps;
   }
 
-  public Set<MetricName> names() {
+  public Set<MetricNameFilter> names() {
     return names;
   }
 
-  public Set<String> scopes() {
-    return scopes;
+  public Set<String> steps() {
+    return steps;
   }
 
   public static Builder builder() {
@@ -49,33 +49,36 @@ public class MetricFilter {
   }
 
   /**
-   * Builder for creating a {@link MetricFilter}.
+   * Builder for creating a {@link MetricsFilter}.
    */
   public static class Builder {
-    private ImmutableSet.Builder<MetricName> namesBuilder = ImmutableSet.builder();
-    private ImmutableSet.Builder<String> scopesBuilder = ImmutableSet.builder();
+    private ImmutableSet.Builder<MetricNameFilter> namesBuilder = ImmutableSet.builder();
+    private ImmutableSet.Builder<String> stepsBuilder = ImmutableSet.builder();
 
     /**
-     * Add a {@link MetricName MetricNames} to the filter. If the {@link MetricName#getName()} is
-     * {@code null} this will include all metrics within the given namespace. If no name filters are
-     * specified then metrics will be returned regardless of what name they have.
+     * Add a {@link MetricNameFilter}.
+     *
+     * <p>If no name filters are specified then metrics will be returned regardless of what name
+     * they have.
      */
-    public Builder addName(MetricName value) {
-      namesBuilder.add(value);
+    public Builder addNameFilter(MetricNameFilter nameFilter) {
+      namesBuilder.add(nameFilter);
       return this;
     }
 
     /**
-     * Add a PTransform-step to the filter. If no steps are specified then metrics will be included
-     * regardless of which step they came from.
+     * Add a step filter.
+     *
+     * <p>If no steps are specified then metrics will be included regardless of which step
+     * came from.
      */
     public Builder addStep(String step) {
-      scopesBuilder.add(step);
+      stepsBuilder.add(step);
       return this;
     }
 
-    public MetricFilter build() {
-      return new MetricFilter(namesBuilder.build(), scopesBuilder.build());
+    public MetricsFilter build() {
+      return new MetricsFilter(namesBuilder.build(), stepsBuilder.build());
     }
   }
 }

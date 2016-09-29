@@ -20,8 +20,4 @@ public abstract class MetricKey {
   public static MetricKey create(String stepName, MetricName metricName) {
     return new AutoValue_MetricKey(stepName, metricName);
   }
-
-  public static MetricKey create(String stepName, String namespace, String metricName) {
-    return new AutoValue_MetricKey(stepName, MetricName.named(namespace, metricName));
-  }
 }

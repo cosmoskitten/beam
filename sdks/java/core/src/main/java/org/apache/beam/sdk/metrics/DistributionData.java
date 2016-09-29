@@ -36,7 +36,7 @@ public abstract class DistributionData {
   public abstract long min();
   public abstract long max();
 
-  public static final DistributionData ZERO = create(0, 0, Long.MAX_VALUE, Long.MIN_VALUE);
+  public static final DistributionData EMPTY = create(0, 0, Long.MAX_VALUE, Long.MIN_VALUE);
 
   public static DistributionData create(long sum, long count, long min, long max) {
     return new AutoValue_DistributionData(sum, count, min, max);
@@ -44,11 +44,6 @@ public abstract class DistributionData {
 
   public static DistributionData singleton(long value) {
     return create(value, 1, value, value);
-  }
-
-  /** Produce a negative delta. */
-  public DistributionData negate() {
-    return create(-1 * sum(), -1 * count(), min(), max());
   }
 
   public DistributionData add(DistributionData value) {

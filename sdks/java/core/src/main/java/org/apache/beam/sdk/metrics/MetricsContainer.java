@@ -21,9 +21,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Holds all of the metrics produced for a single step and unit-of-commit.
@@ -31,10 +34,10 @@ import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
  * <p>A thread-local variable holds the {@link MetricsContainer} that should be used for any
  * metric updates produced from the executing code by interactions with the user-facing metric
  * interfaces (eg., {@link Counter}).
- * *
+ *
  * <p>For a given runner to support metrics it is currently necessary to do 3 things:
  * <ol>
- *   <li>Create a {@link MetricsContainer} for each scope that metrics will be reported at.
+ *   <li>Create a {@link MetricsContainer} for each step that metrics will be reported at.
  *   </li>
  *   <li>Make sure to call {@link #setMetricsContainer}
  *   </li>
@@ -47,9 +50,14 @@ import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
  *   deltas have been incorporated.
  *   </li>
  * </ol>
+ *
+ * <p>This class is thread-safe.
  */
 @Experimental(Kind.METRICS)
 public class MetricsContainer {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MetricsContainer.class);
+  private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
   private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD =
       new ThreadLocal<MetricsContainer>();
@@ -98,8 +106,11 @@ public class MetricsContainer {
    */
   public static MetricsContainer getCurrentContainer() {
     MetricsContainer container = CONTAINER_FOR_THREAD.get();
-    if (container == null) {
-      throw new IllegalStateException("Must call setMetricsContainer before reporting metrics.");
+    if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
+      LOGGER.error("Unable to get {} for the current thread.\n"
+          + "Most likely caused by using a runner that doesn't support metrics.\n"
+          + "May also be caused by reporting metrics from outside the work-execution therad",
+          MetricsContainer.class.getSimpleName());
     }
     return container;
   }
