@@ -1,23 +1,21 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements. See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.TestUtils.INTS_ARRAY;
+import static org.apache.beam.sdk.TestUtils.LINES2_ARRAY;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
@@ -34,6 +32,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -47,6 +46,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -70,13 +70,16 @@ import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.TextIO.TextSource;
 import org.apache.beam.sdk.options.GcsOptions;
@@ -170,7 +173,7 @@ public class TextIOTest {
   @BeforeClass
   public static void setupClass() throws IOException {
     IOChannelUtils.registerStandardIOFactories(TestPipeline.testingPipelineOptions());
-    tempFolder =  Files.createTempDirectory("TextIOTest");
+    tempFolder = Files.createTempDirectory("TextIOTest");
     // empty files
     emptyTxt = writeToFile(EMPTY, "empty.txt", CompressionType.UNCOMPRESSED);
     emptyGz = writeToFile(EMPTY, "empty.gz", GZIP);
@@ -261,7 +264,7 @@ public class TextIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadNulls() throws Exception {
-    runTestRead(new Void[]{null, null, null}, VoidCoder.of());
+    runTestRead(new Void[] {null, null, null}, VoidCoder.of());
   }
 
   @Test
@@ -342,6 +345,7 @@ public class TextIOTest {
     } else if (numShards > 0) {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
+
     input.apply(write);
 
     p.run();
@@ -413,7 +417,7 @@ public class TextIOTest {
   }
 
   private static Function<List<String>, List<String>> removeHeaderAndFooter(final String header,
-                                                                            final String footer) {
+      final String footer) {
     return new Function<List<String>, List<String>>() {
       @Nullable
       @Override
@@ -432,7 +436,7 @@ public class TextIOTest {
   }
 
   private static Predicate<List<String>> haveProperHeaderAndFooter(final String header,
-                                                                   final String footer) {
+      final String footer) {
     return new Predicate<List<String>>() {
       @Override
       public boolean apply(List<String> fileLines) {
@@ -498,6 +502,34 @@ public class TextIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
+  public void testWriteWithWritableByteChannelFactory() throws Exception {
+    Coder<String> coder = StringUtf8Coder.of();
+    String outputName = "file.txt";
+    Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> input = p.apply(Create.of(Arrays.asList(LINES2_ARRAY)).withCoder(coder));
+
+    final WritableByteChannelFactory writableByteChannelFactory =
+        new DrunkWritableByteChannelFactory();
+    TextIO.Write.Bound<String> write = TextIO.Write.to(baseDir.resolve(outputName).toString())
+        .withoutSharding().withWritableByteChannelFactory(writableByteChannelFactory);
+
+    input.apply(write);
+
+    p.run();
+
+    final List<String> drunkElems = new ArrayList<>(LINES2_ARRAY.length * 2 + 2);
+    for (String elem : LINES2_ARRAY) {
+      drunkElems.add(elem + elem);
+      drunkElems.add("");
+    }
+    assertOutputFiles(drunkElems.toArray(new String[0]), null, null, coder, 1, baseDir,
+        outputName + writableByteChannelFactory.getFilenameSuffix(), write.getShardNameTemplate());
+  }
+
+  @Test
   public void testWriteDisplayData() {
     TextIO.Write.Bound<?> write = TextIO.Write
         .to("foo")
@@ -517,6 +549,30 @@ public class TextIOTest {
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  @Test
+  public void testWriteDisplayDataValidateThenHeader() {
+    TextIO.Write.Bound<?> write = TextIO.Write
+        .to("foo")
+        .withHeader("myHeader");
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("fileHeader", "myHeader"));
+    assertThat(displayData, not(hasDisplayItem("validation", false)));
+  }
+
+  @Test
+  public void testWriteDisplayDataValidateThenFooter() {
+    TextIO.Write.Bound<?> write = TextIO.Write
+        .to("foo")
+        .withFooter("myFooter");
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("fileFooter", "myFooter"));
+    assertThat(displayData, not(hasDisplayItem("validation", false)));
   }
 
   @Test
@@ -638,9 +694,9 @@ public class TextIOTest {
   }
 
   /**
-   * Tests reading from a small, uncompressed file with .gz extension.
-   * This must work in AUTO or GZIP modes. This is needed because some network file systems / HTTP
-   * clients will transparently decompress gzipped content.
+   * Tests reading from a small, uncompressed file with .gz extension. This must work in AUTO or
+   * GZIP modes. This is needed because some network file systems / HTTP clients will transparently
+   * decompress gzipped content.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -672,9 +728,7 @@ public class TextIOTest {
    * @return The zip filename.
    * @throws Exception In case of a failure during zip file creation.
    */
-  private String createZipFile(List<String> expected, String filename, String[]
-      ...
-      fieldsEntries)
+  private String createZipFile(List<String> expected, String filename, String[]... fieldsEntries)
       throws Exception {
     File tmpFile = tempFolder.resolve(filename).toFile();
     String tmpFileName = tmpFile.getPath();
@@ -703,7 +757,7 @@ public class TextIOTest {
   @Category(NeedsRunner.class)
   public void testTxtRead() throws Exception {
     // Files with non-compressed extensions should work in AUTO and UNCOMPRESSED modes.
-    for (CompressionType type : new CompressionType[] { AUTO, UNCOMPRESSED }) {
+    for (CompressionType type : new CompressionType[]{AUTO, UNCOMPRESSED}) {
       assertReadingCompressedFileMatchesExpected(emptyTxt, type, EMPTY);
       assertReadingCompressedFileMatchesExpected(tinyTxt, type, TINY);
       assertReadingCompressedFileMatchesExpected(largeTxt, type, LARGE);
@@ -714,7 +768,7 @@ public class TextIOTest {
   @Category(NeedsRunner.class)
   public void testGzipCompressedRead() throws Exception {
     // Files with the right extensions should work in AUTO and GZIP modes.
-    for (CompressionType type : new CompressionType[] { AUTO, GZIP }) {
+    for (CompressionType type : new CompressionType[]{AUTO, GZIP}) {
       assertReadingCompressedFileMatchesExpected(emptyGz, type, EMPTY);
       assertReadingCompressedFileMatchesExpected(tinyGz, type, TINY);
       assertReadingCompressedFileMatchesExpected(largeGz, type, LARGE);
@@ -732,7 +786,7 @@ public class TextIOTest {
   @Category(NeedsRunner.class)
   public void testBzip2CompressedRead() throws Exception {
     // Files with the right extensions should work in AUTO and BZIP2 modes.
-    for (CompressionType type : new CompressionType[] { AUTO, BZIP2 }) {
+    for (CompressionType type : new CompressionType[]{AUTO, BZIP2}) {
       assertReadingCompressedFileMatchesExpected(emptyBzip2, type, EMPTY);
       assertReadingCompressedFileMatchesExpected(tinyBzip2, type, TINY);
       assertReadingCompressedFileMatchesExpected(largeBzip2, type, LARGE);
