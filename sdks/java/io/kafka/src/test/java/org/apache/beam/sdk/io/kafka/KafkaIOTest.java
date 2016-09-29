@@ -174,7 +174,7 @@ public class KafkaIOTest {
    * Creates a consumer with two topics, with 5 partitions each.
    * numElements are (round-robin) assigned all the 10 partitions.
    */
-  private static KafkaIO.TypedRead<Integer, Long> mkKafkaReadTransform(
+  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
 
@@ -254,7 +254,7 @@ public class KafkaIOTest {
 
     List<String> topics = ImmutableList.of("test");
 
-    KafkaIO.TypedRead<byte[], Long> reader = KafkaIO.read()
+    KafkaIO.Read<byte[], Long> reader = KafkaIO.read()
         .withBootstrapServers("none")
         .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5)))
         .withConsumerFactoryFn(new ConsumerFactoryFn(topics, 10, numElements)) // 10 partitions
