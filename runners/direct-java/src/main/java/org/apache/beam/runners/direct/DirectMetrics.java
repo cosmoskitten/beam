@@ -111,19 +111,21 @@ class DirectMetrics extends MetricResults {
 
   /** The current values of counters in memory. */
   private MetricsMap<MetricKey, DirectMetric<Long, Long>> counters =
-      new MetricsMap<MetricKey, DirectMetric<Long, Long>>() {
+      new MetricsMap<>(new MetricsMap.Factory<MetricKey, DirectMetric<Long, Long>>() {
         @Override
-        protected DirectMetric<Long, Long> createInstance() {
+        public DirectMetric<Long, Long> createInstance(MetricKey unusedKey) {
           return new DirectCounter();
         }
-      };
+      });
   private MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>> distributions =
-      new MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>>() {
+      new MetricsMap<>(
+          new MetricsMap.Factory<MetricKey, DirectMetric<DistributionData, DistributionResult>>() {
         @Override
-        protected DirectMetric<DistributionData, DistributionResult> createInstance() {
+        public DirectMetric<DistributionData, DistributionResult> createInstance(
+            MetricKey unusedKey) {
           return new DirectDistribution();
         }
-      };
+      });
 
   @AutoValue
   abstract static class DirectMetricQueryResults implements MetricQueryResults {

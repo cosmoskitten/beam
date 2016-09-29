@@ -40,12 +40,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MetricsMapTest {
 
-  public MetricsMap<String, AtomicLong> metricsMap = new MetricsMap<String, AtomicLong>() {
+  public MetricsMap<String, AtomicLong> metricsMap =
+      new MetricsMap<>(new MetricsMap.Factory<String, AtomicLong>() {
     @Override
-    protected AtomicLong createInstance() {
+    public AtomicLong createInstance(String unusedKey) {
       return new AtomicLong();
     }
-  };
+  });
 
   @Test
   public void testCreateSeparateInstances() {

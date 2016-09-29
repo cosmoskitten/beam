@@ -59,20 +59,20 @@ public class MetricsContainer {
   private final String stepName;
 
   private MetricsMap<MetricName, CounterCell> counters =
-      new MetricsMap<MetricName, CounterCell>() {
+      new MetricsMap<>(new MetricsMap.Factory<MetricName, CounterCell>() {
         @Override
-        protected CounterCell createInstance() {
+        public CounterCell createInstance(MetricName unusedKey) {
           return new CounterCell();
         }
-      };
+      });
 
   private MetricsMap<MetricName, DistributionCell> distributions =
-      new MetricsMap<MetricName, DistributionCell>() {
+      new MetricsMap<>(new MetricsMap.Factory<MetricName, DistributionCell>() {
         @Override
-        protected DistributionCell createInstance() {
+        public DistributionCell createInstance(MetricName unusedKey) {
           return new DistributionCell();
         }
-      };
+      });
 
   /**
    * Create a new {@link MetricsContainer} associated with the given {@code stepName}.

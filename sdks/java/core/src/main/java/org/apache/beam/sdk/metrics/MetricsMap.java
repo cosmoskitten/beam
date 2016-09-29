@@ -28,15 +28,26 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 /**
  * A map from {@code K} to {@code T} that supports getting or creating values associated with a key
  * in a thread-safe manner.
- *
- * <p>All instances must override {@link #createInstance()}.
  */
 @Experimental(Kind.METRICS)
-public abstract class MetricsMap<K, T> {
+public class MetricsMap<K, T> {
 
+  /** Interface for creating instances to populate the {@link MetricsMap}. */
+  public interface Factory<K, T> {
+    /**
+     * Create an instance of {@code T} to use with the given {@code key}.
+     *
+     * <p>It must be safe to call this from multiple threads.
+     */
+    T createInstance(K key);
+  }
+
+  private final Factory<K, T> factory;
   private final ConcurrentMap<K, T> metrics = new ConcurrentHashMap<>();
 
-  public MetricsMap() {}
+  public MetricsMap(Factory<K, T> factory) {
+    this.factory = factory;
+  }
 
   /**
    * Get or create the value associated with the given key.
@@ -44,7 +55,7 @@ public abstract class MetricsMap<K, T> {
   public T getOrCreate(K key) {
     T metric = metrics.get(key);
     if (metric == null) {
-      metric = createInstance();
+      metric = factory.createInstance(key);
       if (metrics.putIfAbsent(key, metric) == null) {
         metric = metrics.get(key);
       }
@@ -66,6 +77,4 @@ public abstract class MetricsMap<K, T> {
   public Iterable<Map.Entry<K, T>> entries() {
     return Iterables.unmodifiableIterable(metrics.entrySet());
   }
-
-  protected abstract T createInstance();
 }
