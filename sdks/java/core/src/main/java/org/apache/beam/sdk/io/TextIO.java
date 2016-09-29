@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -33,11 +33,14 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileBasedSink.OutputWrapperFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -468,6 +471,22 @@ public class TextIO {
       return new Bound<>(DEFAULT_TEXT_CODER).withFooter(footer);
     }
 
+    /**
+     * Returns a transform for writing to text files like this one but that has the given
+     * {@link OutputWrapperFactory} to be used by the {@link FileBasedSink} during output. The
+     * default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+     *
+     * <p>
+     * A {@code null} value will reset the value to the default value mentioned above.
+     *
+     * @param outputWrapperFactory the {@link OutputWrapperFactory} to be used by the
+     *        {@link FileBasedSink} during output
+     */
+    public static Bound<String> withOutputWrapperFactory(
+        OutputWrapperFactory outputWrapperFactory) {
+      return new Bound<>(DEFAULT_TEXT_CODER).withOutputWrapperFactory(outputWrapperFactory);
+    }
+
     // TODO: appendingNewlines, etc.
 
     /**
@@ -503,13 +522,20 @@ public class TextIO {
       /** An option to indicate if output validation is desired. Default is true. */
       private final boolean validate;
 
+      /**
+       * The {@link OutputWrapperFactory} to be used by the {@link FileBasedSink}. Default is
+       * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+       */
+      private final OutputWrapperFactory outputWrapperFactory;
+
       Bound(Coder<T> coder) {
-        this(null, null, "", null, null, coder, 0, DEFAULT_SHARD_TEMPLATE, true);
+        this(null, null, "", null, null, coder, 0, DEFAULT_SHARD_TEMPLATE, true,
+            FileBasedSink.CompressionType.UNCOMPRESSED);
       }
 
       private Bound(String name, String filenamePrefix, String filenameSuffix,
           @Nullable String header, @Nullable String footer, Coder<T> coder, int numShards,
-          String shardTemplate, boolean validate) {
+          String shardTemplate, boolean validate, OutputWrapperFactory outputWrapperFactory) {
         super(name);
         this.header = header;
         this.footer = footer;
@@ -519,6 +545,8 @@ public class TextIO {
         this.numShards = numShards;
         this.shardTemplate = shardTemplate;
         this.validate = validate;
+        this.outputWrapperFactory = (outputWrapperFactory != null ? outputWrapperFactory
+            : FileBasedSink.CompressionType.UNCOMPRESSED);
       }
 
       /**
@@ -532,7 +560,7 @@ public class TextIO {
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, outputWrapperFactory);
       }
 
       /**
@@ -546,7 +574,7 @@ public class TextIO {
       public Bound<T> withSuffix(String nameExtension) {
         validateOutputComponent(nameExtension);
         return new Bound<>(name, filenamePrefix, nameExtension, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, outputWrapperFactory);
       }
 
       /**
@@ -566,7 +594,7 @@ public class TextIO {
       public Bound<T> withNumShards(int numShards) {
         checkArgument(numShards >= 0);
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, outputWrapperFactory);
       }
 
       /**
@@ -579,7 +607,7 @@ public class TextIO {
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, outputWrapperFactory);
       }
 
       /**
@@ -597,7 +625,7 @@ public class TextIO {
        */
       public Bound<T> withoutSharding() {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, 1, "",
-            validate);
+            validate, outputWrapperFactory);
       }
 
       /**
@@ -610,7 +638,7 @@ public class TextIO {
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, outputWrapperFactory);
       }
 
       /**
@@ -625,7 +653,7 @@ public class TextIO {
        */
       public Bound<T> withoutValidation() {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false);
+            shardTemplate, false, outputWrapperFactory);
       }
 
       /**
@@ -640,7 +668,7 @@ public class TextIO {
        */
       public Bound<T> withHeader(@Nullable String header) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false);
+            shardTemplate, validate, outputWrapperFactory);
       }
 
       /**
@@ -655,7 +683,26 @@ public class TextIO {
        */
       public Bound<T> withFooter(@Nullable String footer) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false);
+            shardTemplate, validate, outputWrapperFactory);
+      }
+
+      /**
+       * Returns a transform for writing to text files like this one but that has the given
+       * {@link OutputWrapperFactory} to be used by the {@link FileBasedSink} during output. The
+       * default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+       *
+       * <p>
+       * A {@code null} value will reset the value to the default value mentioned above.
+       *
+       * <p>
+       * Does not modify this object.
+       *
+       * @param outputWrapperFactory the {@link OutputWrapperFactory} to be used by the
+       *        {@link FileBasedSink} during output
+       */
+      public Bound<T> withOutputWrapperFactory(OutputWrapperFactory outputWrapperFactory) {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+            shardTemplate, validate, outputWrapperFactory);
       }
 
       @Override
@@ -664,11 +711,10 @@ public class TextIO {
           throw new IllegalStateException(
               "need to set the filename prefix of a TextIO.Write transform");
         }
-
         org.apache.beam.sdk.io.Write.Bound<T> write =
             org.apache.beam.sdk.io.Write.to(
                 new TextSink<>(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
-                    coder));
+                    coder, outputWrapperFactory));
         if (getNumShards() > 0) {
           write = write.withNumShards(getNumShards());
         }
@@ -1028,8 +1074,8 @@ public class TextIO {
     TextSink(
         String baseOutputFilename, String extension,
         @Nullable String header, @Nullable String footer,
-        String fileNameTemplate, Coder<T> coder) {
-      super(baseOutputFilename, extension, fileNameTemplate);
+        String fileNameTemplate, Coder<T> coder, OutputWrapperFactory outputWrapperFactory) {
+      super(baseOutputFilename, extension, fileNameTemplate, outputWrapperFactory);
       this.coder = coder;
       this.header = header;
       this.footer = footer;

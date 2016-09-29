@@ -26,20 +26,33 @@ import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
+
+import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation.TemporaryFileRetention;
+import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
+import org.apache.beam.sdk.io.FileBasedSink.OutputWrapper;
+import org.apache.beam.sdk.io.FileBasedSink.OutputWrapperFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -419,11 +432,109 @@ public class FileBasedSinkTest {
   }
 
   /**
+   * {@link CompressionType#BZIP2} correctly writes Gzipped data.
+   */
+  @Test
+  public void testCompressionTypeBZIP2() throws FileNotFoundException, IOException {
+    final File file = writeValuesWithOutputWrapperFactory(CompressionType.BZIP2, "abc", "123");
+    // Read Bzip2ed data back in using Apache commons API (de facto standard).
+    assertReadValues(new BufferedReader(new InputStreamReader(
+        new BZip2CompressorInputStream(new FileInputStream(file)), StandardCharsets.UTF_8.name())),
+        "abc", "123");
+  }
+
+  /**
+   * {@link CompressionType#GZIP} correctly writes Gzipped data.
+   */
+  @Test
+  public void testCompressionTypeGZIP() throws FileNotFoundException, IOException {
+    final File file = writeValuesWithOutputWrapperFactory(CompressionType.GZIP, "abc", "123");
+    // Read Gzipped data back in using standard API.
+    assertReadValues(new BufferedReader(new InputStreamReader(
+        new GZIPInputStream(new FileInputStream(file)), StandardCharsets.UTF_8.name())), "abc",
+        "123");
+  }
+
+  /**
+   * {@link CompressionType#GZIP} correctly writes Gzipped data.
+   */
+  @Test
+  public void testCompressionTypeUNCOMPRESSED() throws FileNotFoundException, IOException {
+    final File file =
+        writeValuesWithOutputWrapperFactory(CompressionType.UNCOMPRESSED, "abc", "123");
+    // Read uncompressed data back in using standard API.
+    assertReadValues(new BufferedReader(new InputStreamReader(
+        new FileInputStream(file), StandardCharsets.UTF_8.name())), "abc",
+        "123");
+  }
+
+  private void assertReadValues(final BufferedReader br, String... values) throws IOException {
+    try (final BufferedReader _br = br) {
+      for (String value : values) {
+        assertEquals(String.format("Line should read '%s'", value), value, _br.readLine());
+      }
+    }
+  }
+
+  private File writeValuesWithOutputWrapperFactory(final OutputWrapperFactory factory,
+      String... values)
+      throws IOException, FileNotFoundException {
+    final File file = tmpFolder.newFile("test.gz");
+    final WritableByteChannel channel = Channels.newChannel(new FileOutputStream(file));
+    final OutputWrapper decorator = factory.create(channel);
+    for (String value : values) {
+      decorator.write(ByteBuffer.wrap((value + "\n").getBytes(StandardCharsets.UTF_8)));
+    }
+    decorator.finish();
+    decorator.close();
+    return file;
+  }
+
+  /**
+   * {@link FileBasedWriter} writes to the {@link OutputWrapper} provided by
+   * {@link OutputWrapperFactory}.
+   */
+  @Test
+  public void testDecoratedFileWriter() throws Exception {
+    final String testUid = "testId";
+    final String expectedFilename =
+        getBaseOutputFilename() + FileBasedWriteOperation.TEMPORARY_FILENAME_SEPARATOR + testUid;
+    final FileBasedWriter<String> writer =
+        new SimpleSink(getBaseOutputFilename(), "txt", new DrunkOutputWrapperFactory())
+            .createWriteOperation(null).createWriter(null);
+
+    final List<String> expected = new ArrayList<>();
+    expected.add("header");
+    expected.add("header");
+    expected.add("a");
+    expected.add("a");
+    expected.add("b");
+    expected.add("b");
+    expected.add("footer");
+    expected.add("footer");
+    expected.add("Finito!");
+    expected.add("Finito!");
+
+    writer.open(testUid);
+    writer.write("a");
+    writer.write("b");
+    final FileResult result = writer.close();
+
+    assertEquals(expectedFilename, result.getFilename());
+    assertFileContains(expected, expectedFilename);
+  }
+
+  /**
    * A simple FileBasedSink that writes String values as lines with header and footer lines.
    */
   private static final class SimpleSink extends FileBasedSink<String> {
     public SimpleSink(String baseOutputFilename, String extension) {
       super(baseOutputFilename, extension);
+    }
+
+    public SimpleSink(String baseOutputFilename, String extension,
+        OutputWrapperFactory outputWrapperFactory) {
+      super(baseOutputFilename, extension, outputWrapperFactory);
     }
 
     public SimpleSink(String baseOutputFilename, String extension, String fileNamingTemplate) {
