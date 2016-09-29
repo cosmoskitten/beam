@@ -211,7 +211,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public Coder getDefaultOutputCoder() {
+    public Coder<String> getDefaultOutputCoder() {
       return SerializableCoder.of(String.class);
     }
 
@@ -237,7 +237,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public BoundedReader createReader(PipelineOptions options) {
+    public BoundedMongoDbReader createReader(PipelineOptions options) {
       return new BoundedMongoDbReader(this);
     }
 
@@ -247,7 +247,6 @@ public class MongoDbIO {
 
       MongoClient mongoClient = new MongoClient();
       MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
-      MongoCollection mongoCollection = mongoDatabase.getCollection(collection);
 
       // get the Mongo collStats object
       // it gives the size for the entire collection
@@ -408,7 +407,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public BoundedSource getCurrentSource() {
+    public BoundedMongoDbSource getCurrentSource() {
       return source;
     }
 
@@ -536,7 +535,7 @@ public class MongoDbIO {
       @FinishBundle
       public void finishBundle(Context ctx) throws Exception {
         MongoDatabase mongoDatabase = client.getDatabase(database);
-        MongoCollection mongoCollection = mongoDatabase.getCollection(collection);
+        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(collection);
 
         mongoCollection.insertMany(batch);
 

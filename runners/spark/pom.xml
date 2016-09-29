@@ -38,6 +38,7 @@
     <hadoop.version>2.2.0</hadoop.version>
     <kafka.version>0.8.2.1</kafka.version>
     <dropwizard.metrics.version>3.1.2</dropwizard.metrics.version>
+    <compiler.error.flag>-Xlint:-rawtypes</compiler.error.flag>
   </properties>
 
   <profiles>

@@ -31,6 +31,10 @@
   <description>Microbenchmarks for components in the Beam Java SDK.</description>
   <packaging>jar</packaging>
 
+  <properties>
+    <compiler.error.flag>-Xlint:-rawtypes</compiler.error.flag>
+  </properties>
+
   <build>
     <plugins>
       <plugin>
