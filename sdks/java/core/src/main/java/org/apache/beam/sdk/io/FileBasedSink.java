@@ -22,9 +22,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Ordering;
+
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -34,6 +38,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.zip.GZIPOutputStream;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -45,6 +51,7 @@ import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +76,76 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class FileBasedSink<T> extends Sink<T> {
   /**
+   * Directly supported file output compression types.
+   */
+  public static enum CompressionType implements OutputWrapperFactory {
+    /**
+     * No compression will be used.
+     */
+    UNCOMPRESSED("", MimeTypes.TEXT) {
+      @Override
+      public OutputWrapper create(WritableByteChannel channel) throws IOException {
+        return new OutputWrapper(channel);
+      }
+    },
+    /**
+     * GZipped.
+     */
+    GZIP(".gz", MimeTypes.BINARY) {
+      @Override
+      public OutputWrapper create(WritableByteChannel channel) throws IOException {
+        final GZIPOutputStream gzip = new GZIPOutputStream(Channels.newOutputStream(channel), true);
+        return new OutputWrapper(Channels.newChannel(gzip)) {
+          @Override
+          public void finish() throws IOException {
+            gzip.finish();
+          }
+        };
+      }
+    },
+    /**
+     * BZipped.
+     */
+    BZIP2(".bz2", MimeTypes.BINARY) {
+      @Override
+      public OutputWrapper create(WritableByteChannel channel) throws IOException {
+        final BZip2CompressorOutputStream bzip2 =
+            new BZip2CompressorOutputStream(Channels.newOutputStream(channel));
+        return new OutputWrapper(Channels.newChannel(bzip2)) {
+          @Override
+          public void finish() throws IOException {
+            bzip2.finish();
+          }
+        };
+      }
+    };
+
+    private String filenameSuffix;
+    private String mimeType;
+
+    private CompressionType(String suffix, String mimeType) {
+      this.filenameSuffix = suffix;
+      this.mimeType = mimeType;
+    }
+
+    @Override
+    public String getFilenameSuffix() {
+      return filenameSuffix;
+    }
+
+    @Override
+    public String getMimeType() {
+      return mimeType;
+    }
+  }
+
+  /**
+   * The {@link OutputWrapperFactory} that is used to wrap the raw data output to the
+   * underlying channel. The default value is a No-op implementation.
+   */
+  protected final OutputWrapperFactory outputWrapperFactory;
+
+  /**
    * Base filename for final output files.
    */
   protected final String baseOutputFilename;
@@ -85,21 +162,50 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   protected final String fileNamingTemplate;
 
   /**
-   * Construct a FileBasedSink with the given base output filename and extension.
+   * Construct a FileBasedSink with the given base output filename and extension. A
+   * {@link OutputWrapperFactory} of type {@link CompressionType#UNCOMPRESSED} will be used.
    */
   public FileBasedSink(String baseOutputFilename, String extension) {
     this(baseOutputFilename, extension, ShardNameTemplate.INDEX_OF_MAX);
   }
 
   /**
+   * Construct a FileBasedSink with the given base output filename, extension, and
+   * {@link OutputWrapperFactory}.
+   */
+  public FileBasedSink(String baseOutputFilename, String extension,
+      OutputWrapperFactory outputWrapperFactory) {
+    this(baseOutputFilename, extension, ShardNameTemplate.INDEX_OF_MAX, outputWrapperFactory);
+  }
+
+  /**
    * Construct a FileBasedSink with the given base output filename, extension, and file naming
-   * template.
+   * template. A {@link OutputWrapperFactory} of type {@link CompressionType#UNCOMPRESSED}
+   * will be used.
    *
-   * <p>See {@link ShardNameTemplate} for a description of file naming templates.
+   * <p>
+   * See {@link ShardNameTemplate} for a description of file naming templates.
    */
   public FileBasedSink(String baseOutputFilename, String extension, String fileNamingTemplate) {
+    this(baseOutputFilename, extension, fileNamingTemplate, CompressionType.UNCOMPRESSED);
+  }
+
+  /**
+   * Construct a FileBasedSink with the given base output filename, extension, file naming template,
+   * and {@link OutputWrapperFactory}.
+   *
+   * <p>
+   * See {@link ShardNameTemplate} for a description of file naming templates.
+   */
+  public FileBasedSink(String baseOutputFilename, String extension, String fileNamingTemplate,
+      OutputWrapperFactory outputWrapperFactory) {
+    this.outputWrapperFactory = outputWrapperFactory;
     this.baseOutputFilename = baseOutputFilename;
-    this.extension = extension;
+    if (outputWrapperFactory.getFilenameSuffix() != null) {
+      this.extension = extension + getFileExtension(outputWrapperFactory.getFilenameSuffix());
+    } else {
+      this.extension = extension;
+    }
     this.fileNamingTemplate = fileNamingTemplate;
   }
 
@@ -443,7 +549,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * The channel to write to.
      */
-    private WritableByteChannel channel;
+    private OutputWrapper channel;
 
     /**
      * The MIME type used in the creation of the output channel (if the file system supports it).
@@ -491,7 +597,10 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       filename = FileBasedWriteOperation.buildTemporaryFilename(
           getWriteOperation().baseTemporaryFilename, uId);
       LOG.debug("Opening {}.", filename);
-      channel = IOChannelUtils.create(filename, mimeType);
+      final OutputWrapperFactory factory =
+          getWriteOperation().getSink().outputWrapperFactory;
+      mimeType = factory.getMimeType();
+      channel = factory.create(IOChannelUtils.create(filename, mimeType));
       try {
         prepareWrite(channel);
         LOG.debug("Writing header to {}.", filename);
@@ -501,6 +610,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         // channel if prepareWrite() or writeHeader() fails.
         try {
           LOG.error("Writing header to {} failed, closing channel.", filename);
+          // Call wrapper.finish() in case something actually got written and needs to be
+          // "finished".
+          channel.finish();
           channel.close();
         } catch (IOException closeException) {
           // Log exception and mask it.
@@ -513,13 +625,14 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     /**
-     * Closes the channel and return the bundle result.
+     * Finishes and closes the channel and returns the bundle result.
      */
     @Override
     public final FileResult close() throws Exception {
-      try (WritableByteChannel theChannel = channel) {
+      try (OutputWrapper theChannel = channel) {
         LOG.debug("Writing footer to {}.", filename);
         writeFooter();
+        theChannel.finish();
       }
       FileResult result = new FileResult(filename);
       LOG.debug("Result for bundle {}: {}", this.id, filename);
@@ -671,6 +784,83 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       if (!exists) {
         LOG.debug("{} does not exist.", filename);
       }
+    }
+  }
+
+  /**
+   * Implementations create instances of {@link OutputWrapper} used by
+   * {@link DecoratedFileSink} and related classes to allow <em>decorating</em>, or otherwise
+   * transforming, the raw data that would normally be written directly to the {@link OutputStream}
+   * passed into {@link OutputWrapperFactory#create(OutputStream)}.
+   */
+  public interface OutputWrapperFactory extends Serializable {
+    /**
+     * @param channel the {@link WritableByteChannel} to wrap and allow for decorated, or otherwise
+     *        transformed, data to
+     * @return the {@link OutputWrapper} decorating, or otherwise transforming, the raw data
+     *         before writing it to {@code out}
+     * @throws IOException
+     */
+    public OutputWrapper create(WritableByteChannel channel) throws IOException;
+
+    /**
+     * @return the MIME type that should be used for the files that will hold the output data
+     * @see MimeTypes
+     * @see <a href=
+     *      'http://www.iana.org/assignments/media-types/media-types.xhtml'>http://www.iana.org/assignments/media-types/media-types.xhtml</a>
+     */
+    public String getMimeType();
+
+    /**
+     * @return an optional filename suffix, eg, ".gz" is returned by {@link CompressionType#GZIP}
+     */
+    public String getFilenameSuffix();
+  }
+
+  /**
+   * Subclasses of this should <em>decorate</em>, or otherwise transform, the raw data that would
+   * normally be written directly to the {@link WritableByteChannel} passed into
+   * {@link OutputWrapperFactory#create(WritableByteChannel)}. Implementations can
+   * accomplish this by creating a new {@link WritableByteChannel}, for instance, wrapped with an
+   * {@link OutputStream} providing the desired functionality, and passing it into
+   * {@link OutputWrapper#WriterOutputDecorator(WritableByteChannel)}.
+   * <p>
+   * The {@link #finish()} hook is provided for any logic needed to <em>finish</em> writing to the
+   * underlying stream without closing it.
+   *
+   * @see GZIPOutputStream#finish()
+   */
+  public static class OutputWrapper implements WritableByteChannel {
+    protected final WritableByteChannel channel;
+
+    public OutputWrapper(final WritableByteChannel channel) {
+      this.channel = channel;
+    }
+
+    /**
+     * Provided for any logic needed to <em>finish</em> writing to the {@link WritableByteChannel}
+     * without closing the underlying stream. This gets called after any <em>footer</em> data is
+     * written by the underlying {@link FileBasedWriter}.
+     * <p>
+     * Default implementation is a no-op.
+     *
+     * @throws IOException
+     */
+    public void finish() throws IOException {}
+
+    @Override
+    public boolean isOpen() {
+      return channel.isOpen();
+    }
+
+    @Override
+    public void close() throws IOException {
+      channel.close();
+    }
+
+    @Override
+    public int write(ByteBuffer src) throws IOException {
+      return channel.write(src);
     }
   }
 }
