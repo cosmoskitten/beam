@@ -128,11 +128,7 @@ class TransformExecutor<T> implements Runnable {
       throw new RuntimeException(t);
     } finally {
       // Report the physical metrics from the end of this step.
-      MetricUpdates deltas = metricsContainer.getUpdates();
-      if (deltas != null) {
-        context.getMetrics().applyPhysical(deltas);
-        metricsContainer.commitUpdates();
-      }
+      context.getMetrics().commitPhysical(inputBundle, metricsContainer.getCumulative());
 
       MetricsContainer.unsetMetricsContainer();
       transformEvaluationState.complete(this);
@@ -153,6 +149,13 @@ class TransformExecutor<T> implements Runnable {
         }
 
         evaluator.processElement(value);
+
+        // Report the physical metrics after each element
+        MetricUpdates deltas = metricsContainer.getUpdates();
+        if (deltas != null) {
+          context.getMetrics().updatePhysical(inputBundle, deltas);
+          metricsContainer.commitUpdates();
+        }
 
         for (ModelEnforcement<T> enforcement : enforcements) {
           enforcement.afterElement(value);

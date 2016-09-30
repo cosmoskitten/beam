@@ -20,14 +20,17 @@ package org.apache.beam.runners.direct;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -36,6 +39,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.MetricsMap;
 
 /**
@@ -43,69 +47,104 @@ import org.apache.beam.sdk.metrics.MetricsMap;
  */
 class DirectMetrics extends MetricResults {
 
-  private interface DirectMetric<UpdateT, ResultT> {
-    void applyPhysical(UpdateT update);
-    void applyLogical(UpdateT update);
-    ResultT extractPhysical();
-    ResultT extractLogical();
+  public static abstract class DirectMetric<UpdateT, ResultT> {
+    private final Object logicalLock = new Object();
+    private volatile UpdateT committedLogical;
+
+    private final Object physicalLock = new Object();
+    private volatile UpdateT committedPhysical;
+    private final ConcurrentMap<CommittedBundle<?>, UpdateT> uncommittedPhysical =
+        new ConcurrentHashMap<>();
+
+    public DirectMetric(UpdateT zero) {
+      committedLogical = zero;
+      committedPhysical = zero;
+    }
+
+    protected abstract UpdateT combine(Iterable<UpdateT> updates);
+    protected abstract ResultT extract(UpdateT data);
+
+    public void updatePhysical(CommittedBundle<?> bundle, UpdateT tentativeCumulative) {
+      uncommittedPhysical.put(bundle, tentativeCumulative);
+    }
+
+    public void commitPhysical(CommittedBundle<?> bundle, UpdateT finalCumulative) {
+      synchronized (physicalLock) {
+        committedPhysical = combine(Arrays.asList(committedPhysical, finalCumulative));
+        uncommittedPhysical.remove(bundle);
+      }
+    }
+
+    public ResultT extractPhysical() {
+      ArrayList<UpdateT> updates = new ArrayList<>(uncommittedPhysical.size() + 1);
+      // Within this block we know that will be consistent. Specifically, the only change that can
+      // happen concurrently is the addition of new (larger) values to uncommittedPhysical.
+      synchronized (physicalLock) {
+        updates.add(committedPhysical);
+        updates.addAll(uncommittedPhysical.values());
+      }
+      return extract(combine(updates));
+    }
+
+    public void commitLogical(CommittedBundle<?> unusedBundle, UpdateT finalCumulative) {
+      synchronized (logicalLock) {
+        committedLogical = combine(Arrays.asList(committedLogical, finalCumulative));
+      }
+    }
+
+    public ResultT extractLogical() {
+      ArrayList<UpdateT> updates = new ArrayList<>(1);
+      synchronized (logicalLock) {
+        updates.add(committedLogical);
+      }
+      return extract(combine(updates));
+    }
   }
 
-  private static class DirectCounter implements DirectMetric<Long, Long> {
-    private final AtomicLong physicalValue = new AtomicLong();
-    private final AtomicLong logicalValue = new AtomicLong();
+  private static class DirectCounter extends DirectMetric<Long, Long> {
 
-    @Override
-    public void applyPhysical(Long update) {
-      physicalValue.addAndGet(update);
+    public DirectCounter() {
+      super(0L);
     }
 
     @Override
-    public Long extractPhysical() {
-      return physicalValue.get();
+    protected Long combine(Iterable<Long> updates) {
+      long value = 0;
+      for (long update : updates) {
+        value += update;
+      }
+      return value;
     }
 
     @Override
-    public void applyLogical(Long update) {
-      logicalValue.addAndGet(update);
-    }
-
-    @Override
-    public Long extractLogical() {
-      return logicalValue.get();
+    protected Long extract(Long data) {
+      return data;
     }
   }
 
   private static class DirectDistribution
-      implements DirectMetric<DistributionData, DistributionResult> {
+      extends DirectMetric<DistributionData, DistributionResult> {
     private final AtomicReference<DistributionData> physicalValue =
         new AtomicReference(DistributionData.EMPTY);
     private final AtomicReference<DistributionData> logicalValue =
         new AtomicReference(DistributionData.EMPTY);
 
-    @Override
-    public void applyPhysical(DistributionData update) {
-      DistributionData previous;
-      do {
-        previous = physicalValue.get();
-      } while (!physicalValue.compareAndSet(previous, previous.add(update)));
+    public DirectDistribution() {
+      super(DistributionData.EMPTY);
     }
 
     @Override
-    public DistributionResult extractPhysical() {
-      return physicalValue.get().extractResult();
+    protected DistributionData combine(Iterable<DistributionData> updates) {
+      DistributionData result = DistributionData.EMPTY;
+      for (DistributionData update : updates) {
+        result = result.add(update);
+      }
+      return result;
     }
 
     @Override
-    public void applyLogical(DistributionData update) {
-      DistributionData previous;
-      do {
-        previous = logicalValue.get();
-      } while (!logicalValue.compareAndSet(previous, previous.add(update)));
-    }
-
-    @Override
-    public DistributionResult extractLogical() {
-      return logicalValue.get().extractResult();
+    protected DistributionResult extract(DistributionData data) {
+      return data.extractResult();
     }
   }
 
@@ -209,22 +248,31 @@ class DirectMetrics extends MetricResults {
   }
 
   /** Apply metric updates that represent physical counter deltas to the current metric values. */
-  public void applyPhysical(MetricUpdates updates) {
+  public void updatePhysical(CommittedBundle<?> bundle, MetricUpdates updates) {
     for (MetricUpdate<Long> counter : updates.counterUpdates()) {
-      counters.getOrCreate(counter.getKey()).applyPhysical(counter.getUpdate());
+      counters.getOrCreate(counter.getKey()).updatePhysical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.getOrCreate(distribution.getKey()).applyPhysical(distribution.getUpdate());
+      distributions.getOrCreate(distribution.getKey()).updatePhysical(bundle, distribution.getUpdate());
+    }
+  }
+
+  public void commitPhysical(CommittedBundle<?> bundle, MetricUpdates updates) {
+    for (MetricUpdate<Long> counter : updates.counterUpdates()) {
+      counters.getOrCreate(counter.getKey()).commitPhysical(bundle, counter.getUpdate());
+    }
+    for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
+      distributions.getOrCreate(distribution.getKey()).commitPhysical(bundle, distribution.getUpdate());
     }
   }
 
   /** Apply metric updates that represent new logical values from a bundle being committed. */
-  public void applyLogical(MetricUpdates updates) {
+  public void commitLogical(CommittedBundle<?> bundle, MetricUpdates updates) {
     for (MetricUpdate<Long> counter : updates.counterUpdates()) {
-      counters.getOrCreate(counter.getKey()).applyLogical(counter.getUpdate());
+      counters.getOrCreate(counter.getKey()).commitLogical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.getOrCreate(distribution.getKey()).applyLogical(distribution.getUpdate());
+      distributions.getOrCreate(distribution.getKey()).commitLogical(bundle, distribution.getUpdate());
     }
   }
 }

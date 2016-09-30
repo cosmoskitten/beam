@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricKey;
@@ -33,9 +34,12 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 /**
  * Tests for {@link DirectMetrics}.
@@ -43,22 +47,32 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DirectMetricsTest {
 
-  private final MetricName NAME1 = MetricName.named("ns1", "name1");
-  private final MetricName NAME2 = MetricName.named("ns1", "name2");
-  private final MetricName NAME3 = MetricName.named("ns2", "name1");
+  @Mock
+  private CommittedBundle<Object> bundle1;
+  @Mock
+  private CommittedBundle<Object> bundle2;
+
+  private static final MetricName NAME1 = MetricName.named("ns1", "name1");
+  private static final MetricName NAME2 = MetricName.named("ns1", "name2");
+  private static final MetricName NAME3 = MetricName.named("ns2", "name1");
 
   private DirectMetrics metrics = new DirectMetrics();
 
+  @Before
+  public void setUp() {
+    MockitoAnnotations.initMocks(this);
+  }
+
   @Test
   public void testApplyLogicalQueryNoFilter() {
-    metrics.applyLogical(MetricUpdates.create(
+    metrics.commitLogical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
             MetricUpdate.create(MetricKey.create("step1", NAME2), 8L)),
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step1", NAME1),
                 DistributionData.create(8, 2, 3, 5)))));
-    metrics.applyLogical(MetricUpdates.create(
+    metrics.commitLogical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
             MetricUpdate.create(MetricKey.create("step1", NAME2), 4L)),
@@ -79,12 +93,12 @@ public class DirectMetricsTest {
 
   @Test
   public void testApplyPhysicalCountersQueryOneNamespace() {
-    metrics.applyPhysical(MetricUpdates.create(
+    metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
             MetricUpdate.create(MetricKey.create("step1", NAME3), 8L)),
         ImmutableList.<MetricUpdate<DistributionData>>of()));
-    metrics.applyPhysical(MetricUpdates.create(
+    metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
             MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
@@ -99,15 +113,15 @@ public class DirectMetricsTest {
 
   @Test
   public void testApplyPhysicalQueryCompositeScope() {
-    metrics.applyPhysical(MetricUpdates.create(
+    metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
             MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L)),
         ImmutableList.<MetricUpdate<DistributionData>>of()));
-    metrics.applyPhysical(MetricUpdates.create(
+    metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 7L),
-            MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 4L)),
+            MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 12L),
+            MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L)),
         ImmutableList.<MetricUpdate<DistributionData>>of()));
 
     assertThat(metrics.queryMetrics(

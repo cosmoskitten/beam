@@ -159,7 +159,7 @@ class EvaluationContext {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
     if (result.getLogicalMetricUpdates() != null) {
-      metrics.applyLogical(result.getLogicalMetricUpdates());
+      metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
     }
 
     // Update watermarks and timers
