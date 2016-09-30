@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.metrics.MetricMatchers.metricUpdate;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import org.junit.After;
@@ -64,10 +65,8 @@ public class MetricsContainerTest {
   }
 
   @Test
-  public void testFailsWithoutMetricsContainer() {
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("setMetricsContainer");
-    MetricsContainer.getCurrentContainer();
+  public void testBehavesWithoutMetricsContainer() {
+    assertNull(MetricsContainer.getCurrentContainer());
   }
 
   @Test
@@ -101,7 +100,7 @@ public class MetricsContainerTest {
 
     c1.add(8L);
     assertThat(container.getUpdates().counterUpdates(), contains(
-        metricUpdate("name1", 8L)));
+        metricUpdate("name1", 13L)));
   }
 
   @Test
@@ -159,7 +158,7 @@ public class MetricsContainerTest {
     c1.report(8L);
     c1.report(4L);
     assertThat(container.getUpdates().distributionUpdates(), contains(
-        metricUpdate("name1", DistributionData.create(12, 2, 4, 8))));
+        metricUpdate("name1", DistributionData.create(17, 3, 4, 8))));
     container.commitUpdates();
   }
 }

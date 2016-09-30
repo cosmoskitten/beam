@@ -27,6 +27,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.metrics.DistributionData;
@@ -47,9 +49,13 @@ import org.apache.beam.sdk.metrics.MetricsMap;
  */
 class DirectMetrics extends MetricResults {
 
-  public static abstract class DirectMetric<UpdateT, ResultT> {
+  private static final ExecutorService COUNTER_COMMITTER = Executors.newCachedThreadPool();
+
+  public abstract static class DirectMetric<UpdateT, ResultT> {
     private final Object logicalLock = new Object();
     private volatile UpdateT committedLogical;
+    private final ConcurrentMap<CommittedBundle<?>, UpdateT> uncommittedLogical =
+        new ConcurrentHashMap<>();
 
     private final Object physicalLock = new Object();
     private volatile UpdateT committedPhysical;
@@ -68,11 +74,22 @@ class DirectMetrics extends MetricResults {
       uncommittedPhysical.put(bundle, tentativeCumulative);
     }
 
-    public void commitPhysical(CommittedBundle<?> bundle, UpdateT finalCumulative) {
-      synchronized (physicalLock) {
-        committedPhysical = combine(Arrays.asList(committedPhysical, finalCumulative));
-        uncommittedPhysical.remove(bundle);
-      }
+    public void commitPhysical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
+      // To prevent a query from blocking the commit, we perform the commit in two steps.
+      // 1. We perform a non-blocking write to the uncommitted table to make the new vaule
+      //    available immediately.
+      // 2. We submit a runnable that will commit the update and remove the tentative value in
+      //    a synchronized block.
+      uncommittedPhysical.put(bundle, finalCumulative);
+      COUNTER_COMMITTER.submit(new Runnable() {
+        @Override
+        public void run() {
+          synchronized (physicalLock) {
+            committedPhysical = combine(Arrays.asList(committedPhysical, finalCumulative));
+            uncommittedPhysical.remove(bundle);
+          }
+        }
+      });
     }
 
     public ResultT extractPhysical() {
@@ -86,16 +103,33 @@ class DirectMetrics extends MetricResults {
       return extract(combine(updates));
     }
 
-    public void commitLogical(CommittedBundle<?> unusedBundle, UpdateT finalCumulative) {
-      synchronized (logicalLock) {
-        committedLogical = combine(Arrays.asList(committedLogical, finalCumulative));
-      }
+    public void updateLogical(CommittedBundle<?> bundle, UpdateT tentativeCumulative) {
+      uncommittedLogical.put(bundle, tentativeCumulative);
+    }
+
+    public void commitLogical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
+      // To prevent a query from blocking the commit, we perform the commit in two steps.
+      // 1. We perform a non-blocking write to the uncommitted table to make the new vaule
+      //    available immediately.
+      // 2. We submit a runnable that will commit the update and remove the tentative value in
+      //    a synchronized block.
+      uncommittedLogical.put(bundle, finalCumulative);
+      COUNTER_COMMITTER.submit(new Runnable() {
+        @Override
+        public void run() {
+          synchronized (logicalLock) {
+            committedLogical = combine(Arrays.asList(committedLogical, finalCumulative));
+            uncommittedLogical.remove(bundle);
+          }
+        }
+      });
     }
 
     public ResultT extractLogical() {
-      ArrayList<UpdateT> updates = new ArrayList<>(1);
+      ArrayList<UpdateT> updates = new ArrayList<>(uncommittedLogical.size() + 1);
       synchronized (logicalLock) {
         updates.add(committedLogical);
+        updates.addAll(uncommittedLogical.values());
       }
       return extract(combine(updates));
     }
@@ -253,7 +287,8 @@ class DirectMetrics extends MetricResults {
       counters.getOrCreate(counter.getKey()).updatePhysical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.getOrCreate(distribution.getKey()).updatePhysical(bundle, distribution.getUpdate());
+      distributions.getOrCreate(distribution.getKey())
+          .updatePhysical(bundle, distribution.getUpdate());
     }
   }
 
@@ -262,7 +297,18 @@ class DirectMetrics extends MetricResults {
       counters.getOrCreate(counter.getKey()).commitPhysical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.getOrCreate(distribution.getKey()).commitPhysical(bundle, distribution.getUpdate());
+      distributions.getOrCreate(distribution.getKey())
+          .commitPhysical(bundle, distribution.getUpdate());
+    }
+  }
+
+  public void updateLogical(CommittedBundle<?> bundle, MetricUpdates updates) {
+    for (MetricUpdate<Long> counter : updates.counterUpdates()) {
+      counters.getOrCreate(counter.getKey()).updateLogical(bundle, counter.getUpdate());
+    }
+    for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
+      distributions.getOrCreate(distribution.getKey())
+          .updateLogical(bundle, distribution.getUpdate());
     }
   }
 
@@ -272,7 +318,8 @@ class DirectMetrics extends MetricResults {
       counters.getOrCreate(counter.getKey()).commitLogical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.getOrCreate(distribution.getKey()).commitLogical(bundle, distribution.getUpdate());
+      distributions.getOrCreate(distribution.getKey())
+          .commitLogical(bundle, distribution.getUpdate());
     }
   }
 }
