@@ -154,13 +154,6 @@ class TransformExecutor<T> implements Runnable {
 
         evaluator.processElement(value);
 
-        // Report the physical metrics in between elements.
-        MetricUpdates deltas = metricsContainer.getUpdates();
-        if (deltas != null) {
-          context.getMetrics().applyPhysical(deltas);
-          metricsContainer.commitUpdates();
-        }
-
         for (ModelEnforcement<T> enforcement : enforcements) {
           enforcement.afterElement(value);
         }
