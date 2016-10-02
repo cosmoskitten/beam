@@ -20,17 +20,16 @@ package org.apache.beam.runners.apex.translators;
 
 import java.util.List;
 
+import org.apache.beam.runners.apex.translators.functions.ApexFlattenOperator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
-import com.datatorrent.lib.stream.StreamMerger;
 import com.google.common.collect.Lists;
 
 /**
- * Flatten.FlattenPCollectionList translation to Apex operator.
- * TODO: support more than two streams
+ * {@link Flatten.FlattenPCollectionList} translation to Apex operator.
  */
 public class FlattenPCollectionTranslator<T> implements
     TransformTranslator<Flatten.FlattenPCollectionList<T>> {
@@ -47,7 +46,7 @@ public class FlattenPCollectionTranslator<T> implements
         if (null == firstCollection) {
           firstCollection = collection;
         } else {
-          StreamMerger<T> operator = new StreamMerger<>();
+          ApexFlattenOperator<T> operator = new ApexFlattenOperator<>();
           context.addStream(firstCollection, operator.data1);
           context.addStream(collection, operator.data2);
           if (collections.size() > 2) {

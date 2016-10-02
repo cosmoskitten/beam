@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
+import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translators.utils.NoOpStepContext;
 import org.apache.beam.runners.apex.translators.utils.SerializablePipelineOptions;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.ExecutionContext;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
@@ -46,6 +48,8 @@ import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultInputPort;
@@ -61,6 +65,8 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
  * Apex operator for Beam {@link DoFn}.
  */
 public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements OutputManager {
+  private static final Logger LOG = LoggerFactory.getLogger(ApexParDoOperator.class);
+  private boolean traceTuples = true;
 
   private transient final TupleTag<OutputT> mainTag = new TupleTag<OutputT>();
   private transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackDoFnRunner;
@@ -108,19 +114,16 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     public void process(ApexStreamTuple<WindowedValue<InputT>> t)
     {
       if (t instanceof ApexStreamTuple.WatermarkTuple) {
-        System.out.println("\n" + Thread.currentThread().getName() + " watermark\n" + t + "\n");
         processWatermark((ApexStreamTuple.WatermarkTuple<?>)t);
       } else {
-        System.out.println("\n" + Thread.currentThread().getName() + "\n" + t.getValue() + "\n");
-        //pushbackDoFnRunner.processElement(t.getValue());
-        Iterable<WindowedValue<InputT>> justPushedBack =
-            pushbackDoFnRunner.processElementInReadyWindows(t.getValue());
-
+        if (traceTuples) {
+          LOG.debug("\ninput {}\n", t.getValue());
+        }
+        Iterable<WindowedValue<InputT>> justPushedBack = processElementInReadyWindows(t.getValue());
         for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
           pushedBackWatermark.add(pushedBackValue.getTimestamp().getMillis());
           pushedBack.add(pushedBackValue);
         }
-
       }
     }
   };
@@ -137,13 +140,15 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
         // ignore side input watermarks
         return;
       }
+      if (traceTuples) {
+        LOG.debug("\nsideInput {}\n", t.getValue());
+      }
       PCollectionView<?> sideInput = sideInputs.get(sideInputIndex);
       sideInputHandler.addSideInputValue(sideInput, t.getValue());
 
       List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
       for (WindowedValue<InputT> elem : pushedBack) {
-        Iterable<WindowedValue<InputT>> justPushedBack =
-            pushbackDoFnRunner.processElementInReadyWindows(elem);
+        Iterable<WindowedValue<InputT>> justPushedBack = processElementInReadyWindows(elem);
         Iterables.addAll(newPushedBack, justPushedBack);
       }
 
@@ -166,6 +171,20 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   public <T> void output(TupleTag<T> tag, WindowedValue<T> tuple)
   {
     output.emit(ApexStreamTuple.DataTuple.of(tuple));
+    if (traceTuples) {
+      LOG.debug("\nemitting {}\n", tuple);
+    }
+  }
+
+  private Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem) {
+    try {
+      return pushbackDoFnRunner.processElementInReadyWindows(elem);
+    } catch (UserCodeException ue) {
+      if (ue.getCause() instanceof AssertionError) {
+        ApexRunner.assertionError = (AssertionError)ue.getCause();
+      }
+      throw ue;
+    }
   }
 
   private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark)
@@ -173,6 +192,9 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     this.currentInputWatermark = mark.getTimestamp();
 
     if (sideInputs.isEmpty()) {
+      if (traceTuples) {
+        LOG.debug("\nemitting watermark {}\n", mark);
+      }
       output.emit(mark);
       return;
     }
@@ -181,6 +203,9 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
         Math.min(pushedBackWatermark.get(), currentInputWatermark);
     if (potentialOutputWatermark > currentOutputWatermark) {
       currentOutputWatermark = potentialOutputWatermark;
+      if (traceTuples) {
+        LOG.debug("\nemitting watermark {}\n", currentOutputWatermark);
+      }
       output.emit(ApexStreamTuple.WatermarkTuple.of(currentOutputWatermark));
     }
   }
@@ -188,6 +213,7 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   @Override
   public void setup(OperatorContext context)
   {
+    this.traceTuples = ApexStreamTuple.Logging.isDebugEnabled(pipelineOptions.get(), this);
     SideInputReader sideInputReader = NullSideInputReader.of(sideInputs);
     if (!sideInputs.isEmpty()) {
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);

@@ -55,6 +55,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultInputPort;
@@ -79,6 +81,9 @@ import com.google.common.collect.Multimap;
  */
 public class ApexGroupByKeyOperator<K, V> implements Operator
 {
+  private static final Logger LOG = LoggerFactory.getLogger(ApexGroupByKeyOperator.class);
+  private boolean traceTuples = true;
+
   @Bind(JavaSerializer.class)
   private WindowingStrategy<V, BoundedWindow> windowingStrategy;
   @Bind(JavaSerializer.class)
@@ -101,13 +106,18 @@ transient  private Map<K, StateInternals<K>> perKeyStateInternals = new HashMap<
     @Override
     public void process(ApexStreamTuple<WindowedValue<KV<K, V>>> t)
     {
-      //System.out.println("\n***RECEIVED: " +t);
       try {
         if (t instanceof ApexStreamTuple.WatermarkTuple) {
           ApexStreamTuple.WatermarkTuple<?> mark = (ApexStreamTuple.WatermarkTuple<?>)t;
           processWatermark(mark);
+          if (traceTuples) {
+            LOG.debug("\nemitting watermark {}\n", mark.getTimestamp());
+          }
           output.emit(ApexStreamTuple.WatermarkTuple.<WindowedValue<KV<K, Iterable<V>>>>of(mark.getTimestamp()));
           return;
+        }
+        if (traceTuples) {
+          LOG.debug("\ninput {}\n", t.getValue());
         }
         processElement(t.getValue());
       } catch (Exception e) {
@@ -147,6 +157,7 @@ transient  private Map<K, StateInternals<K>> perKeyStateInternals = new HashMap<
   @Override
   public void setup(OperatorContext context)
   {
+    this.traceTuples = ApexStreamTuple.Logging.isDebugEnabled(serializedOptions.get(), this);
     StateInternalsFactory<K> stateInternalsFactory = new GroupByKeyStateInternalsFactory();
     this.fn = GroupAlsoByWindowViaWindowSetDoFn.create(this.windowingStrategy, stateInternalsFactory,
         SystemReduceFn.<K, V, BoundedWindow>buffering(this.valueCoder));

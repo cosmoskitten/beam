@@ -71,6 +71,13 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   private final ApexPipelineOptions options;
 
+  /**
+   * TODO: this isn't thread sa
+   * Holds any most resent assertion error that was raised while processing elements.
+   * Used in the unit test driver in embedded to propagate the exception.
+   */
+  public static volatile AssertionError assertionError;
+
   public ApexRunner(ApexPipelineOptions options) {
     this.options = options;
   }
@@ -139,10 +146,19 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         // turns off timeout checking for operator progress
         lc.setHeartbeatMonitoringEnabled(false);
       }
+      assertionError = null;
+      lc.runAsync();
       if (options.getRunMillis() > 0) {
-        lc.run(options.getRunMillis());
-      } else {
-        lc.runAsync();
+        try {
+          long timeout = System.currentTimeMillis() + options.getRunMillis();
+          while (System.currentTimeMillis() < timeout) {
+            if (assertionError != null) {
+              throw assertionError;
+            }
+          }
+        } finally {
+          lc.shutdown();
+        }
       }
       return new ApexRunnerResult(lma.getDAG(), lc);
     } catch (Exception e) {

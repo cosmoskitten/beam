@@ -20,6 +20,7 @@ package org.apache.beam.runners.apex.translators;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunnerResult;
+import org.apache.beam.runners.apex.TestApexRunner;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translators.functions.ApexParDoOperator;
 import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperator;
@@ -128,13 +129,11 @@ public class ParDoBoundTranslatorTest {
     }
   }
 
-
-  @Ignore
   @Test
   public void testAssertionFailure() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.create()
         .as(ApexPipelineOptions.class);
-    options.setRunner(ApexRunner.class);
+    options.setRunner(TestApexRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<Integer> pcollection = pipeline
@@ -152,6 +151,16 @@ public class ParDoBoundTranslatorTest {
             + exc.getMessage()
             + "\"",
         expectedPattern.matcher(exc.getMessage()).find());
+  }
+
+  @Test
+  public void testContainsInAnyOrder() throws Exception {
+    ApexPipelineOptions options = PipelineOptionsFactory.create().as(ApexPipelineOptions.class);
+    options.setRunner(TestApexRunner.class);
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
+    PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
+    pipeline.run();
   }
 
   private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {
@@ -179,5 +188,6 @@ public class ParDoBoundTranslatorTest {
     operator.input.process(ApexStreamTuple.WatermarkTuple.<WindowedValue<Integer>>of(0));
     operator.endWindow();
     Assert.assertNotNull("Serialization", KryoCloneUtils.cloneObject(operator));
+
   }
 }
