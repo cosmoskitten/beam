@@ -114,6 +114,18 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       PTransform<InputT, OutputT> customTransform = (PTransform)new StreamingViewAsIterable<InputT>(this,
           (View.AsIterable)transform);
       return Pipeline.applyTransform(input, customTransform);
+    } else if (View.AsList.class.equals(transform.getClass())) {
+      PTransform<InputT, OutputT> customTransform = (PTransform)new StreamingViewAsList<InputT>(this,
+          (View.AsList)transform);
+      return Pipeline.applyTransform(input, customTransform);
+    } else if (View.AsMap.class.equals(transform.getClass())) {
+      PTransform<InputT, OutputT> customTransform = new StreamingViewAsMap(this,
+          (View.AsMap)transform);
+      return Pipeline.applyTransform(input, customTransform);
+    } else if (View.AsMultimap.class.equals(transform.getClass())) {
+      PTransform<InputT, OutputT> customTransform = new StreamingViewAsMultimap(this,
+          (View.AsMultimap)transform);
+      return Pipeline.applyTransform(input, customTransform);
     } else {
       return super.apply(transform, input);
     }
