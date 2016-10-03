@@ -78,12 +78,12 @@ class FileBasedSource(iobase.BoundedSource):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
     self._compression_type = compression_type
-    if (compression_type != fileio.CompressionTypes.UNCOMPRESSED and
-        compression_type != fileio.CompressionTypes.AUTO):
+    if compression_type in (fileio.CompressionTypes.UNCOMPRESSED,
+                            fileio.CompressionTypes.AUTO):
+      self._splittable = splittable
+    else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
-    else:
-      self._splittable = splittable
 
   def _get_concat_source(self):
     if self._concat_source is None:
