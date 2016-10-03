@@ -22,13 +22,9 @@ import static org.apache.beam.sdk.metrics.MetricMatchers.metricUpdate;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
-import org.junit.After;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -37,37 +33,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MetricsContainerTest {
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-
-  @After
-  public void teardown() {
-    MetricsContainer.unsetMetricsContainer();
-  }
-
-  @Test
-  public void testUsesAppropriateMetricsContainer() {
-    Counter counter = new Counter(MetricName.named("ns", "name"));
-    MetricsContainer c1 = new MetricsContainer("step1");
-    MetricsContainer c2 = new MetricsContainer("step2");
-
-    MetricsContainer.setMetricsContainer(c1);
-    counter.inc();
-    MetricsContainer.setMetricsContainer(c2);
-    counter.dec();
-    MetricsContainer.unsetMetricsContainer();
-
-    MetricUpdates updates1 = c1.getUpdates();
-    MetricUpdates updates2 = c2.getUpdates();
-    assertThat(updates1.counterUpdates(), contains(metricUpdate("ns", "name", "step1", 1L)));
-    assertThat(updates2.counterUpdates(), contains(metricUpdate("ns", "name", "step2", -1L)));
-  }
-
-  @Test
-  public void testBehavesWithoutMetricsContainer() {
-    assertNull(MetricsContainer.getCurrentContainer());
-  }
 
   @Test
   public void testCounterDeltas() {

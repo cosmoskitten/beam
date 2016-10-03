@@ -22,7 +22,7 @@ public class Counter {
 
   /** Increment the counter by the given amount. */
   public void inc(long n) {
-    MetricsContainer container = MetricsContainer.getCurrentContainer();
+    MetricsContainer container = MetricsEnvironment.getCurrentContainer();
     if (container != null) {
       container.getOrCreateCounter(name).add(n);
     }

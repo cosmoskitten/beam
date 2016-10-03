@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -95,7 +96,7 @@ class TransformExecutor<T> implements Runnable {
   @Override
   public void run() {
     MetricsContainer metricsContainer = new MetricsContainer(transform.getFullName());
-    MetricsContainer.setMetricsContainer(metricsContainer);
+    MetricsEnvironment.setMetricsContainer(metricsContainer);
     checkState(
         thread.compareAndSet(null, Thread.currentThread()),
         "Tried to execute %s for %s on thread %s, but is already executing on thread %s",
@@ -130,7 +131,7 @@ class TransformExecutor<T> implements Runnable {
       // Report the physical metrics from the end of this step.
       context.getMetrics().commitPhysical(inputBundle, metricsContainer.getCumulative());
 
-      MetricsContainer.unsetMetricsContainer();
+      MetricsEnvironment.unsetMetricsContainer();
       transformEvaluationState.complete(this);
     }
   }

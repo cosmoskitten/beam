@@ -35,12 +35,12 @@ public class DistributionTest {
 
   @After
   public void tearDown() {
-    MetricsContainer.unsetMetricsContainer();
+    MetricsEnvironment.unsetMetricsContainer();
   }
 
   @Test
   public void testReportWithoutContainer() {
-    assertNull(MetricsContainer.getCurrentContainer());
+    assertNull(MetricsEnvironment.getCurrentContainer());
     // Should not fail even though there is no metrics container.
     new Distribution(NAME).report(5L);
   }
@@ -50,7 +50,7 @@ public class DistributionTest {
     MetricsContainer container = Mockito.mock(MetricsContainer.class);
     DistributionCell cell = Mockito.mock(DistributionCell.class);
     when(container.getOrCreateDistribution(NAME)).thenReturn(cell);
-    MetricsContainer.setMetricsContainer(container);
+    MetricsEnvironment.setMetricsContainer(container);
 
     Distribution distribution = new Distribution(NAME);
     distribution.report(5L);

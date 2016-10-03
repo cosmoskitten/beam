@@ -21,48 +21,23 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Holds all of the metrics produced for a single step and unit-of-commit.
+ * Holds the metrics for a single step and unit-of-commit (bundle).
  *
- * <p>A thread-local variable holds the {@link MetricsContainer} that should be used for any
- * metric updates produced from the executing code by interactions with the user-facing metric
- * interfaces (eg., {@link Counter}).
+ * <p>This class is thread-safe. It is intended to be used with 1 (or more) threads are updating
+ * metrics and at-most 1 thread is extracting updates by calling {@link #getUpdates} and
+ * {@link #commitUpdates}. Outside of this it is still safe. Although races in the update extraction
+ * may cause updates that don't actually have any changes, it will never lose an update.
  *
- * <p>For a given runner to support metrics it is currently necessary to do 3 things:
- * <ol>
- *   <li>Create a {@link MetricsContainer} for each step that metrics will be reported at.
- *   </li>
- *   <li>Make sure to call {@link #setMetricsContainer}
- *   </li>
- *   <li>Use {@link #getCumulative()} to get {@link org.apache.beam.sdk.metrics.MetricUpdates}
- *   representing all the metric changes and report/aggregate those appropriately.
- *   </li>
- *   <li>Optionally, use {@link #getUpdates()} to get only the changes to a metric since the last
- *   time and report those periodically. After reporting deltas and before the next call to
- *   {@link #getUpdates()} the runner should invoke {@link #commitUpdates} to indicate that those
- *   deltas have been incorporated.
- *   </li>
- * </ol>
- *
- * <p>This class is thread-safe.
+ * <p>For consistency, all threads that report metrics should finish before getting the final
+ * cumulative values/updates.
  */
 @Experimental(Kind.METRICS)
 public class MetricsContainer {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(MetricsContainer.class);
-
-  private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
-  private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
-
-  private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD =
-      new ThreadLocal<MetricsContainer>();
 
   private final String stepName;
 
@@ -87,42 +62,6 @@ public class MetricsContainer {
    */
   public MetricsContainer(String stepName) {
     this.stepName = stepName;
-  }
-
-  /**
-   * Set the {@link MetricsContainer} for the current thread.
-   */
-  public static void setMetricsContainer(MetricsContainer container) {
-    CONTAINER_FOR_THREAD.set(container);
-  }
-
-  /** Called by the run to indicate whether metrics reporting is supported. */
-  public static void setMetricsSupported(boolean supported) {
-    METRICS_SUPPORTED.set(supported);
-  }
-
-  /**
-   * Clear the {@link MetricsContainer} for the current thread.
-   */
-  public static void unsetMetricsContainer() {
-    CONTAINER_FOR_THREAD.remove();
-  }
-
-  /**
-   * Return the {@link MetricsContainer} for the current thread.
-   */
-  public static MetricsContainer getCurrentContainer() {
-    MetricsContainer container = CONTAINER_FOR_THREAD.get();
-    if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
-      if (METRICS_SUPPORTED.get()) {
-        LOGGER.error(
-            "Unable to report metrics on the current thread. "
-            + "Most likely caused by using metrics outside the managed work-execution thread.");
-      } else {
-        LOGGER.warn("Reporting metrics are not supported in the current execution environment.");
-      }
-    }
-    return container;
   }
 
   /**

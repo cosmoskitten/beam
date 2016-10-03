@@ -35,12 +35,12 @@ public class CounterTest {
 
   @After
   public void tearDown() {
-    MetricsContainer.unsetMetricsContainer();
+    MetricsEnvironment.unsetMetricsContainer();
   }
 
   @Test
   public void testIncrementWithoutContainer() {
-    assertNull(MetricsContainer.getCurrentContainer());
+    assertNull(MetricsEnvironment.getCurrentContainer());
     // Should not fail even though there is no metrics container.
     new Counter(NAME).inc();
   }
@@ -50,7 +50,7 @@ public class CounterTest {
     MetricsContainer container = Mockito.mock(MetricsContainer.class);
     CounterCell cell = Mockito.mock(CounterCell.class);
     when(container.getOrCreateCounter(NAME)).thenReturn(cell);
-    MetricsContainer.setMetricsContainer(container);
+    MetricsEnvironment.setMetricsContainer(container);
 
     Counter counter = new Counter(NAME);
     counter.inc();

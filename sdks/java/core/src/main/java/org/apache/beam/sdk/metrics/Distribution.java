@@ -34,7 +34,7 @@ public class Distribution {
   }
 
   public void report(long value) {
-    MetricsContainer container = MetricsContainer.getCurrentContainer();
+    MetricsContainer container = MetricsEnvironment.getCurrentContainer();
     if (container != null) {
       container.getOrCreateDistribution(name).report(value);
     }
