@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -930,7 +931,7 @@ public class ParDo {
 
     @Override
     public PCollectionTuple apply(PCollection<? extends InputT> input) {
-      Preconditions.checkArgument(
+      checkArgument(
           !isSplittable(fn), "Splittable DoFn not supported by the current runner");
 
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
