@@ -46,10 +46,12 @@ class LineSource(FileBasedSource):
     try:
       start = range_tracker.start_position()
       if start > 0:
-        f.seek(start)
-      if start > 0:
-        f.seek(-1, os.SEEK_CUR)
+        # Any line that starts after 'start' does not belong to the current
+        # bundle. Seeking to (start - 1) and skipping a line moves the current
+        # position of the starting position of the first line that belongs to
+        # the current bundle.
         start -= 1
+        f.seek(start)
         line = f.readline()
         start += len(line)
       current = start
