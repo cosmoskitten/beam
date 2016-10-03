@@ -14,8 +14,8 @@ class CounterCell extends MetricCell<Long> {
 
   /** Increment the counter by the given amount. */
   public void add(long n) {
-    markDirty();
     value.addAndGet(n);
+    markDirtyAfterModification();
   }
 
   @Override

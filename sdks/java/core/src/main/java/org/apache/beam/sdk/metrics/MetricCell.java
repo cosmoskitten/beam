@@ -45,7 +45,8 @@ abstract class MetricCell<T> {
 
   private final AtomicReference<DirtyState> dirty = new AtomicReference<>(DirtyState.DIRTY);
 
-  protected void markDirty() {
+  /** Should be called by subclasses <b>after</b> modification of the value. */
+  protected void markDirtyAfterModification() {
     dirty.set(DirtyState.DIRTY);
   }
 
@@ -56,14 +57,22 @@ abstract class MetricCell<T> {
   @Nullable
   public T getUpdateIfDirty() {
     DirtyState state = dirty.get();
-    if (state != DirtyState.CLEAN) {
-      dirty.set(DirtyState.COMMITTING);
-      return getCumulative();
-    } else {
-      // If the metric was clean, we know no changes have been made since the last call to
-      // getUpdateIfDirty, so we can return null.
-      return null;
+    while (state != DirtyState.CLEAN) {
+      // Try to set the state to COMMITTING. This shouldn't loop more than twice.
+      // If the state was CLEAN, we wouldn't enter this.
+      // If the state was DIRTY, we will enter this. But, there should only be a single thread
+      // retrieving updates, so no one else should cause the DIRTY->COMMITTING transition.
+      // If the state was previously COMMITTING, then either (1) there are multiple threads sending
+      // updates or there was some failure. It is possible that user code may transition from
+      // COMMITTING -> DIRTY, in which case the next iteration of this loop should be fine.
+      if (dirty.compareAndSet(state, DirtyState.COMMITTING)) {
+        // Once the counter is marked as committing, get the cumulative value.
+        return getCumulative();
+      }
     }
+
+    // If the metric was CLEAN, then all updates have been committed.
+    return null;
   }
 
   /**

@@ -272,8 +272,8 @@ class DirectMetrics extends MetricResults {
     }
 
     for (MetricNameFilter nameFilter : nameFilters) {
-      if ((nameFilter.getName() == null || nameFilter.getName().equals(metricName.getName()))
-          && Objects.equal(metricName.getNamespace(), nameFilter.getNamespace())) {
+      if ((nameFilter.getName() == null || nameFilter.getName().equals(metricName.name()))
+          && Objects.equal(metricName.namespace(), nameFilter.getNamespace())) {
         return true;
       }
     }

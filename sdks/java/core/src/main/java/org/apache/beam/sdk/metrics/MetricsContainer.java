@@ -57,6 +57,8 @@ import org.slf4j.LoggerFactory;
 public class MetricsContainer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MetricsContainer.class);
+
+  private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
   private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD =
@@ -94,6 +96,11 @@ public class MetricsContainer {
     CONTAINER_FOR_THREAD.set(container);
   }
 
+  /** Called by the run to indicate whether metrics reporting is supported. */
+  public static void setMetricsSupported(boolean supported) {
+    METRICS_SUPPORTED.set(supported);
+  }
+
   /**
    * Clear the {@link MetricsContainer} for the current thread.
    */
@@ -107,10 +114,13 @@ public class MetricsContainer {
   public static MetricsContainer getCurrentContainer() {
     MetricsContainer container = CONTAINER_FOR_THREAD.get();
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
-      LOGGER.error("Unable to get {} for the current thread.\n"
-          + "Most likely caused by using a runner that doesn't support metrics.\n"
-          + "May also be caused by reporting metrics from outside the work-execution therad",
-          MetricsContainer.class.getSimpleName());
+      if (METRICS_SUPPORTED.get()) {
+        LOGGER.error(
+            "Unable to report metrics on the current thread. "
+            + "Most likely caused by using metrics outside the managed work-execution thread.");
+      } else {
+        LOGGER.warn("Reporting metrics are not supported in the current execution environment.");
+      }
     }
     return container;
   }

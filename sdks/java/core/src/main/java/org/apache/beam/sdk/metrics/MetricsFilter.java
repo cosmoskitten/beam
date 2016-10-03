@@ -57,8 +57,11 @@ public abstract class MetricsFilter {
     /**
      * Add a {@link MetricNameFilter}.
      *
-     * <p>If no name filters are specified then metrics will be returned regardless of what name
-     * they have.
+     * <p>If no name filters are specified then all metric names will be inculded.
+     *
+     *
+     * <p>If one or more name filters are specified, then only metrics that match one or more of the
+     * filters will be included.
      */
     public Builder addNameFilter(MetricNameFilter nameFilter) {
       immutableNamesBuilder().add(nameFilter);
@@ -68,8 +71,10 @@ public abstract class MetricsFilter {
     /**
      * Add a step filter.
      *
-     * <p>If no steps are specified then metrics will be included regardless of which step
-     * came from.
+     * <p>If no steps are specified then metrics will be included for all steps.
+     *
+     * <p>If one or more steps are specified, then metrics will be included if they are part of
+     * any of the specified steps.
      */
     public Builder addStep(String step) {
       immutableStepsBuilder().add(step);

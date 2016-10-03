@@ -131,11 +131,11 @@ public interface PipelineResult {
     }
   }
 
-  @Experimental(Kind.METRICS)
   /**
    * Return the object to access metrics from the pipeline.
    *
    * <p>Runners that don't support metrics will throw an {@link UnsupportedOperationException}.
    */
+  @Experimental(Kind.METRICS)
   MetricResults metrics();
 }

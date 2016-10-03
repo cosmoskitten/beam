@@ -33,12 +33,11 @@ class DistributionCell extends MetricCell<DistributionData> {
 
   /** Increment the counter by the given amount. */
   public void report(long n) {
-    markDirty();
-
     DistributionData original;
     do {
       original = value.get();
     } while (!value.compareAndSet(original, original.add(DistributionData.singleton(n))));
+    markDirtyAfterModification();
   }
 
   @Override
