@@ -114,7 +114,7 @@ public class TranslationContext {
 
   public void addStream(PInput input, InputPort inputPort) {
     Pair<OutputPort<?>, List<InputPort<?>>> stream = this.streams.get(input);
-    checkArgument(stream != null, "no upstream operator defined");
+    checkArgument(stream != null, "no upstream operator defined for %s", input);
     stream.getRight().add(inputPort);
   }
 
