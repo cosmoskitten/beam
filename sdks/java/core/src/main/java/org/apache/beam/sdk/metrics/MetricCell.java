@@ -26,7 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * Interface for reporting metric updates of type {@code T} from inside worker harness.
  */
 @Experimental(Kind.METRICS)
-public abstract class MetricCell<T> {
+abstract class MetricCell<T> {
 
   // All MetricCells start out Dirty so that their existence is reported.
   // When a MetricCell is updated, it transitions to the DIRTY state.
