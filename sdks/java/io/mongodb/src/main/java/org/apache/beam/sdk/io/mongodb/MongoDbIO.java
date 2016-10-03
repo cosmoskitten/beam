@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.mongodb;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import com.google.auto.value.AutoValue;
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
