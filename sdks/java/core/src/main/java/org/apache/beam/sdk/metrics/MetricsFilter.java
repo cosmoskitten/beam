@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -26,34 +27,32 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * Simple POJO representing a filter for querying metrics.
  */
 @Experimental(Kind.METRICS)
-public class MetricsFilter {
+@AutoValue
+public abstract class MetricsFilter {
 
-  private final Set<MetricNameFilter> names;
-  private final Set<String> steps;
-
-  private MetricsFilter(Set<MetricNameFilter> names, Set<String> steps) {
-    this.names = names;
-    this.steps = steps;
+  public Set<String> steps() {
+    return immutableSteps();
   }
 
   public Set<MetricNameFilter> names() {
-    return names;
+    return immutableNames();
   }
 
-  public Set<String> steps() {
-    return steps;
-  }
+  protected abstract ImmutableSet<String> immutableSteps();
+  protected abstract ImmutableSet<MetricNameFilter> immutableNames();
 
   public static Builder builder() {
-    return new Builder();
+    return new AutoValue_MetricsFilter.Builder();
   }
 
   /**
    * Builder for creating a {@link MetricsFilter}.
    */
-  public static class Builder {
-    private ImmutableSet.Builder<MetricNameFilter> namesBuilder = ImmutableSet.builder();
-    private ImmutableSet.Builder<String> stepsBuilder = ImmutableSet.builder();
+  @AutoValue.Builder
+  public abstract static class Builder {
+
+    protected abstract ImmutableSet.Builder<MetricNameFilter> immutableNamesBuilder();
+    protected abstract ImmutableSet.Builder<String> immutableStepsBuilder();
 
     /**
      * Add a {@link MetricNameFilter}.
@@ -62,7 +61,7 @@ public class MetricsFilter {
      * they have.
      */
     public Builder addNameFilter(MetricNameFilter nameFilter) {
-      namesBuilder.add(nameFilter);
+      immutableNamesBuilder().add(nameFilter);
       return this;
     }
 
@@ -73,12 +72,10 @@ public class MetricsFilter {
      * came from.
      */
     public Builder addStep(String step) {
-      stepsBuilder.add(step);
+      immutableStepsBuilder().add(step);
       return this;
     }
 
-    public MetricsFilter build() {
-      return new MetricsFilter(namesBuilder.build(), stepsBuilder.build());
-    }
+    public abstract MetricsFilter build();
   }
 }
