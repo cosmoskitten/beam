@@ -19,9 +19,11 @@ package org.apache.beam.runners.dataflow.options;
 
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.util.DefaultBucket;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.options.CloudResourceManagerOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -33,6 +35,8 @@ import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Options that can be used to configure the {@link DataflowRunner}.
@@ -42,7 +46,9 @@ public interface DataflowPipelineOptions
     extends PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
         DataflowPipelineWorkerPoolOptions, BigQueryOptions, GcsOptions, StreamingOptions,
         CloudDebuggerOptions, DataflowWorkerLoggingOptions, DataflowProfilingOptions,
-        PubsubOptions {
+        PubsubOptions, CloudResourceManagerOptions {
+
+  static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineOptions.class);
 
   @Description("Project id. Required when running a Dataflow in the cloud. "
       + "See https://cloud.google.com/storage/docs/projects for further details.")
@@ -104,15 +110,17 @@ public interface DataflowPipelineOptions
     @Override
     public String create(PipelineOptions options) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
-      String gcpTempLocation;
-      try {
-        gcpTempLocation = gcsOptions.getGcpTempLocation();
-      } catch (Exception e) {
-        throw new IllegalArgumentException(
-        "Error constructing default value for stagingLocation: failed to retrieve gcpTempLocation. "
-            + "Either stagingLocation must be set explicitly or a valid value must be provided"
-            + "for gcpTempLocation.", e);
+      String gcpTempLocation = gcsOptions.getGcpTempLocation();
+
+      if (isNullOrEmpty(gcpTempLocation)) {
+        gcpTempLocation = DefaultBucket.tryCreateDefaultBucket(options);
+        gcsOptions.setGcpTempLocation(gcpTempLocation);
       }
+
+      checkArgument(!isNullOrEmpty(gcpTempLocation),
+          "Error constructing default value for stagingLocation: gcpTempLocation is missing."
+          + "Either stagingLocation must be set explicitly or a valid value must be provided"
+          + "for gcpTempLocation.");
       try {
         gcsOptions.getPathValidator().validateOutputFilePrefixSupported(gcpTempLocation);
       } catch (Exception e) {
