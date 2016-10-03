@@ -33,7 +33,7 @@ abstract class MetricCell<T> {
   // When a delta is extracting, they transition to the COMMITTING state.
   // When a delta is committed, it transitions to the CLEAN state only if it is in the COMMITTING
   // state. This ensures that counters that were modified after the delta was extracted but before
-  // it was committed are not falsely marked as CLEAN.delta was being committed
+  // it was committed are not falsely marked as CLEAN.
   private enum DirtyState {
     /** Indicates that there have been changes to the MetricCell since last commit. */
     DIRTY,
