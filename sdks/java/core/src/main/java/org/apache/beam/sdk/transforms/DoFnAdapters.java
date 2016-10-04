@@ -19,6 +19,8 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.IOException;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -26,6 +28,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -33,7 +36,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * Utility class containing adapters for running a {@link DoFn} as an {@link OldDoFn}.
+ * Utility class containing adapters to/from {@link DoFn} and {@link OldDoFn}.
  *
  * @deprecated This class will go away when we start running {@link DoFn}'s directly (using
  * {@link DoFnInvoker}) rather than via {@link OldDoFn}.
@@ -63,6 +66,126 @@ public class DoFnAdapters {
     } else {
       return new SimpleDoFnAdapter<>(fn);
     }
+  }
+
+  /** Creates a {@link OldDoFn.ProcessContext} from a {@link DoFn.ProcessContext}. */
+  public static <InputT, OutputT> OldDoFn<InputT, OutputT>.ProcessContext adaptProcessContext(
+      OldDoFn<InputT, OutputT> fn,
+      final DoFn<InputT, OutputT>.ProcessContext c) {
+    return fn.new ProcessContext() {
+      @Override
+      public InputT element() {
+        return c.element();
+      }
+
+      @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        return c.sideInput(view);
+      }
+
+      @Override
+      public Instant timestamp() {
+        return c.timestamp();
+      }
+
+      @Override
+      public BoundedWindow window() {
+        throw new UnsupportedOperationException(
+            String.format(
+                "To access the window, please port your %s to %s"
+                    + " and add a %s parameter to @%s method.",
+                OldDoFn.class.getSimpleName(),
+                DoFn.class.getSimpleName(),
+                BoundedWindow.class.getSimpleName(),
+                ProcessElement.class.getSimpleName()));
+      }
+
+      @Override
+      public PaneInfo pane() {
+        return c.pane();
+      }
+
+      @Override
+      public WindowingInternals<InputT, OutputT> windowingInternals() {
+        throw new UnsupportedOperationException(
+            String.format(
+                "windowingInternals() is no longer supported. To access the window,"
+                    + " please port your %s to %s and add a %s parameter to @%s method.",
+                OldDoFn.class.getSimpleName(),
+                DoFn.class.getSimpleName(),
+                BoundedWindow.class.getSimpleName(),
+                ProcessElement.class.getSimpleName()));
+      }
+
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return c.getPipelineOptions();
+      }
+
+      @Override
+      public void output(OutputT output) {
+        c.output(output);
+      }
+
+      @Override
+      public void outputWithTimestamp(OutputT output, Instant timestamp) {
+        c.outputWithTimestamp(output, timestamp);
+      }
+
+      @Override
+      public <T> void sideOutput(TupleTag<T> tag, T output) {
+        c.sideOutput(tag, output);
+      }
+
+      @Override
+      public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        c.sideOutputWithTimestamp(tag, output, timestamp);
+      }
+
+      @Override
+      protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+          String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
+        throw new UnsupportedOperationException("createAggregatorInternal is no longer supported");
+      }
+    };
+  }
+
+  /** Creates a {@link OldDoFn.ProcessContext} from a {@link DoFn.ProcessContext}. */
+  public static <InputT, OutputT> OldDoFn<InputT, OutputT>.Context adaptContext(
+      OldDoFn<InputT, OutputT> fn,
+      final DoFn<InputT, OutputT>.Context c) {
+    return fn.new Context() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return c.getPipelineOptions();
+      }
+
+      @Override
+      public void output(OutputT output) {
+        c.output(output);
+      }
+
+      @Override
+      public void outputWithTimestamp(OutputT output, Instant timestamp) {
+        c.outputWithTimestamp(output, timestamp);
+      }
+
+      @Override
+      public <T> void sideOutput(TupleTag<T> tag, T output) {
+        c.sideOutput(tag, output);
+      }
+
+      @Override
+      public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        c.sideOutputWithTimestamp(tag, output, timestamp);
+      }
+
+      @Override
+      protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+          String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
+        throw new UnsupportedOperationException("createAggregatorInternal is no longer supported");
+      }
+    };
   }
 
   /**

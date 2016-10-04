@@ -20,8 +20,11 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.any;
 
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnAdapters;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -43,6 +46,8 @@ public class DoFnInvokersTest {
   @Mock private BoundedWindow mockWindow;
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
+
+  @Mock private OldDoFn<String, String> mockOldDoFn;
 
   private DoFn.ExtraContextFactory<String, String> extraContextFactory;
 
@@ -325,5 +330,44 @@ public class DoFnInvokersTest {
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
     invoker.invokeFinishBundle(null);
+  }
+
+  private class OldDoFnIdentity extends OldDoFn<String, String> {
+    public void processElement(ProcessContext c) {}
+  }
+
+  @Test
+  public void testOldDoFnProcessElement() throws Exception {
+    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn)
+        .invokeProcessElement(mockContext, extraContextFactory);
+    verify(mockOldDoFn).processElement(any(OldDoFn.ProcessContext.class));
+  }
+
+  @Test
+  public void testOldDoFnStartBundle() throws Exception {
+    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn)
+        .invokeStartBundle(mockContext);
+    verify(mockOldDoFn).startBundle(any(OldDoFn.Context.class));
+  }
+
+  @Test
+  public void testOldDoFnFinishBundle() throws Exception {
+    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn)
+        .invokeFinishBundle(mockContext);
+    verify(mockOldDoFn).finishBundle(any(OldDoFn.Context.class));
+  }
+
+  @Test
+  public void testOldDoFnSetup() throws Exception {
+    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn)
+        .invokeSetup();
+    verify(mockOldDoFn).setup();
+  }
+
+  @Test
+  public void testOldDoFnTeardown() throws Exception {
+    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn)
+        .invokeTeardown();
+    verify(mockOldDoFn).teardown();
   }
 }
