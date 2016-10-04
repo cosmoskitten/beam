@@ -56,7 +56,7 @@ public class CounterTest {
     counter.inc(47L);
     assertThat(cell.getCumulative(), equalTo(48L));
 
-    counter.inc(6L);
+    counter.dec(6L);
     assertThat(cell.getCumulative(), equalTo(42L));
   }
 }
