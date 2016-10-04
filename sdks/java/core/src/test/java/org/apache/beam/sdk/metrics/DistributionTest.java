@@ -18,13 +18,12 @@
 
 package org.apache.beam.sdk.metrics;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.assertThat;
 
 import org.junit.After;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 /**
  * Tests for {@link Distribution}.
@@ -42,21 +41,25 @@ public class DistributionTest {
   public void testReportWithoutContainer() {
     assertNull(MetricsEnvironment.getCurrentContainer());
     // Should not fail even though there is no metrics container.
-    new Distribution(NAME).report(5L);
+    new Distribution(NAME).update(5L);
   }
 
   @Test
   public void testReportToCell() {
-    MetricsContainer container = Mockito.mock(MetricsContainer.class);
-    DistributionCell cell = Mockito.mock(DistributionCell.class);
-    when(container.getOrCreateDistribution(NAME)).thenReturn(cell);
+    MetricsContainer container = new MetricsContainer("step");
     MetricsEnvironment.setMetricsContainer(container);
 
     Distribution distribution = new Distribution(NAME);
-    distribution.report(5L);
-    verify(cell).report(5L);
 
-    distribution.report(42L);
-    verify(cell).report(42L);
+    distribution.update(5L);
+
+    DistributionCell cell = container.getOrCreateDistribution(NAME);
+    assertThat(cell.getCumulative(), equalTo(DistributionData.create(5, 1, 5, 5)));
+
+    distribution.update(36L);
+    assertThat(cell.getCumulative(), equalTo(DistributionData.create(41, 2, 5, 36)));
+
+    distribution.update(1L);
+    assertThat(cell.getCumulative(), equalTo(DistributionData.create(42, 3, 1, 36)));
   }
 }

@@ -33,10 +33,10 @@ public class Distribution {
     this.name = name;
   }
 
-  public void report(long value) {
+  public void update(long value) {
     MetricsContainer container = MetricsEnvironment.getCurrentContainer();
     if (container != null) {
-      container.getOrCreateDistribution(name).report(value);
+      container.getOrCreateDistribution(name).update(value);
     }
   }
 }

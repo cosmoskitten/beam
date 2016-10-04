@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The runner should create {@link MetricsContainer} for each context in which metrics are
  * reported (by step and name) and call {@link #setMetricsContainer} before invoking any code that
- * may report metrics within that step.
+ * may update metrics within that step.
  * <p>The runner should call {@link #unsetMetricsContainer} (or {@link #setMetricsContainer} back to
  * the previous value) when exiting code that set the metrics container.
  */
@@ -71,7 +71,7 @@ public class MetricsEnvironment {
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
       if (METRICS_SUPPORTED.get()) {
         LOGGER.error(
-            "Unable to report metrics on the current thread. "
+            "Unable to update metrics on the current thread. "
                 + "Most likely caused by using metrics outside the managed work-execution thread.");
       } else {
         LOGGER.warn("Reporting metrics are not supported in the current execution environment.");

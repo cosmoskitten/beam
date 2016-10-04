@@ -33,7 +33,7 @@ import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
  * {@link #commitUpdates}. Outside of this it is still safe. Although races in the update extraction
  * may cause updates that don't actually have any changes, it will never lose an update.
  *
- * <p>For consistency, all threads that report metrics should finish before getting the final
+ * <p>For consistency, all threads that update metrics should finish before getting the final
  * cumulative values/updates.
  */
 @Experimental(Kind.METRICS)

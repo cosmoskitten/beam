@@ -32,7 +32,7 @@ class DistributionCell extends MetricCell<DistributionData> {
       new AtomicReference<DistributionData>(DistributionData.EMPTY);
 
   /** Increment the counter by the given amount. */
-  public void report(long n) {
+  public void update(long n) {
     DistributionData original;
     do {
       original = value.get();

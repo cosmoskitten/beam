@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,9 +57,7 @@ public class MetricsMap<K, T> {
     T metric = metrics.get(key);
     if (metric == null) {
       metric = factory.createInstance(key);
-      if (metrics.putIfAbsent(key, metric) == null) {
-        metric = metrics.get(key);
-      }
+      metric = Objects.firstNonNull(metrics.putIfAbsent(key, metric), metric);
     }
     return metric;
   }

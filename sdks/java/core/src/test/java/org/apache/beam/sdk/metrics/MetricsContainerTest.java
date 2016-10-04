@@ -105,8 +105,8 @@ public class MetricsContainerTest {
     assertThat("No updates after commit",
         container.getUpdates().distributionUpdates(), emptyIterable());
 
-    c1.report(5L);
-    c2.report(4L);
+    c1.update(5L);
+    c2.update(4L);
 
     assertThat(container.getUpdates().distributionUpdates(), containsInAnyOrder(
         metricUpdate("name1", DistributionData.create(5, 1, 5, 5)),
@@ -120,8 +120,8 @@ public class MetricsContainerTest {
     assertThat("No updatess after commit",
         container.getUpdates().distributionUpdates(), emptyIterable());
 
-    c1.report(8L);
-    c1.report(4L);
+    c1.update(8L);
+    c1.update(4L);
     assertThat(container.getUpdates().distributionUpdates(), contains(
         metricUpdate("name1", DistributionData.create(17, 3, 4, 8))));
     container.commitUpdates();

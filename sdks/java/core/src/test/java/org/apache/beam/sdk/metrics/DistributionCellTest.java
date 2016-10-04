@@ -27,7 +27,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests fro {@link DistributionCell}
+ * Tests for {@link DistributionCell}.
  */
 @RunWith(JUnit4.class)
 public class DistributionCellTest {
@@ -35,8 +35,8 @@ public class DistributionCellTest {
 
   @Test
   public void testDeltaAndCumulative() {
-    cell.report(5);
-    cell.report(7);
+    cell.update(5);
+    cell.update(7);
     assertThat(cell.getCumulative(), equalTo(DistributionData.create(12, 2, 5, 7)));
     assertThat(cell.getCumulative(), equalTo(DistributionData.create(12, 2, 5, 7)));
 
@@ -48,7 +48,7 @@ public class DistributionCellTest {
     assertThat("Cumulative is independent of dirty-state",
         cell.getCumulative(), equalTo(DistributionData.create(12, 2, 5, 7)));
 
-    cell.report(30);
+    cell.update(30);
     assertThat("Adding a new value also made the cell dirty",
         cell.getUpdateIfDirty(), equalTo(DistributionData.create(42, 3, 5, 30)));
     assertThat(cell.getCumulative(), equalTo(DistributionData.create(42, 3, 5, 30)));
@@ -56,10 +56,10 @@ public class DistributionCellTest {
 
   @Test
   public void testIncrementBetweenGetAndCommit() {
-    cell.report(5);
+    cell.update(5);
     assertThat(cell.getUpdateIfDirty(), equalTo(DistributionData.create(5, 1, 5, 5)));
 
-    cell.report(7);
+    cell.update(7);
     cell.commitUpdate();
     assertThat("Changes after getUpdateIfDirty are not committed",
         cell.getUpdateIfDirty(), equalTo(DistributionData.create(12, 2, 5, 7)));

@@ -44,7 +44,7 @@ public abstract class MetricNameFilter {
   }
 
   public static MetricNameFilter inNamespace(Class<?> namespace) {
-    return new AutoValue_MetricNameFilter(namespace.getSimpleName(), null);
+    return new AutoValue_MetricNameFilter(namespace.getName(), null);
   }
 
   public static MetricNameFilter named(String namespace, String name) {

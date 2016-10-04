@@ -401,7 +401,7 @@ public class DirectRunnerTest implements Serializable {
             Distribution values = Metrics.distribution(DirectRunnerTest.class, "input");
 
             cnt.inc();
-            values.report(c.element());
+            values.update(c.element());
           }
         }));
     PipelineResult result = pipeline.run();
@@ -409,9 +409,9 @@ public class DirectRunnerTest implements Serializable {
         .addNameFilter(MetricNameFilter.inNamespace(DirectRunnerTest.class))
         .build());
     assertThat(metrics.counters(), contains(
-        metricResult(DirectRunnerTest.class.getSimpleName(), "count", "MyStep", 3L, 3L)));
+        metricResult(DirectRunnerTest.class.getName(), "count", "MyStep", 3L, 3L)));
     assertThat(metrics.distributions(), contains(
-        metricResult(DirectRunnerTest.class.getSimpleName(), "input", "MyStep",
+        metricResult(DirectRunnerTest.class.getName(), "input", "MyStep",
             DistributionResult.create(26L, 3L, 5L, 13L),
             DistributionResult.create(26L, 3L, 5L, 13L))));
   }

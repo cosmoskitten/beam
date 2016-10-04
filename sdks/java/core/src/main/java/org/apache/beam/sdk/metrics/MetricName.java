@@ -24,6 +24,6 @@ public abstract class MetricName {
   }
 
   public static MetricName named(Class<?> namespace, String name) {
-    return new AutoValue_MetricName(namespace.getSimpleName(), name);
+    return new AutoValue_MetricName(namespace.getName(), name);
   }
 }

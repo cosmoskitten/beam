@@ -18,13 +18,12 @@
 
 package org.apache.beam.sdk.metrics;
 
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.assertThat;
 
 import org.junit.After;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 /**
  * Tests for {@link Counter}.
@@ -47,19 +46,17 @@ public class CounterTest {
 
   @Test
   public void testIncrementsCell() {
-    MetricsContainer container = Mockito.mock(MetricsContainer.class);
-    CounterCell cell = Mockito.mock(CounterCell.class);
-    when(container.getOrCreateCounter(NAME)).thenReturn(cell);
+    MetricsContainer container = new MetricsContainer("step");
     MetricsEnvironment.setMetricsContainer(container);
-
     Counter counter = new Counter(NAME);
+    CounterCell cell = container.getOrCreateCounter(NAME);
     counter.inc();
-    verify(cell).add(1);
+    assertThat(cell.getCumulative(), equalTo(1L));
 
-    counter.inc(42L);
-    verify(cell).add(42L);
+    counter.inc(47L);
+    assertThat(cell.getCumulative(), equalTo(48L));
 
-    counter.dec(5);
-    verify(cell).add(-5L);
+    counter.inc(6L);
+    assertThat(cell.getCumulative(), equalTo(42L));
   }
 }
