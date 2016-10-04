@@ -1,279 +1,133 @@
-  /*
-   * Licensed to the Apache Software Foundation (ASF) under one
-   * or more contributor license agreements.  See the NOTICE file
-   * distributed with this work for additional information
-   * regarding copyright ownership.  The ASF licenses this file
-   * to you under the Apache License, Version 2.0 (the
-   * "License"); you may not use this file except in compliance
-   * with the License.  You may obtain a copy of the License at
-   *
-   *     http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   */
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package org.apache.beam.runners.apex.examples;
 
-
-  import static org.apache.beam.sdk.TestUtils.LINES;
-import static org.apache.beam.sdk.TestUtils.LINES2;
-import static org.apache.beam.sdk.TestUtils.NO_LINES;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-  import static org.hamcrest.Matchers.is;
-  import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.TestApexRunner;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.CountingInput;
-import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.NeedsRunner;
-  import org.apache.beam.sdk.testing.PAssert;
-  import org.apache.beam.sdk.testing.RunnableOnService;
-  import org.apache.beam.sdk.testing.TestPipeline;
-  import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.Max;
-  import org.apache.beam.sdk.transforms.Min;
-  import org.apache.beam.sdk.transforms.PTransform;
-  import org.apache.beam.sdk.transforms.ParDo;
-  import org.apache.beam.sdk.transforms.RemoveDuplicates;
-  import org.apache.beam.sdk.transforms.SerializableFunction;
-  import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.runners.dataflow.TestCountingSource;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
-  import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
-  import org.junit.experimental.categories.Category;
-  import org.junit.runner.RunWith;
-  import org.junit.runners.JUnit4;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-  /**
-   * Tests for {@link CountingInput}.
-   */
-  @Ignore
-  @RunWith(JUnit4.class)
-  public class IntTest {
-    public static void addCountingAsserts(PCollection<Long> input, long numElements) {
-      // Count == numElements
-      PAssert.thatSingleton(input.apply("Count", Count.<Long>globally()))
-          .isEqualTo(numElements);
-      // Unique count == numElements
-      PAssert.thatSingleton(
-              input
-                  .apply(RemoveDuplicates.<Long>create())
-                  .apply("UniqueCount", Count.<Long>globally()))
-          .isEqualTo(numElements);
-      // Min == 0
-      PAssert.thatSingleton(input.apply("Min", Min.<Long>globally())).isEqualTo(0L);
-      // Max == numElements-1
-      PAssert.thatSingleton(input.apply("Max", Max.<Long>globally()))
-          .isEqualTo(numElements - 1);
+/**
+ * For debugging only.
+ */
+@Ignore
+@RunWith(JUnit4.class)
+public class IntTest implements java.io.Serializable
+{
+
+  @Test
+  public void test()
+  {
+    ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
+    options.setTupleTracingEnabled(true);
+    options.setRunner(TestApexRunner.class);
+    Pipeline p = Pipeline.create(options);
+boolean timeBound = false;
+
+
+  TestCountingSource source = new TestCountingSource(Integer.MAX_VALUE).withoutSplitting();
+//List<KV<Integer,Integer>> values = Lists.newArrayList(
+//    KV.of(0, 99),KV.of(0, 99),KV.of(0, 98));
+
+//UnboundedSource<KV<Integer,Integer>, ?> source = new ValuesSource<>(values,
+//   KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+
+  if (true) {
+      source = source.withDedup();
     }
 
-    @Test
-    @Category(RunnableOnService.class)
-    public void testBoundedInput() {
-      //Pipeline p = TestPipeline.create();
-      ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
-      options.setRunner(TestApexRunner.class);
-      Pipeline p = Pipeline.create(options);
+    PCollection<KV<Integer, Integer>> output =
+        timeBound
+        ? p.apply(Read.from(source).withMaxReadTime(Duration.millis(200)))
+         : p.apply(Read.from(source).withMaxNumRecords(NUM_RECORDS));
 
-      long numElements = 1000;
-      PCollection<Long> input = p.apply(CountingInput.upTo(numElements));
-
-      addCountingAsserts(input, numElements);
-      p.run();
-      System.out.println("running");
+    List<KV<Integer, Integer>> expectedOutput = new ArrayList<>();
+    for (int i = 0; i < NUM_RECORDS; i++) {
+      expectedOutput.add(KV.of(0, i));
     }
 
-    @Test
-    public void testBoundedDisplayData() {
-      PTransform<?, ?> input = CountingInput.upTo(1234);
-      DisplayData displayData = DisplayData.from(input);
-      assertThat(displayData, hasDisplayItem("upTo", 1234));
+    // Because some of the NUM_RECORDS elements read are dupes, the final output
+    // will only have output from 0 to n where n < NUM_RECORDS.
+    PAssert.that(output).satisfies(new Checker(true, timeBound));
+
+
+    p.run();
+    return;
+  }
+
+  private static final int NUM_RECORDS = 10;
+  private static class Checker implements SerializableFunction<Iterable<KV<Integer, Integer>>, Void>
+  {
+    private final boolean dedup;
+    private final boolean timeBound;
+
+    Checker(boolean dedup, boolean timeBound)
+    {
+      this.dedup = dedup;
+      this.timeBound = timeBound;
     }
 
-    @Test
-    @Category(RunnableOnService.class)
-    public void testUnboundedInput() {
-      //Pipeline p = TestPipeline.create();
-      ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
-      options.setRunner(TestApexRunner.class);
-      Pipeline p = Pipeline.create(options);
-
-
-      long numElements = 1000;
-
-      PCollection<Long> input = p.apply(CountingInput.unbounded().withMaxNumRecords(numElements));
-
-//      input = input.apply(Window.<Long>into(FixedWindows.of(Duration.standardSeconds(10))));
-
-      addCountingAsserts(input, numElements);
-      p.run();
-    }
-
-    @Test
-    @Category(NeedsRunner.class)
-    public void testUnboundedInputRate() {
-      Pipeline p = TestPipeline.create();
-      long numElements = 5000;
-
-      long elemsPerPeriod = 10L;
-      Duration periodLength = Duration.millis(8);
-      PCollection<Long> input =
-          p.apply(
-              CountingInput.unbounded()
-                  .withRate(elemsPerPeriod, periodLength)
-                  .withMaxNumRecords(numElements));
-
-      addCountingAsserts(input, numElements);
-      long expectedRuntimeMillis = (periodLength.getMillis() * numElements) / elemsPerPeriod;
-      Instant startTime = Instant.now();
-      p.run();
-      Instant endTime = Instant.now();
-      assertThat(endTime.isAfter(startTime.plus(expectedRuntimeMillis)), is(true));
-    }
-
-    private static class ElementValueDiff extends DoFn<Long, Long> {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
-        c.output(c.element() - c.timestamp().getMillis());
+    @Override
+    public Void apply(Iterable<KV<Integer, Integer>> input)
+    {
+      List<Integer> values = new ArrayList<>();
+      for (KV<Integer, Integer> kv : input) {
+        assertEquals(0, (int)kv.getKey());
+        values.add(kv.getValue());
       }
-    }
-
-    @Test
-    @Category(RunnableOnService.class)
-    public void testUnboundedInputTimestamps() {
-      Pipeline p = TestPipeline.create();
-      long numElements = 1000;
-
-      PCollection<Long> input =
-          p.apply(
-              CountingInput.unbounded()
-                  .withTimestampFn(new ValueAsTimestampFn())
-                  .withMaxNumRecords(numElements));
-      addCountingAsserts(input, numElements);
-
-      PCollection<Long> diffs =
-          input
-              .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-              .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
-      // This assert also confirms that diffs only has one unique value.
-      PAssert.thatSingleton(diffs).isEqualTo(0L);
-
-      p.run();
-    }
-
-    @Test
-    public void testUnboundedDisplayData() {
-      Duration maxReadTime = Duration.standardHours(5);
-      SerializableFunction<Long, Instant> timestampFn = new SerializableFunction<Long, Instant>() {
-        @Override
-        public Instant apply(Long input) {
-          return Instant.now();
-        }
-      };
-
-      PTransform<?, ?> input = CountingInput.unbounded()
-          .withMaxNumRecords(1234)
-          .withMaxReadTime(maxReadTime)
-          .withTimestampFn(timestampFn);
-
-      DisplayData displayData = DisplayData.from(input);
-
-      assertThat(displayData, hasDisplayItem("maxRecords", 1234));
-      assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
-      assertThat(displayData, hasDisplayItem("timestampFn", timestampFn.getClass()));
-    }
-
-    /**
-     * A timestamp function that uses the given value as the timestamp. Because the input values will
-     * not wrap, this function is non-decreasing and meets the timestamp function criteria laid out
-     * in {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)}.
-     */
-    private static class ValueAsTimestampFn implements SerializableFunction<Long, Instant> {
-      @Override
-      public Instant apply(Long input) {
-        return new Instant(input);
+      if (timeBound) {
+        assertTrue(values.size() >= 1);
+      } else if (dedup) {
+        // Verify that at least some data came through.  The chance of 90% of the input
+        // being duplicates is essentially zero.
+        assertTrue(values.size() > NUM_RECORDS / 10 && values.size() <= NUM_RECORDS);
+      } else {
+        assertEquals(NUM_RECORDS, values.size());
       }
-    }
-
-
-
-
-
-
-
-
-    private PCollectionList<String> makePCollectionListOfStrings(
-        Pipeline p,
-        List<List<String>> lists) {
-      return makePCollectionList(p, StringUtf8Coder.of(), lists);
-    }
-
-    private <T> PCollectionList<T> makePCollectionList(
-        Pipeline p,
-        Coder<T> coder,
-        List<List<T>> lists) {
-      List<PCollection<T>> pcs = new ArrayList<>();
-      int index = 0;
-      for (List<T> list : lists) {
-        PCollection<T> pc = p.apply("Create" + (index++), Create.of(list).withCoder(coder));
-        pcs.add(pc);
+      Collections.sort(values);
+      for (int i = 0; i < values.size(); i++) {
+        assertEquals(i, (int)values.get(i));
       }
-      return PCollectionList.of(pcs);
+      //if (finalizeTracker != null) {
+      //  assertThat(finalizeTracker, containsInAnyOrder(values.size() - 1));
+      //}
+      return null;
     }
-
-    private <T> List<T> flattenLists(List<List<T>> lists) {
-      List<T> flattened = new ArrayList<>();
-      for (List<T> list : lists) {
-        flattened.addAll(list);
-      }
-      return flattened;
-    }
-
-
-
-
-    @Test
-    @Category(RunnableOnService.class)
-    public void testFlattenPCollectionList() {
-//      Pipeline p = TestPipeline.create();
-      ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
-      options.setRunner(TestApexRunner.class);
-      Pipeline p = Pipeline.create(options);
-
-      List<List<String>> inputs = Arrays.asList(
-        LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
-
-      PCollection<String> output =
-          makePCollectionListOfStrings(p, inputs)
-          .apply(Flatten.<String>pCollections());
-
-      PAssert.that(output).containsInAnyOrder(flattenLists(inputs));
-      p.run();
-    }
-
-
-
+  }
 
 
 }

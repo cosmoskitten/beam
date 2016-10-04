@@ -100,7 +100,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     PTransform transform = node.getTransform();
     TransformTranslator translator = getTransformTranslator(transform.getClass());
     if (null == translator) {
-      throw new IllegalStateException(
+      throw new UnsupportedOperationException(
           "no translator registered for " + transform);
     }
     translationContext.setCurrentTransform(node);
