@@ -68,6 +68,6 @@ public class DistributionCellTest {
   @Test
   public void testGetInitialUpdate() {
     assertThat(cell.getUpdateIfDirty(),
-        equalTo(DistributionData.create(0, 0, Integer.MAX_VALUE, Integer.MIN_VALUE)));
+        equalTo(DistributionData.create(0, 0, Long.MAX_VALUE, Long.MIN_VALUE)));
   }
 }
