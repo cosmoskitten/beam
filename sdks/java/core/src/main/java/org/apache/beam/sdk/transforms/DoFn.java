@@ -353,7 +353,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     }
 
     @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() { return null; }
+    public WindowingInternals<InputT, OutputT> windowingInternals() {
+      return null;
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////

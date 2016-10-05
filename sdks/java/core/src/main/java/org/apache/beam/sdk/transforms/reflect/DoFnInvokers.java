@@ -98,7 +98,7 @@ public class DoFnInvokers {
       throw new IllegalArgumentException(String.format(
           "Cannot create a %s for %s; it should be either a %s or an %s.",
           DoFnInvoker.class.getSimpleName(),
-          deserializedFn,
+          deserializedFn.toString(),
           DoFn.class.getSimpleName(),
           OldDoFn.class.getSimpleName()));
     }
@@ -115,7 +115,8 @@ public class DoFnInvokers {
     @Override
     public void invokeProcessElement(
         DoFn<InputT, OutputT>.ProcessContext c, ExtraContextFactory<InputT, OutputT> extra) {
-      OldDoFn<InputT, OutputT>.ProcessContext oldCtx = DoFnAdapters.adaptProcessContext(fn, c, extra);
+      OldDoFn<InputT, OutputT>.ProcessContext oldCtx =
+          DoFnAdapters.adaptProcessContext(fn, c, extra);
       try {
         fn.processElement(oldCtx);
       } catch (Throwable exc) {
