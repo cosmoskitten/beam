@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mvn archetype:generate \
+mvn archetype:generate -pl sdks/java \
   -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
   -DarchetypeGroupId=org.apache.beam \
   -DarchetypeVersion=0.3.0-incubating-SNAPSHOT \
