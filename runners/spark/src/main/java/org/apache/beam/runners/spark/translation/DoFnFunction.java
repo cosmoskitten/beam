@@ -25,6 +25,7 @@ import java.util.Map;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -46,32 +47,32 @@ public class DoFnFunction<InputT, OutputT>
   private final OldDoFn<InputT, OutputT> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> mSideInputs;
-  private final WindowingStrategy<?, ?> windowingStrategy;
+  private final WindowFn<Object, ?> windowFn;
 
   /**
    * @param accum             The Spark Accumulator that handles the Beam Aggregators.
    * @param fn                DoFunction to be wrapped.
    * @param runtime           Runtime to apply function in.
    * @param sideInputs        Side inputs used in DoFunction.
-   * @param windowingStrategy Input window strategy.
+   * @param windowFn          Input {@link WindowFn}.
    */
   public DoFnFunction(Accumulator<NamedAggregators> accum,
                       OldDoFn<InputT, OutputT> fn,
                       SparkRuntimeContext runtime,
                       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
-                      WindowingStrategy<?, ?> windowingStrategy) {
+                      WindowFn<Object, ?> windowFn) {
     this.accum = accum;
     this.mFunction = fn;
     this.mRuntimeContext = runtime;
     this.mSideInputs = sideInputs;
-    this.windowingStrategy = windowingStrategy;
+    this.windowFn = windowFn;
   }
 
 
   @Override
   public Iterable<WindowedValue<OutputT>> call(Iterator<WindowedValue<InputT>> iter) throws
       Exception {
-    return new ProcCtxt(mFunction, mRuntimeContext, mSideInputs, windowingStrategy)
+    return new ProcCtxt(mFunction, mRuntimeContext, mSideInputs, windowFn)
         .callWithCtxt(iter);
   }
 
@@ -82,8 +83,8 @@ public class DoFnFunction<InputT, OutputT>
     ProcCtxt(OldDoFn<InputT, OutputT> fn,
              SparkRuntimeContext runtimeContext,
              Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
-             WindowingStrategy<?, ?> windowingStrategy) {
-      super(fn, runtimeContext, sideInputs, windowingStrategy);
+             WindowFn<Object, ?> windowFn) {
+      super(fn, runtimeContext, sideInputs, windowFn);
     }
 
     @Override
