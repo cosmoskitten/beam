@@ -67,6 +67,7 @@ public abstract class StepTransformResult implements TransformResult {
     private final AppliedPTransform<?, ?, ?> transform;
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<?>> unprocessedElementsBuilder;
+    private MetricUpdates metricUpdates;
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
     private AggregatorContainer.Mutator aggregatorChanges;
@@ -80,6 +81,7 @@ public abstract class StepTransformResult implements TransformResult {
       this.producedOutputs = EnumSet.noneOf(OutputType.class);
       this.unprocessedElementsBuilder = ImmutableList.builder();
       this.timerUpdate = TimerUpdate.builder(null).build();
+      this.metricUpdates = MetricUpdates.EMPTY;
     }
 
     public StepTransformResult build() {
@@ -88,7 +90,7 @@ public abstract class StepTransformResult implements TransformResult {
           bundlesBuilder.build(),
           unprocessedElementsBuilder.build(),
           aggregatorChanges,
-          null,
+          metricUpdates,
           watermarkHold,
           state,
           timerUpdate,
@@ -97,6 +99,11 @@ public abstract class StepTransformResult implements TransformResult {
 
     public Builder withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
       this.aggregatorChanges = aggregatorChanges;
+      return this;
+    }
+
+    public Builder withMetricUpdates(MetricUpdates metricUpdates) {
+      this.metricUpdates = metricUpdates;
       return this;
     }
 

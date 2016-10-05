@@ -45,7 +45,7 @@ public abstract class DistributionData {
     return create(value, 1, value, value);
   }
 
-  public DistributionData add(DistributionData value) {
+  public DistributionData combine(DistributionData value) {
     return create(
         sum() + value.sum(),
         count() + value.count(),

@@ -96,7 +96,7 @@ class EvaluationContext {
 
   private final AggregatorContainer mergedAggregators;
 
-  private final DirectMetrics metrics = new DirectMetrics();
+  private final DirectMetrics metrics;
 
   public static EvaluationContext create(
       DirectOptions options,
@@ -132,6 +132,7 @@ class EvaluationContext {
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedAggregators = AggregatorContainer.create();
+    this.metrics = new DirectMetrics();
 
     this.callbackExecutor =
         WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
@@ -158,7 +159,7 @@ class EvaluationContext {
       TransformResult result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
-    if (result.getLogicalMetricUpdates() != null) {
+    if (!result.getLogicalMetricUpdates().isEmpty()) {
       metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
     }
 

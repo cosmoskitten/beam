@@ -52,26 +52,27 @@ class DirectMetrics extends MetricResults {
   private static final ExecutorService COUNTER_COMMITTER = Executors.newCachedThreadPool();
 
   public abstract static class DirectMetric<UpdateT, ResultT> {
-    private final Object logicalLock = new Object();
-    private volatile UpdateT committedLogical;
-    private final ConcurrentMap<CommittedBundle<?>, UpdateT> uncommittedLogical =
-        new ConcurrentHashMap<>();
+    private AtomicReference<UpdateT> finishedCommitted;
 
-    private final Object physicalLock = new Object();
-    private volatile UpdateT committedPhysical;
-    private final ConcurrentMap<CommittedBundle<?>, UpdateT> uncommittedPhysical =
+    private final Object attemptedLock = new Object();
+    private volatile UpdateT finishedAttempted;
+    private final ConcurrentMap<CommittedBundle<?>, UpdateT> inflightAttempted =
         new ConcurrentHashMap<>();
 
     public DirectMetric(UpdateT zero) {
-      committedLogical = zero;
-      committedPhysical = zero;
+      finishedCommitted = new AtomicReference<>(zero);
+      finishedAttempted = zero;
     }
 
     protected abstract UpdateT combine(Iterable<UpdateT> updates);
+    private UpdateT combine(UpdateT update1, UpdateT update2) {
+      return combine(Arrays.asList(update1, update2));
+    }
+
     protected abstract ResultT extract(UpdateT data);
 
     public void updatePhysical(CommittedBundle<?> bundle, UpdateT tentativeCumulative) {
-      uncommittedPhysical.put(bundle, tentativeCumulative);
+      inflightAttempted.put(bundle, tentativeCumulative);
     }
 
     public void commitPhysical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
@@ -80,58 +81,40 @@ class DirectMetrics extends MetricResults {
       //    available immediately.
       // 2. We submit a runnable that will commit the update and remove the tentative value in
       //    a synchronized block.
-      uncommittedPhysical.put(bundle, finalCumulative);
+      inflightAttempted.put(bundle, finalCumulative);
       COUNTER_COMMITTER.submit(new Runnable() {
         @Override
         public void run() {
-          synchronized (physicalLock) {
-            committedPhysical = combine(Arrays.asList(committedPhysical, finalCumulative));
-            uncommittedPhysical.remove(bundle);
+          synchronized (attemptedLock) {
+            finishedAttempted = combine(Arrays.asList(finishedAttempted, finalCumulative));
+            inflightAttempted.remove(bundle);
           }
         }
       });
     }
 
-    public ResultT extractPhysical() {
-      ArrayList<UpdateT> updates = new ArrayList<>(uncommittedPhysical.size() + 1);
+    /** Extract the latest values from all committed and in-progress bundles. */
+    public ResultT extractLatestAttempted() {
+      ArrayList<UpdateT> updates = new ArrayList<>(inflightAttempted.size() + 1);
       // Within this block we know that will be consistent. Specifically, the only change that can
-      // happen concurrently is the addition of new (larger) values to uncommittedPhysical.
-      synchronized (physicalLock) {
-        updates.add(committedPhysical);
-        updates.addAll(uncommittedPhysical.values());
+      // happen concurrently is the addition of new (larger) values to inflightAttempted.
+      synchronized (attemptedLock) {
+        updates.add(finishedAttempted);
+        updates.addAll(inflightAttempted.values());
       }
       return extract(combine(updates));
-    }
-
-    public void updateLogical(CommittedBundle<?> bundle, UpdateT tentativeCumulative) {
-      uncommittedLogical.put(bundle, tentativeCumulative);
     }
 
     public void commitLogical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
-      // To prevent a query from blocking the commit, we perform the commit in two steps.
-      // 1. We perform a non-blocking write to the uncommitted table to make the new vaule
-      //    available immediately.
-      // 2. We submit a runnable that will commit the update and remove the tentative value in
-      //    a synchronized block.
-      uncommittedLogical.put(bundle, finalCumulative);
-      COUNTER_COMMITTER.submit(new Runnable() {
-        @Override
-        public void run() {
-          synchronized (logicalLock) {
-            committedLogical = combine(Arrays.asList(committedLogical, finalCumulative));
-            uncommittedLogical.remove(bundle);
-          }
-        }
-      });
+      UpdateT current;
+      do {
+        current = finishedCommitted.get();
+      } while (!finishedCommitted.compareAndSet(current, combine(current, finalCumulative)));
     }
 
-    public ResultT extractLogical() {
-      ArrayList<UpdateT> updates = new ArrayList<>(uncommittedLogical.size() + 1);
-      synchronized (logicalLock) {
-        updates.add(committedLogical);
-        updates.addAll(uncommittedLogical.values());
-      }
-      return extract(combine(updates));
+    /** Extract the from all successfully committed bundles. */
+    public ResultT extractCommitted() {
+      return extract(finishedCommitted.get());
     }
   }
 
@@ -171,7 +154,7 @@ class DirectMetrics extends MetricResults {
     protected DistributionData combine(Iterable<DistributionData> updates) {
       DistributionData result = DistributionData.EMPTY;
       for (DistributionData update : updates) {
-        result = result.add(update);
+        result = result.combine(update);
       }
       return result;
     }
@@ -242,8 +225,8 @@ class DirectMetrics extends MetricResults {
       resultsBuilder.add(DirectMetricResult.create(
           entry.getKey().metricName(),
           entry.getKey().stepName(),
-          entry.getValue().extractLogical(),
-          entry.getValue().extractPhysical()));
+          entry.getValue().extractCommitted(),
+          entry.getValue().extractLatestAttempted()));
     }
   }
 
@@ -299,16 +282,6 @@ class DirectMetrics extends MetricResults {
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
       distributions.getOrCreate(distribution.getKey())
           .commitPhysical(bundle, distribution.getUpdate());
-    }
-  }
-
-  public void updateLogical(CommittedBundle<?> bundle, MetricUpdates updates) {
-    for (MetricUpdate<Long> counter : updates.counterUpdates()) {
-      counters.getOrCreate(counter.getKey()).updateLogical(bundle, counter.getUpdate());
-    }
-    for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.getOrCreate(distribution.getKey())
-          .updateLogical(bundle, distribution.getUpdate());
     }
   }
 

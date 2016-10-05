@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.Iterables;
+import java.util.Collections;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -27,6 +29,10 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricUpdates {
+
+  public static final MetricUpdates EMPTY = MetricUpdates.create(
+      Collections.<MetricUpdate<Long>>emptyList(),
+      Collections.<MetricUpdate<DistributionData>>emptyList());
 
   /**
    * Representation of a single metric update.
@@ -43,6 +49,12 @@ public abstract class MetricUpdates {
     public static <T> MetricUpdate<T> create(MetricKey key, T update) {
       return new AutoValue_MetricUpdates_MetricUpdate(key, update);
     }
+  }
+
+  /** Returns true if there are no updates in this MetricUpdates object. */
+  public boolean isEmpty() {
+    return Iterables.isEmpty(counterUpdates())
+        && Iterables.isEmpty(distributionUpdates());
   }
 
   /** All of the counter updates. */

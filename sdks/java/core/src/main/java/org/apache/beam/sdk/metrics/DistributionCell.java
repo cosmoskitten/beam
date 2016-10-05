@@ -35,7 +35,7 @@ class DistributionCell extends MetricCell<DistributionData> {
     DistributionData original;
     do {
       original = value.get();
-    } while (!value.compareAndSet(original, original.add(DistributionData.singleton(n))));
+    } while (!value.compareAndSet(original, original.combine(DistributionData.singleton(n))));
     markDirtyAfterModification();
   }
 

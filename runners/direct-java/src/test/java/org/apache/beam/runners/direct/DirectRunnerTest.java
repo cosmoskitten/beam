@@ -462,10 +462,10 @@ public class DirectRunnerTest implements Serializable {
         .apply("MyStep", ParDo.of(new DoFn<Integer, Void>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
-            Counter cnt = Metrics.counter(DirectRunnerTest.class, "count");
+            Counter count = Metrics.counter(DirectRunnerTest.class, "count");
             Distribution values = Metrics.distribution(DirectRunnerTest.class, "input");
 
-            cnt.inc();
+            count.inc();
             values.update(c.element());
           }
         }));

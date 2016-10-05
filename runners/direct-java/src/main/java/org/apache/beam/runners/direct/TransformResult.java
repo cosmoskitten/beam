@@ -60,7 +60,7 @@ public interface TransformResult {
   /**
    * Returns the logical metric updates.
    */
-  @Nullable MetricUpdates getLogicalMetricUpdates();
+  MetricUpdates getLogicalMetricUpdates();
 
   /**
    * Returns the Watermark Hold for the transform at the time this result was produced.
