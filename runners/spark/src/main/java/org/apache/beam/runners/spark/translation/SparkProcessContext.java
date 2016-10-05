@@ -148,10 +148,10 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   }
 
   @Override
-  public <AggregatprInputT, AggregatorOutputT>
-  Aggregator<AggregatprInputT, AggregatorOutputT> createAggregatorInternal(
+  public <AggregatorInputT, AggregatorOutputT>
+  Aggregator<AggregatorInputT, AggregatorOutputT> createAggregatorInternal(
           String named,
-          Combine.CombineFn<AggregatprInputT, ?, AggregatorOutputT> combineFn) {
+          Combine.CombineFn<AggregatorInputT, ?, AggregatorOutputT> combineFn) {
     return mRuntimeContext.createAggregator(getAccumulator(), named, combineFn);
   }
 
