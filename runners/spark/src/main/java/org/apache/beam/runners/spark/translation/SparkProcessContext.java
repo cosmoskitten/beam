@@ -65,19 +65,19 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   private final OldDoFn<InputT, OutputT> fn;
   private final SparkRuntimeContext mRuntimeContext;
   private final SideInputReader sideInputReader;
-  private final WindowingStrategy<?, ?> windowingStrategy;
+  private final WindowFn<Object, ?> windowFn;
 
   WindowedValue<InputT> windowedValue;
 
   SparkProcessContext(OldDoFn<InputT, OutputT> fn,
                       SparkRuntimeContext runtime,
                       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
-                      WindowingStrategy<?, ?> windowingStrategy) {
+                      WindowFn<Object, ?> windowFn) {
     fn.super();
     this.fn = fn;
     this.mRuntimeContext = runtime;
     this.sideInputReader = new SparkSideInputReader(sideInputs);
-    this.windowingStrategy = windowingStrategy;
+    this.windowFn = windowFn;
   }
 
   void setup() {
@@ -166,7 +166,7 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   public void outputWithTimestamp(OutputT output, Instant timestamp) {
     if (windowedValue == null) {
       // this is start/finishBundle.
-      output(noElementWindowedValue(output, timestamp, windowingStrategy));
+      output(noElementWindowedValue(output, timestamp, windowFn));
     } else {
       output(WindowedValue.of(output, timestamp, windowedValue.getWindows(),
           windowedValue.getPane()));
@@ -175,9 +175,7 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
 
   static <T> WindowedValue<T> noElementWindowedValue(final T output,
                                                      final Instant timestamp,
-                                                     WindowingStrategy<?, ?> ws) {
-    @SuppressWarnings("unchecked")
-    WindowFn<Object, ?> windowFn = (WindowFn<Object, ?>) ws.getWindowFn();
+                                                     WindowFn<Object, ?> windowFn) {
     WindowFn.AssignContext assignContext = windowFn.new AssignContext() {
 
       @Override

@@ -412,8 +412,9 @@ public final class StreamingTransformTranslator {
         final SparkRuntimeContext runtimeContext = sec.getRuntimeContext();
         final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
-        final WindowingStrategy<?, ?> windowingStrategy =
-            sec.getInput(transform).getWindowingStrategy();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, ?> windowFn =
+            (WindowFn<Object, ?>) sec.getInput(transform).getWindowingStrategy().getWindowFn();
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<InputT>> dStream =
             (JavaDStream<WindowedValue<InputT>>) sec.getStream(transform);
@@ -427,8 +428,7 @@ public final class StreamingTransformTranslator {
             final Accumulator<NamedAggregators> accum =
                 AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
             return rdd.mapPartitions(
-                new DoFnFunction<>(accum, transform.getFn(), runtimeContext, sideInputs,
-                    windowingStrategy));
+                new DoFnFunction<>(accum, transform.getFn(), runtimeContext, sideInputs, windowFn));
           }
         });
 
@@ -447,8 +447,9 @@ public final class StreamingTransformTranslator {
         final SparkRuntimeContext runtimeContext = sec.getRuntimeContext();
         final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
-        final WindowingStrategy<?, ?> windowingStrategy =
-            sec.getInput(transform).getWindowingStrategy();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, ?> windowFn =
+            (WindowFn<Object, ?>) sec.getInput(transform).getWindowingStrategy().getWindowFn();
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<InputT>> dStream =
             (JavaDStream<WindowedValue<InputT>>) sec.getStream(transform);
@@ -461,7 +462,7 @@ public final class StreamingTransformTranslator {
             final Accumulator<NamedAggregators> accum =
                 AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
             return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, transform.getFn(),
-                runtimeContext, transform.getMainOutputTag(), sideInputs, windowingStrategy));
+                runtimeContext, transform.getMainOutputTag(), sideInputs, windowFn));
           }
         }).cache();
         PCollectionTuple pct = sec.getOutput(transform);
