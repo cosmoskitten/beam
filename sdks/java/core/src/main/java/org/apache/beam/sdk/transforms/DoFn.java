@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -306,6 +307,21 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * A placeholder for testing purposes.
      */
     OutputReceiver<OutputT> outputReceiver();
+
+    /**
+     * For migration from {@link OldDoFn} to {@link DoFn}, provide
+     * a {@link WindowingInternals} so an {@link OldDoFn} can be run
+     * via {@link DoFnInvoker}.
+     *
+     * <p>This is <i>not</i> be exposed via the reflective capabilities
+     * of {@link DoFn}.
+     *
+     * @deprecated Please port occurences of {@link OldDoFn} to {@link DoFn}. If they require
+     * state and timers, they will need to wait for the arrival of those features. Do not introduce
+     * new dependencies this access path to state and timers.
+     */
+    @Deprecated
+    WindowingInternals<InputT, OutputT> windowingInternals();
   }
 
   /** A placeholder for testing handling of output types during {@link DoFn} reflection. */
@@ -335,6 +351,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     public OutputReceiver<OutputT> outputReceiver() {
       return null;
     }
+
+    @Override
+    public WindowingInternals<InputT, OutputT> windowingInternals() { return null; }
   }
 
   /////////////////////////////////////////////////////////////////////////////

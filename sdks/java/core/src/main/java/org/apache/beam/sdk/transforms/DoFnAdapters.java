@@ -71,7 +71,8 @@ public class DoFnAdapters {
   /** Creates a {@link OldDoFn.ProcessContext} from a {@link DoFn.ProcessContext}. */
   public static <InputT, OutputT> OldDoFn<InputT, OutputT>.ProcessContext adaptProcessContext(
       OldDoFn<InputT, OutputT> fn,
-      final DoFn<InputT, OutputT>.ProcessContext c) {
+      final DoFn<InputT, OutputT>.ProcessContext c,
+      final DoFn.ExtraContextFactory<InputT, OutputT> extra) {
     return fn.new ProcessContext() {
       @Override
       public InputT element() {
@@ -90,14 +91,7 @@ public class DoFnAdapters {
 
       @Override
       public BoundedWindow window() {
-        throw new UnsupportedOperationException(
-            String.format(
-                "To access the window, please port your %s to %s"
-                    + " and add a %s parameter to @%s method.",
-                OldDoFn.class.getSimpleName(),
-                DoFn.class.getSimpleName(),
-                BoundedWindow.class.getSimpleName(),
-                ProcessElement.class.getSimpleName()));
+        return extra.window();
       }
 
       @Override
@@ -107,14 +101,7 @@ public class DoFnAdapters {
 
       @Override
       public WindowingInternals<InputT, OutputT> windowingInternals() {
-        throw new UnsupportedOperationException(
-            String.format(
-                "windowingInternals() is no longer supported. To access the window,"
-                    + " please port your %s to %s and add a %s parameter to @%s method.",
-                OldDoFn.class.getSimpleName(),
-                DoFn.class.getSimpleName(),
-                BoundedWindow.class.getSimpleName(),
-                ProcessElement.class.getSimpleName()));
+        return extra.windowingInternals();
       }
 
       @Override
@@ -307,9 +294,17 @@ public class DoFnAdapters {
 
     @Override
     public BoundedWindow window() {
-      // The DoFn doesn't allow us to ask for these outside ProcessElements, so this
+      // The OldDoFn doesn't allow us to ask for these outside processElement, so this
       // should be unreachable.
-      throw new UnsupportedOperationException("Can only get the window in ProcessElements");
+      throw new UnsupportedOperationException("Can only get the window in processElement");
+    }
+
+    @Override
+    public WindowingInternals<InputT, OutputT> windowingInternals() {
+      // The OldDoFn doesn't allow us to ask for these outside ProcessElements, so this
+      // should be unreachable.
+      throw new UnsupportedOperationException(
+          "Can only get WindowingInternals in processElement");
     }
 
     @Override
@@ -387,6 +382,11 @@ public class DoFnAdapters {
     @Override
     public BoundedWindow window() {
       return context.window();
+    }
+
+    @Override
+    public WindowingInternals<InputT, OutputT> windowingInternals() {
+      return context.windowingInternals();
     }
 
     @Override

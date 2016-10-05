@@ -115,7 +115,7 @@ public class DoFnInvokers {
     @Override
     public void invokeProcessElement(
         DoFn<InputT, OutputT>.ProcessContext c, ExtraContextFactory<InputT, OutputT> extra) {
-      OldDoFn<InputT, OutputT>.ProcessContext oldCtx = DoFnAdapters.adaptProcessContext(fn, c);
+      OldDoFn<InputT, OutputT>.ProcessContext oldCtx = DoFnAdapters.adaptProcessContext(fn, c, extra);
       try {
         fn.processElement(oldCtx);
       } catch (Throwable exc) {

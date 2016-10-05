@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.WindowingInternals;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,6 +46,7 @@ public class DoFnInvokersTest {
   @Mock private BoundedWindow mockWindow;
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
+  @Mock private WindowingInternals<String, String> mockWindowingInternals;
 
   @Mock private OldDoFn<String, String> mockOldDoFn;
 
@@ -68,6 +70,11 @@ public class DoFnInvokersTest {
           @Override
           public DoFn.OutputReceiver<String> outputReceiver() {
             return mockOutputReceiver;
+          }
+
+          @Override
+          public WindowingInternals<String, String> windowingInternals() {
+            return mockWindowingInternals;
           }
         };
   }
