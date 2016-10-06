@@ -265,7 +265,7 @@ public class EvaluationContext implements EvaluationResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException("The Spark Runner does not yet support metrics.");
+    throw new UnsupportedOperationException("The SparkRunner does not currently support metrics.");
   }
 
   @Override

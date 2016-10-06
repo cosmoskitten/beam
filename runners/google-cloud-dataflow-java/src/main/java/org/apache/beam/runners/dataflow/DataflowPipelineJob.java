@@ -429,7 +429,8 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException("Metrics not supported by the Dataflow runner yet");
+    throw new UnsupportedOperationException(
+        "The DataflowRunner does not currently support metrics.");
   }
 
   private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)

@@ -25,6 +25,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Manages and provides the metrics container associated with each thread.
  *
+ * <p>Users should not interact directly with this class. Instead, use {@link Metrics} and the
+ * returned objects to create and modify metrics.
+ *
  * <p>The runner should create {@link MetricsContainer} for each context in which metrics are
  * reported (by step and name) and call {@link #setMetricsContainer} before invoking any code that
  * may update metrics within that step.

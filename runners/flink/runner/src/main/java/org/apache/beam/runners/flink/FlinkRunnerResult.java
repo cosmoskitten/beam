@@ -90,6 +90,6 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException("The Flink Runner does not yet support metrics.");
+    throw new UnsupportedOperationException("The FlinkRunner does not currently support metrics.");
   }
 }

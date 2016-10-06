@@ -49,6 +49,7 @@ import org.apache.beam.sdk.metrics.MetricsMap;
  */
 class DirectMetrics extends MetricResults {
 
+  // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
   private static final ExecutorService COUNTER_COMMITTER = Executors.newCachedThreadPool();
 
   public abstract static class DirectMetric<UpdateT, ResultT> {
@@ -230,6 +231,9 @@ class DirectMetrics extends MetricResults {
     }
   }
 
+  // Matching logic is implemented here rather than in MetricsFilter because we would like
+  // MetricsFilter to act as a "dumb" value-object, with the possibility of replacing it with
+  // a Proto/JSON/etc. schema object.
   private boolean matches(MetricsFilter filter, MetricKey key) {
     return matchesName(key.metricName(), filter.names())
         && matchesScope(key.stepName(), filter.steps());
