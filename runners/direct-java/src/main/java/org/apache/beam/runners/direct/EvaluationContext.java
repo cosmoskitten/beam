@@ -159,9 +159,7 @@ class EvaluationContext {
       TransformResult result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
-    if (!result.getLogicalMetricUpdates().isEmpty()) {
-      metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
-    }
+    metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
 
     // Update watermarks and timers
     EnumSet<OutputType> outputTypes = EnumSet.copyOf(result.getOutputTypes());

@@ -86,7 +86,7 @@ class DirectMetrics extends MetricResults {
         @Override
         public void run() {
           synchronized (attemptedLock) {
-            finishedAttempted = combine(Arrays.asList(finishedAttempted, finalCumulative));
+            finishedAttempted = combine(finishedAttempted, finalCumulative);
             inflightAttempted.remove(bundle);
           }
         }

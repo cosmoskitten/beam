@@ -141,7 +141,8 @@ class TransformExecutor<T> implements Runnable {
    * necessary {@link ModelEnforcement ModelEnforcements}.
    */
   private void processElements(
-      TransformEvaluator<T> evaluator, MetricsContainer metricsContainer,
+      TransformEvaluator<T> evaluator,
+      MetricsContainer metricsContainer,
       Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
     if (inputBundle != null) {
