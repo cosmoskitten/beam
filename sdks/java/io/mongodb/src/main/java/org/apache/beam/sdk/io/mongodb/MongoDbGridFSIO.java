@@ -56,17 +56,17 @@ import org.joda.time.Instant;
 
 /**
   * IO to read and write data on MongoDB GridFS.
- * <p>
+ *
  * <h3>Reading from MongoDB via GridFS</h3>
- * <p>
+ *
  * <p>MongoDbGridFSIO source returns a bounded collection of Objects as {@code PCollection<T>}.
- * <p>
+ *
  * <p>To configure the MongoDB GridFS source, you can provide the connection URI, the database name
  * and the bucket name.  If unspecified, the default values from the GridFS driver are used.
  *
- * The following example illustrates various options for configuring the
- * source:</p>
- * <p>
+ * <p>The following example illustrates various options for configuring the
+ * source:
+ *
  * <pre>{@code
  *
  * pipeline.apply(MongoDbGridFSIO.read()
@@ -77,7 +77,7 @@ import org.joda.time.Instant;
  * }</pre>
  *
  * <p>The source also accepts an optional configuration: {@code withQueryFilter()} allows you to
- * define a JSON filter to get subset of files in the database.</p>
+ * define a JSON filter to get subset of files in the database.
  *
  * <p>There is also an optional {@code Parser} that can be specified that can be used to
  * parse the InputStream into objects usable with Beam.  By default, MongoDbGridFSIO will parse
