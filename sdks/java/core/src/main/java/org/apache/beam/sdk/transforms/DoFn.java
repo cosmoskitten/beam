@@ -29,6 +29,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
@@ -186,6 +188,23 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      */
     public abstract <T> void sideOutputWithTimestamp(
         TupleTag<T> tag, T output, Instant timestamp);
+
+    /**
+     * Creates an {@link Aggregator} in the {@link DoFn} context with the specified name and
+     * aggregation logic specified by {@link CombineFn}. This is to be overridden by a particular
+     * runner context with an implementation that delivers the values as appropriate.
+     *
+     * <p>The aggregators declared on the {@link DoFn} will be wired up to aggregators allocated via
+     * this method.
+     *
+     * @param name the name of the aggregator
+     * @param combiner the {@link CombineFn} to use in the aggregator
+     * @return an aggregator for the provided name and {@link CombineFn} in this context
+     */
+    @Experimental(Kind.AGGREGATOR)
+    protected abstract <AggInputT, AggOutputT>
+        Aggregator<AggInputT, AggOutputT> createAggregator(
+            String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
   }
 
   /**
@@ -313,12 +332,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * a {@link WindowingInternals} so an {@link OldDoFn} can be run
      * via {@link DoFnInvoker}.
      *
-     * <p>This is <i>not</i> be exposed via the reflective capabilities
+     * <p>This is <i>not</i> exposed via the reflective capabilities
      * of {@link DoFn}.
      *
      * @deprecated Please port occurences of {@link OldDoFn} to {@link DoFn}. If they require
      * state and timers, they will need to wait for the arrival of those features. Do not introduce
-     * new dependencies this access path to state and timers.
+     * new uses of this method.
      */
     @Deprecated
     WindowingInternals<InputT, OutputT> windowingInternals();

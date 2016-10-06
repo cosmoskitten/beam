@@ -131,7 +131,7 @@ public class DoFnAdapters {
       @Override
       protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
           String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-        throw new UnsupportedOperationException("createAggregatorInternal is no longer supported");
+        return c.createAggregator(name, combiner);
       }
     };
   }
@@ -169,7 +169,7 @@ public class DoFnAdapters {
       @Override
       protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
           String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-        throw new UnsupportedOperationException("createAggregatorInternal is no longer supported");
+        return c.createAggregator(name, combiner);
       }
     };
   }
@@ -292,10 +292,18 @@ public class DoFnAdapters {
     }
 
     @Override
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
+        String name,
+        CombineFn<AggInputT, ?, AggOutputT> combiner) {
+      return context.createAggregatorInternal(name, combiner);
+    }
+
+    @Override
     public BoundedWindow window() {
       // The OldDoFn doesn't allow us to ask for these outside processElement, so this
       // should be unreachable.
-      throw new UnsupportedOperationException("Can only get the window in processElement");
+      throw new UnsupportedOperationException(
+          "Can only get the window in processElement; elsewhere there is no defined window.");
     }
 
     @Override
@@ -361,6 +369,12 @@ public class DoFnAdapters {
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       context.sideOutputWithTimestamp(tag, output, timestamp);
+    }
+
+    @Override
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
+        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
+      return context.createAggregatorInternal(name, combiner);
     }
 
     @Override
