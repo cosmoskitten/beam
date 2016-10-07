@@ -179,6 +179,20 @@ public class StateSpecs {
       this.combineFn = combineFn;
       this.accumCoder = accumCoder;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+      // Findbugs insists on an override of equals for the subclass, but it is not necessary. This
+      // placeholder is as concise as a suppression.
+      return super.equals(obj);
+    }
+
+    @Override
+    public int hashCode() {
+      // Findbugs insists on an override of equals for the subclass, but it is not necessary. This
+      // placeholder is as concise as a suppression.
+      return super.hashCode();
+    }
   }
 
   /**
