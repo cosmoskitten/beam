@@ -20,26 +20,16 @@ package org.apache.beam.sdk.util.state;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 
-/**
- * Static utility methods for creating {@link StateSpec} instances.
- */
+/** Static utility methods for creating {@link StateSpec} instances. */
 @Experimental(Kind.STATE)
 public class StateSpecs {
-
-  private static final CoderRegistry STANDARD_REGISTRY = new CoderRegistry();
-
-  static {
-    STANDARD_REGISTRY.registerStandardCoders();
-  }
 
   private StateSpecs() {}
 
@@ -82,30 +72,6 @@ public class StateSpecs {
               KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
     return new KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>(
         accumCoder, combineFn);
-  }
-
-  /**
-   * Create a state spec for values that use a {@link CombineFn} to automatically merge multiple
-   * {@code InputT}s into a single {@code OutputT}.
-   *
-   * <p>This determines the {@code Coder<AccumT>} from the given {@code Coder<InputT>}, and should
-   * only be used to initialize static values.
-   */
-  public static <InputT, AccumT, OutputT>
-      StateSpec<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>>
-          combiningValueFromInputInternal(
-              Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    try {
-      Coder<AccumT> accumCoder = combineFn.getAccumulatorCoder(STANDARD_REGISTRY, inputCoder);
-      return combiningValueInternal(accumCoder, combineFn);
-    } catch (CannotProvideCoderException e) {
-      throw new IllegalArgumentException(
-          "Unable to determine accumulator coder for "
-              + combineFn.getClass().getSimpleName()
-              + " from "
-              + inputCoder,
-          e);
-    }
   }
 
   private static <InputT, AccumT, OutputT>
