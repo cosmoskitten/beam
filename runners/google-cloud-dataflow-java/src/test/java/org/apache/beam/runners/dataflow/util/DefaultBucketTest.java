@@ -46,26 +46,21 @@ import org.mockito.Mockito;
 public class DefaultBucketTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private PipelineOptions options = null;
-  private GcsUtil gcsUtil = null;
-  private GcpProjectUtil gcpUtil = null;
+  private PipelineOptions options;
+  @Mock
+  private GcsUtil gcsUtil;
+  @Mock
+  private GcpProjectUtil gcpUtil;
 
   @Before
   public void setUp() {
     options = PipelineOptionsFactory.create();
-    GcsOptions gcsOptions = options.as(GcsOptions.class);
-    gcsUtil = Mockito.mock(GcsUtil.class);
-    gcsOptions.setGcsUtil(gcsUtil);
-    gcpUtil = Mockito.mock(GcpProjectUtil.class);
-    CloudResourceManagerOptions crmOptions =
-      options.as(CloudResourceManagerOptions.class);
-    crmOptions.setGcpProjectUtil(gcpUtil);
     DataflowPipelineOptions dataflowOptions =
       options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setGcsUtil(gcsUtil);
+    dataflowOptions.setGcpProjectUtil(gcpUtil);
     dataflowOptions.setProject("foo");
-    DataflowPipelineWorkerPoolOptions workerOptions =
-      options.as(DataflowPipelineWorkerPoolOptions.class);
-    workerOptions.setZone("us-north1-a");
+    dataflowOptions.setZone("us-north1-a");
   }
 
   @Test
@@ -79,7 +74,7 @@ public class DefaultBucketTest {
     when(gcpUtil.getProjectNumber("foo")).thenThrow(new IOException("badness"));
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Unable to verify project.");
+    thrown.expectMessage("Unable to verify project");
     DefaultBucket.tryCreateDefaultBucket(options);
   }
 
@@ -90,6 +85,16 @@ public class DefaultBucketTest {
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Unable create default bucket");
+    DefaultBucket.tryCreateDefaultBucket(options);
+  }
+
+  @Test
+  public void testCannotGetBucketOwner() throws IOException {
+    when(gcsUtil.bucketOwner(any(GcsPath.class)))
+      .thenThrow(new IOException("badness"));
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to determine the owner");
     DefaultBucket.tryCreateDefaultBucket(options);
   }
 
