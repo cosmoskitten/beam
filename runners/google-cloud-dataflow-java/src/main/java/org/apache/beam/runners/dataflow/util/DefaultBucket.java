@@ -25,9 +25,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
-import org.apache.beam.sdk.options.CloudResourceManagerOptions;
-import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.slf4j.Logger;
@@ -46,13 +43,8 @@ public class DefaultBucket {
    * of an existing default bucket.  Returns the location if successful.
    */
   public static String tryCreateDefaultBucket(PipelineOptions options) {
-    GcsOptions gcsOptions = options.as(GcsOptions.class);
-    CloudResourceManagerOptions crmOptions =
-      options.as(CloudResourceManagerOptions.class);
     DataflowPipelineOptions dataflowOptions =
       options.as(DataflowPipelineOptions.class);
-    DataflowPipelineWorkerPoolOptions workerOptions =
-      options.as(DataflowPipelineWorkerPoolOptions.class);
 
     final String projectId = dataflowOptions.getProject();
     checkArgument(!isNullOrEmpty(projectId),
@@ -62,14 +54,14 @@ public class DefaultBucket {
     // name with no special characters.
     long projectNumber = 0L;
     try {
-      projectNumber = crmOptions.getGcpProjectUtil().getProjectNumber(
+      projectNumber = dataflowOptions.getGcpProjectUtil().getProjectNumber(
         projectId);
     } catch (IOException e) {
-      throw new RuntimeException("Unable to verify project.", e);
+      throw new RuntimeException("Unable to verify project with ID " + projectId, e);
     }
     String region = DEFAULT_REGION;
-    if (!isNullOrEmpty(workerOptions.getZone())) {
-      region = getRegionFromZone(workerOptions.getZone());
+    if (!isNullOrEmpty(dataflowOptions.getZone())) {
+      region = getRegionFromZone(dataflowOptions.getZone());
     }
     final String bucketName =
       "dataflow-staging-" + region + "-" + projectNumber;
@@ -81,9 +73,9 @@ public class DefaultBucket {
     // Always try to create the bucket before checking access, so that we do not
     // race with other pipelines that may be attempting to do the same thing.
     try {
-      gcsOptions.getGcsUtil().createBucket(projectId, bucket);
+      dataflowOptions.getGcsUtil().createBucket(projectId, bucket);
     } catch (FileAlreadyExistsException e) {
-      LOG.debug("Bucket already exists, verifying access.");
+      LOG.debug("Bucket '" + bucketName + "' already exists, verifying access.");
     } catch (IOException e) {
       throw new RuntimeException("Unable create default bucket.", e);
     }
@@ -91,14 +83,15 @@ public class DefaultBucket {
     // Once the bucket is expected to exist, verify that it is correctly owned
     // by the project executing the job.
     try {
-      long owner = gcsOptions.getGcsUtil().bucketOwner(
+      long owner = dataflowOptions.getGcsUtil().bucketOwner(
         GcsPath.fromComponents(bucketName, ""));
       checkArgument(
         owner == projectNumber,
         "Bucket owner does not match the project from --project:"
         + " %s vs. %s", owner, projectNumber);
     } catch (IOException e) {
-      throw new RuntimeException("Unable to determine the owner of the default bucket.", e);
+      throw new RuntimeException(
+        "Unable to determine the owner of the default bucket at gs://" + bucketName, e);
     }
     return "gs://" + bucketName;
   }
