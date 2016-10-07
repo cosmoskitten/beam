@@ -20,7 +20,15 @@ package org.apache.beam.sdk.util.state;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/** Static utility methods for creating {@link StateSpec} instances. */
+/**
+ * A specification for a cell of persistent state. This includes the information necessary to
+ * encode the value, and details about the intended access pattern. When given a {@link String}
+ * identifier, yields a {@link StateTag}.
+ *
+ * @param <K> The type of key that must be used with the state cell. Contravariant: methods should
+ *            accept values of type {@code StateSpec<? super K, StateT>}.
+ * @param <StateT> The type of state being described.
+ */
 @Experimental(Kind.STATE)
 public interface StateSpec<K, StateT extends State> {
   StateTag<K, StateT> getTag(String id);

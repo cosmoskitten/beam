@@ -29,7 +29,9 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 
-/** Static utility methods for creating {@link StateSpec} instances. */
+/**
+ * Static utility methods for creating {@link StateSpec} instances.
+ */
 @Experimental(Kind.STATE)
 public class StateSpecs {
 
