@@ -814,6 +814,5 @@ class _RoundRobinKeyFn(core.DoFn):
 
 
 # For backwards compatibility.
-# pylint: disable=import-at-top
-# pylint: disable=import-star
+# pylint: disable=wrong-import-position
 from apache_beam.runners.dataflow.native_io.iobase import *
