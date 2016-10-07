@@ -211,7 +211,10 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
 
   private Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem) {
     try {
-      return pushbackDoFnRunner.processElementInReadyWindows(elem);
+      pushbackDoFnRunner.startBundle();
+      Iterable<WindowedValue<InputT>> pushedBack = pushbackDoFnRunner.processElementInReadyWindows(elem);
+      pushbackDoFnRunner.finishBundle();
+      return pushedBack;
     } catch (UserCodeException ue) {
       if (ue.getCause() instanceof AssertionError) {
         ApexRunner.assertionError = (AssertionError)ue.getCause();
@@ -285,7 +288,6 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   @Override
   public void beginWindow(long windowId)
   {
-    pushbackDoFnRunner.startBundle();
     /*
     Collection<Aggregator<?, ?>> aggregators = AggregatorRetriever.getAggregators(doFn);
     if (!aggregators.isEmpty()) {
@@ -297,7 +299,6 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   @Override
   public void endWindow()
   {
-    pushbackDoFnRunner.finishBundle();
   }
 
   /**
