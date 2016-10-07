@@ -25,9 +25,6 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.storage.model.Bucket;
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
-import org.apache.beam.sdk.options.CloudResourceManagerOptions;
-import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.GcpProjectUtil;
@@ -39,7 +36,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoAnnotations.Mock;
 
 /** Tests for DefaultBucket. */
 @RunWith(JUnit4.class)
@@ -54,6 +52,7 @@ public class DefaultBucketTest {
 
   @Before
   public void setUp() {
+    MockitoAnnotations.initMocks(this);
     options = PipelineOptionsFactory.create();
     DataflowPipelineOptions dataflowOptions =
       options.as(DataflowPipelineOptions.class);
