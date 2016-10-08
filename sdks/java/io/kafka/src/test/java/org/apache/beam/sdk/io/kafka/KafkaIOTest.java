@@ -40,6 +40,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -78,7 +79,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests of {@link KafkaSource}.
+ * Tests of {@link KafkaIO}.
  */
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
@@ -180,7 +181,7 @@ public class KafkaIOTest {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
-    KafkaIO.Read<Integer, Long> reader = KafkaIO.read()
+    KafkaIO.Read<Integer, Long> reader = KafkaIO.<Integer, Long>read()
         .withBootstrapServers("none")
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(topics, 10, numElements)) // 20 partitions
@@ -254,10 +255,11 @@ public class KafkaIOTest {
 
     List<String> topics = ImmutableList.of("test");
 
-    KafkaIO.Read<byte[], Long> reader = KafkaIO.read()
+    KafkaIO.Read<byte[], Long> reader = KafkaIO.<byte[], Long>read()
         .withBootstrapServers("none")
         .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5)))
         .withConsumerFactoryFn(new ConsumerFactoryFn(topics, 10, numElements)) // 10 partitions
+        .withKeyCoder(ByteArrayCoder.of())
         .withValueCoder(BigEndianLongCoder.of())
         .withMaxNumRecords(numElements / 10);
 
@@ -428,7 +430,7 @@ public class KafkaIOTest {
       pipeline
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
-        .apply(KafkaIO.write()
+        .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
             .withKeyCoder(BigEndianIntegerCoder.of())
@@ -462,10 +464,9 @@ public class KafkaIOTest {
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
         .apply(Values.<Long>create()) // there are no keys
-        .apply(KafkaIO.write()
+        .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withKeyCoder(BigEndianIntegerCoder.of())
             .withValueCoder(BigEndianLongCoder.of())
             .withProducerFactoryFn(new ProducerFactoryFn())
             .values());
@@ -505,7 +506,7 @@ public class KafkaIOTest {
       pipeline
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
-        .apply(KafkaIO.write()
+        .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
             .withKeyCoder(BigEndianIntegerCoder.of())

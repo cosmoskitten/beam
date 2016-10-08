@@ -32,6 +32,8 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -49,12 +51,12 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -108,23 +110,28 @@ import org.slf4j.LoggerFactory;
  * <p>Although most applications consumer single topic, the source can be configured to consume
  * multiple topics or even a specific set of {@link TopicPartition}s.
  *
+<<<<<<< 7911d5cd767c77425c4af64c4e0f1c980172ba7a
  * <p>To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
  * and one or more topics to consume. The following example illustrates various options for
  * configuring the source :
+=======
+ * <p> To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
+ * and one or more topics to consume, and key and value coders. The following example illustrates
+ * various options for configuring the source :
+>>>>>>> Specify types at creation
  *
  * <pre>{@code
  *
  *  pipeline
- *    .apply(KafkaIO.read()
+ *    .apply(KafkaIO.<Long, String>read()
  *       .withBootstrapServers("broker_1:9092,broker_2:9092")
  *       .withTopics(ImmutableList.of("topic_a", "topic_b"))
- *       // above two are required configuration. returns PCollection<KafkaRecord<byte[], byte[]>
+ *       // set a Coder for Key and Value
+ *       .withKeyCoder(BigEndianLongCoder.of())
+ *       .withValueCoder(StringUtf8Coder.of())
+ *       // above four are required configuration. returns PCollection<KV<Long, String>>
  *
  *       // rest of the settings are optional :
- *
- *       // set a Coder for Key and Value (note the change to return type)
- *       .withKeyCoder(BigEndianLongCoder.of()) // PCollection<KafkaRecord<Long, byte[]>
- *       .withValueCoder(StringUtf8Coder.of())  // PCollection<KafkaRecord<Long, String>
  *
  *       // you can further customize KafkaConsumer used to read the records by adding more
  *       // settings for ConsumerConfig. e.g :
@@ -165,14 +172,14 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  *
  *  PCollection<KV<Long, String>> kvColl = ...;
- *  kvColl.apply(KafkaIO.write()
+ *  kvColl.apply(KafkaIO.<Long, String>write()
  *       .withBootstrapServers("broker_1:9092,broker_2:9092")
  *       .withTopic("results")
  *
  *       // set Coder for Key and Value
  *       .withKeyCoder(BigEndianLongCoder.of())
  *       .withValueCoder(StringUtf8Coder.of())
-
+ *
  *       // you can further customize KafkaProducer used to write the records by adding more
  *       // settings for ProducerConfig. e.g, to enable compression :
  *       .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
@@ -184,11 +191,11 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  *  PCollection<String> strings = ...;
- *  strings.apply(KafkaIO.write()
+ *  strings.apply(KafkaIO.<Void, String>write()
  *      .withBootstrapServers("broker_1:9092,broker_2:9092")
  *      .withTopic("results")
  *      .withValueCoder(StringUtf8Coder.of()) // just need coder for value
- *      .values() // writes values to Kafka with default key
+ *      .values());
  *    );
  * }</pre>
  *
@@ -199,14 +206,13 @@ import org.slf4j.LoggerFactory;
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  */
 public class KafkaIO {
-
   /**
    * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
    * configuration should set with {@link Read#withBootstrapServers(String)} and
    * {@link Read#withTopics(List)}. Other optional settings include key and value coders,
    * custom timestamp and watermark functions.
    */
-  public static Read<byte[], byte[]> read() {
+  public static Read<byte[], byte[]> readBytes() {
     return new AutoValue_KafkaIO_Read.Builder<byte[], byte[]>()
         .setTopics(new ArrayList<String>())
         .setTopicPartitions(new ArrayList<TopicPartition>())
@@ -219,15 +225,44 @@ public class KafkaIO {
   }
 
   /**
+   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
+   * configuration should set with {@link Read#withBootstrapServers(String)} and
+   * {@link Read#withTopics(List)}. Other optional settings include key and value coders,
+   * custom timestamp and watermark functions.
+   */
+  public static <K, V> Read<K, V> read() {
+    return new AutoValue_KafkaIO_Read.Builder<K, V>()
+        .setTopics(new ArrayList<String>())
+        .setTopicPartitions(new ArrayList<TopicPartition>())
+        .setConsumerFactoryFn(Read.KAFKA_9_CONSUMER_FACTORY_FN)
+        .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
+        .setMaxNumRecords(Long.MAX_VALUE)
+        .build();
+  }
+
+  /**
    * Creates an uninitialized {@link Write} {@link PTransform}. Before use, Kafka configuration
    * should be set with {@link Write#withBootstrapServers(String)} and {@link Write#withTopic}
    * along with {@link Coder}s for (optional) key and values.
    */
-  public static Write<byte[], byte[]> write() {
+  public static Write<byte[], byte[]> writeBytes() {
     return new AutoValue_KafkaIO_Write.Builder<byte[], byte[]>()
         .setKeyCoder(ByteArrayCoder.of())
         .setValueCoder(ByteArrayCoder.of())
+        .setValueOnly(false)
         .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
+        .build();
+  }
+
+  /**
+   * Creates an uninitialized {@link Write} {@link PTransform}. Before use, Kafka configuration
+   * should be set with {@link Write#withBootstrapServers(String)} and {@link Write#withTopic}
+   * along with {@link Coder}s for (optional) key and values.
+   */
+  public static <K, V> Write<K, V> write() {
+    return new AutoValue_KafkaIO_Write.Builder<K, V>()
+        .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
+        .setValueOnly(false)
         .build();
   }
 
@@ -243,8 +278,8 @@ public class KafkaIO {
     abstract Map<String, Object> getConsumerConfig();
     abstract List<String> getTopics();
     abstract List<TopicPartition> getTopicPartitions();
-    abstract Coder<K> getKeyCoder();
-    abstract Coder<V> getValueCoder();
+    @Nullable abstract Coder<K> getKeyCoder();
+    @Nullable abstract Coder<V> getValueCoder();
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
     @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getTimestampFn();
@@ -307,17 +342,15 @@ public class KafkaIO {
     /**
      * Returns a new {@link Read} with {@link Coder} for key bytes.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public <KeyT> Read<KeyT, V> withKeyCoder(Coder<KeyT> keyCoder) {
-      return ((Builder) toBuilder()).setKeyCoder(keyCoder).build();
+    public Read<K, V> withKeyCoder(Coder<K> keyCoder) {
+      return toBuilder().setKeyCoder(keyCoder).build();
     }
 
     /**
      * Returns a new {@link Read} with {@link Coder} for value bytes.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public <ValueT> Read<K, ValueT> withValueCoder(Coder<ValueT> valueCoder) {
-      return ((Builder) toBuilder()).setValueCoder(valueCoder).build();
+    public Read<K, V> withValueCoder(Coder<V> valueCoder) {
+      return toBuilder().setValueCoder(valueCoder).build();
     }
 
     /**
@@ -398,6 +431,16 @@ public class KafkaIO {
      */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<K, V>(this);
+    }
+
+    @Override
+    public void validate(PBegin input) {
+      checkNotNull(getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
+          "Kafka bootstrap servers should be set");
+      checkArgument(getTopics().size() > 0 || getTopicPartitions().size() > 0,
+          "Kafka topics or topic_partitions are required");
+      checkNotNull(getKeyCoder(), "Key coder must be set");
+      checkNotNull(getValueCoder(), "Value coder must be set");
     }
 
     @Override
@@ -645,10 +688,7 @@ public class KafkaIO {
 
     @Override
     public void validate() {
-      checkNotNull(spec.getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
-          "Kafka bootstrap servers should be set");
-      checkArgument(spec.getTopics().size() > 0 || spec.getTopicPartitions().size() > 0,
-          "Kafka topics or topic_partitions are required");
+      spec.validate(null);
     }
 
     @Override
@@ -991,7 +1031,7 @@ public class KafkaIO {
         return initialWatermark;
       }
 
-      return source.spec.getWatermarkFn() == null
+      return source.spec.getWatermarkFn() != null
           ? source.spec.getWatermarkFn().apply(curRecord) : curTimestamp;
     }
 
@@ -1081,8 +1121,9 @@ public class KafkaIO {
   @AutoValue
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
     @Nullable abstract String getTopic();
-    abstract Coder<K> getKeyCoder();
-    abstract Coder<V> getValueCoder();
+    @Nullable abstract Coder<K> getKeyCoder();
+    @Nullable abstract Coder<V> getValueCoder();
+    abstract boolean getValueOnly();
     abstract Map<String, Object> getProducerConfig();
     @Nullable
     abstract SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
@@ -1094,6 +1135,7 @@ public class KafkaIO {
       abstract Builder<K, V> setTopic(String topic);
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
+      abstract Builder<K, V> setValueOnly(boolean valueOnly);
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
       abstract Builder<K, V> setProducerFactoryFn(
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
@@ -1122,17 +1164,15 @@ public class KafkaIO {
      * A key is optional while writing to Kafka. Note when a key is set, its hash is used to
      * determine partition in Kafka (see {@link ProducerRecord} for more details).
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public <KeyT> Write<KeyT, V> withKeyCoder(Coder<KeyT> keyCoder) {
-      return ((Builder) toBuilder()).setKeyCoder(keyCoder).build();
+    public Write<K, V> withKeyCoder(Coder<K> keyCoder) {
+      return toBuilder().setKeyCoder(keyCoder).build();
     }
 
     /**
      * Returns a new {@link Write} with {@link Coder} for serializing value to bytes.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public <ValueT> Write<K, ValueT> withValueCoder(Coder<ValueT> valueCoder) {
-      return ((Builder) toBuilder()).setValueCoder(valueCoder).build();
+    public Write<K, V> withValueCoder(Coder<V> valueCoder) {
+      return toBuilder().setValueCoder(valueCoder).build();
     }
 
     public Write<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
@@ -1154,16 +1194,13 @@ public class KafkaIO {
      * Returns a new transform that writes just the values to Kafka. This is useful for writing
      * collections of values rather thank {@link KV}s.
      */
-    @SuppressWarnings("unchecked")
     public PTransform<PCollection<V>, PDone> values() {
-      return new KafkaValueWrite<V>((Write<Void, V>) this);
-      // Any way to avoid casting here to Write<Void, V>? We can't create
-      // new Write without casting producerFactoryFn.
+      return new KafkaValueWrite<>(toBuilder().setValueOnly(true).build());
     }
 
     @Override
     public PDone apply(PCollection<KV<K, V>> input) {
-      input.apply(ParDo.of(new KafkaWriter<K, V>(this)));
+      input.apply(ParDo.of(new KafkaWriter<>(this)));
       return PDone.in(input.getPipeline());
     }
 
@@ -1172,6 +1209,10 @@ public class KafkaIO {
       checkNotNull(getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
           "Kafka bootstrap servers should be set");
       checkNotNull(getTopic(), "Kafka topic should be set");
+      if (!getValueOnly()) {
+        checkNotNull(getKeyCoder(), "Key coder should be set");
+      }
+      checkNotNull(getValueCoder(), "Value coder should be set");
     }
 
     // set config defaults
@@ -1196,11 +1237,10 @@ public class KafkaIO {
    * Same as {@code Write<K, V>} without a Key. Null is used for key as it is the convention is
    * Kafka when there is no key specified. Majority of Kafka writers don't specify a key.
    */
-  private static class KafkaValueWrite<V> extends PTransform<PCollection<V>, PDone> {
+  private static class KafkaValueWrite<K, V> extends PTransform<PCollection<V>, PDone> {
+    private final Write<K, V> kvWriteTransform;
 
-    private final Write<Void, V> kvWriteTransform;
-
-    private KafkaValueWrite(Write<Void, V> kvWriteTransform) {
+    private KafkaValueWrite(Write<K, V> kvWriteTransform) {
       this.kvWriteTransform = kvWriteTransform;
     }
 
@@ -1208,14 +1248,27 @@ public class KafkaIO {
     public PDone apply(PCollection<V> input) {
       return input
         .apply("Kafka values with default key",
-          MapElements.via(new SimpleFunction<V, KV<Void, V>>() {
+          MapElements.via(new SimpleFunction<V, KV<K, V>>() {
             @Override
-            public KV<Void, V> apply(V element) {
-              return KV.<Void, V>of(null, element);
+            public KV<K, V> apply(V element) {
+              return KV.of(null, element);
             }
           }))
-        .setCoder(KvCoder.of(VoidCoder.of(), kvWriteTransform.getValueCoder()))
+        .setCoder(KvCoder.of(new NullOnlyCoder<K>(), kvWriteTransform.getValueCoder()))
         .apply(kvWriteTransform);
+    }
+  }
+
+  private static class NullOnlyCoder<T> extends AtomicCoder<T> {
+    @Override
+    public void encode(T value, OutputStream outStream, Context context) {
+      checkArgument(value == null, "Can only encode nulls");
+      // Encode as the empty string.
+    }
+
+    @Override
+    public T decode(InputStream inStream, Context context) {
+      return null;
     }
   }
 
