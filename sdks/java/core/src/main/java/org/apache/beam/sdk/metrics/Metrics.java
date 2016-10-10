@@ -33,27 +33,78 @@ public class Metrics {
    * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
    */
   public static Counter counter(String namespace, String name) {
-    return new Counter(MetricName.named(namespace, name));
+    return new DelegatingCounter(MetricName.named(namespace, name));
   }
 
   /**
    * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
    */
   public static Counter counter(Class<?> namespace, String name) {
-    return new Counter(MetricName.named(namespace, name));
+    return new DelegatingCounter(MetricName.named(namespace, name));
   }
 
   /**
    * Create a metric that records various statistics about the distribution of reported values.
    */
   public static Distribution distribution(String namespace, String name) {
-    return new Distribution(MetricName.named(namespace, name));
+    return new DelegatingDistribution(MetricName.named(namespace, name));
   }
 
   /**
    * Create a metric that records various statistics about the distribution of reported values.
    */
   public static Distribution distribution(Class<?> namespace, String name) {
-    return new Distribution(MetricName.named(namespace, name));
+    return new DelegatingDistribution(MetricName.named(namespace, name));
+  }
+
+  /** Implementation of {@link Counter} that delegates to the instance for the current context. */
+  private static class DelegatingCounter implements Counter {
+    private final MetricName name;
+
+    private DelegatingCounter(MetricName name) {
+      this.name = name;
+    }
+
+    /** Increment the counter. */
+    @Override public void inc() {
+      inc(1);
+    }
+
+    /** Increment the counter by the given amount. */
+    @Override public void inc(long n) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getCounter(name).inc(n);
+      }
+    }
+
+    /* Decrement the counter. */
+    @Override public void dec() {
+      inc(-1);
+    }
+
+    /* Decrement the counter by the given amount. */
+    @Override public void dec(long n) {
+      inc(-1 * n);
+    }
+  }
+
+  /**
+   * Implementation of {@link Distribution} that delegates to the instance for the current context.
+   */
+  private static class DelegatingDistribution implements Distribution {
+    private final MetricName name;
+
+    private DelegatingDistribution(MetricName name) {
+      this.name = name;
+    }
+
+    @Override
+    public void update(long value) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getDistribution(name).update(value);
+      }
+    }
   }
 }

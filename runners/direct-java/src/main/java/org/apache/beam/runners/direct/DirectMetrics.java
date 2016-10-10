@@ -17,11 +17,12 @@
  */
 package org.apache.beam.runners.direct;
 
+import static java.util.Arrays.asList;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -30,6 +31,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -52,30 +54,53 @@ class DirectMetrics extends MetricResults {
   // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
   private static final ExecutorService COUNTER_COMMITTER = Executors.newCachedThreadPool();
 
-  public abstract static class DirectMetric<UpdateT, ResultT> {
-    private AtomicReference<UpdateT> finishedCommitted;
+  private interface MetricAggregation<UpdateT, ResultT> {
+    UpdateT zero();
+    UpdateT combine(Iterable<UpdateT> updates);
+    ResultT extract(UpdateT data);
+  }
+
+  /**
+   * Implementation of a metric in the direct runner.
+   *
+   * @param <UpdateT> The type of raw data received and aggregated across updates.
+   * @param <ResultT> The type of result extracted from the data.
+   */
+  private static class DirectMetric<UpdateT, ResultT> {
+    private final MetricAggregation<UpdateT, ResultT> aggregation;
+
+    private final AtomicReference<UpdateT> finishedCommitted;
 
     private final Object attemptedLock = new Object();
+    @GuardedBy("attemptedLock")
     private volatile UpdateT finishedAttempted;
+    @GuardedBy("attemptedLock")
     private final ConcurrentMap<CommittedBundle<?>, UpdateT> inflightAttempted =
         new ConcurrentHashMap<>();
 
-    public DirectMetric(UpdateT zero) {
-      finishedCommitted = new AtomicReference<>(zero);
-      finishedAttempted = zero;
+    public DirectMetric(MetricAggregation<UpdateT, ResultT> aggregation) {
+      this.aggregation = aggregation;
+      finishedCommitted = new AtomicReference<>(aggregation.zero());
+      finishedAttempted = aggregation.zero();
     }
 
-    protected abstract UpdateT combine(Iterable<UpdateT> updates);
-    private UpdateT combine(UpdateT update1, UpdateT update2) {
-      return combine(Arrays.asList(update1, update2));
-    }
-
-    protected abstract ResultT extract(UpdateT data);
-
+    /**
+     * Add the given {@code tentativeCumulative} update to the physical aggregate.
+     *
+     * @param bundle The bundle receiving an update.
+     * @param tentativeCumulative The new cumulative value for the given bundle.
+     */
     public void updatePhysical(CommittedBundle<?> bundle, UpdateT tentativeCumulative) {
+      // Add (or update) the cumulatiev value for the given bundle.
       inflightAttempted.put(bundle, tentativeCumulative);
     }
 
+    /**
+     * Commit a physical value for the given {@code bundle}.
+     *
+     * @param bundle The bundle being committed.
+     * @param finalCumulative The final cumulative value for the given bundle.
+     */
     public void commitPhysical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
       // To prevent a query from blocking the commit, we perform the commit in two steps.
       // 1. We perform a non-blocking write to the uncommitted table to make the new vaule
@@ -87,14 +112,14 @@ class DirectMetrics extends MetricResults {
         @Override
         public void run() {
           synchronized (attemptedLock) {
-            finishedAttempted = combine(finishedAttempted, finalCumulative);
+            finishedAttempted = aggregation.combine(asList(finishedAttempted, finalCumulative));
             inflightAttempted.remove(bundle);
           }
         }
       });
     }
 
-    /** Extract the latest values from all committed and in-progress bundles. */
+    /** Extract the latest values from all attempted and in-progress bundles. */
     public ResultT extractLatestAttempted() {
       ArrayList<UpdateT> updates = new ArrayList<>(inflightAttempted.size() + 1);
       // Within this block we know that will be consistent. Specifically, the only change that can
@@ -103,30 +128,38 @@ class DirectMetrics extends MetricResults {
         updates.add(finishedAttempted);
         updates.addAll(inflightAttempted.values());
       }
-      return extract(combine(updates));
+      return aggregation.extract(aggregation.combine(updates));
     }
 
+    /**
+     * Commit a logical value for the given {@code bundle}.
+     *
+     * @param bundle The bundle being committed.
+     * @param finalCumulative The final cumulative value for the given bundle.
+     */
     public void commitLogical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
       UpdateT current;
       do {
         current = finishedCommitted.get();
-      } while (!finishedCommitted.compareAndSet(current, combine(current, finalCumulative)));
+      } while (!finishedCommitted.compareAndSet(current,
+          aggregation.combine(asList(current, finalCumulative))));
     }
 
-    /** Extract the from all successfully committed bundles. */
+    /** Extract the value from all successfully committed bundles. */
     public ResultT extractCommitted() {
-      return extract(finishedCommitted.get());
+      return aggregation.extract(finishedCommitted.get());
     }
   }
 
-  private static class DirectCounter extends DirectMetric<Long, Long> {
-
-    public DirectCounter() {
-      super(0L);
+  private static final MetricAggregation<Long, Long> COUNTER =
+      new MetricAggregation<Long, Long>() {
+    @Override
+    public Long zero() {
+      return 0L;
     }
 
     @Override
-    protected Long combine(Iterable<Long> updates) {
+    public Long combine(Iterable<Long> updates) {
       long value = 0;
       for (long update : updates) {
         value += update;
@@ -135,43 +168,39 @@ class DirectMetrics extends MetricResults {
     }
 
     @Override
-    protected Long extract(Long data) {
+    public Long extract(Long data) {
       return data;
     }
-  }
+  };
 
-  private static class DirectDistribution
-      extends DirectMetric<DistributionData, DistributionResult> {
-    private final AtomicReference<DistributionData> physicalValue =
-        new AtomicReference(DistributionData.EMPTY);
-    private final AtomicReference<DistributionData> logicalValue =
-        new AtomicReference(DistributionData.EMPTY);
+  private static final MetricAggregation<DistributionData, DistributionResult> DISTRIBUTION =
+      new MetricAggregation<DistributionData, DistributionResult>() {
+        @Override
+        public DistributionData zero() {
+          return DistributionData.EMPTY;
+        }
 
-    public DirectDistribution() {
-      super(DistributionData.EMPTY);
-    }
+        @Override
+        public DistributionData combine(Iterable<DistributionData> updates) {
+          DistributionData result = DistributionData.EMPTY;
+          for (DistributionData update : updates) {
+            result = result.combine(update);
+          }
+          return result;
+        }
 
-    @Override
-    protected DistributionData combine(Iterable<DistributionData> updates) {
-      DistributionData result = DistributionData.EMPTY;
-      for (DistributionData update : updates) {
-        result = result.combine(update);
-      }
-      return result;
-    }
-
-    @Override
-    protected DistributionResult extract(DistributionData data) {
-      return data.extractResult();
-    }
-  }
+        @Override
+        public DistributionResult extract(DistributionData data) {
+          return data.extractResult();
+        }
+      };
 
   /** The current values of counters in memory. */
   private MetricsMap<MetricKey, DirectMetric<Long, Long>> counters =
       new MetricsMap<>(new MetricsMap.Factory<MetricKey, DirectMetric<Long, Long>>() {
         @Override
         public DirectMetric<Long, Long> createInstance(MetricKey unusedKey) {
-          return new DirectCounter();
+          return new DirectMetric<>(COUNTER);
         }
       });
   private MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>> distributions =
@@ -180,7 +209,7 @@ class DirectMetrics extends MetricResults {
         @Override
         public DirectMetric<DistributionData, DistributionResult> createInstance(
             MetricKey unusedKey) {
-          return new DirectDistribution();
+          return new DirectMetric<>(DISTRIBUTION);
         }
       });
 
@@ -271,20 +300,20 @@ class DirectMetrics extends MetricResults {
   /** Apply metric updates that represent physical counter deltas to the current metric values. */
   public void updatePhysical(CommittedBundle<?> bundle, MetricUpdates updates) {
     for (MetricUpdate<Long> counter : updates.counterUpdates()) {
-      counters.getOrCreate(counter.getKey()).updatePhysical(bundle, counter.getUpdate());
+      counters.get(counter.getKey()).updatePhysical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.getOrCreate(distribution.getKey())
+      distributions.get(distribution.getKey())
           .updatePhysical(bundle, distribution.getUpdate());
     }
   }
 
   public void commitPhysical(CommittedBundle<?> bundle, MetricUpdates updates) {
     for (MetricUpdate<Long> counter : updates.counterUpdates()) {
-      counters.getOrCreate(counter.getKey()).commitPhysical(bundle, counter.getUpdate());
+      counters.get(counter.getKey()).commitPhysical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.getOrCreate(distribution.getKey())
+      distributions.get(distribution.getKey())
           .commitPhysical(bundle, distribution.getUpdate());
     }
   }
@@ -292,10 +321,10 @@ class DirectMetrics extends MetricResults {
   /** Apply metric updates that represent new logical values from a bundle being committed. */
   public void commitLogical(CommittedBundle<?> bundle, MetricUpdates updates) {
     for (MetricUpdate<Long> counter : updates.counterUpdates()) {
-      counters.getOrCreate(counter.getKey()).commitLogical(bundle, counter.getUpdate());
+      counters.get(counter.getKey()).commitLogical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.getOrCreate(distribution.getKey())
+      distributions.get(distribution.getKey())
           .commitLogical(bundle, distribution.getUpdate());
     }
   }

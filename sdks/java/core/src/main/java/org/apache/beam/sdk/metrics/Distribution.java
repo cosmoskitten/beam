@@ -24,18 +24,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * A metric that reports information about the distribution of reported values.
  */
 @Experimental(Kind.METRICS)
-public class Distribution {
-
-  private final MetricName name;
-
-  Distribution(MetricName name) {
-    this.name = name;
-  }
-
-  public void update(long value) {
-    MetricsContainer container = MetricsEnvironment.getCurrentContainer();
-    if (container != null) {
-      container.getOrCreateDistribution(name).update(value);
-    }
-  }
+public interface Distribution extends Metric {
+  /** Add an observation to this distribution. */
+  void update(long value);
 }

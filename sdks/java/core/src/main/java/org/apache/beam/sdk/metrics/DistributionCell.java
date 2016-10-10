@@ -25,22 +25,34 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * Tracks the current value (and delta) for a Distribution metric.
  */
 @Experimental(Kind.METRICS)
-class DistributionCell extends MetricCell<DistributionData> {
+class DistributionCell implements MetricCell<Distribution, DistributionData>, Distribution {
 
+  private final DirtyState dirty = new DirtyState();
   private final AtomicReference<DistributionData> value =
       new AtomicReference<DistributionData>(DistributionData.EMPTY);
 
   /** Increment the counter by the given amount. */
+  @Override
   public void update(long n) {
     DistributionData original;
     do {
       original = value.get();
     } while (!value.compareAndSet(original, original.combine(DistributionData.singleton(n))));
-    markDirtyAfterModification();
+    dirty.afterModification();
+  }
+
+  @Override
+  public DirtyState getDirty() {
+    return dirty;
   }
 
   @Override
   public DistributionData getCumulative() {
     return value.get();
+  }
+
+  @Override
+  public Distribution getInterface() {
+    return this;
   }
 }

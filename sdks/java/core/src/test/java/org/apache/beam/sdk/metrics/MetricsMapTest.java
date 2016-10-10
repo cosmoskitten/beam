@@ -50,32 +50,32 @@ public class MetricsMapTest {
 
   @Test
   public void testCreateSeparateInstances() {
-    AtomicLong foo = metricsMap.getOrCreate("foo");
-    AtomicLong bar = metricsMap.getOrCreate("bar");
+    AtomicLong foo = metricsMap.get("foo");
+    AtomicLong bar = metricsMap.get("bar");
 
     assertThat(foo, not(sameInstance(bar)));
   }
 
   @Test
   public void testReuseInstances() {
-    AtomicLong foo1 = metricsMap.getOrCreate("foo");
-    AtomicLong foo2 = metricsMap.getOrCreate("foo");
+    AtomicLong foo1 = metricsMap.get("foo");
+    AtomicLong foo2 = metricsMap.get("foo");
 
     assertThat(foo1, sameInstance(foo2));
   }
 
   @Test
   public void testGet() {
-    assertThat(metricsMap.get("foo"), nullValue(AtomicLong.class));
+    assertThat(metricsMap.tryGet("foo"), nullValue(AtomicLong.class));
 
-    AtomicLong foo = metricsMap.getOrCreate("foo");
-    assertThat(metricsMap.get("foo"), sameInstance(foo));
+    AtomicLong foo = metricsMap.get("foo");
+    assertThat(metricsMap.tryGet("foo"), sameInstance(foo));
   }
 
   @Test
   public void testGetEntries() {
-    AtomicLong foo = metricsMap.getOrCreate("foo");
-    AtomicLong bar = metricsMap.getOrCreate("bar");
+    AtomicLong foo = metricsMap.get("foo");
+    AtomicLong bar = metricsMap.get("bar");
     assertThat(metricsMap.entries(), containsInAnyOrder(
         hasEntry("foo", foo),
         hasEntry("bar", bar)));

@@ -40,7 +40,7 @@ public class MetricsEnvironmentTest {
 
   @Test
   public void testUsesAppropriateMetricsContainer() {
-    Counter counter = new Counter(MetricName.named("ns", "name"));
+    Counter counter = Metrics.counter("ns", "name");
     MetricsContainer c1 = new MetricsContainer("step1");
     MetricsContainer c2 = new MetricsContainer("step2");
 

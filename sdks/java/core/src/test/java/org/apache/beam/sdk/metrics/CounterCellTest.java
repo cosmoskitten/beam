@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
@@ -36,38 +35,21 @@ public class CounterCellTest {
 
   @Test
   public void testDeltaAndCumulative() {
-    cell.add(5);
-    cell.add(7);
+    cell.inc(5);
+    cell.inc(7);
     assertThat(cell.getCumulative(), equalTo(12L));
+    assertThat("getCumulative is idempotent", cell.getCumulative(), equalTo(12L));
+
+    assertThat(cell.getDirty().beforeCommit(), equalTo(true));
+    cell.getDirty().afterCommit();
+    assertThat(cell.getDirty().beforeCommit(), equalTo(false));
     assertThat(cell.getCumulative(), equalTo(12L));
 
-    assertThat(cell.getUpdateIfDirty(), equalTo(12L));
-    assertThat("Without committing, update remains the same",
-        cell.getUpdateIfDirty(), equalTo(12L));
-    cell.commitUpdate();
-    assertThat(cell.getUpdateIfDirty(), nullValue());
-    assertThat("Cumulative is independent of dirty-state",
-        cell.getCumulative(), equalTo(12L));
-
-    cell.add(30);
-    assertThat("Adding a new value also made the cell dirty",
-        cell.getUpdateIfDirty(), equalTo(42L));
+    cell.inc(30);
     assertThat(cell.getCumulative(), equalTo(42L));
-  }
 
-  @Test
-  public void testIncrementBetweenGetAndCommit() {
-    cell.add(5);
-    assertThat(cell.getUpdateIfDirty(), equalTo(5L));
-
-    cell.add(7);
-    cell.commitUpdate();
-    assertThat("Changes after getUpdateIfDirty are not committed",
-        cell.getUpdateIfDirty(), equalTo(12L));
-  }
-
-  @Test
-  public void testGetInitialUpdate() {
-    assertThat(cell.getUpdateIfDirty(), equalTo(0L));
+    assertThat(cell.getDirty().beforeCommit(), equalTo(true));
+    cell.getDirty().afterCommit();
+    assertThat(cell.getDirty().beforeCommit(), equalTo(false));
   }
 }

@@ -17,74 +17,31 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * Interface for reporting metric updates of type {@code T} from inside worker harness.
+ * A {@link MetricCell} is used for accumulating in-memory changes to a metric. It represents a
+ * specific metric name in a single context.
+ *
+ * @param <UserT> The type of the user interface for reporting changes to this cell.
+ * @param <DataT> The type of metric data stored (and extracted) from this cell.
  */
 @Experimental(Kind.METRICS)
-abstract class MetricCell<T> {
-
-  // All MetricCells start out Dirty so that their existence is reported.
-  // When a MetricCell is updated, it transitions to the DIRTY state.
-  // When a delta is extracting, they transition to the COMMITTING state.
-  // When a delta is committed, it transitions to the CLEAN state only if it is in the COMMITTING
-  // state. This ensures that counters that were modified after the delta was extracted but before
-  // it was committed are not falsely marked as CLEAN.
-  private enum DirtyState {
-    /** Indicates that there have been changes to the MetricCell since last commit. */
-    DIRTY,
-    /** Indicates that there have been no changes to the MetricCell since last commit. */
-    CLEAN,
-    /** Indicates that a commit of the current value is in progress. */
-    COMMITTING
-  }
-
-  private final AtomicReference<DirtyState> dirty = new AtomicReference<>(DirtyState.DIRTY);
-
-  /** Should be called by subclasses <b>after</b> modification of the value. */
-  protected void markDirtyAfterModification() {
-    dirty.set(DirtyState.DIRTY);
-  }
+interface MetricCell<UserT extends Metric, DataT> {
 
   /**
-   * Return the cumulative value of this metric if there have been any changes since the last time
-   * the update was retrieved and committed.
+   * Return the {@link DirtyState} tracking whether this metric cell contains uncommitted changes.
    */
-  @Nullable
-  public T getUpdateIfDirty() {
-    // After this loop, we want the state to be either CLEAN or COMMITTING.
-    // If the state was CLEAN, we don't need to do anything (and exit the loop early)
-    // If the state was DIRTY, we will attempt to do a CAS(DIRTY, COMMITTING). This will only
-    // fail if another thread is getting updates which generally shouldn't be the case.
-    // If the state was COMMITTING, we will attempt to do a CAS(COMMITTING, COMMITTING). This will
-    // fail if another thread commits updates (which shouldn't be the case) or if the user code
-    // updates the metric, in which case it will transition to DIRTY and the next iteration will
-    // successfully update it.
-    DirtyState state;
-    do {
-      state = dirty.get();
-    } while (state != DirtyState.CLEAN && !dirty.compareAndSet(state, DirtyState.COMMITTING));
-
-    // Either the state is CLEAN (in which case we should return null) or we successfully set the
-    // state to COMMITTING and we should return the cumulative update.
-    return state == DirtyState.CLEAN ? null : getCumulative();
-  }
-
-  /**
-   * Mark the values of the metric most recently retrieved with {@link #getUpdateIfDirty()}} as
-   * committed. The next call to {@link #getUpdateIfDirty()} will return null unless there have been
-   * changes made since the previous call.
-   */
-  public void commitUpdate() {
-    dirty.compareAndSet(DirtyState.COMMITTING, DirtyState.CLEAN);
-  }
+  DirtyState getDirty();
 
   /**
    * Return the cumulative value of this metric.
    */
-  public abstract T getCumulative();
+  DataT getCumulative();
+
+  /**
+   * Return the user-facing mutator for this cell.
+   */
+  UserT getInterface();
 }

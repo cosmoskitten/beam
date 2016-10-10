@@ -37,8 +37,8 @@ public class MetricsContainerTest {
   @Test
   public void testCounterDeltas() {
     MetricsContainer container = new MetricsContainer("step1");
-    CounterCell c1 = container.getOrCreateCounter(MetricName.named("ns", "name1"));
-    CounterCell c2 = container.getOrCreateCounter(MetricName.named("ns", "name2"));
+    CounterCell c1 = container.getCounter(MetricName.named("ns", "name1"));
+    CounterCell c2 = container.getCounter(MetricName.named("ns", "name2"));
     assertThat("All counters should start out dirty",
         container.getUpdates().counterUpdates(), containsInAnyOrder(
         metricUpdate("name1", 0L),
@@ -47,8 +47,8 @@ public class MetricsContainerTest {
     assertThat("After commit no counters should be dirty",
         container.getUpdates().counterUpdates(), emptyIterable());
 
-    c1.add(5L);
-    c2.add(4L);
+    c1.inc(5L);
+    c2.inc(4L);
 
     assertThat(container.getUpdates().counterUpdates(), containsInAnyOrder(
         metricUpdate("name1", 5L),
@@ -63,7 +63,7 @@ public class MetricsContainerTest {
     assertThat("After commit there are no updates",
         container.getUpdates().counterUpdates(), emptyIterable());
 
-    c1.add(8L);
+    c1.inc(8L);
     assertThat(container.getUpdates().counterUpdates(), contains(
         metricUpdate("name1", 13L)));
   }
@@ -71,11 +71,11 @@ public class MetricsContainerTest {
   @Test
   public void testCounterCumulatives() {
     MetricsContainer container = new MetricsContainer("step1");
-    CounterCell c1 = container.getOrCreateCounter(MetricName.named("ns", "name1"));
-    CounterCell c2 = container.getOrCreateCounter(MetricName.named("ns", "name2"));
-    c1.add(2L);
-    c2.add(4L);
-    c1.add(3L);
+    CounterCell c1 = container.getCounter(MetricName.named("ns", "name1"));
+    CounterCell c2 = container.getCounter(MetricName.named("ns", "name2"));
+    c1.inc(2L);
+    c2.inc(4L);
+    c1.inc(3L);
 
     container.getUpdates();
     container.commitUpdates();
@@ -84,7 +84,7 @@ public class MetricsContainerTest {
         metricUpdate("name1", 5L),
         metricUpdate("name2", 4L)));
 
-    c1.add(8L);
+    c1.inc(8L);
     assertThat(container.getCumulative().counterUpdates(), containsInAnyOrder(
         metricUpdate("name1", 13L),
         metricUpdate("name2", 4L)));
@@ -93,8 +93,8 @@ public class MetricsContainerTest {
   @Test
   public void testDistributionDeltas() {
     MetricsContainer container = new MetricsContainer("step1");
-    DistributionCell c1 = container.getOrCreateDistribution(MetricName.named("ns", "name1"));
-    DistributionCell c2 = container.getOrCreateDistribution(MetricName.named("ns", "name2"));
+    DistributionCell c1 = container.getDistribution(MetricName.named("ns", "name1"));
+    DistributionCell c2 = container.getDistribution(MetricName.named("ns", "name2"));
 
     assertThat("Initial update includes initial zero-values",
         container.getUpdates().distributionUpdates(), containsInAnyOrder(

@@ -23,20 +23,54 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * Tracks the current value (and delta) for a Counter metric for a specific context and bundle.
+ *
+ * <p>This class generally shouldn't be used directly. The only exception is within a runner where
+ * a counter is being reported for a specific step (rather than the counter in the current context).
  */
 @Experimental(Kind.METRICS)
-class CounterCell extends MetricCell<Long> {
+class CounterCell implements MetricCell<Counter, Long>, Counter {
 
+  private final DirtyState dirty = new DirtyState();
   private final AtomicLong value = new AtomicLong();
 
   /** Increment the counter by the given amount. */
-  public void add(long n) {
+  private void add(long n) {
     value.addAndGet(n);
-    markDirtyAfterModification();
+    dirty.afterModification();
+  }
+
+  @Override
+  public DirtyState getDirty() {
+    return dirty;
   }
 
   @Override
   public Long getCumulative() {
     return value.get();
+  }
+
+  @Override
+  public Counter getInterface() {
+    return this;
+  }
+
+  @Override
+  public void inc() {
+    add(1);
+  }
+
+  @Override
+  public void inc(long n) {
+    add(n);
+  }
+
+  @Override
+  public void dec() {
+    add(-1);
+  }
+
+  @Override
+  public void dec(long n) {
+    add(-n);
   }
 }

@@ -22,15 +22,18 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
+import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Test;
 
 /**
- * Tests for {@link Distribution}.
+ * Tests for {@link Metrics}.
  */
-public class DistributionTest {
+public class MetricsTest {
 
-  private static final MetricName NAME = MetricName.named("test", "dist");
+  private static final String NS = "test";
+  private static final String NAME = "name";
+  private static final MetricName METRIC_NAME = MetricName.named(NS, NAME);
 
   @After
   public void tearDown() {
@@ -38,22 +41,33 @@ public class DistributionTest {
   }
 
   @Test
-  public void testReportWithoutContainer() {
+  public void distributionWithoutContainer() {
     assertNull(MetricsEnvironment.getCurrentContainer());
     // Should not fail even though there is no metrics container.
-    new Distribution(NAME).update(5L);
+    Metrics.distribution(NS, NAME).update(5L);
   }
 
   @Test
-  public void testReportToCell() {
+  public void counterWithoutContainer() {
+    assertNull(MetricsEnvironment.getCurrentContainer());
+    // Should not fail even though there is no metrics container.
+    Counter counter = Metrics.counter(NS, NAME);
+    counter.inc();
+    counter.inc(5L);
+    counter.dec();
+    counter.dec(5L);
+  }
+
+  @Test
+  public void distributionToCell() {
     MetricsContainer container = new MetricsContainer("step");
     MetricsEnvironment.setMetricsContainer(container);
 
-    Distribution distribution = new Distribution(NAME);
+    Distribution distribution = Metrics.distribution(NS, NAME);
 
     distribution.update(5L);
 
-    DistributionCell cell = container.getOrCreateDistribution(NAME);
+    DistributionCell cell = container.getDistribution(METRIC_NAME);
     assertThat(cell.getCumulative(), equalTo(DistributionData.create(5, 1, 5, 5)));
 
     distribution.update(36L);
@@ -61,5 +75,24 @@ public class DistributionTest {
 
     distribution.update(1L);
     assertThat(cell.getCumulative(), equalTo(DistributionData.create(42, 3, 1, 36)));
+  }
+
+  @Test
+  public void counterToCell() {
+    MetricsContainer container = new MetricsContainer("step");
+    MetricsEnvironment.setMetricsContainer(container);
+    Counter counter = Metrics.counter(NS, NAME);
+    CounterCell cell = container.getCounter(METRIC_NAME);
+    counter.inc();
+    assertThat(cell.getCumulative(), CoreMatchers.equalTo(1L));
+
+    counter.inc(47L);
+    assertThat(cell.getCumulative(), CoreMatchers.equalTo(48L));
+
+    counter.dec(5L);
+    assertThat(cell.getCumulative(), CoreMatchers.equalTo(43L));
+
+    counter.dec();
+    assertThat(cell.getCumulative(), CoreMatchers.equalTo(42L));
   }
 }

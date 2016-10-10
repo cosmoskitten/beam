@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.metrics;
 
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
@@ -26,28 +26,31 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link DistributionCell}.
+ * Tests for {@link DirtyStateTest}.
  */
 @RunWith(JUnit4.class)
-public class DistributionCellTest {
-  private DistributionCell cell = new DistributionCell();
+public class DirtyStateTest {
+
+  private final DirtyState dirty = new DirtyState();
 
   @Test
-  public void testDeltaAndCumulative() {
-    cell.update(5);
-    cell.update(7);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(12, 2, 5, 7)));
-    assertThat("getCumulative is idempotent",
-        cell.getCumulative(), equalTo(DistributionData.create(12, 2, 5, 7)));
+  public void basicPath() {
+    assertThat("Should start dirty", dirty.beforeCommit(), is(true));
+    dirty.afterCommit();
+    assertThat("Should be clean after commit", dirty.beforeCommit(), is(false));
 
-    assertThat(cell.getDirty().beforeCommit(), equalTo(true));
-    cell.getDirty().afterCommit();
-    assertThat(cell.getDirty().beforeCommit(), equalTo(false));
+    dirty.afterModification();
+    assertThat("Should be dirty after change", dirty.beforeCommit(), is(true));
+    dirty.afterCommit();
+    assertThat("Should be clean after commit", dirty.beforeCommit(), is(false));
+  }
 
-    cell.update(30);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(42, 3, 5, 30)));
-
-    assertThat("Adding a new value made the cell dirty",
-        cell.getDirty().beforeCommit(), equalTo(true));
+  @Test
+  public void changeAfterBeforeCommit() {
+    assertThat("Should start dirty", dirty.beforeCommit(), is(true));
+    dirty.afterModification();
+    dirty.afterCommit();
+    assertThat("Changes after beforeCommit should be dirty after afterCommit",
+        dirty.beforeCommit(), is(true));
   }
 }

@@ -68,22 +68,22 @@ public class MetricsContainer {
    * Return the {@link CounterCell} that should be used for implementing the given
    * {@code metricName} in this container.
    */
-  public CounterCell getOrCreateCounter(MetricName metricName) {
-    return counters.getOrCreate(metricName);
+  public CounterCell getCounter(MetricName metricName) {
+    return counters.get(metricName);
   }
 
-  public DistributionCell getOrCreateDistribution(MetricName metricName) {
-    return distributions.getOrCreate(metricName);
+  public DistributionCell getDistribution(MetricName metricName) {
+    return distributions.get(metricName);
   }
 
-  private <UpdateT, CellT extends MetricCell<UpdateT>>
+  private <UpdateT, CellT extends MetricCell<?, UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractUpdates(
       MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
-      UpdateT update = cell.getValue().getUpdateIfDirty();
-      if (update != null) {
-        updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
+      if (cell.getValue().getDirty().beforeCommit()) {
+        updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()),
+            cell.getValue().getCumulative()));
       }
     }
     return updates.build();
@@ -99,9 +99,9 @@ public class MetricsContainer {
         extractUpdates(distributions));
   }
 
-  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
-    for (MetricCell<?> cell : cells.values()) {
-      cell.commitUpdate();
+  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?, ?>> cells) {
+    for (MetricCell<?, ?> cell : cells.values()) {
+      cell.getDirty().afterCommit();
     }
   }
 
@@ -114,7 +114,7 @@ public class MetricsContainer {
     commitUpdates(distributions);
   }
 
-  private <UpdateT, CellT extends MetricCell<UpdateT>>
+  private <UpdateT, CellT extends MetricCell<?, UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(
       MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();

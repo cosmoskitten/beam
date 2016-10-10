@@ -53,7 +53,7 @@ public class MetricsMap<K, T> {
   /**
    * Get or create the value associated with the given key.
    */
-  public T getOrCreate(K key) {
+  public T get(K key) {
     T metric = metrics.get(key);
     if (metric == null) {
       metric = factory.createInstance(key);
@@ -66,7 +66,7 @@ public class MetricsMap<K, T> {
    * Get the value associated with the given key, if it exists.
    */
   @Nullable
-  public T get(K key) {
+  public T tryGet(K key) {
     return metrics.get(key);
   }
 
