@@ -199,6 +199,14 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
                   <mainClass>org.apache.beam.runners.flink.examples.WordCount</mainClass>
                 </transformer>
               </transformers>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/LICENSE</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>
