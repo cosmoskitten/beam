@@ -808,6 +808,7 @@ public class WatermarkManager {
       for (CommittedBundle<?> initialBundle : rootEntry.getValue()) {
         rootWms.addPending(initialBundle);
       }
+      pendingRefreshes.offer(rootEntry.getKey());
     }
   }
 
