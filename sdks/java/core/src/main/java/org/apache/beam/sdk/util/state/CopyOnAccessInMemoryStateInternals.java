@@ -430,7 +430,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
                   StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
                   Coder<AccumT> accumCoder,
                   KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-            return underlying.get(namespace, StateTags.tagforSpec(id, spec), c);
+            return underlying.get(namespace, StateTags.tagForSpec(id, spec), c);
           }
 
           @Override

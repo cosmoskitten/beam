@@ -67,17 +67,6 @@ public class StateTags {
   }
 
   /**
-   * Quirk of type system unresolved. TODO: make this and the above method one method.
-   */
-  public static <K, InputT, AccumT, OutputT>
-  StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> tagforSpec(
-      String id,
-      StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec) {
-    return new SimpleStateTag<>(new StructuredId(id), spec);
-  }
-
-
-  /**
    * Create a simple state tag for values of type {@code T}.
    */
   public static <T> StateTag<Object, ValueState<T>> value(String id, Coder<T> valueCoder) {

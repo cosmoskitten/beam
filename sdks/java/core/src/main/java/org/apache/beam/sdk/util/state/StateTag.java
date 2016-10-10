@@ -24,8 +24,9 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.GroupByKey;
 
 /**
- * An address for persistent state. This includes a unique identifier for the location, the
- * information necessary to encode the value, and details about the intended access pattern.
+ * An address and specification for a persistent state cell. This includes a unique identifier for
+ * the location, the information necessary to encode the value, and details about the intended
+ * access pattern.
  *
  * <p>State can be thought of as a sparse table, with each {@code StateTag} defining a column
  * that has cells of type {@code StateT}.
@@ -43,12 +44,12 @@ public interface StateTag<K, StateT extends State> extends Serializable {
   void appendTo(Appendable sb) throws IOException;
 
   /**
-   * Returns the user-provided name of this state cell.
+   * An identifier for the state cell that this tag references.
    */
   String getId();
 
   /**
-   * Returns the spec for the enclosed state cell.
+   * The specification for the state stored in the referenced cell.
    */
   StateSpec<K, StateT> getSpec();
 }

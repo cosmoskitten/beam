@@ -32,12 +32,11 @@ public abstract class StateTable<K> {
 
   /**
    * Gets the {@link State} in the specified {@link StateNamespace} with the specified {@link
-   * StateTag}, binding it using the {@link #binderForNamespace} if it is not
-   * already present in this {@link StateTable}.
+   * StateTag}, binding it using the {@link #binderForNamespace} if it is not already present in
+   * this {@link StateTable}.
    */
   public <StateT extends State> StateT get(
-      StateNamespace namespace,
-      StateTag<? super K, StateT> tag, StateContext<?> c) {
+      StateNamespace namespace, StateTag<? super K, StateT> tag, StateContext<?> c) {
     State storage = stateTable.get(namespace, tag);
     if (storage != null) {
       @SuppressWarnings("unchecked")

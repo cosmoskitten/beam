@@ -29,7 +29,9 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 
-/** Static utility methods for creating {@link StateSpec} instances. */
+/**
+ * Static utility methods for creating {@link StateSpec} instances.
+ */
 @Experimental(Kind.STATE)
 public class StateSpecs {
 
@@ -154,9 +156,9 @@ public class StateSpecs {
   }
 
   /**
-   * A value state cell for values of type {@code T}.
+   * A specification for a state cell holding a settable value of type {@code T}.
    *
-   * @param <T> the type of value being stored
+   * <p>Includes the coder for {@code T}.
    */
   private static class ValueStateSpec<T> implements StateSpec<Object, ValueState<T>> {
 
@@ -192,11 +194,9 @@ public class StateSpecs {
   }
 
   /**
-   * A state cell for values that are combined according to a {@link CombineFn}.
+   * A specification for a state cell that is combined according to a {@link CombineFn}.
    *
-   * @param <InputT> the type of input values
-   * @param <AccumT> type of mutable accumulator values
-   * @param <OutputT> type of output values
+   * <p>Includes the {@link CombineFn} and the coder for the accumulator type.
    */
   private static class CombiningValueStateSpec<InputT, AccumT, OutputT>
       extends KeyedCombiningValueStateSpec<Object, InputT, AccumT, OutputT>
@@ -214,12 +214,10 @@ public class StateSpecs {
   }
 
   /**
-   * A state cell for values that are combined according to a {@link KeyedCombineFnWithContext}.
+   * A specification for a state cell that is combined according to a
+   * {@link KeyedCombineFnWithContext}.
    *
-   * @param <K> the type of keys
-   * @param <InputT> the type of input values
-   * @param <AccumT> type of mutable accumulator values
-   * @param <OutputT> type of output values
+   * <p>Includes the {@link KeyedCombineFnWithContext} and the coder for the accumulator type.
    */
   private static class KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>
       implements StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
@@ -265,12 +263,9 @@ public class StateSpecs {
   }
 
   /**
-   * A state cell for values that are combined according to a {@link KeyedCombineFn}.
+   * A specification for a state cell that is combined according to a {@link KeyedCombineFn}.
    *
-   * @param <K> the type of keys
-   * @param <InputT> the type of input values
-   * @param <AccumT> type of mutable accumulator values
-   * @param <OutputT> type of output values
+   * <p>Includes the {@link KeyedCombineFn} and the coder for the accumulator type.
    */
   private static class KeyedCombiningValueStateSpec<K, InputT, AccumT, OutputT>
       implements StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
@@ -316,10 +311,10 @@ public class StateSpecs {
   }
 
   /**
-   * A state cell optimized for bag-like access patterns (frequent additions, occasional reads of
-   * all the values).
+   * A specification for a state cell supporting for bag-like access patterns
+   * (frequent additions, occasional reads of all the values).
    *
-   * @param <T> the type of value in the bag
+   * <p>Includes the coder for the element type {@code T}</p>
    */
   private static class BagStateSpec<T> implements StateSpec<Object, BagState<T>> {
 
@@ -354,6 +349,12 @@ public class StateSpecs {
     }
   }
 
+  /**
+   * A specification for a state cell tracking a combined watermark hold.
+   *
+   * <p>Includes the {@link OutputTimeFn} according to which the output times
+   * are combined.
+   */
   private static class WatermarkStateSpecInternal<W extends BoundedWindow>
       implements StateSpec<Object, WatermarkHoldState<W>> {
 
@@ -379,12 +380,8 @@ public class StateSpecs {
         return true;
       }
 
-      if (!(obj instanceof WatermarkStateSpecInternal)) {
-        return false;
-      }
-
       // All instance of WatermarkHoldState are considered equal
-      return true;
+      return obj instanceof WatermarkStateSpecInternal;
     }
 
     @Override
