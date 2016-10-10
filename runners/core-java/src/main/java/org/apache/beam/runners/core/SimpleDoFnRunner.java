@@ -60,7 +60,7 @@ import org.joda.time.format.PeriodFormat;
  * @param <InputT> the type of the {@link OldDoFn} (main) input elements
  * @param <OutputT> the type of the {@link OldDoFn} (main) output elements
  */
-public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT,OutputT> {
+public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   /** The {@link OldDoFn} being run. */
   private final OldDoFn<InputT, OutputT> fn;
