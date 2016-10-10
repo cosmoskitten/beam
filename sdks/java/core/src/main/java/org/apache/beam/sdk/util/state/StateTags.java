@@ -238,6 +238,13 @@ public class StateTags {
     }
 
     @Override
+    @Deprecated
+    public StateT bind(StateTag.StateBinder<? extends K> binder) {
+      return spec.bind(
+          this.id.getRawId(), org.apache.beam.sdk.util.state.StateSpecs.adaptTagBinder(binder));
+    }
+
+    @Override
     public String getId() {
       return id.getRawId();
     }

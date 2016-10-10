@@ -389,4 +389,52 @@ public class StateSpecs {
       return Objects.hash(getClass());
     }
   }
+
+  /**
+   * @deprecated for migration purposes only
+   */
+  @Deprecated
+  public static <K> StateBinder<K> adaptTagBinder(final StateTag.StateBinder<K> binder) {
+    return new StateBinder<K>() {
+      @Override
+      public <T> ValueState<T> bindValue(String id, StateSpec<? super K, ValueState<T>> spec,
+          Coder<T> coder) {
+        return StateTags.tagForSpec(id, spec).bind(binder);
+      }
+
+      @Override
+      public <T> BagState<T> bindBag(String id, StateSpec<? super K, BagState<T>> spec,
+          Coder<T> elemCoder) {
+        return StateTags.tagForSpec(id, spec).bind(binder);
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+          String id, StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+          Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+        return StateTags.tagForSpec(id, spec).bind(binder);
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+          String id, StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+          Coder<AccumT> accumCoder, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
+        return StateTags.tagForSpec(id, spec).bind(binder);
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+          String id, StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+          Coder<AccumT> accumCoder,
+          KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
+        return StateTags.tagForSpec(id, spec).bind(binder);
+      }
+
+      @Override
+      public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(String id,
+          StateSpec<? super K, WatermarkHoldState<W>> spec, OutputTimeFn<? super W> outputTimeFn) {
+        return StateTags.tagForSpec(id, spec).bind(binder);
+      }
+    };
+  }
 }
