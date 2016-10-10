@@ -29,12 +29,15 @@ import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * End-to-end tests of WordCount.
  */
 @RunWith(JUnit4.class)
 public class WordCountIT {
+  private static final Logger LOG = LoggerFactory.getLogger(WordCountIT.class);
 
   /**
    * Options for the WordCount Integration Test.
@@ -64,6 +67,13 @@ public class WordCountIT {
     String e2eTestInputPath = "gs://apache-beam-samples/apache/LICENSE";
     options.setInputFile(e2eTestInputPath);
 
-    WordCount.main(TestPipeline.convertToArgs(options));
+    try {
+      WordCount.main(TestPipeline.convertToArgs(options));
+    } catch (Exception e) {
+      for (StackTraceElement elem : e.getStackTrace()) {
+        LOG.error(elem.toString());
+      }
+      throw e;
+    }
   }
 }

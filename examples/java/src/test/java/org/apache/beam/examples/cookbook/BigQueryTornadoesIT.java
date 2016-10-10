@@ -24,12 +24,15 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * End-to-end tests of BigQueryTornadoes.
  */
 @RunWith(JUnit4.class)
 public class BigQueryTornadoesIT {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryTornadoesIT.class);
 
   /**
    * Options for the BigQueryTornadoes Integration Test.
@@ -46,6 +49,13 @@ public class BigQueryTornadoesIT {
     options.setOutput(String.format("%s.%s",
         "BigQueryTornadoesIT", "monthly_tornadoes_" + System.currentTimeMillis()));
 
-    BigQueryTornadoes.main(TestPipeline.convertToArgs(options));
+    try {
+      BigQueryTornadoes.main(TestPipeline.convertToArgs(options));
+    } catch (Exception e) {
+      for (StackTraceElement elem : e.getStackTrace()) {
+        LOG.error(elem.toString());
+      }
+      throw e;
+    }
   }
 }
