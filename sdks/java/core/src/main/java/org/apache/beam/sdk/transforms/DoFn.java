@@ -44,6 +44,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -394,6 +396,44 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /////////////////////////////////////////////////////////////////////////////
 
+
+  /**
+   * Annotation for declaring and dereferencing state cells. <i>Not currently supported by any
+   * runner</i>.
+   *
+   * <p>To declare a state cell, create a field of type a {@link StateSpec} and annotate it
+   * with a {@link StateId} like so:
+   *
+   * <code>
+   *   new DoFn<KV<Key, Foo>, Baz>() {
+   *     @StateId("my-state-id")
+   *     private final StateSpec<K, ValueState<MyState>> myStateSpec =
+   *         StateSpecs.value(new MyStateCoder());
+   *   }
+   * </code>
+   *
+   * <p>To use a declared state cell during processing, add a parameter of the appropriate
+   * {@link State} subclass to your {@link ProcessElement @ProcessElement} method, and annotate
+   * it with {@link StateId} like so:
+   * <code>
+   *   new DoFn<KV<Key, Foo>, Baz>() {
+   *     @ProcessElement
+   *     public void processElement(
+   *         ProcessContext c,
+   *         @StateId("my-state-id") ValueState<MyState> myState) {
+   *       myState.read();
+   *       myState.write(...);
+   *     }
+   *   }
+   * </code>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.STATE)
+  public @interface StateId {
+    String value();
+  }
 
   /**
    * Annotation for the method to use to prepare an instance for processing bundles of elements. The
