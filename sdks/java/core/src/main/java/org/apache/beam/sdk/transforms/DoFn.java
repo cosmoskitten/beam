@@ -381,6 +381,16 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
 
   /**
+   * Annotation for declaring and dereferencing state cells.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  public @interface StateId {
+    String value();
+  }
+
+  /**
    * Annotation for the method to use to prepare an instance for processing bundles of elements. The
    * method annotated with this must satisfy the following constraints
    * <ul>

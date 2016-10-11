@@ -18,11 +18,15 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Describes the signature of a {@link DoFn}, in particular, which features it uses, which extra
@@ -37,6 +41,9 @@ public abstract class DoFnSignature {
 
   /** Details about this {@link DoFn}'s {@link DoFn.ProcessElement} method. */
   public abstract ProcessElementMethod processElement();
+
+  /** Details about the state cells that this {@link DoFn} declares. Immutable. */
+  public abstract Map<String, StateDeclaration> stateDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.StartBundle} method. */
   @Nullable
@@ -66,6 +73,7 @@ public abstract class DoFnSignature {
     abstract Builder setFinishBundle(BundleMethod finishBundle);
     abstract Builder setSetup(LifecycleMethod setup);
     abstract Builder setTeardown(LifecycleMethod teardown);
+    abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
     abstract DoFnSignature build();
   }
 
@@ -114,6 +122,21 @@ public abstract class DoFnSignature {
 
     static BundleMethod create(Method targetMethod) {
       return new AutoValue_DoFnSignature_BundleMethod(targetMethod);
+    }
+  }
+
+  /**
+   * Describes a state declaration; a field of type {@link StateSpec} annotated with
+   * {@link DoFn.StateId}.
+   */
+  @AutoValue
+  public abstract static class StateDeclaration {
+    public abstract String id();
+    public abstract Field field();
+    public abstract TypeDescriptor<?> stateType();
+
+    static StateDeclaration create(String id, Field field, TypeDescriptor<?> stateType) {
+      return new AutoValue_DoFnSignature_StateDeclaration(id, field, stateType);
     }
   }
 
