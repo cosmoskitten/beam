@@ -444,9 +444,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * </ul>
    *
    * <h2>Splittable DoFn's (WARNING: work in progress, do not use)</h2>
-   *
-   * A {@link DoFn} is <i>splittable</i> if its {@link ProcessElement} method has a parameter whose
-   * type is a subtype of {@link RestrictionTracker}. This is an advanced feature and an
+   * <p>A {@link DoFn} is <i>splittable</i> if its {@link ProcessElement} method has a parameter
+   * whose type is a subtype of {@link RestrictionTracker}. This is an advanced feature and an
    * overwhelming majority of users will never need to write a splittable {@link DoFn}. Right now
    * the implementation of this feature is in progress and it's not ready for any use.
    *
