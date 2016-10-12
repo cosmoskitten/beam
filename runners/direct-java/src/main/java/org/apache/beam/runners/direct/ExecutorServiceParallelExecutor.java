@@ -453,7 +453,9 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
               }
               KeyedWorkItem<?, Object> work =
                   KeyedWorkItems.timersWorkItem(keyTimers.getKey().getKey(), delivery);
-              LOG.warn("Delivering {} timers for {}", delivery.size(), keyTimers.getKey().getKey());
+              LOG.debug("Delivering {} timers for {}",
+                  delivery.size(),
+                  keyTimers.getKey().getKey());
               @SuppressWarnings({"unchecked", "rawtypes"})
               CommittedBundle<?> bundle =
                   evaluationContext
