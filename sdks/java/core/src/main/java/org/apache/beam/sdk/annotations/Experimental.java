@@ -76,6 +76,9 @@ public @interface Experimental {
     TIMERS,
 
     /** Experimental APIs related to customizing the output time for computed values. */
-    OUTPUT_TIME
+    OUTPUT_TIME,
+
+    /** Metrics-related experimental APIs. */
+    METRICS
   }
 }
