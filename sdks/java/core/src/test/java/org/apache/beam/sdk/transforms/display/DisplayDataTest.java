@@ -588,6 +588,34 @@ public class DisplayDataTest implements Serializable {
   }
 
   @Test
+  public void testHandlesIncludeCyclesDifferentInstances() {
+    HasDisplayData component =
+        new DelegatingDisplayData(
+          new DelegatingDisplayData(
+              new HasDisplayData() {
+                @Override
+                public void populateDisplayData(Builder builder) {}
+              }));
+
+    DisplayData data = DisplayData.from(component);
+    assertThat(data.items(), hasSize(2));
+  }
+
+  private class DelegatingDisplayData implements HasDisplayData {
+    private final HasDisplayData subComponent;
+    public DelegatingDisplayData(HasDisplayData subComponent) {
+      this.subComponent = subComponent;
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      builder
+          .add(DisplayData.item("subComponent", subComponent.getClass()))
+          .include(subComponent);
+    }
+  }
+
+  @Test
   public void testIncludesSubcomponentsWithObjectEquality() {
     DisplayData data = DisplayData.from(new HasDisplayData() {
       @Override
