@@ -1029,7 +1029,7 @@ public class ParDo {
   private static void populateDisplayData(
       DisplayData.Builder builder, OldDoFn<?, ?> fn, Class<?> fnClass) {
     builder
-        .include(fn)
+        .include("fn", fn)
         .add(DisplayData.item("fn", fnClass)
             .withLabel("Transform Function"));
   }
