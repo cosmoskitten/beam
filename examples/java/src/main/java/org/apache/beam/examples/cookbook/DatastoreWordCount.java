@@ -195,7 +195,7 @@ public class DatastoreWordCount {
        .apply(ParDo.of(new CreateEntityFn(options.getNamespace(), options.getKind())))
        .apply(DatastoreIO.v1().write().withProjectId(options.getProject()));
 
-      p.run();
+      p.run().waitUntilFinish();
   }
 
   /**
@@ -236,7 +236,7 @@ public class DatastoreWordCount {
         .apply("PrintWordCount", MapElements.via(new WordCount.FormatAsTextFn()))
         .apply("WriteLines", TextIO.Write.to(options.getOutput())
             .withNumShards(options.getNumShards()));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   /**
