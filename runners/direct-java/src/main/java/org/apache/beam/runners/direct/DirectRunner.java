@@ -266,7 +266,7 @@ public class DirectRunner
         new DirectPipelineResult(executor, context, aggregatorSteps);
     if (options.isBlockOnRun()) {
       try {
-        result.awaitCompletion();
+        result.waitUntilFinish();
       } catch (UserCodeException userException) {
         throw new PipelineExecutionException(userException.getCause());
       } catch (Throwable t) {
@@ -390,17 +390,23 @@ public class DirectRunner
      *
      * <p>See also {@link PipelineExecutor#awaitCompletion()}.
      */
-    public State awaitCompletion() throws Throwable {
+    @Override
+    public State waitUntilFinish() {
       if (!state.isTerminal()) {
         try {
           executor.awaitCompletion();
           state = State.DONE;
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw e;
-        } catch (Throwable t) {
-          state = State.FAILED;
-          throw t;
+        } catch (Throwable e) {
+          if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
+          if (e instanceof RuntimeException) {
+            throw (RuntimeException) e;
+          }
+          if (e instanceof Error) {
+            throw (Error) e;
+          }
+          throw new RuntimeException(e);
         }
       }
       return state;
@@ -412,14 +418,10 @@ public class DirectRunner
     }
 
     @Override
-    public State waitUntilFinish() throws IOException {
-      return waitUntilFinish(Duration.millis(-1));
-    }
-
-    @Override
     public State waitUntilFinish(Duration duration) throws IOException {
       throw new UnsupportedOperationException(
-          "DirectPipelineResult does not support waitUntilFinish.");
+          "DirectPipelineResult does not support waitUntilFinish with a Duration parameter. See"
+              + " BEAM-596.");
     }
   }
 
