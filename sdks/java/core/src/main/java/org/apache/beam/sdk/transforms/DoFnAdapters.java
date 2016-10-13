@@ -62,7 +62,6 @@ public class DoFnAdapters {
   @SuppressWarnings({"unchecked", "rawtypes"})
   public static <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
     DoFnSignature signature = DoFnSignatures.INSTANCE.getOrParseSignature((Class) fn.getClass());
-
     if (signature.processElement().usesSingleWindow()) {
       return new WindowDoFnAdapter<>(fn);
     } else {
@@ -77,7 +76,9 @@ public class DoFnAdapters {
       final DoFn.ExtraContextFactory<InputT, OutputT> extra) {
     return fn.new ProcessContext() {
       @Override
-      public InputT element() { return c.element(); }
+      public InputT element() {
+        return c.element();
+      }
 
       @Override
       public <T> T sideInput(PCollectionView<T> view) {

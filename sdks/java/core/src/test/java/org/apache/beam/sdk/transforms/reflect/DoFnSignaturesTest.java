@@ -158,7 +158,8 @@ public class DoFnSignaturesTest {
         DoFnSignatures.INSTANCE.getOrParseSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-state-id")
-              private final StateSpec<Object, ValueState<Integer>> myfield1 = StateSpecs.value(VarIntCoder.of());
+              private final StateSpec<Object, ValueState<Integer>> myfield1 =
+                  StateSpecs.value(VarIntCoder.of());
 
               @StateId("my-state-id")
               StateSpec<Object, ValueState<Long>> myfield2 = StateSpecs.value(VarLongCoder.of());
@@ -178,7 +179,8 @@ public class DoFnSignaturesTest {
         DoFnSignatures.INSTANCE.getOrParseSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-state-id")
-              private StateSpec<Object, ValueState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
+              private StateSpec<Object, ValueState<Integer>> myfield =
+                  StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
               public void foo(ProcessContext context) {}
