@@ -404,18 +404,19 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>To declare a state cell, create a field of type a {@link StateSpec} and annotate it
    * with a {@link StateId} like so:
    *
-   * <code>
+   * <pre>{@code
    *   new DoFn<KV<Key, Foo>, Baz>() {
    *     @StateId("my-state-id")
    *     private final StateSpec<K, ValueState<MyState>> myStateSpec =
    *         StateSpecs.value(new MyStateCoder());
    *   }
-   * </code>
+   * }</pre>
    *
    * <p>To use a declared state cell during processing, add a parameter of the appropriate
    * {@link State} subclass to your {@link ProcessElement @ProcessElement} method, and annotate
    * it with {@link StateId} like so:
-   * <code>
+   *
+   * <pre>{@code
    *   new DoFn<KV<Key, Foo>, Baz>() {
    *     @ProcessElement
    *     public void processElement(
@@ -425,7 +426,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       myState.write(...);
    *     }
    *   }
-   * </code>
+   * }</pre>
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
