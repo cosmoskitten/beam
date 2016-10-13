@@ -520,6 +520,7 @@ public class ParDo {
    * properties can be set on it first.
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+    validate(fn);
     return of(adapt(fn), fn.getClass());
   }
 
@@ -552,12 +553,21 @@ public class ParDo {
   private static <InputT, OutputT> void validate(DoFn<InputT, OutputT> fn) {
     DoFnSignature signature = DoFnSignatures.INSTANCE.getOrParseSignature((Class) fn.getClass());
 
+    // To be removed when the features are complete and runners have their own adequate
+    // rejection logic
     if (!signature.stateDeclarations().isEmpty()) {
       throw new UnsupportedOperationException(
           String.format("Found %s annotations on %s, but %s cannot yet be used with state.",
               DoFn.StateId.class.getSimpleName(),
               fn.getClass().getName(),
               DoFn.class.getSimpleName()));
+    }
+
+    // State is semantically incompatible with splitting
+    if (!signature.stateDeclarations().isEmpty()) {
+      throw new UnsupportedOperationException(
+          String.format("%s is splittable and uses state, but these are not compatible",
+              fn.getClass().getName()));
     }
   }
 
@@ -638,6 +648,7 @@ public class ParDo {
      * still be specified.
      */
     public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+      validate(fn);
       return of(adapt(fn), fn.getClass());
     }
 
@@ -854,6 +865,7 @@ public class ParDo {
      * more properties can still be specified.
      */
     public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+      validate(fn);
       return of(adapt(fn), fn.getClass());
     }
 
