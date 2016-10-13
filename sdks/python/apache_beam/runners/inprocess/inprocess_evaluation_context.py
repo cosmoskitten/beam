@@ -106,6 +106,9 @@ class _InProcessSideInputsContainer(object):
     Raises:
       ValueError: If values cannot be converted into the requested form.
     """
+    return sideinputs.SideInputMap(type(view), view._view_options(), values)
+    ### XXX REMOVE BELOW
+
     if isinstance(view, SingletonPCollectionView):
       if len(values) == 0:
         # pylint: disable=protected-access
