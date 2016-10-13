@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -438,6 +439,48 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     /** The state ID. */
     String value();
   }
+
+  /**
+    * Annotation for declaring and dereferencing timers.
+    *
+    * <p><i>Not currently supported by any runner</i>.
+    *
+    * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
+    * TimerId}. To use the cell during processing, add a parameter of the appropriate {@link Timer}
+    * subclass to your {@link ProcessElement @ProcessElement} method, and annotate it with {@link
+    * TimerId}. See the following code for an example:
+    *
+    * <pre>{@code
+    * new DoFn<KV<Key, Foo>, Baz>() {
+    *   @TimerId("my-timer-id")
+    *   private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
+    *
+    *   @ProcessElement
+    *   public void processElement(
+    *       ProcessContext c,
+    *       @TimerId("my-timer-id") Timer myTimer) {
+    *     myState.read();
+    *     myState.write(...);
+    *   }
+    * }
+    * }</pre>
+    *
+    * <p>Timers are subject to the following validity conditions:
+    *
+    * <ul>
+    * <li>Each timer ID must be declared at most once.
+    * <li>Any timer referenced in a parameter must be declared.
+    * <li>Timer declarations must be final.
+    * </ul>
+    */
+ @Documented
+ @Retention(RetentionPolicy.RUNTIME)
+ @Target({ElementType.FIELD, ElementType.PARAMETER})
+ @Experimental(Kind.TIMERS)
+ public @interface TimerId {
+   /** The timer ID. */
+    String value();
+ }
 
   /**
    * Annotation for the method to use to prepare an instance for processing bundles of elements. The
