@@ -35,6 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -315,13 +316,18 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
           return outputIterator.next();
         } else if (inputIterator.hasNext()) {
           clearOutput();
-          for (WindowedValue<InputT> wv: inputIterator.next().explodeWindows()) {
-            windowedValue = wv;
-            try {
-              doFn.processElement(SparkProcessContext.this);
-            } catch (Exception e) {
-              handleProcessingException(e);
-              throw new SparkProcessException(e);
+          // grab the next element and process it.
+          windowedValue = inputIterator.next();
+          if (windowedValue.getWindows().size() <= 1
+              || (!RequiresWindowAccess.class.isAssignableFrom(doFn.getClass())
+                  && sideInputReader.isEmpty())) {
+            // if there's no reason to explode, process compacted.
+            invokeProcessElement();
+          } else {
+            // explode and process the element in each of it's assigned windows.
+            for (WindowedValue<InputT> wv: windowedValue.explodeWindows()) {
+              windowedValue = wv;
+              invokeProcessElement();
             }
           }
           outputIterator = getOutputIterator();
@@ -348,6 +354,15 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
           }
           return endOfData();
         }
+      }
+    }
+
+    private void invokeProcessElement() {
+      try {
+        doFn.processElement(SparkProcessContext.this);
+      } catch (Exception e) {
+        handleProcessingException(e);
+        throw new SparkProcessException(e);
       }
     }
 
