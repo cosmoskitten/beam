@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.fromJsonString;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
@@ -62,11 +63,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -266,6 +271,57 @@ public class BigQueryIOTest implements Serializable {
       this.getJobCallsCount = 0;
     }
 
+    private void writeObject(ObjectOutputStream out) throws IOException {
+      out.writeObject(replaceJobsWithBytes(startJobReturns));
+      out.writeObject(replaceJobsWithBytes(pollJobReturns));
+      out.writeObject(replaceJobsWithBytes(getJobReturns));
+      out.writeObject(executingProject);
+    }
+
+    private Object[] replaceJobsWithBytes(Object[] objs) {
+      Object[] copy = Arrays.copyOf(objs, objs.length);
+      for (int i = 0; i < copy.length; i++) {
+        checkArgument(
+            copy[i] == null || copy[i] instanceof Serializable || copy[i] instanceof Job,
+            "Only serializable elements and jobs can be added add to Job Returns");
+        if (copy[i] instanceof Job) {
+          try {
+            // Job is not serializable, so encode the job as a byte array.
+            copy[i] = Transport.getJsonFactory().toByteArray(copy[i]);
+          } catch (IOException e) {
+            throw new IllegalArgumentException(
+                String.format("Could not encode Job %s via available JSON factory", copy[i]));
+          }
+        }
+      }
+      return copy;
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      this.startJobReturns = replaceBytesWithJobs(in.readObject());
+      this.pollJobReturns = replaceBytesWithJobs(in.readObject());
+      this.getJobReturns = replaceBytesWithJobs(in.readObject());
+      this.executingProject = (String) in.readObject();
+    }
+
+    private Object[] replaceBytesWithJobs(Object obj) throws IOException {
+      checkState(obj instanceof Object[]);
+      Object[] objs = (Object[]) obj;
+      Object[] copy = Arrays.copyOf(objs, objs.length);
+      for (int i = 0; i < copy.length; i++) {
+        if (copy[i] instanceof byte[]) {
+          Job job = Transport.getJsonFactory()
+              .createJsonParser(new ByteArrayInputStream((byte[]) copy[i]))
+              .parse(Job.class);
+          copy[i] = job;
+        }
+      }
+      return copy;
+    }
+
+    private void readObjectNoData() throws ObjectStreamException {
+    }
+
     /**
      * Sets the return values to mock {@link JobService#startLoadJob},
      * {@link JobService#startExtractJob} and {@link JobService#startQueryJob}.
@@ -294,18 +350,6 @@ public class BigQueryIOTest implements Serializable {
      */
     public FakeJobService pollJobReturns(Object... pollJobReturns) {
       this.pollJobReturns = pollJobReturns;
-      for (int i = 0; i < pollJobReturns.length; i++) {
-        if (pollJobReturns[i] instanceof Job) {
-          try {
-            // Job is not serializable, so encode the job as a byte array.
-            pollJobReturns[i] = Transport.getJsonFactory().toByteArray(pollJobReturns[i]);
-          } catch (IOException e) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "Could not encode Job %s via available JSON factory", pollJobReturns[i]));
-          }
-        }
-      }
       return this;
     }
 
@@ -353,14 +397,8 @@ public class BigQueryIOTest implements Serializable {
 
       if (pollJobStatusCallsCount < pollJobReturns.length) {
         Object ret = pollJobReturns[pollJobStatusCallsCount++];
-        if (ret instanceof byte[]) {
-          try {
-            return Transport.getJsonFactory()
-                .createJsonParser(new ByteArrayInputStream((byte[]) ret))
-                .parse(Job.class);
-          } catch (IOException e) {
-            throw new RuntimeException("Couldn't parse encoded Job", e);
-          }
+        if (ret instanceof Job) {
+          return (Job) ret;
         } else if (ret instanceof Status) {
           return JOB_STATUS_MAP.get(ret);
         } else if (ret instanceof InterruptedException) {
