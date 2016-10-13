@@ -110,15 +110,9 @@ import org.slf4j.LoggerFactory;
  * <p>Although most applications consumer single topic, the source can be configured to consume
  * multiple topics or even a specific set of {@link TopicPartition}s.
  *
-<<<<<<< 7911d5cd767c77425c4af64c4e0f1c980172ba7a
  * <p>To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
  * and one or more topics to consume. The following example illustrates various options for
  * configuring the source :
-=======
- * <p> To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
- * and one or more topics to consume, and key and value coders. The following example illustrates
- * various options for configuring the source :
->>>>>>> Specify types at creation
  *
  * <pre>{@code
  *
