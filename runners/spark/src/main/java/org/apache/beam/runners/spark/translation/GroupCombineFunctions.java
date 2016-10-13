@@ -198,7 +198,6 @@ public class GroupCombineFunctions {
    * This aggregation will apply Beam's {@link org.apache.beam.sdk.transforms.Combine.CombineFn}
    * via Spark's {@link JavaPairRDD#combineByKey(Function, Function2, Function2)} aggregation.
    * </p>
-   *
    * For streaming, this will be called from within a serialized context
    * (DStream's transform callback), so passed arguments need to be Serializable.
    */
