@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import javax.swing.plaf.nimbus.State;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -179,9 +180,10 @@ public abstract class DoFnSignature {
   public abstract static class StateDeclaration {
     public abstract String id();
     public abstract Field field();
-    public abstract TypeDescriptor<?> stateType();
+    public abstract TypeDescriptor<? extends State<?>> stateType();
 
-    static StateDeclaration create(String id, Field field, TypeDescriptor<?> stateType) {
+    static StateDeclaration create(
+        String id, Field field, TypeDescriptor<? extends State<?>> stateType) {
       return new AutoValue_DoFnSignature_StateDeclaration(id, field, stateType);
     }
   }

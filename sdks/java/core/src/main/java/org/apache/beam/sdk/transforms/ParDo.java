@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -544,8 +545,23 @@ public class ParDo {
     return new Unbound().of(fn, fnClass);
   }
 
-  private static <InputT, OutputT> OldDoFn<InputT, OutputT>
-      adapt(DoFn<InputT, OutputT> fn) {
+  /**
+   * Perform common validations of the {@link DoFn}, for example ensuring that state is used
+   * correctly and that its features can be supported.
+   */
+  private static <InputT, OutputT> void validate(DoFn<InputT, OutputT> fn) {
+    DoFnSignature signature = DoFnSignatures.INSTANCE.getOrParseSignature((Class) fn.getClass());
+
+    if (!signature.stateDeclarations().isEmpty()) {
+      throw new UnsupportedOperationException(
+          String.format("Found %s annotations on %s, but %s cannot yet be used with state.",
+              DoFn.StateId.class.getSimpleName(),
+              fn.getClass().getName(),
+              DoFn.class.getSimpleName()));
+    }
+  }
+
+  private static <InputT, OutputT> OldDoFn<InputT, OutputT> adapt(DoFn<InputT, OutputT> fn) {
     return DoFnAdapters.toOldDoFn(fn);
   }
 

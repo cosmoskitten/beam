@@ -158,7 +158,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.INSTANCE.getOrParseSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-state-id")
-              StateSpec<Object, ValueState<Integer>> myfield1 = StateSpecs.value(VarIntCoder.of());
+              private final StateSpec<Object, ValueState<Integer>> myfield1 = StateSpecs.value(VarIntCoder.of());
 
               @StateId("my-state-id")
               StateSpec<Object, ValueState<Long>> myfield2 = StateSpecs.value(VarLongCoder.of());
@@ -169,15 +169,34 @@ public class DoFnSignaturesTest {
   }
 
   @Test
-  public void testSimpleStateIdAnonymousDoFn() throws Exception {
-    DoFnSignature sig = DoFnSignatures.INSTANCE.getOrParseSignature(
-        new DoFn<KV<String, Integer>, Long>() {
-          @StateId("foo")
-          StateSpec<Object, ValueState<Integer>> bizzle = StateSpecs.value(VarIntCoder.of());
+  public void testStateIdNonFinal() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("State declarations must be final");
+    thrown.expectMessage("Non-final field");
+    thrown.expectMessage("myfield");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getOrParseSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("my-state-id")
+              private StateSpec<Object, ValueState<Integer>> myfield = StateSpecs.value(VarIntCoder.of());
 
-          @ProcessElement
-          public void foo(ProcessContext context) {}
-        }.getClass());
+              @ProcessElement
+              public void foo(ProcessContext context) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testSimpleStateIdAnonymousDoFn() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getOrParseSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("foo")
+              private final StateSpec<Object, ValueState<Integer>> bizzle =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void foo(ProcessContext context) {}
+            }.getClass());
 
     assertThat(sig.stateDeclarations().size(), equalTo(1));
     DoFnSignature.StateDeclaration decl = sig.stateDeclarations().get("foo");
@@ -226,7 +245,8 @@ public class DoFnSignaturesTest {
 
   private static class DoFnForTestSimpleStateIdNamedDoFn extends DoFn<KV<String, Integer>, Long> {
     @StateId("foo")
-    StateSpec<Object, ValueState<Integer>> bizzle = StateSpecs.value(VarIntCoder.of());
+    private final StateSpec<Object, ValueState<Integer>> bizzle =
+        StateSpecs.value(VarIntCoder.of());
 
     @ProcessElement
     public void foo(ProcessContext context) {}
@@ -236,7 +256,7 @@ public class DoFnSignaturesTest {
     // Note that in order to have a coder for T it will require initialization in the constructor,
     // but that isn't important for this test
     @StateId("foo")
-    StateSpec<Object, ValueState<T>> bizzle;
+    private final StateSpec<Object, ValueState<T>> bizzle = null;
 
     @ProcessElement
     public void foo(ProcessContext context) {}

@@ -39,6 +39,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import javax.swing.plaf.nimbus.State;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -58,11 +59,12 @@ public class DoFnSignatures {
 
   private final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
 
-  public synchronized <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
+  /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
+  public <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
     return getOrParseSignature(fn.getClass());
   }
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn}. */
+  /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
   public synchronized <FnT extends DoFn<?, ?>> DoFnSignature getOrParseSignature(Class<FnT> fn) {
     DoFnSignature signature = signatureCache.get(fn);
     if (signature == null) {
@@ -701,14 +703,24 @@ public class DoFnSignatures {
         continue;
       }
 
+      if (!Modifier.isFinal(field.getModifiers())) {
+        errors.throwIllegalArgument(
+            "Non-final field %s annotated with %s. State declarations must be final.",
+            field.toString(),
+            DoFn.StateId.class.getSimpleName());
+        continue;
+      }
+
       Type stateSpecType = field.getGenericType();
 
       // By static typing this is already a well-formed State subclass
-      TypeDescriptor<?> stateType =
-          TypeDescriptor.of(fnClazz)
-              .resolveType(
-                  TypeDescriptor.of(((ParameterizedType) stateSpecType).getActualTypeArguments()[1])
-                      .getType());
+      TypeDescriptor<? extends State<?>> stateType =
+          (TypeDescriptor<? extends State<?>>)
+              TypeDescriptor.of(fnClazz)
+                  .resolveType(
+                      TypeDescriptor.of(
+                              ((ParameterizedType) stateSpecType).getActualTypeArguments()[1])
+                          .getType());
 
       declarations.put(id, DoFnSignature.StateDeclaration.create(id, field, stateType));
     }
