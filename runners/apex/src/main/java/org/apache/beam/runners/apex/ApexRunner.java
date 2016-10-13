@@ -100,6 +100,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
               WindowingStrategy.globalDefault(),
               PCollection.IsBounded.BOUNDED);
 // TODO: replace this with a mapping
+/*
     } else if (Combine.GloballyAsSingletonView.class.equals(transform.getClass())) {
       PTransform<InputT, OutputT> customTransform = (PTransform)new StreamingCombineGloballyAsSingletonView<InputT, OutputT>(this,
           (Combine.GloballyAsSingletonView)transform);
@@ -125,6 +126,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       PTransform<InputT, OutputT> customTransform = new StreamingViewAsMultimap(this,
           (View.AsMultimap)transform);
       return Pipeline.applyTransform(input, customTransform);
+*/
     } else {
       return super.apply(transform, input);
     }
