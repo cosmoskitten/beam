@@ -187,12 +187,8 @@ class SideInputMap(object):
   def __getitem__(self, window):
     if window not in self._cache:
       target_window = self._window_mapping_fn(window)
-      print "*" * 30
-      print "projecting", window, "->", target_window, "onto", list(self._iterable)
-      print [wv.value for wv in self._iterable if target_window in wv.windows]
       self._cache[window] = self._view_class.from_iterable(
         _FilteringIterable(self._iterable, target_window), self._view_options)
-      print self._view_class, self._cache[window]
     return self._cache[window]
 
 
