@@ -22,25 +22,24 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 
 /**
- * A timer for a specified time domain that can be set to register the desire for
- * further processing at particular time (in some time domain).
+ * A timer for a specified time domain that can be set to register the desire for further processing
+ * at particular time (in some time domain).
  *
  * <p>See {@link TimeDomain} for details on the time domains available.
  *
- * <p>In a {@link DoFn}, a {@link Timer} is specified by a {@link TimerSpec} annotated
- * with {@link DoFn.TimerId}.</p>
+ * <p>In a {@link DoFn}, a {@link Timer} is specified by a {@link TimerSpec} annotated with {@link
+ * DoFn.TimerId}.
  *
- * <p>A timer exists in one of two states: set or unset. A timer can be set only
- * for a single time.
+ * <p>A timer exists in one of two states: set or unset. A timer can be set only for a single time.
  *
- * <p>Timers are not guaranteed to fire synchronously, but will be delivered at some time
- * after the requested time.
+ * <p>Timers are not guaranteed to fire synchronously, but will be delivered at some time after the
+ * requested time.
  *
- * <p>An implementation of {@link Timer} is implicitly scoped - it may
- * be scoped to a key and window, or a key, window, and trigger, etc.
+ * <p>An implementation of {@link Timer} is implicitly scoped - it may be scoped to a key and
+ * window, or a key, window, and trigger, etc.
  *
- * <p>Timers for the same {@link TimeDomain} and the same scope (for example, the same key and window)
- * will be delivered in order of their timestamps.
+ * <p>Timers for the same {@link TimeDomain} and the same scope (for example, the same key and
+ * window) will be delivered in order of their timestamps.
  */
 @Experimental(Experimental.Kind.TIMERS)
 public interface Timer {
@@ -51,7 +50,8 @@ public interface Timer {
   public abstract void setForNowPlus(Instant timestamp);
 
   /**
-   * Unsets this timer. It is permitted to {@code cancel()} whether or not the timer was actually set.
+   * Unsets this timer. It is permitted to {@code cancel()} whether or not the timer was actually
+   * set.
    */
   public abstract void cancel();
 }

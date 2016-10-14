@@ -90,6 +90,10 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract NewTrackerMethod newTracker();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
+  @Nullable
+  public abstract Map<String, OnTimerMethod> onTimerMethods;
+
   static Builder builder() {
     return new AutoValue_DoFnSignature.Builder();
   }
@@ -109,6 +113,7 @@ public abstract class DoFnSignature {
     abstract Builder setNewTracker(NewTrackerMethod newTracker);
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
     abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
+    abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
     abstract DoFnSignature build();
   }
 
@@ -162,6 +167,28 @@ public abstract class DoFnSignature {
      */
     public boolean isSplittable() {
       return extraParameters().contains(Parameter.RESTRICTION_TRACKER);
+    }
+  }
+
+  /** Describes a {@link DoFn.OnTimer} method. */
+  @AutoValue
+  public abstract static class OnTimerMethod implements DoFnMethod {
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** The id on the method's {@link DoFn.TimerId} annotation. */
+    public abstract String id();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    public abstract List<Parameter> extraParameters();
+
+    static OnTimerMethod create(
+            Method targetMethod,
+            String id,
+            List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_OnTimerMethod(
+              targetMethod, id, Collections.unmodifiableList(extraParameters));
     }
   }
 

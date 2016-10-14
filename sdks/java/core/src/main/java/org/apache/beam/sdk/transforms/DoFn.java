@@ -460,13 +460,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     *   public void processElement(
     *       ProcessContext c,
     *       @TimerId("my-timer-id") Timer myTimer) {
-    *     myTimer.setTimer(new Instant(...));
+    *     myTimer.setForNowPlus(Duration.standardSeconds(...));
     *   }
     *
     *   @OnTimer("my-timer-id")
     *   public void onMyTimer() {
     *     ...
     *   }
+    * }
     * }</pre>
     *
     * <p>Timers are subject to the following validity conditions:
