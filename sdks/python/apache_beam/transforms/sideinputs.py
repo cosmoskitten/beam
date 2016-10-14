@@ -191,6 +191,9 @@ class SideInputMap(object):
         _FilteringIterable(self._iterable, target_window), self._view_options)
     return self._cache[window]
 
+  def is_globally_windowed(self):
+    return self._window_mapping_fn == _global_window_mapping_fn
+
 
 class _FilteringIterable(object):
   """An iterable containing only those values in the given window.
