@@ -40,7 +40,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -106,7 +108,7 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
             "Suppressing exception while tearing down Function {}", fn, teardownException);
         e.addSuppressed(teardownException);
       }
-      throw e;
+      throw wrapUserCodeException(e);
     }
   }
 
@@ -341,7 +343,7 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
               doFn.finishBundle(SparkProcessContext.this);
             } catch (Exception e) {
               handleProcessingException(e);
-              throw new SparkProcessException(e);
+              throw wrapUserCodeException(e);
             }
             outputIterator = getOutputIterator();
             continue; // try to consume outputIterator from start of loop
@@ -362,7 +364,7 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
         doFn.processElement(SparkProcessContext.this);
       } catch (Exception e) {
         handleProcessingException(e);
-        throw new SparkProcessException(e);
+        throw wrapUserCodeException(e);
       }
     }
 
@@ -376,13 +378,13 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
     }
   }
 
-  /**
-   * Spark process runtime exception.
-   */
-  public static class SparkProcessException extends RuntimeException {
-    SparkProcessException(Throwable t) {
-      super(t);
-    }
+
+  private RuntimeException wrapUserCodeException(Throwable t) {
+    throw UserCodeException.wrapIf(!isSystemDoFn(), t);
+  }
+
+  private boolean isSystemDoFn() {
+    return fn.getClass().isAnnotationPresent(SystemDoFnInternal.class);
   }
 
 }
