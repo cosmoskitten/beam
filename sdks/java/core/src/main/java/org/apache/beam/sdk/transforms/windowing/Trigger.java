@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import com.google.common.base.Joiner;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -263,11 +264,14 @@ public abstract class Trigger implements Serializable {
     public abstract MergingTriggerInfo trigger();
   }
 
-  @Nullable
-  protected final List<Trigger> subTriggers;
+  public final List<Trigger> subTriggers;
 
-  protected Trigger(@Nullable List<Trigger> subTriggers) {
+  protected Trigger(List<Trigger> subTriggers) {
     this.subTriggers = subTriggers;
+  }
+
+  protected Trigger() {
+    this(Collections.EMPTY_LIST);
   }
 
 
@@ -370,7 +374,7 @@ public abstract class Trigger implements Serializable {
     }
   }
 
-  public Iterable<Trigger> subTriggers() {
+  public List<Trigger> subTriggers() {
     return subTriggers;
   }
 
