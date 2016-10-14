@@ -25,7 +25,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -508,22 +508,21 @@ public class DoFnInvokers {
 
     static {
       try {
-        Map<DoFnSignature.Parameter, MethodDescription> methods =
-            new EnumMap<>(DoFnSignature.Parameter.class);
+        Map<DoFnSignature.Parameter, MethodDescription> methods = new HashMap<>();
         methods.put(
-            DoFnSignature.Parameter.BOUNDED_WINDOW,
+            DoFnSignature.Parameter.boundedWindow(),
             new MethodDescription.ForLoadedMethod(
                 DoFn.ExtraContextFactory.class.getMethod("window")));
         methods.put(
-            DoFnSignature.Parameter.INPUT_PROVIDER,
+            DoFnSignature.Parameter.inputProvider(),
             new MethodDescription.ForLoadedMethod(
                 DoFn.ExtraContextFactory.class.getMethod("inputProvider")));
         methods.put(
-            DoFnSignature.Parameter.OUTPUT_RECEIVER,
+            DoFnSignature.Parameter.outputReceiver(),
             new MethodDescription.ForLoadedMethod(
                 DoFn.ExtraContextFactory.class.getMethod("outputReceiver")));
         methods.put(
-            DoFnSignature.Parameter.RESTRICTION_TRACKER,
+            DoFnSignature.Parameter.restrictionTracker(),
             new MethodDescription.ForLoadedMethod(
                 DoFn.ExtraContextFactory.class.getMethod("restrictionTracker")));
         EXTRA_CONTEXT_FACTORY_METHODS = Collections.unmodifiableMap(methods);
@@ -566,7 +565,7 @@ public class DoFnInvokers {
                 // ExtraContextFactory.restrictionTracker() returns a RestrictionTracker,
                 // but the @ProcessElement method expects a concrete subtype of it.
                 // Insert a downcast.
-                (param == DoFnSignature.Parameter.RESTRICTION_TRACKER)
+                (param.equals(DoFnSignature.Parameter.restrictionTracker()))
                     ? TypeCasting.to(
                         new TypeDescription.ForLoadedType(signature.trackerT().getRawType()))
                     : StackManipulation.Trivial.INSTANCE));

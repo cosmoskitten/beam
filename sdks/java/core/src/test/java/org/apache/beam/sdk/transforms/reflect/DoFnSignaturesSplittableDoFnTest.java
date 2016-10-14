@@ -80,7 +80,7 @@ public class DoFnSignaturesSplittableDoFnTest {
             });
 
     assertTrue(signature.isSplittable());
-    assertTrue(signature.extraParameters().contains(DoFnSignature.Parameter.RESTRICTION_TRACKER));
+    assertTrue(signature.extraParameters().contains(DoFnSignature.Parameter.restrictionTracker()));
     assertEquals(SomeRestrictionTracker.class, signature.trackerT().getRawType());
   }
 
