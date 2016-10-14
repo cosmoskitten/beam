@@ -77,9 +77,17 @@ class DoFnRunner(Receiver):
     else:
       # TODO(robertwb): Remove when all runners pass side input maps.
       # TODO(robertwb): Optimize for global windows case.
-      side_inputs = [side_input if isinstance(side_input, sideinputs.SideInputMap)
-                     else {window.GlobalWindow(): side_input}
+      global_window = window.GlobalWindow()
+      side_inputs = [side_input
+                     if isinstance(side_input, sideinputs.SideInputMap)
+                     else {global_window: side_input}
                      for side_input in side_inputs]
+      if side_inputs and all(side_input.is_globally_windowed()
+                             for side_input in side_inputs):
+          args, kwargs = util.insert_values_in_args(
+            args, kwargs, [side_input[global_window]
+                           for side_input in side_inputs])
+          side_inputs = []
       if side_inputs:
         self.has_windowed_side_inputs = True
         def process(context):
