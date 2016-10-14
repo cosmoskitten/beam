@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -70,6 +71,9 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract LifecycleMethod teardown();
 
+  /** Timer declarations present on the {@link DoFn} class. Immutable. */
+  public abstract Map<String, TimerDeclaration> timerDeclarations();
+
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialRestriction} method. */
   @Nullable
   public abstract GetInitialRestrictionMethod getInitialRestriction();
@@ -104,6 +108,7 @@ public abstract class DoFnSignature {
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
     abstract Builder setNewTracker(NewTrackerMethod newTracker);
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
+    abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
     abstract DoFnSignature build();
   }
 
@@ -159,6 +164,22 @@ public abstract class DoFnSignature {
       return extraParameters().contains(Parameter.RESTRICTION_TRACKER);
     }
   }
+
+  /**
+   * Describes a timer declaration; a field of type {@link TimerSpec} annotated with
+   * {@DoFn.TimerId}.
+   */
+  @AutoValue
+  public abstract static class TimerDeclaration {
+    public abstract String id();
+    public abstract Field field();
+
+    static TimerDeclaration create(
+        String id, Field field) {
+      return new AutoValue_DoFnSignature_TimerDeclaration(id, field);
+    }
+  }
+
 
   /** Describes a {@link DoFn.StartBundle} or {@link DoFn.FinishBundle} method. */
   @AutoValue

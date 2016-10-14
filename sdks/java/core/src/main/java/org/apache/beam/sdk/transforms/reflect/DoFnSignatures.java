@@ -42,8 +42,10 @@ import javax.annotation.Nullable;
 import javax.swing.plaf.nimbus.State;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
@@ -184,6 +186,8 @@ public class DoFnSignatures {
     builder.setIsBoundedPerElement(inferBoundedness(fnToken, processElement, errors));
 
     builder.setStateDeclarations(analyzeStateDeclarations(errors, fnClass));
+
+    builder.setTimerDeclarations(analyzeTimerDeclarations(errors, fnClass));
 
     DoFnSignature signature = builder.build();
 
@@ -554,6 +558,46 @@ public class DoFnSignatures {
         formatType(receiverT));
 
     return DoFnSignature.SplitRestrictionMethod.create(m, restrictionT);
+  }
+
+  private static ImmutableMap<String, TimerDeclaration> analyzeTimerDeclarations(
+      ErrorReporter errors, Class<?> fnClazz) {
+    Map<String, DoFnSignature.TimerDeclaration> declarations = new HashMap<>();
+    for (Field field : declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
+      String id = field.getAnnotation(DoFn.TimerId.class).value();
+
+      if (declarations.containsKey(id)) {
+        errors.throwIllegalArgument(
+            "Duplicate %s \"%s\", used on both of [%s] and [%s]",
+            DoFn.TimerId.class.getSimpleName(),
+            id,
+            field.toString(),
+            declarations.get(id).field().toString());
+        continue;
+      }
+
+      Class<?> timerSpecRawType = field.getType();
+      if (!(timerSpecRawType.equals(TimerSpec.class))) {
+        errors.throwIllegalArgument(
+            "%s annotation on non-%s field [%s] that has class %s",
+            DoFn.TimerId.class.getSimpleName(),
+            TimerSpec.class.getSimpleName(),
+            field.toString(),
+            timerSpecRawType.getName());
+        continue;
+      }
+
+      if (!Modifier.isFinal(field.getModifiers())) {
+        errors.throwIllegalArgument(
+            "Non-final field %s annotated with %s. Timer declarations must be final.",
+            field.toString(), DoFn.TimerId.class.getSimpleName());
+        continue;
+      }
+
+      declarations.put(id, DoFnSignature.TimerDeclaration.create(id, field));
+    }
+
+    return ImmutableMap.copyOf(declarations);
   }
 
   /** Generates a type token for {@code Coder<T>} given {@code T}. */
