@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -38,7 +40,10 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
@@ -81,6 +86,10 @@ public class DirectRunner
               .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
               .put(TestStream.class, new DirectTestStreamFactory())
               .put(Write.Bound.class, new WriteWithShardingFactory())
+              .put(ParDo.Bound.class, new ParDoOverrideFactory())
+              .put(
+                  GBKIntoKeyedWorkItems.class,
+                  new DirectGBKIntoKeyedWorkItemsOverrideFactory())
               .build();
 
   /**
@@ -90,12 +99,12 @@ public class DirectRunner
    *
    * @param <T> the type of elements that can be added to this bundle
    */
-  public static interface UncommittedBundle<T> {
+  interface UncommittedBundle<T> {
     /**
      * Returns the PCollection that the elements of this {@link UncommittedBundle} belong to.
      */
+    @Nullable
     PCollection<T> getPCollection();
-
 
     /**
      * Outputs an element to this bundle.
@@ -122,10 +131,11 @@ public class DirectRunner
    * a part of at a later point.
    * @param <T> the type of elements contained within this bundle
    */
-  public static interface CommittedBundle<T> {
+  interface CommittedBundle<T> {
     /**
      * Returns the PCollection that the elements of this bundle belong to.
      */
+    @Nullable
     PCollection<T> getPCollection();
 
     /**
@@ -155,11 +165,10 @@ public class DirectRunner
      * Return a new {@link CommittedBundle} that is like this one, except calls to
      * {@link #getElements()} will return the provided elements. This bundle is unchanged.
      *
-     * <p>
-     * The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized processing
-     * output watermark} of the returned {@link CommittedBundle} is equal to the value returned from
-     * the current bundle. This is used to ensure a {@link PTransform} that could not complete
-     * processing on input elements properly holds the synchronized processing time to the
+     * <p>The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized
+     * processing output watermark} of the returned {@link CommittedBundle} is equal to the value
+     * returned from the current bundle. This is used to ensure a {@link PTransform} that could not
+     * complete processing on input elements properly holds the synchronized processing time to the
      * appropriate value.
      */
     CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements);
@@ -218,6 +227,7 @@ public class DirectRunner
 
   @Override
   public DirectPipelineResult run(Pipeline pipeline) {
+    MetricsEnvironment.setMetricsSupported(true);
     ConsumerTrackingPipelineVisitor consumerTrackingVisitor = new ConsumerTrackingPipelineVisitor();
     pipeline.traverseTopologically(consumerTrackingVisitor);
     for (PValue unfinalized : consumerTrackingVisitor.getUnfinalizedPValues()) {
@@ -245,12 +255,14 @@ public class DirectRunner
     // independent executor service for each run
     ExecutorService executorService = executorServiceSupplier.get();
 
-    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry();
+    RootInputProvider rootInputProvider = RootProviderRegistry.defaultRegistry(context);
+    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             executorService,
             consumerTrackingVisitor.getValueToConsumers(),
             keyedPValueVisitor.getKeyedPValues(),
+            rootInputProvider,
             registry,
             defaultModelEnforcements(options),
             context);
@@ -258,8 +270,7 @@ public class DirectRunner
 
     Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
         pipeline.getAggregatorSteps();
-    DirectPipelineResult result =
-        new DirectPipelineResult(executor, context, aggregatorSteps);
+    DirectPipelineResult result = new DirectPipelineResult(executor, context, aggregatorSteps);
     if (options.isBlockOnRun()) {
       try {
         result.awaitCompletion();
@@ -275,6 +286,7 @@ public class DirectRunner
     return result;
   }
 
+  @SuppressWarnings("rawtypes")
   private Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
       defaultModelEnforcements(DirectOptions options) {
     ImmutableMap.Builder<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
@@ -282,21 +294,32 @@ public class DirectRunner
     Collection<ModelEnforcementFactory> parDoEnforcements = createParDoEnforcements(options);
     enforcements.put(ParDo.Bound.class, parDoEnforcements);
     enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
+    if (options.isEnforceEncodability()) {
+      enforcements.put(
+          Read.Unbounded.class,
+          ImmutableSet.<ModelEnforcementFactory>of(EncodabilityEnforcementFactory.create()));
+      enforcements.put(
+          Read.Bounded.class,
+          ImmutableSet.<ModelEnforcementFactory>of(EncodabilityEnforcementFactory.create()));
+    }
     return enforcements.build();
   }
 
   private Collection<ModelEnforcementFactory> createParDoEnforcements(
       DirectOptions options) {
     ImmutableList.Builder<ModelEnforcementFactory> enforcements = ImmutableList.builder();
-    if (options.isTestImmutability()) {
+    if (options.isEnforceImmutability()) {
       enforcements.add(ImmutabilityEnforcementFactory.create());
+    }
+    if (options.isEnforceEncodability()) {
+      enforcements.add(EncodabilityEnforcementFactory.create());
     }
     return enforcements.build();
   }
 
   private BundleFactory createBundleFactory(DirectOptions pipelineOptions) {
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
-    if (pipelineOptions.isTestImmutability()) {
+    if (pipelineOptions.isEnforceImmutability()) {
       bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
     }
     return bundleFactory;
@@ -305,7 +328,7 @@ public class DirectRunner
   /**
    * The result of running a {@link Pipeline} with the {@link DirectRunner}.
    *
-   * Throws {@link UnsupportedOperationException} for all methods.
+   * <p>Throws {@link UnsupportedOperationException} for all methods.
    */
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
@@ -359,6 +382,11 @@ public class DirectRunner
       };
     }
 
+    @Override
+    public MetricResults metrics() {
+      return evaluationContext.getMetrics();
+    }
+
     /**
      * Blocks until the {@link Pipeline} execution represented by this
      * {@link DirectPipelineResult} is complete, returning the terminal state.
@@ -372,7 +400,7 @@ public class DirectRunner
      * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
      * this method will never return.
      *
-     * See also {@link PipelineExecutor#awaitCompletion()}.
+     * <p>See also {@link PipelineExecutor#awaitCompletion()}.
      */
     public State awaitCompletion() throws Throwable {
       if (!state.isTerminal()) {

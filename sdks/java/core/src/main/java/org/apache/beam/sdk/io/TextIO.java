@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
@@ -71,8 +72,7 @@ import org.apache.beam.sdk.values.PDone;
  * PCollection<String> lines =
  *     p.apply(TextIO.Read.from("/local/path/to/file.txt"));
  *
- * // A fully-specified Read from a GCS file (runs locally and via the
- * // Google Cloud Dataflow service):
+ * // A fully-specified Read from a GCS file:
  * PCollection<Integer> numbers =
  *     p.apply("ReadNumbers", TextIO.Read
  *         .from("gs://my_bucket/path/to/numbers-*.txt")
@@ -96,22 +96,13 @@ import org.apache.beam.sdk.values.PDone;
  * PCollection<String> lines = ...;
  * lines.apply(TextIO.Write.to("/path/to/file.txt"));
  *
- * // A fully-specified Write to a sharded GCS file (runs locally and via the
- * // Google Cloud Dataflow service):
+ * // A fully-specified Write to a sharded GCS file:
  * PCollection<Integer> numbers = ...;
  * numbers.apply("WriteNumbers", TextIO.Write
  *      .to("gs://my_bucket/path/to/numbers")
  *      .withSuffix(".txt")
  *      .withCoder(TextualIntegerCoder.of()));
  * }</pre>
- *
- * <h3>Permissions</h3>
- * <p>When run using the {@code DirectRunner}, your pipeline can read and write text files
- * on your local drive and remote text files on Google Cloud Storage that you have access to using
- * your {@code gcloud} credentials. When running in the Dataflow service, the pipeline can only
- * read and write files from GCS. For more information about permissions, see the Cloud Dataflow
- * documentation on <a href="https://cloud.google.com/dataflow/security-and-permissions">Security
- * and Permissions</a>.
  */
 public class TextIO {
   /** The default coder, which returns each line of the input file as a string. */
@@ -229,7 +220,7 @@ public class TextIO {
 
       /**
        * Returns a new transform for reading from text files that's like this one but
-       * that uses the given {@link Coder Coder<X>} to decode each of the
+       * that uses the given {@link Coder Coder&lt;X&gt;} to decode each of the
        * lines of the file into a value of type {@code X}.
        *
        * <p>Does not modify this object.
@@ -286,40 +277,35 @@ public class TextIO {
           }
         }
 
-        // Create a source specific to the requested compression type.
-        final Bounded<T> read;
-        switch(compressionType) {
-          case UNCOMPRESSED:
-            read = org.apache.beam.sdk.io.Read.from(
-                new TextSource<T>(filepattern, coder));
-            break;
-          case AUTO:
-            read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder)));
-            break;
-          case BZIP2:
-            read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                                .withDecompression(CompressedSource.CompressionMode.BZIP2));
-            break;
-          case GZIP:
-            read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                                .withDecompression(CompressedSource.CompressionMode.GZIP));
-            break;
-          case ZIP:
-            read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                                .withDecompression(CompressedSource.CompressionMode.ZIP));
-            break;
-          default:
-            throw new IllegalArgumentException("Unknown compression mode: " + compressionType);
-        }
-
+        final Bounded<T> read = org.apache.beam.sdk.io.Read.from(getSource());
         PCollection<T> pcol = input.getPipeline().apply("Read", read);
         // Honor the default output coder that would have been used by this PTransform.
         pcol.setCoder(getDefaultOutputCoder());
         return pcol;
+      }
+
+      // Helper to create a source specific to the requested compression type.
+      protected FileBasedSource<T> getSource() {
+        switch (compressionType) {
+          case UNCOMPRESSED:
+            return new TextSource<T>(filepattern, coder);
+          case AUTO:
+            return CompressedSource.from(new TextSource<T>(filepattern, coder));
+          case BZIP2:
+            return
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                    .withDecompression(CompressedSource.CompressionMode.BZIP2);
+          case GZIP:
+            return
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                    .withDecompression(CompressedSource.CompressionMode.GZIP);
+          case ZIP:
+            return
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                    .withDecompression(CompressedSource.CompressionMode.ZIP);
+          default:
+            throw new IllegalArgumentException("Unknown compression type: " + compressionType);
+        }
       }
 
       @Override
@@ -606,8 +592,8 @@ public class TextIO {
 
       /**
        * Returns a transform for writing to text files that's like this one
-       * but that uses the given {@link Coder Coder<X>} to encode each of
-       * the elements of the input {@link PCollection PCollection<X>} into an
+       * but that uses the given {@link Coder Coder&lt;X&gt;} to encode each of
+       * the elements of the input {@link PCollection PCollection&lt;X&gt;} into an
        * output text line. Does not modify this object.
        *
        * @param <X> the type of the elements of the input {@link PCollection}
@@ -857,7 +843,7 @@ public class TextIO {
      * A {@link org.apache.beam.sdk.io.FileBasedSource.FileBasedReader FileBasedReader}
      * which can decode records delimited by newline characters.
      *
-     * See {@link TextSource} for further details.
+     * <p>See {@link TextSource} for further details.
      */
     @VisibleForTesting
     static class TextBasedReader<T> extends FileBasedReader<T> {
@@ -989,7 +975,7 @@ public class TextIO {
       /**
        * Decodes the current element updating the buffer to only contain the unconsumed bytes.
        *
-       * This invalidates the currently stored {@code startOfSeparatorInBuffer} and
+       * <p>This invalidates the currently stored {@code startOfSeparatorInBuffer} and
        * {@code endOfSeparatorInBuffer}.
        */
       private void decodeCurrentElement() throws IOException {

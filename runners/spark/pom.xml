@@ -180,6 +180,12 @@
       <artifactId>joda-time</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>1.9</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
       <version>2.4</version>
@@ -284,8 +290,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <!-- Spark runner requires this surefire version for the fork "control" -->
-          <version>2.19.1</version>
           <configuration>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>

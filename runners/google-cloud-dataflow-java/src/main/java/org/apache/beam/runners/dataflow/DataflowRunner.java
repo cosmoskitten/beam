@@ -132,6 +132,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -173,11 +174,12 @@ import org.slf4j.LoggerFactory;
  * to the Dataflow representation using the {@link DataflowPipelineTranslator} and then submitting
  * them to a Dataflow service for execution.
  *
- * <p><h3>Permissions</h3>
+ * <h3>Permissions</h3>
  *
- * When reading from a Dataflow source or writing to a Dataflow sink using {@code DataflowRunner},
- * the Google cloudservices account and the Google compute engine service account of the GCP project
- * running the Dataflow Job will need access to the corresponding source/sink.
+ * <p>When reading from a Dataflow source or writing to a Dataflow sink using
+ * {@code DataflowRunner}, the Google cloudservices account and the Google compute engine service
+ * account of the GCP project running the Dataflow Job will need access to the corresponding
+ * source/sink.
  *
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
@@ -206,9 +208,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // Default Docker container images that execute Dataflow worker harness, residing in Google
   // Container Registry, separately for Batch and Streaming.
   public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE =
-      "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20160826";
+      "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20160926";
   public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE =
-      "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20160826";
+      "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20160926";
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -2080,24 +2082,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator());
+          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator<>());
     }
   }
 
   /**
    * Rewrite {@link StreamingPubsubIORead} to the appropriate internal node.
    */
-  private static class StreamingPubsubIOReadTranslator implements
-      TransformTranslator<StreamingPubsubIORead> {
+  private static class StreamingPubsubIOReadTranslator<T> implements
+      TransformTranslator<StreamingPubsubIORead<T>> {
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
-        StreamingPubsubIORead transform,
-        TranslationContext context) {
-      translateTyped(transform, context);
-    }
-
-    private <T> void translateTyped(
         StreamingPubsubIORead<T> transform,
         TranslationContext context) {
       checkArgument(context.getPipelineOptions().isStreaming(),
@@ -2156,25 +2151,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIOWrite.class, new StreamingPubsubIOWriteTranslator());
+          StreamingPubsubIOWrite.class, new StreamingPubsubIOWriteTranslator<>());
     }
   }
 
   /**
    * Rewrite {@link StreamingPubsubIOWrite} to the appropriate internal node.
    */
-  private static class StreamingPubsubIOWriteTranslator implements
-      TransformTranslator<StreamingPubsubIOWrite> {
+  private static class StreamingPubsubIOWriteTranslator<T> implements
+      TransformTranslator<StreamingPubsubIOWrite<T>> {
 
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
-        StreamingPubsubIOWrite transform,
-        TranslationContext context) {
-      translateTyped(transform, context);
-    }
-
-    private <T> void translateTyped(
         StreamingPubsubIOWrite<T> transform,
         TranslationContext context) {
       checkArgument(context.getPipelineOptions().isStreaming(),
@@ -2256,6 +2244,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       @Override
       protected Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
         return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getDefaultOutputCoder());
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder.add(DisplayData.item("source", source.getClass()));
+        builder.include(source);
       }
 
       public UnboundedSource<T, ?> getSource() {

@@ -42,6 +42,7 @@ import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
@@ -301,14 +302,21 @@ public class DataflowPipelineJob implements PipelineResult {
       dataflowOptions.getDataflowClient().projects().jobs()
           .update(projectId, jobId, content)
           .execute();
+      return State.CANCELLED;
     } catch (IOException e) {
-      String errorMsg = String.format(
-          "Failed to cancel the job, please go to the Developers Console to cancel it manually: %s",
-          MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
-      LOG.warn(errorMsg);
-      throw new IOException(errorMsg, e);
+      State state = getState();
+      if (state.isTerminal()) {
+        LOG.warn("Job is already terminated. State is {}", state);
+        return state;
+      } else {
+        String errorMsg = String.format(
+            "Failed to cancel the job, "
+                + "please go to the Developers Console to cancel it manually: %s",
+            MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+        LOG.warn(errorMsg);
+        throw new IOException(errorMsg, e);
+      }
     }
-    return State.CANCELLED;
   }
 
   @Override
@@ -417,6 +425,12 @@ public class DataflowPipelineJob implements PipelineResult {
       throw new AggregatorRetrievalException(
           "IOException when retrieving Aggregator values for Aggregator " + aggregator, e);
     }
+  }
+
+  @Override
+  public MetricResults metrics() {
+    throw new UnsupportedOperationException(
+        "The DataflowRunner does not currently support metrics.");
   }
 
   private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)

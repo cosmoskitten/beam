@@ -29,6 +29,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+
 import org.apache.beam.runners.spark.aggregators.metrics.sink.InMemoryMetrics;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
@@ -53,6 +54,9 @@ public class SimpleWordCountTest {
   @Rule
   public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
 
+  @Rule
+  public ClearAggregatorsRule clearAggregators = new ClearAggregatorsRule();
+
   private static final String[] WORDS_ARRAY = {
       "hi there", "hi", "hi sue bob",
       "hi sue", "", "bob hi"};
@@ -74,8 +78,7 @@ public class SimpleWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
 
     assertThat(InMemoryMetrics.<Double>valueOf("emptyLines"), is(1d));
   }
@@ -96,8 +99,7 @@ public class SimpleWordCountTest {
     File outputFile = testFolder.newFile();
     output.apply("WriteCounts", TextIO.Write.to(outputFile.getAbsolutePath()).withoutSharding());
 
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
 
     assertThat(Sets.newHashSet(FileUtils.readLines(outputFile)),
         containsInAnyOrder(EXPECTED_COUNT_SET.toArray()));

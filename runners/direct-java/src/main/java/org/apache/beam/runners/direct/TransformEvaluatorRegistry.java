@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -44,21 +43,21 @@ import org.slf4j.LoggerFactory;
  */
 class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
-  public static TransformEvaluatorRegistry defaultRegistry() {
+  public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
     @SuppressWarnings("rawtypes")
     ImmutableMap<Class<? extends PTransform>, TransformEvaluatorFactory> primitives =
         ImmutableMap.<Class<? extends PTransform>, TransformEvaluatorFactory>builder()
-            .put(Read.Bounded.class, new BoundedReadEvaluatorFactory())
-            .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory())
-            .put(ParDo.Bound.class, new ParDoSingleEvaluatorFactory())
-            .put(ParDo.BoundMulti.class, new ParDoMultiEvaluatorFactory())
-            .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory())
-            .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory())
-            .put(Window.Bound.class, new WindowEvaluatorFactory())
+            .put(Read.Bounded.class, new BoundedReadEvaluatorFactory(ctxt))
+            .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory(ctxt))
+            .put(ParDo.Bound.class, new ParDoSingleEvaluatorFactory(ctxt))
+            .put(ParDo.BoundMulti.class, new ParDoMultiEvaluatorFactory(ctxt))
+            .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory(ctxt))
+            .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory(ctxt))
+            .put(Window.Bound.class, new WindowEvaluatorFactory(ctxt))
             // Runner-specific primitives used in expansion of GroupByKey
-            .put(DirectGroupByKeyOnly.class, new GroupByKeyOnlyEvaluatorFactory())
-            .put(DirectGroupAlsoByWindow.class, new GroupAlsoByWindowEvaluatorFactory())
-            .put(TestStream.class, new TestStreamEvaluatorFactory())
+            .put(DirectGroupByKeyOnly.class, new GroupByKeyOnlyEvaluatorFactory(ctxt))
+            .put(DirectGroupAlsoByWindow.class, new GroupAlsoByWindowEvaluatorFactory(ctxt))
+            .put(TestStream.class, new TestStreamEvaluatorFactory(ctxt))
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
@@ -78,14 +77,16 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext)
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
       throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
-    TransformEvaluatorFactory factory = factories.get(application.getTransform().getClass());
-    return factory.forApplication(application, inputBundle, evaluationContext);
+    TransformEvaluatorFactory factory = getFactory(application);
+    return factory.forApplication(application, inputBundle);
+  }
+
+  private TransformEvaluatorFactory getFactory(AppliedPTransform<?, ?, ?> application) {
+    return factories.get(application.getTransform().getClass());
   }
 
   @Override
@@ -113,15 +114,6 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
         }
       }
       throw toThrow;
-    }
-  }
-
-  /**
-   * A factory to create Transform Evaluator Registries.
-   */
-  public static class Factory {
-    public TransformEvaluatorRegistry create() {
-      return TransformEvaluatorRegistry.defaultRegistry();
     }
   }
 }
