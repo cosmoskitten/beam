@@ -20,15 +20,20 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.errors;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.google.common.reflect.TypeToken;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Visitor;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
@@ -188,6 +193,83 @@ public class DoFnSignaturesTest {
   }
 
   @Test
+  public void testStateParameterNoAnnotation() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("missing StateId annotation");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 1");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context, ValueState<Integer> noAnnotation) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testStateParameterUndeclared() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("undeclared");
+    thrown.expectMessage("my-state-id");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 1");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context, @StateId("my-state-id") ValueState<Integer> undeclared) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testStateParameterWrongStateType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("has type");
+    thrown.expectMessage("WatermarkHoldState");
+    thrown.expectMessage("but is a reference to");
+    thrown.expectMessage("ValueState");
+    thrown.expectMessage("my-state-id");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 1");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("my-state-id")
+              private final StateSpec<Object, ValueState<Integer>> myfield =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context, @StateId("my-state-id") WatermarkHoldState watermark) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testStateParameterWrongGenericType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("has type");
+    thrown.expectMessage("ValueState<java.lang.String>");
+    thrown.expectMessage("but is a reference to");
+    thrown.expectMessage("ValueState<java.lang.Integer>");
+    thrown.expectMessage("my-state-id");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 1");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("my-state-id")
+              private final StateSpec<Object, ValueState<Integer>> myfield =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context, @StateId("my-state-id") ValueState<String> stringState) {}
+            }.getClass());
+  }
+
+  @Test
   public void testSimpleStateIdAnonymousDoFn() throws Exception {
     DoFnSignature sig =
         DoFnSignatures.INSTANCE.getSignature(
@@ -208,6 +290,42 @@ public class DoFnSignaturesTest {
     assertThat(
         decl.stateType(),
         Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ValueState<Integer>>() {}));
+  }
+
+  /**
+   * Assuming the proper parsing of declarations, testing elsewhere, this test ensures that
+   * a simple reference to such a declaration is correctly resolved.
+   */
+  @Test
+  public void testSimpleStateIdRefAnonymousDoFn() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("foo")
+              private final StateSpec<Object, ValueState<Integer>> bizzleDecl =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void foo(ProcessContext context, @StateId("foo") ValueState<Integer> bizzle) {}
+            }.getClass());
+
+
+    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+
+    final DoFnSignature.StateDeclaration decl = sig.stateDeclarations().get("foo");
+    sig.processElement().extraParameters().get(0).accept(new Visitor.Defaults<Void>() {
+      @Override
+      protected Void visitDefault(Parameter p) {
+        fail(String.format("Expected a state parameter but got %s", p));
+        return null;
+      }
+
+      @Override
+      public Void visit(StateParameter stateParam) {
+        assertThat(stateParam.referenceTo(), equalTo(decl));
+        return null;
+      }
+    });
   }
 
   @Test

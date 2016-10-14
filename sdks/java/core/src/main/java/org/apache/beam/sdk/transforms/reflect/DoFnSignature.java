@@ -114,11 +114,116 @@ public abstract class DoFnSignature {
   }
 
   /** A type of optional parameter of the {@link DoFn.ProcessElement} method. */
-  public enum Parameter {
-    BOUNDED_WINDOW,
-    INPUT_PROVIDER,
-    OUTPUT_RECEIVER,
-    RESTRICTION_TRACKER
+  public static abstract class Parameter {
+
+    public interface Visitor<ResultT> {
+      ResultT visit(BoundedWindowParameter p);
+      ResultT visit(InputProviderParameter p);
+      ResultT visit(OutputReceiverParameter p);
+      ResultT visit(RestrictionTrackerParameter p);
+      ResultT visit(StateParameter p);
+
+      /**
+       * A base class for a visitor with a default method for cases it is not interested in.
+       */
+      public static abstract class Defaults<ResultT> implements Visitor<ResultT> {
+
+        protected abstract ResultT visitDefault(Parameter p);
+
+        @Override
+        public ResultT visit(BoundedWindowParameter p) {
+          return visitDefault(p);
+        }
+
+        @Override
+        public ResultT visit(InputProviderParameter p) {
+          return visitDefault(p);
+        }
+
+        @Override
+        public ResultT visit(OutputReceiverParameter p) {
+          return visitDefault(p);
+        }
+
+        @Override
+        public ResultT visit(RestrictionTrackerParameter p) {
+          return visitDefault(p);
+        }
+
+        @Override
+        public ResultT visit(StateParameter p) {
+          return visitDefault(p);
+        }
+      }
+    }
+
+    public abstract <ResultT> ResultT accept(Visitor<ResultT> visitor);
+
+    public static BoundedWindowParameter boundedWindow() {
+      return new AutoValue_DoFnSignature_Parameter_BoundedWindowParameter();
+    }
+
+    public static InputProviderParameter inputProvider() {
+      return new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
+    }
+
+    public static OutputReceiverParameter outputReceiver() {
+      return new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
+    }
+
+    public static RestrictionTrackerParameter restrictionTracker() {
+      return new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter();
+    }
+
+    public static StateParameter stateParameter(
+        String id, StateDeclaration decl) {
+      return new AutoValue_DoFnSignature_Parameter_StateParameter(id, decl);
+    }
+
+    @AutoValue
+    public static abstract class BoundedWindowParameter extends Parameter {
+      @Override
+      public <ResultT> ResultT accept(Visitor<ResultT> visitor) {
+        return visitor.visit(this);
+      }
+    }
+
+    @AutoValue
+    public static abstract class InputProviderParameter extends Parameter {
+      @Override
+      public <ResultT> ResultT accept(Visitor<ResultT> visitor) {
+        return visitor.visit(this);
+      }
+    }
+
+    @AutoValue
+    public static abstract class OutputReceiverParameter extends Parameter {
+      @Override
+      public <ResultT> ResultT accept(Visitor<ResultT> visitor) {
+        return visitor.visit(this);
+      }
+    }
+
+    @AutoValue
+    public static abstract class RestrictionTrackerParameter extends Parameter {
+      @Override
+      public <ResultT> ResultT accept(Visitor<ResultT> visitor) {
+        return visitor.visit(this);
+      }
+    }
+
+    @AutoValue
+    public static abstract class StateParameter extends Parameter {
+
+      public abstract String id();
+
+      public abstract StateDeclaration referenceTo();
+
+      @Override
+      public <ResultT> ResultT accept(Visitor<ResultT> visitor) {
+        return visitor.visit(this);
+      }
+    }
   }
 
   /** Describes a {@link DoFn.ProcessElement} method. */
@@ -149,14 +254,14 @@ public abstract class DoFnSignature {
 
     /** Whether this {@link DoFn} uses a Single Window. */
     public boolean usesSingleWindow() {
-      return extraParameters().contains(Parameter.BOUNDED_WINDOW);
+      return extraParameters().contains(Parameter.boundedWindow());
     }
 
     /**
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return extraParameters().contains(Parameter.RESTRICTION_TRACKER);
+      return extraParameters().contains(Parameter.restrictionTracker());
     }
   }
 
