@@ -84,16 +84,17 @@ class DoFnRunner(Receiver):
                      for side_input in side_inputs]
       if side_inputs and all(side_input.is_globally_windowed()
                              for side_input in side_inputs):
-          args, kwargs = util.insert_values_in_args(
+        args, kwargs = util.insert_values_in_args(
             args, kwargs, [side_input[global_window]
                            for side_input in side_inputs])
-          side_inputs = []
+        side_inputs = []
       if side_inputs:
         self.has_windowed_side_inputs = True
+
         def process(context):
           w = context.windows[0]
           cur_args, cur_kwargs = util.insert_values_in_args(
-            args, kwargs, [side_input[w] for side_input in side_inputs])
+              args, kwargs, [side_input[w] for side_input in side_inputs])
           return fn.process(context, *cur_args, **cur_kwargs)
         self.dofn_process = process
       elif kwargs:
