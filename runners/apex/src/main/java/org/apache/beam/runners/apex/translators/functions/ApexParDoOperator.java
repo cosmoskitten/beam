@@ -158,8 +158,6 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   @InputPortFieldAnnotation(optional=true)
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>> sideInput1 = new DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>>()
   {
-    private final int sideInputIndex = 0;
-
     @Override
     public void process(ApexStreamTuple<WindowedValue<Iterable<?>>> t)
     {
@@ -170,6 +168,12 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
       if (traceTuples) {
         LOG.debug("\nsideInput {}\n", t.getValue());
       }
+
+      int sideInputIndex = 0;
+      if (t instanceof ApexStreamTuple.DataTuple) {
+        sideInputIndex = ((ApexStreamTuple.DataTuple<?>)t).getUnionTag();
+      }
+
       PCollectionView<?> sideInput = sideInputs.get(sideInputIndex);
       sideInputHandler.addSideInputValue(sideInput, t.getValue());
 

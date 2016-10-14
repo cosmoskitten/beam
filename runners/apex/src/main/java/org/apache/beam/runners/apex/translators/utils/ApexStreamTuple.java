@@ -50,6 +50,7 @@ public interface ApexStreamTuple<T>
    */
   class DataTuple<T> implements ApexStreamTuple<T>
   {
+    private int unionTag;
     private T value;
 
     public static <T> DataTuple<T> of(T value) {
@@ -70,6 +71,16 @@ public interface ApexStreamTuple<T>
     public void setValue(T value)
     {
       this.value = value;
+    }
+
+    public int getUnionTag()
+    {
+      return unionTag;
+    }
+
+    public void setUnionTag(int unionTag)
+    {
+      this.unionTag = unionTag;
     }
 
     @Override

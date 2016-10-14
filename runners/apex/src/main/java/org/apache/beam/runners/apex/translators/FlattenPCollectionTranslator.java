@@ -20,6 +20,7 @@ package org.apache.beam.runners.apex.translators;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.beam.runners.apex.translators.functions.ApexFlattenOperator;
 import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperator;
@@ -73,6 +74,51 @@ public class FlattenPCollectionTranslator<T> implements
           } else {
             // final stream merge
             context.addOperator(operator, operator.out);
+          }
+          firstCollection = null;
+        }
+      }
+      if (firstCollection != null) {
+        // push to next merge level
+        remainingCollections.add(firstCollection);
+        firstCollection = null;
+      }
+      if (remainingCollections.size() > 1) {
+        collections = remainingCollections;
+        remainingCollections = Lists.newArrayList();
+      } else {
+        collections = Lists.newArrayList();
+      }
+    }
+  }
+
+  public static <T> void flattenCollections(List<PCollection<T>> collections, Map<PCollection<?>, Integer> unionTags, PCollection<T> finalCollection, TranslationContext context) {
+    List<PCollection<T>> remainingCollections = Lists.newArrayList();
+    PCollection<T> firstCollection = null;
+    while (!collections.isEmpty()) {
+      for (PCollection<T> collection : collections) {
+        if (null == firstCollection) {
+          firstCollection = collection;
+        } else {
+          ApexFlattenOperator<T> operator = new ApexFlattenOperator<>();
+          context.addStream(firstCollection, operator.data1);
+          Integer unionTag = unionTags.get(firstCollection);
+          operator.data1Tag = (unionTag != null) ? unionTag : 0;
+          context.addStream(collection, operator.data2);
+          unionTag = unionTags.get(collection);
+          operator.data2Tag = (unionTag != null) ? unionTag : 0;
+
+          if (!collection.getCoder().equals(firstCollection.getCoder())) {
+              throw new UnsupportedOperationException("coders don't match");
+          }
+
+          if (collections.size() > 2) {
+            PCollection<T> intermediateCollection = intermediateCollection(collection, collection.getCoder());
+            context.addOperator(operator, operator.out, intermediateCollection);
+            remainingCollections.add(intermediateCollection);
+          } else {
+            // final stream merge
+            context.addOperator(operator, operator.out, finalCollection);
           }
           firstCollection = null;
         }
