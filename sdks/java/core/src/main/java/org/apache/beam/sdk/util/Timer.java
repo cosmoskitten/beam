@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 
 /**
@@ -26,18 +27,31 @@ import org.joda.time.Instant;
  *
  * <p>See {@link TimeDomain} for details on the time domains available.
  *
+ * <p>In a {@link DoFn}, a {@link Timer} is specified by a {@link TimerSpec} annotated
+ * with {@link DoFn.TimerId}.</p>
+ *
+ * <p>A timer exists in one of two states: set or unset. A timer can be set only
+ * for a single time.
+ *
  * <p>Timers are not guaranteed to fire synchronously, but will be delivered at some time
  * after the requested time.
  *
  * <p>An implementation of {@link Timer} is implicitly scoped - it may
  * be scoped to a key and window, or a key, window, and trigger, etc.
  *
+ * <p>Timers for the same {@link TimeDomain} and the same scope (for example, the same key and window)
+ * will be delivered in order of their timestamps.
  */
 @Experimental(Experimental.Kind.TIMERS)
 public interface Timer {
-  /** Sets or resets the time at which this timer should fire. */
-  public abstract void setTimer(Instant timestamp);
+  /**
+   * Sets or resets the time at which this timer should fire. If the timer was already set, resets
+   * it for the new timestamp.
+   */
+  public abstract void setForNowPlus(Instant timestamp);
 
-  /** Removes the timer set in this context for the {@code timestmap} and {@code timeDomain}. */
+  /**
+   * Unsets this timer. It is permitted to {@code cancel()} whether or not the timer was actually set.
+   */
   public abstract void cancel();
 }

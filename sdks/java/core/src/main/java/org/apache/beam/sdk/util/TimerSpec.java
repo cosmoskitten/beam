@@ -22,8 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * A specification of a timer. This includes the time domain. When associated with a particular
- * id, fully describes an instantiated timer.
+ * A specification for a {@link Timer}. This includes its {@link TimeDomain}.
  */
 @Experimental(Kind.TIMERS)
 public interface TimerSpec extends Serializable {

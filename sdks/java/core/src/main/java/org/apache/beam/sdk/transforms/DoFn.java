@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.State;
@@ -443,7 +444,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
     * Annotation for declaring and dereferencing timers.
     *
-    * <p><i>Not currently supported by any runner</i>.
+    * <p><i>Not currently supported by any runner.</i>
     *
     * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
     * TimerId}. To use the cell during processing, add a parameter of the appropriate {@link Timer}
@@ -461,25 +462,52 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     *       @TimerId("my-timer-id") Timer myTimer) {
     *     myTimer.setTimer(new Instant(...));
     *   }
-    * }
+    *
+    *   @OnTimer("my-timer-id")
+    *   public void onMyTimer() {
+    *     ...
+    *   }
     * }</pre>
     *
     * <p>Timers are subject to the following validity conditions:
     *
     * <ul>
-    * <li>Each timer ID must be declared at most once.
+    * <li>Each timer must have a distinct id.
     * <li>Any timer referenced in a parameter must be declared.
     * <li>Timer declarations must be final.
+    * <li>All declared timers must have a corresponding callback.
     * </ul>
     */
- @Documented
- @Retention(RetentionPolicy.RUNTIME)
- @Target({ElementType.FIELD, ElementType.PARAMETER})
- @Experimental(Kind.TIMERS)
- public @interface TimerId {
-   /** The timer ID. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.TIMERS)
+  public @interface TimerId {
+    /** The timer ID. */
     String value();
- }
+  }
+
+  /**
+   * Annotation for registering a callback for a timer.
+   *
+   * <p><i>Not currently supported by any runner.</i>
+   *
+   * <p>See the javadoc for {@link TimerId} for use in a full example.
+   *
+   * <p>The method annotated with {@code @OnTimer} may have parameters
+   * according to the same logic as {@link ProcessElement}, but limited to
+   * the {@link BoundedWindow}, {@link State} subclasses, and {@link Timer}.
+   * State and timer parameters must be annotated with their {@link StateId}
+   * and {@link TimerId} respectively.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.TIMERS)
+  public @interface OnTimer {
+    /** The timer ID. */
+    String value();
+  }
 
   /**
    * Annotation for the method to use to prepare an instance for processing bundles of elements. The

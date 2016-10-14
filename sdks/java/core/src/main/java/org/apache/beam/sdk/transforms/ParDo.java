@@ -581,7 +581,7 @@ public class ParDo {
     }
 
     // Timers are semantically incompatible with splitting (they are per-key)
-    if (!signature.timerDeclarations().isEmpty()) {
+    if (!signature.timerDeclarations().isEmpty() && signature.processElement().isSplittable()) {
       throw new UnsupportedOperationException(
           String.format("%s is splittable and uses timers, but these are not compatible",
               fn.getClass().getName()));

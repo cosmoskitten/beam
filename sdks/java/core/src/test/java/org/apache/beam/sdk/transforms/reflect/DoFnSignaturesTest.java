@@ -139,6 +139,7 @@ public class DoFnSignaturesTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("TimerId");
     thrown.expectMessage("TimerSpec");
+      thrown.expectMessage("bizzle");
     DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
           @TimerId("foo")
