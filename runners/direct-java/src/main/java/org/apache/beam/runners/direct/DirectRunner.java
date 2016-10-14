@@ -396,15 +396,12 @@ public class DirectRunner
         try {
           executor.awaitCompletion();
           state = State.DONE;
-        } catch (Throwable e) {
+        } catch (Exception e) {
           if (e instanceof InterruptedException) {
             Thread.currentThread().interrupt();
           }
           if (e instanceof RuntimeException) {
             throw (RuntimeException) e;
-          }
-          if (e instanceof Error) {
-            throw (Error) e;
           }
           throw new RuntimeException(e);
         }

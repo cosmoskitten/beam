@@ -126,7 +126,7 @@ public class TransformExecutorTest {
 
     assertThat(finishCalled.get(), is(true));
     assertThat(completionCallback.handledResult, equalTo(result));
-    assertThat(completionCallback.handledThrowable, is(nullValue()));
+    assertThat(completionCallback.handledException, is(nullValue()));
   }
 
   @Test
@@ -145,7 +145,7 @@ public class TransformExecutorTest {
 
     assertThat(completionCallback.handledResult, is(nullValue()));
     assertThat(completionCallback.handledEmpty, equalTo(true));
-    assertThat(completionCallback.handledThrowable, is(nullValue()));
+    assertThat(completionCallback.handledException, is(nullValue()));
   }
 
   @Test
@@ -190,7 +190,7 @@ public class TransformExecutorTest {
 
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
     assertThat(completionCallback.handledResult, equalTo(result));
-    assertThat(completionCallback.handledThrowable, is(nullValue()));
+    assertThat(completionCallback.handledException, is(nullValue()));
   }
 
   @Test
@@ -230,7 +230,7 @@ public class TransformExecutorTest {
     evaluatorCompleted.await();
 
     assertThat(completionCallback.handledResult, is(nullValue()));
-    assertThat(completionCallback.handledThrowable, Matchers.<Throwable>equalTo(exception));
+    assertThat(completionCallback.handledException, Matchers.<Throwable>equalTo(exception));
   }
 
   @Test
@@ -265,7 +265,7 @@ public class TransformExecutorTest {
     evaluatorCompleted.await();
 
     assertThat(completionCallback.handledResult, is(nullValue()));
-    assertThat(completionCallback.handledThrowable, Matchers.<Throwable>equalTo(exception));
+    assertThat(completionCallback.handledException, Matchers.<Throwable>equalTo(exception));
   }
 
   @Test
@@ -467,7 +467,7 @@ public class TransformExecutorTest {
   private static class RegisteringCompletionCallback implements CompletionCallback {
     private TransformResult handledResult = null;
     private boolean handledEmpty = false;
-    private Throwable handledThrowable = null;
+    private Exception handledException = null;
     private final CountDownLatch onMethod;
 
     private RegisteringCompletionCallback(CountDownLatch onMethod) {
@@ -500,8 +500,8 @@ public class TransformExecutorTest {
     }
 
     @Override
-    public void handleThrowable(CommittedBundle<?> inputBundle, Throwable t) {
-      handledThrowable = t;
+    public void handleException(CommittedBundle<?> inputBundle, Exception e) {
+      handledException = e;
       onMethod.countDown();
     }
   }

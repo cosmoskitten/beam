@@ -111,12 +111,12 @@ class TransformExecutor<T> implements Runnable {
       processElements(evaluator, enforcements);
 
       finishBundle(evaluator, enforcements);
-    } catch (Throwable t) {
-      onComplete.handleThrowable(inputBundle, t);
-      if (t instanceof RuntimeException) {
-        throw (RuntimeException) t;
+    } catch (Exception e) {
+      onComplete.handleException(inputBundle, e);
+      if (e instanceof RuntimeException) {
+        throw (RuntimeException) e;
       }
-      throw new RuntimeException(t);
+      throw new RuntimeException(e);
     } finally {
       transformEvaluationState.complete(this);
     }
