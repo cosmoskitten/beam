@@ -39,12 +39,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import javax.swing.plaf.nimbus.State;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -714,8 +714,8 @@ public class DoFnSignatures {
       Type stateSpecType = field.getGenericType();
 
       // By static typing this is already a well-formed State subclass
-      TypeDescriptor<? extends State<?>> stateType =
-          (TypeDescriptor<? extends State<?>>)
+      TypeDescriptor<? extends State> stateType =
+          (TypeDescriptor<? extends State>)
               TypeDescriptor.of(fnClazz)
                   .resolveType(
                       TypeDescriptor.of(
