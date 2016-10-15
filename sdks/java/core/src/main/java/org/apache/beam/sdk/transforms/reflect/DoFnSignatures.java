@@ -45,6 +45,7 @@ import javax.swing.plaf.nimbus.State;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -101,6 +102,13 @@ public class DoFnSignatures {
     }
     errors.checkNotNull(inputT, "Unable to determine input type");
 
+    // Find the state and timer declarations in advance of validating
+    // method parameter lists
+    Map<String, TimerDeclaration> timerDeclarations = analyzeTimerDeclarations(errors, fnClass);
+    Map<String, StateDeclaration> stateDeclarations = analyzeStateDeclarations(errors, fnClass);
+    builder.setStateDeclarations(stateDeclarations);
+    builder.setTimerDeclarations(timerDeclarations);
+
     Method processElementMethod =
         findAnnotatedMethod(errors, DoFn.ProcessElement.class, fnClass, true);
     Method startBundleMethod = findAnnotatedMethod(errors, DoFn.StartBundle.class, fnClass, false);
@@ -119,14 +127,25 @@ public class DoFnSignatures {
 
     Collection<Method> onTimerMethods =
         declaredMethodsWithAnnotation(DoFn.OnTimer.class, fnClass, DoFn.class);
-
     HashMap<String, DoFnSignature.OnTimerMethod> onTimerMethodMap =
             Maps.newHashMapWithExpectedSize(onTimerMethods.size());
     for (Method onTimerMethod : onTimerMethods) {
       String id = onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
+        errors.checkArgument(timerDeclarations.containsKey(id),
+            "Callback %s is for for undeclared timer %s", onTimerMethod, id);
       onTimerMethodMap.put(id, OnTimerMethod.create(onTimerMethod, id, Collections.EMPTY_LIST));
     }
     builder.setOnTimerMethods(onTimerMethodMap);
+
+    // Check the converse - that all timers have a callback. This could be relaxed to only
+    // those timers used in methods, once method parameter lists support timers.
+    for (TimerDeclaration decl : timerDeclarations.values()) {
+      errors.checkArgument(
+          onTimerMethodMap.containsKey(decl.id()),
+          "No callback registered via %s for timer %s",
+          DoFn.OnTimer.class.getSimpleName(),
+          decl.id());
+    }
 
     ErrorReporter processElementErrors =
         errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
@@ -198,10 +217,6 @@ public class DoFnSignatures {
     }
 
     builder.setIsBoundedPerElement(inferBoundedness(fnToken, processElement, errors));
-
-    builder.setStateDeclarations(analyzeStateDeclarations(errors, fnClass));
-
-    builder.setTimerDeclarations(analyzeTimerDeclarations(errors, fnClass));
 
     DoFnSignature signature = builder.build();
 

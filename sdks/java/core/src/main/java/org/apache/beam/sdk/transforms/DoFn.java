@@ -503,7 +503,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Target(ElementType.METHOD)
   @Experimental(Kind.TIMERS)
   public @interface OnTimer {
     /** The timer ID. */

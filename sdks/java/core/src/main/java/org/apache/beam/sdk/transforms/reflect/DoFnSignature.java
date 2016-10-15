@@ -94,7 +94,9 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract Map<String, OnTimerMethod> onTimerMethods();
 
-  static Builder builder() { return new AutoValue_DoFnSignature.Builder(); }
+  static Builder builder() {
+    return new AutoValue_DoFnSignature.Builder();
+  }
 
   @AutoValue.Builder
   abstract static class Builder {

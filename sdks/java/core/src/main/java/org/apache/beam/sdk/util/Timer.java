@@ -19,7 +19,7 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.joda.time.Instant;
+import org.joda.time.Duration;
 
 /**
  * A timer for a specified time domain that can be set to register the desire for further processing
@@ -44,14 +44,14 @@ import org.joda.time.Instant;
 @Experimental(Experimental.Kind.TIMERS)
 public interface Timer {
   /**
-   * Sets or resets the time at which this timer should fire. If the timer was already set, resets
-   * it for the new timestamp.
+   * Sets or resets the time (relative to now) at which this timer should fire. If the timer was
+   * already set, resets it to the new requested time.
    */
-  public abstract void setForNowPlus(Instant timestamp);
+  void setForNowPlus(Duration durationFromNow);
 
   /**
    * Unsets this timer. It is permitted to {@code cancel()} whether or not the timer was actually
    * set.
    */
-  public abstract void cancel();
+  void cancel();
 }

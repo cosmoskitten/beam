@@ -151,6 +151,40 @@ public class DoFnSignaturesTest {
   }
 
   @Test
+  public void testTimerIdNoCallback() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("No callback registered");
+    thrown.expectMessage("my-timer-id");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getOrParseSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @TimerId("my-timer-id")
+              private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+              @ProcessElement
+              public void foo(ProcessContext context) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testOnTimerNoDeclaration() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Callback");
+    thrown.expectMessage("undeclared timer");
+    thrown.expectMessage("onTimerFoo");
+    thrown.expectMessage("my-timer-id");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getOrParseSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @OnTimer("my-timer-id")
+              public void onTimerFoo() {}
+
+              @ProcessElement
+              public void foo(ProcessContext context) {}
+            }.getClass());
+  }
+
+  @Test
   public void testTimerIdDuplicate() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Duplicate");
@@ -199,6 +233,9 @@ public class DoFnSignaturesTest {
 
               @ProcessElement
               public void foo(ProcessContext context) {}
+
+              @OnTimer("foo")
+              public void onFoo() {}
             }.getClass());
 
     assertThat(sig.timerDeclarations().size(), equalTo(1));
@@ -362,5 +399,8 @@ public class DoFnSignaturesTest {
 
     @ProcessElement
     public void foo(ProcessContext context) {}
+
+    @OnTimer("foo")
+    public void onFoo() {}
   }
 }
