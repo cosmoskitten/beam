@@ -92,11 +92,9 @@ public abstract class DoFnSignature {
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
   @Nullable
-  public abstract Map<String, OnTimerMethod> onTimerMethods;
+  public abstract Map<String, OnTimerMethod> onTimerMethods();
 
-  static Builder builder() {
-    return new AutoValue_DoFnSignature.Builder();
-  }
+  static Builder builder() { return new AutoValue_DoFnSignature.Builder(); }
 
   @AutoValue.Builder
   abstract static class Builder {
