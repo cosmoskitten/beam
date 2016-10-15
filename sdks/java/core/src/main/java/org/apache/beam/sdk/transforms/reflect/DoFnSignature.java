@@ -183,12 +183,9 @@ public abstract class DoFnSignature {
     /** Types of optional parameters of the annotated method, in the order they appear. */
     public abstract List<Parameter> extraParameters();
 
-    static OnTimerMethod create(
-            Method targetMethod,
-            String id,
-            List<Parameter> extraParameters) {
+    static OnTimerMethod create(Method targetMethod, String id, List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
-              targetMethod, id, Collections.unmodifiableList(extraParameters));
+          targetMethod, id, Collections.unmodifiableList(extraParameters));
     }
   }
 
