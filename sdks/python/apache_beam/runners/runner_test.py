@@ -113,14 +113,15 @@ class RunnerTest(unittest.TestCase):
     step = steps[0]
     disp_data = step['properties']['display_data']
     self.assertEqual(len(disp_data), 3)
+    nspace = __name__ + '.'
     self.assertEqual(
         disp_data,
-        [{'type': 'TIMESTAMP', 'namespace': '__main__.SpecialParDo',
+        [{'type': 'TIMESTAMP', 'namespace': nspace+'SpecialParDo',
           'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
           'key': 'a_time'},
-         {'type': 'JAVA_CLASS', 'namespace': '__main__.SpecialParDo',
+         {'type': 'JAVA_CLASS', 'namespace': nspace+'SpecialParDo',
           'value': '__main__.SpecialParDo', 'key': 'a_class'},
-         {'type': 'INTEGER', 'namespace': '__main__.SpecialDoFn',
+         {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
           'value': 42, 'key': 'dofn_value'}])
 
 

@@ -54,13 +54,14 @@ class DisplayDataTest(unittest.TestCase):
     dd_dicts = sorted([item.get_dict() for item in dd.items],
                       key=lambda x: x['namespace']+x['key'])
 
+    nspace = '{}.{}'.format(__name__, fn.__class__.__name__)
     expected_items = [
-        {'url': 'http://github.com', 'namespace': '__main__.MyDoFn',
+        {'url': 'http://github.com', 'namespace': nspace,
          'value': 'github.com', 'label': 'The URL',
          'key': 'complex_url', 'type': 'STRING'},
-        {'type': 'TIMESTAMP', 'namespace': '__main__.MyDoFn', 'key': 'my_dd',
+        {'type': 'TIMESTAMP', 'namespace': nspace, 'key': 'my_dd',
          'value': DisplayDataItem._format_value(now, 'TIMESTAMP')},
-        {'type': 'CLASS', 'namespace': '__main__.MyDoFn',
+        {'type': 'CLASS', 'namespace': nspace,
          'value': 'apache_beam.transforms.display.display_data.HasDisplayData',
          'key': 'python_class'},
         {'type': 'INTEGER', 'namespace': '__main__.MyDoFn',
@@ -85,9 +86,10 @@ class DisplayDataTest(unittest.TestCase):
     dofn = SpecialDoFn()
     pardo = SpecialParDo(dofn)
     dd = DisplayData.create_from(pardo)
+    nspace = '{}.{}'.format(__name__, dofn.__class__.__name__)
     self.assertEqual(dd.items[0].get_dict(),
                      {"type": "INTEGER",
-                      "namespace": "__main__.SpecialDoFn",
+                      "namespace": nspace,
                       "value": 42,
                       "key": "dofn_value"})
 
