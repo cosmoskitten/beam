@@ -198,8 +198,7 @@ public abstract class DoFnSignature {
     public abstract String id();
     public abstract Field field();
 
-    static TimerDeclaration create(
-        String id, Field field) {
+    static TimerDeclaration create(String id, Field field) {
       return new AutoValue_DoFnSignature_TimerDeclaration(id, field);
     }
   }
