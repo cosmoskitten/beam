@@ -19,9 +19,9 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import autovalue.shaded.com.google.common.common.collect.Maps;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 import java.lang.annotation.Annotation;
