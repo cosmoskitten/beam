@@ -68,6 +68,7 @@ class DisplayDataTest(unittest.TestCase):
          'value': 120, 'key': 'static_integer'},
         {'type': 'STRING', 'namespace': '__main__.MyDoFn',
          'value': 'static me!', 'key': 'static_string'}]
+     expected_items = sorted(expected_items, lambda x: x['namespace']+x['key'])
 
     self.assertEqual(dd_dicts, expected_items)
 

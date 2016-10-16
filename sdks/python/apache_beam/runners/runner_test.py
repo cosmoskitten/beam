@@ -112,18 +112,18 @@ class RunnerTest(unittest.TestCase):
              if len(step['properties'].get('display_data',[])) > 0]
     step = steps[0]
     disp_data = step['properties']['display_data']
+    disp_data = sorted(disp_data, key=lambda x: x['namespace']+x['key'])
+    expected_data = [{'type': 'TIMESTAMP', 'namespace': nspace+'SpecialParDo',
+      'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
+      'key': 'a_time'},
+     {'type': 'JAVA_CLASS', 'namespace': nspace+'SpecialParDo',
+      'value': '__main__.SpecialParDo', 'key': 'a_class'},
+     {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
+      'value': 42, 'key': 'dofn_value'}]
+    expected_data = sorted(expected_data, key=lambda x: x['namespace']+x['key'])
     self.assertEqual(len(disp_data), 3)
     nspace = __name__ + '.'
-    self.assertEqual(
-        disp_data,
-        [{'type': 'TIMESTAMP', 'namespace': nspace+'SpecialParDo',
-          'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
-          'key': 'a_time'},
-         {'type': 'JAVA_CLASS', 'namespace': nspace+'SpecialParDo',
-          'value': '__main__.SpecialParDo', 'key': 'a_class'},
-         {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
-          'value': 42, 'key': 'dofn_value'}])
-
+    self.assertEqual(disp_data, expected_data)
 
   def test_no_group_by_key_directly_after_bigquery(self):
     remote_runner = DataflowPipelineRunner()
