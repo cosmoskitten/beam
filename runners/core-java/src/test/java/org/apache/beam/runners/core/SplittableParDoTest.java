@@ -52,6 +52,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -122,6 +123,7 @@ public class SplittableParDoTest {
         .setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
   }
 
+  @Ignore
   @Test
   @Category(RunnableOnService.class)
   public void testBoundednessForBoundedFn() {
@@ -139,6 +141,7 @@ public class SplittableParDoTest {
             .isBounded());
   }
 
+  @Ignore
   @Test
   @Category(RunnableOnService.class)
   public void testBoundednessForUnboundedFn() {
