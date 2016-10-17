@@ -113,12 +113,12 @@ class RunnerTest(unittest.TestCase):
     step = steps[0]
     disp_data = step['properties']['display_data']
     disp_data = sorted(disp_data, key=lambda x: x['namespace']+x['key'])
-    nspace = __name__ + '.'
+    nspace = SpecialParDo.__module__+ '.'
     expected_data = [{'type': 'TIMESTAMP', 'namespace': nspace+'SpecialParDo',
       'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
       'key': 'a_time'},
      {'type': 'JAVA_CLASS', 'namespace': nspace+'SpecialParDo',
-      'value': '__main__.SpecialParDo', 'key': 'a_class'},
+      'value': nspace+'SpecialParDo', 'key': 'a_class'},
      {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
       'value': 42, 'key': 'dofn_value'}]
     expected_data = sorted(expected_data, key=lambda x: x['namespace']+x['key'])

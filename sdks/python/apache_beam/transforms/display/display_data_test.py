@@ -54,7 +54,7 @@ class DisplayDataTest(unittest.TestCase):
     dd_dicts = sorted([item.get_dict() for item in dd.items],
                       key=lambda x: x['namespace']+x['key'])
 
-    nspace = '{}.{}'.format(__name__, fn.__class__.__name__)
+    nspace = '{}.{}'.format(fn.__module__, fn.__class__.__name__)
     expected_items = [
         {'url': 'http://github.com', 'namespace': nspace,
          'value': 'github.com', 'label': 'The URL',
@@ -64,9 +64,9 @@ class DisplayDataTest(unittest.TestCase):
         {'type': 'JAVA_CLASS', 'namespace': nspace,
          'value': 'apache_beam.transforms.display.display_data.HasDisplayData',
          'key': 'python_class'},
-        {'type': 'INTEGER', 'namespace': '__main__.MyDoFn',
+        {'type': 'INTEGER', 'namespace': nspace,
          'value': 120, 'key': 'static_integer'},
-        {'type': 'STRING', 'namespace': '__main__.MyDoFn',
+        {'type': 'STRING', 'namespace': nspace,
          'value': 'static me!', 'key': 'static_string'}]
     expected_items = sorted(expected_items,
                             key=lambda x: x['namespace']+x['key'])
@@ -88,7 +88,7 @@ class DisplayDataTest(unittest.TestCase):
     dofn = SpecialDoFn()
     pardo = SpecialParDo(dofn)
     dd = DisplayData.create_from(pardo)
-    nspace = '{}.{}'.format(__name__, dofn.__class__.__name__)
+    nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
     self.assertEqual(dd.items[0].get_dict(),
                      {"type": "INTEGER",
                       "namespace": nspace,
