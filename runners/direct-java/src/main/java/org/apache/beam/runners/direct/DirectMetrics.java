@@ -226,8 +226,22 @@ class DirectMetrics extends MetricResults {
   abstract static class DirectMetricResult<T> implements MetricResult<T> {
     public static <T> MetricResult<T> create(MetricName name, String scope,
         T committed, T attempted) {
-      return new AutoValue_DirectMetrics_DirectMetricResult<T>(
-          name, scope, committed, attempted);
+      Builder<T> builder = builder();
+      return builder.name(name).step(scope)
+          .committed(committed).attempted(attempted).build();
+    }
+
+    static <T> Builder<T> builder() {
+      return new AutoValue_DirectMetrics_DirectMetricResult.Builder<T>();
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> name(MetricName name);
+      abstract Builder<T> committed(T committed);
+      abstract Builder<T> attempted(T attempted);
+      abstract Builder<T> step(String step);
+      abstract DirectMetricResult<T> build();
     }
   }
 
