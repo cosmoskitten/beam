@@ -148,12 +148,14 @@
   <build>
     <plugins>
 
-      <!-- Checkstyle errors for now
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
+        <configuration>
+          <!-- TODO: JavadocPackage: Missing package-info.java file -->
+          <includeTestSourceDirectory>false</includeTestSourceDirectory>
+        </configuration>
       </plugin>
-      -->
 
       <!-- Integration Tests -->
       <plugin>
