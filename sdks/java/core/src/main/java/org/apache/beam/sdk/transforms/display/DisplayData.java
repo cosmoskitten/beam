@@ -306,9 +306,8 @@ public class DisplayData implements Serializable {
       checkNotNull(path, "path cannot be null");
       Class<?> ns = checkNotNull(spec.getNamespace(), "namespace must be set");
 
-      FormattedItemValue formatted = spec.getType().safeFormat(spec.getValue());
       return new AutoValue_DisplayData_Item(path, ns, spec.getKey(), spec.getType(),
-          formatted.getLongValue(), formatted.getShortValue(), spec.getLabel(), spec.getLinkUrl());
+          spec.getValue(), spec.getShortValue(), spec.getLabel(), spec.getLinkUrl());
     }
 
     @Override
@@ -351,7 +350,21 @@ public class DisplayData implements Serializable {
      * item's {@link #getType() type}.
      */
     @Nullable
-    public abstract T getValue();
+    public abstract Object getValue();
+
+    /**
+     * The optional short value for an item, or null if none is provided.
+     *
+     * <p>The short value is an alternative display representation for items having a long display
+     * value. For example, the {@link #getValue() value} for {@link Type#JAVA_CLASS} items contains
+     * the full class name with package, while the short value contains just the class name.
+     *
+     * <p>A {@link #getValue() value} will be provided for each display item, and some types may
+     * also provide a short-value. If a short value is provided, display data consumers may
+     * choose to display it instead of or in addition to the {@link #getValue() value}.
+     */
+    @Nullable
+    public abstract Object getShortValue();
 
     /**
      * The optional label for an item. The label is a human-readable description of what
@@ -371,7 +384,7 @@ public class DisplayData implements Serializable {
       return ItemSpec.<T>builder()
           .setKey(key)
           .setType(type)
-          .setValue(value)
+          .setRawValue(value)
           .build();
     }
 
@@ -422,10 +435,9 @@ public class DisplayData implements Serializable {
      * <p>This should only be used internally. It is useful to compare the value of a
      * {@link DisplayData.Item} to the value derived from a specified input.
      */
-    // TODO: Is this needed?
     private ItemSpec<T> withValue(T value) {
       return toBuilder()
-          .setValue(value)
+          .setRawValue(value)
           .build();
     }
 
@@ -445,12 +457,22 @@ public class DisplayData implements Serializable {
       public abstract ItemSpec.Builder<T> setKey(String key);
       public abstract ItemSpec.Builder<T> setNamespace(@Nullable Class<?> namespace);
       public abstract ItemSpec.Builder<T> setType(Type type);
-      public abstract ItemSpec.Builder<T> setValue(@Nullable T longValue);
+      public abstract ItemSpec.Builder<T> setValue(@Nullable Object longValue);
+      public abstract ItemSpec.Builder<T> setShortValue(@Nullable Object shortValue);
       public abstract ItemSpec.Builder<T> setLabel(@Nullable String label);
       public abstract ItemSpec.Builder<T> setLinkUrl(@Nullable String url);
       public abstract ItemSpec<T> build();
-    }
 
+
+      abstract Type getType();
+
+      ItemSpec.Builder<T> setRawValue(@Nullable T value) {
+        FormattedItemValue formatted = getType().safeFormat(value);
+        return this
+            .setValue(formatted.getLongValue())
+            .setShortValue(formatted.getShortValue());
+      }
+    }
   }
 
   /**
@@ -707,7 +729,6 @@ public class DisplayData implements Serializable {
     Object getLongValue() {
       return this.longValue;
     }
-
     Object getShortValue() {
       return this.shortValue;
     }
