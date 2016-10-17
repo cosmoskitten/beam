@@ -173,12 +173,13 @@ public abstract class DoFnSignature {
   /** Describes a {@link DoFn.OnTimer} method. */
   @AutoValue
   public abstract static class OnTimerMethod implements DoFnMethod {
-    /** The annotated method itself. */
-    @Override
-    public abstract Method targetMethod();
 
     /** The id on the method's {@link DoFn.TimerId} annotation. */
     public abstract String id();
+
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
     public abstract List<Parameter> extraParameters();

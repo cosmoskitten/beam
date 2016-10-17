@@ -442,43 +442,44 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-    * Annotation for declaring and dereferencing timers.
-    *
-    * <p><i>Not currently supported by any runner.</i>
-    *
-    * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
-    * TimerId}. To use the cell during processing, add a parameter of the appropriate {@link Timer}
-    * subclass to your {@link ProcessElement @ProcessElement} method, and annotate it with {@link
-    * TimerId}. See the following code for an example:
-    *
-    * <pre>{@code
-    * new DoFn<KV<Key, Foo>, Baz>() {
-    *   @TimerId("my-timer-id")
-    *   private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
-    *
-    *   @ProcessElement
-    *   public void processElement(
-    *       ProcessContext c,
-    *       @TimerId("my-timer-id") Timer myTimer) {
-    *     myTimer.setForNowPlus(Duration.standardSeconds(...));
-    *   }
-    *
-    *   @OnTimer("my-timer-id")
-    *   public void onMyTimer() {
-    *     ...
-    *   }
-    * }
-    * }</pre>
-    *
-    * <p>Timers are subject to the following validity conditions:
-    *
-    * <ul>
-    * <li>Each timer must have a distinct id.
-    * <li>Any timer referenced in a parameter must be declared.
-    * <li>Timer declarations must be final.
-    * <li>All declared timers must have a corresponding callback.
-    * </ul>
-    */
+   * Annotation for declaring and dereferencing timers.
+   *
+   * <p><i>Not currently supported by any runner.</i>
+   *
+   * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
+   * TimerId}. To use the cell during processing, add a parameter of the appropriate {@link Timer}
+   * subclass to your {@link ProcessElement @ProcessElement} method, and annotate it with {@link
+   * TimerId}. See the following code for an example:
+   *
+   * <pre>{@code
+   * new DoFn<KV<Key, Foo>, Baz>() {
+   *   @TimerId("my-timer-id")
+   *   private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
+   *
+   *   @ProcessElement
+   *   public void processElement(
+   *       ProcessContext c,
+   *       @TimerId("my-timer-id") Timer myTimer) {
+   *     myTimer.setForNowPlus(Duration.standardSeconds(...));
+   *   }
+   *
+   *   @OnTimer("my-timer-id")
+   *   public void onMyTimer() {
+   *     ...
+   *   }
+   * }
+   * }</pre>
+   *
+   * <p>Timers are subject to the following validity conditions:
+   *
+   * <ul>
+   * <li>Each timer must have a distinct id.
+   * <li>Any timer referenced in a parameter must be declared.
+   * <li>Timer declarations must be final.
+   * <li>All declared timers must have a corresponding callback annotated with {@link
+   *     OnTimer @OnTimer}
+   * </ul>
+   */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})

@@ -30,16 +30,15 @@ import org.joda.time.Duration;
  * <p>In a {@link DoFn}, a {@link Timer} is specified by a {@link TimerSpec} annotated with {@link
  * DoFn.TimerId}.
  *
- * <p>A timer exists in one of two states: set or unset. A timer can be set only for a single time.
- *
- * <p>Timers are not guaranteed to fire synchronously, but will be delivered at some time after the
- * requested time.
- *
  * <p>An implementation of {@link Timer} is implicitly scoped - it may be scoped to a key and
  * window, or a key, window, and trigger, etc.
  *
- * <p>Timers for the same {@link TimeDomain} and the same scope (for example, the same key and
- * window) will be delivered in order of their timestamps.
+ * <p>A timer exists in one of two states: set or unset. A timer can be set only for a single time
+ * per scope.
+ *
+ * <p>Timer callbacks are not guaranteed to be called immediately according to the local view of the
+ * {@link TimeDomain}, but will be called at some time after the requested time, in timestamp
+ * order.
  */
 @Experimental(Experimental.Kind.TIMERS)
 public interface Timer {
