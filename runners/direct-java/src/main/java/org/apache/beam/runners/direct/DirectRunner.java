@@ -22,12 +22,12 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
@@ -335,7 +335,7 @@ public class DirectRunner
     private final PipelineExecutor executor;
     private final EvaluationContext evaluationContext;
     private final Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps;
-    private State state;
+    private AtomicReference<State> state;
 
     private DirectPipelineResult(
         PipelineExecutor executor,
@@ -345,12 +345,12 @@ public class DirectRunner
       this.evaluationContext = evaluationContext;
       this.aggregatorSteps = aggregatorSteps;
       // Only ever constructed after the executor has started.
-      this.state = State.RUNNING;
+      this.state = new AtomicReference<>(State.RUNNING);
     }
 
     @Override
     public State getState() {
-      return state;
+      return state.get();
     }
 
     @Override
@@ -401,14 +401,25 @@ public class DirectRunner
      * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
      * this method will never return.
      *
-     * <p>See also {@link PipelineExecutor#awaitCompletion()}.
+     * <p>See also {@link PipelineExecutor#awaitCompletion(Duration)}.
      */
     @Override
     public State waitUntilFinish() {
-      if (!state.isTerminal()) {
+      return waitUntilFinish(Duration.ZERO);
+    }
+
+    @Override
+    public State cancel() {
+      executor.stop();
+      return waitUntilFinish();
+    }
+
+    @Override
+    public State waitUntilFinish(Duration duration) {
+      State startState = this.state.get();
+      if (!startState.isTerminal()) {
         try {
-          executor.awaitCompletion();
-          state = State.DONE;
+          state.compareAndSet(startState, executor.awaitCompletion(duration));
         } catch (Exception e) {
           if (e instanceof InterruptedException) {
             Thread.currentThread().interrupt();
@@ -419,19 +430,7 @@ public class DirectRunner
           throw new RuntimeException(e);
         }
       }
-      return state;
-    }
-
-    @Override
-    public State cancel() throws IOException {
-      throw new UnsupportedOperationException("DirectPipelineResult does not support cancel.");
-    }
-
-    @Override
-    public State waitUntilFinish(Duration duration) throws IOException {
-      throw new UnsupportedOperationException(
-          "DirectPipelineResult does not support waitUntilFinish with a Duration parameter. See"
-              + " BEAM-596.");
+      return this.state.get();
     }
   }
 

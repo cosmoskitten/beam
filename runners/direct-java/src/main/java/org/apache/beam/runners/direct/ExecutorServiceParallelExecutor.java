@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.KeyedWorkItem;
@@ -54,6 +55,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -234,19 +237,42 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   @Override
-  public void awaitCompletion() throws Exception {
-    VisibleExecutorUpdate update;
-    do {
+  public State awaitCompletion(Duration duration) throws Exception {
+    Instant completionTime;
+    if (duration.equals(Duration.ZERO)) {
+      completionTime = new Instant(Long.MAX_VALUE);
+    } else {
+      completionTime = Instant.now().plus(duration);
+    }
+    VisibleExecutorUpdate update = null;
+    while (Instant.now().isBefore(completionTime)
+        && (update == null || isTerminalStateUpdate(update))) {
       // Get an update; don't block forever if another thread has handled it
       update = visibleUpdates.poll(2L, TimeUnit.SECONDS);
       if (update == null && executorService.isShutdown()) {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
-        return;
+        return State.UNKNOWN;
       } else if (update != null && update.exception.isPresent()) {
         throw update.exception.get();
       }
-    } while (update == null || !update.isDone());
+    }
+    if (update == null || update.getNewState() == null) {
+      return executorService.isShutdown() ? State.UNKNOWN : State.RUNNING;
+    }
+    return update.getNewState();
+  }
+
+  private boolean isTerminalStateUpdate(VisibleExecutorUpdate update) {
+    return !(update.getNewState() == null && update.getNewState().isTerminal());
+  }
+
+  @Override
+  public void stop() {
+    while (!visibleUpdates.offer(VisibleExecutorUpdate.cancelled())) {
+      // Make sure "This Pipeline was Cancelled" notification arrives.
+      visibleUpdates.poll();
+    }
     executorService.shutdown();
   }
 
@@ -345,24 +371,30 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
    */
   private static class VisibleExecutorUpdate {
     private final Optional<? extends Exception> exception;
-    private final boolean done;
+    @Nullable
+    private final State newState;
 
     public static VisibleExecutorUpdate fromException(Exception e) {
-      return new VisibleExecutorUpdate(false, e);
+      return new VisibleExecutorUpdate(null, e);
     }
 
     public static VisibleExecutorUpdate finished() {
-      return new VisibleExecutorUpdate(true, null);
+      return new VisibleExecutorUpdate(State.DONE, null);
     }
 
-    private VisibleExecutorUpdate(boolean done, @Nullable Exception exception) {
+    public static VisibleExecutorUpdate cancelled() {
+      return new VisibleExecutorUpdate(State.CANCELLED, null);
+    }
+
+    private VisibleExecutorUpdate(State newState, @Nullable Exception exception) {
       this.exception = Optional.fromNullable(exception);
-      this.done = done;
+      this.newState = newState;
     }
 
-    public boolean isDone() {
-      return done;
+    public State getNewState() {
+      return newState;
     }
+
   }
 
   private class MonitorRunnable implements Runnable {
