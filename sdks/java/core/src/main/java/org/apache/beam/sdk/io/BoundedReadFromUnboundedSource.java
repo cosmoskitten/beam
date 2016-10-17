@@ -206,9 +206,7 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder
-          .add(DisplayData.item("source", source.getClass()))
-          .include("source", source);
+      builder.delegate(source);
     }
 
     private class Reader extends BoundedReader<ValueWithRecordId<T>> {
