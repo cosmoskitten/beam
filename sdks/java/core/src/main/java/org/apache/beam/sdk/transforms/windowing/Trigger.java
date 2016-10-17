@@ -264,7 +264,7 @@ public abstract class Trigger implements Serializable {
     public abstract MergingTriggerInfo trigger();
   }
 
-  public final List<Trigger> subTriggers;
+  protected final List<Trigger> subTriggers;
 
   protected Trigger(List<Trigger> subTriggers) {
     this.subTriggers = subTriggers;
@@ -273,7 +273,6 @@ public abstract class Trigger implements Serializable {
   protected Trigger() {
     this(Collections.EMPTY_LIST);
   }
-
 
   /**
    * Called every time an element is incorporated into a window.

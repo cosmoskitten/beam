@@ -174,11 +174,6 @@ public class TriggerStateMachines {
       return new AfterDelayFromFirstElementStateMachineAdapter(v);
     }
 
-    private TriggerStateMachine evaluateUnknown(Trigger trigger) {
-      throw new UnsupportedOperationException(
-          String.format("Cannot convert trigger %s to a state machine", trigger));
-    }
-
     private static class AfterDelayFromFirstElementStateMachineAdapter
         extends AfterDelayFromFirstElementStateMachine {
 

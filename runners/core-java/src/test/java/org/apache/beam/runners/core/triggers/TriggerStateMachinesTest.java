@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -90,7 +91,8 @@ public class TriggerStateMachinesTest {
   public void testDefaultTriggerTranslation() {
     DefaultTrigger trigger = DefaultTrigger.of();
     DefaultTriggerStateMachine machine =
-        (DefaultTriggerStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
+        (DefaultTriggerStateMachine)
+            checkNotNull(TriggerStateMachines.stateMachineForTrigger(trigger));
     // No parameters, so if it doesn't crash, we win!
   }
 
@@ -98,10 +100,9 @@ public class TriggerStateMachinesTest {
   public void testNeverTranslation() {
     NeverTrigger trigger = Never.ever();
     NeverStateMachine machine =
-        (NeverStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
+        (NeverStateMachine) checkNotNull(TriggerStateMachines.stateMachineForTrigger(trigger));
     // No parameters, so if it doesn't crash, we win!
   }
-
 
   //
   // Tests for composite trigger translation
