@@ -224,6 +224,28 @@ public class DoFnSignaturesTest {
   }
 
   @Test
+  public void testStateParameterDuplicate() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("duplicates");
+    thrown.expectMessage("my-state-id");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 2");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("my-state-id")
+              private final StateSpec<Object, ValueState<Integer>> myfield =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context,
+                  @StateId("my-state-id") ValueState<Integer> one,
+                  @StateId("my-state-id") ValueState<Integer> two) {}
+            }.getClass());
+  }
+
+  @Test
   public void testStateParameterWrongStateType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("has type");

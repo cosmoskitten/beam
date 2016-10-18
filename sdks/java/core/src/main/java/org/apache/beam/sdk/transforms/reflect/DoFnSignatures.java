@@ -486,12 +486,13 @@ public class DoFnSignatures {
             DoFn.StateId.class.getSimpleName());
 
         errors.checkArgument(
-            id != null,
-            "%s parameter of type %s at index %s duplicates %s annotation on other parameter",
+            !stateParameters.containsKey(id),
+            "%s parameter of type %s at index %s duplicates %s(\"%s\") on other parameter",
             fnClass.getRawType().getName(),
             params[i],
             i,
-            DoFn.StateId.class.getSimpleName());
+            DoFn.StateId.class.getSimpleName(),
+            id);
 
         // By static typing this is already a well-formed State subclass
         TypeDescriptor<? extends State> stateType =
