@@ -284,8 +284,7 @@ class ProxyInvocationHandler implements InvocationHandler {
           continue;
         }
 
-        Object value = boundValue.getValue() == null ? "" : boundValue.getValue();
-        DisplayData.Type type = DisplayData.inferType(value);
+        DisplayDataValue resolved = DisplayDataValue.resolve(boundValue.getValue());
         HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(option.getKey()));
 
         for (PipelineOptionSpec optionSpec : specs) {
@@ -295,14 +294,8 @@ class ProxyInvocationHandler implements InvocationHandler {
             continue;
           }
 
-          Class<?> pipelineInterface = optionSpec.getDefiningInterface();
-          if (type != null) {
-            builder.add(DisplayData.item(option.getKey(), type, value)
-                .withNamespace(pipelineInterface));
-          } else {
-            builder.add(DisplayData.item(option.getKey(), displayDataString(value))
-                .withNamespace(pipelineInterface));
-          }
+          builder.add(DisplayData.item(option.getKey(), resolved.getType(), resolved.getValue())
+              .withNamespace(optionSpec.getDefiningInterface()));
         }
       }
 
@@ -314,34 +307,61 @@ class ProxyInvocationHandler implements InvocationHandler {
 
         HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(jsonOption.getKey()));
         if (specs.isEmpty()) {
+          // No PipelineOptions interface for this key not currently loaded
           builder.add(DisplayData.item(jsonOption.getKey(), jsonOption.getValue().toString())
               .withNamespace(UnknownPipelineOptions.class));
-        } else {
-          for (PipelineOptionSpec spec : specs) {
-            if (!spec.shouldSerialize()) {
-              continue;
-            }
+          continue;
+        }
 
-            Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
-            value = value == null ? "" : value;
-            DisplayData.Type type = DisplayData.inferType(value);
-            if (type != null) {
-              builder.add(DisplayData.item(jsonOption.getKey(), type, value)
-                  .withNamespace(spec.getDefiningInterface()));
-            } else {
-              builder.add(DisplayData.item(jsonOption.getKey(), displayDataString(value))
-                  .withNamespace(spec.getDefiningInterface()));
-            }
+        for (PipelineOptionSpec spec : specs) {
+          if (!spec.shouldSerialize()) {
+            continue;
           }
+
+          Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
+          DisplayDataValue resolved = DisplayDataValue.resolve(value);
+          builder.add(DisplayData.item(jsonOption.getKey(), resolved.getType(), resolved.getValue())
+              .withNamespace(spec.getDefiningInterface()));
         }
       }
     }
+  }
+
+  /**
+   * Helper class to resolve a {@link DisplayData} type and value from {@link PipelineOptions}.
+   */
+  @AutoValue
+  abstract static class DisplayDataValue {
+    /**
+     * The resolved display data value. May differ from the input to {@link #resolve(Object)}
+     */
+    abstract Object getValue();
+
+    /** The resolved display data type. */
+    abstract DisplayData.Type getType();
 
     /**
-     * {@link Object#toString()} wrapper to extract display data values for various types.
+     * Infer the value and {@link DisplayData.Type type} for the given
+     * {@link PipelineOptions} value.
      */
-    private String displayDataString(Object value) {
-      checkNotNull(value, "value cannot be null");
+    static DisplayDataValue resolve(@Nullable Object value) {
+      DisplayData.Type type = DisplayData.inferType(value);
+
+      if (type == null) {
+        value = displayDataString(value);
+        type = DisplayData.Type.STRING;
+      }
+
+      return new AutoValue_ProxyInvocationHandler_DisplayDataValue(value, type);
+    }
+
+    /**
+     * Safe {@link Object#toString()} wrapper to extract display data values for various types.
+     */
+    private static String displayDataString(@Nullable Object value) {
+      if (value == null) {
+        return "";
+      }
       if (!value.getClass().isArray()) {
         return value.toString();
       }
