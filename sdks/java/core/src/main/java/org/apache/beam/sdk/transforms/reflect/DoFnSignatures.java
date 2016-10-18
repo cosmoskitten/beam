@@ -137,6 +137,16 @@ public class DoFnSignatures {
           "Callback %s is for for undeclared timer %s",
           onTimerMethod,
           id);
+
+      TimerDeclaration timerDecl = timerDeclarations.get(id);
+      errors.checkArgument(
+          timerDecl.field().getDeclaringClass().equals(onTimerMethod.getDeclaringClass()),
+          "Callback %s is for timer %s declared in a different class %s."
+              + " Timer callbacks must be declared in the same lexical scope as their timer",
+          onTimerMethod,
+          id,
+          timerDecl.field().getDeclaringClass().getCanonicalName());
+
       onTimerMethodMap.put(id, OnTimerMethod.create(onTimerMethod, id, Collections.EMPTY_LIST));
     }
     builder.setOnTimerMethods(onTimerMethodMap);

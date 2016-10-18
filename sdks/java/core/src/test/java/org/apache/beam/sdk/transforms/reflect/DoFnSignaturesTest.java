@@ -25,6 +25,7 @@ import com.google.common.reflect.TypeToken;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -182,6 +183,67 @@ public class DoFnSignaturesTest {
               @ProcessElement
               public void foo(ProcessContext context) {}
             }.getClass());
+  }
+
+  @Test
+  public void testOnTimerDeclaredInSuperclass() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Callback");
+    thrown.expectMessage("declared in a different class");
+    thrown.expectMessage("my-timer-id");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getOrParseSignature(
+            new DoFnDeclaringMyTimerId() {
+              @OnTimer("my-timer-id")
+              public void onTimerFoo() {}
+
+              @ProcessElement
+              public void foo(ProcessContext context) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testOnTimerDeclaredInSubclass() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Callback");
+    thrown.expectMessage("declared in a different class");
+    thrown.expectMessage("my-timer-id");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getOrParseSignature(
+            new DoFnUsingMyTimerId() {
+              @TimerId("my-timer-id")
+              private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+              @ProcessElement
+              public void foo(ProcessContext context) {}
+            }.getClass());
+  }
+
+  /**
+   * In this particular test, the super class annotated both the timer and the callback,
+   * and the subclass overrides an abstract method. This is allowed.
+   */
+  @Test
+  public void testOnTimerDeclaredAndUsedInSuperclass() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getOrParseSignature(
+            new DoFnOverridingAbstractCallback().getClass());
+
+    assertThat(sig.timerDeclarations().size(), equalTo(1));
+    assertThat(sig.onTimerMethods().size(), equalTo(1));
+
+    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get("my-timer-id");
+    DoFnSignature.OnTimerMethod callback = sig.onTimerMethods().get("my-timer-id");
+
+    assertThat(
+        decl.field(),
+        equalTo(DoFnDeclaringMyTimerIdAndAbstractCallback.class.getDeclaredField("myTimerSpec")));
+
+    // The method we pull out is the superclass method; this is what allows validation to remain
+    // simple. The later invokeDynamic instruction causes it to invoke the actual implementation.
+    assertThat(
+        callback.targetMethod(),
+        equalTo(DoFnDeclaringMyTimerIdAndAbstractCallback.class.getDeclaredMethod("onMyTimer")));
   }
 
   @Test
@@ -402,5 +464,43 @@ public class DoFnSignaturesTest {
 
     @OnTimer("foo")
     public void onFoo() {}
+  }
+
+  private abstract static class DoFnDeclaringMyTimerId extends DoFn<KV<String, Integer>, Long> {
+    @TimerId("my-timer-id")
+    private final TimerSpec bizzle = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @ProcessElement
+    public void foo(ProcessContext context) {}
+  }
+
+  private abstract static class DoFnUsingMyTimerId extends DoFn<KV<String, Integer>, Long> {
+    @OnTimer("my-timer-id")
+    public void onMyTimer() {}
+
+    @ProcessElement
+    public void foo(ProcessContext context) {}
+  }
+
+  private abstract static class DoFnDeclaringMyTimerIdAndAbstractCallback
+      extends DoFn<KV<String, Integer>, Long> {
+    @TimerId("my-timer-id")
+    private final TimerSpec myTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @ProcessElement
+    public void foo(ProcessContext context) {}
+
+    @OnTimer("my-timer-id")
+    public abstract void onMyTimer();
+  }
+
+  private static class DoFnOverridingAbstractCallback extends
+      DoFnDeclaringMyTimerIdAndAbstractCallback {
+
+    @Override
+    public void onMyTimer() {}
+
+    @ProcessElement
+    public void foo(ProcessContext context) {}
   }
 }
