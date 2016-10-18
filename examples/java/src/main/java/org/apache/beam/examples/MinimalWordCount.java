@@ -58,7 +58,7 @@ import org.apache.beam.sdk.values.KV;
  */
 public class MinimalWordCount {
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     // Create a PipelineOptions object. This object lets us set various execution
     // options for our pipeline, such as the associated Cloud Platform project and the location
     // in Google Cloud Storage to stage files.

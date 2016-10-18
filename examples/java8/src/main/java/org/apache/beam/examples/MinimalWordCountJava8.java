@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  */
 public class MinimalWordCountJava8 {
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     // In order to run your pipeline, you need to make following runner specific changes:
     //

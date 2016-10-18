@@ -167,7 +167,7 @@ public class DebuggingWordCount {
     void setFilterPattern(String value);
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
       .as(WordCountOptions.class);
     Pipeline p = Pipeline.create(options);

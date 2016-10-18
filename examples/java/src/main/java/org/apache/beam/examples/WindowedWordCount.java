@@ -174,7 +174,7 @@ public class WindowedWordCount {
     void setWindowSize(Integer value);
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     options.setBigQuerySchema(getSchema());
     // ExampleUtils creates the necessary input sources to simplify execution of this Pipeline.

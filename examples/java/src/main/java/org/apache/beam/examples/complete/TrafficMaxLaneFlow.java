@@ -324,7 +324,7 @@ public class TrafficMaxLaneFlow {
    *
    * @throws IOException if there is a problem setting up resources
    */
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     TrafficMaxLaneFlowOptions options = PipelineOptionsFactory.fromArgs(args)
         .withValidation()
         .as(TrafficMaxLaneFlowOptions.class);

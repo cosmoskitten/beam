@@ -334,7 +334,7 @@ class Injector {
   }
 
 
-  public static void main(String[] args) throws IOException, InterruptedException {
+  public static void main(String[] args) throws Exception {
     if (args.length < 3) {
       System.out.println("Usage: Injector project-name (topic-name|none) (filename|none)");
       System.exit(1);
