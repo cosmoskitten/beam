@@ -70,6 +70,14 @@
             <beamUseDummyRunner>false</beamUseDummyRunner>
           </systemPropertyVariables>
         </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>beam-runners-core-java</artifactId>
+            <scope>test</scope>
+            <type>test-jar</type>
+          </dependency>
+        </dependencies>
         <executions>
           <execution>
             <id>runnable-on-service-tests</id>
@@ -330,13 +338,6 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-core</artifactId>
-      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
