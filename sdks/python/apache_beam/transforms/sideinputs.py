@@ -179,7 +179,7 @@ class SideInputMap(object):
 
   def __init__(self, view_class, view_options, iterable):
     self._window_mapping_fn = view_options.get(
-      'window_mapping_fn', _global_window_mapping_fn)
+        'window_mapping_fn', _global_window_mapping_fn)
     self._view_class = view_class
     self._view_options = view_options
     self._iterable = iterable
