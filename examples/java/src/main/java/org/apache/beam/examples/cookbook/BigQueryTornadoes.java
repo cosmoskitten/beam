@@ -145,7 +145,7 @@ public class BigQueryTornadoes {
     void setOutput(String value);
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
     Pipeline p = Pipeline.create(options);

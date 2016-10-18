@@ -35,7 +35,7 @@ import org.junit.runners.JUnit4;
 public class TopWikipediaSessionsTest {
   @Test
   @Category(RunnableOnService.class)
-  public void testComputeTopUsers() {
+  public void testComputeTopUsers() throws Exception {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> output =

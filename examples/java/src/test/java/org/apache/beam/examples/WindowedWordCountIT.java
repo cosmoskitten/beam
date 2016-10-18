@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples;
 
-import java.io.IOException;
 import org.apache.beam.examples.WindowedWordCount.Options;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -43,17 +42,17 @@ public class WindowedWordCountIT {
   }
 
   @Test
-  public void testWindowedWordCountInBatch() throws IOException {
+  public void testWindowedWordCountInBatch() throws Exception {
     testWindowedWordCountPipeline(false /* isStreaming */);
   }
 
   @Test
   @Category(StreamingIT.class)
-  public void testWindowedWordCountInStreaming() throws IOException {
+  public void testWindowedWordCountInStreaming() throws Exception {
     testWindowedWordCountPipeline(true /* isStreaming */);
   }
 
-  private void testWindowedWordCountPipeline(boolean isStreaming) throws IOException {
+  private void testWindowedWordCountPipeline(boolean isStreaming) throws Exception {
     PipelineOptionsFactory.register(WindowedWordCountITOptions.class);
     WindowedWordCountITOptions options =
         TestPipeline.testingPipelineOptions().as(WindowedWordCountITOptions.class);

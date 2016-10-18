@@ -109,7 +109,7 @@ public class TriggerExampleTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testTotalFlow () {
+  public void testTotalFlow () throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> flow = pipeline
         .apply(Create.timestamped(TIME_STAMPED_INPUT))

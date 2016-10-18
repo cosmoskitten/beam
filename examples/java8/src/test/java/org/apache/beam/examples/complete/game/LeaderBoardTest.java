@@ -82,7 +82,7 @@ public class LeaderBoardTest implements Serializable {
    * on time (ahead of the watermark).
    */
   @Test
-  public void testTeamScoresOnTime() {
+  public void testTeamScoresOnTime() throws Exception {
     TestPipeline p = TestPipeline.create();
 
     TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
@@ -118,7 +118,7 @@ public class LeaderBoardTest implements Serializable {
    * on time, and the processing time advances far enough for speculative panes.
    */
   @Test
-  public void testTeamScoresSpeculative() {
+  public void testTeamScoresSpeculative() throws Exception {
     TestPipeline p = TestPipeline.create();
 
     TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
@@ -168,7 +168,7 @@ public class LeaderBoardTest implements Serializable {
    * window. These elements are emitted on time.
    */
   @Test
-  public void testTeamScoresUnobservablyLate() {
+  public void testTeamScoresUnobservablyLate() throws Exception {
     TestPipeline p = TestPipeline.create();
 
     BoundedWindow window = new IntervalWindow(baseTime, TEAM_WINDOW_DURATION);
@@ -206,7 +206,7 @@ public class LeaderBoardTest implements Serializable {
    * late pane.
    */
   @Test
-  public void testTeamScoresObservablyLate() {
+  public void testTeamScoresObservablyLate() throws Exception {
     TestPipeline p = TestPipeline.create();
 
     Instant firstWindowCloses = baseTime.plus(ALLOWED_LATENESS).plus(TEAM_WINDOW_DURATION);
@@ -266,7 +266,7 @@ public class LeaderBoardTest implements Serializable {
    * within {@link CalculateTeamScores} and do not impact the final result.
    */
   @Test
-  public void testTeamScoresDroppablyLate() {
+  public void testTeamScoresDroppablyLate() throws Exception {
     TestPipeline p = TestPipeline.create();
 
     BoundedWindow window = new IntervalWindow(baseTime, TEAM_WINDOW_DURATION);
@@ -306,7 +306,7 @@ public class LeaderBoardTest implements Serializable {
    * even if they arrive later than the maximum allowed lateness.
    */
   @Test
-  public void testUserScore() {
+  public void testUserScore() throws Exception {
     TestPipeline p = TestPipeline.create();
 
     TestStream<GameActionInfo> infos =

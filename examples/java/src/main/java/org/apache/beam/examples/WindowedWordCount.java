@@ -21,7 +21,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
@@ -174,7 +173,7 @@ public class WindowedWordCount {
     void setWindowSize(Integer value);
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     options.setBigQuerySchema(getSchema());
     // ExampleUtils creates the necessary input sources to simplify execution of this Pipeline.

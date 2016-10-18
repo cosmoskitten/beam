@@ -64,7 +64,7 @@ public class AutoCompleteTest implements Serializable {
   }
 
   @Test
-  public void testAutoComplete() {
+  public void testAutoComplete() throws Exception {
     List<String> words = Arrays.asList(
         "apple",
         "apple",
@@ -103,7 +103,7 @@ public class AutoCompleteTest implements Serializable {
   }
 
   @Test
-  public void testTinyAutoComplete() {
+  public void testTinyAutoComplete() throws Exception {
     List<String> words = Arrays.asList("x", "x", "x", "xy", "xy", "xyz");
 
     Pipeline p = TestPipeline.create();
@@ -121,7 +121,7 @@ public class AutoCompleteTest implements Serializable {
   }
 
   @Test
-  public void testWindowedAutoComplete() {
+  public void testWindowedAutoComplete() throws Exception {
     List<TimestampedValue<String>> words = Arrays.asList(
         TimestampedValue.of("xA", new Instant(1)),
         TimestampedValue.of("xA", new Instant(1)),
