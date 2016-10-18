@@ -186,7 +186,7 @@ public abstract class DoFnSignature {
 
     static OnTimerMethod create(Method targetMethod, String id, List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
-          targetMethod, id, Collections.unmodifiableList(extraParameters));
+          id, targetMethod, Collections.unmodifiableList(extraParameters));
     }
   }
 
