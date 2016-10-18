@@ -608,9 +608,7 @@ public class DoFnSignatures {
     Map<String, DoFnSignature.TimerDeclaration> declarations = new HashMap<>();
     for (Field field : declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
       String id = field.getAnnotation(DoFn.TimerId.class).value();
-      if (!validateTimerField(errors, declarations, id, field)) {
-        continue;
-      }
+      validateTimerField(errors, declarations, id, field);
       declarations.put(id, DoFnSignature.TimerDeclaration.create(id, field));
     }
 
@@ -618,10 +616,11 @@ public class DoFnSignatures {
   }
 
   /**
-   * Returns {@code true} if the field is valid, otherwise return {@code false} and adds
-   * messages to {@code errors}.
+   * Returns successfully if the field is valid, otherwise throws an exception via
+   * its {@link ErrorReporter} parameter describing validation failures for the
+   * timer declaration.
    */
-  private static boolean validateTimerField(
+  private static void validateTimerField(
       ErrorReporter errors, Map<String, TimerDeclaration> declarations, String id, Field field) {
     if (declarations.containsKey(id)) {
       errors.throwIllegalArgument(
@@ -630,7 +629,6 @@ public class DoFnSignatures {
           id,
           field.toString(),
           declarations.get(id).field().toString());
-      return false;
     }
 
     Class<?> timerSpecRawType = field.getType();
@@ -640,17 +638,13 @@ public class DoFnSignatures {
           DoFn.TimerId.class.getSimpleName(),
           TimerSpec.class.getSimpleName(),
           field.toString());
-      return false;
     }
 
     if (!Modifier.isFinal(field.getModifiers())) {
       errors.throwIllegalArgument(
           "Non-final field %s annotated with %s. Timer declarations must be final.",
           field.toString(), DoFn.TimerId.class.getSimpleName());
-      return false;
     }
-
-    return true;
   }
 
   /** Generates a type token for {@code Coder<T>} given {@code T}. */
