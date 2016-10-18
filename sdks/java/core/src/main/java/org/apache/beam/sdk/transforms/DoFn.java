@@ -444,7 +444,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for declaring and dereferencing timers.
    *
-   * <p><i>Not currently supported by any runner.</i>
+   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
+   * here.</i>
    *
    * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
    * TimerId}. To use the cell during processing, add a parameter of the appropriate {@link Timer}
@@ -492,15 +493,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for registering a callback for a timer.
    *
-   * <p><i>Not currently supported by any runner.</i>
+   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
+   * here.</i>
    *
    * <p>See the javadoc for {@link TimerId} for use in a full example.
    *
-   * <p>The method annotated with {@code @OnTimer} may have parameters
-   * according to the same logic as {@link ProcessElement}, but limited to
-   * the {@link BoundedWindow}, {@link State} subclasses, and {@link Timer}.
-   * State and timer parameters must be annotated with their {@link StateId}
-   * and {@link TimerId} respectively.
+   * <p>The method annotated with {@code @OnTimer} may have parameters according to the same logic
+   * as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State} subclasses,
+   * and {@link Timer}. State and timer parameters must be annotated with their {@link StateId} and
+   * {@link TimerId} respectively.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
