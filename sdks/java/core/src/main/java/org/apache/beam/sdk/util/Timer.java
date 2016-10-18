@@ -43,8 +43,8 @@ import org.joda.time.Duration;
 @Experimental(Experimental.Kind.TIMERS)
 public interface Timer {
   /**
-   * Sets or resets the time (relative to now) at which this timer should fire. If the timer was
-   * already set, resets it to the new requested time.
+   * Sets or resets the time relative to the current time in the timer's {@link TimeDomain} at which
+   * this it should fire. If the timer was already set, resets it to the new requested time.
    */
   void setForNowPlus(Duration durationFromNow);
 

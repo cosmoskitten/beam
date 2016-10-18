@@ -104,9 +104,10 @@ public class DoFnSignatures {
 
     // Find the state and timer declarations in advance of validating
     // method parameter lists
-    Map<String, TimerDeclaration> timerDeclarations = analyzeTimerDeclarations(errors, fnClass);
     Map<String, StateDeclaration> stateDeclarations = analyzeStateDeclarations(errors, fnClass);
     builder.setStateDeclarations(stateDeclarations);
+
+    Map<String, TimerDeclaration> timerDeclarations = analyzeTimerDeclarations(errors, fnClass);
     builder.setTimerDeclarations(timerDeclarations);
 
     Method processElementMethod =
@@ -131,8 +132,11 @@ public class DoFnSignatures {
             Maps.newHashMapWithExpectedSize(onTimerMethods.size());
     for (Method onTimerMethod : onTimerMethods) {
       String id = onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
-        errors.checkArgument(timerDeclarations.containsKey(id),
-            "Callback %s is for for undeclared timer %s", onTimerMethod, id);
+      errors.checkArgument(
+          timerDeclarations.containsKey(id),
+          "Callback %s is for for undeclared timer %s",
+          onTimerMethod,
+          id);
       onTimerMethodMap.put(id, OnTimerMethod.create(onTimerMethod, id, Collections.EMPTY_LIST));
     }
     builder.setOnTimerMethods(onTimerMethodMap);
@@ -594,39 +598,49 @@ public class DoFnSignatures {
     Map<String, DoFnSignature.TimerDeclaration> declarations = new HashMap<>();
     for (Field field : declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
       String id = field.getAnnotation(DoFn.TimerId.class).value();
-
-      if (declarations.containsKey(id)) {
-        errors.throwIllegalArgument(
-            "Duplicate %s \"%s\", used on both of [%s] and [%s]",
-            DoFn.TimerId.class.getSimpleName(),
-            id,
-            field.toString(),
-            declarations.get(id).field().toString());
+      if (!validateTimerField(errors, declarations, id, field)) {
         continue;
       }
-
-      Class<?> timerSpecRawType = field.getType();
-      if (!(timerSpecRawType.equals(TimerSpec.class))) {
-        errors.throwIllegalArgument(
-            "%s annotation on non-%s field [%s] that has class %s",
-            DoFn.TimerId.class.getSimpleName(),
-            TimerSpec.class.getSimpleName(),
-            field.toString(),
-            timerSpecRawType.getName());
-        continue;
-      }
-
-      if (!Modifier.isFinal(field.getModifiers())) {
-        errors.throwIllegalArgument(
-            "Non-final field %s annotated with %s. Timer declarations must be final.",
-            field.toString(), DoFn.TimerId.class.getSimpleName());
-        continue;
-      }
-
       declarations.put(id, DoFnSignature.TimerDeclaration.create(id, field));
     }
 
     return ImmutableMap.copyOf(declarations);
+  }
+
+  /**
+   * Returns {@code true} if the field is valid, otherwise return {@code false} and adds
+   * messages to {@code errors}.
+   */
+  private static boolean validateTimerField(
+      ErrorReporter errors, Map<String, TimerDeclaration> declarations, String id, Field field) {
+    if (declarations.containsKey(id)) {
+      errors.throwIllegalArgument(
+          "Duplicate %s \"%s\", used on both of [%s] and [%s]",
+          DoFn.TimerId.class.getSimpleName(),
+          id,
+          field.toString(),
+          declarations.get(id).field().toString());
+      return false;
+    }
+
+    Class<?> timerSpecRawType = field.getType();
+    if (!(timerSpecRawType.equals(TimerSpec.class))) {
+      errors.throwIllegalArgument(
+          "%s annotation on non-%s field [%s]",
+          DoFn.TimerId.class.getSimpleName(),
+          TimerSpec.class.getSimpleName(),
+          field.toString());
+      return false;
+    }
+
+    if (!Modifier.isFinal(field.getModifiers())) {
+      errors.throwIllegalArgument(
+          "Non-final field %s annotated with %s. Timer declarations must be final.",
+          field.toString(), DoFn.TimerId.class.getSimpleName());
+      return false;
+    }
+
+    return true;
   }
 
   /** Generates a type token for {@code Coder<T>} given {@code T}. */
