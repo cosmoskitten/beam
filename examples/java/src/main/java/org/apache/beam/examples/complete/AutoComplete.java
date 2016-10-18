@@ -29,7 +29,6 @@ import com.google.common.base.MoreObjects;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Value;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -449,7 +448,7 @@ public class AutoComplete {
     void setOutputProject(String value);
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
     options.setBigQuerySchema(FormatForBigquery.getSchema());

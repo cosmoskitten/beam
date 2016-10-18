@@ -101,7 +101,7 @@ public class JoinExamplesTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testJoin() throws java.lang.Exception {
+  public void testJoin() throws Exception {
     Pipeline p = TestPipeline.create();
     PCollection<TableRow> input1 = p.apply("CreateEvent", Create.of(EVENT_ARRAY));
     PCollection<TableRow> input2 = p.apply("CreateCC", Create.of(CC_ARRAY));
