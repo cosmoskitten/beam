@@ -344,17 +344,17 @@ public class DisplayDataTest implements Serializable {
   }
 
   @Test
-  public void testExtendPathValidation() {
+  public void testExtendNullPathValidation() {
     DisplayData.Path root = DisplayData.Path.root();
-    try {
-      root.extend(null);
-      fail("should throw on null path");
-    } catch (NullPointerException e) { /* expected */ }
+    thrown.expect(NullPointerException.class);
+    root.extend(null);
+  }
 
-    try {
-      root.extend("");
-      fail("should throw on empty path");
-    } catch (IllegalArgumentException e) { /* expected */ }
+  @Test
+  public void testExtendEmptyPathValidation() {
+    DisplayData.Path root = DisplayData.Path.root();
+    thrown.expect(IllegalArgumentException.class);
+    root.extend("");
   }
 
   @Test
