@@ -23,7 +23,7 @@ import org.joda.time.Duration;
 
 /**
  * A timer for a specified time domain that can be set to register the desire for further processing
- * at particular time (in some time domain).
+ * at particular time in its specified time domain.
  *
  * <p>See {@link TimeDomain} for details on the time domains available.
  *
