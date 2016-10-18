@@ -61,6 +61,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -707,16 +708,18 @@ public class KafkaIO {
     @Override
     public UnboundedKafkaReader<K, V> createReader(PipelineOptions options,
                                                    KafkaCheckpointMark checkpointMark) {
+      KafkaOptions kafkaOptions = options == null ? PipelineOptionsFactory.as(KafkaOptions.class)
+          : options.as(KafkaOptions.class);
       if (assignedPartitions.isEmpty()) {
         LOG.warn("Looks like generateSplits() is not called. Generate single split.");
         try {
           return new UnboundedKafkaReader<K, V>(
-              generateInitialSplits(1, options).get(0), checkpointMark);
+              generateInitialSplits(1, options).get(0), kafkaOptions, checkpointMark);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
       }
-      return new UnboundedKafkaReader<K, V>(this, checkpointMark);
+      return new UnboundedKafkaReader<K, V>(this, kafkaOptions, checkpointMark);
     }
 
     @Override
@@ -751,15 +754,15 @@ public class KafkaIO {
     private final String name;
     private Consumer<byte[], byte[]> consumer;
     private final List<PartitionState> partitionStates;
+    // how long to wait for new records from kafka consumer inside start()
+    private final Duration startNewRecordsPollTimeout;
+    // how long to wait for new records from kafka consumer inside advance()
+    private final Duration newRecordsPollTimeout;
     private KafkaRecord<K, V> curRecord;
     private Instant curTimestamp;
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
     private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
-    // how long to wait for new records from kafka consumer inside start()
-    private static final Duration START_NEW_RECORDS_POLL_TIMEOUT = Duration.standardSeconds(5);
-    // how long to wait for new records from kafka consumer inside advance()
-    private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
 
     // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
     // network I/O inside poll(). Polling only inside #advance(), especially with a small timeout
@@ -836,10 +839,13 @@ public class KafkaIO {
 
     public UnboundedKafkaReader(
         UnboundedKafkaSource<K, V> source,
+        KafkaOptions options,
         @Nullable KafkaCheckpointMark checkpointMark) {
 
       this.source = source;
       this.name = "Reader-" + source.id;
+      this.startNewRecordsPollTimeout = options.getStartPollTimeout();
+      this.newRecordsPollTimeout = options.getAdvancePollTimeout();
 
       partitionStates = ImmutableList.copyOf(Lists.transform(source.assignedPartitions,
           new Function<TopicPartition, PartitionState>() {
@@ -968,7 +974,7 @@ public class KafkaIO {
 
       // Wait for longer than normal when fetching a batch to improve chances a record is available
       // when start() returns.
-      nextBatch(START_NEW_RECORDS_POLL_TIMEOUT);
+      nextBatch(startNewRecordsPollTimeout);
       return advance();
     }
 
@@ -1032,7 +1038,7 @@ public class KafkaIO {
           return true;
 
         } else { // -- (b)
-          nextBatch(NEW_RECORDS_POLL_TIMEOUT);
+          nextBatch(newRecordsPollTimeout);
 
           if (!curBatch.hasNext()) {
             return false;
