@@ -114,7 +114,7 @@ public class StreamingWordExtract {
    *
    * @throws IOException if there is a problem setting up resources
    */
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     StreamingWordExtractOptions options = PipelineOptionsFactory.fromArgs(args)
         .withValidation()
         .as(StreamingWordExtractOptions.class);

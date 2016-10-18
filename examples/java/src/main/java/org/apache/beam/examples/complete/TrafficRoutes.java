@@ -334,7 +334,7 @@ public class TrafficRoutes {
    *
    * @throws IOException if there is a problem setting up resources
    */
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     TrafficRoutesOptions options = PipelineOptionsFactory.fromArgs(args)
         .withValidation()
         .as(TrafficRoutesOptions.class);

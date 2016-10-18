@@ -38,7 +38,7 @@ public class DeDupExampleTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testRemoveDuplicates() {
+  public void testRemoveDuplicates() throws Exception {
     List<String> strings = Arrays.asList(
         "k1",
         "k5",
@@ -64,7 +64,7 @@ public class DeDupExampleTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testRemoveDuplicatesEmpty() {
+  public void testRemoveDuplicatesEmpty() throws Exception {
     List<String> strings = Arrays.asList();
 
     Pipeline p = TestPipeline.create();
