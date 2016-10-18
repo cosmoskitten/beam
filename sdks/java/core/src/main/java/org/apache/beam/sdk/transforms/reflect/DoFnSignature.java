@@ -27,8 +27,11 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.InputProvider;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
+import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
@@ -114,8 +117,11 @@ public abstract class DoFnSignature {
   }
 
   /** A type of optional parameter of the {@link DoFn.ProcessElement} method. */
-  public static abstract class Parameter {
+  public abstract static class Parameter {
 
+    /**
+     * A visitor for destructuring a {@link Parameter}.
+     */
     public interface Visitor<ResultT> {
       ResultT visit(BoundedWindowParameter p);
       ResultT visit(InputProviderParameter p);
@@ -126,7 +132,7 @@ public abstract class DoFnSignature {
       /**
        * A base class for a visitor with a default method for cases it is not interested in.
        */
-      public static abstract class Defaults<ResultT> implements Visitor<ResultT> {
+      public abstract static class Defaults<ResultT> implements Visitor<ResultT> {
 
         protected abstract ResultT visitDefault(Parameter p);
 
@@ -180,40 +186,56 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_StateParameter(id, decl);
     }
 
+    /**
+     * Descriptor for a {@link Parameter} of type {@link BoundedWindow}.
+     */
     @AutoValue
-    public static abstract class BoundedWindowParameter extends Parameter {
+    public abstract static class BoundedWindowParameter extends Parameter {
       @Override
       public <ResultT> ResultT accept(Visitor<ResultT> visitor) {
         return visitor.visit(this);
       }
     }
 
+    /**
+     * Descriptor for a {@link Parameter} of type {@link InputProvider}.
+     */
     @AutoValue
-    public static abstract class InputProviderParameter extends Parameter {
+    public abstract static class InputProviderParameter extends Parameter {
       @Override
       public <ResultT> ResultT accept(Visitor<ResultT> visitor) {
         return visitor.visit(this);
       }
     }
 
+    /**
+     * Descriptor for a {@link Parameter} of type {@link OutputReceiver}.
+     */
     @AutoValue
-    public static abstract class OutputReceiverParameter extends Parameter {
+    public abstract static class OutputReceiverParameter extends Parameter {
       @Override
       public <ResultT> ResultT accept(Visitor<ResultT> visitor) {
         return visitor.visit(this);
       }
     }
 
+    /**
+     * Descriptor for a {@link Parameter} of a subclass of {@link RestrictionTracker}.
+     */
     @AutoValue
-    public static abstract class RestrictionTrackerParameter extends Parameter {
+    public abstract static class RestrictionTrackerParameter extends Parameter {
       @Override
       public <ResultT> ResultT accept(Visitor<ResultT> visitor) {
         return visitor.visit(this);
       }
     }
 
+    /**
+     * Descriptor for a {@link Parameter} of a subclass of {@link State},
+     * with an id indicated by its {@link StateId} annotation.
+     */
     @AutoValue
-    public static abstract class StateParameter extends Parameter {
+    public abstract static class StateParameter extends Parameter {
 
       public abstract String id();
 
