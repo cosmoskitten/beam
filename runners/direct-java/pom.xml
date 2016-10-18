@@ -75,6 +75,7 @@
             <groupId>org.apache.beam</groupId>
             <artifactId>beam-runners-core-java</artifactId>
             <type>test-jar</type>
+            <version>${project.version}</version>
           </dependency>
         </dependencies>
         <executions>
