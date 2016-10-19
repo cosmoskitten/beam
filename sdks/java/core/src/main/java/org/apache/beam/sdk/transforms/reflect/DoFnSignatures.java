@@ -518,8 +518,7 @@ public class DoFnSignatures {
             id,
             stateDecl.stateType());
 
-        DoFnSignature.Parameter.StateParameter stateParameter =
-            Parameter.stateParameter(id, stateDecl);
+        DoFnSignature.Parameter.StateParameter stateParameter = Parameter.stateParameter(stateDecl);
         stateParameters.put(id, stateParameter);
         extraParameters.add(stateParameter);
       } else {

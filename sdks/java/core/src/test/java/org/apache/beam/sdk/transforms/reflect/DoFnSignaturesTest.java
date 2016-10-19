@@ -27,8 +27,9 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BoundedWindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases.WithDefault;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Visitor;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
@@ -331,11 +332,10 @@ public class DoFnSignaturesTest {
               public void foo(ProcessContext context, @StateId("foo") ValueState<Integer> bizzle) {}
             }.getClass());
 
-
     assertThat(sig.processElement().extraParameters().size(), equalTo(1));
 
     final DoFnSignature.StateDeclaration decl = sig.stateDeclarations().get("foo");
-    sig.processElement().extraParameters().get(0).accept(new Visitor.Defaults<Void>() {
+    sig.processElement().extraParameters().get(0).match(new Parameter.Cases.WithDefault<Void>() {
       @Override
       protected Void visitDefault(Parameter p) {
         fail(String.format("Expected a state parameter but got %s", p));
@@ -343,8 +343,8 @@ public class DoFnSignaturesTest {
       }
 
       @Override
-      public Void visit(StateParameter stateParam) {
-        assertThat(stateParam.referenceTo(), equalTo(decl));
+      public Void dispatch(StateParameter stateParam) {
+        assertThat(stateParam.referent(), equalTo(decl));
         return null;
       }
     });
