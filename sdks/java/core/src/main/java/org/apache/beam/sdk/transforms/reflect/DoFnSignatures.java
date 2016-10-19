@@ -518,6 +518,16 @@ public class DoFnSignatures {
             id,
             stateDecl.stateType());
 
+        errors.checkArgument(
+            stateDecl.field().getDeclaringClass().equals(m.getDeclaringClass()),
+            "Method %s has State parameter at index %s for state %s"
+                + " declared in a different class %s."
+                + " State may be referenced only in the lexical scope where it is declared.",
+            m,
+            i,
+            id,
+            stateDecl.field().getDeclaringClass().getName());
+
         DoFnSignature.Parameter.StateParameter stateParameter = Parameter.stateParameter(stateDecl);
         stateParameters.put(id, stateParameter);
         extraParameters.add(stateParameter);
