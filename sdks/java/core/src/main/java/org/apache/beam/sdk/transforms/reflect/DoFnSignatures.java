@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.state.State;
@@ -166,8 +167,13 @@ public class DoFnSignatures {
         errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
     DoFnSignature.ProcessElementMethod processElement =
         analyzeProcessElementMethod(
-            processElementErrors, fnToken, processElementMethod, inputT, outputT,
-            stateDeclarations);
+            processElementErrors,
+            fnToken,
+            processElementMethod,
+            inputT,
+            outputT,
+            stateDeclarations,
+            timerDeclarations);
     builder.setProcessElement(processElement);
 
     if (startBundleMethod != null) {
@@ -447,7 +453,8 @@ public class DoFnSignatures {
       Method m,
       TypeToken<?> inputT,
       TypeToken<?> outputT,
-      Map<String, StateDeclaration> stateDeclarations) {
+      Map<String, StateDeclaration> stateDeclarations,
+      Map<String, TimerDeclaration> timerDeclarations) {
     errors.checkArgument(
         void.class.equals(m.getReturnType())
             || DoFn.ProcessContinuation.class.equals(m.getReturnType()),
@@ -468,6 +475,7 @@ public class DoFnSignatures {
 
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
     Map<String, DoFnSignature.Parameter> stateParameters = new HashMap<>();
+    Map<String, DoFnSignature.Parameter> timerParameters = new HashMap<>();
     TypeToken<?> trackerT = null;
 
     TypeToken<?> expectedInputProviderT = inputProviderTypeOf(inputT);
@@ -505,6 +513,56 @@ public class DoFnSignatures {
             formatType(paramT),
             formatType(expectedOutputReceiverT));
         extraParameters.add(DoFnSignature.Parameter.outputReceiver());
+      } else if (Timer.class.equals(rawType)) {
+        // m.getParameters() is not available until Java 8
+        Annotation[] annotations = m.getParameterAnnotations()[i];
+        String id = null;
+        for (Annotation anno : annotations) {
+          if (anno.annotationType().equals(DoFn.TimerId.class)) {
+            id = ((DoFn.TimerId) anno).value();
+            break;
+          }
+        }
+        errors.checkArgument(
+            id != null,
+            "%s parameter of type %s at index %s missing %s annotation",
+            fnClass.getRawType().getName(),
+            params[i],
+            i,
+            DoFn.TimerId.class.getSimpleName());
+
+        errors.checkArgument(
+            !stateParameters.containsKey(id),
+            "%s parameter of type %s at index %s duplicates %s(\"%s\") on other parameter",
+            fnClass.getRawType().getName(),
+            params[i],
+            i,
+            DoFn.TimerId.class.getSimpleName(),
+            id);
+
+        TimerDeclaration timerDecl = timerDeclarations.get(id);
+        errors.checkArgument(
+            timerDecl != null,
+            "%s parameter of type %s at index %s references undeclared StateId \"%s\"",
+            fnClass.getRawType().getName(),
+            params[i],
+            i,
+            id);
+
+        errors.checkArgument(
+            timerDecl.field().getDeclaringClass().equals(m.getDeclaringClass()),
+            "Method %s has State parameter at index %s for state %s"
+                + " declared in a different class %s."
+                + " State may be referenced only in the lexical scope where it is declared.",
+            m,
+            i,
+            id,
+            timerDecl.field().getDeclaringClass().getName());
+
+        DoFnSignature.Parameter.TimerParameter timerParameter = Parameter.timerParameter(timerDecl);
+        timerParameters.put(id, timerParameter);
+        extraParameters.add(timerParameter);
+
       } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
         errors.checkArgument(
             !extraParameters.contains(DoFnSignature.Parameter.restrictionTracker()),

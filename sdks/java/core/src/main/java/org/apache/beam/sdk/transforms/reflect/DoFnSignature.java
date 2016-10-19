@@ -31,8 +31,10 @@ import org.apache.beam.sdk.transforms.DoFn.InputProvider;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
+import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -152,6 +154,8 @@ public abstract class DoFnSignature {
       }
       if (this instanceof StateParameter) {
         return cases.dispatch((StateParameter) this);
+      } else if (this instanceof TimerParameter) {
+        return cases.dispatch((TimerParameter) this);
       } else {
         throw new IllegalStateException(
             String.format("Attempt to case match on unknown %s subclass %s",
@@ -168,6 +172,7 @@ public abstract class DoFnSignature {
       ResultT dispatch(OutputReceiverParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
       ResultT dispatch(StateParameter p);
+      ResultT dispatch(TimerParameter p);
 
       /**
        * A base class for a visitor with a default method for cases it is not interested in.
@@ -198,6 +203,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(StateParameter p) {
+          return visitDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(TimerParameter p) {
           return visitDefault(p);
         }
       }
@@ -231,6 +241,10 @@ public abstract class DoFnSignature {
 
     public static StateParameter stateParameter(StateDeclaration decl) {
       return new AutoValue_DoFnSignature_Parameter_StateParameter(decl);
+    }
+
+    public static TimerParameter timerParameter(TimerDeclaration decl) {
+      return new AutoValue_DoFnSignature_Parameter_TimerParameter(decl);
     }
 
     /**
@@ -268,6 +282,17 @@ public abstract class DoFnSignature {
       // Package visible for AutoValue
       StateParameter() {}
       public abstract StateDeclaration referent();
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link Timer}, with an id indicated by
+     * its {@link TimerId} annotation.
+     */
+    @AutoValue
+    public abstract static class TimerParameter extends Parameter {
+      // Package visible for AutoValue
+      TimerParameter() {}
+      public abstract TimerDeclaration referent();
     }
   }
 
