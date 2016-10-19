@@ -200,17 +200,21 @@ public abstract class DoFnSignature {
         new BoundedWindowParameter() {};
     private static final RestrictionTrackerParameter RESTRICTION_TRACKER_PARAMETER =
         new RestrictionTrackerParameter() {};
+    private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
+        new InputProviderParameter() {};
+    private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
+        new OutputReceiverParameter() {};
 
     public static BoundedWindowParameter boundedWindow() {
       return BOUNDED_WINDOW_PARAMETER;
     }
 
     public static InputProviderParameter inputProvider() {
-      return new InputProviderParameter() {};
+      return INPUT_PROVIDER_PARAMETER;
     }
 
     public static OutputReceiverParameter outputReceiver() {
-      return new OutputReceiverParameter() {};
+      return OUTPUT_RECEIVER_PARAMETER;
     }
 
     public static RestrictionTrackerParameter restrictionTracker() {
