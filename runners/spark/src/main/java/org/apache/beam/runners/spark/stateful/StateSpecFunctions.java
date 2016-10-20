@@ -68,24 +68,25 @@ public class StateSpecFunctions {
    * <li>Value: An optional {@link UnboundedSource.CheckpointMark} to start from.</li>
    * <li>State: A byte representation of the (previously) persisted CheckpointMark.</li>
    * </ul>
-   * And returns an iterator over all read values (for the micro-batch).</p>
+   * And returns an iterator over all read values (for the micro-batch).
    *
    * <p>This stateful operation could be described as a flatMap over a single-element stream, which
    * outputs all the elements read from the {@link UnboundedSource} for this micro-batch.
    * Since micro-batches are bounded, the provided UnboundedSource is wrapped by a
    * {@link MicrobatchSource} that applies bounds in the form of duration and max records
-   * (per micro-batch).</p>
+   * (per micro-batch).
    *
    * @param runtimeContext    A serializable {@link SparkRuntimeContext}.
    * @param <T>               The type of the input stream elements.
    * @param <CheckpointMarkT> The type of the {@link UnboundedSource.CheckpointMark}.
    * @return The appropriate {@link org.apache.spark.streaming.StateSpec} function.
+   *
    * <p>In order to avoid using Spark Guava's classes which pollute the
    * classpath, we use the {@link StateSpec#function(scala.Function3)} signature which employs
    * scala's native {@link scala.Option}, instead of the
    * {@link StateSpec#function(org.apache.spark.api.java.function.Function3)} signature,
    * which employs Guava's {@link com.google.common.base.Optional}.
-   * </p>
+   *
    * <p>See also <a href="https://issues.apache.org/jira/browse/SPARK-4819">SPARK-4819</a>.</p>
    */
   public static <T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
