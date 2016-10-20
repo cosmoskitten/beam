@@ -168,7 +168,6 @@ public class DisplayDataMatchers {
    */
   public static Matcher<DisplayData> includesDisplayDataFor(
       final String path, final HasDisplayData subComponent) {
-    // TODO: Match on path
     return new CustomTypeSafeMatcher<DisplayData>("includes subcomponent") {
       @Override
       protected boolean matchesSafely(DisplayData displayData) {
