@@ -406,8 +406,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
    * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
-   * subclass to your {@link ProcessElement @ProcessElement} method, and annotate it with {@link
-   * StateId}. See the following code for an example:
+   * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
+   * annotate it with {@link StateId}. See the following code for an example:
    *
    * <pre>{@code
    * new DoFn<KV<Key, Foo>, Baz>() {
@@ -449,9 +449,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * here.</i>
    *
    * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
-   * TimerId}. To use the cell during processing, add a parameter of the appropriate {@link Timer}
-   * subclass to your {@link ProcessElement @ProcessElement} method, and annotate it with {@link
-   * TimerId}. See the following code for an example:
+   * TimerId}. To use the cell during processing, add a parameter of the type {@link Timer} to your
+   * {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and annotate it with
+   * {@link TimerId}. See the following code for an example:
    *
    * <pre>{@code
    * new DoFn<KV<Key, Foo>, Baz>() {
@@ -479,7 +479,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <li>Any timer referenced in a parameter must be declared.
    * <li>Timer declarations must be final.
    * <li>All declared timers must have a corresponding callback annotated with {@link
-   *     OnTimer @OnTimer}
+   *     OnTimer @OnTimer}.
    * </ul>
    */
   @Documented
