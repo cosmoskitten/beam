@@ -87,8 +87,8 @@ public class DoFnSignaturesSplittableDoFnTest {
   @Test
   public void testSplittableProcessElementMustNotHaveOtherParams() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("must not have any extra context arguments");
-    thrown.expectMessage("BOUNDED_WINDOW");
+    thrown.expectMessage("must not have any extra arguments");
+    thrown.expectMessage("BoundedWindow");
 
     DoFnSignature.ProcessElementMethod signature =
         analyzeProcessElementMethod(

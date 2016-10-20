@@ -592,7 +592,7 @@ public class DoFnSignatures {
     if (extraParameters.contains(DoFnSignature.Parameter.restrictionTracker())) {
       errors.checkArgument(
           extraParameters.size() == 1,
-          "Splittable DoFn must not have any extra context arguments apart from %s, but has: %s",
+          "Splittable DoFn must not have any extra arguments apart from BoundedWindow, but has: %s",
           trackerT,
           extraParameters);
     }
