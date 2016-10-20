@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
 import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BoundedWin
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -148,11 +151,9 @@ public abstract class DoFnSignature {
         return cases.dispatch((RestrictionTrackerParameter) this);
       } else if (this instanceof InputProviderParameter) {
         return cases.dispatch((InputProviderParameter) this);
-      }
-      if (this instanceof OutputReceiverParameter) {
+      } else if (this instanceof OutputReceiverParameter) {
         return cases.dispatch((OutputReceiverParameter) this);
-      }
-      if (this instanceof StateParameter) {
+      } else if (this instanceof StateParameter) {
         return cases.dispatch((StateParameter) this);
       } else {
         throw new IllegalStateException(
@@ -331,15 +332,19 @@ public abstract class DoFnSignature {
           targetMethod, Collections.unmodifiableList(extraParameters), trackerT, hasReturnValue);
     }
 
-    /** Whether this {@link DoFn} uses a Single Window. */
-    public boolean ignoresWindow() {
-      for (Parameter p : extraParameters()) {
-        if (p instanceof BoundedWindowParameter
-            || p instanceof StateParameter) {
-          return false;
-        }
-      }
-      return true;
+    /**
+     * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
+     * resides in.
+     *
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because
+     * they are each scoped to a single window.
+     */
+    public boolean observesWindow() {
+      return Iterables.any(
+          extraParameters(),
+          Predicates.or(
+              Predicates.instanceOf(BoundedWindowParameter.class),
+              Predicates.instanceOf(StateParameter.class)));
     }
 
     /**

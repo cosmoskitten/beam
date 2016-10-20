@@ -569,7 +569,7 @@ public class DoFnInvokers {
                 // ExtraContextFactory.restrictionTracker() returns a RestrictionTracker,
                 // but the @ProcessElement method expects a concrete subtype of it.
                 // Insert a downcast.
-                (param.equals(DoFnSignature.Parameter.restrictionTracker()))
+                DoFnSignature.Parameter.restrictionTracker().equals(param)
                     ? TypeCasting.to(
                         new TypeDescription.ForLoadedType(signature.trackerT().getRawType()))
                     : StackManipulation.Trivial.INSTANCE));
