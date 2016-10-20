@@ -334,14 +334,14 @@ public abstract class DoFnSignature {
     }
 
     /** Whether this {@link DoFn} uses a Single Window. */
-    public boolean usesSingleWindow() {
+    public boolean ignoresWindow() {
       for (Parameter p : extraParameters()) {
         if (p instanceof BoundedWindowParameter
             || p instanceof StateParameter) {
-          return true;
+          return false;
         }
       }
-      return false;
+      return true;
     }
 
     /**
