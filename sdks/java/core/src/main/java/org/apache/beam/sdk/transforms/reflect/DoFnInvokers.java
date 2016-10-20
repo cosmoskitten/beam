@@ -538,6 +538,10 @@ public class DoFnInvokers {
       }
     }
 
+    private static MethodDescription getExtraContextFactoryMethod(DoFnSignature.Parameter param) {
+      return EXTRA_CONTEXT_FACTORY_METHODS.get(param);
+    }
+
     private final DoFnSignature.ProcessElementMethod signature;
 
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
@@ -561,7 +565,7 @@ public class DoFnInvokers {
         parameters.add(
             new StackManipulation.Compound(
                 pushExtraContextFactory,
-                MethodInvocation.invoke(EXTRA_CONTEXT_FACTORY_METHODS.get(param)),
+                MethodInvocation.invoke(getExtraContextFactoryMethod(param)),
                 // ExtraContextFactory.restrictionTracker() returns a RestrictionTracker,
                 // but the @ProcessElement method expects a concrete subtype of it.
                 // Insert a downcast.
