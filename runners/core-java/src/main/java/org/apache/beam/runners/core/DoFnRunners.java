@@ -18,11 +18,11 @@
 package org.apache.beam.runners.core;
 
 import java.util.List;
-
 import org.apache.beam.runners.core.DoFnRunner.ReduceFnExecutor;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ExecutionContext.StepContext;
@@ -45,6 +45,27 @@ public class DoFnRunners {
      * Outputs a single element to the receiver indicated by the given {@link TupleTag}.
      */
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output);
+  }
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
+      PipelineOptions options,
+      DoFn<InputT, OutputT> fn,
+      SideInputReader sideInputReader,
+      OutputManager outputManager,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      StepContext stepContext,
+      AggregatorFactory aggregatorFactory,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    return new SimpleDoFnRunner<>(
+        options,
+        fn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        sideOutputTags,
+        stepContext,
+        aggregatorFactory,
+        windowingStrategy);
   }
 
   /**
@@ -92,6 +113,30 @@ public class DoFnRunners {
         droppedDueToLatenessAggregator);
   }
 
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> createDefault(
+      PipelineOptions options,
+      DoFn<InputT, OutputT> doFn,
+      SideInputReader sideInputReader,
+      OutputManager outputManager,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      StepContext stepContext,
+      AggregatorFactory aggregatorFactory,
+      WindowingStrategy<?, ?> windowingStrategy) {
+
+    // Unlike for OldDoFn, there is no ReduceFnExecutor that is a new DoFn,
+    // and window-exploded processing is achieved within the simple runner
+    return simpleRunner(
+        options,
+        doFn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        sideOutputTags,
+        stepContext,
+        aggregatorFactory,
+        windowingStrategy);
+  }
 
   public static <InputT, OutputT> DoFnRunner<InputT, OutputT> createDefault(
       PipelineOptions options,
@@ -134,6 +179,50 @@ public class DoFnRunners {
           droppedDueToLatenessAggregator);
 
       return runner;
+    }
+  }
+
+  /**
+   * @deprecated for migration purposes only
+   */
+  @Deprecated
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> createDefault(
+    PipelineOptions options,
+    Object deserializedFn,
+    SideInputReader sideInputReader,
+    OutputManager outputManager,
+    TupleTag<OutputT> mainOutputTag,
+    List<TupleTag<?>> sideOutputTags,
+    StepContext stepContext,
+    AggregatorFactory aggregatorFactory,
+    WindowingStrategy<?, ?> windowingStrategy) {
+    if (deserializedFn instanceof DoFn) {
+      return createDefault(
+          options,
+          (DoFn) deserializedFn,
+          sideInputReader,
+          outputManager,
+          mainOutputTag,
+          sideOutputTags,
+          stepContext,
+          aggregatorFactory,
+          windowingStrategy);
+    } else if (deserializedFn instanceof OldDoFn) {
+      return createDefault(
+          options,
+          (OldDoFn) deserializedFn,
+          sideInputReader,
+          outputManager,
+          mainOutputTag,
+          sideOutputTags,
+          stepContext,
+          aggregatorFactory,
+          windowingStrategy);
+    } else {
+      throw new IllegalArgumentException(String.format("Cannot create %s for %s of class %s",
+          DoFnRunner.class.getSimpleName(),
+          deserializedFn,
+          deserializedFn.getClass()));
     }
   }
 }
