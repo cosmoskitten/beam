@@ -285,7 +285,7 @@ public class ReduceFnRunnerTest {
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) windowFn)
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withTrigger((Trigger) AfterWatermark.pastEndOfWindow().withLateFirings(Never.ever()))
+            .withTrigger(AfterWatermark.pastEndOfWindow().withLateFirings(Never.ever()))
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(allowedLateness);
 
@@ -1178,15 +1178,15 @@ public class ReduceFnRunnerTest {
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withTrigger((Trigger) AfterEach.<IntervalWindow>inOrder(
-                Repeatedly
-                    .forever(
-                        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(
-                            new Duration(5)))
-                    .orFinally(AfterWatermark.pastEndOfWindow()),
-                Repeatedly.forever(
-                    AfterProcessingTime.pastFirstElementInPane().plusDelayOf(
-                        new Duration(25)))))
+            .withTrigger(
+                AfterEach.<IntervalWindow>inOrder(
+                    Repeatedly.forever(
+                            AfterProcessingTime.pastFirstElementInPane()
+                                .plusDelayOf(new Duration(5)))
+                        .orFinally(AfterWatermark.pastEndOfWindow()),
+                    Repeatedly.forever(
+                        AfterProcessingTime.pastFirstElementInPane()
+                            .plusDelayOf(new Duration(25)))))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100));
 
@@ -1234,7 +1234,7 @@ public class ReduceFnRunnerTest {
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withTrigger((Trigger) AfterEach.<IntervalWindow>inOrder(
+            .withTrigger(AfterEach.<IntervalWindow>inOrder(
                 Repeatedly
                     .forever(
                         AfterProcessingTime.pastFirstElementInPane().plusDelayOf(
