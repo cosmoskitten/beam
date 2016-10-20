@@ -43,6 +43,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
@@ -532,7 +533,7 @@ public class DoFnSignatures {
             DoFn.TimerId.class.getSimpleName());
 
         errors.checkArgument(
-            !stateParameters.containsKey(id),
+            !timerParameters.containsKey(id),
             "%s parameter of type %s at index %s duplicates %s(\"%s\") on other parameter",
             fnClass.getRawType().getName(),
             params[i],
@@ -543,18 +544,20 @@ public class DoFnSignatures {
         TimerDeclaration timerDecl = timerDeclarations.get(id);
         errors.checkArgument(
             timerDecl != null,
-            "%s parameter of type %s at index %s references undeclared StateId \"%s\"",
+            "%s parameter of type %s at index %s references undeclared %s \"%s\"",
             fnClass.getRawType().getName(),
             params[i],
             i,
+            TimerId.class.getSimpleName(),
             id);
 
         errors.checkArgument(
             timerDecl.field().getDeclaringClass().equals(m.getDeclaringClass()),
-            "Method %s has State parameter at index %s for state %s"
+            "Method %s has %s parameter at index %s for timer %s"
                 + " declared in a different class %s."
-                + " State may be referenced only in the lexical scope where it is declared.",
+                + " Timers may be referenced only in the lexical scope where they are declared.",
             m,
+            Timer.class.getSimpleName(),
             i,
             id,
             timerDecl.field().getDeclaringClass().getName());
