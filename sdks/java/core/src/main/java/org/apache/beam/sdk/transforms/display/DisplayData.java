@@ -353,7 +353,7 @@ public class DisplayData implements Serializable {
     public abstract Object getValue();
 
     /**
-     * The optional short value for an item, or null if none is provided.
+     * The optional short value for an item, or {@code null} if none is provided.
      *
      * <p>The short value is an alternative display representation for items having a long display
      * value. For example, the {@link #getValue() value} for {@link Type#JAVA_CLASS} items contains
