@@ -321,7 +321,10 @@ public class ReduceFnRunnerTest {
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(
-            strategy, mockTriggerStateMachine, new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of());
+            strategy,
+            mockTriggerStateMachine,
+            new Sum.SumIntegerFn().<String>asKeyedFn(),
+            VarIntCoder.of());
 
     injectElement(tester, 1);
 
