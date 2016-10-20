@@ -364,26 +364,27 @@ public class DisplayDataTest implements Serializable {
   }
 
   @Test
-  public void testAbsoluteValidation() {
-    try {
-      DisplayData.Path.absolute(null, "foo", "bar");
-      fail("should throw on null firstPath");
-    } catch (NullPointerException e) { /* expected */ }
+  public void testAbsoluteValidationNullFirstPath() {
+    thrown.expect(NullPointerException.class);
+    DisplayData.Path.absolute(null, "foo", "bar");
+  }
 
-    try {
-      DisplayData.Path.absolute("", "foo", "bar");
-      fail("should throw on empty firstPath");
-    } catch (IllegalArgumentException e) { /* expected */ }
+  @Test
+  public void testAbsoluteValidationEmptyFirstPath() {
+    thrown.expect(IllegalArgumentException.class);
+    DisplayData.Path.absolute("", "foo", "bar");
+  }
 
-    try {
-      DisplayData.Path.absolute("a", "b", null, "c");
-      fail("should throw on null nested path");
-    } catch (NullPointerException e) { /* expected */ }
+  @Test
+  public void testAbsoluteValidationNullSubsequentPath() {
+    thrown.expect(NullPointerException.class);
+    DisplayData.Path.absolute("a", "b", null, "c");
+  }
 
-    try {
-      DisplayData.Path.absolute("a", "b", "", "c");
-      fail("should throw on empty nested path");
-    } catch (IllegalArgumentException e) { /* expected */ }
+  @Test
+  public void testAbsoluteValidationEmptySubsequentPath() {
+    thrown.expect(IllegalArgumentException.class);
+    DisplayData.Path.absolute("a", "b", "", "c");
   }
 
   @Test
