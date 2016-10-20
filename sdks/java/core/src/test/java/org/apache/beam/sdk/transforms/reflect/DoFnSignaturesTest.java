@@ -579,7 +579,7 @@ public class DoFnSignaturesTest {
     final DoFnSignature.StateDeclaration decl = sig.stateDeclarations().get("foo");
     sig.processElement().extraParameters().get(0).match(new Parameter.Cases.WithDefault<Void>() {
       @Override
-      protected Void visitDefault(Parameter p) {
+      protected Void dispatchDefault(Parameter p) {
         fail(String.format("Expected a state parameter but got %s", p));
         return null;
       }

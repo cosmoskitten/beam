@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -31,6 +33,8 @@ import org.apache.beam.sdk.transforms.DoFn.InputProvider;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BoundedWindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -174,31 +178,31 @@ public abstract class DoFnSignature {
        */
       public abstract static class WithDefault<ResultT> implements Cases<ResultT> {
 
-        protected abstract ResultT visitDefault(Parameter p);
+        protected abstract ResultT dispatchDefault(Parameter p);
 
         @Override
         public ResultT dispatch(BoundedWindowParameter p) {
-          return visitDefault(p);
+          return dispatchDefault(p);
         }
 
         @Override
         public ResultT dispatch(InputProviderParameter p) {
-          return visitDefault(p);
+          return dispatchDefault(p);
         }
 
         @Override
         public ResultT dispatch(OutputReceiverParameter p) {
-          return visitDefault(p);
+          return dispatchDefault(p);
         }
 
         @Override
         public ResultT dispatch(RestrictionTrackerParameter p) {
-          return visitDefault(p);
+          return dispatchDefault(p);
         }
 
         @Override
         public ResultT dispatch(StateParameter p) {
-          return visitDefault(p);
+          return dispatchDefault(p);
         }
       }
     }
@@ -331,7 +335,13 @@ public abstract class DoFnSignature {
 
     /** Whether this {@link DoFn} uses a Single Window. */
     public boolean usesSingleWindow() {
-      return extraParameters().contains(Parameter.boundedWindow());
+      for (Parameter p : extraParameters()) {
+        if (p instanceof BoundedWindowParameter
+            || p instanceof StateParameter) {
+          return true;
+        }
+      }
+      return false;
     }
 
     /**
