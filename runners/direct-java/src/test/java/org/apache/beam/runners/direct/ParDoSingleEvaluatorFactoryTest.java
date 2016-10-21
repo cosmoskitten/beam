@@ -54,6 +54,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -166,6 +167,11 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     assertThat(result.getAggregatorChanges(), equalTo(mutator));
   }
 
+  /**
+   * This test ignored, as today testing of GroupByKey is all the state that needs testing.
+   * This should be ported to state when ready.
+   */
+  @Ignore
   @Test
   public void finishBundleWithStatePutsStateInResult() throws Exception {
     TestPipeline p = TestPipeline.create();
@@ -238,6 +244,11 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
         containsInAnyOrder("foo", "bara", "bazam"));
   }
 
+  /**
+   * This test ignored, as today testing of GroupByKey is all the state that needs testing.
+   * This should be ported to state when ready.
+   */
+  @Ignore
   @Test
   public void finishBundleWithStateAndTimersPutsTimersInResult() throws Exception {
     TestPipeline p = TestPipeline.create();
