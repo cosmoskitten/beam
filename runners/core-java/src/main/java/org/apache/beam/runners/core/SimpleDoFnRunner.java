@@ -19,7 +19,7 @@ package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import autovalue.shaded.com.google.common.common.collect.Iterables;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collection;
