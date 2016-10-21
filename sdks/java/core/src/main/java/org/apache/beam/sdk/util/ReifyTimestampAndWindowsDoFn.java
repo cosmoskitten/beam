@@ -17,21 +17,20 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * {@link OldDoFn} that makes timestamps and window assignments explicit in the value part of each
- * key/value pair.
+ * A {@link DoFn} that makes timestamp and window explicit in the value part of each key/value pair.
  *
  * @param <K> the type of the keys of the input and output {@code PCollection}s
  * @param <V> the type of the values of the input {@code PCollection}
  */
 @SystemDoFnInternal
-public class ReifyTimestampAndWindowsDoFn<K, V>
-    extends OldDoFn<KV<K, V>, KV<K, WindowedValue<V>>> {
-  @Override
-  public void processElement(ProcessContext c)
+public class ReifyTimestampAndWindowsDoFn<K, V> extends DoFn<KV<K, V>, KV<K, WindowedValue<V>>> {
+  @ProcessElement
+  public void processElement(ProcessContext c, BoundedWindow window)
       throws Exception {
     KV<K, V> kv = c.element();
     K key = kv.getKey();
@@ -41,7 +40,7 @@ public class ReifyTimestampAndWindowsDoFn<K, V>
         WindowedValue.of(
             value,
             c.timestamp(),
-            c.windowingInternals().windows(),
+            window,
             c.pane())));
   }
 }
