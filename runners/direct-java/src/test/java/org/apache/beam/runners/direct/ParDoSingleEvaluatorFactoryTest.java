@@ -171,7 +171,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
    * This test ignored, as today testing of GroupByKey is all the state that needs testing.
    * This should be ported to state when ready.
    */
-  @Ignore
+  @Ignore("State is not supported until BEAM-25. GroupByKey tests the needed functionality.")
   @Test
   public void finishBundleWithStatePutsStateInResult() throws Exception {
     TestPipeline p = TestPipeline.create();
@@ -248,7 +248,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
    * This test ignored, as today testing of GroupByKey is all the state that needs testing.
    * This should be ported to state when ready.
    */
-  @Ignore
+  @Ignore("State is not supported until BEAM-25. GroupByKey tests the needed functionality.")
   @Test
   public void finishBundleWithStateAndTimersPutsTimersInResult() throws Exception {
     TestPipeline p = TestPipeline.create();
