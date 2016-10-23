@@ -73,6 +73,10 @@ import org.joda.time.Instant;
 public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
   public DoFn<InputT, OutputT> toDoFn() {
+    DoFn<InputT, OutputT> doFn = DoFnAdapters.getDoFn(this);
+    if (doFn != null) {
+      return doFn;
+    }
     if (this instanceof RequiresWindowAccess) {
       throw new UnsupportedOperationException(
           String.format(
