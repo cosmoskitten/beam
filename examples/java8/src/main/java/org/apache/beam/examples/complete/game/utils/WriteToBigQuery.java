@@ -32,7 +32,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -64,10 +64,10 @@ public class WriteToBigQuery<T>
     // The BigQuery 'type' of the field
     private String fieldType;
     // A lambda function to generate the field value
-    private SerializableFunction<OldDoFn<T, TableRow>.ProcessContext, Object> fieldFn;
+    private SerializableFunction<DoFn<T, TableRow>.ProcessContext, Object> fieldFn;
 
     public FieldInfo(String fieldType,
-        SerializableFunction<OldDoFn<T, TableRow>.ProcessContext, Object> fieldFn) {
+        SerializableFunction<DoFn<T, TableRow>.ProcessContext, Object> fieldFn) {
       this.fieldType = fieldType;
       this.fieldFn = fieldFn;
     }
@@ -76,21 +76,21 @@ public class WriteToBigQuery<T>
       return this.fieldType;
     }
 
-    SerializableFunction<OldDoFn<T, TableRow>.ProcessContext, Object> getFieldFn() {
+    SerializableFunction<DoFn<T, TableRow>.ProcessContext, Object> getFieldFn() {
       return this.fieldFn;
     }
   }
   /** Convert each key/score pair into a BigQuery TableRow as specified by fieldFn. */
-  protected class BuildRowFn extends OldDoFn<T, TableRow> {
+  protected class BuildRowFn extends DoFn<T, TableRow> {
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
 
       TableRow row = new TableRow();
       for (Map.Entry<String, FieldInfo<T>> entry : fieldInfo.entrySet()) {
           String key = entry.getKey();
           FieldInfo<T> fcnInfo = entry.getValue();
-          SerializableFunction<OldDoFn<T, TableRow>.ProcessContext, Object> fcn =
+          SerializableFunction<DoFn<T, TableRow>.ProcessContext, Object> fcn =
             fcnInfo.getFieldFn();
           row.set(key, fcn.apply(c));
         }

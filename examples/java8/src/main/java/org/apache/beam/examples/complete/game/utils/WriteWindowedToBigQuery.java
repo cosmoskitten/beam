@@ -22,7 +22,7 @@ import java.util.Map;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -43,17 +43,17 @@ public class WriteWindowedToBigQuery<T>
   }
 
   /** Convert each key/score pair into a BigQuery TableRow. */
-  protected class BuildRowFn extends OldDoFn<T, TableRow>
+  protected class BuildRowFn extends DoFn<T, TableRow>
       implements RequiresWindowAccess {
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
 
       TableRow row = new TableRow();
       for (Map.Entry<String, FieldInfo<T>> entry : fieldInfo.entrySet()) {
           String key = entry.getKey();
           FieldInfo<T> fcnInfo = entry.getValue();
-          SerializableFunction<OldDoFn<T, TableRow>.ProcessContext, Object> fcn =
+          SerializableFunction<DoFn<T, TableRow>.ProcessContext, Object> fcn =
             fcnInfo.getFieldFn();
           row.set(key, fcn.apply(c));
         }
