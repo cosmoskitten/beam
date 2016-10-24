@@ -36,12 +36,6 @@ import org.joda.time.Instant;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterProcessingTime extends AfterDelayFromFirstElement {
 
-  @Override
-  @Nullable
-  public Instant getCurrentTime(Trigger.TriggerContext context) {
-    return context.currentProcessingTime();
-  }
-
   private AfterProcessingTime(List<SerializableFunction<Instant, Instant>> transforms) {
     super(TimeDomain.PROCESSING_TIME, transforms);
   }

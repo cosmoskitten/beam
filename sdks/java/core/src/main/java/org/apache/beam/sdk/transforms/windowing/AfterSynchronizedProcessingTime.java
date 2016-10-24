@@ -31,12 +31,6 @@ import org.joda.time.Instant;
  */
 public class AfterSynchronizedProcessingTime extends AfterDelayFromFirstElement {
 
-  @Override
-  @Nullable
-  public Instant getCurrentTime(Trigger.TriggerContext context) {
-    return context.currentSynchronizedProcessingTime();
-  }
-
   public AfterSynchronizedProcessingTime() {
     super(TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
         Collections.<SerializableFunction<Instant, Instant>>emptyList());
