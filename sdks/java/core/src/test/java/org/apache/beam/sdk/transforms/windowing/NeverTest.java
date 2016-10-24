@@ -20,8 +20,6 @@ package org.apache.beam.sdk.transforms.windowing;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.util.TriggerTester;
-import org.apache.beam.sdk.util.TriggerTester.SimpleTriggerTester;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -35,22 +33,4 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class NeverTest {
-  private SimpleTriggerTester<IntervalWindow> triggerTester;
-
-  @Before
-  public void setup() throws Exception {
-    triggerTester =
-        TriggerTester.forTrigger(
-            Never.ever(), FixedWindows.of(Duration.standardMinutes(5)));
-  }
-
-  @Test
-  public void falseAfterEndOfWindow() throws Exception {
-    triggerTester.injectElements(TimestampedValue.of(1, new Instant(1)));
-    IntervalWindow window =
-        new IntervalWindow(new Instant(0), new Instant(0).plus(Duration.standardMinutes(5)));
-    assertThat(triggerTester.shouldFire(window), is(false));
-    triggerTester.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
-    assertThat(triggerTester.shouldFire(window), is(false));
-  }
 }

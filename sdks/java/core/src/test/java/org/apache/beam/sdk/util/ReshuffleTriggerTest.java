@@ -43,23 +43,6 @@ public class ReshuffleTriggerTest {
   }
 
   @Test
-  public void testShouldFire() throws Exception {
-    TriggerTester<Integer, IntervalWindow> tester = TriggerTester.forTrigger(
-        new ReshuffleTrigger<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
-    IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(300), new Instant(400));
-    assertTrue(tester.shouldFire(arbitraryWindow));
-  }
-
-  @Test
-  public void testOnTimer() throws Exception {
-    TriggerTester<Integer, IntervalWindow> tester = TriggerTester.forTrigger(
-        new ReshuffleTrigger<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
-    IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(100), new Instant(200));
-    tester.fireIfShouldFire(arbitraryWindow);
-    assertFalse(tester.isMarkedFinished(arbitraryWindow));
-  }
-
-  @Test
   public void testToString() {
     Trigger trigger = new ReshuffleTrigger<>();
     assertEquals("ReshuffleTrigger()", trigger.toString());
