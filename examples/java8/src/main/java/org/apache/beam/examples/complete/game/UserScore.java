@@ -206,9 +206,9 @@ public class UserScore {
     Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
         new HashMap<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>();
     tableConfigure.put("user",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("STRING", c -> c.element().getKey()));
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put("total_score",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER", c -> c.element().getValue()));
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER", (c, w) -> c.element().getValue()));
     return tableConfigure;
   }
 
