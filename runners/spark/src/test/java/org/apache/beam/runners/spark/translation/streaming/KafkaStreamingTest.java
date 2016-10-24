@@ -77,8 +77,8 @@ public class KafkaStreamingTest {
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
         checkpointParentDir.newFolder(getClass().getSimpleName()));
     // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
-    // so to be on the safe side we'll set to 500 msec.
-    options.setMinReadTimeMillis(500L);
+    // so to be on the safe side we'll set to 750 msec.
+    options.setMinReadTimeMillis(750L);
     //--- setup
     // two topics.
     final String topic1 = "topic1";
@@ -139,6 +139,9 @@ public class KafkaStreamingTest {
     options.setListeners(Collections.<JavaStreamingListener>singletonList(
         KafkaWriteOnBatchCompleted.once(messages, Collections.singletonList(topic),
             EMBEDDED_KAFKA_CLUSTER.getProps(), EMBEDDED_KAFKA_CLUSTER.getBrokerList())));
+    // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
+    // so to be on the safe side we'll set to 750 msec.
+    options.setMinReadTimeMillis(750L);
     // run for more than 1 batch interval, so that reading of latest is attempted in the
     // first batch with no luck, while the OnBatchCompleted injected-input afterwards will be read
     // in the second interval.

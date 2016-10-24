@@ -111,8 +111,8 @@ public class ResumeFromCheckpointStreamingTest {
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
         checkpointParentDir.newFolder(getClass().getSimpleName()));
     // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
-    // so to be on the safe side we'll set to 500 msec.
-    options.setMinReadTimeMillis(500L);
+    // so to be on the safe side we'll set to 750 msec.
+    options.setMinReadTimeMillis(750L);
 
     // checkpoint after first (and only) interval.
     options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
