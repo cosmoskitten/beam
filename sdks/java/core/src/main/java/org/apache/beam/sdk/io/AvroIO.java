@@ -21,11 +21,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
@@ -455,6 +458,13 @@ public class AvroIO {
     }
 
     /**
+     * Returns a {@link PTransform} that writes Avro file(s) with the specified metadata.
+     */
+    public static Bound<GenericRecord> withMetadata(Map<String, String> metadata) {
+      return new Bound<>(GenericRecord.class).withMetadata(metadata);
+    }
+
+    /**
      * A {@link PTransform} that writes a bounded {@link PCollection} to an Avro file (or
      * multiple Avro files matching a sharding pattern).
      *
@@ -486,6 +496,7 @@ public class AvroIO {
        * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
        */
       final SerializableAvroCodecFactory codec;
+      final ImmutableMap<String, String> metadata;
 
       Bound(Class<T> type) {
         this(
@@ -497,7 +508,8 @@ public class AvroIO {
             type,
             null,
             true,
-            DEFAULT_CODEC);
+            DEFAULT_CODEC,
+            ImmutableMap.<String, String>of());
       }
 
       Bound(
@@ -509,7 +521,8 @@ public class AvroIO {
           Class<T> type,
           Schema schema,
           boolean validate,
-          SerializableAvroCodecFactory codec) {
+          SerializableAvroCodecFactory codec,
+          Map<String, String> metadata) {
         super(name);
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
@@ -519,6 +532,7 @@ public class AvroIO {
         this.schema = schema;
         this.validate = validate;
         this.codec = codec;
+        this.metadata = ImmutableMap.copyOf(metadata);
       }
 
       /**
@@ -541,7 +555,8 @@ public class AvroIO {
             type,
             schema,
             validate,
-            codec);
+            codec,
+            metadata);
       }
 
       /**
@@ -563,7 +578,8 @@ public class AvroIO {
             type,
             schema,
             validate,
-            codec);
+            codec,
+            metadata);
       }
 
       /**
@@ -591,7 +607,8 @@ public class AvroIO {
             type,
             schema,
             validate,
-            codec);
+            codec,
+            metadata);
       }
 
       /**
@@ -612,7 +629,8 @@ public class AvroIO {
             type,
             schema,
             validate,
-            codec);
+            codec,
+            metadata);
       }
 
       /**
@@ -634,7 +652,8 @@ public class AvroIO {
             type,
             schema,
             validate,
-            codec);
+            codec,
+            metadata);
       }
 
       /**
@@ -656,7 +675,8 @@ public class AvroIO {
             type,
             ReflectData.get().getSchema(type),
             validate,
-            codec);
+            codec,
+            metadata);
       }
 
       /**
@@ -676,7 +696,8 @@ public class AvroIO {
             GenericRecord.class,
             schema,
             validate,
-            codec);
+            codec,
+            metadata);
       }
 
       /**
@@ -710,7 +731,8 @@ public class AvroIO {
             type,
             schema,
             false,
-            codec);
+            codec,
+            metadata);
       }
 
       /**
@@ -729,7 +751,28 @@ public class AvroIO {
             type,
             schema,
             validate,
-            new SerializableAvroCodecFactory(codec));
+            new SerializableAvroCodecFactory(codec),
+            metadata);
+      }
+
+      /**
+       * Returns a new {@link PTransform} that's like this one but
+       * that writes to Avro file(s) with the specified metadata.
+       *
+       * <p>Does not modify this object.
+       */
+      public Bound<T> withMetadata(Map<String, String> metadata) {
+        return new Bound<>(
+            name,
+            filenamePrefix,
+            filenameSuffix,
+            numShards,
+            shardTemplate,
+            type,
+            schema,
+            validate,
+            codec,
+            ImmutableMap.copyOf(metadata));
       }
 
       @Override
@@ -749,7 +792,8 @@ public class AvroIO {
                     filenameSuffix,
                     shardTemplate,
                     AvroCoder.of(type, schema),
-                    codec));
+                    codec,
+                    metadata));
         if (getNumShards() > 0) {
           write = write.withNumShards(getNumShards());
         }
@@ -779,6 +823,9 @@ public class AvroIO {
             .addIfNotDefault(DisplayData.item("codec", codec.toString())
                 .withLabel("Avro Compression Codec"),
                 DEFAULT_CODEC.toString());
+        for (Map.Entry<String, String> entry : metadata.entrySet()) {
+          builder.add(DisplayData.item(entry.getKey(), entry.getValue()).withLabel("Metadata"));
+        }
       }
 
       /**
@@ -824,6 +871,10 @@ public class AvroIO {
       public CodecFactory getCodec() {
         return codec.getCodec();
       }
+
+      public Map<String, String> getMetadata() {
+        return metadata;
+      }
     }
 
     /** Disallow construction of utility class. */
@@ -853,6 +904,7 @@ public class AvroIO {
   static class AvroSink<T> extends FileBasedSink<T> {
     private final AvroCoder<T> coder;
     private final SerializableAvroCodecFactory codec;
+    private final ImmutableMap<String, String> metadata;
 
     @VisibleForTesting
     AvroSink(
@@ -860,16 +912,17 @@ public class AvroIO {
         String extension,
         String fileNameTemplate,
         AvroCoder<T> coder,
-        SerializableAvroCodecFactory codec) {
+        SerializableAvroCodecFactory codec,
+        ImmutableMap<String, String> metadata) {
       super(baseOutputFilename, extension, fileNameTemplate);
       this.coder = coder;
       this.codec = codec;
-
+      this.metadata = metadata;
     }
 
     @Override
     public FileBasedSink.FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options) {
-      return new AvroWriteOperation<>(this, coder, codec);
+      return new AvroWriteOperation<>(this, coder, codec, metadata);
     }
 
     /**
@@ -879,18 +932,21 @@ public class AvroIO {
     private static class AvroWriteOperation<T> extends FileBasedWriteOperation<T> {
       private final AvroCoder<T> coder;
       private final SerializableAvroCodecFactory codec;
+      private final ImmutableMap<String, String> metadata;
 
       private AvroWriteOperation(AvroSink<T> sink,
                                  AvroCoder<T> coder,
-                                 SerializableAvroCodecFactory codec) {
+                                 SerializableAvroCodecFactory codec,
+                                 ImmutableMap<String, String> metadata) {
         super(sink);
         this.coder = coder;
         this.codec = codec;
+        this.metadata = metadata;
       }
 
       @Override
       public FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception {
-        return new AvroWriter<>(this, coder, codec);
+        return new AvroWriter<>(this, coder, codec, metadata);
       }
     }
 
@@ -902,20 +958,26 @@ public class AvroIO {
       private final AvroCoder<T> coder;
       private DataFileWriter<T> dataFileWriter;
       private SerializableAvroCodecFactory codec;
+      private final ImmutableMap<String, String> metadata;
 
       public AvroWriter(FileBasedWriteOperation<T> writeOperation,
                         AvroCoder<T> coder,
-                        SerializableAvroCodecFactory codec) {
+                        SerializableAvroCodecFactory codec,
+                        ImmutableMap<String, String> metadata) {
         super(writeOperation);
         this.mimeType = MimeTypes.BINARY;
         this.coder = coder;
         this.codec = codec;
+        this.metadata = metadata;
       }
 
       @SuppressWarnings("deprecation") // uses internal test functionality.
       @Override
       protected void prepareWrite(WritableByteChannel channel) throws Exception {
         dataFileWriter = new DataFileWriter<>(coder.createDatumWriter()).setCodec(codec.getCodec());
+        for (Map.Entry<String, String> entry : metadata.entrySet()) {
+          dataFileWriter.setMeta(entry.getKey(), entry.getValue());
+        }
         dataFileWriter.create(coder.getSchema(), Channels.newOutputStream(channel));
       }
 
