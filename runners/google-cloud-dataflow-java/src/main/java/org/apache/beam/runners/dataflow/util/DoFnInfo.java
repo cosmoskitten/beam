@@ -17,35 +17,79 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import java.io.Serializable;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Wrapper class holding the necessary information to serialize a {@link OldDoFn}.
+ * Wrapper class holding the necessary information to serialize a {@link OldDoFn}
+ * or {@link DoFn}.
  *
  * @param <InputT> the type of the (main) input elements of the {@link OldDoFn}
  * @param <OutputT> the type of the (main) output elements of the {@link OldDoFn}
  */
 public class DoFnInfo<InputT, OutputT> implements Serializable {
-  private final OldDoFn<InputT, OutputT> doFn;
+  private final Serializable oldDoFnOrDoFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final Coder<InputT> inputCoder;
   private final long mainOutput;
   private final Map<Long, TupleTag<?>> outputMap;
 
-  public DoFnInfo(OldDoFn<InputT, OutputT> doFn,
+  /** Lazily initialized invoker for this {@link DoFn} */
+  @Nullable
+  private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
+
+  /** Creates a {@link DoFnInfo} for the given {@link DoFn} and auxiliary bits and pieces. */
+  public DoFnInfo(
+      DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
       long mainOutput,
       Map<Long, TupleTag<?>> outputMap) {
-    this.doFn = doFn;
+    this((Serializable) doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
+  }
+
+  /** Uses of this constructor should be ported to pass a {@link DoFn}. */
+  @Deprecated
+  public DoFnInfo(
+      OldDoFn<InputT, OutputT> oldDoFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
+    this((Serializable) oldDoFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
+  }
+
+  /** This constructor provides a migration path from {@link OldDoFn} to {@link DoFn}. */
+  @Deprecated
+  public DoFnInfo(
+      Serializable oldDoFnOrDoFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
+    checkArgument(
+        oldDoFnOrDoFn instanceof DoFn || oldDoFnOrDoFn instanceof OldDoFn,
+        "%s fn argument must be a %s or an %s",
+        getClass().getSimpleName(),
+        DoFn.class.getSimpleName(),
+        OldDoFn.class.getSimpleName());
+    this.oldDoFnOrDoFn = oldDoFnOrDoFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
     this.inputCoder = inputCoder;
@@ -53,8 +97,35 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     this.outputMap = outputMap;
   }
 
+  /**
+   * @deprecated callers should use {@link #getDoFnInvoker()} if possible, to be agnostic as to whether
+   * this contains a {@link DoFn} or an {@link OldDoFn}. If access to the actual object is needed,
+   * then temporarily use {@link #getOldDoFnOrDoFn()} until this method is ported to return
+   * {@link DoFn} instead of {@link OldDoFn}.
+   */
+  @Deprecated
   public OldDoFn<InputT, OutputT> getDoFn() {
-    return doFn;
+    checkState(oldDoFnOrDoFn instanceof OldDoFn,
+        "%s.getDoFn() called when it did not contain %s",
+        DoFnInfo.class.getSimpleName(), OldDoFn.class.getSimpleName());
+    return (OldDoFn) oldDoFnOrDoFn;
+  }
+
+  public DoFnInvoker<InputT, OutputT> getDoFnInvoker() {
+    if (doFnInvoker == null) {
+      doFnInvoker = (DoFnInvoker<InputT, OutputT>) DoFnInvokers.INSTANCE.invokerFor(oldDoFnOrDoFn);
+    }
+    return doFnInvoker;
+  }
+
+  /**
+   * @deprecated callers should move away from {@link OldDoFn} and use {@link #getDoFnInvoker()}
+   * when possible. In other cases, it is likely that the use of {@link OldDoFn} should be replaced
+   * by a primitive implementation.
+   */
+  @Deprecated
+  public Serializable getOldDoFnOrDoFn() {
+    return oldDoFnOrDoFn;
   }
 
   public WindowingStrategy<?, ?> getWindowingStrategy() {
