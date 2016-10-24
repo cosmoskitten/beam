@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -315,7 +314,6 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    @Nonnull
     public Double getFractionConsumed() {
       return rangeTracker.getFractionConsumed();
     }
