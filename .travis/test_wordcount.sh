@@ -68,7 +68,7 @@ function run_via_mvn {
   local expected_hash=$3
 
   local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
-  local cmd='mvn exec:java -f pom.xml -pl examples/java \
+  local cmd='mvn package -DskipTests exec:java -f pom.xml -pl examples/java -am \
     -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Dexec.args="--runner=DirectRunner --inputFile='"$input"' --output='"$outfile_prefix"'"'
   echo "$name: Running $cmd" >&2
