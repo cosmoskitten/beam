@@ -184,7 +184,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
     @Override
     public boolean start() throws IOException {
-      LOG.info("MicrobatchReader-{}: Starting a microbatch read from an unbounded source with a "
+      LOG.debug("MicrobatchReader-{}: Starting a microbatch read from an unbounded source with a "
           + "max read time of {} msec, and max number of records {}.", splitId, maxReadTime,
               maxNumRecords);
       if (reader.start()) {
@@ -226,7 +226,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
     private void finalizeCheckpoint() throws IOException {
       reader.getCheckpointMark().finalizeCheckpoint();
-      LOG.info("MicrobatchReader-{}: finalized CheckpointMark successfully after "
+      LOG.debug("MicrobatchReader-{}: finalized CheckpointMark successfully after "
           + "reading {} records.", splitId, recordsRead);
     }
 
