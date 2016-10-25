@@ -59,7 +59,7 @@ public class WordCountIT {
         "output",
         "results"));
     options.setOnSuccessMatcher(
-        new FileChecksumMatcher(options.getOutputChecksum(), options.getOutput() + "*"));
+        new FileChecksumMatcher(options.getOutputChecksum(), options.getOutput() + "*-of-*"));
 
     String e2eTestInputPath = "gs://apache-beam-samples/apache/LICENSE";
     options.setInputFile(e2eTestInputPath);
