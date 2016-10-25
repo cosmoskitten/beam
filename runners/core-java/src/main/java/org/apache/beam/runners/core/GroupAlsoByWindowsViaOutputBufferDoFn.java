@@ -74,7 +74,7 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
             strategy,
             ExecutableTriggerStateMachine.create(
                 TriggerStateMachines.stateMachineForTrigger(
-                    strategy.getTrigger().getSpec())),
+                    strategy.getTrigger())),
             stateInternals,
             timerInternals,
             c.windowingInternals(),

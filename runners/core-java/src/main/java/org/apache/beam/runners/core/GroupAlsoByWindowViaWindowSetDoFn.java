@@ -85,7 +85,7 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
             windowingStrategy,
             ExecutableTriggerStateMachine.create(
                 TriggerStateMachines.stateMachineForTrigger(
-                    windowingStrategy.getTrigger().getSpec())),
+                    windowingStrategy.getTrigger())),
             stateInternals,
             timerInternals,
             c.windowingInternals(),
