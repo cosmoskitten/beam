@@ -59,6 +59,10 @@ public class WriteToBigQuery<InputT>
     this.fieldInfo = fieldInfo;
   }
 
+  /**
+   * A {@link Serializable} function from a {@link DoFn.ProcessContext}
+   * and {@link BoundedWindow} to the value for that field.
+   */
   public interface FieldFn<InputT> extends Serializable {
     Object apply(DoFn<InputT, TableRow>.ProcessContext context, BoundedWindow window);
   }
