@@ -42,7 +42,7 @@ import scala.Tuple2;
 
 
 /**
- * A SourceDStream is an {@link InputDStream} of {@link SourceRDD.Unbounded}s.
+ * A {@link SourceDStream} is an {@link InputDStream} of {@link SourceRDD.Unbounded}s.
  *
  * <p>This InputDStream will create a stream of partitioned {@link UnboundedSource}s,
  * and their respective, (optional) starting {@link UnboundedSource.CheckpointMark}.

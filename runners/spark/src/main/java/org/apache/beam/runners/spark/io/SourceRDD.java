@@ -47,7 +47,8 @@ import org.slf4j.LoggerFactory;
 public class SourceRDD {
 
   /**
-   * A SourceRDD.Bounded reads input from a {@link BoundedSource} and creates a Spark {@link RDD}.
+   * A {@link SourceRDD.Bounded} reads input from a {@link BoundedSource}
+   * and creates a Spark {@link RDD}.
    * This is the default way for the SparkRunner to read data from Beam's BoundedSources.
    */
   public static class Bounded<T> extends RDD<WindowedValue<T>> {
@@ -204,7 +205,8 @@ public class SourceRDD {
   }
 
   /**
-   * A SourceRDD.Unbounded is the implementation of a micro-batch in a {@link SourceDStream}.
+   * A {@link SourceRDD.Unbounded} is the implementation of a micro-batch
+   * in a {@link SourceDStream}.
    *
    * <p>This RDD is made of P partitions, each containing a single pair-element of the partitioned
    * {@link MicrobatchSource} and an optional starting {@link UnboundedSource.CheckpointMark}.
