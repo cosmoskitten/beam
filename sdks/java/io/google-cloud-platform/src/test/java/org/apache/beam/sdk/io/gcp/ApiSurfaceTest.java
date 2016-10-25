@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.io.gcp;
 
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
 
+import com.google.cloud.bigtable.grpc.BigtableInstanceName;
+import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -70,7 +73,7 @@ public class ApiSurfaceTest {
   }
 
   @SuppressWarnings("unchecked")
-  private static final Set<Matcher<Class<?>>> ALLOWED_PACKAGES =
+  private static final Set<Matcher<? extends Class<?>>> ALLOWED_PACKAGES =
       ImmutableSet.of(
           inPackage("com.google.api.client.json"),
           inPackage("com.google.api.client.util"),
@@ -78,7 +81,8 @@ public class ApiSurfaceTest {
           inPackage("com.google.auth"),
           inPackage("com.google.bigtable.v2"),
           inPackage("com.google.cloud.bigtable.config"),
-          inPackage("com.google.cloud.bigtable.grpc"),
+          equalTo(BigtableInstanceName.class),
+          equalTo(BigtableTableName.class),
           // https://github.com/GoogleCloudPlatform/cloud-bigtable-client/pull/1056
           inPackage("com.google.common.collect"), // via Bigtable, PR above out to fix.
           inPackage("com.google.datastore.v1"),
