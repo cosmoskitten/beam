@@ -55,6 +55,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
+import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -451,6 +452,14 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     public TimerInternals timerInternals() {
       return new TimerInternals() {
         @Override
+        public void setTimer(
+            StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
+          // TODO: actually store by ID
+          TimerData timerKey = TimerData.of(namespace, target, timeDomain);
+          setTimer(timerKey);
+        }
+
+        @Override
         public void setTimer(TimerData timerKey) {
           if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
             registerEventTimeTimer(timerKey);
@@ -460,6 +469,12 @@ public class WindowDoFnOperator<K, InputT, OutputT>
             throw new UnsupportedOperationException(
                 "Unsupported time domain: " + timerKey.getDomain());
           }
+        }
+
+        @Override
+        public void deleteTimer(StateNamespace namespace, String timerId) {
+          throw new UnsupportedOperationException(
+              "Canceling of a timer by ID is not yet supported.");
         }
 
         @Override
