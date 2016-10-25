@@ -18,8 +18,13 @@
 
 package org.apache.beam.runners.apex.translators;
 
+import java.io.Serializable;
+
 import org.apache.beam.runners.apex.translators.functions.ApexGroupByKeyOperator;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -33,9 +38,18 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
   public void translate(GroupByKey<K, V> transform, TranslationContext context) {
     PCollection<KV<K, V>> input = context.getInput();
     ApexGroupByKeyOperator<K, V> group = new ApexGroupByKeyOperator<>(context.getPipelineOptions(),
-        input);
+        input, context.<K>stateInternalsFactory()
+        );
     context.addOperator(group, group.output);
     context.addStream(input, group.input);
   }
+
+  static class InMemoryStateInternalsFactory<K> implements StateInternalsFactory<K>, Serializable {
+    @Override
+    public StateInternals<K> stateInternalsForKey(K key) {
+      return InMemoryStateInternals.forKey(key);
+    }
+  }
+
 
 }
