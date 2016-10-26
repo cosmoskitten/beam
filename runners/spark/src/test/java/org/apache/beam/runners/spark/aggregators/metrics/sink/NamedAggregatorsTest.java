@@ -42,6 +42,9 @@ import org.junit.Test;
 import org.junit.rules.ExternalResource;
 
 
+/**
+ * A test for the NamedAggregators mechanism.
+ */
 public class NamedAggregatorsTest {
 
   @Rule
