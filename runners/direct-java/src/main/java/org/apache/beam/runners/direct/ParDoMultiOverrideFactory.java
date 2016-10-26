@@ -45,7 +45,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     if (!signature.processElement().isSplittable()) {
       return transform;
     } else {
-      return new SplittableParDo(fn);
+      return new SplittableParDo(transform);
     }
   }
 }

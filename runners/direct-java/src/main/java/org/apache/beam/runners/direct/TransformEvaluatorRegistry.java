@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -49,7 +50,9 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
         ImmutableMap.<Class<? extends PTransform>, TransformEvaluatorFactory>builder()
             .put(Read.Bounded.class, new BoundedReadEvaluatorFactory(ctxt))
             .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory(ctxt))
-            .put(ParDo.BoundMulti.class, new ParDoEvaluatorFactory<>(ctxt))
+            .put(
+                ParDo.BoundMulti.class,
+                new ParDoEvaluatorFactory<>(ctxt, new ParDoMultiEvaluatorHooks<>()))
             .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory(ctxt))
             .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory(ctxt))
             .put(Window.Bound.class, new WindowEvaluatorFactory(ctxt))
@@ -59,6 +62,10 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             .put(
                 TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream.class,
                 new TestStreamEvaluatorFactory(ctxt))
+            // Runner-specific primitive used in expansion of SplittableParDo
+            .put(
+                SplittableParDo.ProcessElements.class,
+                new ParDoEvaluatorFactory<>(ctxt, new SplittableProcessElementsEvaluatorHooks<>()))
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }

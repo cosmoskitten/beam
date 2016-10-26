@@ -24,22 +24,47 @@ import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A {@link TransformEvaluatorFactory} for {@link ParDo.BoundMulti}. */
-final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluatorFactory {
+/**
+ * A {@link TransformEvaluatorFactory} for {@link ParDo}-like primitive {@link PTransform
+ * PTransforms}, parameterized by some {@link TransformHooks transform-specific handling}.
+ */
+final class ParDoEvaluatorFactory<
+        InputT,
+        OutputT,
+        TransformT extends PTransform<PCollection<? extends InputT>, PCollectionTuple>>
+    implements TransformEvaluatorFactory {
+  interface TransformHooks<
+      InputT,
+      OutputT,
+      TransformT extends PTransform<PCollection<? extends InputT>, PCollectionTuple>> {
+    /** Returns the {@link DoFn} contained in the given {@link ParDo} transform. */
+    DoFn<InputT, OutputT> getDoFn(PCollection<InputT> input, TransformT transform);
+
+    /** Configures and creates a {@link ParDoEvaluator} for the given {@link DoFn}. */
+    ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
+        EvaluationContext evaluationContext,
+        AppliedPTransform<PCollection<InputT>, PCollectionTuple, TransformT> application,
+        DirectStepContext stepContext,
+        DoFn<InputT, OutputT> fnLocal);
+  }
 
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
   private final LoadingCache<DoFn<?, ?>, DoFnLifecycleManager> fnClones;
   private final EvaluationContext evaluationContext;
+  private final TransformHooks<InputT, OutputT, TransformT> hooks;
 
-  ParDoEvaluatorFactory(EvaluationContext evaluationContext) {
+  ParDoEvaluatorFactory(
+      EvaluationContext evaluationContext,
+      TransformHooks<InputT, OutputT, TransformT> hooks) {
     this.evaluationContext = evaluationContext;
+    this.hooks = hooks;
     fnClones =
         CacheBuilder.newBuilder()
             .build(
@@ -68,8 +93,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   private TransformEvaluator<InputT> createEvaluator(
-      AppliedPTransform<PCollection<InputT>, PCollectionTuple, BoundMulti<InputT, OutputT>>
-          application,
+      AppliedPTransform<PCollection<InputT>, PCollectionTuple, TransformT> application,
       CommittedBundle<InputT> inputBundle)
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
@@ -78,20 +102,12 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             .getExecutionContext(application, inputBundle.getKey())
             .getOrCreateStepContext(stepName, stepName);
 
-    DoFnLifecycleManager fnManager = fnClones.getUnchecked(application.getTransform().getNewFn());
+    DoFnLifecycleManager fnManager =
+        fnClones.getUnchecked(hooks.getDoFn(application.getInput(), application.getTransform()));
     try {
-      ParDo.BoundMulti<InputT, OutputT> transform = application.getTransform();
       return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
-          ParDoEvaluator.create(
-              evaluationContext,
-              stepContext,
-              application,
-              application.getInput().getWindowingStrategy(),
-              fnManager.get(),
-              transform.getSideInputs(),
-              transform.getMainOutputTag(),
-              transform.getSideOutputTags().getAll(),
-              application.getOutput().getAll()),
+          hooks.createParDoEvaluator(
+              evaluationContext, application, stepContext, (DoFn<InputT, OutputT>) fnManager.get()),
           fnManager);
     } catch (Exception e) {
       try {
