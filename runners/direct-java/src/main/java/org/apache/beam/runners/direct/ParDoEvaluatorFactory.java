@@ -47,7 +47,7 @@ final class ParDoEvaluatorFactory<
       TransformOutputT extends POutput,
       TransformT extends PTransform<PCollection<? extends InputT>, TransformOutputT>> {
     /** Returns the {@link DoFn} contained in the given {@link ParDo} transform. */
-    DoFn<InputT, OutputT> getDoFn(TransformT transform);
+    DoFn<InputT, OutputT> getDoFn(PCollection<InputT> input, TransformT transform);
 
     /** Configures and creates a {@link ParDoEvaluator} for the given {@link DoFn}. */
     ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
@@ -105,7 +105,7 @@ final class ParDoEvaluatorFactory<
             .getOrCreateStepContext(stepName, stepName);
 
     DoFnLifecycleManager fnManager =
-        fnClones.getUnchecked(hooks.getDoFn(application.getTransform()));
+        fnClones.getUnchecked(hooks.getDoFn(application.getInput(), application.getTransform()));
     try {
       return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
           hooks.createParDoEvaluator(
