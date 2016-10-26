@@ -19,35 +19,47 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 
 /**
  * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
  * in the direct runner. Currently overrides applications of <a
  * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
  */
-class ParDoOverrideFactory<InputT, OutputT>
-    implements PTransformOverrideFactory<
-        PCollection<? extends InputT>, PCollection<OutputT>, ParDo.Bound<InputT, OutputT>> {
-  @Override
-  @SuppressWarnings("unchecked")
-  public PTransform<PCollection<? extends InputT>, PCollection<OutputT>> override(
-      ParDo.Bound<InputT, OutputT> transform) {
-    ParDo.Bound<InputT, OutputT> that = (ParDo.Bound<InputT, OutputT>) transform;
-    DoFn<InputT, OutputT> fn = DoFnAdapters.getDoFn(that.getFn());
-    if (fn == null) {
-      // This is an OldDoFn, hence not splittable.
-      return transform;
+class ParDoOverrideFactory {
+  public static class Bound<InputT, OutputT, RestrictionT>
+      implements PTransformOverrideFactory<
+          PCollection<? extends InputT>, PCollection<OutputT>, ParDo.Bound<InputT, OutputT>> {
+    @Override
+    public PTransform<PCollection<? extends InputT>, PCollection<OutputT>> override(
+        ParDo.Bound<InputT, OutputT> transform) {
+      DoFn<InputT, OutputT> fn = transform.getNewFn();
+      if (!DoFnSignatures.INSTANCE.signatureForDoFn(fn).processElement().isSplittable()) {
+        return transform;
+      }
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      SplittableParDo.Bound res = new SplittableParDo.Bound(transform);
+      return res;
     }
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature(fn.getClass());
-    if (!signature.processElement().isSplittable()) {
-      return transform;
+  }
+
+  public static class BoundMulti<InputT, OutputT, RestrictionT>
+      implements PTransformOverrideFactory<
+          PCollection<? extends InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>> {
+    @Override
+    public PTransform<PCollection<? extends InputT>, PCollectionTuple> override(
+        ParDo.BoundMulti<InputT, OutputT> transform) {
+      DoFn<InputT, OutputT> fn = transform.getNewFn();
+      if (!DoFnSignatures.INSTANCE.signatureForDoFn(fn).processElement().isSplittable()) {
+        return transform;
+      }
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      SplittableParDo.BoundMulti res = new SplittableParDo.BoundMulti(transform);
+      return res;
     }
-    return new SplittableParDo(fn);
   }
 }
