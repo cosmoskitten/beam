@@ -31,7 +31,8 @@ class ParDoSingleEvaluatorHooks<InputT, OutputT>
     implements ParDoEvaluatorFactory.TransformHooks<
         InputT, OutputT, PCollection<OutputT>, ParDo.Bound<InputT, OutputT>> {
   @Override
-  public DoFn<InputT, OutputT> getDoFn(ParDo.Bound<InputT, OutputT> transform) {
+  public DoFn<InputT, OutputT> getDoFn(
+      PCollection<InputT> input, ParDo.Bound<InputT, OutputT> transform) {
     return transform.getNewFn();
   }
 
