@@ -149,9 +149,9 @@ public class LeaderBoard extends HourlyTeamScore {
         "window_start",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
             "STRING",
-            (c, window) -> {
-              IntervalWindow w = (IntervalWindow) window;
-              return fmt.print(w.start());
+            (c, w) -> {
+              IntervalWindow window = (IntervalWindow) w;
+              return fmt.print(window.start());
             }));
     tableConfigure.put(
         "processing_time",

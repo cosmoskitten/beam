@@ -205,9 +205,9 @@ public class GameStats extends LeaderBoard {
         "window_start",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
             "STRING",
-            (c, window) -> {
-              IntervalWindow w = (IntervalWindow) window;
-              return fmt.print(w.start());
+            (c, w) -> {
+              IntervalWindow window= (IntervalWindow) w;
+              return fmt.print(window.start());
             }));
     tableConfigure.put(
         "processing_time",
@@ -229,9 +229,9 @@ public class GameStats extends LeaderBoard {
         "window_start",
         new WriteWindowedToBigQuery.FieldInfo<Double>(
             "STRING",
-            (c, window) -> {
-              IntervalWindow w = (IntervalWindow) window;
-              return fmt.print(w.start());
+            (c, w) -> {
+              IntervalWindow window = (IntervalWindow) w;
+              return fmt.print(window.start());
             }));
     tableConfigure.put(
         "mean_duration",
