@@ -17,94 +17,49 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo.Bound;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link Bound ParDo.Bound} primitive {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link ParDo.Bound} primitive
+ * {@link PTransform}.
  */
-class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
-  private static final Logger LOG = LoggerFactory.getLogger(ParDoSingleEvaluatorFactory.class);
-  private final LoadingCache<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> fnClones;
-  private final EvaluationContext evaluationContext;
-
+class ParDoSingleEvaluatorFactory<InputT, OutputT>
+    extends ParDoEvaluatorFactoryBase<
+        InputT, OutputT, PCollection<OutputT>, ParDo.Bound<InputT, OutputT>> {
   public ParDoSingleEvaluatorFactory(EvaluationContext evaluationContext) {
-    this.evaluationContext = evaluationContext;
-    fnClones =
-        CacheBuilder.newBuilder()
-            .build(
-                new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
-                  @Override
-                  public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> key)
-                      throws Exception {
-                    Bound<?, ?> bound = (Bound<?, ?>) key.getTransform();
-                    return DoFnLifecycleManager.of(bound.getNewFn());
-                  }
-                });
+    super(evaluationContext);
   }
 
   @Override
-  public <T> TransformEvaluator<T> forApplication(
-      final AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle) throws Exception {
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    TransformEvaluator<T> evaluator =
-        createSingleEvaluator((AppliedPTransform) application, inputBundle);
-    return evaluator;
+  protected DoFn<InputT, OutputT> getDoFn(
+      ParDo.Bound<InputT, OutputT> transform) {
+    return transform.getNewFn();
   }
 
   @Override
-  public void cleanup() throws Exception {
-    DoFnLifecycleManagers.removeAllFromManagers(fnClones.asMap().values());
-  }
-
-  private <InputT, OutputT> TransformEvaluator<InputT> createSingleEvaluator(
-      AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, Bound<InputT, OutputT>>
+  protected ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
+      AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, ParDo.Bound<InputT, OutputT>>
           application,
-      CommittedBundle<InputT> inputBundle)
-      throws Exception {
+      DirectStepContext stepContext,
+      DoFn<InputT, OutputT> fnLocal) {
     TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
-    String stepName = evaluationContext.getStepName(application);
-    DirectStepContext stepContext =
-        evaluationContext.getExecutionContext(application, inputBundle.getKey())
-            .getOrCreateStepContext(stepName, stepName);
-
-    DoFnLifecycleManager fnLocal = fnClones.getUnchecked((AppliedPTransform) application);
-    try {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      ParDoEvaluator<InputT> parDoEvaluator =
-          ParDoEvaluator.create(
-              evaluationContext,
-              stepContext,
-              inputBundle,
-              application,
-              fnLocal.get(),
-              application.getTransform().getSideInputs(),
-              mainOutputTag,
-              Collections.<TupleTag<?>>emptyList(),
-              ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, application.getOutput()));
-      return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(parDoEvaluator, fnLocal);
-    } catch (Exception e) {
-      try {
-        fnLocal.remove();
-      } catch (Exception removalException) {
-        LOG.error("Exception encountered constructing ParDo evaluator", removalException);
-        e.addSuppressed(removalException);
-      }
-      throw e;
-    }
+    ParDo.Bound<InputT, OutputT> transform = application.getTransform();
+    return ParDoEvaluator.create(
+        evaluationContext,
+        stepContext,
+        application,
+        fnLocal,
+        transform.getSideInputs(),
+        mainOutputTag,
+        Collections.<TupleTag<?>>emptyList(),
+        ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, application.getOutput()));
   }
 }
