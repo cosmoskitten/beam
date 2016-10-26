@@ -45,7 +45,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,6 +64,11 @@ public class SplittableDoFnTest {
     OffsetRange(int from, int to) {
       this.from = from;
       this.to = to;
+    }
+
+    @Override
+    public String toString() {
+      return "OffsetRange{" + "from=" + from + ", to=" + to + '}';
     }
   }
 
@@ -140,9 +144,6 @@ public class SplittableDoFnTest {
     }
   }
 
-  @Ignore(
-      "BEAM-801: SplittableParDo uses unsupported OldDoFn features that are not available in DoFn; "
-          + "It must be implemented as a primitive.")
   @Test
   public void testPairWithIndexBasic() throws ClassNotFoundException {
     Pipeline p = TestPipeline.create();
@@ -167,9 +168,6 @@ public class SplittableDoFnTest {
     p.run();
   }
 
-  @Ignore(
-      "BEAM-801: SplittableParDo uses unsupported OldDoFn features that are not available in DoFn; "
-          + "It must be implemented as a primitive.")
   @Test
   public void testPairWithIndexWindowedTimestamped() throws ClassNotFoundException {
     // Tests that Splittable DoFn correctly propagates windowing strategy, windows and timestamps

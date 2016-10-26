@@ -29,7 +29,8 @@ class ParDoMultiEvaluatorHooks<InputT, OutputT>
     implements ParDoEvaluatorFactory.TransformHooks<
         InputT, OutputT, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>> {
   @Override
-  public DoFn<InputT, OutputT> getDoFn(ParDo.BoundMulti<InputT, OutputT> transform) {
+  public DoFn<InputT, OutputT> getDoFn(
+      PCollection<InputT> input, ParDo.BoundMulti<InputT, OutputT> transform) {
     return transform.getNewFn();
   }
 
