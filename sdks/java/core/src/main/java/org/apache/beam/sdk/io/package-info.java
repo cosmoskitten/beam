@@ -32,4 +32,5 @@
  * numbers.apply(TextIO.Write.to("gs://my_bucket/path/to/numbers"));
  * } </pre>
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.io;

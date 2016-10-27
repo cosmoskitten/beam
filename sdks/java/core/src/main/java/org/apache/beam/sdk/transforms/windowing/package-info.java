@@ -47,4 +47,5 @@
  * {@link org.apache.beam.sdk.transforms.windowing.AfterWatermark} for details on the
  * watermark.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.transforms.windowing;

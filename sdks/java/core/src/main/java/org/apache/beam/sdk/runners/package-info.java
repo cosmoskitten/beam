@@ -20,4 +20,5 @@
 
  * <p>The runner is specified as part of the {@link org.apache.beam.sdk.options.PipelineOptions}.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.runners;

@@ -25,4 +25,5 @@
  * <p>Runners should look at {@link org.apache.beam.sdk.metrics.MetricsContainer} for details on
  * how to support metrics.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.metrics;

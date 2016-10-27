@@ -19,4 +19,5 @@
  * Defines utilities related to <a href="https://s.apache.org/splittable-do-fn>splittable</a>
  * {@link org.apache.beam.sdk.transforms.DoFn}'s.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.transforms.splittabledofn;

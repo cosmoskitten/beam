@@ -17,4 +17,5 @@
  */
 
 /** Defines utilities shared by multiple PipelineRunner implementations. */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.util.common;

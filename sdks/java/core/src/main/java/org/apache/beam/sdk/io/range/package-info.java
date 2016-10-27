@@ -21,4 +21,5 @@
  *
  * <p>See {@link org.apache.beam.sdk.io.range.RangeTracker} to get started.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.io.range;

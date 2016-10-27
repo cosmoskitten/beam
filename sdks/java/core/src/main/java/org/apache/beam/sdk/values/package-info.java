@@ -50,4 +50,5 @@
  *
  * <p>For further details, see the documentation for each class in this package.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.values;

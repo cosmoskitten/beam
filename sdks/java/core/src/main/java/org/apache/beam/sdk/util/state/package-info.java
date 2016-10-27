@@ -19,4 +19,5 @@
 /**
  * Defines internal utilities for interacting with pipeline state.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.util.state;
