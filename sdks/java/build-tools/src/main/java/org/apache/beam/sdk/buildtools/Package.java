@@ -15,10 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.buildtools;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
 /**
- * Defines reflection-based utilities for analyzing {@link org.apache.beam.sdk.transforms.DoFn}'s
- * and creating {@link org.apache.beam.sdk.transforms.reflect.DoFnSignature}'s and
- * {@link org.apache.beam.sdk.transforms.reflect.DoFnInvoker}'s from them.
+ * An annotation to work around the combination of
+ * https://issues.apache.org/jira/browse/MCOMPILER-205 and
+ * https://bugs.openjdk.java.net/browse/JDK-8022161
  */
-@org.apache.beam.sdk.buildtools.Package
-package org.apache.beam.sdk.transforms.reflect;
+@Retention(RetentionPolicy.SOURCE)
+public @interface Package {}

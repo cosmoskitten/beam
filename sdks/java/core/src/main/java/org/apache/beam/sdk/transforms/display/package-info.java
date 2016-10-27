@@ -23,4 +23,5 @@
  *
  * @see org.apache.beam.sdk.transforms.display.HasDisplayData
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.transforms.display;

@@ -21,4 +21,5 @@
  *
  * @see org.apache.beam.sdk.coders.protobuf.ProtoCoder
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.coders.protobuf;

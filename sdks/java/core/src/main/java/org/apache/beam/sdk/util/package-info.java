@@ -17,4 +17,5 @@
  */
 
 /** Defines utilities that can be used by Beam runners. */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.util;

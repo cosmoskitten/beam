@@ -18,4 +18,5 @@
 /**
  * Defines annotations used across the SDK.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.annotations;

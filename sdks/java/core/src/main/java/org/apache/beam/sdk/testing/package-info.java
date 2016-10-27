@@ -19,4 +19,5 @@
  * Defines utilities for unit testing Apache Beam pipelines. The tests for the {@code PTransform}s
  * and examples included in the Apache Beam SDK provide examples of using these utilities.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.testing;

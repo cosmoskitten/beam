@@ -23,4 +23,5 @@
  * parameters that describe how a pipeline should be run. {@code PipelineOptions} are created
  * using a {@link org.apache.beam.sdk.options.PipelineOptionsFactory}.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.options;

@@ -40,4 +40,5 @@
  * for their own application-specific logic.
  *
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.transforms;

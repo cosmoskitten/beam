@@ -19,4 +19,5 @@
  * Defines the {@link org.apache.beam.sdk.transforms.join.CoGroupByKey} transform
  * for joining multiple PCollections.
  */
+@org.apache.beam.sdk.buildtools.Package
 package org.apache.beam.sdk.transforms.join;
