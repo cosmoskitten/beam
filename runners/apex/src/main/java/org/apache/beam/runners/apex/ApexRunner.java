@@ -28,7 +28,8 @@ import com.google.common.base.Throwables;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.beam.runners.apex.translators.TranslationContext;
+import org.apache.beam.runners.apex.translation.ApexPipelineTranslator;
+import org.apache.beam.runners.apex.translation.TranslationContext;
 import org.apache.beam.runners.core.AssignWindows;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
