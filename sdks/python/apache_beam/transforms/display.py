@@ -93,6 +93,8 @@ class DisplayData(object):
         continue
 
       if isinstance(element, DisplayDataItem):
+        if element.should_drop():
+          continue
         element.key = key
         element.namespace = self.namespace
         self.items.append(element)
@@ -132,6 +134,7 @@ class DisplayDataItem(object):
   typeDict = {str:'STRING',
               int:'INTEGER',
               float:'FLOAT',
+              bool: 'BOOLEAN',
               timedelta:'DURATION',
               datetime:'TIMESTAMP'}
 
@@ -145,6 +148,24 @@ class DisplayDataItem(object):
     self.value = value
     self.url = url
     self.label = label
+    self._drop_if_none = False
+    self._drop_if_default = False
+
+  def drop_if_none(self):
+    self._drop_if_none = True
+    return self
+
+  def drop_if_default(self, default):
+    self._default = default
+    self._drop_if_default = True
+    return self
+
+  def should_drop(self):
+    if self._drop_if_none and self.value is None:
+      return True
+    if self._drop_if_default and self.value == self._default:
+      return True
+    return False
 
   def is_valid(self):
     """ Checks that all the necessary fields of the DisplayDataItem are
@@ -164,6 +185,21 @@ class DisplayDataItem(object):
           'Invalid DisplayDataItem. Value {} is of an unsupported type.'
           .format(self.value))
 
+  def _get_dict(self):
+    res = {'key': self.key,
+           'namespace': self.namespace,
+           'type': self.type if self.type != 'CLASS' else 'STRING'}
+    # TODO: Python Class types should not be special-cased once
+    # the Fn API is in.
+    if self.url is not None:
+      res['url'] = self.url
+    if self.shortValue is not None:
+      res['shortValue'] = self.shortValue
+    if self.label is not None:
+      res['label'] = self.label
+    res['value'] = self._format_value(self.value, self.type)
+    return res
+
   def get_dict(self):
     """ Returns the internal-API dictionary representing the DisplayDataItem.
 
@@ -175,35 +211,21 @@ class DisplayDataItem(object):
      ValueError: if the item is not valid.
     """
     self.is_valid()
-
-    res = {'key': self.key,
-           'namespace': self.namespace,
-           'type': self.type if self.type != 'CLASS' else 'STRING'}
-    # TODO: Python Class types should not be special-cased once
-    # the Fn API is in.
-
-    if self.url is not None:
-      res['url'] = self.url
-    if self.shortValue is not None:
-      res['shortValue'] = self.shortValue
-    if self.label is not None:
-      res['label'] = self.label
-    res['value'] = self._format_value(self.value, self.type)
-    return res
+    return self._get_dict()
 
   def __repr__(self):
-    return 'DisplayDataItem({})'.format(json.dumps(self.get_dict()))
+    return 'DisplayDataItem({})'.format(json.dumps(self._get_dict()))
 
   def __eq__(self, other):
     if isinstance(other, self.__class__):
-      return self.get_dict() == other.get_dict()
+      return self._get_dict() == other._get_dict()
     return False
 
   def __ne__(self, other):
     return not self == other
 
   def __hash__(self):
-    return hash(tuple(sorted(self.get_dict().items())))
+    return hash(tuple(sorted(self._get_dict().items())))
 
   @classmethod
   def _format_value(cls, value, type_):
@@ -259,4 +281,6 @@ class DisplayDataItem(object):
     type_ = cls.typeDict.get(type(value))
     if type_ is None:
       type_ = 'CLASS' if inspect.isclass(value) else None
+    if type_ is None and value is None:
+      type_ = 'STRING'
     return type_

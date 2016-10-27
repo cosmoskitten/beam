@@ -25,6 +25,8 @@ import os
 import tempfile
 import unittest
 
+import hamcrest as hc
+
 import apache_beam as beam
 from apache_beam.io import filebasedsource
 from apache_beam.io import fileio
@@ -36,6 +38,7 @@ from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.filebasedsource import _SingleFileSource as SingleFileSource
 
 from apache_beam.io.filebasedsource import FileBasedSource
+from apache_beam.transforms.display import DisplayData, DisplayDataItem
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
@@ -223,6 +226,15 @@ class TestFileBasedSource(unittest.TestCase):
     range_tracker = fbs.get_range_tracker(None, None)
     read_data = [record for record in fbs.read(range_tracker)]
     self.assertItemsEqual(expected_data, read_data)
+    dd = DisplayData.create_from(fbs)
+    nspace = '{}.{}'.format(fbs.__module__, fbs.__class__.__name__)
+    expected_items = [DisplayDataItem(file_name, key='filePattern',
+                                      label="File Pattern", namespace=nspace),
+                      DisplayDataItem('_CompressionType(auto)',
+                                      key='compression', namespace=nspace,
+                                      label='Compression Type')]
+    hc.assert_that(dd.items,
+                   hc.contains_inanyorder(*expected_items))
 
   def test_fully_read_file_pattern(self):
     pattern, expected_data = write_pattern([5, 3, 12, 8, 8, 4])
@@ -510,8 +522,8 @@ class TestSingleFileSource(unittest.TestCase):
   def test_source_creation_fails_for_non_number_offsets(self):
     start_not_a_number_error = 'start_offset must be a number*'
     stop_not_a_number_error = 'stop_offset must be a number*'
-
-    fbs = LineSource('dymmy_pattern')
+    file_name = 'dymmy_pattern'
+    fbs = LineSource(file_name)
 
     with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
       SingleFileSource(
@@ -528,6 +540,16 @@ class TestSingleFileSource(unittest.TestCase):
     with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=None, stop_offset=100)
+
+    dd = DisplayData.create_from(fbs)
+    nspace = '{}.{}'.format(fbs.__module__, fbs.__class__.__name__)
+    expected_items = [DisplayDataItem('_CompressionType(auto)',
+                                      key='compression', namespace=nspace,
+                                      label='Compression Type'),
+                      DisplayDataItem(file_name, key='filePattern',
+                                      label="File Pattern", namespace=nspace)]
+    hc.assert_that(dd.items,
+                   hc.contains_inanyorder(*expected_items))
 
   def test_source_creation_fails_if_start_lg_stop(self):
     start_larger_than_stop_error = (
