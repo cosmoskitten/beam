@@ -22,8 +22,16 @@ from __future__ import absolute_import
 from datetime import datetime
 import unittest
 
+import hamcrest as hc
+
 import apache_beam as beam
-from apache_beam.transforms.display import HasDisplayData, DisplayData, DisplayDataItem
+from apache_beam.transforms.display import *
+
+
+def make_nspace_display_data(component):
+  dd = DisplayData.create_from(component)
+  nspace = '{}.{}'.format(component.__module__, component.__class__.__name__)
+  return nspace, dd
 
 
 class DisplayDataTest(unittest.TestCase):
@@ -68,48 +76,34 @@ class DisplayDataTest(unittest.TestCase):
     now = datetime.now()
     fn = MyDoFn(my_display_data=now)
     dd = DisplayData.create_from(fn)
-    dd_dicts = sorted([item.get_dict() for item in dd.items],
-                      key=lambda x: x['namespace']+x['key'])
 
     nspace = '{}.{}'.format(fn.__module__, fn.__class__.__name__)
-    expected_items = sorted([
-        {'url': 'http://github.com', 'namespace': nspace,
-         'value': 'github.com', 'label': 'The URL',
-         'key': 'complex_url', 'type': 'STRING'},
-        {'type': 'TIMESTAMP', 'namespace': nspace, 'key': 'my_dd',
-         'value': DisplayDataItem._format_value(now, 'TIMESTAMP')},
-        {'type': 'STRING', 'namespace': nspace,
-         'shortValue': 'HasDisplayData', 'key': 'python_class',
-         'value': 'apache_beam.transforms.display.HasDisplayData'},
-        {'type': 'INTEGER', 'namespace': nspace,
-         'value': 120, 'key': 'static_integer'},
-        {'type': 'STRING', 'namespace': nspace,
-         'value': 'static me!', 'key': 'static_string'}],
-                            key=lambda x: x['namespace']+x['key'])
+    expected_items = [
+        DisplayDataItem('github.com', label='The URL', url='http://github.com',
+                        namespace=nspace, key='complex_url'),
+        DisplayDataItem(now, namespace=nspace, key='my_dd'),
+        DisplayDataItem(HasDisplayData, key='python_class', namespace=nspace),
+        DisplayDataItem(120, namespace=nspace, key='static_integer'),
+        DisplayDataItem('static me!', namespace=nspace, key='static_string')]
 
-    self.assertEqual(dd_dicts, expected_items)
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_subcomponent(self):
-    class SpecialParDo(beam.PTransform):
-      def __init__(self, fn):
-        self.fn = fn
-
-      def display_data(self):
-        return {'asubcomponent': self.fn}
-
     class SpecialDoFn(beam.DoFn):
       def display_data(self):
         return {'dofn_value': 42}
 
     dofn = SpecialDoFn()
-    pardo = SpecialParDo(dofn)
+    pardo = beam.ParDo(dofn)
     dd = DisplayData.create_from(pardo)
-    nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
-    self.assertEqual(dd.items[0].get_dict(),
-                     {"type": "INTEGER",
-                      "namespace": nspace,
-                      "value": 42,
-                      "key": "dofn_value"})
+    dofn_nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
+    pardo_nspace = '{}.{}'.format(pardo.__module__, pardo.__class__.__name__)
+    expected_items = [
+        DisplayDataItem(42, key='dofn_value', namespace=dofn_nspace),
+        DisplayDataItem(SpecialDoFn, key='fn', namespace=pardo_nspace,
+                        label='Transform Function')]
+
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
 # TODO: Test __repr__ function

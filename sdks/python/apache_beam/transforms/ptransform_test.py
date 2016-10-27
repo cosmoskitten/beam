@@ -23,11 +23,13 @@ import operator
 import re
 import unittest
 
+import hamcrest as hc
 
 import apache_beam as beam
 from apache_beam.pipeline import Pipeline
 import apache_beam.pvalue as pvalue
 import apache_beam.transforms.combiners as combine
+from apache_beam.transforms.display import DisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.util import assert_that, equal_to
 import apache_beam.typehints as typehints
@@ -661,6 +663,75 @@ class PTransformLabelsTest(unittest.TestCase):
         pass
 
     self.check_label(beam.ParDo(MyDoFn()), r'ParDo(MyDoFn)')
+
+
+class PTransformTestDisplayData(unittest.TestCase):
+  def test_default_display_data(self):
+    ########################
+    # MAP with named function
+    ########################
+    tr = beam.Map(len)
+    dd = DisplayData.create_from(tr)
+    nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
+    expected_item = DisplayDataItem('len', key='fn',
+                                    label='Transform Function',
+                                    namespace=nspace)
+    hc.assert_that(dd.items, hc.has_item(expected_item))
+
+    ########################
+    # MAP with anonymous function
+    ########################
+    tr = beam.Map(lambda x: x)
+    dd = DisplayData.create_from(tr)
+    nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
+    expected_item = DisplayDataItem('<lambda>', key='fn',
+                                    label='Transform Function',
+                                    namespace=nspace)
+    hc.assert_that(dd.items, hc.has_item(expected_item))
+
+    ########################
+    # FLATMAP with named function
+    ########################
+    tr = beam.FlatMap(list)
+    dd = DisplayData.create_from(tr)
+    nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
+    expected_item = DisplayDataItem('list', key='fn',
+                                    label='Transform Function',
+                                    namespace=nspace)
+    hc.assert_that(dd.items, hc.has_item(expected_item))
+
+    ########################
+    # FLATMAP with anonymous function
+    ########################
+    tr = beam.FlatMap(lambda x: [x])
+    dd = DisplayData.create_from(tr)
+    nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
+    expected_item = DisplayDataItem('<lambda>', key='fn',
+                                    label='Transform Function',
+                                    namespace=nspace)
+    hc.assert_that(dd.items, hc.has_item(expected_item))
+
+    ########################
+    # FILTER with named function
+    ########################
+    tr = beam.Filter(sum)
+    dd = DisplayData.create_from(tr)
+    nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
+    expected_item = DisplayDataItem('sum', key='fn',
+                                    label='Transform Function',
+                                    namespace=nspace)
+    hc.assert_that(dd.items, hc.has_item(expected_item))
+
+    ########################
+    # FILTER with anonymous function
+    ########################
+    tr = beam.Filter(lambda x: x // 30)
+    dd = DisplayData.create_from(tr)
+    nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
+    expected_item = DisplayDataItem('<lambda>', key='fn',
+                                    label='Transform Function',
+                                    namespace=nspace)
+    hc.assert_that(dd.items, hc.has_item(expected_item))
 
 
 class PTransformTypeCheckTestCase(TypeHintTestCase):

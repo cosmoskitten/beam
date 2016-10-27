@@ -86,6 +86,8 @@ class DisplayData(object):
     """ Populates the list of display data items.
     """
     for key, element in display_data_dict.items():
+      if element is None:
+        continue
       if isinstance(element, HasDisplayData):
         subcomponent_display_data = DisplayData(element._namespace(),
                                                 element.display_data())
@@ -93,6 +95,8 @@ class DisplayData(object):
         continue
 
       if isinstance(element, DisplayDataItem):
+        if element.value is None:
+          continue
         element.key = key
         element.namespace = self.namespace
         self.items.append(element)
@@ -132,6 +136,7 @@ class DisplayDataItem(object):
   typeDict = {str:'STRING',
               int:'INTEGER',
               float:'FLOAT',
+              bool: 'BOOLEAN',
               timedelta:'DURATION',
               datetime:'TIMESTAMP'}
 
@@ -164,6 +169,21 @@ class DisplayDataItem(object):
           'Invalid DisplayDataItem. Value {} is of an unsupported type.'
           .format(self.value))
 
+  def _get_dict(self):
+    res = {'key': self.key,
+           'namespace': self.namespace,
+           'type': self.type if self.type != 'CLASS' else 'STRING'}
+    # TODO: Python Class types should not be special-cased once
+    # the Fn API is in.
+    if self.url is not None:
+      res['url'] = self.url
+    if self.shortValue is not None:
+      res['shortValue'] = self.shortValue
+    if self.label is not None:
+      res['label'] = self.label
+    res['value'] = self._format_value(self.value, self.type)
+    return res
+
   def get_dict(self):
     """ Returns the internal-API dictionary representing the DisplayDataItem.
 
@@ -175,28 +195,19 @@ class DisplayDataItem(object):
      ValueError: if the item is not valid.
     """
     self.is_valid()
-
-    res = {'key': self.key,
-           'namespace': self.namespace,
-           'type': self.type if self.type != 'CLASS' else 'STRING'}
-    # TODO: Python Class types should not be special-cased once
-    # the Fn API is in.
-
-    if self.url is not None:
-      res['url'] = self.url
-    if self.shortValue is not None:
-      res['shortValue'] = self.shortValue
-    if self.label is not None:
-      res['label'] = self.label
-    res['value'] = self._format_value(self.value, self.type)
-    return res
+    return self._get_dict()
 
   def __repr__(self):
-    return 'DisplayDataItem({})'.format(json.dumps(self.get_dict()))
+    return 'DisplayDataItem({})'.format(json.dumps(self._get_dict()))
 
   def __eq__(self, other):
     if isinstance(other, self.__class__):
-      return self.get_dict() == other.get_dict()
+      return (self.key == other.key and
+              self.namespace == other.namespace and
+              self.value == other.value and
+              self.shortValue == other.shortValue and
+              self.url == other.url and
+              self.label == other.label)
     return False
 
   @classmethod

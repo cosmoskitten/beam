@@ -24,6 +24,7 @@ from __future__ import absolute_import
 
 from apache_beam import coders
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms.display import DisplayDataItem
 
 
 class PubSubSource(dataflow_io.NativeSource):
@@ -54,6 +55,13 @@ class PubSubSource(dataflow_io.NativeSource):
     """Source format name required for remote execution."""
     return 'pubsub'
 
+  def display_data(self):
+    return {'idLabel': DisplayDataItem(self.id_label,
+                                       label='ID Label Attribute'),
+            'topic': DisplayDataItem(self.topic, label='Pubsub Topic'),
+            'subscription': DisplayDataItem(self.subscription,
+                                            label='Pubsub Subscription')}
+
   def reader(self):
     raise NotImplementedError(
         'PubSubSource is not supported in local execution.')
@@ -70,6 +78,9 @@ class PubSubSink(dataflow_io.NativeSink):
   def format(self):
     """Sink format name required for remote execution."""
     return 'pubsub'
+
+  def display_data(self):
+    return {'topic': DisplayDataItem(self.topic, label='Pubsub Topic')}
 
   def writer(self):
     raise NotImplementedError(
