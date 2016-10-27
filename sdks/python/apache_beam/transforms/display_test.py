@@ -22,10 +22,18 @@ from __future__ import absolute_import
 from datetime import datetime
 import unittest
 
+import hamcrest as hc
+
 import apache_beam as beam
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
+
+
+def make_nspace_display_data(component):
+  dd = DisplayData.create_from(component)
+  nspace = '{}.{}'.format(component.__module__, component.__class__.__name__)
+  return nspace, dd
 
 
 class DisplayDataTest(unittest.TestCase):
@@ -96,26 +104,21 @@ class DisplayDataTest(unittest.TestCase):
     self.assertEqual(set(dd.items), expected_items)
 
   def test_subcomponent(self):
-    class SpecialParDo(beam.PTransform):
-      def __init__(self, fn):
-        self.fn = fn
-
-      def display_data(self):
-        return {'asubcomponent': self.fn}
-
     class SpecialDoFn(beam.DoFn):
       def display_data(self):
         return {'dofn_value': 42}
 
     dofn = SpecialDoFn()
-    pardo = SpecialParDo(dofn)
+    pardo = beam.ParDo(dofn)
     dd = DisplayData.create_from(pardo)
-    nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
-    self.assertEqual(dd.items[0].get_dict(),
-                     {"type": "INTEGER",
-                      "namespace": nspace,
-                      "value": 42,
-                      "key": "dofn_value"})
+    dofn_nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
+    pardo_nspace = '{}.{}'.format(pardo.__module__, pardo.__class__.__name__)
+    expected_items = [
+        DisplayDataItem(42, key='dofn_value', namespace=dofn_nspace),
+        DisplayDataItem(SpecialDoFn, key='fn', namespace=pardo_nspace,
+                        label='Transform Function')]
+
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
 # TODO: Test __repr__ function

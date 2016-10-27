@@ -94,6 +94,7 @@ REQUIRED_PACKAGES = [
     'protorpc>=0.9.1,<0.12',
     'python-gflags>=2.0,<4.0.0',
     'pyyaml>=3.10,<4.0.0',
+    'pyhamcrest>=1.9,<2.0',
     ]
 
 
