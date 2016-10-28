@@ -72,19 +72,19 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     this.outputMap = outputMap;
   }
 
-//  /**
-//   * @deprecated call the constructor with a {@link Serializable}
-//   */
-//  @Deprecated
-//  public DoFnInfo(
-//      OldDoFn doFn,
-//      WindowingStrategy<?, ?> windowingStrategy,
-//      Iterable<PCollectionView<?>> sideInputViews,
-//      Coder<InputT> inputCoder,
-//      long mainOutput,
-//      Map<Long, TupleTag<?>> outputMap) {
-//    this((Serializable) doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
-//  }
+  /**
+   * @deprecated call the constructor with a {@link Serializable}
+   */
+  @Deprecated
+  public DoFnInfo(
+      OldDoFn doFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
+    this((Serializable) doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
+  }
 
   /** Returns the embedded serialized function. It may be a {@code DoFn} or {@code OldDoFn}. */
   public Serializable getFn() {
