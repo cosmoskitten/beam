@@ -27,8 +27,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItemCoder;
-import org.apache.beam.sdk.util.ReifyTimestampsAndWindows;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -59,9 +57,6 @@ class DirectGroupByKey<K, V>
 
     // By default, implement GroupByKey via a series of lower-level operations.
     return input
-        // Make each input element's timestamp and assigned windows
-        // explicit, in the value part.
-        .apply(new ReifyTimestampsAndWindows<K, V>())
         .apply(new DirectGroupByKeyOnly<K, V>())
         .setCoder(
             KeyedWorkItemCoder.of(
@@ -79,9 +74,9 @@ class DirectGroupByKey<K, V>
   }
 
   static final class DirectGroupByKeyOnly<K, V>
-      extends PTransform<PCollection<KV<K, WindowedValue<V>>>, PCollection<KeyedWorkItem<K, V>>> {
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>> {
     @Override
-    public PCollection<KeyedWorkItem<K, V>> apply(PCollection<KV<K, WindowedValue<V>>> input) {
+    public PCollection<KeyedWorkItem<K, V>> apply(PCollection<KV<K, V>> input) {
       return PCollection.<KeyedWorkItem<K, V>>createPrimitiveOutputInternal(
           input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
     }
