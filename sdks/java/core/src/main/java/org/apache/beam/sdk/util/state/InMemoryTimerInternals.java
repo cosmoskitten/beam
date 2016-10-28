@@ -100,13 +100,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Override
   public void setTimer(StateNamespace namespace, String timerId, Instant target,
       TimeDomain timeDomain) {
-    WindowTracing.trace(
-        "TestTimerInternals.setTimer: {}/{} {} {}", namespace, timerId, target, timeDomain);
-    // TODO: actually track timers by ID
-    TimerData timer = TimerData.of(namespace, target, timeDomain);
-    if (existingTimers.add(timer)) {
-      queue(timer.getDomain()).add(timer);
-    }
+    throw new UnsupportedOperationException("Setting a timer by ID is not yet supported.");
   }
 
   @Override

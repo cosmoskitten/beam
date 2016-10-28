@@ -454,9 +454,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         @Override
         public void setTimer(
             StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-          // TODO: actually store by ID
-          TimerData timerKey = TimerData.of(namespace, target, timeDomain);
-          setTimer(timerKey);
+          throw new UnsupportedOperationException("Setting a timer by ID is not yet supported.");
         }
 
         @Override

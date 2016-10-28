@@ -49,9 +49,7 @@ class DirectTimerInternals implements TimerInternals {
   @Override
   public void setTimer(StateNamespace namespace, String timerId, Instant target,
       TimeDomain timeDomain) {
-    // TODO: actually store by ID
-    TimerData timerKey = TimerData.of(namespace, target, timeDomain);
-    setTimer(timerKey);
+    throw new UnsupportedOperationException("Setting timer by ID not yet supported.");
   }
 
   @Override
