@@ -78,7 +78,7 @@ class DirectGroupByKey<K, V>
     @Override
     public PCollection<KeyedWorkItem<K, V>> apply(PCollection<KV<K, V>> input) {
       return PCollection.<KeyedWorkItem<K, V>>createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+          input.getPipeline(), WindowingStrategy.globalDefault(), input.isBounded());
     }
 
     DirectGroupByKeyOnly() {}
@@ -121,7 +121,7 @@ class DirectGroupByKey<K, V>
     @Override
     public PCollection<KV<K, Iterable<V>>> apply(PCollection<KeyedWorkItem<K, V>> input) {
       return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+          input.getPipeline(), windowingStrategy, input.isBounded());
     }
   }
 }
