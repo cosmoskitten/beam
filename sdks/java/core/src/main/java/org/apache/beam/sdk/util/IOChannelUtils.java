@@ -31,6 +31,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.IOChannelFactoryV2.CreateOptions;
 
 /**
  * Provides utilities for creating read and write channels.
@@ -70,7 +71,7 @@ public class IOChannelUtils {
    */
   public static WritableByteChannel create(String filename, String mimeType)
       throws IOException {
-    return getFactory(filename).create(filename, mimeType);
+    return getFactoryV2(filename).create(filename, new CreateOptions().setMimeType(mimeType));
   }
 
   /**
@@ -187,6 +188,9 @@ public class IOChannelUtils {
     throw new IOException("Unable to find handler for " + spec);
   }
 
+  public static IOChannelFactoryV2 getFactoryV2(String spec) throws IOException {
+    throw new UnsupportedOperationException();
+  }
   /**
    * Resolve multiple {@code others} against the {@code path} sequentially.
    *
