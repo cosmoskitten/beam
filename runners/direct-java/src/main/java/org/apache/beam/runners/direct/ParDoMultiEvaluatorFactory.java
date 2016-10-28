@@ -86,6 +86,7 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
               evaluationContext,
               stepContext,
               application,
+              application.getInput().getWindowingStrategy(),
               (DoFn) fnLocal.get(),
               application.getTransform().getSideInputs(),
               application.getTransform().getMainOutputTag(),

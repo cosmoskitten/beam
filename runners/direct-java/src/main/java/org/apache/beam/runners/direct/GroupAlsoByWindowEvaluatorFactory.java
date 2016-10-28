@@ -125,6 +125,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               evaluationContext,
               stepContext,
               application,
+              windowingStrategy,
               gabwDoFn,
               Collections.<PCollectionView<?>>emptyList(),
               MAIN_OUTPUT_TAG,

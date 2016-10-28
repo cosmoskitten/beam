@@ -90,6 +90,7 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
               evaluationContext,
               stepContext,
               application,
+              application.getInput().getWindowingStrategy(),
               fnLocal.get(),
               application.getTransform().getSideInputs(),
               mainOutputTag,
