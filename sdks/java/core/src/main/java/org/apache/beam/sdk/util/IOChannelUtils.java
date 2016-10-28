@@ -187,6 +187,9 @@ public class IOChannelUtils {
     throw new IOException("Unable to find handler for " + spec);
   }
 
+  public static IOChannelFactoryV2 getFactoryV2(String spec) throws IOException {
+    throw new UnsupportedOperationException();
+  }
   /**
    * Resolve multiple {@code others} against the {@code path} sequentially.
    *
