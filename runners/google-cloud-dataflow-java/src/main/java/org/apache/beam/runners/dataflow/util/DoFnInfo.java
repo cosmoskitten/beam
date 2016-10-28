@@ -44,10 +44,20 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   private final Map<Long, TupleTag<?>> outputMap;
 
   /**
-   * Creates a {@link DoFnInfo} for the given {@link DoFn} or {@link OldDoFn} and auxiliary bits and
-   * pieces.
+   * Creates a {@link DoFnInfo} for the given {@link Serializable} object, which is expected to be a
+   * {@link DoFn} or {@link OldDoFn} or other context-appropriate UDF blob.
    */
-  public DoFnInfo(
+  public static <InputT, OutputT> DoFnInfo<InputT, OutputT> forFn(
+      Serializable doFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
+    return new DoFnInfo(doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
+  }
+
+  private DoFnInfo(
       Serializable doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Iterable<PCollectionView<?>> sideInputViews,
@@ -62,19 +72,19 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     this.outputMap = outputMap;
   }
 
-  /**
-   * @deprecated call the constructor with a {@link Serializable}
-   */
-  @Deprecated
-  public DoFnInfo(
-      OldDoFn doFn,
-      WindowingStrategy<?, ?> windowingStrategy,
-      Iterable<PCollectionView<?>> sideInputViews,
-      Coder<InputT> inputCoder,
-      long mainOutput,
-      Map<Long, TupleTag<?>> outputMap) {
-    this((Serializable) doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
-  }
+//  /**
+//   * @deprecated call the constructor with a {@link Serializable}
+//   */
+//  @Deprecated
+//  public DoFnInfo(
+//      OldDoFn doFn,
+//      WindowingStrategy<?, ?> windowingStrategy,
+//      Iterable<PCollectionView<?>> sideInputViews,
+//      Coder<InputT> inputCoder,
+//      long mainOutput,
+//      Map<Long, TupleTag<?>> outputMap) {
+//    this((Serializable) doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
+//  }
 
   /** Returns the embedded serialized function. It may be a {@code DoFn} or {@code OldDoFn}. */
   public Serializable getFn() {
