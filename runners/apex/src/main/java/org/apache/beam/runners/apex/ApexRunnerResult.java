@@ -21,6 +21,7 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.LocalMode;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
@@ -63,12 +64,27 @@ public class ApexRunnerResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    throw new UnsupportedOperationException();
+    // we need to rely on internal field for now
+    // Apex should make it available through API in upcoming release.
+    long timeout = (duration == null || duration.getMillis() < 1) ? Long.MAX_VALUE
+        : System.currentTimeMillis() + duration.getMillis();
+    Field appDoneField;
+    try {
+      appDoneField = ctrl.getClass().getDeclaredField("appDone");
+      appDoneField.setAccessible(true);
+      while (!appDoneField.getBoolean(ctrl) && System.currentTimeMillis() < timeout) {
+        Thread.sleep(500);
+      }
+      return appDoneField.getBoolean(ctrl) ? state : null;
+    } catch (NoSuchFieldException | SecurityException | IllegalArgumentException
+        | IllegalAccessException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public State waitUntilFinish() {
-    throw new UnsupportedOperationException();
+    return waitUntilFinish(null);
   }
 
   @Override
