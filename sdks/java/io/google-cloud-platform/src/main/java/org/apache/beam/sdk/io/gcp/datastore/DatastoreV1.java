@@ -122,8 +122,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel across
  * many workers. However, when the {@link Query} is configured with a limit using
- * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)}, then
- * all returned results will be read by a single Dataflow worker in order to ensure correct data.
+ * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)} or if the Query contains
+ * inequality filters like {@code GREATER_THAN, LESS_THAN} etc., then all returned results
+ * will be read by a single Dataflow worker in order to ensure correct data. Since data is read from
+ * a single worker, this could have a significant impact on the performance of the job.
  *
  * <p>To write a {@link PCollection} to a Cloud Datastore, use {@link DatastoreV1#write},
  * specifying the Cloud Datastore project to write to:
