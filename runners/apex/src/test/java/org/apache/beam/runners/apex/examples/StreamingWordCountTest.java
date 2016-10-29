@@ -110,7 +110,7 @@ public class StreamingWordCountTest {
           && FormatAsStringFn.RESULTS.containsKey("bar")) {
         break;
       }
-      Thread.sleep(1000);
+      result.waitUntilFinish(Duration.millis(1000));
     }
     result.cancel();
     Assert.assertTrue(
