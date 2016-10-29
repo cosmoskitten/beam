@@ -110,6 +110,7 @@ public class DatastoreV1Test {
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
   private static final Query QUERY;
+  private static final String LOCALHOST = "localhost:9955";
   private static final V1Options V_1_OPTIONS;
   static {
     Query.Builder q = Query.newBuilder();
@@ -158,10 +159,12 @@ public class DatastoreV1Test {
   @Test
   public void testBuildReadAlt() throws Exception {
     DatastoreV1.Read read =  DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY);
+        .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY)
+        .withLocalhost(LOCALHOST);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId());
     assertEquals(NAMESPACE, read.getNamespace());
+    assertEquals(LOCALHOST, read.getLocalhost());
   }
 
   @Test
