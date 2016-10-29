@@ -91,7 +91,7 @@ public class StreamingWordCountTest {
     ApexPipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
         .as(ApexPipelineOptions.class);
     options.setApplicationName("StreamingWordCount");
-    options.setParallelism(1);
+    //options.setParallelism(1);
     Pipeline p = Pipeline.create(options);
 
     PCollection<KV<String, Long>> wordCounts =
