@@ -49,7 +49,7 @@ import org.junit.runners.JUnit4;
 public class V1ReadIT {
   private V1TestOptions options;
   private String ancestor;
-  private final long numEntities = 1000;
+  private final long numEntities = 10;
 
   @Before
   public void setup() {
@@ -69,7 +69,7 @@ public class V1ReadIT {
   public void testE2EV1Read() throws Exception {
     // Create entities and write them to datastore
     writeEntitiesToDatastore(options, ancestor, numEntities);
-
+/*
     // Read from datastore
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
@@ -77,7 +77,8 @@ public class V1ReadIT {
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(options.getProject())
         .withQuery(query)
-        .withNamespace(options.getNamespace());
+        .withNamespace(options.getNamespace())
+        .withLocalhost("localhost:8619");
 
     // Count the total number of entities
     Pipeline p = Pipeline.create(options);
@@ -86,13 +87,13 @@ public class V1ReadIT {
         .apply(Count.<Entity>globally());
 
     PAssert.thatSingleton(count).isEqualTo(numEntities);
-    p.run();
+    p.run(); */
   }
 
   // Creates entities and write them to datastore
   private static void writeEntitiesToDatastore(V1TestOptions options, String ancestor,
       long numEntities) throws Exception {
-    Datastore datastore = getDatastore(options, options.getProject());
+    Datastore datastore = getDatastore(options, options.getProject(), "localhost:8168");
     // Write test entities to datastore
     V1TestWriter writer = new V1TestWriter(datastore, new UpsertMutationBuilder());
     Key ancestorKey = makeAncestorKey(options.getNamespace(), options.getKind(), ancestor);
@@ -101,11 +102,12 @@ public class V1ReadIT {
       Entity entity = makeEntity(i, ancestorKey, options.getKind(), options.getNamespace());
       writer.write(entity);
     }
+    System.out.println("Closing");
     writer.close();
   }
 
   @After
   public void tearDown() throws Exception {
-    deleteAllEntities(options, ancestor);
+    // deleteAllEntities(options, ancestor, "localhost:8619");
   }
 }

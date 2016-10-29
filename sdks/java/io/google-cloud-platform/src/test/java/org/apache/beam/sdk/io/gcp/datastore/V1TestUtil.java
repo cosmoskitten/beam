@@ -133,7 +133,8 @@ class V1TestUtil {
   /**
    * Build a new datastore client.
    */
-  static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
+  static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId,
+      String localhost) {
     Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
     HttpRequestInitializer initializer;
     if (credential != null) {
@@ -148,6 +149,7 @@ class V1TestUtil {
         new DatastoreOptions.Builder()
             .projectId(projectId)
             .initializer(initializer);
+            .localhost(localhost)
 
     return DatastoreFactory.get().create(builder.build());
   }
@@ -166,8 +168,9 @@ class V1TestUtil {
   /**
    * Delete all entities with the given ancestor.
    */
-  static void deleteAllEntities(V1TestOptions options, String ancestor) throws Exception {
-    Datastore datastore = getDatastore(options, options.getProject());
+  static void deleteAllEntities(V1TestOptions options, String ancestor, String localhost)
+      throws Exception {
+    Datastore datastore = getDatastore(options, options.getProject(), localhost);
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
@@ -190,7 +193,7 @@ class V1TestUtil {
    */
   static long countEntities(V1TestOptions options, String ancestor) throws Exception {
     // Read from datastore.
-    Datastore datastore = V1TestUtil.getDatastore(options, options.getProject());
+    Datastore datastore = V1TestUtil.getDatastore(options, options.getProject(), null);
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
