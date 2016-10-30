@@ -89,6 +89,9 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
@@ -317,6 +320,30 @@ public class BigQueryIO {
     return sb.toString();
   }
 
+  private static class JsonTableRefToTableRef
+      implements NestedValueProvider.DeferrableTranslator<TableReference, String> {
+    @Override
+    public TableReference createValue(String from) {
+      return fromJsonString(from, TableReference.class);
+    }
+  }
+
+  private static class TableRefToJson
+      implements NestedValueProvider.DeferrableTranslator<String, TableReference> {
+    @Override
+    public String createValue(TableReference from) {
+      return toJsonString(from);
+    }
+  }
+
+  private static class TableRefToProjectId
+      implements NestedValueProvider.DeferrableTranslator<String, TableReference> {
+    @Override
+    public String createValue(TableReference from) {
+      return from.getProjectId();
+    }
+  }
+
   /**
    * A {@link PTransform} that reads from a BigQuery table and returns a
    * {@link PCollection} of {@link TableRow TableRows} containing each of the rows of the table.
@@ -344,6 +371,13 @@ public class BigQueryIO {
      * {@code "[dataset_id].[table_id]"} for tables within the current project.
      */
     public static Bound from(String tableSpec) {
+      return new Bound().from(StaticValueProvider.of(tableSpec));
+    }
+
+    /**
+     * Same as {@code from(String)}, but with a {@link ValueProvider}.
+     */
+    public static Bound from(ValueProvider<String> tableSpec) {
       return new Bound().from(tableSpec);
     }
 
@@ -351,6 +385,13 @@ public class BigQueryIO {
      * Reads results received after executing the given query.
      */
     public static Bound fromQuery(String query) {
+      return new Bound().fromQuery(StaticValueProvider.of(query));
+    }
+
+    /**
+     * Same as {@code from(String)}, but with a {@link ValueProvider}.
+     */
+    public static Bound fromQuery(ValueProvider<String> query) {
       return new Bound().fromQuery(query);
     }
 
@@ -373,8 +414,8 @@ public class BigQueryIO {
      * {@link PCollection} of {@link TableRow TableRows}.
      */
     public static class Bound extends PTransform<PBegin, PCollection<TableRow>> {
-      @Nullable final String jsonTableRef;
-      @Nullable final String query;
+      @Nullable final ValueProvider<String> jsonTableRef;
+      @Nullable final ValueProvider<String> query;
 
       /**
        * Disable validation that the table exists or the query succeeds prior to pipeline
@@ -402,7 +443,8 @@ public class BigQueryIO {
       }
 
       private Bound(
-          String name, @Nullable String query, @Nullable String jsonTableRef, boolean validate,
+          String name, @Nullable ValueProvider<String> query,
+          @Nullable ValueProvider<String> jsonTableRef, boolean validate,
           @Nullable Boolean flattenResults, @Nullable Boolean useLegacySql,
           @Nullable BigQueryServices bigQueryServices) {
         super(name);
@@ -420,7 +462,8 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      public Bound from(String tableSpec) {
+      public Bound from(ValueProvider<String> tableSpec) {
+        // TODO(sgmc): This needs a translator.
         return from(parseTableSpec(tableSpec));
       }
 
@@ -431,8 +474,8 @@ public class BigQueryIO {
        */
       public Bound from(TableReference table) {
         return new Bound(
-            name, query, toJsonString(table), validate, flattenResults, useLegacySql,
-            bigQueryServices);
+            name, query, StaticValueProvider.of(toJsonString(table)),
+            validate, flattenResults, useLegacySql, bigQueryServices);
       }
 
       /**
@@ -448,7 +491,7 @@ public class BigQueryIO {
        * <p>By default, the query will use BigQuery's legacy SQL dialect. To use the BigQuery
        * Standard SQL dialect, use {@link BigQueryIO.Read.Bound#usingStandardSql}.
        */
-      public Bound fromQuery(String query) {
+      public Bound fromQuery(ValueProvider<String> query) {
         return new Bound(name, query, jsonTableRef, validate,
             MoreObjects.firstNonNull(flattenResults, Boolean.TRUE),
             MoreObjects.firstNonNull(useLegacySql, Boolean.TRUE),
@@ -556,7 +599,7 @@ public class BigQueryIO {
             jobService.dryRunQuery(
                 bqOptions.getProject(),
                 new JobConfigurationQuery()
-                    .setQuery(query)
+                    .setQuery(query.get())
                     .setFlattenResults(flattenResults)
                     .setUseLegacySql(useLegacySql));
           } catch (Exception e) {
@@ -587,7 +630,7 @@ public class BigQueryIO {
         }
 
         final String executingProject = bqOptions.getProject();
-        if (!Strings.isNullOrEmpty(query)) {
+        if (query != null && !Strings.isNullOrEmpty(query.get())) {
           String queryTempDatasetId = "temp_dataset_" + uuid;
           String queryTempTableId = "temp_table_" + uuid;
 
@@ -597,12 +640,13 @@ public class BigQueryIO {
               .setTableId(queryTempTableId);
 
           source = BigQueryQuerySource.create(
-              jobIdToken, query, queryTempTableRef, flattenResults, useLegacySql,
+              jobIdToken, query, StaticValueProvider.of(queryTempTableRef), flattenResults, useLegacySql,
               extractDestinationDir, bqServices);
         } else {
           TableReference inputTable = getTableWithDefaultProject(bqOptions);
           source = BigQueryTableSource.create(
-              jobIdToken, inputTable, extractDestinationDir, bqServices, executingProject);
+              jobIdToken, StaticValueProvider.of(inputTable), extractDestinationDir, bqServices,
+              StaticValueProvider.of(executingProject));
         }
         PassThroughThenCleanup.CleanupOperation cleanupOperation =
             new PassThroughThenCleanup.CleanupOperation() {
@@ -653,7 +697,7 @@ public class BigQueryIO {
         }
 
         builder
-            .addIfNotNull(DisplayData.item("query", query)
+            .addIfNotNull(DisplayData.item("query", query.get())
               .withLabel("Query"))
             .addIfNotNull(DisplayData.item("flattenResults", flattenResults)
               .withLabel("Flatten Query Results"))
@@ -683,14 +727,30 @@ public class BigQueryIO {
        * Returns the table to read, or {@code null} if reading from a query instead.
        */
       @Nullable
+      public ValueProvider<TableReference> getTableProvider() {
+        return jsonTableRef == null
+            ? null : NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
+      }
+      /**
+       * Returns the table to read, or {@code null} if reading from a query instead.
+       */
+      @Nullable
       public TableReference getTable() {
-        return fromJsonString(jsonTableRef, TableReference.class);
+        ValueProvider<TableReference> provider = getTableProvider();
+        return provider == null ? null : provider.get();
       }
 
       /**
        * Returns the query to be read, or {@code null} if reading from a table instead.
        */
       public String getQuery() {
+        return query == null ? null : query.get();
+      }
+
+      /**
+       * Returns the query to be read, or {@code null} if reading from a table instead.
+       */
+      public ValueProvider<String> getQueryProivder() {
         return query;
       }
 
@@ -787,44 +847,46 @@ public class BigQueryIO {
 
     static BigQueryTableSource create(
         String jobIdToken,
-        TableReference table,
+        ValueProvider<TableReference> table,
         String extractDestinationDir,
         BigQueryServices bqServices,
-        String executingProject) {
+        ValueProvider<String> executingProject) {
       return new BigQueryTableSource(
           jobIdToken, table, extractDestinationDir, bqServices, executingProject);
     }
 
-    private final String jsonTable;
+    private final ValueProvider<String> jsonTable;
     private final AtomicReference<Long> tableSizeBytes;
 
     private BigQueryTableSource(
         String jobIdToken,
-        TableReference table,
+        ValueProvider<TableReference> table,
         String extractDestinationDir,
         BigQueryServices bqServices,
-        String executingProject) {
+        ValueProvider<String> executingProject) {
       super(jobIdToken, extractDestinationDir, bqServices, executingProject);
-      this.jsonTable = toJsonString(checkNotNull(table, "table"));
+      this.jsonTable = NestedValueProvider.of(checkNotNull(table, "table"), new TableRefToJson());
       this.tableSizeBytes = new AtomicReference<>();
     }
 
     @Override
     protected TableReference getTableToExtract(BigQueryOptions bqOptions) throws IOException {
-      return JSON_FACTORY.fromString(jsonTable, TableReference.class);
+      checkState(jsonTable.isAccessible());
+      return JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
     }
 
     @Override
     public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-      TableReference tableRef = JSON_FACTORY.fromString(jsonTable, TableReference.class);
+      checkState(jsonTable.isAccessible());
+      TableReference tableRef = JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
       return new BigQueryReader(this, bqServices.getReaderFromTable(bqOptions, tableRef));
     }
 
     @Override
     public synchronized long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
       if (tableSizeBytes.get() == null) {
-        TableReference table = JSON_FACTORY.fromString(jsonTable, TableReference.class);
+        TableReference table = JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
 
         Long numBytes = bqServices.getDatasetService(options.as(BigQueryOptions.class))
             .getTable(table.getProjectId(), table.getDatasetId(), table.getTableId())
@@ -842,7 +904,8 @@ public class BigQueryIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("table", jsonTable));
+      String table = jsonTable.isAccessible() ? jsonTable.get() : jsonTable.toString();
+      builder.add(DisplayData.item("table", table));
     }
   }
 
@@ -854,8 +917,8 @@ public class BigQueryIO {
 
     static BigQueryQuerySource create(
         String jobIdToken,
-        String query,
-        TableReference queryTempTableRef,
+        ValueProvider<String> query,
+        ValueProvider<TableReference> queryTempTableRef,
         Boolean flattenResults,
         Boolean useLegacySql,
         String extractDestinationDir,
@@ -870,24 +933,26 @@ public class BigQueryIO {
           bqServices);
     }
 
-    private final String query;
-    private final String jsonQueryTempTable;
+    private final ValueProvider<String> query;
+    private final ValueProvider<String> jsonQueryTempTable;
     private final Boolean flattenResults;
     private final Boolean useLegacySql;
     private transient AtomicReference<JobStatistics> dryRunJobStats;
 
     private BigQueryQuerySource(
         String jobIdToken,
-        String query,
-        TableReference queryTempTableRef,
+        ValueProvider<String> query,
+        ValueProvider<TableReference> queryTempTableRef,
         Boolean flattenResults,
         Boolean useLegacySql,
         String extractDestinationDir,
         BigQueryServices bqServices) {
       super(jobIdToken, extractDestinationDir, bqServices,
-          checkNotNull(queryTempTableRef, "queryTempTableRef").getProjectId());
+          NestedValueProvider.of(
+              checkNotNull(queryTempTableRef, "queryTempTableRef"), new TableRefToProjectId()));
       this.query = checkNotNull(query, "query");
-      this.jsonQueryTempTable = toJsonString(queryTempTableRef);
+      this.jsonQueryTempTable = NestedValueProvider.of(
+          queryTempTableRef, new TableRefToJson());
       this.flattenResults = checkNotNull(flattenResults, "flattenResults");
       this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
       this.dryRunJobStats = new AtomicReference<>();
@@ -903,7 +968,7 @@ public class BigQueryIO {
     public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       return new BigQueryReader(this, bqServices.getReaderFromQuery(
-          bqOptions, query, executingProject, flattenResults, useLegacySql));
+          bqOptions, query.get(), executingProject.get(), flattenResults, useLegacySql));
     }
 
     @Override
@@ -924,7 +989,7 @@ public class BigQueryIO {
 
       // 2. Create the temporary dataset in the query location.
       TableReference tableToExtract =
-          JSON_FACTORY.fromString(jsonQueryTempTable, TableReference.class);
+          JSON_FACTORY.fromString(jsonQueryTempTable.get(), TableReference.class);
       tableService.createDataset(
           tableToExtract.getProjectId(),
           tableToExtract.getDatasetId(),
@@ -934,7 +999,7 @@ public class BigQueryIO {
       // 3. Execute the query.
       String queryJobId = jobIdToken + "-query";
       executeQuery(
-          executingProject,
+          executingProject.get(),
           queryJobId,
           tableToExtract,
           bqServices.getJobService(bqOptions));
@@ -943,8 +1008,9 @@ public class BigQueryIO {
 
     @Override
     protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
+      checkState(jsonQueryTempTable.isAccessible());
       TableReference tableToRemove =
-          JSON_FACTORY.fromString(jsonQueryTempTable, TableReference.class);
+          JSON_FACTORY.fromString(jsonQueryTempTable.get(), TableReference.class);
 
       DatasetService tableService = bqServices.getDatasetService(bqOptions);
       tableService.deleteTable(
@@ -957,14 +1023,14 @@ public class BigQueryIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("query", query));
+      builder.add(DisplayData.item("query", query.get()));
     }
 
     private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
         throws InterruptedException, IOException {
       if (dryRunJobStats.get() == null) {
         JobStatistics jobStats = bqServices.getJobService(bqOptions).dryRunQuery(
-            executingProject, createBasicQueryConfig());
+            executingProject.get(), createBasicQueryConfig());
         dryRunJobStats.compareAndSet(null, jobStats);
       }
       return dryRunJobStats.get();
@@ -995,7 +1061,7 @@ public class BigQueryIO {
 
     private JobConfigurationQuery createBasicQueryConfig() {
       return new JobConfigurationQuery()
-          .setQuery(query)
+          .setQuery(query.get())
           .setFlattenResults(flattenResults)
           .setUseLegacySql(useLegacySql);
     }
@@ -1032,13 +1098,13 @@ public class BigQueryIO {
     protected final String jobIdToken;
     protected final String extractDestinationDir;
     protected final BigQueryServices bqServices;
-    protected final String executingProject;
+    protected final ValueProvider<String> executingProject;
 
     private BigQuerySourceBase(
         String jobIdToken,
         String extractDestinationDir,
         BigQueryServices bqServices,
-        String executingProject) {
+        ValueProvider<String> executingProject) {
       this.jobIdToken = checkNotNull(jobIdToken, "jobIdToken");
       this.extractDestinationDir = checkNotNull(extractDestinationDir, "extractDestinationDir");
       this.bqServices = checkNotNull(bqServices, "bqServices");
@@ -1086,7 +1152,7 @@ public class BigQueryIO {
         String jobId, TableReference table, JobService jobService)
             throws InterruptedException, IOException {
       JobReference jobRef = new JobReference()
-          .setProjectId(executingProject)
+          .setProjectId(executingProject.get())
           .setJobId(jobId);
 
       String destinationUri = getExtractDestinationUri(extractDestinationDir);
