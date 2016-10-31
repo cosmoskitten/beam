@@ -37,7 +37,8 @@ from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.filebasedsource import _SingleFileSource as SingleFileSource
 
 from apache_beam.io.filebasedsource import FileBasedSource
-from apache_beam.transforms.display import DisplayData, DisplayDataItem
+from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display_test import make_nspace_display_data
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
@@ -225,11 +226,14 @@ class TestFileBasedSource(unittest.TestCase):
     range_tracker = fbs.get_range_tracker(None, None)
     read_data = [record for record in fbs.read(range_tracker)]
     self.assertItemsEqual(expected_data, read_data)
-    dd = DisplayData.create_from(fbs)
-    nspace = '{}.{}'.format(fbs.__module__, fbs.__class__.__name__)
+
+  def test_single_file_display_data(self):
+    file_name, _ = write_data(10)
+    fbs = LineSource(file_name)
+    nspace, dd = make_nspace_display_data(fbs)
     expected_items = [DisplayDataItem(file_name, key='filePattern',
                                       label="File Pattern", namespace=nspace),
-                      DisplayDataItem('_CompressionType(auto)',
+                      DisplayDataItem('auto',
                                       key='compression', namespace=nspace,
                                       label='Compression Type')]
     hc.assert_that(dd.items,
@@ -513,9 +517,11 @@ class TestSingleFileSource(unittest.TestCase):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=None, stop_offset=100)
 
-    dd = DisplayData.create_from(fbs)
-    nspace = '{}.{}'.format(fbs.__module__, fbs.__class__.__name__)
-    expected_items = [DisplayDataItem('_CompressionType(auto)',
+  def test_source_creation_display_data(self):
+    file_name = 'dymmy_pattern'
+    fbs = LineSource(file_name)
+    nspace, dd = make_nspace_display_data(fbs)
+    expected_items = [DisplayDataItem('auto',
                                       key='compression', namespace=nspace,
                                       label='Compression Type'),
                       DisplayDataItem(file_name, key='filePattern',

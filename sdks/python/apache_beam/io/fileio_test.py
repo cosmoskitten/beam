@@ -603,12 +603,36 @@ class TestNativeTextFileSink(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  def test_text_file_display_data(self):
+    sink = fileio.NativeTextFileSink(self.path)
     nspace, dd = make_nspace_display_data(sink)
     expected_items = [
         DisplayDataItem('{}{}'.format(self.path, '-SSSSS-of-NNNNN'),
                         label='File Name Pattern', key='filePattern',
                         namespace=nspace),
-        DisplayDataItem('_CompressionType(auto)', label='Compression Type',
+        DisplayDataItem('auto', label='Compression Type',
+                        key='compression', namespace=nspace)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_text_file_display_data_added_suffix(self):
+    sink = fileio.NativeTextFileSink('{}.{}'.format(self.path, 'pdf'))
+    nspace, dd = make_nspace_display_data(sink)
+    expected_items = [
+        DisplayDataItem('{}.{}{}'.format(self.path, 'pdf', '-SSSSS-of-NNNNN'),
+                        label='File Name Pattern', key='filePattern',
+                        namespace=nspace),
+        DisplayDataItem('auto', label='Compression Type',
+                        key='compression', namespace=nspace)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_text_file_display_data_suffix(self):
+    sink = fileio.NativeTextFileSink(self.path, file_name_suffix='.pdf')
+    nspace, dd = make_nspace_display_data(sink)
+    expected_items = [
+        DisplayDataItem('{}{}{}'.format(self.path, '-SSSSS-of-NNNNN', '.pdf'),
+                        label='File Name Pattern', key='filePattern',
+                        namespace=nspace),
+        DisplayDataItem('auto', label='Compression Type',
                         key='compression', namespace=nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
@@ -627,12 +651,15 @@ class TestNativeTextFileSink(unittest.TestCase):
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  def test_display_data_gzip_file(self):
+    sink = fileio.NativeTextFileSink(
+        self.path, compression_type=fileio.CompressionTypes.GZIP)
     nspace, dd = make_nspace_display_data(sink)
     expected_items = [
         DisplayDataItem('{}{}'.format(self.path, '-SSSSS-of-NNNNN'),
                         label='File Name Pattern', key='filePattern',
                         namespace=nspace),
-        DisplayDataItem('_CompressionType(gzip)', label='Compression Type',
+        DisplayDataItem('gzip', label='Compression Type',
                         key='compression', namespace=nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
@@ -660,12 +687,15 @@ class TestNativeTextFileSink(unittest.TestCase):
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  def test_display_data_bzip2_file(self):
+    sink = fileio.NativeTextFileSink(
+        self.path, compression_type=fileio.CompressionTypes.BZIP2)
     nspace, dd = make_nspace_display_data(sink)
     expected_items = [
         DisplayDataItem('{}{}'.format(self.path, '-SSSSS-of-NNNNN'),
                         label='File Name Pattern', key='filePattern',
                         namespace=nspace),
-        DisplayDataItem('_CompressionType(bzip2)', label='Compression Type',
+        DisplayDataItem('bzip2', label='Compression Type',
                         key='compression', namespace=nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
