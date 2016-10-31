@@ -110,6 +110,7 @@ import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -623,7 +624,7 @@ public class BigQueryIOTest implements Serializable {
   private void checkReadQueryObjectWithValidate(
       BigQueryIO.Read.Bound bound, String query, boolean validate) {
     assertNull(bound.getTable());
-    assertEquals(query, bound.query);
+    assertEquals(query, bound.getQuery());
     assertEquals(validate, bound.getValidate());
   }
 
@@ -758,7 +759,7 @@ public class BigQueryIOTest implements Serializable {
     p.apply("ReadMyTable",
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
-            .fromQuery("query"));
+            .fromQuery(StaticValueProvider.of("query")));
     p.run();
   }
 
@@ -973,7 +974,7 @@ public class BigQueryIOTest implements Serializable {
 
     BigQueryIO.Read.Bound read = BigQueryIO.Read
         .from(tableSpec)
-        .fromQuery("myQuery")
+        .fromQuery(StaticValueProvider.of("myQuery"))
         .withoutResultFlattening()
         .usingStandardSql()
         .withoutValidation();
@@ -1352,7 +1353,8 @@ public class BigQueryIOTest implements Serializable {
     TableReference table = BigQueryIO.parseTableSpec("project.data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        jobIdToken, table, extractDestinationDir, fakeBqServices, "project");
+        jobIdToken, StaticValueProvider.of(table), extractDestinationDir, fakeBqServices,
+        StaticValueProvider.of("project"));
 
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", "1"),
@@ -1389,7 +1391,8 @@ public class BigQueryIOTest implements Serializable {
     TableReference table = BigQueryIO.parseTableSpec("project:data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        jobIdToken, table, extractDestinationDir, fakeBqServices, "project");
+        jobIdToken, StaticValueProvider.of(table),
+        extractDestinationDir, fakeBqServices, StaticValueProvider.of("project"));
 
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", "1"),
@@ -1454,7 +1457,8 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, "query", destinationTable, true /* flattenResults */, true /* useLegacySql */,
+        jobIdToken, StaticValueProvider.of("query"), StaticValueProvider.of(destinationTable),
+        true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
 
     List<TableRow> expected = ImmutableList.of(
@@ -1545,7 +1549,8 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, "query", destinationTable, true /* flattenResults */, true /* useLegacySql */,
+        jobIdToken, StaticValueProvider.of("query"), StaticValueProvider.of(destinationTable),
+        true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
 
     List<TableRow> expected = ImmutableList.of(

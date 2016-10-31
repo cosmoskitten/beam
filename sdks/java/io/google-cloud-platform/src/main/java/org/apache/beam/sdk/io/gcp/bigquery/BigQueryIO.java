@@ -344,6 +344,14 @@ public class BigQueryIO {
     }
   }
 
+  private static class TableSpecToTableRef
+      implements NestedValueProvider.DeferrableTranslator<TableReference, String> {
+    @Override
+    public TableReference createValue(String from) {
+      return parseTableSpec(from);
+    }
+  }
+
   /**
    * A {@link PTransform} that reads from a BigQuery table and returns a
    * {@link PCollection} of {@link TableRow TableRows} containing each of the rows of the table.
@@ -463,8 +471,13 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound from(ValueProvider<String> tableSpec) {
-        // TODO(sgmc): This needs a translator.
-        return from(parseTableSpec(tableSpec));
+        return new Bound(
+            name, query,
+            NestedValueProvider.of(
+                NestedValueProvider.of(
+                    tableSpec, new TableSpecToTableRef()),
+                new TableRefToJson()),
+            validate, flattenResults, useLegacySql, bigQueryServices);
       }
 
       /**
@@ -473,9 +486,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound from(TableReference table) {
-        return new Bound(
-            name, query, StaticValueProvider.of(toJsonString(table)),
-            validate, flattenResults, useLegacySql, bigQueryServices);
+        return from(StaticValueProvider.of(toTableSpec(table)));
       }
 
       /**
@@ -640,8 +651,8 @@ public class BigQueryIO {
               .setTableId(queryTempTableId);
 
           source = BigQueryQuerySource.create(
-              jobIdToken, query, StaticValueProvider.of(queryTempTableRef), flattenResults, useLegacySql,
-              extractDestinationDir, bqServices);
+              jobIdToken, query, StaticValueProvider.of(queryTempTableRef),
+              flattenResults, useLegacySql, extractDestinationDir, bqServices);
         } else {
           TableReference inputTable = getTableWithDefaultProject(bqOptions);
           source = BigQueryTableSource.create(
