@@ -31,8 +31,8 @@ from apache_beam.internal.clients import bigquery
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.io.bigquery import RowAsDictJsonCoder
 from apache_beam.io.bigquery import TableRowJsonCoder
-from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display_test import make_nspace_display_data
+from apache_beam.transforms.display_test import ItemMatcher
 from apache_beam.utils.options import PipelineOptions
 
 
@@ -119,38 +119,32 @@ class TestBigQuerySource(unittest.TestCase):
 
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
-        DisplayDataItem(True, key='validation',
-                        namespace=nspace, label='Validation Enabled'),
-        DisplayDataItem('dataset.table', key='table',
-                        namespace=nspace, label='Table')]
+        ItemMatcher.matches_kvn('validation', True, nspace),
+        ItemMatcher.matches_kvn('table', 'dataset.table', nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_table_reference_display_data(self):
     source = beam.io.BigQuerySource('dataset.table')
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
-        DisplayDataItem(False, key='validation',
-                        namespace=nspace, label='Validation Enabled'),
-        DisplayDataItem('dataset.table', key='table',
-                        namespace=nspace, label='Table')]
+        ItemMatcher.matches_kvn('validation', False, nspace),
+        ItemMatcher.matches_kvn('table', 'dataset.table', nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     source = beam.io.BigQuerySource('project:dataset.table')
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
-        DisplayDataItem(False, key='validation',
-                        namespace=nspace, label='Validation Enabled'),
-        DisplayDataItem('project:dataset.table', key='table',
-                        namespace=nspace, label='Table')]
+        ItemMatcher.matches_kvn('validation', False, nspace),
+        ItemMatcher.matches_kvn('table', 'project:dataset.table', nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
-        DisplayDataItem(False, key='validation',
-                        namespace=nspace, label='Validation Enabled'),
-        DisplayDataItem('xyz.com:project:dataset.table', key='table',
-                        namespace=nspace, label='Table')]
+        ItemMatcher.matches_kvn(
+            'validation', False, nspace),
+        ItemMatcher.matches_kvn(
+            'table', 'xyz.com:project:dataset.table', nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_table_reference(self):
@@ -172,10 +166,8 @@ class TestBigQuerySource(unittest.TestCase):
     source = beam.io.BigQuerySource(query='my_query')
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
-        DisplayDataItem(False, key='validation',
-                        namespace=nspace, label='Validation Enabled'),
-        DisplayDataItem('my_query', key='query',
-                        namespace=nspace, label='Query')]
+        ItemMatcher.matches_kvn('validation', False, nspace),
+        ItemMatcher.matches_kvn('query', 'my_query', nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_specify_query_without_table(self):
@@ -191,10 +183,8 @@ class TestBigQuerySink(unittest.TestCase):
         'dataset.table', schema='s:STRING, n:INTEGER')
     nspace, dd = make_nspace_display_data(sink)
     expected_items = [
-        DisplayDataItem('dataset.table', key='table',
-                        namespace=nspace, label='Table'),
-        DisplayDataItem(False, key='validation', namespace=nspace,
-                        label='Validation Enabled')]
+        ItemMatcher.matches_kvn('table', 'dataset.table', nspace),
+        ItemMatcher.matches_kvn('validation', False, nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_schema_descriptor(self):
@@ -211,10 +201,8 @@ class TestBigQuerySink(unittest.TestCase):
         'PROJECT:dataset.table', schema='s:STRING, n:INTEGER')
     nspace, dd = make_nspace_display_data(sinkq)
     expected_items = [
-        DisplayDataItem('PROJECT:dataset.table', key='table',
-                        namespace=nspace, label='Table'),
-        DisplayDataItem(False, key='validation', namespace=nspace,
-                        label='Validation Enabled')]
+        ItemMatcher.matches_kvn('table', 'PROJECT:dataset.table', nspace),
+        ItemMatcher.matches_kvn('validation', False, nspace)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_simple_schema_as_json(self):

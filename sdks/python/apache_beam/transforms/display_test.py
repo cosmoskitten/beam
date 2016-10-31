@@ -23,6 +23,7 @@ from datetime import datetime
 import unittest
 
 import hamcrest as hc
+from hamcrest.core.base_matcher import BaseMatcher
 
 import apache_beam as beam
 from apache_beam.transforms.display import HasDisplayData
@@ -34,6 +35,61 @@ def make_nspace_display_data(component):
   dd = DisplayData.create_from(component)
   nspace = '{}.{}'.format(component.__module__, component.__class__.__name__)
   return nspace, dd
+
+
+class ItemMatcher(BaseMatcher):
+  def __init__(self, key, value, namespace, match_props=None):
+    self.key = key
+    self.value = value
+    self.namespace = namespace
+
+    if not match_props:
+      raise ValueError('Must match at least one attribute.')
+    self._match_props = match_props
+
+  def _matches(self, item):
+    if item.key != self.key and 'key' in self._match_props:
+      return False
+    if item.namespace != self.namespace and 'namespace' in self._match_props:
+      return False
+    if item.value != self.value and 'value' in self._match_props:
+      return False
+    return True
+
+  def describe_to(self, description):
+    if 'key' in self._match_props:
+      description.append('key is {} '.format(self.key))
+    if 'value' in self._match_props:
+      description.append('value is {} '.format(self.value))
+    if 'namespace' in self._match_props:
+      description.append('namespace is {} '.format(self.namespace))
+
+  @classmethod
+  def matches_key(cls, key):
+    """ Create an item matcher that matches only key of items.
+    """
+    return cls(key=key, match_props=['key'])
+
+  @classmethod
+  def matches_value(cls, value):
+    """ Create an item matcher that matches only value of items.
+    """
+    return cls(value=value, match_props=['value'])
+
+  @classmethod
+  def matches_key_value(cls, key, value):
+    """ Create an item matcher that matches only key and value.
+    """
+    return cls(key=key, value=value)
+
+  @classmethod
+  def matches_kvn(cls, key, value, namespace):
+    """ Create an item matcher that matches key, value and namespace.
+    """
+    return cls(key=key,
+               value=value,
+               namespace=namespace,
+               match_props=['key', 'value', 'namespace'])
 
 
 class DisplayDataTest(unittest.TestCase):
@@ -80,28 +136,14 @@ class DisplayDataTest(unittest.TestCase):
     dd = DisplayData.create_from(fn)
 
     nspace = '{}.{}'.format(fn.__module__, fn.__class__.__name__)
-    expected_items = set([
-        DisplayDataItem(namespace=nspace,
-                        key='complex_url',
-                        value='github.com',
-                        label='The URL',
-                        url='http://github.com'),
-        DisplayDataItem(namespace=nspace,
-                        key='my_dd',
-                        value=now),
-        DisplayDataItem(namespace=nspace,
-                        key='python_class',
-                        shortValue='HasDisplayData',
-                        value='apache_beam.transforms.display.HasDisplayData'),
-        DisplayDataItem(namespace=nspace,
-                        key='static_integer',
-                        value=120),
-        DisplayDataItem(namespace=nspace,
-                        key='static_string',
-                        value='static me!'),
-    ])
+    expected_items = [
+        ItemMatcher.matches_kvn('complex_url', 'github.com', nspace),
+        ItemMatcher.matches_kvn('my_dd', now, nspace),
+        ItemMatcher.matches_kvn('python_class', HasDisplayData, nspace),
+        ItemMatcher.matches_kvn('static_integer', 120, nspace),
+        ItemMatcher.matches_kvn('static_string', 'static me!', nspace)]
 
-    self.assertEqual(set(dd.items), expected_items)
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_subcomponent(self):
     class SpecialDoFn(beam.DoFn):
@@ -114,9 +156,8 @@ class DisplayDataTest(unittest.TestCase):
     dofn_nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
     pardo_nspace = '{}.{}'.format(pardo.__module__, pardo.__class__.__name__)
     expected_items = [
-        DisplayDataItem(42, key='dofn_value', namespace=dofn_nspace),
-        DisplayDataItem(SpecialDoFn, key='fn', namespace=pardo_nspace,
-                        label='Transform Function')]
+        ItemMatcher.matches_kvn('dofn_value', 42, dofn_nspace),
+        ItemMatcher.matches_kvn('fn', SpecialDoFn, pardo_nspace)]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
