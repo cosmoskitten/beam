@@ -165,7 +165,7 @@ public class SplittableParDoTest {
   private static class ProcessFnTester<
       InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> {
     private final DoFnTester<
-            KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+        KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
         tester;
     private Instant currentProcessingTime;
 
