@@ -23,16 +23,15 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.io.pubsub import PubSubSource, PubSubSink
-from apache_beam.transforms.display import DisplayData, DisplayDataItem
+from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display_test import make_nspace_display_data
 
 
 class TestPubSubSource(unittest.TestCase):
 
   def test_display_data(self):
     source = PubSubSource('a_topic', 'a_subscription', 'a_label')
-    dd = DisplayData.create_from(source)
-
-    nspace = '{}.{}'.format(source.__module__, source.__class__.__name__)
+    nspace, dd = make_nspace_display_data(source)
     expected_items = [
         DisplayDataItem('a_topic', namespace=nspace, key='topic',
                         label='Pubsub Topic'),
@@ -43,13 +42,20 @@ class TestPubSubSource(unittest.TestCase):
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
+  def test_display_data_no_subscription(self):
+    source = PubSubSource('a_topic')
+    nspace, dd = make_nspace_display_data(source)
+    expected_items = [
+        DisplayDataItem('a_topic', namespace=nspace, key='topic',
+                        label='Pubsub Topic')]
+
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
 
 class TestPubSubSink(unittest.TestCase):
   def test_display_data(self):
     sink = PubSubSink('a_topic')
-    dd = DisplayData.create_from(sink)
-
-    nspace = '{}.{}'.format(sink.__module__, sink.__class__.__name__)
+    nspace, dd = make_nspace_display_data(sink)
     expected_items = [
         DisplayDataItem('a_topic', namespace=nspace, key='topic',
                         label='Pubsub Topic')]

@@ -114,19 +114,19 @@ class TestTableRowJsonCoder(unittest.TestCase):
 
 class TestBigQuerySource(unittest.TestCase):
 
-  def test_no_dd_item_on_validate_true(self):
+  def test_display_data_item_on_validate_true(self):
     source = beam.io.BigQuerySource('dataset.table', validate=True)
 
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
+        DisplayDataItem(True, key='validation',
+                        namespace=nspace, label='Validation Enabled'),
         DisplayDataItem('dataset.table', key='table',
                         namespace=nspace, label='Table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-  def test_parse_table_reference(self):
+  def test_table_reference_display_data(self):
     source = beam.io.BigQuerySource('dataset.table')
-    self.assertEqual(source.table_reference.datasetId, 'dataset')
-    self.assertEqual(source.table_reference.tableId, 'table')
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
         DisplayDataItem(False, key='validation',
@@ -136,9 +136,6 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     source = beam.io.BigQuerySource('project:dataset.table')
-    self.assertEqual(source.table_reference.projectId, 'project')
-    self.assertEqual(source.table_reference.datasetId, 'dataset')
-    self.assertEqual(source.table_reference.tableId, 'table')
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
         DisplayDataItem(False, key='validation',
@@ -148,9 +145,6 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
-    self.assertEqual(source.table_reference.projectId, 'xyz.com:project')
-    self.assertEqual(source.table_reference.datasetId, 'dataset')
-    self.assertEqual(source.table_reference.tableId, 'table')
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
         DisplayDataItem(False, key='validation',
@@ -159,10 +153,23 @@ class TestBigQuerySource(unittest.TestCase):
                         namespace=nspace, label='Table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-  def test_specify_query_without_table(self):
+  def test_parse_table_reference(self):
+    source = beam.io.BigQuerySource('dataset.table')
+    self.assertEqual(source.table_reference.datasetId, 'dataset')
+    self.assertEqual(source.table_reference.tableId, 'table')
+
+    source = beam.io.BigQuerySource('project:dataset.table')
+    self.assertEqual(source.table_reference.projectId, 'project')
+    self.assertEqual(source.table_reference.datasetId, 'dataset')
+    self.assertEqual(source.table_reference.tableId, 'table')
+
+    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    self.assertEqual(source.table_reference.projectId, 'xyz.com:project')
+    self.assertEqual(source.table_reference.datasetId, 'dataset')
+    self.assertEqual(source.table_reference.tableId, 'table')
+
+  def test_query_only_display_data(self):
     source = beam.io.BigQuerySource(query='my_query')
-    self.assertEqual(source.query, 'my_query')
-    self.assertIsNone(source.table_reference)
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
         DisplayDataItem(False, key='validation',
@@ -171,8 +178,24 @@ class TestBigQuerySource(unittest.TestCase):
                         namespace=nspace, label='Query')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
+  def test_specify_query_without_table(self):
+    source = beam.io.BigQuerySource(query='my_query')
+    self.assertEqual(source.query, 'my_query')
+    self.assertIsNone(source.table_reference)
+
 
 class TestBigQuerySink(unittest.TestCase):
+
+  def test_schema_descriptor_display_data(self):
+    sink = beam.io.BigQuerySink(
+        'dataset.table', schema='s:STRING, n:INTEGER')
+    nspace, dd = make_nspace_display_data(sink)
+    expected_items = [
+        DisplayDataItem('dataset.table', key='table',
+                        namespace=nspace, label='Table'),
+        DisplayDataItem(False, key='validation', namespace=nspace,
+                        label='Validation Enabled')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_schema_descriptor(self):
     sink = beam.io.BigQuerySink(
@@ -183,9 +206,12 @@ class TestBigQuerySink(unittest.TestCase):
         field.name: field.type for field in sink.table_schema.fields}
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
-    nspace, dd = make_nspace_display_data(sink)
+  def test_project_table_schema_display_data(self):
+    sinkq = beam.io.BigQuerySink(
+        'PROJECT:dataset.table', schema='s:STRING, n:INTEGER')
+    nspace, dd = make_nspace_display_data(sinkq)
     expected_items = [
-        DisplayDataItem('dataset.table', key='table',
+        DisplayDataItem('PROJECT:dataset.table', key='table',
                         namespace=nspace, label='Table'),
         DisplayDataItem(False, key='validation', namespace=nspace,
                         label='Validation Enabled')]
@@ -199,13 +225,6 @@ class TestBigQuerySink(unittest.TestCase):
             {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
             {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}),
         sink.schema_as_json())
-    nspace, dd = make_nspace_display_data(sink)
-    expected_items = [
-        DisplayDataItem('PROJECT:dataset.table', key='table',
-                        namespace=nspace, label='Table'),
-        DisplayDataItem(False, key='validation', namespace=nspace,
-                        label='Validation Enabled')]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_nested_schema_as_json(self):
     string_field = bigquery.TableFieldSchema(

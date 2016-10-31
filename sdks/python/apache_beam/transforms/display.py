@@ -86,8 +86,6 @@ class DisplayData(object):
     """ Populates the list of display data items.
     """
     for key, element in display_data_dict.items():
-      if element is None:
-        continue
       if isinstance(element, HasDisplayData):
         subcomponent_display_data = DisplayData(element._namespace(),
                                                 element.display_data())
@@ -95,7 +93,7 @@ class DisplayData(object):
         continue
 
       if isinstance(element, DisplayDataItem):
-        if element.value is None:
+        if element.should_drop():
           continue
         element.key = key
         element.namespace = self.namespace
@@ -150,6 +148,24 @@ class DisplayDataItem(object):
     self.value = value
     self.url = url
     self.label = label
+    self._drop_if_none = False
+    self._drop_if_default = False
+
+  def drop_if_none(self):
+    self._drop_if_none = True
+    return self
+
+  def drop_if_default(self, default):
+    self._default = default
+    self._drop_if_default = True
+    return self
+
+  def should_drop(self):
+    if self._drop_if_none and self.value is None:
+      return True
+    if self._drop_if_default and self.value == self._default:
+      return True
+    return False
 
   def is_valid(self):
     """ Checks that all the necessary fields of the DisplayDataItem are
@@ -263,4 +279,6 @@ class DisplayDataItem(object):
     type_ = cls.typeDict.get(type(value))
     if type_ is None:
       type_ = 'CLASS' if inspect.isclass(value) else None
+    if type_ is None and value is None:
+      type_ = 'STRING'
     return type_
