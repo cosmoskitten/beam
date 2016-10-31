@@ -87,7 +87,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
               stepContext,
               application,
               application.getInput().getWindowingStrategy(),
-              fnManager.get(),
+              fnManager.get().getFn(),
               transform.getSideInputs(),
               transform.getMainOutputTag(),
               transform.getSideOutputTags().getAll(),
