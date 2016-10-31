@@ -23,8 +23,8 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.io.pubsub import PubSubSource, PubSubSink
-from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display_test import make_nspace_display_data
+from apache_beam.transforms.display_test import ItemMatcher
 
 
 class TestPubSubSource(unittest.TestCase):
@@ -33,12 +33,9 @@ class TestPubSubSource(unittest.TestCase):
     source = PubSubSource('a_topic', 'a_subscription', 'a_label')
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
-        DisplayDataItem('a_topic', namespace=nspace, key='topic',
-                        label='Pubsub Topic'),
-        DisplayDataItem('a_subscription', namespace=nspace, key='subscription',
-                        label='Pubsub Subscription'),
-        DisplayDataItem('a_label', namespace=nspace, key='idLabel',
-                        label='ID Label Attribute')]
+        ItemMatcher.matches_kvn('topic', 'a_topic', nspace),
+        ItemMatcher.matches_kvn('subscription', 'a_subscription', nspace),
+        ItemMatcher.matches_kvn('idLabel', 'a_label', nspace)]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
@@ -46,8 +43,7 @@ class TestPubSubSource(unittest.TestCase):
     source = PubSubSource('a_topic')
     nspace, dd = make_nspace_display_data(source)
     expected_items = [
-        DisplayDataItem('a_topic', namespace=nspace, key='topic',
-                        label='Pubsub Topic')]
+        ItemMatcher.matches_kvn('topic', 'a_topic', nspace)]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
@@ -57,8 +53,7 @@ class TestPubSubSink(unittest.TestCase):
     sink = PubSubSink('a_topic')
     nspace, dd = make_nspace_display_data(sink)
     expected_items = [
-        DisplayDataItem('a_topic', namespace=nspace, key='topic',
-                        label='Pubsub Topic')]
+        ItemMatcher.matches_kvn('topic', 'a_topic', nspace)]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
