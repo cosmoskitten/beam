@@ -65,10 +65,11 @@ class DirectGroupByKey<K, V>
                 input.getWindowingStrategy().getWindowFn().windowCoder()))
 
         // Group each key's values by window, merging windows as needed.
-        .apply("GroupAlsoByWindow", new DirectGroupAlsoByWindow<K, V>(windowingStrategy))
-
-        // And update the windowing strategy as appropriate.
-        .setWindowingStrategyInternal(original.updateWindowingStrategy(windowingStrategy))
+        .apply(
+            "GroupAlsoByWindow",
+            new DirectGroupAlsoByWindow<K, V>(
+                // And update the windowing strategy as appropriate.
+                original.updateWindowingStrategy(windowingStrategy)))
         .setCoder(
             KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getValueCoder())));
   }
@@ -77,7 +78,7 @@ class DirectGroupByKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>> {
     @Override
     public PCollection<KeyedWorkItem<K, V>> apply(PCollection<KV<K, V>> input) {
-      return PCollection.<KeyedWorkItem<K, V>>createPrimitiveOutputInternal(
+      return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), WindowingStrategy.globalDefault(), input.isBounded());
     }
 
@@ -120,7 +121,7 @@ class DirectGroupByKey<K, V>
 
     @Override
     public PCollection<KV<K, Iterable<V>>> apply(PCollection<KeyedWorkItem<K, V>> input) {
-      return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
+      return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), windowingStrategy, input.isBounded());
     }
   }
