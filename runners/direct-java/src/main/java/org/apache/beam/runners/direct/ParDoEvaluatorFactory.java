@@ -104,12 +104,12 @@ final class ParDoEvaluatorFactory<
             .getExecutionContext(application, inputBundle.getKey())
             .getOrCreateStepContext(stepName, stepName);
 
-    DoFnLifecycleManager fnManager =
-        fnClones.getUnchecked(hooks.getDoFn(application.getTransform()));
+    DoFn<InputT, OutputT> doFn = hooks.getDoFn(application.getTransform());
+    DoFnLifecycleManager fnManager = fnClones.getUnchecked(doFn);
     try {
       return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
           hooks.createParDoEvaluator(
-              evaluationContext, application, stepContext, (DoFn<InputT, OutputT>) fnManager.get()),
+              evaluationContext, application, stepContext, doFn),
           fnManager);
     } catch (Exception e) {
       try {
