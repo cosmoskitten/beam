@@ -55,7 +55,7 @@ class DirectExecutionContext
    * Step Context for the {@link DirectRunner}.
    */
   public class DirectStepContext
-      extends org.apache.beam.sdk.util.BaseExecutionContext.StepContext {
+      extends BaseExecutionContext.StepContext {
     private CopyOnAccessInMemoryStateInternals<Object> stateInternals;
     private DirectTimerInternals timerInternals;
 
