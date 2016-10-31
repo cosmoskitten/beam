@@ -404,7 +404,7 @@ public class PCollectionViews {
      * boilerplate accessors.
      */
     // TODO: make private as soon as runners are ported off indicator subclasses
-    protected SimplePCollectionView(
+    private SimplePCollectionView(
         Pipeline pipeline,
         TupleTag<Iterable<WindowedValue<ElemT>>> tag,
         ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
