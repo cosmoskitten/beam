@@ -58,6 +58,9 @@ class _CompressionType(object):
   def __ne__(self, other):
     return not self.__eq__(other)
 
+  def __str__(self):
+    return self.identifier
+
   def __repr__(self):
     return '_CompressionType(%s)' % self.identifier
 
@@ -1016,7 +1019,8 @@ class NativeFileSink(dataflow_io.NativeSink):
                                         self.shard_name_template,
                                         self.file_name_suffix)
     return {'filePattern':
-            DisplayDataItem(file_name_pattern, label='File Name Pattern'),
+            DisplayDataItem(file_name_pattern,
+                            label='File Name Pattern'),
             'compression':
             DisplayDataItem(str(self.compression_type),
                             label='Compression Type')}

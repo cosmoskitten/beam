@@ -56,11 +56,15 @@ class PubSubSource(dataflow_io.NativeSource):
     return 'pubsub'
 
   def display_data(self):
-    return {'idLabel': DisplayDataItem(self.id_label,
-                                       label='ID Label Attribute'),
-            'topic': DisplayDataItem(self.topic, label='Pubsub Topic'),
-            'subscription': DisplayDataItem(self.subscription,
-                                            label='Pubsub Subscription')}
+    return {'idLabel':
+            DisplayDataItem(self.id_label,
+                            label='ID Label Attribute').drop_if_none(),
+            'topic':
+            DisplayDataItem(self.topic,
+                            label='Pubsub Topic'),
+            'subscription':
+            DisplayDataItem(self.subscription,
+                            label='Pubsub Subscription').drop_if_none()}
 
   def reader(self):
     raise NotImplementedError(
