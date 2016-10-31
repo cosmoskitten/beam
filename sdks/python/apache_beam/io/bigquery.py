@@ -356,9 +356,8 @@ class BigQuerySource(dataflow_io.NativeSource):
                                    tableSpec)
       res['table'] = DisplayDataItem(tableSpec, label='Table')
 
-    if not self.validate:
-      res['validation'] = DisplayDataItem(self.validate,
-                                          label="Validation Enabled")
+    res['validation'] = DisplayDataItem(self.validate,
+                                        label="Validation Enabled")
     return res
 
   @property
@@ -463,9 +462,8 @@ class BigQuerySink(dataflow_io.NativeSink):
                                    tableSpec)
       res['table'] = DisplayDataItem(tableSpec, label='Table')
 
-    if not self.validate:
-      res['validation'] = DisplayDataItem(self.validate,
-                                          label="Validation Enabled")
+    res['validation'] = DisplayDataItem(self.validate,
+                                        label="Validation Enabled")
     return res
 
   def schema_as_json(self):

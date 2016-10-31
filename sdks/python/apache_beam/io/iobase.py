@@ -672,9 +672,9 @@ class Read(ptransform.PTransform):
       return self.source.coder
 
   def display_data(self):
-    return {'read_source': DisplayDataItem(self.source.__class__,
-                                           label='Read Source'),
-            'source': self.source}
+    return {'source': DisplayDataItem(self.source.__class__,
+                                      label='Read Source'),
+            'source_dd': self.source}
 
 
 class Write(ptransform.PTransform):
