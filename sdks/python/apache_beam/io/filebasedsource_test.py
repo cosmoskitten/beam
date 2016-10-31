@@ -38,8 +38,8 @@ from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.filebasedsource import _SingleFileSource as SingleFileSource
 
 from apache_beam.io.filebasedsource import FileBasedSource
-from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display_test import make_nspace_display_data
+from apache_beam.transforms.display_test import ItemMatcher
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
@@ -232,11 +232,9 @@ class TestFileBasedSource(unittest.TestCase):
     file_name, _ = write_data(10)
     fbs = LineSource(file_name)
     nspace, dd = make_nspace_display_data(fbs)
-    expected_items = [DisplayDataItem(file_name, key='filePattern',
-                                      label="File Pattern", namespace=nspace),
-                      DisplayDataItem('auto',
-                                      key='compression', namespace=nspace,
-                                      label='Compression Type')]
+    expected_items = [
+        ItemMatcher.matches_kvn('filePattern', file_name, nspace),
+        ItemMatcher.matches_kvn('compression', 'auto', nspace)]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
@@ -549,11 +547,9 @@ class TestSingleFileSource(unittest.TestCase):
     file_name = 'dymmy_pattern'
     fbs = LineSource(file_name)
     nspace, dd = make_nspace_display_data(fbs)
-    expected_items = [DisplayDataItem('auto',
-                                      key='compression', namespace=nspace,
-                                      label='Compression Type'),
-                      DisplayDataItem(file_name, key='filePattern',
-                                      label="File Pattern", namespace=nspace)]
+    expected_items = [
+        ItemMatcher.matches_kvn('compression', 'auto', nspace),
+        ItemMatcher.matches_kvn('filePattern', file_name, nspace)]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
