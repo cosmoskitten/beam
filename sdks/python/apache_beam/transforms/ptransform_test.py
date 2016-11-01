@@ -667,9 +667,6 @@ class PTransformLabelsTest(unittest.TestCase):
 
 class PTransformTestDisplayData(unittest.TestCase):
   def test_map_named_function(self):
-    ########################
-    # MAP with named function
-    ########################
     tr = beam.Map(len)
     dd = DisplayData.create_from(tr)
     nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
@@ -679,9 +676,6 @@ class PTransformTestDisplayData(unittest.TestCase):
     hc.assert_that(dd.items, hc.has_item(expected_item))
 
   def test_map_anonymous_function(self):
-    ########################
-    # MAP with anonymous function
-    ########################
     tr = beam.Map(lambda x: x)
     dd = DisplayData.create_from(tr)
     nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
@@ -691,9 +685,6 @@ class PTransformTestDisplayData(unittest.TestCase):
     hc.assert_that(dd.items, hc.has_item(expected_item))
 
   def test_flatmap_named_function(self):
-    ########################
-    # FLATMAP with named function
-    ########################
     tr = beam.FlatMap(list)
     dd = DisplayData.create_from(tr)
     nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
@@ -703,9 +694,6 @@ class PTransformTestDisplayData(unittest.TestCase):
     hc.assert_that(dd.items, hc.has_item(expected_item))
 
   def test_flatmap_anonymous_function(self):
-    ########################
-    # FLATMAP with anonymous function
-    ########################
     tr = beam.FlatMap(lambda x: [x])
     dd = DisplayData.create_from(tr)
     nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
@@ -715,9 +703,6 @@ class PTransformTestDisplayData(unittest.TestCase):
     hc.assert_that(dd.items, hc.has_item(expected_item))
 
   def test_filter_named_function(self):
-    ########################
-    # FILTER with named function
-    ########################
     tr = beam.Filter(sum)
     dd = DisplayData.create_from(tr)
     nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'
@@ -727,9 +712,6 @@ class PTransformTestDisplayData(unittest.TestCase):
     hc.assert_that(dd.items, hc.has_item(expected_item))
 
   def test_filter_anonymous_function(self):
-    ########################
-    # FILTER with anonymous function
-    ########################
     tr = beam.Filter(lambda x: x // 30)
     dd = DisplayData.create_from(tr)
     nspace = 'apache_beam.transforms.core.CallableWrapperDoFn'

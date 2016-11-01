@@ -344,9 +344,10 @@ class BigQuerySource(dataflow_io.NativeSource):
     self.coder = coder or RowAsDictJsonCoder()
 
   def display_data(self):
-    res = {}
-    if self.query is not None:
-      res['query'] = DisplayDataItem(self.query, label='Query')
+    res = {'query':
+           DisplayDataItem(self.query, label='Query').drop_if_none(),
+           'validation': DisplayDataItem(self.validate,
+                                         label='Validation Enabled')}
 
     if self.table_reference is not None:
       tableSpec = '{}.{}'.format(self.table_reference.datasetId,
@@ -356,8 +357,6 @@ class BigQuerySource(dataflow_io.NativeSource):
                                    tableSpec)
       res['table'] = DisplayDataItem(tableSpec, label='Table')
 
-    res['validation'] = DisplayDataItem(self.validate,
-                                        label="Validation Enabled")
     return res
 
   @property
