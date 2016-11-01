@@ -31,7 +31,7 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 
 
-class ItemMatcher(BaseMatcher):
+class DisplayDataItemMatcher(BaseMatcher):
   """ Matcher class for DisplayDataItems in unit tests.
   """
   def __init__(self, key, value, namespace, match_props=None):
@@ -124,11 +124,21 @@ class DisplayDataTest(unittest.TestCase):
 
     nspace = '{}.{}'.format(fn.__module__, fn.__class__.__name__)
     expected_items = [
-        ItemMatcher.matches_kvn('complex_url', 'github.com', nspace),
-        ItemMatcher.matches_kvn('my_dd', now, nspace),
-        ItemMatcher.matches_kvn('python_class', HasDisplayData, nspace),
-        ItemMatcher.matches_kvn('static_integer', 120, nspace),
-        ItemMatcher.matches_kvn('static_string', 'static me!', nspace)]
+        DisplayDataItemMatcher.matches_kvn('complex_url',
+                                           'github.com',
+                                           nspace),
+        DisplayDataItemMatcher.matches_kvn('my_dd',
+                                           now,
+                                           nspace),
+        DisplayDataItemMatcher.matches_kvn('python_class',
+                                           HasDisplayData,
+                                           nspace),
+        DisplayDataItemMatcher.matches_kvn('static_integer',
+                                           120,
+                                           nspace),
+        DisplayDataItemMatcher.matches_kvn('static_string',
+                                           'static me!',
+                                           nspace)]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
@@ -141,8 +151,10 @@ class DisplayDataTest(unittest.TestCase):
                 'nodef_val': DisplayDataItem(True).drop_if_default(False)}
 
     dd = DisplayData.create_from(MyDoFn())
-    expected_items = [ItemMatcher.matches_kv('some_val', 'something'),
-                      ItemMatcher.matches_kv('nodef_val', True)]
+    expected_items = [DisplayDataItemMatcher.matches_kv('some_val',
+                                                        'something'),
+                      DisplayDataItemMatcher.matches_kv('nodef_val',
+                                                        True)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_subcomponent(self):
@@ -156,8 +168,8 @@ class DisplayDataTest(unittest.TestCase):
     dofn_nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
     pardo_nspace = '{}.{}'.format(pardo.__module__, pardo.__class__.__name__)
     expected_items = [
-        ItemMatcher.matches_kvn('dofn_value', 42, dofn_nspace),
-        ItemMatcher.matches_kvn('fn', SpecialDoFn, pardo_nspace)]
+        DisplayDataItemMatcher.matches_kvn('dofn_value', 42, dofn_nspace),
+        DisplayDataItemMatcher.matches_kvn('fn', SpecialDoFn, pardo_nspace)]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 

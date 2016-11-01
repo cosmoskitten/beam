@@ -39,7 +39,7 @@ from apache_beam.io.filebasedsource import _SingleFileSource as SingleFileSource
 
 from apache_beam.io.filebasedsource import FileBasedSource
 from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.display_test import ItemMatcher
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
@@ -233,8 +233,8 @@ class TestFileBasedSource(unittest.TestCase):
     fbs = LineSource(file_name)
     dd = DisplayData.create_from(fbs)
     expected_items = [
-        ItemMatcher.matches_kv('filePattern', file_name),
-        ItemMatcher.matches_kv('compression', 'auto')]
+        DisplayDataItemMatcher.matches_kv('filePattern', file_name),
+        DisplayDataItemMatcher.matches_kv('compression', 'auto')]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
@@ -548,8 +548,8 @@ class TestSingleFileSource(unittest.TestCase):
     fbs = LineSource(file_name)
     dd = DisplayData.create_from(fbs)
     expected_items = [
-        ItemMatcher.matches_kv('compression', 'auto'),
-        ItemMatcher.matches_kv('filePattern', file_name)]
+        DisplayDataItemMatcher.matches_kv('compression', 'auto'),
+        DisplayDataItemMatcher.matches_kv('filePattern', file_name)]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
