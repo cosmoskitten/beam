@@ -152,15 +152,31 @@ class DisplayDataItem(object):
     self._drop_if_default = False
 
   def drop_if_none(self):
+    """ The item should be dropped if its value is None.
+
+    Returns:
+      Returns self.
+    """
     self._drop_if_none = True
     return self
 
   def drop_if_default(self, default):
+    """ The item should be dropped if its value is equal to its default.
+
+    Returns:
+      Returns self.
+    """
     self._default = default
     self._drop_if_default = True
     return self
 
   def should_drop(self):
+    """ Return True if the item should be dropped, or False if it should not
+    be dropped. This depends on the drop_if_none, and drop_if_default calls.
+
+    Returns:
+      True or False; depending on whether the item should be dropped or kept.
+    """
     if self._drop_if_none and self.value is None:
       return True
     if self._drop_if_default and self.value == self._default:
@@ -208,7 +224,7 @@ class DisplayDataItem(object):
       DisplayDataItem
 
     Raises:
-     ValueError: if the item is not valid.
+      ValueError: if the item is not valid.
     """
     self.is_valid()
     return self._get_dict()
