@@ -122,6 +122,7 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
@@ -321,33 +322,33 @@ public class BigQueryIO {
   }
 
   private static class JsonTableRefToTableRef
-      implements NestedValueProvider.DeferrableTranslator<TableReference, String> {
+      implements SerializableFunction<String, TableReference> {
     @Override
-    public TableReference createValue(String from) {
+    public TableReference apply(String from) {
       return fromJsonString(from, TableReference.class);
     }
   }
 
   private static class TableRefToJson
-      implements NestedValueProvider.DeferrableTranslator<String, TableReference> {
+      implements SerializableFunction<TableReference, String> {
     @Override
-    public String createValue(TableReference from) {
+    public String apply(TableReference from) {
       return toJsonString(from);
     }
   }
 
   private static class TableRefToProjectId
-      implements NestedValueProvider.DeferrableTranslator<String, TableReference> {
+      implements SerializableFunction<TableReference, String> {
     @Override
-    public String createValue(TableReference from) {
+    public String apply(TableReference from) {
       return from.getProjectId();
     }
   }
 
   private static class TableSpecToTableRef
-      implements NestedValueProvider.DeferrableTranslator<TableReference, String> {
+      implements SerializableFunction<String, TableReference> {
     @Override
-    public TableReference createValue(String from) {
+    public TableReference apply(String from) {
       return parseTableSpec(from);
     }
   }
@@ -573,7 +574,7 @@ public class BigQueryIO {
           }
         }
 
-        TableReference table = getTableWithDefaultProject(bqOptions);
+        TableReference table = getTableWithDefaultProject(bqOptions).get();
 
         checkState(
             table == null || query == null,
@@ -649,14 +650,16 @@ public class BigQueryIO {
               .setProjectId(executingProject)
               .setDatasetId(queryTempDatasetId)
               .setTableId(queryTempTableId);
+          String jsonTableRef = toJsonString(queryTempTableRef);
 
           source = BigQueryQuerySource.create(
-              jobIdToken, query, StaticValueProvider.of(queryTempTableRef),
+              jobIdToken, query, NestedValueProvider.of(
+                  StaticValueProvider.of(jsonTableRef), new JsonTableRefToTableRef()),
               flattenResults, useLegacySql, extractDestinationDir, bqServices);
         } else {
-          TableReference inputTable = getTableWithDefaultProject(bqOptions);
+          ValueProvider<TableReference> inputTable = getTableWithDefaultProject(bqOptions);
           source = BigQueryTableSource.create(
-              jobIdToken, StaticValueProvider.of(inputTable), extractDestinationDir, bqServices,
+              jobIdToken, inputTable, extractDestinationDir, bqServices,
               StaticValueProvider.of(executingProject));
         }
         PassThroughThenCleanup.CleanupOperation cleanupOperation =
@@ -724,12 +727,18 @@ public class BigQueryIO {
        *
        * <p>If the table's project is not specified, use the executing project.
        */
-      @Nullable private TableReference getTableWithDefaultProject(BigQueryOptions bqOptions) {
-        TableReference table = getTable();
-        if (table != null && Strings.isNullOrEmpty(table.getProjectId())) {
+      @Nullable private ValueProvider<TableReference> getTableWithDefaultProject(
+          BigQueryOptions bqOptions) {
+        ValueProvider<TableReference> table = getTableProvider();
+        if (!table.isAccessible()) {
+          LOG.info("Using a dynamic value for table input. This must contain a project"
+              + " in the table reference: {}", table);
+          return table;
+        }
+        if (table != null && Strings.isNullOrEmpty(table.get().getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
-          table.setProjectId(bqOptions.getProject());
+          table.get().setProjectId(bqOptions.getProject());
         }
         return table;
       }
@@ -1825,9 +1834,9 @@ public class BigQueryIO {
         BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
         BigQueryServices bqServices = getBigQueryServices();
 
-        // In a streaming job, or when a tablespec function is defined, we use StreamWithDeDup
-        // and BigQuery's streaming import API.
-        if (options.isStreaming() || tableRefFunction != null) {
+        // When writing an Unbounded PCollection, or when a tablespec function is defined, we use
+        // StreamWithDeDup and BigQuery's streaming import API.
+        if (input.isBounded() == IsBounded.UNBOUNDED || tableRefFunction != null) {
           return input.apply(
               new StreamWithDeDup(getTable(), tableRefFunction, getSchema(), bqServices));
         }
@@ -2135,11 +2144,6 @@ public class BigQueryIO {
         } else {
           c.sideOutput(multiPartitionsTag, KV.of(++partitionId, currResults));
         }
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
       }
     }
 
