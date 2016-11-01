@@ -370,7 +370,7 @@ public class DoFnInvokers {
    * Implements a method of {@link DoFnInvoker} (the "instrumented method") by delegating to a
    * "target method" of the wrapped {@link DoFn}.
    */
-  private static class DoFnMethodDelegation implements Implementation {
+  static class DoFnMethodDelegation implements Implementation {
     /** The {@link MethodDescription} of the wrapped {@link DoFn}'s method. */
     protected final MethodDescription targetMethod;
     /** Whether the target method returns non-void. */
@@ -496,51 +496,52 @@ public class DoFnInvokers {
     }
   }
 
+  private static final Map<DoFnSignature.Parameter, MethodDescription>
+      EXTRA_CONTEXT_FACTORY_METHODS;
+
+  private static final MethodDescription PROCESS_CONTINUATION_STOP_METHOD;
+
+  static {
+    try {
+      Map<DoFnSignature.Parameter, MethodDescription> methods = new HashMap<>();
+      methods.put(
+          DoFnSignature.Parameter.boundedWindow(),
+          new MethodDescription.ForLoadedMethod(
+              DoFn.ExtraContextFactory.class.getMethod("window")));
+      methods.put(
+          DoFnSignature.Parameter.inputProvider(),
+          new MethodDescription.ForLoadedMethod(
+              DoFn.ExtraContextFactory.class.getMethod("inputProvider")));
+      methods.put(
+          DoFnSignature.Parameter.outputReceiver(),
+          new MethodDescription.ForLoadedMethod(
+              DoFn.ExtraContextFactory.class.getMethod("outputReceiver")));
+      methods.put(
+          DoFnSignature.Parameter.restrictionTracker(),
+          new MethodDescription.ForLoadedMethod(
+              DoFn.ExtraContextFactory.class.getMethod("restrictionTracker")));
+      EXTRA_CONTEXT_FACTORY_METHODS = Collections.unmodifiableMap(methods);
+    } catch (Exception e) {
+      throw new RuntimeException(
+          "Failed to locate an ExtraContextFactory method that was expected to exist", e);
+    }
+    try {
+      PROCESS_CONTINUATION_STOP_METHOD =
+          new MethodDescription.ForLoadedMethod(DoFn.ProcessContinuation.class.getMethod("stop"));
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException("Failed to locate ProcessContinuation.stop()");
+    }
+  }
+
+  static MethodDescription getExtraContextFactoryMethod(DoFnSignature.Parameter param) {
+    return EXTRA_CONTEXT_FACTORY_METHODS.get(param);
+  }
+
   /**
    * Implements the invoker's {@link DoFnInvoker#invokeProcessElement} method by delegating to the
    * {@link DoFn.ProcessElement} method.
    */
   private static final class ProcessElementDelegation extends DoFnMethodDelegation {
-    private static final Map<DoFnSignature.Parameter, MethodDescription>
-        EXTRA_CONTEXT_FACTORY_METHODS;
-    private static final MethodDescription PROCESS_CONTINUATION_STOP_METHOD;
-
-    static {
-      try {
-        Map<DoFnSignature.Parameter, MethodDescription> methods = new HashMap<>();
-        methods.put(
-            DoFnSignature.Parameter.boundedWindow(),
-            new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod("window")));
-        methods.put(
-            DoFnSignature.Parameter.inputProvider(),
-            new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod("inputProvider")));
-        methods.put(
-            DoFnSignature.Parameter.outputReceiver(),
-            new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod("outputReceiver")));
-        methods.put(
-            DoFnSignature.Parameter.restrictionTracker(),
-            new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod("restrictionTracker")));
-        EXTRA_CONTEXT_FACTORY_METHODS = Collections.unmodifiableMap(methods);
-      } catch (Exception e) {
-        throw new RuntimeException(
-            "Failed to locate an ExtraContextFactory method that was expected to exist", e);
-      }
-      try {
-        PROCESS_CONTINUATION_STOP_METHOD =
-            new MethodDescription.ForLoadedMethod(DoFn.ProcessContinuation.class.getMethod("stop"));
-      } catch (NoSuchMethodException e) {
-        throw new RuntimeException("Failed to locate ProcessContinuation.stop()");
-      }
-    }
-
-    private static MethodDescription getExtraContextFactoryMethod(DoFnSignature.Parameter param) {
-      return EXTRA_CONTEXT_FACTORY_METHODS.get(param);
-    }
-
     private final DoFnSignature.ProcessElementMethod signature;
 
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
