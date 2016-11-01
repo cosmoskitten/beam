@@ -591,7 +591,6 @@ class ParDo(PTransformWithSideInputs):
     return self.fn.process_argspec_fn()
 
   def display_data(self):
-    # TODO: Add special handling of callables
     return {'fn': DisplayDataItem(self.fn.__class__,
                                   label='Transform Function'),
             'fn_dd': self.fn}

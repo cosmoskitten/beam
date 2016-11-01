@@ -31,13 +31,9 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 
 
-def make_nspace_display_data(component):
-  dd = DisplayData.create_from(component)
-  nspace = '{}.{}'.format(component.__module__, component.__class__.__name__)
-  return nspace, dd
-
-
 class ItemMatcher(BaseMatcher):
+  """ Matcher class for DisplayDataItems in unit tests.
+  """
   def __init__(self, key, value, namespace, match_props=None):
     self.key = key
     self.value = value
@@ -65,22 +61,13 @@ class ItemMatcher(BaseMatcher):
       description.append('namespace is {} '.format(self.namespace))
 
   @classmethod
-  def matches_key(cls, key):
-    """ Create an item matcher that matches only key of items.
-    """
-    return cls(key=key, match_props=['key'])
-
-  @classmethod
-  def matches_value(cls, value):
-    """ Create an item matcher that matches only value of items.
-    """
-    return cls(value=value, match_props=['value'])
-
-  @classmethod
-  def matches_key_value(cls, key, value):
+  def matches_kv(cls, key, value):
     """ Create an item matcher that matches only key and value.
     """
-    return cls(key=key, value=value)
+    return cls(key=key,
+               value=value,
+               namespace=None,
+               match_props=['key', 'value'])
 
   @classmethod
   def matches_kvn(cls, key, value, namespace):
@@ -143,6 +130,19 @@ class DisplayDataTest(unittest.TestCase):
         ItemMatcher.matches_kvn('static_integer', 120, nspace),
         ItemMatcher.matches_kvn('static_string', 'static me!', nspace)]
 
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_drop_if_none(self):
+    class MyDoFn(beam.DoFn):
+      def display_data(self):
+        return {'some_val': DisplayDataItem('something').drop_if_none(),
+                'non_val': DisplayDataItem(None).drop_if_none(),
+                'def_val': DisplayDataItem(True).drop_if_default(True),
+                'nodef_val': DisplayDataItem(True).drop_if_default(False)}
+
+    dd = DisplayData.create_from(MyDoFn())
+    expected_items = [ItemMatcher.matches_kv('some_val', 'something'),
+                      ItemMatcher.matches_kv('nodef_val', True)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_subcomponent(self):
