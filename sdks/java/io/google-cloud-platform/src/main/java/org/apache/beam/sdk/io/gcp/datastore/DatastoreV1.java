@@ -236,6 +236,7 @@ public class DatastoreV1 {
     @Nullable public abstract String getNamespace();
     public abstract int getNumQuerySplits();
     @Nullable public abstract String getLocalhost();
+    @Nullable public abstract String getProjectEndpoint();
 
     public abstract String toString();
 
@@ -248,6 +249,7 @@ public class DatastoreV1 {
       abstract Builder setNamespace(String namespace);
       abstract Builder setNumQuerySplits(int numQuerySplits);
       abstract Builder setLocalhost(String hostPort);
+      abstract Builder setProjectEndpoint(String projectEndpoint);
       abstract Read build();
     }
 

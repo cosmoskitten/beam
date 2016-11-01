@@ -69,7 +69,7 @@ public class V1ReadIT {
   public void testE2EV1Read() throws Exception {
     // Create entities and write them to datastore
     writeEntitiesToDatastore(options, ancestor, numEntities);
-/*
+
     // Read from datastore
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
@@ -78,7 +78,7 @@ public class V1ReadIT {
         .withProjectId(options.getProject())
         .withQuery(query)
         .withNamespace(options.getNamespace())
-        .withLocalhost("localhost:8619");
+        .withLocalhost("localhost:8689");
 
     // Count the total number of entities
     Pipeline p = Pipeline.create(options);
@@ -87,13 +87,13 @@ public class V1ReadIT {
         .apply(Count.<Entity>globally());
 
     PAssert.thatSingleton(count).isEqualTo(numEntities);
-    p.run(); */
+    p.run();
   }
 
   // Creates entities and write them to datastore
   private static void writeEntitiesToDatastore(V1TestOptions options, String ancestor,
       long numEntities) throws Exception {
-    Datastore datastore = getDatastore(options, options.getProject(), "localhost:8168");
+    Datastore datastore = getDatastore(options, options.getProject(), "localhost:8689");
     // Write test entities to datastore
     V1TestWriter writer = new V1TestWriter(datastore, new UpsertMutationBuilder());
     Key ancestorKey = makeAncestorKey(options.getNamespace(), options.getKind(), ancestor);
