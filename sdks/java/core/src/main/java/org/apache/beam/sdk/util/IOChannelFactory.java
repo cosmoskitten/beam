@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Defines a factory for working with read and write channels.
@@ -99,4 +100,15 @@ public interface IOChannelFactory {
    * dependent and therefore unspecified.
    */
   String resolve(String path, String other) throws IOException;
+
+  /**
+   * Factory of {@link IOChannelFactory}.
+   */
+  interface Factory {
+
+    /**
+     * Create a {@link IOChannelFactory} with the given {@link PipelineOptions}.
+     */
+    IOChannelFactory fromOptions(PipelineOptions options);
+  }
 }

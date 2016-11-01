@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 /**
@@ -33,7 +34,7 @@ public class GcsIOChannelFactory implements IOChannelFactory {
 
   private final GcsOptions options;
 
-  public GcsIOChannelFactory(GcsOptions options) {
+  private GcsIOChannelFactory(GcsOptions options) {
     this.options = options;
   }
 
@@ -82,5 +83,19 @@ public class GcsIOChannelFactory implements IOChannelFactory {
   @Override
   public String resolve(String path, String other) throws IOException {
     return GcsPath.fromUri(path).resolve(other).toString();
+  }
+
+  /**
+   * Factory of the {@link GcsIOChannelFactory}.
+   */
+  public static class Factory implements IOChannelFactory.Factory {
+    public static final Factory INSTANCE = new Factory();
+
+    private Factory() {}
+
+    @Override
+    public GcsIOChannelFactory fromOptions(PipelineOptions options) {
+      return new GcsIOChannelFactory(options.as(GcsOptions.class));
+    }
   }
 }
