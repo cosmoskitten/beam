@@ -524,7 +524,7 @@ class TestSingleFileSource(unittest.TestCase):
   def test_source_creation_fails_for_non_number_offsets(self):
     start_not_a_number_error = 'start_offset must be a number*'
     stop_not_a_number_error = 'stop_offset must be a number*'
-    file_name = 'dymmy_pattern'
+    file_name = 'dummy_pattern'
     fbs = LineSource(file_name)
 
     with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
@@ -544,7 +544,7 @@ class TestSingleFileSource(unittest.TestCase):
           fbs, file_name='dummy_file', start_offset=None, stop_offset=100)
 
   def test_source_creation_display_data(self):
-    file_name = 'dymmy_pattern'
+    file_name = 'dummy_pattern'
     fbs = LineSource(file_name)
     dd = DisplayData.create_from(fbs)
     expected_items = [
@@ -557,7 +557,7 @@ class TestSingleFileSource(unittest.TestCase):
     start_larger_than_stop_error = (
         'start_offset must be smaller than stop_offset*')
 
-    fbs = LineSource('dymmy_pattern')
+    fbs = LineSource('dummy_pattern')
     SingleFileSource(
         fbs, file_name='dummy_file', start_offset=99, stop_offset=100)
     with self.assertRaisesRegexp(ValueError, start_larger_than_stop_error):
@@ -568,7 +568,7 @@ class TestSingleFileSource(unittest.TestCase):
           fbs, file_name='dummy_file', start_offset=100, stop_offset=100)
 
   def test_estimates_size(self):
-    fbs = LineSource('dymmy_pattern')
+    fbs = LineSource('dummy_pattern')
 
     # Should simply return stop_offset - start_offset
     source = SingleFileSource(
@@ -580,7 +580,7 @@ class TestSingleFileSource(unittest.TestCase):
     self.assertEquals(90, source.estimate_size())
 
   def test_read_range_at_beginning(self):
-    fbs = LineSource('dymmy_pattern')
+    fbs = LineSource('dummy_pattern')
 
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
@@ -591,7 +591,7 @@ class TestSingleFileSource(unittest.TestCase):
     self.assertItemsEqual(expected_data[:4], read_data)
 
   def test_read_range_at_end(self):
-    fbs = LineSource('dymmy_pattern')
+    fbs = LineSource('dummy_pattern')
 
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
@@ -602,7 +602,7 @@ class TestSingleFileSource(unittest.TestCase):
     self.assertItemsEqual(expected_data[-3:], read_data)
 
   def test_read_range_at_middle(self):
-    fbs = LineSource('dymmy_pattern')
+    fbs = LineSource('dummy_pattern')
 
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
@@ -613,7 +613,7 @@ class TestSingleFileSource(unittest.TestCase):
     self.assertItemsEqual(expected_data[4:7], read_data)
 
   def test_produces_splits_desiredsize_large_than_size(self):
-    fbs = LineSource('dymmy_pattern')
+    fbs = LineSource('dummy_pattern')
 
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
@@ -629,7 +629,7 @@ class TestSingleFileSource(unittest.TestCase):
     self.assertItemsEqual(expected_data, read_data)
 
   def test_produces_splits_desiredsize_smaller_than_size(self):
-    fbs = LineSource('dymmy_pattern')
+    fbs = LineSource('dummy_pattern')
 
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
@@ -647,7 +647,7 @@ class TestSingleFileSource(unittest.TestCase):
     self.assertItemsEqual(expected_data, read_data)
 
   def test_produce_split_with_start_and_end_positions(self):
-    fbs = LineSource('dymmy_pattern')
+    fbs = LineSource('dummy_pattern')
 
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
