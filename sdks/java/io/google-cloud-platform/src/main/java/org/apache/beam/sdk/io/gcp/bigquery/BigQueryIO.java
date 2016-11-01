@@ -574,7 +574,8 @@ public class BigQueryIO {
           }
         }
 
-        TableReference table = getTableWithDefaultProject(bqOptions).get();
+        ValueProvider<TableReference> tableProvider = getTableWithDefaultProject(bqOptions);
+        TableReference table = tableProvider == null ? null : tableProvider.get();
 
         checkState(
             table == null || query == null,
@@ -709,9 +710,11 @@ public class BigQueryIO {
           builder.add(DisplayData.item("table", toTableSpec(table))
             .withLabel("Table"));
         }
-
+        String queryString = query == null
+            ? null : query.isAccessible()
+            ? query.get() : query.toString();
         builder
-            .addIfNotNull(DisplayData.item("query", query.get())
+            .addIfNotNull(DisplayData.item("query", queryString)
               .withLabel("Query"))
             .addIfNotNull(DisplayData.item("flattenResults", flattenResults)
               .withLabel("Flatten Query Results"))
@@ -730,12 +733,15 @@ public class BigQueryIO {
       @Nullable private ValueProvider<TableReference> getTableWithDefaultProject(
           BigQueryOptions bqOptions) {
         ValueProvider<TableReference> table = getTableProvider();
+        if (table == null) {
+          return table;
+        }
         if (!table.isAccessible()) {
           LOG.info("Using a dynamic value for table input. This must contain a project"
               + " in the table reference: {}", table);
           return table;
         }
-        if (table != null && Strings.isNullOrEmpty(table.get().getProjectId())) {
+        if (Strings.isNullOrEmpty(table.get().getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
           table.get().setProjectId(bqOptions.getProject());
