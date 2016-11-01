@@ -33,7 +33,7 @@ from apache_beam.internal.json_value import to_json_value
 from apache_beam.io.bigquery import RowAsDictJsonCoder
 from apache_beam.io.bigquery import TableRowJsonCoder
 from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.display_test import ItemMatcher
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils.options import PipelineOptions
 
 
@@ -120,30 +120,32 @@ class TestBigQuerySource(unittest.TestCase):
 
     dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kv('validation', True),
-        ItemMatcher.matches_kv('table', 'dataset.table')]
+        DisplayDataItemMatcher.matches_kv('validation', True),
+        DisplayDataItemMatcher.matches_kv('table', 'dataset.table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_table_reference_display_data(self):
     source = beam.io.BigQuerySource('dataset.table')
     dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kv('validation', False),
-        ItemMatcher.matches_kv('table', 'dataset.table')]
+        DisplayDataItemMatcher.matches_kv('validation', False),
+        DisplayDataItemMatcher.matches_kv('table', 'dataset.table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     source = beam.io.BigQuerySource('project:dataset.table')
     dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kv('validation', False),
-        ItemMatcher.matches_kv('table', 'project:dataset.table')]
+        DisplayDataItemMatcher.matches_kv('validation', False),
+        DisplayDataItemMatcher.matches_kv('table', 'project:dataset.table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
     dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kv('validation', False),
-        ItemMatcher.matches_kv('table', 'xyz.com:project:dataset.table')]
+        DisplayDataItemMatcher.matches_kv('validation',
+                                          False),
+        DisplayDataItemMatcher.matches_kv('table',
+                                          'xyz.com:project:dataset.table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_table_reference(self):
@@ -170,8 +172,8 @@ class TestBigQuerySource(unittest.TestCase):
     source = beam.io.BigQuerySource(query='my_query')
     dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kv('validation', False),
-        ItemMatcher.matches_kv('query', 'my_query')]
+        DisplayDataItemMatcher.matches_kv('validation', False),
+        DisplayDataItemMatcher.matches_kv('query', 'my_query')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_specify_query_sql_format(self):
@@ -192,8 +194,8 @@ class TestBigQuerySink(unittest.TestCase):
         'dataset.table', schema='s:STRING, n:INTEGER')
     dd = DisplayData.create_from(sink)
     expected_items = [
-        ItemMatcher.matches_kv('table', 'dataset.table'),
-        ItemMatcher.matches_kv('validation', False)]
+        DisplayDataItemMatcher.matches_kv('table', 'dataset.table'),
+        DisplayDataItemMatcher.matches_kv('validation', False)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_schema_descriptor(self):
@@ -210,8 +212,8 @@ class TestBigQuerySink(unittest.TestCase):
         'PROJECT:dataset.table', schema='s:STRING, n:INTEGER')
     dd = DisplayData.create_from(sinkq)
     expected_items = [
-        ItemMatcher.matches_kv('table', 'PROJECT:dataset.table'),
-        ItemMatcher.matches_kv('validation', False)]
+        DisplayDataItemMatcher.matches_kv('table', 'PROJECT:dataset.table'),
+        DisplayDataItemMatcher.matches_kv('validation', False)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_simple_schema_as_json(self):
