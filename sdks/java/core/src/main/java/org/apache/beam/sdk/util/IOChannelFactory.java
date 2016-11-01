@@ -23,6 +23,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.util.Collection;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Defines a factory for working with read and write channels.
@@ -103,4 +104,15 @@ public interface IOChannelFactory {
 
   /** Converts the given string to a {@link Path}. */
   Path toPath(String path);
+
+  /**
+   * Factory of {@link IOChannelFactory}.
+   */
+  interface Factory {
+
+    /**
+     * Create a {@link IOChannelFactory} with the given {@link PipelineOptions}.
+     */
+    IOChannelFactory fromOptions(PipelineOptions options);
+  }
 }

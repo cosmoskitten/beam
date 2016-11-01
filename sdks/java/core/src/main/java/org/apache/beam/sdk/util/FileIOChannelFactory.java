@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
@@ -40,6 +41,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +50,9 @@ import org.slf4j.LoggerFactory;
  */
 public class FileIOChannelFactory implements IOChannelFactory {
   private static final Logger LOG = LoggerFactory.getLogger(FileIOChannelFactory.class);
+
+  @VisibleForTesting
+  FileIOChannelFactory() {}
 
   /**
    *  Converts the given file spec to a java {@link File}. If {@code spec} is actually a URI with
@@ -154,5 +159,19 @@ public class FileIOChannelFactory implements IOChannelFactory {
   @Override
   public Path toPath(String path) {
     return specToFile(path).toPath();
+  }
+
+  /**
+   * Factory of the {@link FileIOChannelFactory}.
+   */
+  public static class Factory implements IOChannelFactory.Factory {
+    public static final Factory INSTANCE = new Factory();
+
+    private Factory() {}
+
+    @Override
+    public FileIOChannelFactory fromOptions(PipelineOptions options) {
+      return new FileIOChannelFactory();
+    }
   }
 }
