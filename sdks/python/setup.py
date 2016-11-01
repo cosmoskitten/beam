@@ -96,6 +96,9 @@ REQUIRED_PACKAGES = [
     'pyyaml>=3.10,<4.0.0',
     'pyhamcrest>=1.9,<2.0',
     ]
+REQUIRED_TEST_PACKAGES = [
+    'pyhamcrest>=1.9,<2.0',
+    ]
 
 
 setuptools.setup(
@@ -120,6 +123,7 @@ setuptools.setup(
     setup_requires=['nose>=1.0'],
     install_requires=REQUIRED_PACKAGES,
     test_suite='nose.collector',
+    test_require=REQUIRED_TEST_PACKAGES,
     zip_safe=False,
     # PyPI package information.
     classifiers=[
