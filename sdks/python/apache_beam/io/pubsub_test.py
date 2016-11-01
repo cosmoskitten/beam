@@ -23,7 +23,7 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.io.pubsub import PubSubSource, PubSubSink
-from apache_beam.transforms.display_test import make_nspace_display_data
+from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import ItemMatcher
 
 
@@ -31,19 +31,19 @@ class TestPubSubSource(unittest.TestCase):
 
   def test_display_data(self):
     source = PubSubSource('a_topic', 'a_subscription', 'a_label')
-    nspace, dd = make_nspace_display_data(source)
+    dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kvn('topic', 'a_topic', nspace),
-        ItemMatcher.matches_kvn('subscription', 'a_subscription', nspace),
-        ItemMatcher.matches_kvn('idLabel', 'a_label', nspace)]
+        ItemMatcher.matches_kv('topic', 'a_topic'),
+        ItemMatcher.matches_kv('subscription', 'a_subscription'),
+        ItemMatcher.matches_kv('idLabel', 'a_label')]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_display_data_no_subscription(self):
     source = PubSubSource('a_topic')
-    nspace, dd = make_nspace_display_data(source)
+    dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kvn('topic', 'a_topic', nspace)]
+        ItemMatcher.matches_kv('topic', 'a_topic')]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
@@ -51,9 +51,9 @@ class TestPubSubSource(unittest.TestCase):
 class TestPubSubSink(unittest.TestCase):
   def test_display_data(self):
     sink = PubSubSink('a_topic')
-    nspace, dd = make_nspace_display_data(sink)
+    dd = DisplayData.create_from(sink)
     expected_items = [
-        ItemMatcher.matches_kvn('topic', 'a_topic', nspace)]
+        ItemMatcher.matches_kv('topic', 'a_topic')]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 

@@ -31,7 +31,7 @@ from apache_beam.internal.clients import bigquery
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.io.bigquery import RowAsDictJsonCoder
 from apache_beam.io.bigquery import TableRowJsonCoder
-from apache_beam.transforms.display_test import make_nspace_display_data
+from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import ItemMatcher
 from apache_beam.utils.options import PipelineOptions
 
@@ -117,34 +117,32 @@ class TestBigQuerySource(unittest.TestCase):
   def test_display_data_item_on_validate_true(self):
     source = beam.io.BigQuerySource('dataset.table', validate=True)
 
-    nspace, dd = make_nspace_display_data(source)
+    dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kvn('validation', True, nspace),
-        ItemMatcher.matches_kvn('table', 'dataset.table', nspace)]
+        ItemMatcher.matches_kv('validation', True),
+        ItemMatcher.matches_kv('table', 'dataset.table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_table_reference_display_data(self):
     source = beam.io.BigQuerySource('dataset.table')
-    nspace, dd = make_nspace_display_data(source)
+    dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kvn('validation', False, nspace),
-        ItemMatcher.matches_kvn('table', 'dataset.table', nspace)]
+        ItemMatcher.matches_kv('validation', False),
+        ItemMatcher.matches_kv('table', 'dataset.table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     source = beam.io.BigQuerySource('project:dataset.table')
-    nspace, dd = make_nspace_display_data(source)
+    dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kvn('validation', False, nspace),
-        ItemMatcher.matches_kvn('table', 'project:dataset.table', nspace)]
+        ItemMatcher.matches_kv('validation', False),
+        ItemMatcher.matches_kv('table', 'project:dataset.table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
-    nspace, dd = make_nspace_display_data(source)
+    dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kvn(
-            'validation', False, nspace),
-        ItemMatcher.matches_kvn(
-            'table', 'xyz.com:project:dataset.table', nspace)]
+        ItemMatcher.matches_kv('validation', False),
+        ItemMatcher.matches_kv('table', 'xyz.com:project:dataset.table')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_table_reference(self):
@@ -164,10 +162,10 @@ class TestBigQuerySource(unittest.TestCase):
 
   def test_query_only_display_data(self):
     source = beam.io.BigQuerySource(query='my_query')
-    nspace, dd = make_nspace_display_data(source)
+    dd = DisplayData.create_from(source)
     expected_items = [
-        ItemMatcher.matches_kvn('validation', False, nspace),
-        ItemMatcher.matches_kvn('query', 'my_query', nspace)]
+        ItemMatcher.matches_kv('validation', False),
+        ItemMatcher.matches_kv('query', 'my_query')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_specify_query_without_table(self):
@@ -181,10 +179,10 @@ class TestBigQuerySink(unittest.TestCase):
   def test_schema_descriptor_display_data(self):
     sink = beam.io.BigQuerySink(
         'dataset.table', schema='s:STRING, n:INTEGER')
-    nspace, dd = make_nspace_display_data(sink)
+    dd = DisplayData.create_from(sink)
     expected_items = [
-        ItemMatcher.matches_kvn('table', 'dataset.table', nspace),
-        ItemMatcher.matches_kvn('validation', False, nspace)]
+        ItemMatcher.matches_kv('table', 'dataset.table'),
+        ItemMatcher.matches_kv('validation', False)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_schema_descriptor(self):
@@ -199,10 +197,10 @@ class TestBigQuerySink(unittest.TestCase):
   def test_project_table_schema_display_data(self):
     sinkq = beam.io.BigQuerySink(
         'PROJECT:dataset.table', schema='s:STRING, n:INTEGER')
-    nspace, dd = make_nspace_display_data(sinkq)
+    dd = DisplayData.create_from(sinkq)
     expected_items = [
-        ItemMatcher.matches_kvn('table', 'PROJECT:dataset.table', nspace),
-        ItemMatcher.matches_kvn('validation', False, nspace)]
+        ItemMatcher.matches_kv('table', 'PROJECT:dataset.table'),
+        ItemMatcher.matches_kv('validation', False)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_simple_schema_as_json(self):

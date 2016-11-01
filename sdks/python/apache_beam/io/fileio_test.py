@@ -34,7 +34,6 @@ from apache_beam import coders
 from apache_beam.io import fileio
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.display_test import make_nspace_display_data
 from apache_beam.transforms.display_test import ItemMatcher
 
 # TODO: Add tests for file patterns (ie not just individual files) for both
@@ -68,9 +67,8 @@ class TestTextFileSource(unittest.TestCase):
         read_lines.append(line)
     self.assertEqual(read_lines, output_lines)
     dd = DisplayData.create_from(source)
-    nspace = '{}.{}'.format(source.__module__, source.__class__.__name__)
     expected_items = [
-        ItemMatcher.matches_kvn('filePattern', file_name, nspace)]
+        ItemMatcher.matches_kv('filePattern', file_name)]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
@@ -606,42 +604,35 @@ class TestNativeTextFileSink(unittest.TestCase):
 
   def test_text_file_display_data(self):
     sink = fileio.NativeTextFileSink(self.path)
-    nspace, dd = make_nspace_display_data(sink)
+    dd = DisplayData.create_from(sink)
     expected_items = [
-        ItemMatcher.matches_kvn('filePattern',
-                                '{}{}'.format(self.path, '-SSSSS-of-NNNNN'),
-                                nspace),
-        ItemMatcher.matches_kvn('compression',
-                                'auto',
-                                nspace)]
+        ItemMatcher.matches_kv('filePattern',
+                               '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
+        ItemMatcher.matches_kv('compression',
+                               'auto')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_text_file_display_data_added_suffix(self):
     sink = fileio.NativeTextFileSink('{}.{}'.format(self.path, 'pdf'))
-    nspace, dd = make_nspace_display_data(sink)
+    dd = DisplayData.create_from(sink)
     expected_items = [
-        ItemMatcher.matches_kvn(
+        ItemMatcher.matches_kv(
             'filePattern',
-            '{}.{}{}'.format(self.path, 'pdf', '-SSSSS-of-NNNNN'),
-            nspace),
-        ItemMatcher.matches_kvn(
-            'compression',
-            'auto',
-            nspace)]
+            '{}.{}{}'.format(self.path, 'pdf', '-SSSSS-of-NNNNN')),
+        ItemMatcher.matches_kv(
+            'compression', 'auto')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_text_file_display_data_suffix(self):
     sink = fileio.NativeTextFileSink(self.path, file_name_suffix='.pdf')
-    nspace, dd = make_nspace_display_data(sink)
+    dd = DisplayData.create_from(sink)
     expected_items = [
-        ItemMatcher.matches_kvn(
+        ItemMatcher.matches_kv(
             'filePattern',
-            '{}{}{}'.format(self.path, '-SSSSS-of-NNNNN', '.pdf'),
-            nspace),
-        ItemMatcher.matches_kvn(
+            '{}{}{}'.format(self.path, '-SSSSS-of-NNNNN', '.pdf')),
+        ItemMatcher.matches_kv(
             'compression',
-            'auto',
-            nspace)]
+            'auto')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_file_empty(self):
@@ -662,16 +653,14 @@ class TestNativeTextFileSink(unittest.TestCase):
   def test_display_data_gzip_file(self):
     sink = fileio.NativeTextFileSink(
         self.path, compression_type=fileio.CompressionTypes.GZIP)
-    nspace, dd = make_nspace_display_data(sink)
+    dd = DisplayData.create_from(sink)
     expected_items = [
-        ItemMatcher.matches_kvn(
+        ItemMatcher.matches_kv(
             'filePattern',
-            '{}{}'.format(self.path, '-SSSSS-of-NNNNN'),
-            nspace),
-        ItemMatcher.matches_kvn(
+            '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
+        ItemMatcher.matches_kv(
             'compression',
-            'gzip',
-            nspace)]
+            'gzip')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_gzip_file_auto(self):
@@ -701,16 +690,14 @@ class TestNativeTextFileSink(unittest.TestCase):
   def test_display_data_bzip2_file(self):
     sink = fileio.NativeTextFileSink(
         self.path, compression_type=fileio.CompressionTypes.BZIP2)
-    nspace, dd = make_nspace_display_data(sink)
+    dd = DisplayData.create_from(sink)
     expected_items = [
-        ItemMatcher.matches_kvn(
+        ItemMatcher.matches_kv(
             'filePattern',
-            '{}{}'.format(self.path, '-SSSSS-of-NNNNN'),
-            nspace),
-        ItemMatcher.matches_kvn(
+            '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
+        ItemMatcher.matches_kv(
             'compression',
-            'bzip2',
-            nspace)]
+            'bzip2')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_zlib_file_auto(self):
