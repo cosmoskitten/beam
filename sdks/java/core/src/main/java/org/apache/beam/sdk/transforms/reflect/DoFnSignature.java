@@ -132,6 +132,15 @@ public abstract class DoFnSignature {
     Method targetMethod();
   }
 
+  public interface ParameterizedMethod extends DoFnMethod {
+    /**
+     * Types of optional parameters of the annotated method, in the order they appear.
+     *
+     * <p>Validation that these are allowed is external to this class.
+     */
+    List<Parameter> extraParameters();
+  }
+
   /** A descriptor for an optional parameter of the {@link DoFn.ProcessElement} method. */
   public abstract static class Parameter {
 
@@ -331,12 +340,13 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.ProcessElement} method. */
   @AutoValue
-  public abstract static class ProcessElementMethod implements DoFnMethod {
+  public abstract static class ProcessElementMethod implements ParameterizedMethod {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
     public abstract List<Parameter> extraParameters();
 
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
@@ -380,7 +390,7 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.OnTimer} method. */
   @AutoValue
-  public abstract static class OnTimerMethod implements DoFnMethod {
+  public abstract static class OnTimerMethod implements ParameterizedMethod {
 
     /** The id on the method's {@link DoFn.TimerId} annotation. */
     public abstract String id();
@@ -390,6 +400,7 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
     public abstract List<Parameter> extraParameters();
 
     static OnTimerMethod create(Method targetMethod, String id, List<Parameter> extraParameters) {

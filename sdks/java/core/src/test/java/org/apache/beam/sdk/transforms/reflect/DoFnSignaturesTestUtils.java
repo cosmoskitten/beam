@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures.GlobalAnalysisContext;
 
 /** Utilities for use in {@link DoFnSignatures} tests. */
 class DoFnSignaturesTestUtils {
@@ -61,7 +61,6 @@ class DoFnSignaturesTestUtils {
         method.getMethod(),
         TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(String.class),
-        Collections.EMPTY_MAP,
-        Collections.EMPTY_MAP);
+        GlobalAnalysisContext.empty());
   }
 }
