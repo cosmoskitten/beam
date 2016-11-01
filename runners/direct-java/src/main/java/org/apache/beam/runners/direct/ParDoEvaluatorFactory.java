@@ -32,21 +32,41 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A base class for {@link TransformEvaluatorFactory evaluator factories} for the {@link ParDo}
- * primitive {@link PTransform PTransforms}.
+ * A {@link TransformEvaluatorFactory} for {@link ParDo}-like primitive {@link PTransform
+ * PTransforms}, parameterized by some {@link TransformHooks transform-specific handling}.
  */
-abstract class ParDoEvaluatorFactoryBase<
+final class ParDoEvaluatorFactory<
         InputT,
         OutputT,
         TransformOutputT extends POutput,
         TransformT extends PTransform<PCollection<? extends InputT>, TransformOutputT>>
     implements TransformEvaluatorFactory {
-  private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactoryBase.class);
-  private final LoadingCache<DoFn<?, ?>, DoFnLifecycleManager> fnClones;
-  protected final EvaluationContext evaluationContext;
+  interface TransformHooks<
+      InputT,
+      OutputT,
+      TransformOutputT extends POutput,
+      TransformT extends PTransform<PCollection<? extends InputT>, TransformOutputT>> {
+    /** Returns the {@link DoFn} contained in the given {@link ParDo} transform. */
+    DoFn<InputT, OutputT> getDoFn(TransformT transform);
 
-  ParDoEvaluatorFactoryBase(EvaluationContext evaluationContext) {
+    /** Configures and creates a {@link ParDoEvaluator} for the given {@link DoFn}. */
+    ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
+        EvaluationContext evaluationContext,
+        AppliedPTransform<PCollection<InputT>, TransformOutputT, TransformT> application,
+        DirectStepContext stepContext,
+        DoFn<InputT, OutputT> fnLocal);
+  }
+
+  private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
+  private final LoadingCache<DoFn<?, ?>, DoFnLifecycleManager> fnClones;
+  private final EvaluationContext evaluationContext;
+  private final TransformHooks<InputT, OutputT, TransformOutputT, TransformT> hooks;
+
+  ParDoEvaluatorFactory(
+      EvaluationContext evaluationContext,
+      TransformHooks<InputT, OutputT, TransformOutputT, TransformT> hooks) {
     this.evaluationContext = evaluationContext;
+    this.hooks = hooks;
     fnClones =
         CacheBuilder.newBuilder()
             .build(
@@ -73,15 +93,6 @@ abstract class ParDoEvaluatorFactoryBase<
     DoFnLifecycleManagers.removeAllFromManagers(fnClones.asMap().values());
   }
 
-  /** Returns the {@link DoFn} contained in the given {@link ParDo} transform. */
-  abstract DoFn<InputT, OutputT> getDoFn(TransformT transform);
-
-  /** Configures and creates a {@link ParDoEvaluator} for the given {@link DoFn}. */
-  abstract ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
-      AppliedPTransform<PCollection<InputT>, TransformOutputT, TransformT> application,
-      DirectStepContext stepContext,
-      DoFn<InputT, OutputT> fnLocal);
-
   @SuppressWarnings({"unchecked", "rawtypes"})
   private TransformEvaluator<InputT> createEvaluator(
       AppliedPTransform<PCollection<InputT>, TransformOutputT, TransformT> application,
@@ -93,10 +104,12 @@ abstract class ParDoEvaluatorFactoryBase<
             .getExecutionContext(application, inputBundle.getKey())
             .getOrCreateStepContext(stepName, stepName);
 
-    DoFnLifecycleManager fnManager = fnClones.getUnchecked(getDoFn(application.getTransform()));
+    DoFnLifecycleManager fnManager =
+        fnClones.getUnchecked(hooks.getDoFn(application.getTransform()));
     try {
       return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
-          createParDoEvaluator(application, stepContext, (DoFn<InputT, OutputT>) fnManager.get()),
+          hooks.createParDoEvaluator(
+              evaluationContext, application, stepContext, (DoFn<InputT, OutputT>) fnManager.get()),
           fnManager);
     } catch (Exception e) {
       try {

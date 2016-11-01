@@ -20,30 +20,22 @@ package org.apache.beam.runners.direct;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 
-/**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link ParDo.BoundMulti}
- * primitive {@link PTransform}.
- */
-class ParDoMultiEvaluatorFactory<InputT, OutputT>
-    extends ParDoEvaluatorFactoryBase<
+/** Support for {@link ParDo.BoundMulti} in {@link ParDoEvaluatorFactory}. */
+class ParDoMultiEvaluatorHooks<InputT, OutputT>
+    implements ParDoEvaluatorFactory.TransformHooks<
         InputT, OutputT, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>> {
-  public ParDoMultiEvaluatorFactory(EvaluationContext evaluationContext) {
-    super(evaluationContext);
-  }
-
   @Override
-  DoFn<InputT, OutputT> getDoFn(
-      ParDo.BoundMulti<InputT, OutputT> transform) {
+  public DoFn<InputT, OutputT> getDoFn(ParDo.BoundMulti<InputT, OutputT> transform) {
     return transform.getNewFn();
   }
 
   @Override
-  ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
+  public ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
+      EvaluationContext evaluationContext,
       AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>>
           application,
       DirectStepContext stepContext,
