@@ -850,8 +850,8 @@ public class DoFnSignatures {
 
   @Nullable
   private static TypeDescriptor<?> getTrackerType(TypeDescriptor<?> fnClass, Method method) {
-    Type[] params = method.getParameterTypes();
-    for (int i = 0; i < method.getParameterTypes().length; i++) {
+    Type[] params = method.getGenericParameterTypes();
+    for (int i = 0; i < params.length; i++) {
       TypeDescriptor<?> paramT = fnClass.resolveType(params[i]);
       if (RestrictionTracker.class.isAssignableFrom(paramT.getRawType())) {
         return paramT;
