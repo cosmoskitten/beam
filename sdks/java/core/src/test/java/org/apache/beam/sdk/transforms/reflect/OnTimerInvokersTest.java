@@ -87,19 +87,19 @@ public class OnTimerInvokersTest {
 
   @Test
   public void testOnTimerHelloWord() throws Exception {
-    final String TIMER_ID = "my-timer-id";
+    final String timerId = "my-timer-id";
 
     class SimpleTimerDoFn extends DoFn<String, String> {
 
       public String status = "not yet";
 
-      @TimerId(TIMER_ID)
+      @TimerId(timerId)
       private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
       @ProcessElement
       public void process(ProcessContext c) {}
 
-      @OnTimer(TIMER_ID)
+      @OnTimer(timerId)
       public void onMyTimer() {
         status = "OK now";
       }
@@ -107,7 +107,7 @@ public class OnTimerInvokersTest {
 
     SimpleTimerDoFn fn = new SimpleTimerDoFn();
 
-    invokeOnTimer(fn, TIMER_ID);
+    invokeOnTimer(fn, timerId);
     assertThat(fn.status, equalTo("OK now"));
   }
 
