@@ -174,7 +174,9 @@ class OnTimerInvokers {
             //     this.delegate.<@OnTimer method>(... pass the right args ...)
             //   }
             .method(ElementMatchers.named("invokeOnTimer"))
-            .intercept(new InvokeOnTimerDelegation(signature.onTimerMethods().get(timerId)));
+            .intercept(
+                new InvokeOnTimerDelegation(
+                    clazzDescription, signature.onTimerMethods().get(timerId)));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
 
@@ -196,9 +198,23 @@ class OnTimerInvokers {
 
     private final DoFnSignature.OnTimerMethod signature;
 
-    public InvokeOnTimerDelegation(DoFnSignature.OnTimerMethod signature) {
-      super(signature.targetMethod());
+    public InvokeOnTimerDelegation(
+        TypeDescription clazzDescription, DoFnSignature.OnTimerMethod signature) {
+      super(clazzDescription, signature.targetMethod());
       this.signature = signature;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      // Remember the field description of the instrumented type.
+      // Kind of a hack to set the protected value
+      delegateField =
+          instrumentedType
+              .getDeclaredFields() // the delegate is declared on the OnTimerInvoker
+              .filter(ElementMatchers.named(FN_DELEGATE_FIELD_NAME))
+              .getOnly();
+      // Delegating the method call doesn't require any changes to the instrumented type.
+      return instrumentedType;
     }
 
     @Override
