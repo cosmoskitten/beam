@@ -156,6 +156,7 @@ class DisplayDataTest(unittest.TestCase):
                       DisplayDataItemMatcher.matches_kv('nodef_val',
                                                         True)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+    hc.assert_that(len(dd.items), hc.is_(len(expected_items)))
 
   def test_subcomponent(self):
     class SpecialDoFn(beam.DoFn):
