@@ -149,17 +149,17 @@ public class DoFnSignatures {
     private MethodAnalysisContext() {}
 
     /** State parameters declared in this context, keyed by {@link StateId}. */
-    public Map<String, StateParameter> stateParameters() {
+    public Map<String, StateParameter> getStateParameters() {
       return Collections.unmodifiableMap(stateParameters);
     }
 
     /** Timer parameters declared in this context, keyed by {@link TimerId}. */
-    public Map<String, TimerParameter> timerParameters() {
+    public Map<String, TimerParameter> getTimerParameters() {
       return Collections.unmodifiableMap(timerParameters);
     }
 
     /** Extra parameters in their entirety. Unmodifiable. */
-    public List<Parameter> extraParameters() {
+    public List<Parameter> getExtraParameters() {
       return Collections.unmodifiableList(extraParameters);
     }
 
@@ -664,17 +664,17 @@ public class DoFnSignatures {
     }
 
     // A splittable DoFn can not have any other extra context parameters.
-    if (methodContext.extraParameters().contains(DoFnSignature.Parameter.restrictionTracker())) {
+    if (methodContext.getExtraParameters().contains(DoFnSignature.Parameter.restrictionTracker())) {
       errors.checkArgument(
-          methodContext.extraParameters().size() == 1,
+          methodContext.getExtraParameters().size() == 1,
           "Splittable DoFn must not have any extra arguments apart from BoundedWindow, but has: %s",
           trackerT,
-          methodContext.extraParameters());
+          methodContext.getExtraParameters());
     }
 
     return DoFnSignature.ProcessElementMethod.create(
         m,
-        methodContext.extraParameters(),
+        methodContext.getExtraParameters(),
         trackerT,
         DoFn.ProcessContinuation.class.equals(m.getReturnType()));
   }
@@ -691,13 +691,13 @@ public class DoFnSignatures {
     Class<?> rawType = paramT.getRawType();
     if (rawType.equals(BoundedWindow.class)) {
       errors.checkArgument(
-          !methodContext.extraParameters().contains(Parameter.boundedWindow()),
+          !methodContext.getExtraParameters().contains(Parameter.boundedWindow()),
           "Multiple %s parameters",
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow();
     } else if (rawType.equals(DoFn.InputProvider.class)) {
       errors.checkArgument(
-          !methodContext.extraParameters().contains(Parameter.inputProvider()),
+          !methodContext.getExtraParameters().contains(Parameter.inputProvider()),
           "Multiple %s parameters",
           DoFn.InputProvider.class.getSimpleName());
       errors.checkArgument(
@@ -709,7 +709,7 @@ public class DoFnSignatures {
       return Parameter.inputProvider();
     } else if (rawType.equals(DoFn.OutputReceiver.class)) {
       errors.checkArgument(
-          !methodContext.extraParameters().contains(Parameter.outputReceiver()),
+          !methodContext.getExtraParameters().contains(Parameter.outputReceiver()),
           "Multiple %s parameters",
           DoFn.OutputReceiver.class.getSimpleName());
       errors.checkArgument(
@@ -731,7 +731,7 @@ public class DoFnSignatures {
           TimerId.class.getSimpleName());
 
       errors.checkArgument(
-          !methodContext.timerParameters().containsKey(id),
+          !methodContext.getTimerParameters().containsKey(id),
           "parameter of type %s at index %s duplicates %s(\"%s\") on other parameter",
           param.getType(),
           param.getIndex(),
@@ -761,7 +761,7 @@ public class DoFnSignatures {
 
     } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
       errors.checkArgument(
-          !methodContext.extraParameters().contains(Parameter.restrictionTracker()),
+          !methodContext.getExtraParameters().contains(Parameter.restrictionTracker()),
           "Multiple %s parameters",
           RestrictionTracker.class.getSimpleName());
       return Parameter.restrictionTracker();
@@ -776,7 +776,7 @@ public class DoFnSignatures {
           DoFn.StateId.class.getSimpleName());
 
       errors.checkArgument(
-          !methodContext.stateParameters().containsKey(id),
+          !methodContext.getStateParameters().containsKey(id),
           "%s parameter of type %s at index %s duplicates %s(\"%s\") on other parameter",
           fnClass.getRawType().getName(),
           param.getType(),
