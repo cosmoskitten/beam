@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.lang.annotation.Annotation;
@@ -34,6 +33,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -90,53 +90,47 @@ public class DoFnSignatures {
    * <p>It contains much of the information that eventually becomes part of the {@link
    * DoFnSignature}, but in an intermediate state.
    */
-  @AutoValue
-  abstract static class GlobalAnalysisContext {
+  @VisibleForTesting
+  static class GlobalAnalysisContext {
 
-    /** State parameters declared in this context, keyed by {@link StateId}. */
-    public abstract ImmutableMap<String, StateDeclaration> stateDeclarations();
+    private final Map<String, StateDeclaration> stateDeclarations = new HashMap<>();
+    private final Map<String, TimerDeclaration> timerDeclarations = new HashMap<>();
 
-    /** Timer parameters declared in this context, keyed by {@link TimerId}. */
-    public abstract ImmutableMap<String, TimerDeclaration> timerDeclarations();
-
-    /** Convert to a builder to modify the context. */
-    abstract Builder toBuilder();
-
-    /**
-     * Returns an {@link GlobalAnalysisContext} like this one but including the provided {@link
-     * StateDeclaration}.
-     */
-    public GlobalAnalysisContext withStateParameter(StateDeclaration decl) {
-      Builder builder = toBuilder();
-      builder.stateDeclarationsBuilder().put(decl.id(), decl);
-      return builder.build();
-    }
-
-    /**
-     * Returns an {@link GlobalAnalysisContext} like this one but including the provided {@link
-     * TimerParameter}.
-     */
-    public GlobalAnalysisContext withTimerParameter(TimerDeclaration decl) {
-      Builder builder = toBuilder();
-      builder.timerDeclarationsBuilder().put(decl.id(), decl);
-      return builder.build();
-    }
+    private GlobalAnalysisContext() {}
 
     /** Create an empty context, with no declarations. */
-    public static GlobalAnalysisContext empty() {
-      return new AutoValue_DoFnSignatures_GlobalAnalysisContext.Builder().build();
+    public static GlobalAnalysisContext create() {
+      return new GlobalAnalysisContext();
     }
 
-    /** Create a new builder. */
-    static Builder builder() {
-      return new AutoValue_DoFnSignatures_GlobalAnalysisContext.Builder();
+    /** State parameters declared in this context, keyed by {@link StateId}. Unmodifiable. */
+    public Map<String, StateDeclaration> getStateDeclarations() {
+      return Collections.unmodifiableMap(stateDeclarations);
     }
 
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract GlobalAnalysisContext build();
-      abstract ImmutableMap.Builder<String, StateDeclaration> stateDeclarationsBuilder();
-      abstract ImmutableMap.Builder<String, TimerDeclaration> timerDeclarationsBuilder();
+    /** Timer parameters declared in this context, keyed by {@link TimerId}. Unmodifiable. */
+    public Map<String, TimerDeclaration> getTimerDeclarations() {
+      return Collections.unmodifiableMap(timerDeclarations);
+    }
+
+    public void addStateDeclaration(StateDeclaration decl) {
+      stateDeclarations.put(decl.id(), decl);
+    }
+
+    public void addStateDeclarations(Iterable<StateDeclaration> decls) {
+      for (StateDeclaration decl : decls) {
+        addStateDeclaration(decl);
+      }
+    }
+
+    public void addTimerDeclaration(TimerDeclaration decl) {
+      timerDeclarations.put(decl.id(), decl);
+    }
+
+    public void addTimerDeclarations(Iterable<TimerDeclaration> decls) {
+      for (TimerDeclaration decl : decls) {
+        addTimerDeclaration(decl);
+      }
     }
   }
 
@@ -146,66 +140,49 @@ public class DoFnSignatures {
    * <p>It contains much of the information that eventually becomes part of the {@link
    * DoFnSignature.ParameterizedMethod}, but in an intermediate state.
    */
-  @AutoValue
-  abstract static class MethodAnalysisContext {
+  private static class MethodAnalysisContext {
+
+    private final Map<String, StateParameter> stateParameters = new HashMap<>();
+    private final Map<String, TimerParameter> timerParameters = new HashMap<>();
+    private final List<Parameter> extraParameters = new ArrayList<>();
+
+    private MethodAnalysisContext() {}
 
     /** State parameters declared in this context, keyed by {@link StateId}. */
-    public abstract ImmutableMap<String, StateParameter> stateParameters();
+    public Map<String, StateParameter> stateParameters() {
+      return Collections.unmodifiableMap(stateParameters);
+    }
 
     /** Timer parameters declared in this context, keyed by {@link TimerId}. */
-    public abstract ImmutableMap<String, TimerParameter> timerParameters();
+    public Map<String, TimerParameter> timerParameters() {
+      return Collections.unmodifiableMap(timerParameters);
+    }
 
-    /** Extra parameters in their entirety. */
-    public abstract ImmutableList<Parameter> extraParameters();
-
-    /** Convert to a builder to modify the context. */
-    abstract Builder toBuilder();
+    /** Extra parameters in their entirety. Unmodifiable. */
+    public List<Parameter> extraParameters() {
+      return Collections.unmodifiableList(extraParameters);
+    }
 
     /**
      * Returns an {@link MethodAnalysisContext} like this one but including the provided {@link
      * StateParameter}.
      */
-    public MethodAnalysisContext withParameter(Parameter param) {
-      Builder builder = toBuilder();
-      builder.extraParametersBuilder().add(param);
+    public void addParameter(Parameter param) {
+      extraParameters.add(param);
 
       if (param instanceof StateParameter) {
         StateParameter stateParameter = (StateParameter) param;
-        builder.stateParametersBuilder().put(stateParameter.referent().id(), stateParameter);
+        stateParameters.put(stateParameter.referent().id(), stateParameter);
       }
       if (param instanceof TimerParameter) {
         TimerParameter timerParameter = (TimerParameter) param;
-        builder.timerParametersBuilder().put(timerParameter.referent().id(), timerParameter);
+        timerParameters.put(timerParameter.referent().id(), timerParameter);
       }
-      return builder.build();
-    }
-
-    /**
-     * Returns an {@link MethodAnalysisContext} like this one but including the provided {@link
-     * TimerParameter}.
-     */
-    public MethodAnalysisContext withTimerParameter(TimerParameter param) {
-      Builder builder = toBuilder();
-      builder.timerParametersBuilder().put(param.referent().id(), param);
-      return builder.build();
     }
 
     /** Create an empty context, with no declarations. */
-    public static MethodAnalysisContext empty() {
-      return new AutoValue_DoFnSignatures_MethodAnalysisContext.Builder().build();
-    }
-
-    /** Create a new builder. */
-    static Builder builder() {
-      return new AutoValue_DoFnSignatures_MethodAnalysisContext.Builder();
-    }
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract MethodAnalysisContext build();
-      abstract ImmutableMap.Builder<String, StateParameter> stateParametersBuilder();
-      abstract ImmutableMap.Builder<String, TimerParameter> timerParametersBuilder();
-      abstract ImmutableList.Builder<Parameter> extraParametersBuilder();
+    public static MethodAnalysisContext create() {
+      return new MethodAnalysisContext();
     }
   }
 
@@ -253,12 +230,9 @@ public class DoFnSignatures {
 
     // Find the state and timer declarations in advance of validating
     // method parameter lists
-    Map<String, StateDeclaration> stateDeclarations = analyzeStateDeclarations(errors, fnClass);
-    Map<String, TimerDeclaration> timerDeclarations = analyzeTimerDeclarations(errors, fnClass);
-    GlobalAnalysisContext.Builder contextBuilder = GlobalAnalysisContext.builder();
-    contextBuilder.stateDeclarationsBuilder().putAll(stateDeclarations);
-    contextBuilder.timerDeclarationsBuilder().putAll(timerDeclarations);
-    GlobalAnalysisContext globalContext = contextBuilder.build();
+    GlobalAnalysisContext globalContext = GlobalAnalysisContext.create();
+    globalContext.addStateDeclarations(analyzeStateDeclarations(errors, fnClass).values());
+    globalContext.addTimerDeclarations(analyzeTimerDeclarations(errors, fnClass).values());
 
     Method processElementMethod =
         findAnnotatedMethod(errors, DoFn.ProcessElement.class, fnClass, true);
@@ -283,12 +257,12 @@ public class DoFnSignatures {
     for (Method onTimerMethod : onTimerMethods) {
       String id = onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
       errors.checkArgument(
-          timerDeclarations.containsKey(id),
+          globalContext.getTimerDeclarations().containsKey(id),
           "Callback %s is for for undeclared timer %s",
           onTimerMethod,
           id);
 
-      TimerDeclaration timerDecl = timerDeclarations.get(id);
+      TimerDeclaration timerDecl = globalContext.getTimerDeclarations().get(id);
       errors.checkArgument(
           timerDecl.field().getDeclaringClass().equals(onTimerMethod.getDeclaringClass()),
           "Callback %s is for timer %s declared in a different class %s."
@@ -311,7 +285,7 @@ public class DoFnSignatures {
 
     // Check the converse - that all timers have a callback. This could be relaxed to only
     // those timers used in methods, once method parameter lists support timers.
-    for (TimerDeclaration decl : timerDeclarations.values()) {
+    for (TimerDeclaration decl : globalContext.getTimerDeclarations().values()) {
       errors.checkArgument(
           onTimerMethodMap.containsKey(decl.id()),
           "No callback registered via %s for timer %s",
@@ -395,8 +369,8 @@ public class DoFnSignatures {
 
     signatureBuilder.setIsBoundedPerElement(inferBoundedness(fnToken, processElement, errors));
 
-    signatureBuilder.setStateDeclarations(globalContext.stateDeclarations());
-    signatureBuilder.setTimerDeclarations(globalContext.timerDeclarations());
+    signatureBuilder.setStateDeclarations(globalContext.getStateDeclarations());
+    signatureBuilder.setTimerDeclarations(globalContext.getTimerDeclarations());
 
     DoFnSignature signature = signatureBuilder.build();
 
@@ -616,7 +590,7 @@ public class DoFnSignatures {
 
     Type[] params = m.getGenericParameterTypes();
 
-    MethodAnalysisContext methodContext = MethodAnalysisContext.empty();
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
 
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
     TypeDescriptor<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
@@ -655,7 +629,7 @@ public class DoFnSignatures {
 
     TypeDescriptor<?> processContextToken = doFnProcessContextTypeOf(inputT, outputT);
 
-    MethodAnalysisContext methodContext = MethodAnalysisContext.empty();
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
 
     Type[] params = m.getGenericParameterTypes();
     TypeDescriptor<?> contextToken = null;
@@ -686,7 +660,7 @@ public class DoFnSignatures {
               expectedInputProviderT,
               expectedOutputReceiverT);
 
-      methodContext = methodContext.withParameter(extraParam);
+      methodContext.addParameter(extraParam);
     }
 
     // A splittable DoFn can not have any other extra context parameters.
@@ -764,7 +738,7 @@ public class DoFnSignatures {
           TimerId.class.getSimpleName(),
           id);
 
-      TimerDeclaration timerDecl = globalContext.timerDeclarations().get(id);
+      TimerDeclaration timerDecl = globalContext.getTimerDeclarations().get(id);
       errors.checkArgument(
           timerDecl != null,
           "parameter of type %s at index %s references undeclared %s \"%s\"",
@@ -813,7 +787,7 @@ public class DoFnSignatures {
       // By static typing this is already a well-formed State subclass
       TypeDescriptor<? extends State> stateType = (TypeDescriptor<? extends State>) param.getType();
 
-      StateDeclaration stateDecl = globalContext.stateDeclarations().get(id);
+      StateDeclaration stateDecl = globalContext.getStateDeclarations().get(id);
       errors.checkArgument(
           stateDecl != null,
           "parameter of type %s at index %s references undeclared %s \"%s\"",
@@ -1124,7 +1098,7 @@ public class DoFnSignatures {
     return matches;
   }
 
-  private static ImmutableMap<String, DoFnSignature.StateDeclaration> analyzeStateDeclarations(
+  private static Map<String, DoFnSignature.StateDeclaration> analyzeStateDeclarations(
       ErrorReporter errors,
       Class<?> fnClazz) {
 

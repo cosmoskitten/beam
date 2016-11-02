@@ -61,6 +61,6 @@ class DoFnSignaturesTestUtils {
         method.getMethod(),
         TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(String.class),
-        GlobalAnalysisContext.empty());
+        GlobalAnalysisContext.create());
   }
 }
