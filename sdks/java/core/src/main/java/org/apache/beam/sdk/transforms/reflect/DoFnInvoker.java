@@ -50,6 +50,10 @@ public interface DoFnInvoker<InputT, OutputT> {
    */
   DoFn.ProcessContinuation invokeProcessElement(DoFn.ExtraContextFactory<InputT, OutputT> extra);
 
+  /** Invoke the appropriate {@link DoFn.OnTimer} method on the bound {@link DoFn}. */
+  void invokeOnTimer(
+      String timerId, DoFn.ExtraContextFactory<InputT, OutputT> extra);
+
   /** Invoke the {@link DoFn.GetInitialRestriction} method on the bound {@link DoFn}. */
   <RestrictionT> RestrictionT invokeGetInitialRestriction(InputT element);
 
