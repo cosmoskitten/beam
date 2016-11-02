@@ -76,7 +76,11 @@ class ReadFromAvro(PTransform):
     self._args = (file_pattern, min_bundle_size)
 
   def apply(self, pvalue):
-    return pvalue.pipeline | Read(_AvroSource(*self._args))
+    self._source = _AvroSource(*self._args)
+    return pvalue.pipeline | Read(self._source)
+
+  def display_data(self):
+    return {'source_dd': self._source}
 
 
 class _AvroUtils(object):
@@ -290,7 +294,11 @@ class WriteToAvro(beam.transforms.PTransform):
                   shard_name_template, mime_type)
 
   def apply(self, pcoll):
-    return pcoll | beam.io.iobase.Write(_AvroSink(*self._args))
+    self._sink = _AvroSink(*self._args)
+    return pcoll | beam.io.iobase.Write(self._sink)
+
+  def display_data(self):
+    return {'sink_dd': self._sink}
 
 
 class _AvroSink(fileio.FileSink):

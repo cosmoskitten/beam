@@ -756,6 +756,17 @@ class FileSink(iobase.Sink):
     self.compression_type = compression_type
     self.mime_type = mime_type
 
+  def display_data(self):
+    return {'shards':
+            DisplayDataItem(self.num_shards, label='Number of Shards'),
+            'compression':
+            DisplayDataItem(str(self.compression_type)),
+            'filePattern':
+            DisplayDataItem('{}{}{}'.format(self.file_path_prefix,
+                                            self.shard_name_format,
+                                            self.file_name_suffix),
+                            label='File Pattern')}
+
   def open(self, temp_path):
     """Opens ``temp_path``, returning an opaque file handle object.
 

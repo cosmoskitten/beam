@@ -42,8 +42,8 @@ from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
-from apache_beam.transforms.display import HasDisplayData, DisplayDataItem
-
+from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display import HasDisplayData
 
 # Encapsulates information about a bundle of a source generated when method
 # BoundedSource.split() is invoked.
@@ -410,7 +410,7 @@ class RangeTracker(object):
     raise NotImplementedError
 
 
-class Sink(object):
+class Sink(HasDisplayData):
   """A resource that can be written to using the ``df.io.Write`` transform.
 
   Here ``df`` stands for Dataflow Python code imported in following manner.

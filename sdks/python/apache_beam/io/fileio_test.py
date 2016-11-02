@@ -775,6 +775,13 @@ class TestFileSink(unittest.TestCase):
     # Check that any temp files are deleted.
     self.assertItemsEqual([shard1, shard2], glob.glob(temp_path + '*'))
 
+  def test_file_sink_display_data(self):
+    temp_path = tempfile.NamedTemporaryFile().name
+    sink = MyFileSink(
+        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
+    dd = DisplayData.create_from(sink)
+    print dd.items
+
   def test_empty_write(self):
     temp_path = tempfile.NamedTemporaryFile().name
     sink = MyFileSink(
