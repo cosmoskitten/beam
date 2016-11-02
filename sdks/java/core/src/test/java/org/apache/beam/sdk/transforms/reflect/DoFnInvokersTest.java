@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -593,6 +595,62 @@ public class DoFnInvokersTest {
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
     invoker.invokeFinishBundle(null);
+  }
+
+  @Test
+  public void testOnTimerHelloWord() throws Exception {
+    final String timerId = "my-timer-id";
+
+    class SimpleTimerDoFn extends DoFn<String, String> {
+
+      public String status = "not yet";
+
+      @TimerId(timerId)
+      private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+      @ProcessElement
+      public void process(ProcessContext c) {}
+
+      @OnTimer(timerId)
+      public void onMyTimer() {
+        status = "OK now";
+      }
+    }
+
+    SimpleTimerDoFn fn = new SimpleTimerDoFn();
+
+    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    invoker.invokeOnTimer(timerId, extraContextFactory);
+    assertThat(fn.status, equalTo("OK now"));
+  }
+
+  @Test
+  public void testOnTimerWithWindow() throws Exception {
+    final String timerId = "my-timer-id";
+    final IntervalWindow testWindow = new IntervalWindow(new Instant(0), new Instant(15));
+    when(extraContextFactory.window()).thenReturn(testWindow);
+
+    class SimpleTimerDoFn extends DoFn<String, String> {
+
+      public IntervalWindow window = null;
+
+      @TimerId(timerId)
+      private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+      @ProcessElement
+      public void process(ProcessContext c) {}
+
+      @OnTimer(timerId)
+      public void onMyTimer(IntervalWindow w) {
+        window = w;
+      }
+    }
+
+    SimpleTimerDoFn fn = new SimpleTimerDoFn();
+
+    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    invoker.invokeOnTimer(timerId, extraContextFactory);
+    assertThat(fn.window, equalTo(testWindow));
   }
 
   private class OldDoFnIdentity extends OldDoFn<String, String> {
