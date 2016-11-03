@@ -832,9 +832,8 @@ class CombineGlobally(PTransform):
     self.kwargs = kwargs
 
   def display_data(self):
-    combine_fn = self.fn
     return {'combineFn':
-            DisplayDataItem(combine_fn.__class__, label='Combine Function'),
+            DisplayDataItem(self.fn.__class__, label='Combine Function'),
             'combineFn_dd':
             self.fn}
 
@@ -926,9 +925,8 @@ class CombinePerKey(PTransformWithSideInputs):
   """
 
   def display_data(self):
-    combine_fn = self.fn
     return {'combineFn':
-            DisplayDataItem(combine_fn.__class__, label='Combine Function'),
+            DisplayDataItem(self.fn.__class__, label='Combine Function'),
             'combineFn_dd':
             self.fn}
 
