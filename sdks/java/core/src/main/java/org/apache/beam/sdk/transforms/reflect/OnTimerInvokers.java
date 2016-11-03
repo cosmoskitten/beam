@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import com.google.common.base.CharMatcher;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -135,12 +136,15 @@ class OnTimerInvokers {
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
 
+    final String className =
+        "auxiliary_OnTimer_" + CharMatcher.JAVA_LETTER_OR_DIGIT.retainFrom(timerId);
+
     DynamicType.Builder<?> builder =
         new ByteBuddy()
             // Create subclasses inside the target class, to have access to
             // private and package-private bits
             .with(
-                new NamingStrategy.SuffixingRandom("auxiliary_OnTimer") {
+                new NamingStrategy.SuffixingRandom(className) {
                   @Override
                   public String subclass(TypeDescription.Generic superClass) {
                     return super.name(clazzDescription);
