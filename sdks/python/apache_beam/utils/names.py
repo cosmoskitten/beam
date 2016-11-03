@@ -45,6 +45,7 @@ class PropertyNames(object):
   BIGQUERY_CREATE_DISPOSITION = 'create_disposition'
   BIGQUERY_DATASET = 'dataset'
   BIGQUERY_QUERY = 'bigquery_query'
+  BIGQUERY_FLATTEN_RESULTS = 'bigquery_flatten_results'
   BIGQUERY_TABLE = 'table'
   BIGQUERY_PROJECT = 'project'
   BIGQUERY_SCHEMA = 'schema'

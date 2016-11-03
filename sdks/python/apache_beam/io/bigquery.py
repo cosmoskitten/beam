@@ -284,7 +284,7 @@ class BigQuerySource(dataflow_io.NativeSource):
   """A source based on a BigQuery table."""
 
   def __init__(self, table=None, dataset=None, project=None, query=None,
-               validate=False, coder=None):
+               validate=False, coder=None, flatten_results=True):
     """Initialize a BigQuerySource.
 
     Args:
@@ -312,6 +312,8 @@ class BigQuerySource(dataflow_io.NativeSource):
         in a file as a JSON serialized dictionary. This argument needs a value
         only in special cases when returning table rows as dictionaries is not
         desirable.
+      flatten_results: Flattens all nested and repeated fields in the
+        query results. The default value is true.
 
     Raises:
       ValueError: if any of the following is true
@@ -333,6 +335,7 @@ class BigQuerySource(dataflow_io.NativeSource):
       self.table_reference = None
 
     self.validate = validate
+    self.flatten_results = flatten_results
     self.coder = coder or RowAsDictJsonCoder()
 
   @property
@@ -342,7 +345,8 @@ class BigQuerySource(dataflow_io.NativeSource):
 
   def reader(self, test_bigquery_client=None):
     return BigQueryReader(
-        source=self, test_bigquery_client=test_bigquery_client)
+        source=self, test_bigquery_client=test_bigquery_client,
+        flatten_results=self.flatten_results)
 
 
 class BigQuerySink(dataflow_io.NativeSink):
@@ -462,7 +466,7 @@ class BigQuerySink(dataflow_io.NativeSink):
 class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
 
-  def __init__(self, source, test_bigquery_client=None):
+  def __init__(self, source, test_bigquery_client=None, flatten_results=True):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -484,6 +488,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     # for reading the field values in each row but could be useful for
     # getting additional details.
     self.schema = None
+    self.flatten_results = flatten_results
     if self.source.query is None:
       # If table schema did not define a project we default to executing
       # project.
@@ -499,14 +504,16 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
+    self.client.create_temporary_dataset(self.executing_project)
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
-    pass
+    self.client.clean_up_temporary_dataset(self.executing_project)
 
   def __iter__(self):
     for rows, schema in self.client.run_query(
-        project_id=self.executing_project, query=self.query):
+        project_id=self.executing_project, query=self.query,
+        flatten_results=self.flatten_results):
       if self.schema is None:
         self.schema = schema
       for row in rows:
@@ -583,6 +590,9 @@ class BigQueryWrapper(object):
   (e.g., find and create tables, query a table, etc.).
   """
 
+  TEMP_TABLE = 'temp_table_'
+  TEMP_DATASET = 'temp_dataset_'
+
   def __init__(self, client=None):
     self.client = client or bigquery.BigqueryV2(
         credentials=auth.get_service_credentials())
@@ -590,6 +600,7 @@ class BigQueryWrapper(object):
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
     self._row_id_prefix = '' if client else uuid.uuid4()
+    self._temporary_table_suffix = uuid.uuid4().hex
 
   @property
   def unique_row_id(self):
@@ -606,15 +617,24 @@ class BigQueryWrapper(object):
     self._unique_row_id += 1
     return '%s_%d' % (self._row_id_prefix, self._unique_row_id)
 
+  def _get_temp_table(self, project_id):
+    return _parse_table_reference(
+        table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
+        dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
+        project=project_id)
+
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
-  def _start_query_job(self, project_id, query, dry_run=False):
+  def _start_query_job(self, project_id, query, flatten_results, dry_run=False):
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
                 dryRun=dry_run,
                 query=bigquery.JobConfigurationQuery(
-                    query=query))))
+                    query=query,
+                    allowLargeResults=True,
+                    destinationTable=self._get_temp_table(project_id),
+                    flattenResults=flatten_results))))
     response = self.client.jobs.Insert(request)
     return response.jobReference.jobId
 
@@ -663,6 +683,17 @@ class BigQueryWrapper(object):
     return response
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  def _create_dataset(self, project_id, dataset_id):
+    dataset = bigquery.Dataset(
+        datasetReference=bigquery.DatasetReference(
+            projectId=project_id, datasetId=dataset_id))
+    request = bigquery.BigqueryDatasetsInsertRequest(
+        projectId=project_id, dataset=dataset)
+    response = self.client.datasets.Insert(request)
+    # The response is a bigquery.Dataset instance.
+    return response
+
+  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
   def _is_table_empty(self, project_id, dataset_id, table_id):
     request = bigquery.BigqueryTabledataListRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id,
@@ -676,6 +707,21 @@ class BigQueryWrapper(object):
     request = bigquery.BigqueryTablesDeleteRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
     self.client.tables.Delete(request)
+
+  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  def _delete_dataset(self, project_id, dataset_id, delete_contents=True):
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=project_id, datasetId=dataset_id,
+        deleteContents=delete_contents)
+    self.client.datasets.Delete(request)
+
+  def create_temporary_dataset(self, project_id):
+    dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
+    self._create_dataset(project_id, dataset_id)
+
+  def clean_up_temporary_dataset(self, project_id):
+    temp_table = self._get_temp_table(project_id)
+    self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
 
   def get_or_create_table(
       self, project_id, dataset_id, table_id, schema,
@@ -745,8 +791,8 @@ class BigQueryWrapper(object):
                                 table_id=table_id,
                                 schema=schema or found_table.schema)
 
-  def run_query(self, project_id, query, dry_run=False):
-    job_id = self._start_query_job(project_id, query, dry_run)
+  def run_query(self, project_id, query, flatten_results, dry_run=False):
+    job_id = self._start_query_job(project_id, query, flatten_results, dry_run)
     if dry_run:
       # If this was a dry run then the fact that we get here means the
       # query has no errors. The start_query_job would raise an error otherwise.
@@ -809,16 +855,27 @@ class BigQueryWrapper(object):
     """Converts a TableRow instance using the schema to a Python dict."""
     result = {}
     for index, field in enumerate(schema.fields):
-      cell = row.f[index]
-      if cell.v is None:
-        continue  # Field not present in the row.
-      # The JSON values returned by BigQuery for table fields in a row have
-      # always set the string_value attribute, which means the value below will
-      # be a string. Converting to the appropriate type is not tricky except
-      # for boolean values. For such values the string values are 'true' or
-      # 'false', which cannot be converted by simply calling bool() (it will
-      # return True for both!).
-      value = from_json_value(cell.v)
+      if isinstance(schema, bigquery.TableSchema):
+        cell = row.f[index]
+        if cell.v is None:
+          continue  # Field not present in the row.
+        # The JSON values returned by BigQuery for table fields in a row have
+        # always set the string_value attribute, which means the value below
+        # will be a string. Converting to the appropriate type is not tricky
+        # except for boolean values. For such values the string values are
+        # 'true' or 'false', which cannot be converted by simply calling bool()
+        # (it will return True for both!).
+        value = from_json_value(cell.v)
+      elif isinstance(schema, bigquery.TableFieldSchema):
+        # Incase when we get unflattened record, the schema object is not the
+        # table anymore instead is passed as a TableField. Also after the json
+        # value parsing in the first iteration the table cell objects are now
+        # read as a dict so we need to change how we access the fields.
+        cell = row['f'][index]
+        if 'v' not in cell:
+          continue  # Field not present in the row.
+        value = cell['v']
+
       if field.type == 'STRING':
         value = value
       elif field.type == 'BOOLEAN':
@@ -831,11 +888,18 @@ class BigQueryWrapper(object):
         value = float(value)
       elif field.type == 'BYTES':
         value = value
-      else:
+      elif field.type == 'DATE':
+        value = value
+      elif field.type == 'TIME':
+        value = value
+      elif field.type == 'DATETIME':
+        value = value
+      elif field.type == 'RECORD':
         # Note that a schema field object supports also a RECORD type. However
-        # when querying, the repeated and/or record fields always come
-        # flattened.  For more details please read:
-        # https://cloud.google.com/bigquery/docs/data
+        # when querying, the repeated and/or record fields are flattened
+        # unless we pass the flatten_results flag as False to the source
+        value = self.convert_row_to_dict(value, field)
+      else:
         raise RuntimeError('Unexpected field type: %s' % field.type)
       result[field.name] = value
     return result
