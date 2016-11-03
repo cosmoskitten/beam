@@ -61,14 +61,6 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-direct-java</artifactId>
-          <version>${project.version}</version>
-          <scope>runtime</scope>
-          <optional>true</optional>
-        </dependency>
-
-        <dependency>
-          <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-flink_2.10</artifactId>
           <version>${project.version}</version>
           <scope>runtime</scope>
@@ -366,6 +358,12 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
     </dependency>
 
@@ -440,17 +438,6 @@
     </dependency>
 
     <!-- Test dependencies -->
-
-    <!--
-      For testing the example itself, use the direct runner. This is separate from
-      the use of RunnableOnService tests for testing a particular runner.
-    -->
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
 
     <dependency>
       <groupId>org.mockito</groupId>
