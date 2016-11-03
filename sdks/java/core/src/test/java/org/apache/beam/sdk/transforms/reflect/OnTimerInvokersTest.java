@@ -113,7 +113,6 @@ public class OnTimerInvokersTest {
 
   @Test
   public void testOnTimerWithWindow() throws Exception {
-
     WindowedTimerDoFn fn = new WindowedTimerDoFn();
 
     invokeOnTimer(fn, WindowedTimerDoFn.TIMER_ID);
