@@ -438,7 +438,7 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
       self._check(fraction, start='0x75', end='\x77', delta=1e-14)
       self._check(fraction, start='0x75', end='\x78', delta=1e-14)
       self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81',
-                    delta=1e-14)
+                  delta=1e-14)
 
   def test_good_prec(self):
     self._check(1 / math.e, start='abc_abc', end='abc_xyz',
