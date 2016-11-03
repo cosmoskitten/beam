@@ -92,16 +92,16 @@ public class DoFnSignatures {
    * DoFnSignature}, but in an intermediate state.
    */
   @VisibleForTesting
-  static class GlobalAnalysisContext {
+  static class FnAnalysisContext {
 
     private final Map<String, StateDeclaration> stateDeclarations = new HashMap<>();
     private final Map<String, TimerDeclaration> timerDeclarations = new HashMap<>();
 
-    private GlobalAnalysisContext() {}
+    private FnAnalysisContext() {}
 
     /** Create an empty context, with no declarations. */
-    public static GlobalAnalysisContext create() {
-      return new GlobalAnalysisContext();
+    public static FnAnalysisContext create() {
+      return new FnAnalysisContext();
     }
 
     /** State parameters declared in this context, keyed by {@link StateId}. Unmodifiable. */
@@ -231,9 +231,9 @@ public class DoFnSignatures {
 
     // Find the state and timer declarations in advance of validating
     // method parameter lists
-    GlobalAnalysisContext globalContext = GlobalAnalysisContext.create();
-    globalContext.addStateDeclarations(analyzeStateDeclarations(errors, fnClass).values());
-    globalContext.addTimerDeclarations(analyzeTimerDeclarations(errors, fnClass).values());
+    FnAnalysisContext fnContext = FnAnalysisContext.create();
+    fnContext.addStateDeclarations(analyzeStateDeclarations(errors, fnClass).values());
+    fnContext.addTimerDeclarations(analyzeTimerDeclarations(errors, fnClass).values());
 
     Method processElementMethod =
         findAnnotatedMethod(errors, DoFn.ProcessElement.class, fnClass, true);
@@ -258,12 +258,12 @@ public class DoFnSignatures {
     for (Method onTimerMethod : onTimerMethods) {
       String id = onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
       errors.checkArgument(
-          globalContext.getTimerDeclarations().containsKey(id),
+          fnContext.getTimerDeclarations().containsKey(id),
           "Callback %s is for for undeclared timer %s",
           onTimerMethod,
           id);
 
-      TimerDeclaration timerDecl = globalContext.getTimerDeclarations().get(id);
+      TimerDeclaration timerDecl = fnContext.getTimerDeclarations().get(id);
       errors.checkArgument(
           timerDecl.field().getDeclaringClass().equals(onTimerMethod.getDeclaringClass()),
           "Callback %s is for timer %s declared in a different class %s."
@@ -280,13 +280,13 @@ public class DoFnSignatures {
               fnToken,
               onTimerMethod,
               outputT,
-              globalContext));
+              fnContext));
     }
     signatureBuilder.setOnTimerMethods(onTimerMethodMap);
 
     // Check the converse - that all timers have a callback. This could be relaxed to only
     // those timers used in methods, once method parameter lists support timers.
-    for (TimerDeclaration decl : globalContext.getTimerDeclarations().values()) {
+    for (TimerDeclaration decl : fnContext.getTimerDeclarations().values()) {
       errors.checkArgument(
           onTimerMethodMap.containsKey(decl.id()),
           "No callback registered via %s for timer %s",
@@ -303,7 +303,7 @@ public class DoFnSignatures {
             processElementMethod,
             inputT,
             outputT,
-            globalContext);
+            fnContext);
     signatureBuilder.setProcessElement(processElement);
 
     if (startBundleMethod != null) {
@@ -370,8 +370,8 @@ public class DoFnSignatures {
 
     signatureBuilder.setIsBoundedPerElement(inferBoundedness(fnToken, processElement, errors));
 
-    signatureBuilder.setStateDeclarations(globalContext.getStateDeclarations());
-    signatureBuilder.setTimerDeclarations(globalContext.getTimerDeclarations());
+    signatureBuilder.setStateDeclarations(fnContext.getStateDeclarations());
+    signatureBuilder.setTimerDeclarations(fnContext.getTimerDeclarations());
 
     DoFnSignature signature = signatureBuilder.build();
 
@@ -586,7 +586,7 @@ public class DoFnSignatures {
       TypeDescriptor<? extends DoFn<?, ?>> fnClass,
       Method m,
       TypeDescriptor<?> outputT,
-      GlobalAnalysisContext globalContext) {
+      FnAnalysisContext fnContext) {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
 
     Type[] params = m.getGenericParameterTypes();
@@ -599,7 +599,7 @@ public class DoFnSignatures {
       extraParameters.add(
           analyzeExtraParameter(
               errors.forMethod(DoFn.OnTimer.class, m),
-              globalContext,
+              fnContext,
               methodContext,
               fnClass,
               ParameterDescription.of(
@@ -621,7 +621,7 @@ public class DoFnSignatures {
       Method m,
       TypeDescriptor<?> inputT,
       TypeDescriptor<?> outputT,
-      GlobalAnalysisContext globalContext) {
+      FnAnalysisContext fnContext) {
     errors.checkArgument(
         void.class.equals(m.getReturnType())
             || DoFn.ProcessContinuation.class.equals(m.getReturnType()),
@@ -650,7 +650,7 @@ public class DoFnSignatures {
       Parameter extraParam =
           analyzeExtraParameter(
               errors.forMethod(DoFn.ProcessElement.class, m),
-              globalContext,
+              fnContext,
               methodContext,
               fnClass,
               ParameterDescription.of(
@@ -682,7 +682,7 @@ public class DoFnSignatures {
 
   private static Parameter analyzeExtraParameter(
       ErrorReporter errors,
-      GlobalAnalysisContext globalContext,
+      FnAnalysisContext fnContext,
       MethodAnalysisContext methodContext,
       TypeDescriptor<? extends DoFn<?, ?>> fnClass,
       ParameterDescription param,
@@ -739,7 +739,7 @@ public class DoFnSignatures {
           TimerId.class.getSimpleName(),
           id);
 
-      TimerDeclaration timerDecl = globalContext.getTimerDeclarations().get(id);
+      TimerDeclaration timerDecl = fnContext.getTimerDeclarations().get(id);
       errors.checkArgument(
           timerDecl != null,
           "parameter of type %s at index %s references undeclared %s \"%s\"",
@@ -788,7 +788,7 @@ public class DoFnSignatures {
       // By static typing this is already a well-formed State subclass
       TypeDescriptor<? extends State> stateType = (TypeDescriptor<? extends State>) param.getType();
 
-      StateDeclaration stateDecl = globalContext.getStateDeclarations().get(id);
+      StateDeclaration stateDecl = fnContext.getStateDeclarations().get(id);
       errors.checkArgument(
           stateDecl != null,
           "parameter of type %s at index %s references undeclared %s \"%s\"",
