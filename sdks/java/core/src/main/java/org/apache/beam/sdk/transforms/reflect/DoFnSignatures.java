@@ -214,12 +214,12 @@ public class DoFnSignatures {
     errors.checkArgument(DoFn.class.isAssignableFrom(fnClass), "Must be subtype of DoFn");
     signatureBuilder.setFnClass(fnClass);
 
-    TypeDescriptor<? extends DoFn<?, ?>> fnToken = TypeDescriptor.of(fnClass);
+    TypeDescriptor<? extends DoFn<?, ?>> fnT = TypeDescriptor.of(fnClass);
 
     // Extract the input and output type, and whether the fn is bounded.
     TypeDescriptor<?> inputT = null;
     TypeDescriptor<?> outputT = null;
-    for (TypeDescriptor<?> supertype : fnToken.getTypes()) {
+    for (TypeDescriptor<?> supertype : fnT.getTypes()) {
       if (!supertype.getRawType().equals(DoFn.class)) {
         continue;
       }
@@ -273,7 +273,7 @@ public class DoFnSignatures {
           timerDecl.field().getDeclaringClass().getCanonicalName());
 
       onTimerMethodMap.put(
-          id, analyzeOnTimerMethod(fnToken, errors, onTimerMethod, id, outputT, fnContext));
+          id, analyzeOnTimerMethod(fnT, errors, onTimerMethod, id, outputT, fnContext));
     }
     signatureBuilder.setOnTimerMethods(onTimerMethodMap);
 
@@ -292,7 +292,7 @@ public class DoFnSignatures {
     DoFnSignature.ProcessElementMethod processElement =
         analyzeProcessElementMethod(
             processElementErrors,
-            fnToken,
+            fnT,
             processElementMethod,
             inputT,
             outputT,
@@ -302,14 +302,14 @@ public class DoFnSignatures {
     if (startBundleMethod != null) {
       ErrorReporter startBundleErrors = errors.forMethod(DoFn.StartBundle.class, startBundleMethod);
       signatureBuilder.setStartBundle(
-          analyzeBundleMethod(startBundleErrors, fnToken, startBundleMethod, inputT, outputT));
+          analyzeBundleMethod(startBundleErrors, fnT, startBundleMethod, inputT, outputT));
     }
 
     if (finishBundleMethod != null) {
       ErrorReporter finishBundleErrors =
           errors.forMethod(DoFn.FinishBundle.class, finishBundleMethod);
       signatureBuilder.setFinishBundle(
-          analyzeBundleMethod(finishBundleErrors, fnToken, finishBundleMethod, inputT, outputT));
+          analyzeBundleMethod(finishBundleErrors, fnT, finishBundleMethod, inputT, outputT));
     }
 
     if (setupMethod != null) {
@@ -331,7 +331,7 @@ public class DoFnSignatures {
       signatureBuilder.setGetInitialRestriction(
           getInitialRestriction =
               analyzeGetInitialRestrictionMethod(
-                  getInitialRestrictionErrors, fnToken, getInitialRestrictionMethod, inputT));
+                  getInitialRestrictionErrors, fnT, getInitialRestrictionMethod, inputT));
     }
 
     DoFnSignature.SplitRestrictionMethod splitRestriction = null;
@@ -341,7 +341,7 @@ public class DoFnSignatures {
       signatureBuilder.setSplitRestriction(
           splitRestriction =
               analyzeSplitRestrictionMethod(
-                  splitRestrictionErrors, fnToken, splitRestrictionMethod, inputT));
+                  splitRestrictionErrors, fnT, splitRestrictionMethod, inputT));
     }
 
     DoFnSignature.GetRestrictionCoderMethod getRestrictionCoder = null;
@@ -351,17 +351,17 @@ public class DoFnSignatures {
       signatureBuilder.setGetRestrictionCoder(
           getRestrictionCoder =
               analyzeGetRestrictionCoderMethod(
-                  getRestrictionCoderErrors, fnToken, getRestrictionCoderMethod));
+                  getRestrictionCoderErrors, fnT, getRestrictionCoderMethod));
     }
 
     DoFnSignature.NewTrackerMethod newTracker = null;
     if (newTrackerMethod != null) {
       ErrorReporter newTrackerErrors = errors.forMethod(DoFn.NewTracker.class, newTrackerMethod);
       signatureBuilder.setNewTracker(
-          newTracker = analyzeNewTrackerMethod(newTrackerErrors, fnToken, newTrackerMethod));
+          newTracker = analyzeNewTrackerMethod(newTrackerErrors, fnT, newTrackerMethod));
     }
 
-    signatureBuilder.setIsBoundedPerElement(inferBoundedness(fnToken, processElement, errors));
+    signatureBuilder.setIsBoundedPerElement(inferBoundedness(fnT, processElement, errors));
 
     signatureBuilder.setStateDeclarations(fnContext.getStateDeclarations());
     signatureBuilder.setTimerDeclarations(fnContext.getTimerDeclarations());
@@ -396,11 +396,11 @@ public class DoFnSignatures {
    * </ol>
    */
   private static PCollection.IsBounded inferBoundedness(
-      TypeDescriptor<? extends DoFn> fnToken,
+      TypeDescriptor<? extends DoFn> fnT,
       DoFnSignature.ProcessElementMethod processElement,
       ErrorReporter errors) {
     PCollection.IsBounded isBounded = null;
-    for (TypeDescriptor<?> supertype : fnToken.getTypes()) {
+    for (TypeDescriptor<?> supertype : fnT.getTypes()) {
       if (supertype.getRawType().isAnnotationPresent(DoFn.BoundedPerElement.class)
           || supertype.getRawType().isAnnotationPresent(DoFn.UnboundedPerElement.class)) {
         errors.checkArgument(
@@ -536,8 +536,8 @@ public class DoFnSignatures {
   }
 
   /**
-   * Generates a type token for {@code DoFn<InputT, OutputT>.ProcessContext} given {@code InputT}
-   * and {@code OutputT}.
+   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.ProcessContext} given
+   * {@code InputT} and {@code OutputT}.
    */
   private static <InputT, OutputT>
       TypeDescriptor<DoFn<InputT, OutputT>.ProcessContext> doFnProcessContextTypeOf(
@@ -548,8 +548,8 @@ public class DoFnSignatures {
   }
 
   /**
-   * Generates a type token for {@code DoFn<InputT, OutputT>.Context} given {@code InputT} and
-   * {@code OutputT}.
+   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.Context} given {@code
+   * InputT} and {@code OutputT}.
    */
   private static <InputT, OutputT> TypeDescriptor<DoFn<InputT, OutputT>.Context> doFnContextTypeOf(
       TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
@@ -558,14 +558,19 @@ public class DoFnSignatures {
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
-  /** Generates a type token for {@code DoFn.InputProvider<InputT>} given {@code InputT}. */
+  /**
+   * Generates a {@link TypeDescriptor} for {@code DoFn.InputProvider<InputT>} given {@code InputT}.
+   */
   private static <InputT> TypeDescriptor<DoFn.InputProvider<InputT>> inputProviderTypeOf(
       TypeDescriptor<InputT> inputT) {
     return new TypeDescriptor<DoFn.InputProvider<InputT>>() {}.where(
         new TypeParameter<InputT>() {}, inputT);
   }
 
-  /** Generates a type token for {@code DoFn.OutputReceiver<OutputT>} given {@code OutputT}. */
+  /**
+   * Generates a {@link TypeDescriptor} for {@code DoFn.OutputReceiver<OutputT>} given {@code
+   * OutputT}.
+   */
   private static <OutputT> TypeDescriptor<DoFn.OutputReceiver<OutputT>> outputReceiverTypeOf(
       TypeDescriptor<OutputT> inputT) {
     return new TypeDescriptor<DoFn.OutputReceiver<OutputT>>() {}.where(
@@ -621,19 +626,19 @@ public class DoFnSignatures {
         "Must return void or %s",
         DoFn.ProcessContinuation.class.getSimpleName());
 
-    TypeDescriptor<?> processContextToken = doFnProcessContextTypeOf(inputT, outputT);
+    TypeDescriptor<?> processContextT = doFnProcessContextTypeOf(inputT, outputT);
 
     MethodAnalysisContext methodContext = MethodAnalysisContext.create();
 
     Type[] params = m.getGenericParameterTypes();
-    TypeDescriptor<?> contextToken = null;
+    TypeDescriptor<?> contextT = null;
     if (params.length > 0) {
-      contextToken = fnClass.resolveType(params[0]);
+      contextT = fnClass.resolveType(params[0]);
     }
     errors.checkArgument(
-        contextToken != null && contextToken.equals(processContextToken),
+        contextT != null && contextT.equals(processContextT),
         "Must take %s as the first argument",
-        formatType(processContextToken));
+        formatType(processContextT));
 
     TypeDescriptor<?> trackerT = getTrackerType(fnClass, m);
     TypeDescriptor<?> expectedInputProviderT = inputProviderTypeOf(inputT);
@@ -857,17 +862,17 @@ public class DoFnSignatures {
   @VisibleForTesting
   static DoFnSignature.BundleMethod analyzeBundleMethod(
       ErrorReporter errors,
-      TypeDescriptor<? extends DoFn<?, ?>> fnToken,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
       Method m,
       TypeDescriptor<?> inputT,
       TypeDescriptor<?> outputT) {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
-    TypeDescriptor<?> expectedContextToken = doFnContextTypeOf(inputT, outputT);
+    TypeDescriptor<?> expectedContextT = doFnContextTypeOf(inputT, outputT);
     Type[] params = m.getGenericParameterTypes();
     errors.checkArgument(
-        params.length == 1 && fnToken.resolveType(params[0]).equals(expectedContextToken),
+        params.length == 1 && fnT.resolveType(params[0]).equals(expectedContextT),
         "Must take a single argument of type %s",
-        formatType(expectedContextToken));
+        formatType(expectedContextT));
     return DoFnSignature.BundleMethod.create(m);
   }
 
@@ -881,7 +886,7 @@ public class DoFnSignatures {
   @VisibleForTesting
   static DoFnSignature.GetInitialRestrictionMethod analyzeGetInitialRestrictionMethod(
       ErrorReporter errors,
-      TypeDescriptor<? extends DoFn> fnToken,
+      TypeDescriptor<? extends DoFn> fnT,
       Method m,
       TypeDescriptor<?> inputT) {
     // Method is of the form:
@@ -889,14 +894,14 @@ public class DoFnSignatures {
     // RestrictionT getInitialRestriction(InputT element);
     Type[] params = m.getGenericParameterTypes();
     errors.checkArgument(
-        params.length == 1 && fnToken.resolveType(params[0]).equals(inputT),
+        params.length == 1 && fnT.resolveType(params[0]).equals(inputT),
         "Must take a single argument of type %s",
         formatType(inputT));
     return DoFnSignature.GetInitialRestrictionMethod.create(
-        m, fnToken.resolveType(m.getGenericReturnType()));
+        m, fnT.resolveType(m.getGenericReturnType()));
   }
 
-  /** Generates a type token for {@code List<T>} given {@code T}. */
+  /** Generates a {@link TypeDescriptor} for {@code List<T>} given {@code T}. */
   private static <T> TypeDescriptor<List<T>> listTypeOf(TypeDescriptor<T> elementT) {
     return new TypeDescriptor<List<T>>() {}.where(new TypeParameter<T>() {}, elementT);
   }
@@ -904,7 +909,7 @@ public class DoFnSignatures {
   @VisibleForTesting
   static DoFnSignature.SplitRestrictionMethod analyzeSplitRestrictionMethod(
       ErrorReporter errors,
-      TypeDescriptor<? extends DoFn> fnToken,
+      TypeDescriptor<? extends DoFn> fnT,
       Method m,
       TypeDescriptor<?> inputT) {
     // Method is of the form:
@@ -915,12 +920,12 @@ public class DoFnSignatures {
     Type[] params = m.getGenericParameterTypes();
     errors.checkArgument(params.length == 3, "Must have exactly 3 arguments");
     errors.checkArgument(
-        fnToken.resolveType(params[0]).equals(inputT),
+        fnT.resolveType(params[0]).equals(inputT),
         "First argument must be the element type %s",
         formatType(inputT));
 
-    TypeDescriptor<?> restrictionT = fnToken.resolveType(params[1]);
-    TypeDescriptor<?> receiverT = fnToken.resolveType(params[2]);
+    TypeDescriptor<?> restrictionT = fnT.resolveType(params[1]);
+    TypeDescriptor<?> receiverT = fnT.resolveType(params[2]);
     TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(restrictionT);
     errors.checkArgument(
         receiverT.equals(expectedReceiverT),
@@ -975,16 +980,16 @@ public class DoFnSignatures {
     }
   }
 
-  /** Generates a type token for {@code Coder<T>} given {@code T}. */
+  /** Generates a {@link TypeDescriptor} for {@code Coder<T>} given {@code T}. */
   private static <T> TypeDescriptor<Coder<T>> coderTypeOf(TypeDescriptor<T> elementT) {
     return new TypeDescriptor<Coder<T>>() {}.where(new TypeParameter<T>() {}, elementT);
   }
 
   @VisibleForTesting
   static DoFnSignature.GetRestrictionCoderMethod analyzeGetRestrictionCoderMethod(
-      ErrorReporter errors, TypeDescriptor<? extends DoFn> fnToken, Method m) {
+      ErrorReporter errors, TypeDescriptor<? extends DoFn> fnT, Method m) {
     errors.checkArgument(m.getParameterTypes().length == 0, "Must have zero arguments");
-    TypeDescriptor<?> resT = fnToken.resolveType(m.getGenericReturnType());
+    TypeDescriptor<?> resT = fnT.resolveType(m.getGenericReturnType());
     errors.checkArgument(
         resT.isSubtypeOf(TypeDescriptor.of(Coder.class)),
         "Must return a Coder, but returns %s",
@@ -993,7 +998,8 @@ public class DoFnSignatures {
   }
 
   /**
-   * Generates a type token for {@code RestrictionTracker<RestrictionT>} given {@code RestrictionT}.
+   * Generates a {@link TypeDescriptor} for {@code RestrictionTracker<RestrictionT>} given {@code
+   * RestrictionT}.
    */
   private static <RestrictionT>
       TypeDescriptor<RestrictionTracker<RestrictionT>> restrictionTrackerTypeOf(
@@ -1004,15 +1010,15 @@ public class DoFnSignatures {
 
   @VisibleForTesting
   static DoFnSignature.NewTrackerMethod analyzeNewTrackerMethod(
-      ErrorReporter errors, TypeDescriptor<? extends DoFn> fnToken, Method m) {
+      ErrorReporter errors, TypeDescriptor<? extends DoFn> fnT, Method m) {
     // Method is of the form:
     // @NewTracker
     // TrackerT newTracker(RestrictionT restriction);
     Type[] params = m.getGenericParameterTypes();
     errors.checkArgument(params.length == 1, "Must have a single argument");
 
-    TypeDescriptor<?> restrictionT = fnToken.resolveType(params[0]);
-    TypeDescriptor<?> trackerT = fnToken.resolveType(m.getGenericReturnType());
+    TypeDescriptor<?> restrictionT = fnT.resolveType(params[0]);
+    TypeDescriptor<?> trackerT = fnT.resolveType(m.getGenericReturnType());
     TypeDescriptor<?> expectedTrackerT = restrictionTrackerTypeOf(restrictionT);
     errors.checkArgument(
         trackerT.isSubtypeOf(expectedTrackerT),
