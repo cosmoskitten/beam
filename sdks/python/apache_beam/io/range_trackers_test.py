@@ -386,7 +386,7 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
                              end='a' * 100 + 'c'),
         0.5)
 
-  def run_test(self, fraction=None, key=None, start=None, end=None, delta=0):
+  def _check(self, fraction=None, key=None, start=None, end=None, delta=0):
     assert key is not None or fraction is not None
     if fraction is None:
       fraction = self.key_to_fraction(key, start, end)
@@ -408,50 +408,50 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     self.assertEqual(computed_key, key, str(locals()))
 
   def test_tiny(self):
-    self.run_test(fraction=.5**20, key='\0\0\x10')
-    self.run_test(fraction=.5**20, start='a', end='b', key='a\0\0\x10')
-    self.run_test(fraction=.5**20, start='a', end='c', key='a\0\0\x20')
-    self.run_test(fraction=.5**20, start='xy_a', end='xy_c', key='xy_a\0\0\x20')
-    self.run_test(fraction=.5**20, start='\xFF\xFF\x80',
-                  key='\xFF\xFF\x80\x00\x08')
-    self.run_test(fraction=.5**20 / 3,
-                  start='xy_a',
-                  end='xy_c',
-                  key='xy_a\x00\x00\n\xaa\xaa\xaa\xaa\xaa',
-                  delta=1e-15)
-    self.run_test(fraction=.5**100, key='\0' * 12 + '\x10')
+    self._check(fraction=.5**20, key='\0\0\x10')
+    self._check(fraction=.5**20, start='a', end='b', key='a\0\0\x10')
+    self._check(fraction=.5**20, start='a', end='c', key='a\0\0\x20')
+    self._check(fraction=.5**20, start='xy_a', end='xy_c', key='xy_a\0\0\x20')
+    self._check(fraction=.5**20, start='\xFF\xFF\x80',
+                key='\xFF\xFF\x80\x00\x08')
+    self._check(fraction=.5**20 / 3,
+                start='xy_a',
+                end='xy_c',
+                key='xy_a\x00\x00\n\xaa\xaa\xaa\xaa\xaa',
+                delta=1e-15)
+    self._check(fraction=.5**100, key='\0' * 12 + '\x10')
 
   def test_lots(self):
     for fraction in (0, 1, .5, .75, 7./512, 1 - 7./4096):
-      self.run_test(fraction)
-      self.run_test(fraction, start='\x01')
-      self.run_test(fraction, end='\xF0')
-      self.run_test(fraction, start='0x75', end='\x76')
-      self.run_test(fraction, start='0x75', end='\x77')
-      self.run_test(fraction, start='0x75', end='\x78')
-      self.run_test(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81')
+      self._check(fraction)
+      self._check(fraction, start='\x01')
+      self._check(fraction, end='\xF0')
+      self._check(fraction, start='0x75', end='\x76')
+      self._check(fraction, start='0x75', end='\x77')
+      self._check(fraction, start='0x75', end='\x78')
+      self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81')
     for fraction in (.3, 1/3., 1/math.e, .001, 1e-30, .99, .999999):
-      self.run_test(fraction, delta=1e-14)
-      self.run_test(fraction, start='\x01', delta=1e-14)
-      self.run_test(fraction, end='\xF0', delta=1e-14)
-      self.run_test(fraction, start='0x75', end='\x76', delta=1e-14)
-      self.run_test(fraction, start='0x75', end='\x77', delta=1e-14)
-      self.run_test(fraction, start='0x75', end='\x78', delta=1e-14)
-      self.run_test(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81',
+      self._check(fraction, delta=1e-14)
+      self._check(fraction, start='\x01', delta=1e-14)
+      self._check(fraction, end='\xF0', delta=1e-14)
+      self._check(fraction, start='0x75', end='\x76', delta=1e-14)
+      self._check(fraction, start='0x75', end='\x77', delta=1e-14)
+      self._check(fraction, start='0x75', end='\x78', delta=1e-14)
+      self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81',
                     delta=1e-14)
 
   def test_good_prec(self):
-    self.run_test(1 / math.e, start='abc_abc', end='abc_xyz',
-                  key='abc_i\xe0\xf4\x84\x86\x99\x96',
-                  delta=1e-15)
-    self.run_test(1 / math.e,
-                  start='abcd_abc\0\0\0\0\0a',
-                  end='abcd_xyz\0\0\0\0\0\0a',
-                  key='abcd_i\xe0\xf4\x84\x86\x99\x96',
-                  delta=1e-15)
-    self.run_test(1e-20 / math.e, start='abcd_abc', end='abcd_xyz',
-                  key='abcd_abc\x00\x00\x00\x00\x00\x01\x91#\x172N\xbb',
-                  delta=1e-35)
+    self._check(1 / math.e, start='abc_abc', end='abc_xyz',
+                key='abc_i\xe0\xf4\x84\x86\x99\x96',
+                delta=1e-15)
+    self._check(1 / math.e,
+                start='abcd_abc\0\0\0\0\0a',
+                end='abcd_xyz\0\0\0\0\0\0a',
+                key='abcd_i\xe0\xf4\x84\x86\x99\x96',
+                delta=1e-15)
+    self._check(1e-20 / math.e, start='abcd_abc', end='abcd_xyz',
+                key='abcd_abc\x00\x00\x00\x00\x00\x01\x91#\x172N\xbb',
+                delta=1e-35)
 
 
 if __name__ == '__main__':
