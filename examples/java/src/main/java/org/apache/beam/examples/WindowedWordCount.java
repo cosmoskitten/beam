@@ -178,9 +178,14 @@ public class WindowedWordCount {
     PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
 
     /**
-     * Concept #5: Key by the window, so we can write one file per window. To access the window in a
-     * {@link DoFn}, add a {@link BoundedWindow} parameter. This will be automatically detected and
-     * populated with the window for the current element.
+     * Concept #5: Customize the output format using windowing information
+     *
+     * <p>At this point, the data is organized by window. We're writing text files and and have no
+     * late data, so for simplicity we can use the window as the key and {@link GroupByKey} to get
+     * one output file per window. (if we had late data this key would not be unique)
+     *
+     * <p>To access the window in a {@link DoFn}, add a {@link BoundedWindow} parameter. This will
+     * be automatically detected and populated with the window for the current element.
      */
     pipeline.getCoderRegistry().registerCoder(IntervalWindow.class, IntervalWindow.getCoder());
     PCollection<KV<IntervalWindow, KV<String, Long>>> keyedByWindow =
