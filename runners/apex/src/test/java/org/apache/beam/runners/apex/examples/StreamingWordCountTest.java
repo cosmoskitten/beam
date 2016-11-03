@@ -18,14 +18,21 @@
 
 package org.apache.beam.runners.apex.examples;
 
+import com.google.common.collect.Sets;
+
+import java.io.File;
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
+import org.apache.beam.runners.apex.TestApexRunner;
+import org.apache.beam.runners.apex.examples.WordCount.WordCountOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -35,6 +42,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.io.FileUtils;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Test;
@@ -116,6 +124,31 @@ public class StreamingWordCountTest {
         FormatAsStringFn.RESULTS.containsKey("foo") && FormatAsStringFn.RESULTS.containsKey("bar"));
     FormatAsStringFn.RESULTS.clear();
 
+  }
+
+  @Test
+  public void testWordCountExample() throws Exception {
+    PipelineOptionsFactory.register(WordCountOptions.class);
+    WordCountOptions options = TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
+    options.setRunner(TestApexRunner.class);
+    options.setApplicationName("StreamingWordCount");
+    String inputFile = WordCount.class.getResource("/words.txt").getFile();
+    options.setInputFile(new File(inputFile).getAbsolutePath());
+    String outputFilePrefix = "target/wordcountresult.txt";
+    options.setOutput(outputFilePrefix);
+    WordCount.main(TestPipeline.convertToArgs(options));
+
+    File outFile1 = new File(outputFilePrefix + "-00000-of-00002");
+    File outFile2 = new File(outputFilePrefix + "-00001-of-00002");
+    Assert.assertTrue(outFile1.exists() && outFile2.exists());
+    HashSet<String> results = new HashSet<>();
+    results.addAll(FileUtils.readLines(outFile1));
+    results.addAll(FileUtils.readLines(outFile2));
+    HashSet<String> expectedOutput = Sets.newHashSet(
+        "foo - 5 @ -290308-12-21T19:59:19.999Z",
+        "bar - 5 @ -290308-12-21T19:59:19.999Z"
+    );
+    Assert.assertEquals("expected output", expectedOutput, results);
   }
 
 }

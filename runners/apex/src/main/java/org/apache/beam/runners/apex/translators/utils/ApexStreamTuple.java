@@ -109,6 +109,33 @@ public interface ApexStreamTuple<T> {
     public void setTimestamp(long timestamp) {
       this.timestamp = timestamp;
     }
+
+    @Override
+    public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + (int) (timestamp ^ (timestamp >>> 32));
+      return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (obj == null) {
+        return false;
+      }
+      if (getClass() != obj.getClass()) {
+        return false;
+      }
+      TimestampedTuple<?> other = (TimestampedTuple<?>) obj;
+      if (timestamp != other.timestamp) {
+        return false;
+      }
+      return true;
+    }
+
   }
 
   /**
@@ -164,10 +191,10 @@ public interface ApexStreamTuple<T> {
         throws CoderException, IOException {
       int b = inStream.read();
       if (b == 1) {
-        return new WatermarkTuple<T>(new DataInputStream(inStream).readLong());
+        return new WatermarkTuple<>(new DataInputStream(inStream).readLong());
       } else {
         int unionTag = inStream.read();
-        return new DataTuple<T>(valueCoder.decode(inStream, context), unionTag);
+        return new DataTuple<>(valueCoder.decode(inStream, context), unionTag);
       }
     }
 
