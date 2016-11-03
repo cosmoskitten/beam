@@ -50,9 +50,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>New Concepts:
  * <pre>
- *   1. Logging using SLF4J
- *   3. Creating a custom aggregator (runners have varying levels of support)
- *   4. Testing your Pipeline via PAssert
+ *   1. Logging using SLF4J, even in a distributed environment
+ *   2. Creating a custom aggregator (runners have varying levels of support)
+ *   3. Testing your Pipeline via PAssert
  * </pre>
  *
  * <p>To execute this pipeline locally, specify general pipeline configuration:
@@ -75,12 +75,12 @@ public class DebuggingWordCount {
   /** A DoFn that filters for a specific key based upon a regular expression. */
   public static class FilterTextFn extends DoFn<KV<String, Long>, KV<String, Long>> {
     /**
-     * Concept #1: The logger below uses the fully qualified class name of FilterTextFn
-     * as the logger. Depending on your SLF4J configuration, log statements will likely
-     * be qualified by this name.
+     * Concept #1: The logger below uses the fully qualified class name of FilterTextFn as the
+     * logger. Depending on your SLF4J configuration, log statements will likely be qualified by
+     * this name.
      *
-     * <p>Some runners may provide a default SLF4J configuration that is most appropriate
-     * for their logging integration.
+     * <p>Note that this is entirely standard SLF4J usage. Some runners may provide a default SLF4J
+     * configuration that is most appropriate for their logging integration.
      */
     private static final Logger LOG = LoggerFactory.getLogger(FilterTextFn.class);
 
@@ -90,7 +90,7 @@ public class DebuggingWordCount {
     }
 
     /**
-     * Concept #3: A custom aggregator can track values in your pipeline as it runs. Each
+     * Concept #2: A custom aggregator can track values in your pipeline as it runs. Each
      * runner provides varying levels of support for aggregators, and may expose them
      * in a dashboard, etc.
      */
@@ -143,7 +143,7 @@ public class DebuggingWordCount {
          .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 
     /**
-     * Concept #4: PAssert is a set of convenient PTransforms in the style of
+     * Concept #3: PAssert is a set of convenient PTransforms in the style of
      * Hamcrest's collection matchers that can be used when writing Pipeline level tests
      * to validate the contents of PCollections. PAssert is best used in unit tests
      * with small data sets but is demonstrated here as a teaching tool.
