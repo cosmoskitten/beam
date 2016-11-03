@@ -163,7 +163,7 @@ public class Transport {
   private static HttpRequestInitializer chainHttpRequestInitializer(
       Credential credential, HttpRequestInitializer httpRequestInitializer) {
     if (credential == null) {
-      return httpRequestInitializer;
+      return new ChainingHttpRequestInitializer(new NullCredential(), httpRequestInitializer);
     } else {
       return new ChainingHttpRequestInitializer(credential, httpRequestInitializer);
     }

@@ -120,11 +120,9 @@ public class Credentials {
     try {
       return GoogleCredential.getApplicationDefault().createScoped(SCOPES);
     } catch (IOException e) {
-      throw new RuntimeException("Unable to get application default credentials. Please see "
-          + "https://developers.google.com/accounts/docs/application-default-credentials "
-          + "for details on how to specify credentials. This version of the SDK is "
-          + "dependent on the gcloud core component version 2015.02.05 or newer to "
-          + "be able to get credentials from the currently authorized user via gcloud auth.", e);
+      // Ignore the exception
+      // Pipelines that only access to public data should be able to run without credentials.
+      return null;
     }
   }
 
