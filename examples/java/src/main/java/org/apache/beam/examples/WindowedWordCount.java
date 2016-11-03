@@ -17,31 +17,36 @@
  */
 package org.apache.beam.examples;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
-import org.apache.beam.examples.common.ExampleUtils;
+import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 
 /**
@@ -63,7 +68,8 @@ import org.joda.time.Instant;
  *   2. Adding timestamps to data
  *   3. Windowing
  *   4. Re-using PTransforms over windowed PCollections
- *   5. Writing to BigQuery
+ *   5. Accessing the window of an element
+ *   6. Writing data to per-window text files
  * </pre>
  *
  * <p>By default, the examples will run with the {@code DirectRunner}.
@@ -74,24 +80,25 @@ import org.joda.time.Instant;
  * </pre>
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>Optionally specify the input file path via:
- * {@code --inputFile=gs://INPUT_PATH},
- * which defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt}.
+ * <p>To execute this pipeline locally, specify a local output file (if using the
+ * {@link DirectRunner}) or output prefix on a supported distributed file system.
+ * <pre>{@code
+ *   --output=[YOUR_LOCAL_FILE | YOUR_OUTPUT_PREFIX]
+ * }</pre>
  *
- * <p>Specify an output BigQuery dataset and optionally, a table for the output. If you don't
- * specify the table, one will be created for you using the job name. If you don't specify the
- * dataset, a dataset called {@code beam_examples} must already exist in your project.
- * {@code --bigQueryDataset=YOUR-DATASET --bigQueryTable=YOUR-NEW-TABLE-NAME}.
+ * <p>The input file defaults to a public data set containing the text of of King Lear,
+ * by William Shakespeare. You can override it and choose your own input with {@code --inputFile}.
  *
  * <p>By default, the pipeline will do fixed windowing, on 1-minute windows.  You can
  * change this interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=10}
  * for 10-minute windows.
  *
- * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
- * and then exits.
+ * <p>The example will try to cancel the pipeline on the signal to terminate the process (CTRL-C).
  */
 public class WindowedWordCount {
     static final int WINDOW_SIZE = 1;  // Default window duration in minutes
+    static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
+    static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
   /**
    * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
@@ -121,50 +128,12 @@ public class WindowedWordCount {
     }
   }
 
-  /** A DoFn that converts a Word and Count into a BigQuery table row. */
-  static class FormatAsTableRowFn extends DoFn<KV<String, Long>, TableRow> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      TableRow row = new TableRow()
-          .set("word", c.element().getKey())
-          .set("count", c.element().getValue())
-          // include a field for the window timestamp
-         .set("window_timestamp", c.timestamp().toString());
-      c.output(row);
-    }
-  }
-
   /**
-   * Helper method that defines the BigQuery schema used for the output.
-   */
-  private static TableSchema getSchema() {
-    List<TableFieldSchema> fields = new ArrayList<>();
-    fields.add(new TableFieldSchema().setName("word").setType("STRING"));
-    fields.add(new TableFieldSchema().setName("count").setType("INTEGER"));
-    fields.add(new TableFieldSchema().setName("window_timestamp").setType("TIMESTAMP"));
-    TableSchema schema = new TableSchema().setFields(fields);
-    return schema;
-  }
-
-  /**
-   * Concept #5: We'll stream the results to a BigQuery table. The BigQuery output source is one
-   * that supports both bounded and unbounded data. This is a helper method that creates a
-   * TableReference from input options, to tell the pipeline where to write its BigQuery results.
-   */
-  private static TableReference getTableReference(Options options) {
-    TableReference tableRef = new TableReference();
-    tableRef.setProjectId(options.getProject());
-    tableRef.setDatasetId(options.getBigQueryDataset());
-    tableRef.setTableId(options.getBigQueryTable());
-    return tableRef;
-  }
-
-  /**
-   * Options supported by {@link WindowedWordCount}.
+   * Options for {@link WindowedWordCount}.
    *
-   * <p>Inherits standard example configuration options, which allow specification of the BigQuery
-   * table, as well as the {@link WordCount.WordCountOptions} support for
-   * specification of the input file.
+   * <p>Inherits standard example configuration options, which allow specification of the
+   * runner, as well as the {@link WordCount.WordCountOptions} support for
+   * specification of the input and output files.
    */
   public interface Options extends WordCount.WordCountOptions,
       ExampleOptions, ExampleBigQueryTableOptions {
@@ -176,10 +145,8 @@ public class WindowedWordCount {
 
   public static void main(String[] args) throws IOException {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-    options.setBigQuerySchema(getSchema());
-    // ExampleUtils creates the necessary input sources to simplify execution of this Pipeline.
-    ExampleUtils exampleUtils = new ExampleUtils(options);
-    exampleUtils.setup();
+    final String output = options.getOutput();
+    final Duration windowSize = Duration.standardMinutes(options.getWindowSize());
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -211,19 +178,61 @@ public class WindowedWordCount {
     PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
 
     /**
-     * Concept #5: Format the results for a BigQuery table, then write to BigQuery.
-     * The BigQuery output source supports both bounded and unbounded data.
+     * Concept #5: Key by the window, so we can write one file per window. To access the window in a
+     * {@link DoFn}, add a {@link BoundedWindow} parameter. This will be automatically detected and
+     * populated with the window for the current element.
      */
-    wordCounts.apply(ParDo.of(new FormatAsTableRowFn()))
-        .apply(BigQueryIO.Write
-          .to(getTableReference(options))
-          .withSchema(getSchema())
-          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
+    pipeline.getCoderRegistry().registerCoder(IntervalWindow.class, IntervalWindow.getCoder());
+    PCollection<KV<IntervalWindow, KV<String, Long>>> keyedByWindow =
+        wordCounts.apply(
+            ParDo.of(
+                new DoFn<KV<String, Long>, KV<IntervalWindow, KV<String, Long>>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context, BoundedWindow window) {
+                    context.output(KV.of((IntervalWindow) window, context.element()));
+                  }
+                }));
+
+    /**
+     * Concept #6: Format the results and write to a sharded file partitioned by window, using a
+     * simple ParDo operation. Because there may be failures followed by retries, the writes must be
+     * idempotent, and the files may not appear atomically.
+     */
+    keyedByWindow
+        .apply(GroupByKey.<IntervalWindow, KV<String, Long>>create())
+        .apply(
+            ParDo.of(
+                new DoFn<KV<IntervalWindow, Iterable<KV<String, Long>>>, Void>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) throws Exception {
+                    // Build a file name from the window
+                    DateTimeFormatter formatter = ISODateTimeFormat.dateTimeNoMillis();
+                    IntervalWindow window = context.element().getKey();
+                    String outputShard =
+                        String.format(
+                            "%s-%s-%s",
+                            output, formatter.print(window.start()), formatter.print(window.end()));
+
+                    // Open the file and write all the values
+                    IOChannelFactory factory = IOChannelUtils.getFactory(outputShard);
+                    OutputStream out =
+                        Channels.newOutputStream(factory.create(outputShard, "text/plain"));
+                    for (KV<String, Long> wordCount : context.element().getValue()) {
+                      STRING_CODER.encode(
+                          wordCount.getKey() + ": " + wordCount.getValue(),
+                          out,
+                          Coder.Context.OUTER);
+                      out.write(NEWLINE);
+                    }
+                    out.close();
+                  }
+                }));
 
     PipelineResult result = pipeline.run();
-
-    // ExampleUtils will try to cancel the pipeline before the program exists.
-    exampleUtils.waitToFinish(result);
+    try {
+      result.waitUntilFinish();
+    } catch (Exception exc) {
+      result.cancel();
+    }
   }
 }
