@@ -103,4 +103,9 @@ public interface IOChannelFactory {
 
   /** Converts the given string to a {@link Path}. */
   Path toPath(String path);
+
+  /**
+   * Delete files with the given {@code uris} if they exist.
+   */
+  void deleteIfExists(Collection<String> uris) throws IOException;
 }

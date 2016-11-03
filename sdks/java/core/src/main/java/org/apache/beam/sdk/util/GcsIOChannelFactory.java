@@ -89,4 +89,9 @@ public class GcsIOChannelFactory implements IOChannelFactory {
   public Path toPath(String path) {
     return GcsPath.fromUri(path);
   }
+
+  @Override
+  public void deleteIfExists(Collection<String> uris) throws IOException {
+    options.getGcsUtil().remove(uris);
+  }
 }

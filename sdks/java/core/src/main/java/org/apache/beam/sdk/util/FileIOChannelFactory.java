@@ -155,4 +155,11 @@ public class FileIOChannelFactory implements IOChannelFactory {
   public Path toPath(String path) {
     return specToFile(path).toPath();
   }
+
+  @Override
+  public void deleteIfExists(Collection<String> uris) throws IOException {
+    for (String uri : uris) {
+      Files.deleteIfExists(toPath(uri));
+    }
+  }
 }

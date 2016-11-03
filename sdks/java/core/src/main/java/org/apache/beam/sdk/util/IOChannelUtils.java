@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.collect.ImmutableList;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
@@ -204,5 +205,12 @@ public class IOChannelUtils {
     }
 
     return fullPath;
+  }
+
+  /**
+   * Delete the file with the given {@code uri} if it exists.
+   */
+  public static void deleteIfExists(String uri) throws Exception {
+    IOChannelUtils.getFactory(uri).deleteIfExists(ImmutableList.of(uri));
   }
 }
