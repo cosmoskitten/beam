@@ -25,6 +25,8 @@ import os
 import tempfile
 import unittest
 
+import hamcrest as hc
+
 import apache_beam as beam
 import apache_beam.io.source_test_utils as source_test_utils
 
@@ -41,6 +43,8 @@ from apache_beam.io.filebasedsource_test import write_data
 from apache_beam.io.filebasedsource_test import write_pattern
 from apache_beam.io.fileio import CompressionTypes
 
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
@@ -247,6 +251,20 @@ class TextSourceTest(unittest.TestCase):
         splits[0].source, splits[0].start_position, splits[0].stop_position,
         perform_multi_threaded_test=False)
 
+  def test_read_display_data(self):
+    read = ReadFromText('prefix')
+    dd = DisplayData.create_from(read)
+    expected_items = [
+        DisplayDataItemMatcher.matches_kv(
+            'compression', 'auto'),
+        DisplayDataItemMatcher.matches_kv(
+            'filePattern',
+            'prefix'),
+        DisplayDataItemMatcher.matches_kv(
+            'strip_nwln',
+            True)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
   def test_dataflow_single_file(self):
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
@@ -449,6 +467,20 @@ class TextSinkTest(unittest.TestCase):
 
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
+
+  def test_write_display_data(self):
+    write = WriteToText('prefix')
+    dd = DisplayData.create_from(write)
+    expected_items = [
+        DisplayDataItemMatcher.matches_kv(
+            'compression', 'auto'),
+        DisplayDataItemMatcher.matches_kv(
+            'shards', 0),
+        DisplayDataItemMatcher.matches_kv(
+            'filePattern',
+            '{}{}'.format('prefix',
+                          '-%(shard_num)05d-of-%(num_shards)05d'))]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_dataflow(self):
     pipeline = beam.Pipeline('DirectPipelineRunner')

@@ -68,7 +68,8 @@ class TestTextFileSource(unittest.TestCase):
     self.assertEqual(read_lines, output_lines)
     dd = DisplayData.create_from(source)
     expected_items = [
-        DisplayDataItemMatcher.matches_kv('filePattern', file_name)]
+        DisplayDataItemMatcher.matches_kv('filePattern', file_name),
+        DisplayDataItemMatcher.matches_kv('compression', 'auto')]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
@@ -611,7 +612,10 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher.matches_kv(
             'compression',
-            'auto')]
+            'auto'),
+        DisplayDataItemMatcher.matches_kv(
+            'shards',
+            0)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_text_file_display_data_added_suffix(self):
@@ -622,7 +626,9 @@ class TestNativeTextFileSink(unittest.TestCase):
             'filePattern',
             '{}.{}{}'.format(self.path, 'pdf', '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher.matches_kv(
-            'compression', 'auto')]
+            'compression', 'auto'),
+        DisplayDataItemMatcher.matches_kv(
+            'shards', 0)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_text_file_display_data_suffix(self):
@@ -634,7 +640,10 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}{}'.format(self.path, '-SSSSS-of-NNNNN', '.pdf')),
         DisplayDataItemMatcher.matches_kv(
             'compression',
-            'auto')]
+            'auto'),
+        DisplayDataItemMatcher.matches_kv(
+            'shards',
+            0)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_file_empty(self):
@@ -662,7 +671,9 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher.matches_kv(
             'compression',
-            'gzip')]
+            'gzip'),
+        DisplayDataItemMatcher.matches_kv(
+            'shards', 0)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_gzip_file_auto(self):
@@ -699,7 +710,10 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher.matches_kv(
             'compression',
-            'bzip2')]
+            'bzip2'),
+        DisplayDataItemMatcher.matches_kv(
+            'shards',
+            0)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_zlib_file_auto(self):
@@ -780,7 +794,17 @@ class TestFileSink(unittest.TestCase):
     sink = MyFileSink(
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
     dd = DisplayData.create_from(sink)
-    print dd.items
+    expected_items = [
+        DisplayDataItemMatcher.matches_kv(
+            'shards', 0),
+        DisplayDataItemMatcher.matches_kv(
+            'compression', 'auto'),
+        DisplayDataItemMatcher.matches_kv(
+            'filePattern',
+            '{}{}'.format(temp_path,
+                          '-%(shard_num)05d-of-%(num_shards)05d.foo'))]
+
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_empty_write(self):
     temp_path = tempfile.NamedTemporaryFile().name
