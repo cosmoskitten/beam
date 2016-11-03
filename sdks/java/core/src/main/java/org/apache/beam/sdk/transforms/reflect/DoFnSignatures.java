@@ -273,14 +273,7 @@ public class DoFnSignatures {
           timerDecl.field().getDeclaringClass().getCanonicalName());
 
       onTimerMethodMap.put(
-          id,
-          analyzeOnTimerMethod(
-              id,
-              errors,
-              fnToken,
-              onTimerMethod,
-              outputT,
-              fnContext));
+          id, analyzeOnTimerMethod(fnToken, errors, onTimerMethod, id, outputT, fnContext));
     }
     signatureBuilder.setOnTimerMethods(onTimerMethodMap);
 
@@ -581,10 +574,10 @@ public class DoFnSignatures {
 
   @VisibleForTesting
   static DoFnSignature.OnTimerMethod analyzeOnTimerMethod(
-      String timerId,
-      ErrorReporter errors,
       TypeDescriptor<? extends DoFn<?, ?>> fnClass,
+      ErrorReporter errors,
       Method m,
+      String timerId,
       TypeDescriptor<?> outputT,
       FnAnalysisContext fnContext) {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
