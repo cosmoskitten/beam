@@ -593,10 +593,11 @@ public class DoFnSignatures {
 
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
     TypeDescriptor<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
+    ErrorReporter onTimerErrors = errors.forMethod(DoFn.OnTimer.class, m);
     for (int i = 0; i < params.length; ++i) {
       extraParameters.add(
           analyzeExtraParameter(
-              errors.forMethod(DoFn.OnTimer.class, m),
+              onTimerErrors,
               fnContext,
               methodContext,
               fnClass,
@@ -679,7 +680,7 @@ public class DoFnSignatures {
   }
 
   private static Parameter analyzeExtraParameter(
-      ErrorReporter errors,
+      ErrorReporter methodErrors,
       FnAnalysisContext fnContext,
       MethodAnalysisContext methodContext,
       TypeDescriptor<? extends DoFn<?, ?>> fnClass,
@@ -688,32 +689,35 @@ public class DoFnSignatures {
       TypeDescriptor<?> expectedOutputReceiverT) {
     TypeDescriptor<?> paramT = param.getType();
     Class<?> rawType = paramT.getRawType();
+
+    ErrorReporter paramErrors = methodErrors.forParameter(param);
+
     if (rawType.equals(BoundedWindow.class)) {
-      errors.checkArgument(
+      methodErrors.checkArgument(
           !methodContext.getExtraParameters().contains(Parameter.boundedWindow()),
           "Multiple %s parameters",
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow();
     } else if (rawType.equals(DoFn.InputProvider.class)) {
-      errors.checkArgument(
+      methodErrors.checkArgument(
           !methodContext.getExtraParameters().contains(Parameter.inputProvider()),
           "Multiple %s parameters",
           DoFn.InputProvider.class.getSimpleName());
-      errors.checkArgument(
+      paramErrors.checkArgument(
           paramT.equals(expectedInputProviderT),
-          "Wrong type of %s parameter: %s, should be %s",
+          "%s is for %s when it should be %s",
           DoFn.InputProvider.class.getSimpleName(),
           formatType(paramT),
           formatType(expectedInputProviderT));
       return Parameter.inputProvider();
     } else if (rawType.equals(DoFn.OutputReceiver.class)) {
-      errors.checkArgument(
+      methodErrors.checkArgument(
           !methodContext.getExtraParameters().contains(Parameter.outputReceiver()),
           "Multiple %s parameters",
           DoFn.OutputReceiver.class.getSimpleName());
-      errors.checkArgument(
+      paramErrors.checkArgument(
           paramT.equals(expectedOutputReceiverT),
-          "Wrong type of %s parameter: %s, should be %s",
+          "%s is for %s when it should be %s",
           DoFn.OutputReceiver.class.getSimpleName(),
           formatType(paramT),
           formatType(expectedOutputReceiverT));
@@ -722,44 +726,37 @@ public class DoFnSignatures {
       // m.getParameters() is not available until Java 8
       String id = getTimerId(param.getAnnotations());
 
-      errors.checkArgument(
+      paramErrors.checkArgument(
           id != null,
-          "parameter of type %s at index %s missing %s annotation",
-          param.getType(),
-          param.getIndex(),
+          "%s missing %s annotation",
+          Timer.class.getSimpleName(),
           TimerId.class.getSimpleName());
 
-      errors.checkArgument(
+      paramErrors.checkArgument(
           !methodContext.getTimerParameters().containsKey(id),
-          "parameter of type %s at index %s duplicates %s(\"%s\") on other parameter",
-          param.getType(),
-          param.getIndex(),
+          "duplicate %s: \"%s\"",
           TimerId.class.getSimpleName(),
           id);
 
       TimerDeclaration timerDecl = fnContext.getTimerDeclarations().get(id);
-      errors.checkArgument(
+      paramErrors.checkArgument(
           timerDecl != null,
-          "parameter of type %s at index %s references undeclared %s \"%s\"",
-          param.getType(),
-          param.getIndex(),
+          "reference to undeclared %s: \"%s\"",
           TimerId.class.getSimpleName(),
           id);
 
-      errors.checkArgument(
+      paramErrors.checkArgument(
           timerDecl.field().getDeclaringClass().equals(param.getMethod().getDeclaringClass()),
-          "parameter at index %s for timer %s"
-              + " declared in a different class %s."
+          "%s %s declared in a different class %s."
               + " Timers may be referenced only in the lexical scope where they are declared.",
-          Timer.class.getSimpleName(),
-          param.getIndex(),
+          TimerId.class.getSimpleName(),
           id,
           timerDecl.field().getDeclaringClass().getName());
 
       return Parameter.timerParameter(timerDecl);
 
     } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
-      errors.checkArgument(
+      methodErrors.checkArgument(
           !methodContext.getExtraParameters().contains(Parameter.restrictionTracker()),
           "Multiple %s parameters",
           RestrictionTracker.class.getSimpleName());
@@ -767,19 +764,14 @@ public class DoFnSignatures {
     } else if (State.class.isAssignableFrom(rawType)) {
       // m.getParameters() is not available until Java 8
       String id = getStateId(param.getAnnotations());
-      errors.checkArgument(
+      paramErrors.checkArgument(
           id != null,
-          "parameter of type %s at index %s missing %s annotation",
-          param.getType(),
-          param.getIndex(),
+          "missing %s annotation",
           DoFn.StateId.class.getSimpleName());
 
-      errors.checkArgument(
+      paramErrors.checkArgument(
           !methodContext.getStateParameters().containsKey(id),
-          "%s parameter of type %s at index %s duplicates %s(\"%s\") on other parameter",
-          fnClass.getRawType().getName(),
-          param.getType(),
-          param.getIndex(),
+          "duplicate %s: \"%s\"",
           DoFn.StateId.class.getSimpleName(),
           id);
 
@@ -787,29 +779,24 @@ public class DoFnSignatures {
       TypeDescriptor<? extends State> stateType = (TypeDescriptor<? extends State>) param.getType();
 
       StateDeclaration stateDecl = fnContext.getStateDeclarations().get(id);
-      errors.checkArgument(
+      paramErrors.checkArgument(
           stateDecl != null,
-          "parameter of type %s at index %s references undeclared %s \"%s\"",
-          param.getType(),
-          param.getIndex(),
+          "reference to undeclared %s: \"%s\"",
           DoFn.StateId.class.getSimpleName(),
           id);
 
-      errors.checkArgument(
+      paramErrors.checkArgument(
           stateDecl.stateType().equals(stateType),
-          "parameter at index %s has type %s but is a reference to StateId %s of type %s",
-          param.getIndex(),
-          param.getType(),
+          "reference to %s %s with different type %s",
+          StateId.class.getSimpleName(),
           id,
           stateDecl.stateType());
 
-      errors.checkArgument(
+      paramErrors.checkArgument(
           stateDecl.field().getDeclaringClass().equals(param.getMethod().getDeclaringClass()),
-          "Method %s has State parameter at index %s for state %s"
-              + " declared in a different class %s."
+          "%s %s declared in a different class %s."
               + " State may be referenced only in the class where it is declared.",
-          param.getMethod(),
-          param.getIndex(),
+          StateId.class.getSimpleName(),
           id,
           stateDecl.field().getDeclaringClass().getName());
 
@@ -819,7 +806,7 @@ public class DoFnSignatures {
           Arrays.asList(
               formatType(new TypeDescriptor<BoundedWindow>() {}),
               formatType(new TypeDescriptor<RestrictionTracker<?>>() {}));
-      errors.throwIllegalArgument(
+      paramErrors.throwIllegalArgument(
           "%s is not a valid context parameter. Should be one of %s",
           formatType(paramT), allowedParamTypes);
       // Unreachable
@@ -1206,6 +1193,14 @@ public class DoFnSignatures {
           String.format(
               "@%s %s",
               annotation.getSimpleName(), (method == null) ? "(absent)" : format(method)));
+    }
+
+    ErrorReporter forParameter(ParameterDescription param) {
+      return new ErrorReporter(
+          this,
+          String.format(
+              "parameter of type %s at index %s",
+              param.getType(), param.getIndex()));
     }
 
     void throwIllegalArgument(String message, Object... args) {

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
@@ -251,7 +250,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testTimerParameterDuplicate() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("duplicates");
+    thrown.expectMessage("duplicate");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 2");
@@ -549,7 +548,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testStateParameterDuplicate() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("duplicates");
+    thrown.expectMessage("duplicate");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 2");
@@ -573,7 +572,8 @@ public class DoFnSignaturesTest {
   public void testStateParameterWrongStateType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("WatermarkHoldState");
-    thrown.expectMessage("but is a reference to");
+    thrown.expectMessage("reference to");
+    thrown.expectMessage("different type");
     thrown.expectMessage("ValueState");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
@@ -596,7 +596,8 @@ public class DoFnSignaturesTest {
   public void testStateParameterWrongGenericType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("ValueState<java.lang.String>");
-    thrown.expectMessage("but is a reference to");
+    thrown.expectMessage("reference to");
+    thrown.expectMessage("different type");
     thrown.expectMessage("ValueState<java.lang.Integer>");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
