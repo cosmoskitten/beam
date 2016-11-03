@@ -44,7 +44,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
@@ -139,7 +138,7 @@ public class DoFnSignatures {
    * The context of analysis within a particular method.
    *
    * <p>It contains much of the information that eventually becomes part of the {@link
-   * MethodWithExtraParameters}, but in an intermediate state.
+   * DoFnSignature.MethodWithExtraParameters}, but in an intermediate state.
    */
   private static class MethodAnalysisContext {
 
