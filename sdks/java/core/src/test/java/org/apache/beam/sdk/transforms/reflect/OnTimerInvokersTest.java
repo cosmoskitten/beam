@@ -20,15 +20,14 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,44 +44,18 @@ public class OnTimerInvokersTest {
 
   @Mock private BoundedWindow mockWindow;
 
-  private ExtraContextFactory<String, String> extraContextFactory;
+  @Mock private ExtraContextFactory<String, String> mockExtraContextFactory;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    this.extraContextFactory =
-        new ExtraContextFactory<String, String>() {
-          @Override
-          public BoundedWindow window() {
-            return mockWindow;
-          }
-
-          @Override
-          public DoFn.InputProvider<String> inputProvider() {
-            throw new UnsupportedOperationException("Not supposed to call this.");
-          }
-
-          @Override
-          public DoFn.OutputReceiver<String> outputReceiver() {
-            throw new UnsupportedOperationException("Not supposed to call this.");
-          }
-
-          @Override
-          public WindowingInternals<String, String> windowingInternals() {
-            throw new UnsupportedOperationException("Not supposed to call this.");
-          }
-
-          @Override
-          public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
-            throw new UnsupportedOperationException("Not supposed to call this.");
-          }
-        };
+    when(mockExtraContextFactory.window()).thenReturn(mockWindow);
   }
 
   private void invokeOnTimer(DoFn<String, String> fn, String timerId) {
     OnTimerInvokers.INSTANCE
         .invokerForTimer(fn, timerId)
-        .invokeOnTimer(extraContextFactory);
+        .invokeOnTimer(mockExtraContextFactory);
   }
 
   @Test
