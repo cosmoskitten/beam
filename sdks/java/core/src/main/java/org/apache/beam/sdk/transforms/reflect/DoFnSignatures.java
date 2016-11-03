@@ -722,6 +722,14 @@ public class DoFnSignatures {
           formatType(paramT),
           formatType(expectedOutputReceiverT));
       return Parameter.outputReceiver();
+
+    } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
+      methodErrors.checkArgument(
+          !methodContext.getExtraParameters().contains(Parameter.restrictionTracker()),
+          "Multiple %s parameters",
+          RestrictionTracker.class.getSimpleName());
+      return Parameter.restrictionTracker();
+
     } else if (rawType.equals(Timer.class)) {
       // m.getParameters() is not available until Java 8
       String id = getTimerId(param.getAnnotations());
@@ -755,12 +763,6 @@ public class DoFnSignatures {
 
       return Parameter.timerParameter(timerDecl);
 
-    } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
-      methodErrors.checkArgument(
-          !methodContext.getExtraParameters().contains(Parameter.restrictionTracker()),
-          "Multiple %s parameters",
-          RestrictionTracker.class.getSimpleName());
-      return Parameter.restrictionTracker();
     } else if (State.class.isAssignableFrom(rawType)) {
       // m.getParameters() is not available until Java 8
       String id = getStateId(param.getAnnotations());
