@@ -38,11 +38,12 @@ import org.apache.beam.sdk.values.KV;
  * argument processing, and focus on construction of the pipeline, which chains together the
  * application of core transforms.
  *
- * <p>Next, see the {@link WordCount} pipeline, then the {@link DebuggingWordCount}, and finally
- * the {@link WindowedWordCount} pipeline, for more detailed examples that introduce additional
+ * <p>Next, see the {@link WordCount} pipeline, then the {@link DebuggingWordCount}, and finally the
+ * {@link WindowedWordCount} pipeline, for more detailed examples that introduce additional
  * concepts.
  *
  * <p>Concepts:
+ *
  * <pre>
  *   1. Reading data from text files
  *   2. Specifying 'inline' transforms
@@ -50,14 +51,10 @@ import org.apache.beam.sdk.values.KV;
  *   4. Writing data to text files
  * </pre>
  *
- * <p>To execute this pipeline, first edit the output file to a location on your local disk
- * (look for the string 'YOUR_OUTPUT_FILE' near the bottom of the file).
- * This example uses the {@link DirectRunner}, so writing to local disk is OK. When running
- * on a distributed service, you would use an appropriate file service.
- *
- * <p>Then, run the pipeline as described in the README. It will be deployed and run with the
- * selected runner. No args are required to run the pipeline. You can see the results in your
- * output file.
+ * <p>To run this pipeline, follow the directions in the README. It will be run with the {@link
+ * DirectRunner}. No arguments are required to run the pipeline. You can see the results in the
+ * output files in your current working directory, with names like "wordcounts-00001-of-00005. When
+ * running on a distributed service, you would use an appropriate file service.
  */
 public class MinimalWordCount {
 
@@ -66,8 +63,8 @@ public class MinimalWordCount {
     // options for our pipeline, such as the runner you wish to use.
     PipelineOptions options = PipelineOptionsFactory.create();
 
-    // For this example, we hardcode the DirectRunner. In subsequent examples we will demonstrate
-    // how to to choose a runner on the command line.
+    // To keep this example as simple as possible, we hardcode the DirectRunner.
+    // Later examples will show how to make this parameterizable.
     options.setRunner(DirectRunner.class);
 
     // Create the Pipeline object with the options we defined above.
@@ -115,8 +112,8 @@ public class MinimalWordCount {
      // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
      // formatted strings) to a series of text files.
      //
-     // Replace the string 'YOUR_OUTPUT_FILE' with an actual location on your local disk.
-     .apply(TextIO.Write.to("YOUR_OUTPUT_FILE"));
+     // By default, it will write to a set of files with names like wordcount-00001-of-00005
+     .apply(TextIO.Write.to("wordcounts"));
 
     // Run the pipeline.
     p.run().waitUntilFinish();
