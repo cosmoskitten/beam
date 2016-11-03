@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.description.method.MethodDescription;
@@ -95,15 +94,6 @@ class OnTimerInvokers {
     }
   }
 
-  @Nullable
-  private Constructor<?> getConstructorFor(Class<? extends DoFn<?, ?>> fnClass, String timerId) {
-    Map<String, Constructor<?>> invokerConstructors = constructorCache.get(fnClass);
-    if (invokerConstructors == null) {
-      return null;
-    }
-    return invokerConstructors.get(timerId);
-  }
-
   private void putConstructor(
       Class<? extends DoFn<?, ?>> fnClass, String timerId, Constructor<?> constructor) {
     Map<String, Constructor<?>> invokerConstructors = constructorCache.get(fnClass);
@@ -119,7 +109,9 @@ class OnTimerInvokers {
       DoFnSignature signature, String timerId) {
 
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
-    Constructor<?> constructor = getConstructorFor(fnClass, timerId);
+    Map<String, Constructor<?>> invokerConstructors = constructorCache.get(fnClass);
+    Constructor<?> constructor =
+        invokerConstructors == null ? null : invokerConstructors.get(timerId);
     if (constructor == null) {
       Class<? extends OnTimerInvoker<?, ?>> invokerClass =
           generateOnTimerInvokerClass(signature, timerId);
