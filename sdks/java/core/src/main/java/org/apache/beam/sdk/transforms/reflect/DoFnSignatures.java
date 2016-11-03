@@ -273,7 +273,7 @@ public class DoFnSignatures {
           timerDecl.field().getDeclaringClass().getCanonicalName());
 
       onTimerMethodMap.put(
-          id, analyzeOnTimerMethod(fnT, errors, onTimerMethod, id, outputT, fnContext));
+          id, analyzeOnTimerMethod(errors, fnT, onTimerMethod, id, outputT, fnContext));
     }
     signatureBuilder.setOnTimerMethods(onTimerMethodMap);
 
@@ -579,8 +579,8 @@ public class DoFnSignatures {
 
   @VisibleForTesting
   static DoFnSignature.OnTimerMethod analyzeOnTimerMethod(
-      TypeDescriptor<? extends DoFn<?, ?>> fnClass,
       ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnClass,
       Method m,
       String timerId,
       TypeDescriptor<?> outputT,
