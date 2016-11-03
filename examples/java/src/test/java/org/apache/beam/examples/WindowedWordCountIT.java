@@ -18,13 +18,15 @@
 package org.apache.beam.examples;
 
 import java.io.IOException;
+import java.util.Date;
 import org.apache.beam.examples.WindowedWordCount.Options;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.testing.BigqueryMatcher;
+import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.StreamingIT;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -52,26 +54,46 @@ public class WindowedWordCountIT {
   }
 
   @Test
-  public void testWindowedWordCountInBatch() throws IOException {
-    testWindowedWordCountPipeline(false /* isStreaming */);
+  public void testWindowedWordCountInBatch() throws Exception {
+    testWindowedWordCountPipeline(defaultOptions());
   }
 
   @Test
   @Category(StreamingIT.class)
-  public void testWindowedWordCountInStreaming() throws IOException {
-    testWindowedWordCountPipeline(true /* isStreaming */);
+  public void testWindowedWordCountInStreaming() throws Exception {
+    testWindowedWordCountPipeline(streamingOptions());
   }
 
-  private void testWindowedWordCountPipeline(boolean isStreaming) throws IOException {
+  private WindowedWordCountITOptions defaultOptions() throws Exception {
     WindowedWordCountITOptions options =
         TestPipeline.testingPipelineOptions().as(WindowedWordCountITOptions.class);
-    options.setStreaming(isStreaming);
+    options.setOutput(
+        IOChannelUtils.resolve(
+            options.getTempRoot(),
+            String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+            "output",
+            "results"));
+    return options;
+  }
 
-    String query = String.format("SELECT word, SUM(count) FROM [%s:%s.%s] GROUP BY word",
-        options.getProject(), options.getBigQueryDataset(), options.getBigQueryTable());
+  private WindowedWordCountITOptions streamingOptions() throws Exception {
+    WindowedWordCountITOptions options = defaultOptions();
+    options.setStreaming(true);
+    return options;
+  }
+
+  private WindowedWordCountITOptions batchOptions() throws Exception {
+    WindowedWordCountITOptions options = defaultOptions();
+    // This is the default value, but make it explicit
+    options.setStreaming(false);
+    return options;
+  }
+
+  private void testWindowedWordCountPipeline(WindowedWordCountITOptions options)
+      throws IOException {
+
     options.setOnSuccessMatcher(
-        new BigqueryMatcher(
-            options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));
+        new FileChecksumMatcher(DEFAULT_OUTPUT_CHECKSUM, options.getOutput() + "*"));
 
     WindowedWordCount.main(TestPipeline.convertToArgs(options));
   }
