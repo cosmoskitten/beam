@@ -96,7 +96,7 @@ import org.joda.time.format.ISODateTimeFormat;
  * <p>The example will try to cancel the pipeline on the signal to terminate the process (CTRL-C).
  */
 public class WindowedWordCount {
-    static final int WINDOW_SIZE = 1;  // Default window duration in minutes
+    static final int WINDOW_SIZE = 10;  // Default window duration in minutes
     static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
     static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
@@ -109,7 +109,7 @@ public class WindowedWordCount {
    * 2-hour period.
    */
   static class AddTimestampFn extends DoFn<String, String> {
-    private static final Duration RAND_RANGE = Duration.standardHours(2);
+    private static final Duration RAND_RANGE = Duration.standardHours(1);
     private final Instant minTimestamp;
 
     AddTimestampFn() {
@@ -206,7 +206,7 @@ public class WindowedWordCount {
                   @ProcessElement
                   public void processElement(ProcessContext context) throws Exception {
                     // Build a file name from the window
-                    DateTimeFormatter formatter = ISODateTimeFormat.dateTimeNoMillis();
+                    DateTimeFormatter formatter = ISODateTimeFormat.hourMinute();
                     IntervalWindow window = context.element().getKey();
                     String outputShard =
                         String.format(
