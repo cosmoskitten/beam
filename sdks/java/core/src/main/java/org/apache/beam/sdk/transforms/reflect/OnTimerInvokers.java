@@ -199,7 +199,8 @@ class OnTimerInvokers {
       // Parameters of the wrapper invoker method:
       //   ExtraContextFactory.
       // Parameters of the wrapped DoFn method:
-      //   [OnTimerContext, BoundedWindow, InputProvider, OutputReceiver] in any order
+      //   a dynamic set of allowed "extra" parameters in any order subject to
+      //   validation prior to getting the DoFnSignature
       ArrayList<StackManipulation> parameters = new ArrayList<>();
       // Push the extra arguments in their actual order.
       StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadOffset(1);
