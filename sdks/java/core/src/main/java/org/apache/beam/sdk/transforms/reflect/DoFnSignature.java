@@ -136,7 +136,7 @@ public abstract class DoFnSignature {
    * A method delegated to an annotated method of an underlying {@link DoFn} that accepts a dynamic
    * list of parameters.
    */
-  public interface ParameterizedMethod extends DoFnMethod {
+  public interface MethodWithExtraParameters extends DoFnMethod {
     /**
      * Types of optional parameters of the annotated method, in the order they appear.
      *
@@ -344,7 +344,7 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.ProcessElement} method. */
   @AutoValue
-  public abstract static class ProcessElementMethod implements ParameterizedMethod {
+  public abstract static class ProcessElementMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
@@ -394,7 +394,7 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.OnTimer} method. */
   @AutoValue
-  public abstract static class OnTimerMethod implements ParameterizedMethod {
+  public abstract static class OnTimerMethod implements MethodWithExtraParameters {
 
     /** The id on the method's {@link DoFn.TimerId} annotation. */
     public abstract String id();
