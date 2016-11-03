@@ -666,7 +666,7 @@ public class DoFnSignatures {
     if (methodContext.getExtraParameters().contains(DoFnSignature.Parameter.restrictionTracker())) {
       errors.checkArgument(
           methodContext.getExtraParameters().size() == 1,
-          "Splittable DoFn must not have any extra arguments apart from BoundedWindow, but has: %s",
+          "Splittable DoFn must not have any extra arguments, but has: %s",
           trackerT,
           methodContext.getExtraParameters());
     }
@@ -718,7 +718,7 @@ public class DoFnSignatures {
           formatType(paramT),
           formatType(expectedOutputReceiverT));
       return Parameter.outputReceiver();
-    } else if (Timer.class.equals(rawType)) {
+    } else if (rawType.equals(Timer.class)) {
       // m.getParameters() is not available until Java 8
       String id = getTimerId(param.getAnnotations());
 
