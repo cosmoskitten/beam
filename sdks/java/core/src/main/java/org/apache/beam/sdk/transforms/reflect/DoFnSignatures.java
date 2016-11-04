@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -155,6 +156,12 @@ public class DoFnSignatures {
     public boolean hasRestrictionTrackerParameter() {
       return Iterables.any(
           extraParameters, Predicates.instanceOf(RestrictionTrackerParameter.class));
+    }
+
+    /** Indicates whether a {@link WindowParameter} is known in this context. */
+    public boolean hasWindowParameter() {
+      return Iterables.any(
+          extraParameters, Predicates.instanceOf(WindowParameter.class));
     }
 
     /** State parameters declared in this context, keyed by {@link StateId}. */
@@ -700,12 +707,13 @@ public class DoFnSignatures {
 
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
-    if (rawType.equals(BoundedWindow.class)) {
+    if (BoundedWindow.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
-          !methodContext.getExtraParameters().contains(Parameter.boundedWindow()),
+          !methodContext
+              .hasWindowParameter(),
           "Multiple %s parameters",
           BoundedWindow.class.getSimpleName());
-      return Parameter.boundedWindow();
+      return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
     } else if (rawType.equals(DoFn.InputProvider.class)) {
       methodErrors.checkArgument(
           !methodContext.getExtraParameters().contains(Parameter.inputProvider()),

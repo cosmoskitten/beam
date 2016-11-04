@@ -229,18 +229,14 @@ public abstract class DoFnSignature {
     }
 
     // These parameter descriptors are constant
-    private static final WindowParameter BOUNDED_WINDOW_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_WindowParameter();
     private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
 
-    /**
-     * Returns a {@link WindowParameter}.
-     */
-    public static WindowParameter boundedWindow() {
-      return BOUNDED_WINDOW_PARAMETER;
+    /** Returns a {@link WindowParameter}. */
+    public static WindowParameter boundedWindow(TypeDescriptor<? extends BoundedWindow> windowT) {
+      return new AutoValue_DoFnSignature_Parameter_WindowParameter(windowT);
     }
 
     /**
@@ -283,6 +279,7 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class WindowParameter extends Parameter {
       WindowParameter() {}
+      public abstract TypeDescriptor<? extends BoundedWindow> windowT();
     }
 
     /**
