@@ -538,7 +538,9 @@ public class DoFnInvokers {
 
           @Override
           public StackManipulation dispatch(WindowParameter p) {
-            return simpleExtraContextParameter("window", pushExtraContextFactory);
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter("window", pushExtraContextFactory),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.windowT().getRawType())));
           }
 
           @Override
