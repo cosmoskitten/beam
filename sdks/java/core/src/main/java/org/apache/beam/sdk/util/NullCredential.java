@@ -44,10 +44,14 @@ public class NullCredential implements HttpRequestInitializer {
 
   private static class NullCredentialHttpResponseInterceptor implements HttpResponseInterceptor {
     @Override
-    public void interceptResponse(HttpResponse httpResponse) throws IOException {
+    public void interceptResponse(HttpResponse httpResponse) {
       if (!httpResponse.isSuccessStatusCode() && httpResponse.getStatusCode() == ACCESS_DENIED) {
-        throw new IOException(NULL_CREDENTIAL_REASON);
+        throwNullCredentialException();
       }
     }
+  }
+
+  public static void throwNullCredentialException() {
+    throw new RuntimeException(NULL_CREDENTIAL_REASON);
   }
 }
