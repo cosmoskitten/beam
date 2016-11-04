@@ -62,17 +62,26 @@ class TestTableRowJsonCoder(unittest.TestCase):
 
   def test_row_as_table_row(self):
     schema_definition = [
-        ('s', 'STRING'), ('i', 'INTEGER'), ('f', 'FLOAT'), ('b', 'BOOLEAN')]
+        ('s', 'STRING'),
+        ('i', 'INTEGER'),
+        ('f', 'FLOAT'),
+        ('b', 'BOOLEAN'),
+        ('r', 'RECORD')]
+    data_defination = [
+        'abc',
+        123,
+        123.456,
+        True,
+        {'a': 'b'}]
+    str_def = '{"s": "abc", "i": 123, "f": 123.456, "b": true, "r": {"a": "b"}}'
     schema = bigquery.TableSchema(
         fields=[bigquery.TableFieldSchema(name=k, type=v)
                 for k, v in schema_definition])
     coder = TableRowJsonCoder(table_schema=schema)
     test_row = bigquery.TableRow(
-        f=[bigquery.TableCell(v=to_json_value(e))
-           for e in ['abc', 123, 123.456, True]])
+        f=[bigquery.TableCell(v=to_json_value(e)) for e in data_defination])
 
-    self.assertEqual('{"s": "abc", "i": 123, "f": 123.456, "b": true}',
-                     coder.encode(test_row))
+    self.assertEqual(str_def, coder.encode(test_row))
     self.assertEqual(test_row, coder.decode(coder.encode(test_row)))
     # A coder without schema can still decode.
     self.assertEqual(
@@ -138,6 +147,14 @@ class TestBigQuerySource(unittest.TestCase):
     self.assertEqual(source.query, 'my_query')
     self.assertFalse(source.use_legacy_sql)
 
+  def test_specify_query_flattened_records(self):
+    source = beam.io.BigQuerySource(query='my_query', flatten_results=False)
+    self.assertFalse(source.flatten_results)
+
+  def test_specify_query_unflattened_records(self):
+    source = beam.io.BigQuerySource(query='my_query', flatten_results=True)
+    self.assertTrue(source.flatten_results)
+
 
 class TestBigQuerySink(unittest.TestCase):
 
@@ -195,7 +212,8 @@ class TestBigQueryReader(unittest.TestCase):
             't': ts,
             'dt': '2016-10-31',
             'ts': '22:39:12.627498',
-            'dt_ts': '2008-12-25T07:30:00'
+            'dt_ts': '2008-12-25T07:30:00',
+            'r': {'a': 'b'}
         },
         {
             'i': 10,
@@ -203,6 +221,11 @@ class TestBigQueryReader(unittest.TestCase):
             'f': -3.14,
             'b': False
         }]
+
+    nested_schema = [
+        bigquery.TableFieldSchema(
+            name='a', type='STRING', mode='NULLABLE')]
+
     schema = bigquery.TableSchema(
         fields=[
             bigquery.TableFieldSchema(
@@ -220,7 +243,11 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableFieldSchema(
                 name='ts', type='TIME', mode='NULLABLE'),
             bigquery.TableFieldSchema(
-                name='dt_ts', type='DATETIME', mode='NULLABLE')])
+                name='dt_ts', type='DATETIME', mode='NULLABLE'),
+            bigquery.TableFieldSchema(
+                name='r', type='RECORD', mode='NULLABLE',
+                fields=nested_schema)])
+
     table_rows = [
         bigquery.TableRow(f=[
             bigquery.TableCell(v=to_json_value('true')),
@@ -232,12 +259,16 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableCell(v=to_json_value('%f' % now)),
             bigquery.TableCell(v=to_json_value('2016-10-31')),
             bigquery.TableCell(v=to_json_value('22:39:12.627498')),
-            bigquery.TableCell(v=to_json_value('2008-12-25T07:30:00'))]),
+            bigquery.TableCell(v=to_json_value('2008-12-25T07:30:00')),
+            # For record we cannot use dict because it doesn't create nested
+            # schemas correctly so we have to use this f,v based format
+            bigquery.TableCell(v=to_json_value({'f': [{'v': 'b'}]}))]),
         bigquery.TableRow(f=[
             bigquery.TableCell(v=to_json_value('false')),
             bigquery.TableCell(v=to_json_value(str(-3.14))),
             bigquery.TableCell(v=to_json_value(str(10))),
             bigquery.TableCell(v=to_json_value('xyz')),
+            bigquery.TableCell(v=None),
             bigquery.TableCell(v=None),
             bigquery.TableCell(v=None),
             bigquery.TableCell(v=None),
@@ -273,6 +304,7 @@ class TestBigQueryReader(unittest.TestCase):
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
     self.assertEqual(schema, reader.schema)
+    self.assertTrue(reader.flatten_results)
     self.assertTrue(reader.use_legacy_sql)
 
   def test_read_from_query_sql_format(self):
@@ -291,6 +323,25 @@ class TestBigQueryReader(unittest.TestCase):
     self.assertEqual(actual_rows, expected_rows)
     self.assertEqual(schema, reader.schema)
     self.assertFalse(reader.use_legacy_sql)
+    self.assertTrue(reader.flatten_results)
+
+  def test_read_from_query_unflatten_records(self):
+    client = mock.Mock()
+    client.jobs.Insert.return_value = bigquery.Job(
+        jobReference=bigquery.JobReference(
+            jobId='somejob'))
+    table_rows, schema, expected_rows = self.get_test_rows()
+    client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
+        jobComplete=True, rows=table_rows, schema=schema)
+    actual_rows = []
+    with beam.io.BigQuerySource(
+        query='query', flatten_results=False).reader(client) as reader:
+      for row in reader:
+        actual_rows.append(row)
+    self.assertEqual(actual_rows, expected_rows)
+    self.assertEqual(schema, reader.schema)
+    self.assertTrue(reader.use_legacy_sql)
+    self.assertFalse(reader.flatten_results)
 
   def test_using_both_query_and_table_fails(self):
     with self.assertRaises(ValueError) as exn:
