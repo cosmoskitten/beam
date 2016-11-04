@@ -239,20 +239,6 @@ public class KafkaIO {
    * should be set with {@link Write#withBootstrapServers(String)} and {@link Write#withTopic}
    * along with {@link Coder}s for (optional) key and values.
    */
-  public static Write<byte[], byte[]> writeBytes() {
-    return new AutoValue_KafkaIO_Write.Builder<byte[], byte[]>()
-        .setKeyCoder(ByteArrayCoder.of())
-        .setValueCoder(ByteArrayCoder.of())
-        .setValueOnly(false)
-        .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
-        .build();
-  }
-
-  /**
-   * Creates an uninitialized {@link Write} {@link PTransform}. Before use, Kafka configuration
-   * should be set with {@link Write#withBootstrapServers(String)} and {@link Write#withTopic}
-   * along with {@link Coder}s for (optional) key and values.
-   */
   public static <K, V> Write<K, V> write() {
     return new AutoValue_KafkaIO_Write.Builder<K, V>()
         .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
