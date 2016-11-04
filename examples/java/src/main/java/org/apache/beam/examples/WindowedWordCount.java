@@ -187,7 +187,6 @@ public class WindowedWordCount {
      * <p>To access the window in a {@link DoFn}, add a {@link BoundedWindow} parameter. This will
      * be automatically detected and populated with the window for the current element.
      */
-    pipeline.getCoderRegistry().registerCoder(IntervalWindow.class, IntervalWindow.getCoder());
     PCollection<KV<IntervalWindow, KV<String, Long>>> keyedByWindow =
         wordCounts.apply(
             ParDo.of(
