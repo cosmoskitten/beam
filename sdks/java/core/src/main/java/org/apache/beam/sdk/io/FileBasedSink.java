@@ -643,8 +643,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     @Override
     public final void abort() throws Exception {
-      IOChannelUtils.deleteIfExists(filename);
       close();
+      IOChannelUtils.deleteIfExists(filename);
     }
 
     /**
