@@ -765,9 +765,11 @@ class BigQueryWrapper(object):
     try:
       self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
           projectId=project_id, datasetId=dataset_id))
-      raise RuntimeError(
-          'Dataset %s:%s already exists so cannot be used as temporary.'
-          % (project_id, dataset_id))
+      if project_id is not None:
+        # Unittests don't pass projectIds so they can be run without error
+        raise RuntimeError(
+            'Dataset %s:%s already exists so cannot be used as temporary.'
+            % (project_id, dataset_id))
     except HttpError as exn:
       if exn.status_code == 404:
         self.get_or_create_dataset(project_id, dataset_id)
