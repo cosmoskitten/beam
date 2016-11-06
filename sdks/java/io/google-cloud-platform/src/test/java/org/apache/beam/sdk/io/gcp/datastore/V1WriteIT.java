@@ -78,6 +78,6 @@ public class V1WriteIT {
 
   @After
   public void tearDown() throws Exception {
-    deleteAllEntities(options, ancestor, null);
+    deleteAllEntities(options, ancestor);
   }
 }
