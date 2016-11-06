@@ -130,12 +130,10 @@ class V1TestUtil {
   /**
    * Build a new datastore client.
    */
-  static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId,
-                                String localhost) {
+  static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
     DatastoreOptions.Builder builder =
         new DatastoreOptions.Builder()
             .projectId(projectId)
-            .localHost(localhost)
             .initializer(
                 new RetryHttpRequestInitializer()
             );
@@ -161,9 +159,8 @@ class V1TestUtil {
   /**
    * Delete all entities with the given ancestor.
    */
-  static void deleteAllEntities(V1TestOptions options, String ancestor, String localhost)
-      throws Exception {
-    Datastore datastore = getDatastore(options, options.getProject(), localhost);
+  static void deleteAllEntities(V1TestOptions options, String ancestor) throws Exception {
+    Datastore datastore = getDatastore(options, options.getProject());
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
@@ -186,7 +183,7 @@ class V1TestUtil {
    */
   static long countEntities(V1TestOptions options, String ancestor) throws Exception {
     // Read from datastore.
-    Datastore datastore = V1TestUtil.getDatastore(options, options.getProject(), null);
+    Datastore datastore = V1TestUtil.getDatastore(options, options.getProject());
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
