@@ -138,6 +138,7 @@ __all__ = [
     ]
 
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
+MAX_RETRIES = 3
 
 
 class RowAsDictJsonCoder(coders.Coder):
@@ -636,7 +637,7 @@ class BigQueryWrapper(object):
         dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
         project=project_id)
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
   def _start_query_job(self, project_id, query, use_legacy_sql, flatten_results,
                        dry_run=False):
     request = bigquery.BigqueryJobsInsertRequest(
@@ -653,7 +654,7 @@ class BigQueryWrapper(object):
     response = self.client.jobs.Insert(request)
     return response.jobReference.jobId
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
   def _get_query_results(self, project_id, job_id,
                          page_token=None, max_results=10000):
     request = bigquery.BigqueryJobsGetQueryResultsRequest(
@@ -662,7 +663,7 @@ class BigQueryWrapper(object):
     response = self.client.jobs.GetQueryResults(request)
     return response
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
   def _insert_all_rows(self, project_id, dataset_id, table_id, rows):
     # The rows argument is a list of
     # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
@@ -677,7 +678,7 @@ class BigQueryWrapper(object):
     # response.insertErrors is not [] if errors encountered.
     return not response.insertErrors, response.insertErrors
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
   def _get_table(self, project_id, dataset_id, table_id):
     request = bigquery.BigqueryTablesGetRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
@@ -685,7 +686,9 @@ class BigQueryWrapper(object):
     # The response is a bigquery.Table instance.
     return response
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _create_table(self, project_id, dataset_id, table_id, schema):
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -697,18 +700,29 @@ class BigQueryWrapper(object):
     # The response is a bigquery.Table instance.
     return response
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
-  def _create_dataset(self, project_id, dataset_id):
-    dataset = bigquery.Dataset(
-        datasetReference=bigquery.DatasetReference(
-            projectId=project_id, datasetId=dataset_id))
-    request = bigquery.BigqueryDatasetsInsertRequest(
-        projectId=project_id, dataset=dataset)
-    response = self.client.datasets.Insert(request)
-    # The response is a bigquery.Dataset instance.
-    return response
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def get_or_create_dataset(self, project_id, dataset_id):
+    # Check if dataset already exists otherwise create it
+    try:
+      dataset = self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
+          projectId=project_id, datasetId=dataset_id))
+      return dataset
+    except HttpError as exn:
+      if exn.status_code == 404:
+        dataset = bigquery.Dataset(
+            datasetReference=bigquery.DatasetReference(
+                projectId=project_id, datasetId=dataset_id))
+        request = bigquery.BigqueryDatasetsInsertRequest(
+            projectId=project_id, dataset=dataset)
+        response = self.client.datasets.Insert(request)
+        # The response is a bigquery.Dataset instance.
+        return response
+      else:
+        raise
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
   def _is_table_empty(self, project_id, dataset_id, table_id):
     request = bigquery.BigqueryTabledataListRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id,
@@ -717,25 +731,61 @@ class BigQueryWrapper(object):
     # The response is a bigquery.TableDataList instance.
     return response.totalRows == 0
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_table(self, project_id, dataset_id, table_id):
     request = bigquery.BigqueryTablesDeleteRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
-    self.client.tables.Delete(request)
+    try:
+      self.client.tables.Delete(request)
+    except HttpError as exn:
+      if exn.status_code == 404:
+        return
+      else:
+        raise
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_dataset(self, project_id, dataset_id, delete_contents=True):
     request = bigquery.BigqueryDatasetsDeleteRequest(
         projectId=project_id, datasetId=dataset_id,
         deleteContents=delete_contents)
-    self.client.datasets.Delete(request)
+    try:
+      self.client.datasets.Delete(request)
+    except HttpError as exn:
+      if exn.status_code == 404:
+        return
+      else:
+        raise
 
   def create_temporary_dataset(self, project_id):
     dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
-    self._create_dataset(project_id, dataset_id)
+    try:
+      self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
+          projectId=project_id, datasetId=dataset_id))
+      raise RuntimeError(
+          'Dataset %s:%s already exists so cannot be used as temporary.'
+          % (project_id, dataset_id))
+    except HttpError as exn:
+      if exn.status_code == 404:
+        self.get_or_create_dataset(project_id, dataset_id)
+      else:
+        raise
 
   def clean_up_temporary_dataset(self, project_id):
     temp_table = self._get_temp_table(project_id)
+    try:
+      self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
+          projectId=project_id, datasetId=temp_table.datasetId))
+    except HttpError as exn:
+      if exn.status_code == 404:
+        logging.warning('Dataset %s:%s does not exist', project_id,
+                        temp_table.datasetId)
+        return
+      else:
+        raise
     self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
 
   def get_or_create_table(
@@ -924,12 +974,6 @@ class BigQueryWrapper(object):
         value = value
       elif field.type == 'TIME':
         # Input: "00:49:36" --> Output: "00:49:36"
-        value = value
-      elif field.type == 'DATE':
-        value = value
-      elif field.type == 'TIME':
-        value = value
-      elif field.type == 'DATETIME':
         value = value
       elif field.type == 'RECORD':
         # Note that a schema field object supports also a RECORD type. However
