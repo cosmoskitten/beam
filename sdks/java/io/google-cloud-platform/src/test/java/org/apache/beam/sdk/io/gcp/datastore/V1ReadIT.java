@@ -49,7 +49,7 @@ import org.junit.runners.JUnit4;
 public class V1ReadIT {
   private V1TestOptions options;
   private String ancestor;
-  private final long numEntities = 10;
+  private final long numEntities = 1000;
 
   @Before
   public void setup() {
@@ -77,8 +77,7 @@ public class V1ReadIT {
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(options.getProject())
         .withQuery(query)
-        .withNamespace(options.getNamespace())
-        .withLocalhost("localhost:8689");
+        .withNamespace(options.getNamespace());
 
     // Count the total number of entities
     Pipeline p = Pipeline.create(options);
@@ -93,7 +92,7 @@ public class V1ReadIT {
   // Creates entities and write them to datastore
   private static void writeEntitiesToDatastore(V1TestOptions options, String ancestor,
       long numEntities) throws Exception {
-    Datastore datastore = getDatastore(options, options.getProject(), "localhost:8689");
+    Datastore datastore = getDatastore(options, options.getProject());
     // Write test entities to datastore
     V1TestWriter writer = new V1TestWriter(datastore, new UpsertMutationBuilder());
     Key ancestorKey = makeAncestorKey(options.getNamespace(), options.getKind(), ancestor);
@@ -102,12 +101,11 @@ public class V1ReadIT {
       Entity entity = makeEntity(i, ancestorKey, options.getKind(), options.getNamespace());
       writer.write(entity);
     }
-    System.out.println("Closing");
     writer.close();
   }
 
   @After
   public void tearDown() throws Exception {
-    // deleteAllEntities(options, ancestor, "localhost:8619");
+    deleteAllEntities(options, ancestor);
   }
 }

@@ -177,8 +177,8 @@ import org.slf4j.LoggerFactory;
  * </a>for security and permission related information specific to Cloud Datastore.
  *
  * <p>Optionally, Cloud Datastore V1 Emulator, running locally, could be used for testing purposes
- * by providing the host port information through {@code withLocalhost("host:port"} for all these
- * transforms. In this case, all the Cloud Datastore API calls are directed to the Emulator.
+ * by providing the host port information through {@code withLocalhost("host:port"} for all the
+ * above transforms. In such a case, all the Cloud Datastore API calls are directed to the Emulator.
  *
  * @see org.apache.beam.sdk.runners.PipelineRunner
  */
@@ -236,7 +236,6 @@ public class DatastoreV1 {
     @Nullable public abstract String getNamespace();
     public abstract int getNumQuerySplits();
     @Nullable public abstract String getLocalhost();
-    @Nullable public abstract String getProjectEndpoint();
 
     public abstract String toString();
 
@@ -249,7 +248,6 @@ public class DatastoreV1 {
       abstract Builder setNamespace(String namespace);
       abstract Builder setNumQuerySplits(int numQuerySplits);
       abstract Builder setLocalhost(String hostPort);
-      abstract Builder setProjectEndpoint(String projectEndpoint);
       abstract Read build();
     }
 
@@ -481,43 +479,17 @@ public class DatastoreV1 {
      * A class for v1 Cloud Datastore related options.
      */
     @VisibleForTesting
-    static class V1Options implements Serializable {
-      private final Query query;
-      private final String projectId;
-      @Nullable
-      private final String namespace;
-      @Nullable
-      private final String localhost;
-
-      private V1Options(String projectId, Query query, @Nullable String namespace,
-                        @Nullable String localhost) {
-        this.projectId = checkNotNull(projectId, "projectId");
-        this.query = checkNotNull(query, "query");
-        this.namespace = namespace;
-        this.localhost = localhost;
-      }
-
+    @AutoValue
+    abstract static class V1Options implements Serializable {
       public static V1Options from(String projectId, Query query, @Nullable String namespace,
                                    @Nullable String localhost) {
-        return new V1Options(projectId, query, namespace, localhost);
+        return new AutoValue_DatastoreV1_Read_V1Options(projectId, query, namespace, localhost);
       }
 
-      public Query getQuery() {
-        return query;
-      }
-
-      public String getProjectId() {
-        return projectId;
-      }
-
-      @Nullable
-      public String getNamespace() {
-        return namespace;
-      }
-
-      @Nullable String getLocalhost() {
-        return localhost;
-      }
+      public abstract String getProjectId();
+      public abstract Query getQuery();
+      @Nullable public abstract String getNamespace();
+      @Nullable public abstract String getLocalhost();
     }
 
     /**
@@ -550,7 +522,7 @@ public class DatastoreV1 {
 
       @StartBundle
       public void startBundle(Context c) throws Exception {
-        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.projectId,
+        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
             options.getLocalhost());
         querySplitter = datastoreFactory.getQuerySplitter();
       }
@@ -626,7 +598,7 @@ public class DatastoreV1 {
       @StartBundle
       public void startBundle(Context c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
-            options.localhost);
+            options.getLocalhost());
       }
 
       /** Read and output entities for the given query. */
