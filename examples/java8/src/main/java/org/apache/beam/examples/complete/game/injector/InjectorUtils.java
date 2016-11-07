@@ -30,6 +30,7 @@ import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.PubsubScopes;
 import com.google.api.services.pubsub.model.Topic;
 import java.io.IOException;
+import org.apache.beam.sdk.util.Transport;
 
 class InjectorUtils {
 

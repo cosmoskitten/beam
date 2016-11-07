@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableList;
 import java.net.MalformedURLException;
 import java.net.URL;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.util.NullCredential;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 
 /**
@@ -93,9 +94,8 @@ public class DataflowTransport {
   private static HttpRequestInitializer chainHttpRequestInitializer(
       Credential credential, HttpRequestInitializer httpRequestInitializer) {
     if (credential == null) {
-      return httpRequestInitializer;
-    } else {
-      return new ChainingHttpRequestInitializer(credential, httpRequestInitializer);
+      NullCredential.throwNullCredentialException();
     }
+    return new ChainingHttpRequestInitializer(credential, httpRequestInitializer);
   }
 }

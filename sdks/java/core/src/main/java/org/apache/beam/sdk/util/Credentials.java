@@ -99,6 +99,11 @@ public class Credentials {
    * <a href="https://developers.google.com/accounts/docs/application-default-credentials">
    * application default credentials</a>. The other options can be used by providing the
    * corresponding properties.
+   *
+   * Returns null if unable to get default credentials and neither key file nor secrets file
+   * is provided.
+   *
+   * Throws exceptions if fail to get credential from the key file or the secrets file.
    */
   public static Credential getCredential(GcpOptions options)
       throws IOException, GeneralSecurityException {
