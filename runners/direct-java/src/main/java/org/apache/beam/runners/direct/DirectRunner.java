@@ -18,14 +18,19 @@
 package org.apache.beam.runners.direct;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
@@ -184,8 +189,72 @@ public class DirectRunner
     void add(Iterable<WindowedValue<ElemT>> values);
   }
 
+  /** The set of {@link PTransform PTransforms} that execute a UDF. Useful for some enforcements. */
+  private static final Set<Class<? extends PTransform>> CONTAINS_UDF =
+      ImmutableSet.of(
+          Read.Bounded.class, Read.Unbounded.class, ParDo.Bound.class, ParDo.BoundMulti.class);
+
+  enum Enforcement {
+    ENCODABILITY(Predicates.alwaysTrue()),
+    IMMUTABILITY(Predicates.in(CONTAINS_UDF));
+
+    private final Predicate<? super Class<? extends PTransform>> applicableTo;
+
+    Enforcement(
+        Predicate<? super Class<? extends PTransform>> objectPredicate) {
+      this.applicableTo = objectPredicate;
+    }
+
+    public boolean appliesTo(PTransform<?, ?> transform) {
+      return applicableTo.apply(transform.getClass());
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Utilities for creating enforcements
+    public static Set<Enforcement> enabled(DirectOptions options) {
+      EnumSet<Enforcement> enabled = EnumSet.noneOf(Enforcement.class);
+      if (options.isEnforceEncodability()) {
+        enabled.add(ENCODABILITY);
+      }
+      if (options.isEnforceImmutability()) {
+        enabled.add(IMMUTABILITY);
+      }
+      return Collections.unmodifiableSet(enabled);
+    }
+
+    public static BundleFactory bundleFactoryFor(Set<Enforcement> enforcements) {
+      BundleFactory bundleFactory =
+          enforcements.contains(Enforcement.ENCODABILITY)
+              ? CloningBundleFactory.create()
+              : ImmutableListBundleFactory.create();
+      if (enforcements.contains(Enforcement.ENCODABILITY)) {
+        bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
+      }
+      return bundleFactory;
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
+        defaultModelEnforcements(Set<Enforcement> enabledEnforcements) {
+      ImmutableMap.Builder<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
+          enforcements = ImmutableMap.builder();
+      ImmutableList.Builder<ModelEnforcementFactory> enforcements1 = ImmutableList.builder();
+      if (enabledEnforcements.contains(Enforcement.IMMUTABILITY)) {
+        enforcements1.add(ImmutabilityEnforcementFactory.create());
+      }
+      // TODO: Move this to be automatically generated from the type of enabled enforcements, if
+      // more Enforcements are added
+      Collection<ModelEnforcementFactory> parDoEnforcements = enforcements1.build();
+      enforcements.put(ParDo.Bound.class, parDoEnforcements);
+      enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
+      return enforcements.build();
+    }
+
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////////////////
   private final DirectOptions options;
+  private final Set<Enforcement> enabledEnforcements;
   private Supplier<ExecutorService> executorServiceSupplier;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
 
@@ -195,6 +264,7 @@ public class DirectRunner
 
   private DirectRunner(DirectOptions options) {
     this.options = options;
+    this.enabledEnforcements = Enforcement.enabled(options);
     this.executorServiceSupplier = new FixedThreadPoolSupplier(options);
   }
 
@@ -247,7 +317,7 @@ public class DirectRunner
         EvaluationContext.create(
             getPipelineOptions(),
             clockSupplier.get(),
-            createBundleFactory(getPipelineOptions()),
+            Enforcement.bundleFactoryFor(enabledEnforcements),
             consumerTrackingVisitor.getRootTransforms(),
             consumerTrackingVisitor.getValueToConsumers(),
             consumerTrackingVisitor.getStepNames(),
@@ -265,7 +335,7 @@ public class DirectRunner
             keyedPValueVisitor.getKeyedPValues(),
             rootInputProvider,
             registry,
-            defaultModelEnforcements(options),
+            Enforcement.defaultModelEnforcements(enabledEnforcements),
             context);
     executor.start(consumerTrackingVisitor.getRootTransforms());
 
@@ -285,48 +355,6 @@ public class DirectRunner
       }
     }
     return result;
-  }
-
-  @SuppressWarnings("rawtypes")
-  private Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
-      defaultModelEnforcements(DirectOptions options) {
-    ImmutableMap.Builder<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
-        enforcements = ImmutableMap.builder();
-    Collection<ModelEnforcementFactory> parDoEnforcements = createParDoEnforcements(options);
-    enforcements.put(ParDo.Bound.class, parDoEnforcements);
-    enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
-    if (options.isEnforceEncodability()) {
-      enforcements.put(
-          Read.Unbounded.class,
-          ImmutableSet.<ModelEnforcementFactory>of(EncodabilityEnforcementFactory.create()));
-      enforcements.put(
-          Read.Bounded.class,
-          ImmutableSet.<ModelEnforcementFactory>of(EncodabilityEnforcementFactory.create()));
-    }
-    return enforcements.build();
-  }
-
-  private Collection<ModelEnforcementFactory> createParDoEnforcements(
-      DirectOptions options) {
-    ImmutableList.Builder<ModelEnforcementFactory> enforcements = ImmutableList.builder();
-    if (options.isEnforceImmutability()) {
-      enforcements.add(ImmutabilityEnforcementFactory.create());
-    }
-    if (options.isEnforceEncodability()) {
-      enforcements.add(EncodabilityEnforcementFactory.create());
-    }
-    return enforcements.build();
-  }
-
-  private BundleFactory createBundleFactory(DirectOptions pipelineOptions) {
-    BundleFactory bundleFactory =
-        pipelineOptions.isEnforceEncodability()
-            ? CloningBundleFactory.create()
-            : ImmutableListBundleFactory.create();
-    if (pipelineOptions.isEnforceImmutability()) {
-      bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
-    }
-    return bundleFactory;
   }
 
   /**
