@@ -79,7 +79,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> the type of values written to the sink.
  */
 public abstract class FileBasedSink<T> extends Sink<T> {
-  private static final Logger LOG = LoggerFactory.getLogger(FileBasedWriteOperation.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
   /**
    * Directly supported file output compression types.
