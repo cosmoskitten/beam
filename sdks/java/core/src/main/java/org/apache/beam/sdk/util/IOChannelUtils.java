@@ -68,20 +68,17 @@ public class IOChannelUtils {
    * to provide, e.g., credentials for GCS.
    */
   public static void registerStandardIOFactories(PipelineOptions options) {
-<<<<<<< HEAD
     setIOFactory("gs", GcsIOChannelFactory.fromOptions(options));
     setIOFactory("file", FileIOChannelFactory.fromOptions(options));
-=======
-    Set<IOChannelFactoryFactoryRegistrar> registrars =
+    Set<IOChannelFactoryRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
     registrars.addAll(Lists.newArrayList(
-        ServiceLoader.load(IOChannelFactoryFactoryRegistrar.class, CLASS_LOADER)));
-    for (IOChannelFactoryFactoryRegistrar registrar : registrars) {
+        ServiceLoader.load(IOChannelFactoryRegistrar.class, CLASS_LOADER)));
+    for (IOChannelFactoryRegistrar registrar : registrars) {
       setIOFactory(
           registrar.getScheme(),
-          registrar.getIOChannelFactoryFactory().fromOptions(options));
+          registrar.fromOptions(options));
     }
->>>>>>> 648d306... [BEAM-59] Use ServiceLoader to register IOChannelFactories in IOChannelUtils.
   }
 
   /**
