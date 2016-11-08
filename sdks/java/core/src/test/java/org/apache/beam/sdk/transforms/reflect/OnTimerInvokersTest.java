@@ -53,9 +53,7 @@ public class OnTimerInvokersTest {
   }
 
   private void invokeOnTimer(DoFn<String, String> fn, String timerId) {
-    OnTimerInvokers.INSTANCE
-        .forTimer(fn, timerId)
-        .invokeOnTimer(mockExtraContextFactory);
+    OnTimerInvokers.INSTANCE.forTimer(fn, timerId).invokeOnTimer(mockExtraContextFactory);
   }
 
   @Test
