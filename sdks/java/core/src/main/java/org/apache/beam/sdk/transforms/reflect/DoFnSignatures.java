@@ -65,7 +65,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 
 /**
- * Utilities class for working with {@link DoFnSignature}. See {@link #getSignature}.
+ * Utilities for working with {@link DoFnSignature}. See {@link #getSignature}.
  */
 public class DoFnSignatures {
 
