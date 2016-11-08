@@ -18,17 +18,10 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.TimerId;
 
-/**
- * Dynamically generates {@link OnTimerInvoker} instances for invoking a particular {@link TimerId}
- * on a particular {@link DoFn}.
- */
-class OnTimerInvokers {
+/** A factory for providing a {@link DoFnInvoker} for invoking a {@link DoFn}. */
+interface DoFnInvokerFactory {
 
-  /** Creates invoker. */
-  public static <InputT, OutputT> OnTimerInvoker<InputT, OutputT> forTimer(
-      DoFn<InputT, OutputT> fn, String timerId) {
-    return ByteBuddyOnTimerInvokerFactory.shared().forTimer(fn, timerId);
-  }
+  /** Creates a {@link DoFnInvoker} for the given {@link DoFn}. */
+  <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(DoFn<InputT, OutputT> doFn);
 }

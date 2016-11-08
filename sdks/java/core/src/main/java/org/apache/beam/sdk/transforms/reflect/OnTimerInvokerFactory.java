@@ -21,14 +21,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 
 /**
- * Dynamically generates {@link OnTimerInvoker} instances for invoking a particular {@link TimerId}
+ * Provides {@link OnTimerInvoker} instances for invoking a particular {@link TimerId}
  * on a particular {@link DoFn}.
  */
-class OnTimerInvokers {
+interface OnTimerInvokerFactory {
 
   /** Creates invoker. */
-  public static <InputT, OutputT> OnTimerInvoker<InputT, OutputT> forTimer(
-      DoFn<InputT, OutputT> fn, String timerId) {
-    return ByteBuddyOnTimerInvokerFactory.shared().forTimer(fn, timerId);
-  }
+  <InputT, OutputT> OnTimerInvoker<InputT, OutputT> forTimer(
+      DoFn<InputT, OutputT> fn, String timerId);
 }
