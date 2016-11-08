@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.FileNotFoundException;
@@ -60,6 +63,13 @@ public class IOChannelUtils {
    */
   @VisibleForTesting
   public static void setIOFactory(String scheme, IOChannelFactory factory) {
+    if (FACTORY_MAP.containsKey(scheme)) {
+      throw new RuntimeException(String.format(
+          "Failed to register IOChannelFactory: %s. Scheme [%s] is already registered with %s.",
+          FACTORY_MAP.get(scheme).getClass(),
+          scheme,
+          factory.getClass()));
+    }
     FACTORY_MAP.put(scheme, factory);
   }
 
