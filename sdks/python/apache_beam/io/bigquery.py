@@ -341,15 +341,15 @@ class BigQuerySource(dataflow_io.NativeSource):
            DisplayDataItem(self.query, label='Query').drop_if_none(),
            'validation': DisplayDataItem(self.validate,
                                          label='Validation Enabled')}
-
     if self.table_reference is not None:
-      tableSpec = '{}.{}'.format(self.table_reference.datasetId,
-                                 self.table_reference.tableId)
       if self.table_reference.projectId is not None:
-        tableSpec = '{}:{}'.format(self.table_reference.projectId,
-                                   tableSpec)
+        tableSpec = '{}:{}.{}'.format(self.table_reference.projectId,
+                                      self.table_reference.datasetId,
+                                      self.table_reference.tableId)
+      else:
+        tableSpec = '{}.{}'.format(self.table_reference.datasetId,
+                                   self.table_reference.tableId)
       res['table'] = DisplayDataItem(tableSpec, label='Table')
-
     return res
 
   @property

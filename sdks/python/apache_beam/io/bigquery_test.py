@@ -178,9 +178,8 @@ class TestBigQuerySource(unittest.TestCase):
 
 class TestBigQuerySink(unittest.TestCase):
 
-  def test_schema_descriptor_display_data(self):
-    sink = beam.io.BigQuerySink(
-        'dataset.table', schema='s:STRING, n:INTEGER')
+  def test_table_spec_display_data(self):
+    sink = beam.io.BigQuerySink('dataset.table')
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher.matches_kv('table', 'dataset.table'),
@@ -196,9 +195,8 @@ class TestBigQuerySink(unittest.TestCase):
         field.name: field.type for field in sink.table_schema.fields}
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
-  def test_project_table_schema_display_data(self):
-    sinkq = beam.io.BigQuerySink(
-        'PROJECT:dataset.table', schema='s:STRING, n:INTEGER')
+  def test_project_table_display_data(self):
+    sinkq = beam.io.BigQuerySink('PROJECT:dataset.table')
     dd = DisplayData.create_from(sinkq)
     expected_items = [
         DisplayDataItemMatcher.matches_kv('table', 'PROJECT:dataset.table'),
