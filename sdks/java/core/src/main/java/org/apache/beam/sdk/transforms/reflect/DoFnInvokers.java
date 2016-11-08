@@ -256,8 +256,7 @@ public class DoFnInvokers {
 
     try {
       @SuppressWarnings("unchecked")
-      DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>> invoker;
-      invoker =
+      DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>> invoker =
           (DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>>)
               getByteBuddyInvokerConstructor(signature).newInstance(fn);
 
@@ -382,12 +381,6 @@ public class DoFnInvokers {
             .intercept(delegateWithDowncastOrThrow(clazzDescription, signature.newTracker()));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
-
-    try {
-      unloaded.saveIn(new File("/tmp/bytebuddy"));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
 
     @SuppressWarnings("unchecked")
     Class<? extends DoFnInvoker<?, ?>> res =
