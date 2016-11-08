@@ -34,10 +34,13 @@ from apache_beam.transforms.display import DisplayDataItem
 class DisplayDataItemMatcher(BaseMatcher):
   """ Matcher class for DisplayDataItems in unit tests.
   """
-  def __init__(self, key, value, namespace, match_props=None):
+  def __init__(self, key, value, namespace, label=None,
+               shortValue=None, match_props=None):
     self.key = key
     self.value = value
     self.namespace = namespace
+    self.label = label
+    self.shortValue = shortValue
 
     if not match_props:
       raise ValueError('Must match at least one attribute.')
@@ -50,6 +53,10 @@ class DisplayDataItemMatcher(BaseMatcher):
       return False
     if item.value != self.value and 'value' in self._match_props:
       return False
+    if item.label != self.label and 'label' in self._match_props:
+      return False
+    if item.shortValue != self.shortValue and 'shortValue' in self._match_props:
+      return False
     return True
 
   def describe_to(self, description):
@@ -59,6 +66,10 @@ class DisplayDataItemMatcher(BaseMatcher):
       description.append('value is {} '.format(self.value))
     if 'namespace' in self._match_props:
       description.append('namespace is {} '.format(self.namespace))
+    if 'label' in self._match_props:
+      description.append('label is {} '.format(self.label))
+    if 'shortValue' in self._match_props:
+      description.append('shortValue is {} '.format(self.shortValue))
 
   @classmethod
   def matches_kv(cls, key, value):
@@ -77,6 +88,16 @@ class DisplayDataItemMatcher(BaseMatcher):
                value=value,
                namespace=namespace,
                match_props=['key', 'value', 'namespace'])
+
+  @classmethod
+  def matches_all(cls, key, value, namespace, label, shortValue):
+    return cls(key=key,
+               value=value,
+               namespace=namespace,
+               label=label,
+               shortValue=shortValue,
+               match_props=['key', 'value', 'namespace',
+                            'label', 'shortValue'])
 
 
 class DisplayDataTest(unittest.TestCase):
@@ -121,18 +142,21 @@ class DisplayDataTest(unittest.TestCase):
     now = datetime.now()
     fn = MyDoFn(my_display_data=now)
     dd = DisplayData.create_from(fn)
-
     nspace = '{}.{}'.format(fn.__module__, fn.__class__.__name__)
     expected_items = [
-        DisplayDataItemMatcher.matches_kvn('complex_url',
+        DisplayDataItemMatcher.matches_all('complex_url',
                                            'github.com',
-                                           nspace),
+                                           nspace,
+                                           'The URL',
+                                           None),
         DisplayDataItemMatcher.matches_kvn('my_dd',
                                            now,
                                            nspace),
-        DisplayDataItemMatcher.matches_kvn('python_class',
+        DisplayDataItemMatcher.matches_all('python_class',
                                            HasDisplayData,
-                                           nspace),
+                                           nspace,
+                                           None,
+                                           'HasDisplayData'),
         DisplayDataItemMatcher.matches_kvn('static_integer',
                                            120,
                                            nspace),
@@ -156,7 +180,6 @@ class DisplayDataTest(unittest.TestCase):
                       DisplayDataItemMatcher.matches_kv('nodef_val',
                                                         True)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-    hc.assert_that(len(dd.items), hc.is_(len(expected_items)))
 
   def test_subcomponent(self):
     class SpecialDoFn(beam.DoFn):
