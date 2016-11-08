@@ -19,6 +19,11 @@ package org.apache.beam.runners.core.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -60,6 +65,14 @@ public class TriggerStateMachines {
   @VisibleForTesting
   static class StateMachineConverter {
 
+    /**
+     * Annotation indicating that a method is called via dynamic dispatch, not
+     * unused.
+     */
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.METHOD)
+    private @interface DynamicDispatch {}
+
     public TriggerStateMachine evaluateTrigger(Trigger trigger) {
       Method evaluationMethod = getEvaluationMethod(trigger.getClass());
       return tryEvaluate(evaluationMethod, trigger);
@@ -86,7 +99,6 @@ public class TriggerStateMachines {
     }
 
     private Method getEvaluationMethod(Class<?> clazz) {
-      Method evaluationMethod;
       try {
         return getClass().getDeclaredMethod("evaluateSpecific", clazz);
       } catch (NoSuchMethodException exc) {
@@ -97,26 +109,38 @@ public class TriggerStateMachines {
       }
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private TriggerStateMachine evaluateSpecific(DefaultTrigger v) {
       return DefaultTriggerStateMachine.of();
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private TriggerStateMachine evaluateSpecific(ReshuffleTrigger v) {
       return new ReshuffleTriggerStateMachine();
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private OnceTriggerStateMachine evaluateSpecific(AfterWatermark.FromEndOfWindow v) {
       return AfterWatermarkStateMachine.pastEndOfWindow();
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private OnceTriggerStateMachine evaluateSpecific(NeverTrigger v) {
       return NeverStateMachine.ever();
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private OnceTriggerStateMachine evaluateSpecific(AfterSynchronizedProcessingTime v) {
       return new AfterSynchronizedProcessingTimeStateMachine();
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private OnceTriggerStateMachine evaluateSpecific(AfterFirst v) {
       List<OnceTriggerStateMachine> subStateMachines =
           Lists.newArrayListWithCapacity(v.subTriggers().size());
@@ -126,6 +150,8 @@ public class TriggerStateMachines {
       return AfterFirstStateMachine.of(subStateMachines);
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private OnceTriggerStateMachine evaluateSpecific(AfterAll v) {
       List<OnceTriggerStateMachine> subStateMachines =
           Lists.newArrayListWithCapacity(v.subTriggers().size());
@@ -135,10 +161,14 @@ public class TriggerStateMachines {
       return AfterAllStateMachine.of(subStateMachines);
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private OnceTriggerStateMachine evaluateSpecific(AfterPane v) {
       return AfterPaneStateMachine.elementCountAtLeast(v.getElementCount());
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private TriggerStateMachine evaluateSpecific(AfterWatermark.AfterWatermarkEarlyAndLate v) {
       AfterWatermarkStateMachine.AfterWatermarkEarlyAndLate machine =
           AfterWatermarkStateMachine.pastEndOfWindow()
@@ -150,6 +180,8 @@ public class TriggerStateMachines {
       return machine;
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private TriggerStateMachine evaluateSpecific(AfterEach v) {
       List<TriggerStateMachine> subStateMachines =
           Lists.newArrayListWithCapacity(v.subTriggers().size());
@@ -161,20 +193,28 @@ public class TriggerStateMachines {
       return AfterEachStateMachine.inOrder(subStateMachines);
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private TriggerStateMachine evaluateSpecific(Repeatedly v) {
       return RepeatedlyStateMachine.forever(stateMachineForTrigger(v.getRepeatedTrigger()));
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private TriggerStateMachine evaluateSpecific(OrFinallyTrigger v) {
       return new OrFinallyStateMachine(
           stateMachineForTrigger(v.getMainTrigger()),
           stateMachineForOnceTrigger(v.getUntilTrigger()));
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private OnceTriggerStateMachine evaluateSpecific(AfterProcessingTime v) {
       return evaluateSpecific((AfterDelayFromFirstElement) v);
     }
 
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+    @DynamicDispatch
     private OnceTriggerStateMachine evaluateSpecific(final AfterDelayFromFirstElement v) {
       return new AfterDelayFromFirstElementStateMachineAdapter(v);
     }
