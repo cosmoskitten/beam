@@ -33,6 +33,12 @@ import org.apache.beam.sdk.util.UserCodeException;
 public class DoFnInvokers {
 
   /**
+   * @deprecated use {@link DoFnInvokers#invokerFor} directly.
+   */
+  @Deprecated
+  public static final DoFnInvokerFactory INSTANCE = ByteBuddyDoFnInvokerFactory.only();
+
+  /**
    * Returns a {@link DoFnInvoker} for the given {@link DoFn}, using the default approach of
    * generating a {@link DoFnInvoker} subclass.
    */
