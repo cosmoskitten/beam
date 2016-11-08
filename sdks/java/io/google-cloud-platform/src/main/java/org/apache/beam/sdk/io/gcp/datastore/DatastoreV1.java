@@ -1055,6 +1055,11 @@ public class DatastoreV1 {
         initializer = new RetryHttpRequestInitializer();
       }
 
+      DatastoreOptions.Builder builder =
+         new DatastoreOptions.Builder()
+            .projectId(projectId)
+            .initializer(initializer);
+
       if (localhost != null) {
         builder.localHost(localhost);
       }
