@@ -38,6 +38,10 @@ class DisplayDataItemMatcher(BaseMatcher):
 
   def __init__(self, key=IGNORED, value=IGNORED,
                namespace=IGNORED, label=IGNORED, shortValue=IGNORED):
+    if all(member == DisplayDataItemMatcher.IGNORED for member in
+           [key, value, namespace, label, shortValue]):
+      raise ValueError('Must receive at least one item attribute to match')
+
     self.key = key
     self.value = value
     self.namespace = namespace
@@ -79,6 +83,10 @@ class DisplayDataItemMatcher(BaseMatcher):
 
 
 class DisplayDataTest(unittest.TestCase):
+
+  def test_display_data_item_matcher(self):
+    with self.assertRaises(ValueError):
+      DisplayDataItemMatcher()
 
   def test_inheritance_ptransform(self):
     class MyTransform(beam.PTransform):
