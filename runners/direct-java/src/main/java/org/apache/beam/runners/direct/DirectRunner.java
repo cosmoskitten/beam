@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.junit.Assert.assertThat;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
@@ -47,6 +49,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -339,6 +342,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     if (options.isBlockOnRun()) {
       try {
         result.waitUntilFinish();
+        assertThat(result, options.as(TestPipelineOptions.class).getOnSuccessMatcher());
       } catch (UserCodeException userException) {
         throw new PipelineExecutionException(userException.getCause());
       } catch (Throwable t) {
