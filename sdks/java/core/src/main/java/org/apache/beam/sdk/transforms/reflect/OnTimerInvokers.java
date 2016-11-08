@@ -29,6 +29,6 @@ class OnTimerInvokers {
   /** Creates invoker. */
   public static <InputT, OutputT> OnTimerInvoker<InputT, OutputT> forTimer(
       DoFn<InputT, OutputT> fn, String timerId) {
-    return ByteBuddyOnTimerInvokerFactory.shared().forTimer(fn, timerId);
+    return ByteBuddyOnTimerInvokerFactory.only().forTimer(fn, timerId);
   }
 }

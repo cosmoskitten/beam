@@ -38,7 +38,7 @@ public class DoFnInvokers {
    */
   public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(
       DoFn<InputT, OutputT> fn) {
-    return ByteBuddyDoFnInvokerFactory.shared().newByteBuddyInvoker(fn);
+    return ByteBuddyDoFnInvokerFactory.only().newByteBuddyInvoker(fn);
   }
 
   /**

@@ -87,21 +87,17 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
    * cache of generated classes is global.
    */
-  public static ByteBuddyDoFnInvokerFactory shared() {
+  public static ByteBuddyDoFnInvokerFactory only() {
     return INSTANCE;
   }
 
   /**
-   * Creates a {@link DoFnInvoker} for the given {@link Object}, which should be either a {@link
-   * DoFn} or an {@link OldDoFn}. The expected use would be to deserialize a user's function as an
-   * {@link Object} and then pass it to this method, so there is no need to statically specify what
-   * sort of object it is.
-   *
-   * @deprecated this is to be used only as a migration path for decoupling upgrades
+   * Creates a {@link DoFnInvoker} for the given {@link DoFn} by generating bytecode that directly
+   * invokes its methods with arguments extracted from the {@link ExtraContextFactory}.
    */
   @Override
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(DoFn<InputT, OutputT> fn) {
-    return INSTANCE.newByteBuddyInvoker(fn);
+    return newByteBuddyInvoker(fn);
   }
 
   private static final ByteBuddyDoFnInvokerFactory INSTANCE = new ByteBuddyDoFnInvokerFactory();

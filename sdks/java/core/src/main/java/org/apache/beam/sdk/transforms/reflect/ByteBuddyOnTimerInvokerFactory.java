@@ -82,7 +82,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     }
   }
 
-  public static ByteBuddyOnTimerInvokerFactory shared() {
+  public static ByteBuddyOnTimerInvokerFactory only() {
     return INSTANCE;
   }
 
