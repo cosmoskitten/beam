@@ -18,12 +18,13 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.description.method.MethodDescription;
@@ -44,6 +45,7 @@ import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers.DoFnMethodDelegation;
 
@@ -53,6 +55,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers.DoFnMethodDelegation;
  */
 class OnTimerInvokers {
   public static final OnTimerInvokers INSTANCE = new OnTimerInvokers();
+
+  private OnTimerInvokers() {}
 
   /**
    * The field name for the delegate of {@link DoFn} subclass that a bytebuddy invoker will call.
@@ -66,64 +70,68 @@ class OnTimerInvokers {
    * <p>Needed because generating an invoker class is expensive, and to avoid generating an
    * excessive number of classes consuming PermGen memory in Java's that still have PermGen.
    */
-  private final Map<Class<?>, Map<String, Constructor<?>>> constructorCache = new LinkedHashMap<>();
-
-  private OnTimerInvokers() {}
+  private final LoadingCache<Class<? extends DoFn<?, ?>>, LoadingCache<String, Constructor<?>>>
+      constructorCache =
+          CacheBuilder.newBuilder()
+              .build(
+                  new CacheLoader<
+                      Class<? extends DoFn<?, ?>>, LoadingCache<String, Constructor<?>>>() {
+                    @Override
+                    public LoadingCache<String, Constructor<?>> load(
+                        final Class<? extends DoFn<?, ?>> fnClass) throws Exception {
+                      return CacheBuilder.newBuilder().build(new OnTimerConstructorLoader(fnClass));
+                    }
+                  });
 
   /** Creates invoker. */
-  public <InputT, OutputT> OnTimerInvoker<InputT, OutputT> invokerForTimer(
+  public <InputT, OutputT> OnTimerInvoker<InputT, OutputT> forTimer(
       DoFn<InputT, OutputT> fn, String timerId) {
 
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature(fn.getClass());
+    @SuppressWarnings("unchecked")
+    Class<? extends DoFn<?, ?>> fnClass = (Class<? extends DoFn<?, ?>>) fn.getClass();
 
     try {
+      Constructor<?> constructor = constructorCache.get(fnClass).get(timerId);
       @SuppressWarnings("unchecked")
       OnTimerInvoker<InputT, OutputT> invoker =
-          (OnTimerInvoker<InputT, OutputT>)
-              getByteBuddyOnTimerInvokerConstructor(signature, timerId).newInstance(fn);
+          (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
       return invoker;
     } catch (InstantiationException
         | IllegalAccessException
         | IllegalArgumentException
         | InvocationTargetException
-        | SecurityException e) {
+        | SecurityException
+        | ExecutionException e) {
       throw new RuntimeException(
           String.format(
-              "Unable to bind @%s invoker for %s",
+              "Unable to construct @%s invoker for %s",
               DoFn.OnTimer.class.getSimpleName(), fn.getClass().getName()),
           e);
     }
   }
 
-  private void putConstructor(
-      Class<? extends DoFn<?, ?>> fnClass, String timerId, Constructor<?> constructor) {
-    Map<String, Constructor<?>> invokerConstructors = constructorCache.get(fnClass);
-    if (invokerConstructors == null) {
-      invokerConstructors = new HashMap<>();
-      constructorCache.put(fnClass, invokerConstructors);
+  /**
+   * A cache loader fixed to a particular {@link DoFn} class that loads constructors for the
+   * invokers for its {@link OnTimer @OnTimer} methods.
+   */
+  private static class OnTimerConstructorLoader extends CacheLoader<String, Constructor<?>> {
+
+    private final DoFnSignature signature;
+
+    public OnTimerConstructorLoader(Class<? extends DoFn<?, ?>> clazz) {
+      this.signature = DoFnSignatures.INSTANCE.getSignature(clazz);
     }
-    invokerConstructors.put(timerId, constructor);
-  }
 
-  /** Returns the constructor for a generated invoker for the requested timer. */
-  private synchronized Constructor<?> getByteBuddyOnTimerInvokerConstructor(
-      DoFnSignature signature, String timerId) {
-
-    Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
-    Map<String, Constructor<?>> invokerConstructors = constructorCache.get(fnClass);
-    Constructor<?> constructor =
-        invokerConstructors == null ? null : invokerConstructors.get(timerId);
-    if (constructor == null) {
+    @Override
+    public Constructor<?> load(String timerId) throws Exception {
       Class<? extends OnTimerInvoker<?, ?>> invokerClass =
           generateOnTimerInvokerClass(signature, timerId);
       try {
-        constructor = invokerClass.getConstructor(fnClass);
+        return invokerClass.getConstructor(signature.fnClass());
       } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
         throw new RuntimeException(e);
       }
-      putConstructor(fnClass, timerId, constructor);
     }
-    return constructor;
   }
 
   /**
