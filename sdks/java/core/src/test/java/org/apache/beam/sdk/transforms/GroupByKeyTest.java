@@ -46,11 +46,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -355,12 +358,18 @@ public class GroupByKeyTest {
   public void testOutputTimeFnLatest() {
     Pipeline pipeline = TestPipeline.create();
 
-    pipeline.apply(
-        Create.timestamped(
-            TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
-            TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
-        .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtLatestInputTimestamp()))
+    pipeline
+        .apply(
+            TestStream.create(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
+                .addElements(TimestampedValue.of(KV.of(0, "hello"), new Instant(0)))
+                .addElements(TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10)))
+                .advanceWatermarkToInfinity())
+        .apply(
+            Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
+                .withOutputTimeFn(OutputTimeFns.outputAtLatestInputTimestamp())
+                .accumulatingFiredPanes()
+                .triggering(AfterPane.elementCountAtLeast(1))
+                .withAllowedLateness(Duration.ZERO))
         .apply(GroupByKey.<Integer, String>create())
         .apply(ParDo.of(new AssertTimestamp(new Instant(10))));
 
@@ -376,7 +385,9 @@ public class GroupByKeyTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      assertThat(c.timestamp(), equalTo(timestamp));
+      if (c.element().getValue() instanceof Iterable) {
+        assertThat(c.timestamp(), equalTo(timestamp));
+      }
     }
   }
 
