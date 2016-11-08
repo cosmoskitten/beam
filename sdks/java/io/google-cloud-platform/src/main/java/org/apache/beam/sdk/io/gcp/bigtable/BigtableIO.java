@@ -28,6 +28,7 @@ import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
+import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -388,7 +389,7 @@ public class BigtableIO {
         return bigtableService;
       }
       BigtableOptions.Builder clonedOptions = options.toBuilder();
-      if (options.getCredentialOptions() == null) {
+      if (options.getCredentialOptions().getCredentialType() == CredentialType.DefaultCredentials) {
         clonedOptions.setCredentialOptions(
             CredentialOptions.credential(
                 pipelineOptions.as(GcpOptions.class).getGcpCredential()));
@@ -563,7 +564,7 @@ public class BigtableIO {
         return bigtableService;
       }
       BigtableOptions.Builder clonedOptions = options.toBuilder();
-      if (options.getCredentialOptions() == null) {
+      if (options.getCredentialOptions().getCredentialType() == CredentialType.DefaultCredentials) {
         clonedOptions.setCredentialOptions(
             CredentialOptions.credential(
                 pipelineOptions.as(GcpOptions.class).getGcpCredential()));
