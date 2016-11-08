@@ -34,70 +34,48 @@ from apache_beam.transforms.display import DisplayDataItem
 class DisplayDataItemMatcher(BaseMatcher):
   """ Matcher class for DisplayDataItems in unit tests.
   """
-  def __init__(self, key, value, namespace, label=None,
-               shortValue=None, match_props=None):
+  IGNORED = object()
+
+  def __init__(self, key=IGNORED, value=IGNORED,
+               namespace=IGNORED, label=IGNORED, shortValue=IGNORED):
     self.key = key
     self.value = value
     self.namespace = namespace
     self.label = label
     self.shortValue = shortValue
 
-    if not match_props:
-      raise ValueError('Must match at least one attribute.')
-    self._match_props = match_props
-
   def _matches(self, item):
-    if item.key != self.key and 'key' in self._match_props:
+    if self.key != DisplayDataItemMatcher.IGNORED and item.key != self.key:
       return False
-    if item.namespace != self.namespace and 'namespace' in self._match_props:
+    if (self.namespace != DisplayDataItemMatcher.IGNORED and
+        item.namespace != self.namespace):
       return False
-    if item.value != self.value and 'value' in self._match_props:
+    if (self.value != DisplayDataItemMatcher.IGNORED and
+        item.value != self.value):
       return False
-    if item.label != self.label and 'label' in self._match_props:
+    if (self.label != DisplayDataItemMatcher.IGNORED and
+        item.label != self.label):
       return False
-    if item.shortValue != self.shortValue and 'shortValue' in self._match_props:
+    if (self.shortValue != DisplayDataItemMatcher.IGNORED and
+        item.shortValue != self.shortValue):
       return False
     return True
 
   def describe_to(self, description):
-    if 'key' in self._match_props:
-      description.append('key is {} '.format(self.key))
-    if 'value' in self._match_props:
-      description.append('value is {} '.format(self.value))
-    if 'namespace' in self._match_props:
-      description.append('namespace is {} '.format(self.namespace))
-    if 'label' in self._match_props:
-      description.append('label is {} '.format(self.label))
-    if 'shortValue' in self._match_props:
-      description.append('shortValue is {} '.format(self.shortValue))
+    descriptors = []
+    if self.key != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('key is {}'.format(self.key))
+    if self.value != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('value is {}'.format(self.value))
+    if self.namespace != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('namespace is {}'.format(self.namespace))
+    if self.label != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('label is {}'.format(self.label))
+    if self.shortValue != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('shortValue is {}'.format(self.shortValue))
 
-  @classmethod
-  def matches_kv(cls, key, value):
-    """ Create an item matcher that matches only key and value.
-    """
-    return cls(key=key,
-               value=value,
-               namespace=None,
-               match_props=['key', 'value'])
-
-  @classmethod
-  def matches_kvn(cls, key, value, namespace):
-    """ Create an item matcher that matches key, value and namespace.
-    """
-    return cls(key=key,
-               value=value,
-               namespace=namespace,
-               match_props=['key', 'value', 'namespace'])
-
-  @classmethod
-  def matches_all(cls, key, value, namespace, label, shortValue):
-    return cls(key=key,
-               value=value,
-               namespace=namespace,
-               label=label,
-               shortValue=shortValue,
-               match_props=['key', 'value', 'namespace',
-                            'label', 'shortValue'])
+    item_description = '{}'.format(' and '.join(descriptors))
+    description.append(item_description)
 
 
 class DisplayDataTest(unittest.TestCase):
@@ -144,25 +122,23 @@ class DisplayDataTest(unittest.TestCase):
     dd = DisplayData.create_from(fn)
     nspace = '{}.{}'.format(fn.__module__, fn.__class__.__name__)
     expected_items = [
-        DisplayDataItemMatcher.matches_all('complex_url',
-                                           'github.com',
-                                           nspace,
-                                           'The URL',
-                                           None),
-        DisplayDataItemMatcher.matches_kvn('my_dd',
-                                           now,
-                                           nspace),
-        DisplayDataItemMatcher.matches_all('python_class',
-                                           HasDisplayData,
-                                           nspace,
-                                           None,
-                                           'HasDisplayData'),
-        DisplayDataItemMatcher.matches_kvn('static_integer',
-                                           120,
-                                           nspace),
-        DisplayDataItemMatcher.matches_kvn('static_string',
-                                           'static me!',
-                                           nspace)]
+        DisplayDataItemMatcher(key='complex_url',
+                               value='github.com',
+                               namespace=nspace,
+                               label='The URL'),
+        DisplayDataItemMatcher(key='my_dd',
+                               value=now,
+                               namespace=nspace),
+        DisplayDataItemMatcher(key='python_class',
+                               value=HasDisplayData,
+                               namespace=nspace,
+                               shortValue='HasDisplayData'),
+        DisplayDataItemMatcher(key='static_integer',
+                               value=120,
+                               namespace=nspace),
+        DisplayDataItemMatcher(key='static_string',
+                               value='static me!',
+                               namespace=nspace)]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
@@ -175,10 +151,10 @@ class DisplayDataTest(unittest.TestCase):
                 'nodef_val': DisplayDataItem(True).drop_if_default(False)}
 
     dd = DisplayData.create_from(MyDoFn())
-    expected_items = [DisplayDataItemMatcher.matches_kv('some_val',
-                                                        'something'),
-                      DisplayDataItemMatcher.matches_kv('nodef_val',
-                                                        True)]
+    expected_items = [DisplayDataItemMatcher('some_val',
+                                             'something'),
+                      DisplayDataItemMatcher('nodef_val',
+                                             True)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_subcomponent(self):
@@ -192,8 +168,8 @@ class DisplayDataTest(unittest.TestCase):
     dofn_nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
     pardo_nspace = '{}.{}'.format(pardo.__module__, pardo.__class__.__name__)
     expected_items = [
-        DisplayDataItemMatcher.matches_kvn('dofn_value', 42, dofn_nspace),
-        DisplayDataItemMatcher.matches_kvn('fn', SpecialDoFn, pardo_nspace)]
+        DisplayDataItemMatcher('dofn_value', 42, dofn_nspace),
+        DisplayDataItemMatcher('fn', SpecialDoFn, pardo_nspace)]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
