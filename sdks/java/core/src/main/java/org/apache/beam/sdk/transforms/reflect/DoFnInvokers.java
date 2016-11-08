@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -60,7 +61,7 @@ public class DoFnInvokers {
    * @deprecated this is to be used only as a migration path for decoupling upgrades
    */
   @Deprecated
-  public static DoFnInvoker<?, ?> invokerFor(Object deserializedFn) {
+  public static DoFnInvoker<?, ?> invokerFor(Serializable deserializedFn) {
     if (deserializedFn instanceof DoFn) {
       return invokerFor((DoFn<?, ?>) deserializedFn);
     } else if (deserializedFn instanceof OldDoFn) {
@@ -75,6 +76,16 @@ public class DoFnInvokers {
               OldDoFn.class.getSimpleName()));
     }
   }
+
+  /** @deprecated use {@link DoFnInvokers#invokerFor(DoFn)}. */
+  @Deprecated public static final DoFnInvokers INSTANCE = new DoFnInvokers();
+
+  /** @deprecated use {@link DoFnInvokers#invokerFor(DoFn)}. */
+  @Deprecated
+  public <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(Object deserializedFn) {
+    return (DoFnInvoker<InputT, OutputT>) DoFnInvokers.invokerFor((Serializable) deserializedFn);
+  }
+
 
   static class OldDoFnInvoker<InputT, OutputT> implements DoFnInvoker<InputT, OutputT> {
 
