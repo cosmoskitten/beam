@@ -102,8 +102,8 @@ public class SplittableParDo<
   public PCollection<OutputT> apply(PCollection<InputT> input) {
     PCollection.IsBounded isFnBounded = signature.isBoundedPerElement();
     Coder<RestrictionT> restrictionCoder =
-        DoFnInvokers.INSTANCE
-            .newByteBuddyInvoker(fn)
+        DoFnInvokers
+            .invokerFor(fn)
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
     Coder<ElementAndRestriction<InputT, RestrictionT>> splitCoder =
         ElementAndRestrictionCoder.of(input.getCoder(), restrictionCoder);
@@ -166,7 +166,7 @@ public class SplittableParDo<
 
     @Setup
     public void setup() {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @ProcessElement
@@ -241,13 +241,13 @@ public class SplittableParDo<
       this.windowCoder = windowCoder;
       elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
-      DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.invokerFor(fn);
       restrictionTag = StateTags.value("restriction", restrictionCoder);
     }
 
     @Override
     public void setup() throws Exception {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @Override
@@ -461,7 +461,7 @@ public class SplittableParDo<
 
     @Setup
     public void setup() {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(splittableFn);
+      invoker = DoFnInvokers.invokerFor(splittableFn);
     }
 
     @ProcessElement
