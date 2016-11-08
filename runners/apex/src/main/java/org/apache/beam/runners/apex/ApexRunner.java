@@ -141,7 +141,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         // turns off timeout checking for operator progress
         lc.setHeartbeatMonitoringEnabled(false);
       }
-      assertionError = null;
+      ApexRunner.assertionError = null;
       lc.runAsync();
       return new ApexRunnerResult(lma.getDAG(), lc);
     } catch (Exception e) {
