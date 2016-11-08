@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,14 +54,7 @@ public class FileIOChannelFactory implements IOChannelFactory {
    /**
    * Create a {@link FileIOChannelFactory} with the given {@link PipelineOptions}.
    */
-  public static FileIOChannelFactory fromOptions(PipelineOptions options) {
-    return create();
-  }
-
-  /**
-   * Create a {@link FileIOChannelFactory}.
-   */
-  public static FileIOChannelFactory create() {
+  public static FileIOChannelFactory fromOptions(@Nullable PipelineOptions options) {
     return new FileIOChannelFactory();
   }
 
