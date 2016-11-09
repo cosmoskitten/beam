@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 
 /**
@@ -26,7 +27,10 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
  */
 interface OnTimerInvokerFactory {
 
-  /** Creates invoker. */
+  /**
+   * Returns an invoker that will call the given {@link DoFn DoFn's} {@link OnTimer @OnTimer} method
+   * for the given {@code timerId}.
+   */
   <InputT, OutputT> OnTimerInvoker<InputT, OutputT> forTimer(
       DoFn<InputT, OutputT> fn, String timerId);
 }

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 
 /**
@@ -26,7 +27,14 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
  */
 class OnTimerInvokers {
 
-  /** Creates invoker. */
+  /**
+   * Returns an invoker that will call the given {@link DoFn DoFn's} {@link OnTimer @OnTimer} method
+   * for the given {@code timerId}, using a default choice of {@link OnTimerInvokerFactory}.
+   *
+   * <p>The default is permitted to change at any time. Users of this method may not depend on any
+   * details {@link OnTimerInvokerFactory}-specific details of the invoker. Today it is {@link
+   * ByteBuddyOnTimerInvokerFactory}.
+   */
   public static <InputT, OutputT> OnTimerInvoker<InputT, OutputT> forTimer(
       DoFn<InputT, OutputT> fn, String timerId) {
     return ByteBuddyOnTimerInvokerFactory.only().forTimer(fn, timerId);
