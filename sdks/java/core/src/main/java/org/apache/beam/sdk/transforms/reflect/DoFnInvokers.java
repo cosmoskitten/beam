@@ -34,8 +34,12 @@ import org.apache.beam.sdk.util.UserCodeException;
 public class DoFnInvokers {
 
   /**
-   * Returns a {@link DoFnInvoker} for the given {@link DoFn}, using the default approach of
-   * generating a {@link DoFnInvoker} subclass.
+   * Returns an {@link DoFnInvoker} for the given {@link DoFn}, using a default choice of {@link
+   * DoFnInvokerFactory}.
+   *
+   * <p>The default is permitted to change at any time. Users of this method may not depend on any
+   * details {@link DoFnInvokerFactory}-specific details of the invoker. Today it is {@link
+   * ByteBuddyDoFnInvokerFactory}.
    */
   public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(
       DoFn<InputT, OutputT> fn) {
@@ -53,7 +57,7 @@ public class DoFnInvokers {
   private DoFnInvokers() {}
 
   /**
-   * Creates a {@link DoFnInvoker} for the given {@link Object}, which should be either a {@link
+   * Returns a {@link DoFnInvoker} for the given {@link Object}, which should be either a {@link
    * DoFn} or an {@link OldDoFn}. The expected use would be to deserialize a user's function as an
    * {@link Object} and then pass it to this method, so there is no need to statically specify what
    * sort of object it is.
