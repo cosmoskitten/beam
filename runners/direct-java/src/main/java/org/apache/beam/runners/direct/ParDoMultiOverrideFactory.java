@@ -17,14 +17,21 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.core.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.util.KeyedWorkItem;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypedPValue;
 
 /**
  * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
@@ -42,10 +49,74 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
 
     DoFn<InputT, OutputT> fn = transform.getNewFn();
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-    if (!signature.processElement().isSplittable()) {
-      return transform;
-    } else {
+    if (signature.processElement().isSplittable()) {
       return new SplittableParDo(fn);
+    } else if (signature.stateDeclarations().size() > 0
+        || signature.timerDeclarations().size() > 0) {
+
+      // Based on the fact that the signature is stateful, DoFnSignatures ensures
+      // that it is also keyed
+      ParDo.BoundMulti<KV<?, ?>, OutputT> keyedTransform =
+          (ParDo.BoundMulti<KV<?, ?>, OutputT>) transform;
+
+      return new GbkThenStatefulParDo(keyedTransform);
+    } else {
+      return transform;
+    }
+  }
+
+  static class GbkThenStatefulParDo<K, InputT, OutputT>
+      extends PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> {
+    private final ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo;
+
+    public GbkThenStatefulParDo(ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo) {
+      this.underlyingParDo = underlyingParDo;
+    }
+
+    @Override
+    public PCollectionTuple apply(PCollection<KV<K, InputT>> input) {
+
+      PCollectionTuple outputs = input
+          .apply("Group by key", new GBKIntoKeyedWorkItems<K, InputT>())
+          .apply("Stateful ParDo", new StatefulParDo<>(underlyingParDo, input));
+
+      return outputs;
+    }
+  }
+
+  static class StatefulParDo<K, InputT, OutputT>
+      extends PTransform<PCollection<? extends KeyedWorkItem<K, InputT>>, PCollectionTuple> {
+    private final ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo;
+    private final PCollection<KV<K, InputT>> originalInput;
+
+    public StatefulParDo(
+        ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo,
+        PCollection<KV<K, InputT>> originalInput) {
+      this.underlyingParDo = underlyingParDo;
+      this.originalInput = originalInput;
+    }
+
+    public ParDo.BoundMulti<KV<K, InputT>, OutputT> getUnderlyingParDo() {
+      return underlyingParDo;
+    }
+
+    @Override
+    public <T> Coder<T> getDefaultOutputCoder(
+        PCollection<? extends KeyedWorkItem<K, InputT>> input, TypedPValue<T> output)
+        throws CannotProvideCoderException {
+      return underlyingParDo.getDefaultOutputCoder(originalInput, output);
+    }
+
+    public PCollectionTuple apply(PCollection<? extends KeyedWorkItem<K, InputT>> input) {
+
+      PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
+          input.getPipeline(),
+          TupleTagList.of(underlyingParDo.getMainOutputTag())
+              .and(underlyingParDo.getSideOutputTags().getAll()),
+          input.getWindowingStrategy(),
+          input.isBounded());
+
+      return outputs;
     }
   }
 }
