@@ -25,14 +25,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.spark.examples.WordCount;
+import org.apache.beam.runners.spark.translation.streaming.utils.TestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -48,6 +49,9 @@ public class ProvidedSparkContextTest {
     private static final String PROVIDED_CONTEXT_EXCEPTION =
             "The provided Spark context was not created or was stopped";
 
+    @Rule
+    public final TestPipelineOptions pipelineOptions = new TestPipelineOptions();
+
     /**
      * Provide a context and call pipeline run.
      * @throws Exception
@@ -56,8 +60,7 @@ public class ProvidedSparkContextTest {
     public void testWithProvidedContext() throws Exception {
         JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
 
-        SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-        options.setRunner(SparkRunner.class);
+        SparkPipelineOptions options = pipelineOptions.getOptions();
         options.setUsesProvidedSparkContext(true);
         options.setProvidedSparkContext(jsc);
 
@@ -83,8 +86,7 @@ public class ProvidedSparkContextTest {
     public void testWithNullContext() throws Exception {
         JavaSparkContext jsc = null;
 
-        SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-        options.setRunner(SparkRunner.class);
+        SparkPipelineOptions options = pipelineOptions.getOptions();
         options.setUsesProvidedSparkContext(true);
         options.setProvidedSparkContext(jsc);
 
@@ -114,8 +116,7 @@ public class ProvidedSparkContextTest {
         // Stop the provided Spark context directly
         jsc.stop();
 
-        SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-        options.setRunner(SparkRunner.class);
+        SparkPipelineOptions options = pipelineOptions.getOptions();
         options.setUsesProvidedSparkContext(true);
         options.setProvidedSparkContext(jsc);
 
