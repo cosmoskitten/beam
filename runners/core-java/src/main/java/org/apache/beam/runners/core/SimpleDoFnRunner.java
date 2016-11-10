@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn.InputProvider;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -56,6 +58,10 @@ import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateNamespace;
+import org.apache.beam.sdk.util.state.StateNamespaces;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
@@ -84,6 +90,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private final boolean observesWindow;
 
+  private final DoFnSignature signature;
+
+  private final Coder<BoundedWindow> windowCoder;
+
+  // Because of setKey(Object), we really must refresh stateInternals() at each access
+  private final StepContext stepContext;
+
   public SimpleDoFnRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
@@ -95,11 +108,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
-    this.observesWindow =
-        DoFnSignatures.getSignature(fn.getClass()).processElement().observesWindow();
+    this.signature = DoFnSignatures.getSignature(fn.getClass());
+    this.observesWindow = signature.processElement().observesWindow();
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
+    this.stepContext = stepContext;
+
+    // This is a cast of an _invariant_ coder. But we are assured by pipeline validation
+    // that it really is the coder for whatever BoundedWindow subclass is provided
+    @SuppressWarnings("unchecked")
+    Coder<BoundedWindow> untypedCoder =
+        (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
+    this.windowCoder = untypedCoder;
+
     this.context =
         new DoFnContext<>(
             options,
@@ -508,6 +530,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     /** The pane of the current element. */
     private final PaneInfo pane;
 
+    /**
+     * The state namespace for this context. Lazily initialized; will crash if access when more than
+     * one window is present.
+     */
+    @Nullable private StateNamespace namespace;
+
     public DoFnExtraContextFactory(Collection<? extends BoundedWindow> windows, PaneInfo pane) {
       this.windows = windows;
       this.pane = pane;
@@ -534,8 +562,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public State state(String timerId) {
-      throw new UnsupportedOperationException("State parameters are not supported.");
+    public State state(String stateId) {
+      try {
+        StateSpec<?, ?> spec =
+            (StateSpec<?, ?>) signature.stateDeclarations().get(stateId).field().get(fn);
+        return stepContext
+            .stateInternals()
+            .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
@@ -578,7 +614,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
         @Override
         public StateInternals<?> stateInternals() {
-          return context.stepContext.stateInternals();
+          return stepContext.stateInternals();
         }
 
         @Override
@@ -593,6 +629,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           return context.sideInput(view, mainInputWindow);
         }
       };
+    }
+
+    private StateNamespace getNamespace() {
+      if (namespace == null) {
+        namespace = StateNamespaces.window(windowCoder, window());
+      }
+      return namespace;
     }
   }
 }
