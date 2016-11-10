@@ -73,9 +73,9 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
 
   @Override
   public void processElement(ProcessContext c) throws Exception {
-    KeyedWorkItem<K, InputT> element = c.element();
+    KeyedWorkItem<K, InputT> keyedWorkItem = c.element();
 
-    K key = c.element().key();
+    K key = keyedWorkItem.key();
     TimerInternals timerInternals = c.windowingInternals().timerInternals();
     StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
 
@@ -92,10 +92,8 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
             reduceFn,
             c.getPipelineOptions());
 
-    reduceFnRunner.processElements(element.elementsIterable());
-    for (TimerData timer : element.timersIterable()) {
-      reduceFnRunner.onTimer(timer);
-    }
+    reduceFnRunner.processElements(keyedWorkItem.elementsIterable());
+    reduceFnRunner.onTimers(keyedWorkItem.timersIterable());
     reduceFnRunner.persist();
   }
 
