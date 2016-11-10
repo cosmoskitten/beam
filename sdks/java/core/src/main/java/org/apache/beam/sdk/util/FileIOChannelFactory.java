@@ -37,6 +37,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -73,8 +74,7 @@ public class FileIOChannelFactory implements IOChannelFactory {
 
     File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
-      throw new FileNotFoundException(
-          "Parent directory " + parent + " of " + spec + " does not exist");
+      return Collections.EMPTY_LIST;
     }
 
     // Method getAbsolutePath() on Windows platform may return something like
