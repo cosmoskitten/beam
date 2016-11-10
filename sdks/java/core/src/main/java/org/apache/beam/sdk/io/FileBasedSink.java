@@ -276,12 +276,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * <p>Subclass implementations can change the file naming template by supplying a value for
    * {@link FileBasedSink#fileNamingTemplate}.
    *
-   * <h2>Temporary Bundle File Handling:</h2>
-   *
-   * <p>{@link FileBasedSink.FileBasedWriteOperation#temporaryFileRetention} controls the behavior
-   * for managing temporary files. By default, temporary files will be removed. Subclasses can
-   * provide a different value to the constructor.
-   *
    * <p>Note that in the case of permanent failure of a bundle's write, no clean up of temporary
    * files will occur.
    *
@@ -293,22 +287,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     private static final Logger LOG = LoggerFactory.getLogger(FileBasedWriteOperation.class);
 
     /**
-     * Options for handling of temporary output files.
-     */
-    public enum TemporaryFileRetention {
-      KEEP,
-      REMOVE
-    }
-
-    /**
      * The Sink that this WriteOperation will write to.
      */
     protected final FileBasedSink<T> sink;
-
-    /**
-     * Option to keep or remove temporary output files.
-     */
-    protected final TemporaryFileRetention temporaryFileRetention;
 
     /**
      * Base filename used for temporary output files. Default is the baseOutputFilename.
@@ -355,27 +336,14 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     /**
-     * Construct a FileBasedWriteOperation.
+     * Create a new FileBasedWriteOperation.
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      * @param baseTemporaryFilename the base filename to be used for temporary output files.
      */
     public FileBasedWriteOperation(FileBasedSink<T> sink, String baseTemporaryFilename) {
-      this(sink, baseTemporaryFilename, TemporaryFileRetention.REMOVE);
-    }
-
-    /**
-     * Create a new FileBasedWriteOperation.
-     *
-     * @param sink the FileBasedSink that will be used to configure this write operation.
-     * @param baseTemporaryFilename the base filename to be used for temporary output files.
-     * @param temporaryFileRetention defines how temporary files are handled.
-     */
-    public FileBasedWriteOperation(FileBasedSink<T> sink, String baseTemporaryFilename,
-        TemporaryFileRetention temporaryFileRetention) {
       this.sink = sink;
       this.baseTemporaryFilename = baseTemporaryFilename;
-      this.temporaryFileRetention = temporaryFileRetention;
     }
 
     /**
@@ -420,10 +388,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       }
       copyToOutputFiles(files, options);
 
-      // Optionally remove temporary files.
-      if (temporaryFileRetention == TemporaryFileRetention.REMOVE) {
-        removeTemporaryFiles(options);
-      }
+      removeTemporaryFiles(options);
     }
 
     /**
