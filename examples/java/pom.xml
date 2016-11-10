@@ -217,7 +217,8 @@
                       [
                       "--project=apache-beam-testing",
                       "--tempRoot=gs://temp-storage-for-end-to-end-tests",
-                      "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner"
+                      "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner",
+                      "--testTimeoutSeconds=1200"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
