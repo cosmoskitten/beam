@@ -23,6 +23,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Defines a factory for working with read and write channels.
@@ -103,4 +104,22 @@ public interface IOChannelFactory {
 
   /** Converts the given string to a {@link Path}. */
   Path toPath(String path);
+
+  /**
+   * Copies a collection of files from one location to another.
+   *
+   * <p>The number of source filenames must equal the number of destination filenames.
+   *
+   * @param srcFilenames the source filenames.
+   * @param destFilenames the destination filenames.
+   */
+  void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
+
+  /**
+   * Removes a collection of files or directories.
+   *
+   * <p>Directories are required to be empty. Non-empty directories will not be deleted,
+   * and this method may return silently or throw an exception.
+   */
+  void remove(Collection<String> filesOrDirs) throws IOException;
 }
