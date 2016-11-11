@@ -38,6 +38,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WindowedWordCountIT {
 
+  private static final String DEFAULT_INPUT =
+      "gs://apache-beam-samples/shakespeare/winterstale-personae";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "ff54f6f42b2afeb146206c1e8e915deaee0362b4";
 
   /**
@@ -68,6 +70,7 @@ public class WindowedWordCountIT {
         TestPipeline.testingPipelineOptions().as(WindowedWordCountITOptions.class);
     options.setStreaming(isStreaming);
     options.setTestTimeoutSeconds(1200L);
+    options.setInputFile(DEFAULT_INPUT);
 
     // Note: currently unused because the example writes to BigQuery, but WindowedWordCount.Options
     // are tightly coupled to WordCount.Options, where the option is required.

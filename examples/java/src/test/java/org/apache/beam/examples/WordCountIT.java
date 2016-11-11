@@ -36,6 +36,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WordCountIT {
 
+  private static final String DEFAULT_INPUT =
+      "gs://apache-beam-samples/shakespeare/winterstale-personae";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "8ae94f799f97cfd1cb5e8125951b32dfb52e1f12";
 
   /**
@@ -56,6 +58,7 @@ public class WordCountIT {
   public void testE2EWordCount() throws Exception {
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
 
+    options.setInputFile(DEFAULT_INPUT);
     options.setOutput(IOChannelUtils.resolve(
         options.getTempRoot(),
         String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
