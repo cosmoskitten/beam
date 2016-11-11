@@ -94,7 +94,7 @@ import org.joda.time.Instant;
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class SplittableParDo {
   /** The version of {@link SplittableParDo} for a {@link ParDo} with a single main output. */
-  public static class Bound<InputT, OutputT, RestrictionT>
+  public static class ForSingleOutput<InputT, OutputT, RestrictionT>
       extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
     private final ParDo.Bound<InputT, OutputT> parDo;
 
@@ -103,7 +103,7 @@ public class SplittableParDo {
      *
      * @param parDo The splittable {@link ParDo} transform.
      */
-    public Bound(ParDo.Bound<InputT, OutputT> parDo) {
+    public ForSingleOutput(ParDo.Bound<InputT, OutputT> parDo) {
       checkNotNull(parDo, "parDo must not be null");
       this.parDo = parDo;
       checkArgument(
@@ -136,7 +136,7 @@ public class SplittableParDo {
   }
 
   /** The version of {@link SplittableParDo} for a {@link ParDo} with side outputs. */
-  public static class BoundMulti<InputT, OutputT, RestrictionT>
+  public static class ForSideOutputs<InputT, OutputT, RestrictionT>
       extends PTransform<PCollection<InputT>, PCollectionTuple> {
     private final ParDo.BoundMulti<InputT, OutputT> parDo;
 
@@ -145,7 +145,7 @@ public class SplittableParDo {
      *
      * @param parDo The splittable {@link ParDo} transform.
      */
-    public BoundMulti(ParDo.BoundMulti<InputT, OutputT> parDo) {
+    public ForSideOutputs(ParDo.BoundMulti<InputT, OutputT> parDo) {
       checkNotNull(parDo, "parDo must not be null");
       this.parDo = parDo;
       checkArgument(
@@ -208,9 +208,8 @@ public class SplittableParDo {
   }
 
   /**
-   * Runner-specific primitive {@link GroupByKey GroupByKey-like} {@link PTransform}
-   * that produces {@link KeyedWorkItem KeyedWorkItems} so that downstream transforms can access
-   * state and timers.
+   * Runner-specific primitive {@link GroupByKey GroupByKey-like} {@link PTransform} that produces
+   * {@link KeyedWorkItem KeyedWorkItems} so that downstream transforms can access state and timers.
    */
   public static class GBKIntoKeyedWorkItems<KeyT, InputT>
       extends PTransform<PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>> {
@@ -380,8 +379,7 @@ public class SplittableParDo {
 
     private StateInternalsFactory<String> stateInternalsFactory;
     private TimerInternalsFactory<String> timerInternalsFactory;
-    private DoFnRunners.OutputManager outputManager;
-    private TupleTag<OutputT> mainOutputTag;
+    private OutputWindowedValue<OutputT> outputWindowedValue;
 
     private final DoFn<InputT, OutputT> fn;
     private final Coder<? extends BoundedWindow> windowCoder;
@@ -408,12 +406,8 @@ public class SplittableParDo {
       this.timerInternalsFactory = timerInternalsFactory;
     }
 
-    public void setOutputManager(DoFnRunners.OutputManager outputManager) {
-      this.outputManager = outputManager;
-    }
-
-    public void setMainOutputTag(TupleTag<OutputT> mainOutputTag) {
-      this.mainOutputTag = mainOutputTag;
+    public void setOutputWindowedValue(OutputWindowedValue<OutputT> outputWindowedValue) {
+      this.outputWindowedValue = outputWindowedValue;
     }
 
     @Setup
@@ -443,6 +437,12 @@ public class SplittableParDo {
       ElementAndRestriction<WindowedValue<InputT>, RestrictionT> elementAndRestriction;
       if (isSeedCall) {
         // The element and restriction are available in c.element().
+        // elementsIterable() will, by construction of SplittableParDo, contain the same value
+        // potentially in several different windows. We implode this into a single WindowedValue
+        // in order to simplify the rest of the code and avoid iterating over elementsIterable()
+        // explicitly. The windows of this WindowedValue will be propagated to windows of the
+        // output. This is correct because a splittable DoFn is not allowed to inspect the window
+        // of its element.
         WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue =
             implodeWindows(c.element().elementsIterable());
         WindowedValue<InputT> element = windowedValue.withValue(windowedValue.getValue().element());
@@ -542,17 +542,14 @@ public class SplittableParDo {
         }
 
         public void output(OutputT output) {
-          outputManager.output(
-              mainOutputTag,
-              WindowedValue.of(
-                  output, element.getTimestamp(), element.getWindows(), element.getPane()));
+          outputWindowedValue.outputWindowedValue(
+              output, element.getTimestamp(), element.getWindows(), element.getPane());
           noteOutput();
         }
 
         public void outputWithTimestamp(OutputT output, Instant timestamp) {
-          outputManager.output(
-              mainOutputTag,
-              WindowedValue.of(output, timestamp, element.getWindows(), element.getPane()));
+          outputWindowedValue.outputWindowedValue(
+              output, timestamp, element.getWindows(), element.getPane());
           noteOutput();
         }
 
@@ -572,16 +569,14 @@ public class SplittableParDo {
         }
 
         public <T> void sideOutput(TupleTag<T> tag, T output) {
-          outputManager.output(
-              tag,
-              WindowedValue.of(
-                  output, element.getTimestamp(), element.getWindows(), element.getPane()));
+          outputWindowedValue.sideOutputWindowedValue(
+              tag, output, element.getTimestamp(), element.getWindows(), element.getPane());
           noteOutput();
         }
 
         public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-          outputManager.output(
-              tag, WindowedValue.of(output, timestamp, element.getWindows(), element.getPane()));
+          outputWindowedValue.sideOutputWindowedValue(
+              tag, output, timestamp, element.getWindows(), element.getPane());
           noteOutput();
         }
 
