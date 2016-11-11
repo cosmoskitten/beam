@@ -42,7 +42,7 @@ class ParDoOverrideFactory {
         return transform;
       }
       @SuppressWarnings({"unchecked", "rawtypes"})
-      SplittableParDo.Bound res = new SplittableParDo.Bound(transform);
+      SplittableParDo.ForSingleOutput res = new SplittableParDo.ForSingleOutput(transform);
       return res;
     }
   }
@@ -58,7 +58,7 @@ class ParDoOverrideFactory {
         return transform;
       }
       @SuppressWarnings({"unchecked", "rawtypes"})
-      SplittableParDo.BoundMulti res = new SplittableParDo.BoundMulti(transform);
+      SplittableParDo.ForSideOutputs res = new SplittableParDo.ForSideOutputs(transform);
       return res;
     }
   }
