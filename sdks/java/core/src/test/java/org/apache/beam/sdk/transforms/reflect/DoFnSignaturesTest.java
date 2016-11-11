@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -59,6 +60,18 @@ import org.junit.runners.JUnit4;
 public class DoFnSignaturesTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testBasicDoFn() throws Exception {
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(ProcessContext c) {}
+    }.getClass());
+
+    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+    assertThat(
+        sig.processElement().extraParameters().get(0), instanceOf(ProcessContextParameter.class));
+  }
 
   @Test
   public void testBadExtraContext() throws Exception {
