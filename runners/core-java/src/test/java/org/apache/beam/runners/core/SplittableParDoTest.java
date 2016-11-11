@@ -29,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -133,13 +134,14 @@ public class SplittableParDoTest {
         "Applying a bounded SDF to a bounded collection produces a bounded collection",
         PCollection.IsBounded.BOUNDED,
         makeBoundedCollection(pipeline)
-            .apply("bounded to bounded", new SplittableParDo.Bound<>(ParDo.of(boundedFn)))
+            .apply("bounded to bounded", new SplittableParDo.ForSingleOutput<>(ParDo.of(boundedFn)))
             .isBounded());
     assertEquals(
         "Applying a bounded SDF to an unbounded collection produces an unbounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
-            .apply("bounded to unbounded", new SplittableParDo.Bound<>(ParDo.of(boundedFn)))
+            .apply(
+                "bounded to unbounded", new SplittableParDo.ForSingleOutput<>(ParDo.of(boundedFn)))
             .isBounded());
   }
 
@@ -151,13 +153,17 @@ public class SplittableParDoTest {
         "Applying an unbounded SDF to a bounded collection produces a bounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeBoundedCollection(pipeline)
-            .apply("unbounded to bounded", new SplittableParDo.Bound<>(ParDo.of(unboundedFn)))
+            .apply(
+                "unbounded to bounded",
+                new SplittableParDo.ForSingleOutput<>(ParDo.of(unboundedFn)))
             .isBounded());
     assertEquals(
         "Applying an unbounded SDF to an unbounded collection produces an unbounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
-            .apply("unbounded to unbounded", new SplittableParDo.Bound<>(ParDo.of(unboundedFn)))
+            .apply(
+                "unbounded to unbounded",
+                new SplittableParDo.ForSingleOutput<>(ParDo.of(unboundedFn)))
             .isBounded());
   }
 
@@ -203,14 +209,29 @@ public class SplittableParDoTest {
               return tester.getTimerInternals();
             }
           });
-      processFn.setOutputManager(
-          new DoFnRunners.OutputManager() {
+      processFn.setOutputWindowedValue(
+          new OutputWindowedValue<OutputT>() {
             @Override
-            public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-              tester.getOrCreateOutput(tag).add(output);
+            public void outputWindowedValue(
+                OutputT output,
+                Instant timestamp,
+                Collection<? extends BoundedWindow> windows,
+                PaneInfo pane) {
+              tester
+                  .getOrCreateOutput(tester.getMainOutputTag())
+                  .add(WindowedValue.of(output, timestamp, windows, pane));
+            }
+
+            @Override
+            public <SideOutputT> void sideOutputWindowedValue(
+                TupleTag<SideOutputT> tag,
+                SideOutputT output,
+                Instant timestamp,
+                Collection<? extends BoundedWindow> windows,
+                PaneInfo pane) {
+              tester.getOrCreateOutput(tag).add(WindowedValue.of(output, timestamp, windows, pane));
             }
           });
-      processFn.setMainOutputTag(tester.getMainOutputTag());
       // Do not clone since ProcessFn references non-serializable DoFnTester itself
       // through the state/timer/output callbacks.
       this.tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
@@ -323,7 +344,7 @@ public class SplittableParDoTest {
               PaneInfo.ON_TIME_AND_ONLY_FIRING),
           explosion);
 
-      for (IntervalWindow w : new IntervalWindow[]{w1, w2, w3}) {
+      for (IntervalWindow w : new IntervalWindow[] {w1, w2, w3}) {
         assertEquals(
             Arrays.asList(
                 TimestampedValue.of("42a", base),
