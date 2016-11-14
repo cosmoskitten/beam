@@ -162,18 +162,12 @@ abstract class FlinkProcessContextBase<InputT, OutputT>
       @Override
       public <ViewT> ViewT sideInput(
           PCollectionView<ViewT> view,
-          BoundedWindow mainInputWindow) {
+          BoundedWindow sideInputWindow) {
 
         checkNotNull(view, "View passed to sideInput cannot be null");
         checkNotNull(
             sideInputs.get(view),
             "Side input for " + view + " not available.");
-
-        // get the side input strategy for mapping the window
-        WindowingStrategy<?, ?> windowingStrategy = sideInputs.get(view);
-
-        BoundedWindow sideInputWindow =
-            windowingStrategy.getWindowFn().getSideInputWindow(mainInputWindow);
 
         Map<BoundedWindow, ViewT> sideInputs =
             runtimeContext.getBroadcastVariableWithInitializer(
