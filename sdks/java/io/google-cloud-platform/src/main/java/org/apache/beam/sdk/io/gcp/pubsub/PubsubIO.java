@@ -146,13 +146,12 @@ public class PubsubIO {
           .withLabel("Pubsub Topic"));
     }
   }
-
+  
   /**
    * Class representing a Pub/Sub message. Each message contains a single message payload and
    * a map of attached attributes.
    */
   public static class PubsubMessage {
-
     private byte[] message;
     private Map<String, String> attributes;
 
@@ -171,9 +170,7 @@ public class PubsubIO {
     /**
      * Returns the given attribute value. If not such attribute exists, returns null.
      */
-    @Nullable
     public String getAttribute(String attribute) {
-      checkNotNull(attribute, "attribute");
       return attributes.get(attribute);
     }
 
@@ -882,6 +879,7 @@ public class PubsubIO {
               idLabel,
               formatFn,
               100 /* numShards */));
+
       }
       throw new RuntimeException(); // cases are exhaustive.
     }
