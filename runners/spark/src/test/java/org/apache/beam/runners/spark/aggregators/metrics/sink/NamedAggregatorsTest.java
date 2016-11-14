@@ -82,6 +82,9 @@ public class NamedAggregatorsTest {
   @Test
   public void testNamedAggregators() throws Exception {
 
+    // don't reuse context in this test, as is tends to mess up Spark's MetricsSystem thread-safety
+    System.setProperty("beam.spark.test.reuseSparkContext", "false");
+
     assertThat(InMemoryMetrics.valueOf("emptyLines"), is(nullValue()));
 
     runPipeline();

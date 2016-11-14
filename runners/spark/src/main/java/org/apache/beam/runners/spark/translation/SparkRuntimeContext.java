@@ -86,7 +86,7 @@ public class SparkRuntimeContext implements Serializable {
     final Accumulator<NamedAggregators> accum = AccumulatorSingleton.getInstance(jsc);
     final NamedAggregators initialValue = accum.value();
 
-    if (opts.getEnableSparkSinks()) {
+    if (opts.getEnableSparkMetricSinks()) {
       final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
       final AggregatorMetricSource aggregatorMetricSource =
           new AggregatorMetricSource(opts.getAppName(), initialValue);

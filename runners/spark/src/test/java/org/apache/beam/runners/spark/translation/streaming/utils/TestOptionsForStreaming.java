@@ -40,6 +40,7 @@ public class TestOptionsForStreaming extends ExternalResource {
     options.setRunner(SparkRunner.class);
     options.setStreaming(true);
     options.setTimeout(1000L);
+    options.setEnableSparkMetricSinks(false);
   }
 
   public SparkPipelineOptions withTmpCheckpointDir(TemporaryFolder parent)
