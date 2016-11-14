@@ -32,9 +32,24 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 
-import org.apache.beam.sdk.coders.*;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.AfterFirst;
@@ -152,8 +167,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     private final RecordIdMethod recordIdMethod;
     private final SimpleFunction<T, PubsubIO.PubsubMessage> formatFn;
 
-    ShardFn(Coder<T> elementCoder, int numShards, SimpleFunction<T, PubsubIO.PubsubMessage> formatFn,
-            RecordIdMethod recordIdMethod) {
+    ShardFn(Coder<T> elementCoder, int numShards,
+            SimpleFunction<T, PubsubIO.PubsubMessage> formatFn, RecordIdMethod recordIdMethod) {
       this.elementCoder = elementCoder;
       this.numShards = numShards;
       this.formatFn = formatFn;
@@ -190,7 +205,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
           break;
       }
       c.output(KV.of(ThreadLocalRandom.current().nextInt(numShards),
-                     new OutgoingMessage(elementBytes, attributes, timestampMsSinceEpoch, recordId)));
+                     new OutgoingMessage(elementBytes, attributes, timestampMsSinceEpoch,
+                             recordId)));
     }
 
     @Override
@@ -425,7 +441,9 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   @Nullable
-  public SimpleFunction<T, PubsubIO.PubsubMessage> getFormatFn() { return formatFn; }
+  public SimpleFunction<T, PubsubIO.PubsubMessage> getFormatFn() {
+    return formatFn;
+  }
 
   public Coder<T> getElementCoder() {
     return elementCoder;

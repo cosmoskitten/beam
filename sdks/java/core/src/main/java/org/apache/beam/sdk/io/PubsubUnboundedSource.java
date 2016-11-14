@@ -52,7 +52,13 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Sum.SumLongFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -959,7 +965,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       }
       try {
         if (parseFn != null) {
-          return parseFn.apply(new PubsubIO.PubsubMessage(current.elementBytes, current.attributes));
+          return parseFn.apply(new PubsubIO.PubsubMessage(
+                  current.elementBytes, current.attributes));
         } else {
           return CoderUtils.decodeFromByteArray(outer.outer.elementCoder, current.elementBytes);
         }
@@ -1113,7 +1120,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         }
       }
       try {
-        reader = new PubsubReader<>(options.as(PubsubOptions.class), this, subscription, outer.parseFn);
+        reader = new PubsubReader<>(options.as(PubsubOptions.class), this, subscription,
+                outer.parseFn);
       } catch (GeneralSecurityException | IOException e) {
         throw new RuntimeException("Unable to subscribe to " + subscriptionPath + ": ", e);
       }
@@ -1260,8 +1268,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   private final String idLabel;
 
   /**
-   * If not {@literal null}, the user is asking for PubSub attributes. This parse function will be used
-   * to parse {@link PubsubIO.PubsubMessage}s containing a payload and attributes.
+   * If not {@literal null}, the user is asking for PubSub attributes. This parse function will be
+   * used to parse {@link PubsubIO.PubsubMessage}s containing a payload and attributes.
    */
   @Nullable
   SimpleFunction<PubsubIO.PubsubMessage, T> parseFn;
@@ -1304,7 +1312,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
           @Nullable String timestampLabel,
           @Nullable String idLabel,
           @Nullable SimpleFunction<PubsubIO.PubsubMessage, T> parseFn) {
-    this(null, pubsubFactory, project, topic, subscription, elementCoder, timestampLabel, idLabel, parseFn);
+    this(null, pubsubFactory, project, topic, subscription, elementCoder, timestampLabel, idLabel,
+            parseFn);
   }
 
   public Coder<T> getElementCoder() {
@@ -1337,7 +1346,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   @Nullable
-  public SimpleFunction<PubsubIO.PubsubMessage, T> getWithAttributesParseFn() { return parseFn; }
+  public SimpleFunction<PubsubIO.PubsubMessage, T> getWithAttributesParseFn() {
+    return parseFn;
+  }
 
   @Override
   public PCollection<T> apply(PBegin input) {
