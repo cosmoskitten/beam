@@ -280,7 +280,7 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
       }
 
       @Override
-      public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+      public <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow) {
         throw new UnsupportedOperationException(
             "WindowingInternals#sideInput() is not yet supported.");
       }

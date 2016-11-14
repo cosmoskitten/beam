@@ -105,7 +105,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   private final WindowFn<Object, W> windowFn;
   private final TestOutputWindowedValue testOutputter;
-  private final TestSideInputAccess testSideInputAccess;
+  private final TestSideInputReader testSideInputReader;
   private final Coder<OutputT> outputCoder;
   private final WindowingStrategy<Object, W> objectStrategy;
   private final ExecutableTriggerStateMachine executableTriggerStateMachine;
@@ -291,7 +291,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     this.reduceFn = reduceFn;
     this.windowFn = objectStrategy.getWindowFn();
     this.testOutputter = new TestOutputWindowedValue();
-    this.testSideInputAccess = new TestSideInputAccess(sideInputReader);
+    this.testSideInputReader = new TestSideInputReader(sideInputReader);
     this.executableTriggerStateMachine = ExecutableTriggerStateMachine.create(triggerStateMachine);
     this.outputCoder = outputCoder;
     this.options = options;
@@ -314,7 +314,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         stateInternals,
         timerInternals,
         testOutputter,
-        testSideInputAccess,
+        testSideInputReader,
         droppedDueToClosedWindow,
         reduceFn,
         options);
@@ -542,21 +542,31 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
-  private class TestSideInputAccess implements SideInputAccess {
+  private class TestSideInputReader implements SideInputReader {
     private SideInputReader sideInputReader;
 
-    private TestSideInputAccess(SideInputReader sideInputReader) {
+    private TestSideInputReader(SideInputReader sideInputReader) {
       this.sideInputReader = sideInputReader;
     }
 
     @Override
-    public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+    public <T> T get(PCollectionView<T> view, BoundedWindow mainInputWindow) {
       if (!sideInputReader.contains(view)) {
         throw new IllegalArgumentException("calling sideInput() with unknown view");
       }
       BoundedWindow sideInputWindow =
           view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
       return sideInputReader.get(view, sideInputWindow);
+    }
+
+    @Override
+    public <T> boolean contains(PCollectionView<T> view) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean isEmpty() {
+      throw new UnsupportedOperationException();
     }
   }
 
