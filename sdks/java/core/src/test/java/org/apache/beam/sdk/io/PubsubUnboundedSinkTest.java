@@ -19,10 +19,13 @@
 package org.apache.beam.sdk.io;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.PubsubUnboundedSink.RecordIdMethod;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -31,6 +34,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
@@ -50,6 +54,8 @@ import org.junit.runners.JUnit4;
 public class PubsubUnboundedSinkTest {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
   private static final String DATA = "testData";
+  private static final Map<String, String> ATTRIBUTES =
+          ImmutableMap.<String, String>builder().put("a","b").put("c", "d").build();
   private static final long TIMESTAMP = 1234L;
   private static final String TIMESTAMP_LABEL = "timestamp";
   private static final String ID_LABEL = "id";
@@ -68,7 +74,7 @@ public class PubsubUnboundedSinkTest {
 
   @Test
   public void saneCoder() throws Exception {
-    OutgoingMessage message = new OutgoingMessage(DATA.getBytes(), TIMESTAMP, getRecordId(DATA));
+    OutgoingMessage message = new OutgoingMessage(DATA.getBytes(), ImmutableMap.<String, String>of(), TIMESTAMP, getRecordId(DATA));
     CoderProperties.coderDecodeEncodeEqual(PubsubUnboundedSink.CODER, message);
     CoderProperties.coderSerializable(PubsubUnboundedSink.CODER);
   }
@@ -77,7 +83,10 @@ public class PubsubUnboundedSinkTest {
   @Category(NeedsRunner.class)
   public void sendOneMessage() throws IOException {
     List<OutgoingMessage> outgoing =
-        ImmutableList.of(new OutgoingMessage(DATA.getBytes(), TIMESTAMP, getRecordId(DATA)));
+        ImmutableList.of(new OutgoingMessage(
+                DATA.getBytes(),
+                ATTRIBUTES,
+                TIMESTAMP, getRecordId(DATA)));
     int batchSize = 1;
     int batchBytes = 1;
     try (PubsubTestClientFactory factory =
@@ -85,8 +94,13 @@ public class PubsubUnboundedSinkTest {
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
           new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
-                                    RecordIdMethod.DETERMINISTIC);
+                  NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
+                  new SimpleFunction<String, PubsubIO.PubsubMessage>() {
+                    @Override
+                    public PubsubIO.PubsubMessage apply(String input) {
+                      return new PubsubIO.PubsubMessage(input.getBytes(), ATTRIBUTES);
+                    }
+                  }, RecordIdMethod.DETERMINISTIC);
       TestPipeline p = TestPipeline.create();
       p.apply(Create.of(ImmutableList.of(DATA)))
        .apply(ParDo.of(new Stamp()))
@@ -106,7 +120,7 @@ public class PubsubUnboundedSinkTest {
     int batchBytes = 1000;
     for (int i = 0; i < batchSize * 10; i++) {
       String str = String.valueOf(i);
-      outgoing.add(new OutgoingMessage(str.getBytes(), TIMESTAMP, getRecordId(str)));
+      outgoing.add(new OutgoingMessage(str.getBytes(), ImmutableMap.<String, String>of(), TIMESTAMP, getRecordId(str)));
       data.add(str);
     }
     try (PubsubTestClientFactory factory =
@@ -115,7 +129,7 @@ public class PubsubUnboundedSinkTest {
       PubsubUnboundedSink<String> sink =
           new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
                                     NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
-                                    RecordIdMethod.DETERMINISTIC);
+                                    null, RecordIdMethod.DETERMINISTIC);
       TestPipeline p = TestPipeline.create();
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
@@ -140,7 +154,7 @@ public class PubsubUnboundedSinkTest {
         sb.append(String.valueOf(n));
       }
       String str = sb.toString();
-      outgoing.add(new OutgoingMessage(str.getBytes(), TIMESTAMP, getRecordId(str)));
+      outgoing.add(new OutgoingMessage(str.getBytes(), ImmutableMap.<String, String>of(), TIMESTAMP, getRecordId(str)));
       data.add(str);
       n += str.length();
     }
@@ -150,7 +164,7 @@ public class PubsubUnboundedSinkTest {
       PubsubUnboundedSink<String> sink =
           new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
                                     NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
-                                    RecordIdMethod.DETERMINISTIC);
+                                    null, RecordIdMethod.DETERMINISTIC);
       TestPipeline p = TestPipeline.create();
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
