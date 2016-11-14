@@ -967,7 +967,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       }
       try {
         if (parseFn != null) {
-          return parseFn.apply(new PubsubIO.PubsubMessage(current.elementBytes, current.attributes));
+          return parseFn.apply(new PubsubIO.PubsubMessage(
+                  current.elementBytes, current.attributes));
         } else {
           return CoderUtils.decodeFromByteArray(outer.outer.elementCoder, current.elementBytes);
         }
@@ -1121,7 +1122,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         }
       }
       try {
-        reader = new PubsubReader<>(options.as(PubsubOptions.class), this, subscription, outer.parseFn);
+        reader = new PubsubReader<>(options.as(PubsubOptions.class), this, subscription,
+                outer.parseFn);
       } catch (GeneralSecurityException | IOException e) {
         throw new RuntimeException("Unable to subscribe to " + subscriptionPath + ": ", e);
       }
@@ -1272,8 +1274,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   private final String idLabel;
 
   /**
-   * If not {@literal null}, the user is asking for PubSub attributes. This parse function will be used
-   * to parse {@link PubsubIO.PubsubMessage}s containing a payload and attributes.
+   * If not {@literal null}, the user is asking for PubSub attributes. This parse function will be
+   * used to parse {@link PubsubIO.PubsubMessage}s containing a payload and attributes.
    */
   @Nullable
   SimpleFunction<PubsubMessage, T> parseFn;
@@ -1360,7 +1362,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   @Nullable
-  public SimpleFunction<PubsubIO.PubsubMessage, T> getWithAttributesParseFn() { return parseFn; }
+  public SimpleFunction<PubsubIO.PubsubMessage, T> getWithAttributesParseFn() {
+    return parseFn;
+  }
 
   @Override
   public PCollection<T> expand(PBegin input) {
