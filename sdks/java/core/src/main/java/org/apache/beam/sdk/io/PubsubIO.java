@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -148,6 +150,41 @@ public class PubsubIO {
     if (topic != null) {
       builder.add(DisplayData.item("topic", topic)
           .withLabel("Pubsub Topic"));
+    }
+  }
+  
+  /**
+   * Class representing a Pub/Sub message. Each message contains a single message payload and
+   * a map of attached attributes.
+   */
+  public static class PubsubMessage {
+    private byte[] message;
+    private Map<String, String> attributes;
+
+    public PubsubMessage(byte[] message, Map<String, String> attributes) {
+      this.message = message;
+      this.attributes = attributes;
+    }
+
+    /**
+     * Returns the main PubSub message.
+     */
+    public byte[] getMessage() {
+      return message;
+    }
+
+    /**
+     * Returns the given attribute value. If not such attribute exists, returns null.
+     */
+    public String getAttribute(String attribute) {
+      return attributes.get(attribute);
+    }
+
+    /**
+     * Returns the full map of attributes. This is an unmodifiable map.
+     */
+    public Map<String, String> getAttributeMap() {
+      return attributes;
     }
   }
 
@@ -527,6 +564,16 @@ public class PubsubIO {
     public static <T> Bound<T> withCoder(Coder<T> coder) {
       return new Bound<>(coder);
     }
+    
+    /**
+     * Causes the source to return a PubsubMessage that includes Pubsub attributes.
+     * The user must supply a parsing function to transform the PubsubMessage into an output type.
+     * A Coder for the output type T must be registered or set on the output via
+     * {@link PCollection.setCoder}.
+     */
+    public <T> Bound<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
+      return new Bound<T>(null).withAttributes(parseFn);
+    }
 
     /**
      * Creates and returns a transform for reading from Cloud Pub/Sub with a maximum number of
@@ -577,13 +624,17 @@ public class PubsubIO {
       /** Stop after reading for this much time. */
       @Nullable private final Duration maxReadTime;
 
+      /** User function for parsing PubsubMessage object. */
+      SimpleFunction<PubsubMessage, T> parseFn;
+      
       private Bound(Coder<T> coder) {
-        this(null, null, null, null, coder, null, 0, null);
+        this(null, null, null, null, coder, null, 0, null, null);
       }
 
       private Bound(String name, ValueProvider<PubsubSubscription> subscription,
           ValueProvider<PubsubTopic> topic, String timestampLabel, Coder<T> coder,
-          String idLabel, int maxNumRecords, Duration maxReadTime) {
+          String idLabel, int maxNumRecords, Duration maxReadTime,
+          SimpleFunction<PubsubMessage, T> parseFn) {
         super(name);
         this.subscription = subscription;
         this.topic = topic;
@@ -592,6 +643,7 @@ public class PubsubIO {
         this.idLabel = idLabel;
         this.maxNumRecords = maxNumRecords;
         this.maxReadTime = maxReadTime;
+        this.parseFn = parseFn;
       }
 
       /**
@@ -617,7 +669,7 @@ public class PubsubIO {
       public Bound<T> subscription(ValueProvider<String> subscription) {
         return new Bound<>(name,
             NestedValueProvider.of(subscription, new SubscriptionTranslator()),
-            topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
+            topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime, parseFn);
       }
 
       /**
@@ -638,7 +690,7 @@ public class PubsubIO {
       public Bound<T> topic(ValueProvider<String> topic) {
         return new Bound<>(name, subscription,
             NestedValueProvider.of(topic, new TopicTranslator()),
-            timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
+            timestampLabel, coder, idLabel, maxNumRecords, maxReadTime, parseFn);
       }
 
       /**
@@ -650,7 +702,8 @@ public class PubsubIO {
        */
       public Bound<T> timestampLabel(String timestampLabel) {
         return new Bound<>(
-            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
+            parseFn);
       }
 
       /**
@@ -662,7 +715,8 @@ public class PubsubIO {
        */
       public Bound<T> idLabel(String idLabel) {
         return new Bound<>(
-            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
+            parseFn);
       }
 
       /**
@@ -676,7 +730,20 @@ public class PubsubIO {
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(
-            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
+            null);
+      }
+  
+      /**
+       * Causes the source to return a PubsubMessage that includes Pubsub attributes.
+       * The user must supply a parsing function to transform the PubsubMessage into an output type.
+       * A Coder for the output type T must be registered or set on the output via
+       * {@link PCollection.setCoder}.
+       */
+      public <T> Bound<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
+        return new Bound<T>(
+            name, subscription, topic, timestampLabel, null, idLabel,
+            maxNumRecords, maxReadTime, parseFn);
       }
 
       /**
@@ -686,7 +753,8 @@ public class PubsubIO {
        */
       public Bound<T> maxNumRecords(int maxNumRecords) {
         return new Bound<>(
-            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
+            parseFn);
       }
 
       /**
@@ -696,7 +764,8 @@ public class PubsubIO {
        */
       public Bound<T> maxReadTime(Duration maxReadTime) {
         return new Bound<>(
-            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
+            parseFn);
       }
 
       @Override
@@ -729,7 +798,7 @@ public class PubsubIO {
           return input.getPipeline().begin()
                       .apply(new PubsubUnboundedSource<T>(
                           FACTORY, projectPath, topicPath, subscriptionPath,
-                          coder, timestampLabel, idLabel));
+                          coder, timestampLabel, idLabel, parseFn));
         }
       }
 
@@ -796,6 +865,10 @@ public class PubsubIO {
       public Duration getMaxReadTime() {
         return maxReadTime;
       }
+      
+      public SimpleFunction<PubsubMessage, T> getPubSubMessageParseFn() {
+          return parseFn;
+        }
 
       /**
        * Default reader when Pubsub subscription has some form of upper bound.
@@ -885,9 +958,13 @@ public class PubsubIO {
             }
 
             for (IncomingMessage message : messages) {
-              c.outputWithTimestamp(
-                  CoderUtils.decodeFromByteArray(getCoder(), message.elementBytes),
-                  new Instant(message.timestampMsSinceEpoch));
+              T element = null;
+              if (parseFn != null) {
+                element = parseFn.apply(new PubsubMessage(message.elementBytes, message.attributes));
+              } else {
+                element = CoderUtils.decodeFromByteArray(getCoder(), message.elementBytes);
+              }
+              c.outputWithTimestamp(element, new Instant(message.timestampMsSinceEpoch));
             }
           }
         }
@@ -971,6 +1048,15 @@ public class PubsubIO {
     public static <T> Bound<T> withCoder(Coder<T> coder) {
       return new Bound<>(coder);
     }
+    
+    /** 
+     * Used to write a PubSub message together with PubSub attributes. The user-supplied format
+     * function translates the input type T to a PubsubMessage object, which is used by the sink
+     * to separately set the PubSub message's payload and attributes.
+     */
+    public static <T> Bound<T> withAttributes(SimpleFunction<T, PubsubMessage> formatFn) {
+        return new Bound<T>(null).withAttributes(formatFn);
+      }
 
     /**
      * A {@link PTransform} that writes an unbounded {@link PCollection} of {@link String Strings}
@@ -983,20 +1069,24 @@ public class PubsubIO {
       @Nullable private final String timestampLabel;
       /** The name of the message attribute to publish unique message IDs in. */
       @Nullable private final String idLabel;
+      /** The input type Coder */
       private final Coder<T> coder;
+      /** The format function for input PubsubMessage objects. */
+      SimpleFunction<T, PubsubMessage> formatFn;
 
       private Bound(Coder<T> coder) {
-        this(null, null, null, null, coder);
+        this(null, null, null, null, coder, null);
       }
 
       private Bound(
           String name, ValueProvider<PubsubTopic> topic, String timestampLabel,
-          String idLabel, Coder<T> coder) {
+          String idLabel, Coder<T> coder,  SimpleFunction<T, PubsubMessage> formatFn) {
         super(name);
         this.topic = topic;
         this.timestampLabel = timestampLabel;
         this.idLabel = idLabel;
         this.coder = coder;
+        this.formatFn = formatFn;
       }
 
       /**
@@ -1017,7 +1107,7 @@ public class PubsubIO {
        */
       public Bound<T> topic(ValueProvider<String> topic) {
         return new Bound<>(name, NestedValueProvider.of(topic, new TopicTranslator()),
-            timestampLabel, idLabel, coder);
+            timestampLabel, idLabel, coder, formatFn);
       }
 
       /**
@@ -1028,7 +1118,7 @@ public class PubsubIO {
        * <p>Does not modify this object.
        */
       public Bound<T> timestampLabel(String timestampLabel) {
-        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
+        return new Bound<>(name, topic, timestampLabel, idLabel, coder, formatFn);
       }
 
       /**
@@ -1039,7 +1129,7 @@ public class PubsubIO {
        * <p>Does not modify this object.
        */
       public Bound<T> idLabel(String idLabel) {
-        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
+        return new Bound<>(name, topic, timestampLabel, idLabel, coder, formatFn);
       }
 
       /**
@@ -1053,7 +1143,17 @@ public class PubsubIO {
        * @param <X> the type of the elements of the input {@link PCollection}
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
+        return new Bound<>(name, topic, timestampLabel, idLabel, coder, null);
+      }
+      
+    
+      /** 
+       * Used to write a PubSub message together with PubSub attributes. The user-supplied format
+       * function translates the input type T to a PubsubMessage object, which is used by the sink
+       * to separately set the PubSub message's payload and attributes.
+       */  
+      public <T> Bound<T> withAttributes(SimpleFunction<T, PubsubMessage> formatFn) {
+          return new Bound<T>(name, topic, timestampLabel, idLabel, null, formatFn);
       }
 
       @Override
@@ -1072,6 +1172,7 @@ public class PubsubIO {
                 coder,
                 timestampLabel,
                 idLabel,
+                formatFn,
                 100 /* numShards */));
         }
         throw new RuntimeException(); // cases are exhaustive.
@@ -1110,6 +1211,10 @@ public class PubsubIO {
         return coder;
       }
 
+      public SimpleFunction<T, PubsubMessage> getFormatFn() {
+          return formatFn;
+      }
+
       /**
        * Writer to Pubsub which batches messages from bounded collections.
        *
@@ -1134,10 +1239,18 @@ public class PubsubIO {
 
         @ProcessElement
         public void processElement(ProcessContext c) throws IOException {
+          byte[] payload = null;
+          Map<String, String> attributes = null;
+          if (formatFn != null) {
+            PubsubMessage message = formatFn.apply(c.element());
+            payload = message.getMessage();
+            attributes = message.getAttributeMap();
+          } else {
+            payload = CoderUtils.encodeToByteArray(getCoder(), c.element());
+          }
           // NOTE: The record id is always null.
           OutgoingMessage message =
-              new OutgoingMessage(CoderUtils.encodeToByteArray(getCoder(), c.element()),
-                                  c.timestamp().getMillis(), null);
+              new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null);
           output.add(message);
 
           if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
