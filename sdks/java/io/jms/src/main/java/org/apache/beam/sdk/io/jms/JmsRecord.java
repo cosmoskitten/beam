@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.jms;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
-import javax.jms.Destination;
 
 /**
  * JmsRecord contains message payload of the record
@@ -31,8 +30,8 @@ public class JmsRecord implements Serializable {
   private final String jmsMessageID;
   private final long jmsTimestamp;
   private final String jmsCorrelationID;
-  private final Destination jmsReplyTo;
-  private final Destination jmsDestination;
+  private final String jmsReplyTo;
+  private final String jmsDestination;
   private final int jmsDeliveryMode;
   private final boolean jmsRedelivered;
   private final String jmsType;
@@ -45,8 +44,8 @@ public class JmsRecord implements Serializable {
       String jmsMessageID,
       long jmsTimestamp,
       String jmsCorrelationID,
-      Destination jmsReplyTo,
-      Destination jmsDestination,
+      String jmsReplyTo,
+      String jmsDestination,
       int jmsDeliveryMode,
       boolean jmsRedelivered,
       String jmsType,
@@ -80,11 +79,11 @@ public class JmsRecord implements Serializable {
     return jmsCorrelationID;
   }
 
-  public Destination getJmsReplyTo() {
+  public String getJmsReplyTo() {
     return jmsReplyTo;
   }
 
-  public Destination getJmsDestination() {
+  public String getJmsDestination() {
     return jmsDestination;
   }
 
