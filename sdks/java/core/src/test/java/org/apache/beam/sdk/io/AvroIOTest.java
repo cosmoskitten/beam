@@ -94,7 +94,7 @@ public class AvroIOTest {
   }
 
   @Test
-  public void testWriteWithoutValidationFlag() throws Exception {
+  public void testWriteWithoutValPuidationFlag() throws Exception {
     AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write.to("gs://bucket/foo/baz");
     assertTrue(write.needsValidation());
     assertFalse(write.withoutValidation().needsValidation());
