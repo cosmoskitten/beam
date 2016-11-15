@@ -687,30 +687,30 @@ class TestBigQueryWrapper(unittest.TestCase):
         wrapper._delete_table('', '', '')
       self.assertTrue(client.tables.Delete.called)
 
-    # TODO(Sourabhbajaj): Uncomment these tests after fixing
-    # a shared state issue in the retry decorator across function calls
-    # during the run of the unittests.
-    def test_delete_dataset_retries_for_timeouts(self):
-      client = mock.Mock()
-      client.datasets.Delete.side_effect = [
-        HttpError(
-          response={'status': '408'}, url='', content=''),
-        bigquery.BigqueryDatasetsDeleteResponse()
-      ]
-      wrapper = beam.io.bigquery.BigQueryWrapper(client)
-      wrapper._delete_dataset('', '')
-      self.assertTrue(client.datasets.Delete.called)
+    # # TODO(Sourabhbajaj): Uncomment these tests after fixing
+    # # a shared state issue in the retry decorator across function calls
+    # # during the run of the unittests.
+    # def test_delete_dataset_retries_for_timeouts(self):
+    #   client = mock.Mock()
+    #   client.datasets.Delete.side_effect = [
+    #     HttpError(
+    #       response={'status': '408'}, url='', content=''),
+    #     bigquery.BigqueryDatasetsDeleteResponse()
+    #   ]
+    #   wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    #   wrapper._delete_dataset('', '')
+    #   self.assertTrue(client.datasets.Delete.called)
 
-    def test_delete_table_retries_for_timeouts(self):
-      client = mock.Mock()
-      client.tables.Delete.side_effect = [
-        HttpError(
-          response={'status': '408'}, url='', content=''),
-        bigquery.BigqueryTablesDeleteResponse()
-      ]
-      wrapper = beam.io.bigquery.BigQueryWrapper(client)
-      wrapper._delete_table('', '', '')
-      self.assertTrue(client.tables.Delete.called)
+    # def test_delete_table_retries_for_timeouts(self):
+    #   client = mock.Mock()
+    #   client.tables.Delete.side_effect = [
+    #     HttpError(
+    #       response={'status': '408'}, url='', content=''),
+    #     bigquery.BigqueryTablesDeleteResponse()
+    #   ]
+    #   wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    #   wrapper._delete_table('', '', '')
+    #   self.assertTrue(client.tables.Delete.called)
 
     def test_temporary_dataset_is_unique(self):
       client = mock.Mock()
