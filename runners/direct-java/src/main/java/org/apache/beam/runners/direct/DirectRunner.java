@@ -87,8 +87,8 @@ public class DirectRunner
               .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
               .put(TestStream.class, new DirectTestStreamFactory())
               .put(Write.Bound.class, new WriteWithShardingFactory())
-              .put(ParDo.Bound.class, new ParDoOverrideFactory.Bound())
-              .put(ParDo.BoundMulti.class, new ParDoOverrideFactory.BoundMulti())
+              .put(ParDo.Bound.class, new ParDoOverrideFactory.ForSingleOutput())
+              .put(ParDo.BoundMulti.class, new ParDoOverrideFactory.ForSideOutputs())
               .put(
                   SplittableParDo.GBKIntoKeyedWorkItems.class,
                   new DirectGBKIntoKeyedWorkItemsOverrideFactory())

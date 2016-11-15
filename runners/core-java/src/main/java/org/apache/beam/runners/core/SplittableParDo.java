@@ -43,11 +43,15 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.IdentityWindowFn;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItemCoder;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -72,6 +76,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -179,8 +184,16 @@ public class SplittableParDo {
     Coder<ElementAndRestriction<InputT, RestrictionT>> splitCoder =
         ElementAndRestrictionCoder.of(input.getCoder(), restrictionCoder);
 
+    WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
     PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>> keyedWorkItems =
         input
+            .apply(
+                Window.into(
+                        new IdentityWindowFn<InputT>(originalStrategy.getWindowFn().windowCoder()))
+                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                    .discardingFiredPanes()
+                    .withAllowedLateness(
+                        Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis())))
             .apply(
                 "Pair with initial restriction",
                 ParDo.of(new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(fn)))
@@ -216,7 +229,7 @@ public class SplittableParDo {
 
       KvCoder<KeyT, InputT> kvCoder = (KvCoder<KeyT, InputT>) input.getCoder();
       return PCollection.<KeyedWorkItem<KeyT, InputT>>createPrimitiveOutputInternal(
-              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
+              input.getPipeline(), WindowingStrategy.globalDefault(), input.isBounded())
           .setCoder(
               KeyedWorkItemCoder.of(
                   kvCoder.getKeyCoder(),
@@ -480,12 +493,13 @@ public class SplittableParDo {
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.element().getTimestamp();
       }
+      Instant wakeupTime = timerInternals.currentProcessingTime().plus(cont.resumeDelay());
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
               stateNamespace,
-              timerInternals.currentProcessingTime().plus(cont.resumeDelay()),
+              wakeupTime,
               TimeDomain.PROCESSING_TIME));
     }
 
