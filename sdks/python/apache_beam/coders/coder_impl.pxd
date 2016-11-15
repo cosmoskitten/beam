@@ -26,6 +26,7 @@ cimport libc.stdlib
 cimport libc.string
 
 from .stream cimport InputStream, OutputStream
+from apache_beam.utils cimport windowed_value
 
 
 cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingOutputStream, get_varint_size
@@ -59,8 +60,8 @@ cdef class CallbackCoderImpl(CoderImpl):
   cdef object _size_estimator
 
 
-cdef class DeterministicPickleCoderImpl(CoderImpl):
-  cdef CoderImpl _pickle_coder
+cdef class DeterministicFastPrimitivesCoderImpl(CoderImpl):
+  cdef CoderImpl _underlying_coder
   cdef object _step_label
   cdef bint _check_safe(self, value) except -1
 
@@ -137,3 +138,6 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
 
   @cython.locals(c=CoderImpl)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)
+
+  @cython.locals(wv=windowed_value.WindowedValue)
+  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)

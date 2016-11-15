@@ -29,7 +29,7 @@ from types import NoneType
 
 from apache_beam.coders import observable
 from apache_beam.utils.timestamp import Timestamp
-from apache_beam.utils.windowed_value import WindowedValue
+from apache_beam.utils import windowed_value
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -161,10 +161,10 @@ class CallbackCoderImpl(CoderImpl):
       return self.estimate_size(value, nested), []
 
 
-class DeterministicPickleCoderImpl(CoderImpl):
+class DeterministicFastPrimitivesCoderImpl(CoderImpl):
 
-  def __init__(self, pickle_coder, step_label):
-    self._pickle_coder = pickle_coder
+  def __init__(self, coder, step_label):
+    self._underlying_coder = coder
     self._step_label = step_label
 
   def _check_safe(self, value):
@@ -183,17 +183,38 @@ class DeterministicPickleCoderImpl(CoderImpl):
 
   def encode_to_stream(self, value, stream, nested):
     self._check_safe(value)
-    return self._pickle_coder.encode_to_stream(value, stream, nested)
+    return self._underlying_coder.encode_to_stream(value, stream, nested)
 
   def decode_from_stream(self, stream, nested):
-    return self._pickle_coder.decode_from_stream(stream, nested)
+    return self._underlying_coder.decode_from_stream(stream, nested)
 
   def encode(self, value):
     self._check_safe(value)
-    return self._pickle_coder.encode(value)
+    return self._underlying_coder.encode(value)
 
   def decode(self, encoded):
-    return self._pickle_coder.decode(encoded)
+    return self._underlying_coder.decode(encoded)
+
+  def estimate_size(self, value, nested=False):
+    return self._underlying_coder.estimate_size(value, nested)
+
+  def get_estimated_size_and_observables(self, value, nested=False):
+    return self._underlying_coder.get_estimated_size_and_observables(
+        value, nested)
+
+
+class ProtoCoderImpl(SimpleCoderImpl):
+
+  def __init__(self, proto_message_type):
+    self.proto_message_type = proto_message_type
+
+  def encode(self, value):
+    return value.SerializeToString()
+
+  def decode(self, encoded):
+    proto_message = self.proto_message_type()
+    proto_message.ParseFromString(encoded)
+    return proto_message
 
 
 UNKNOWN_TYPE = 0xFF
@@ -514,19 +535,28 @@ class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
 
   def __init__(self, value_coder, timestamp_coder, window_coder):
+    # TODO(robertwb): Do we need the ability to customize timestamp_coder?
     self._value_coder = value_coder
     self._timestamp_coder = timestamp_coder
     self._windows_coder = TupleSequenceCoderImpl(window_coder)
 
   def encode_to_stream(self, value, out, nested):
-    self._value_coder.encode_to_stream(value.value, out, True)
-    self._timestamp_coder.encode_to_stream(value.timestamp, out, True)
-    self._windows_coder.encode_to_stream(value.windows, out, True)
+    wv = value  # type cast
+    self._value_coder.encode_to_stream(wv.value, out, True)
+    if isinstance(self._timestamp_coder, TimestampCoderImpl):
+      # Avoid creation of Timestamp object.
+      out.write_bigendian_int64(wv.timestamp_micros)
+    else:
+      self._timestamp_coder.encode_to_stream(wv.timestamp, out, True)
+    self._windows_coder.encode_to_stream(wv.windows, out, True)
 
   def decode_from_stream(self, in_stream, nested):
-    return WindowedValue(
+    return windowed_value.create(
         self._value_coder.decode_from_stream(in_stream, True),
-        self._timestamp_coder.decode_from_stream(in_stream, True),
+        # Avoid creation of Timestamp object.
+        in_stream.read_bigendian_int64()
+        if isinstance(self._timestamp_coder, TimestampCoderImpl)
+        else self._timestamp_coder.decode_from_stream(in_stream, True).micros,
         self._windows_coder.decode_from_stream(in_stream, True))
 
   def get_estimated_size_and_observables(self, value, nested=False):
