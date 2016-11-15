@@ -1062,7 +1062,9 @@ public class PAssert {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      doChecks(c.element(), checkerFn, success, failure);
+      ActualT element = c.element();
+      LOG.info("element " + c.element());
+      doChecks(element, checkerFn, success, failure);
     }
   }
 
@@ -1087,7 +1089,9 @@ public class PAssert {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      ActualT actualContents = Iterables.getOnlyElement(c.element());
+      Iterable<ActualT> element = c.element();
+      LOG.info("element " + element);
+      ActualT actualContents = Iterables.getOnlyElement(element);
       doChecks(actualContents, checkerFn, success, failure);
     }
   }
@@ -1122,6 +1126,7 @@ public class PAssert {
 
     @Override
     public Void apply(T actual) {
+      LOG.info("actual " + actual + " ; expected " + expected);
       assertThat(actual, equalTo(expected));
       return null;
     }
@@ -1140,6 +1145,7 @@ public class PAssert {
 
     @Override
     public Void apply(T actual) {
+      LOG.info("actual " + actual + " ; expected " + expected);
       assertThat(actual, not(equalTo(expected)));
       return null;
     }
@@ -1169,6 +1175,7 @@ public class PAssert {
 
     @Override
     public Void apply(Iterable<T> actual) {
+      LOG.info("actual " + actual + " ; expected " + expected);
       assertThat(actual, containsInAnyOrder(expected));
       return null;
     }
