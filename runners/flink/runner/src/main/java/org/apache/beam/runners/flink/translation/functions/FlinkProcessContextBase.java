@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
 /**
