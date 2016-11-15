@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.reflect;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ArgumentProvider;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 
 /**
@@ -48,7 +49,7 @@ public interface DoFnInvoker<InputT, OutputT> {
    * @return The {@link DoFn.ProcessContinuation} returned by the underlying method, or {@link
    *     DoFn.ProcessContinuation#stop()} if it returns {@code void}.
    */
-  DoFn.ProcessContinuation invokeProcessElement(DoFn.ExtraContextFactory<InputT, OutputT> extra);
+  DoFn.ProcessContinuation invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
 
   /** Invoke the {@link DoFn.GetInitialRestriction} method on the bound {@link DoFn}. */
   <RestrictionT> RestrictionT invokeGetInitialRestriction(InputT element);

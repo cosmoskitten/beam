@@ -237,7 +237,7 @@ public class PipelineOptionsFactory {
      * {@link PipelineOptionsFactory#printHelp(PrintStream, Class)}.
      */
     public Builder fromArgs(String[] args) {
-      checkNotNull(args, "Arguments should not be null.");
+      checkNotNull(args, "ArgumentProvider should not be null.");
       return new Builder(args, validation, strictParsing);
     }
 
@@ -285,7 +285,7 @@ public class PipelineOptionsFactory {
       // Attempt to parse the arguments into the set of initial options to use
       if (args != null) {
         ListMultimap<String, String> options = parseCommandLine(args, strictParsing);
-        LOG.debug("Provided Arguments: {}", options);
+        LOG.debug("Provided ArgumentProvider: {}", options);
         printHelpUsageAndExitIfNeeded(options, System.out, true /* exit */);
         initialOptions = parseObjects(klass, options, strictParsing);
       }
