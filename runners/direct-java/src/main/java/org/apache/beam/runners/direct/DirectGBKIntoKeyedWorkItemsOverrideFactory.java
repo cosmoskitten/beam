@@ -17,13 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import org.apache.beam.runners.core.SplittableParDo;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.KeyedWorkItem;
-import org.apache.beam.sdk.util.KeyedWorkItemCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -38,27 +34,6 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
   @Override
   public PTransform<PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>>
       override(SplittableParDo.GBKIntoKeyedWorkItems<KeyT, InputT> transform) {
-    return new DirectGBKIntoKeyedWorkItems<>(transform.getName());
-  }
-
-  /** The Direct Runner specific implementation of {@link SplittableParDo.GBKIntoKeyedWorkItems}. */
-  private static class DirectGBKIntoKeyedWorkItems<KeyT, InputT>
-      extends PTransform<PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>> {
-    DirectGBKIntoKeyedWorkItems(String name) {
-      super(name);
-    }
-
-    @Override
-    public PCollection<KeyedWorkItem<KeyT, InputT>> apply(PCollection<KV<KeyT, InputT>> input) {
-      checkArgument(input.getCoder() instanceof KvCoder);
-      KvCoder<KeyT, InputT> kvCoder = (KvCoder<KeyT, InputT>) input.getCoder();
-      return input
-          .apply(new DirectGroupByKey.DirectGroupByKeyOnly<KeyT, InputT>())
-          .setCoder(
-              KeyedWorkItemCoder.of(
-                  kvCoder.getKeyCoder(),
-                  kvCoder.getValueCoder(),
-                  input.getWindowingStrategy().getWindowFn().windowCoder()));
-    }
+    return new DirectGroupByKey.DirectGroupByKeyOnly<>();
   }
 }
