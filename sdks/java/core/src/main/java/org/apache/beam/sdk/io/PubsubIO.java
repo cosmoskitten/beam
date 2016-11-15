@@ -153,7 +153,7 @@ public class PubsubIO {
    * Class representing a Pub/Sub message. Each message contains a single message payload and
    * a map of attached attributes.
    */
-  public static class PubsubMessage implements Serializable {
+  public static class PubsubMessage {
     private byte[] message;
     private Map<String, String> attributes;
 
