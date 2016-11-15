@@ -31,14 +31,14 @@ import org.apache.beam.sdk.values.PCollectionTuple;
  * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
  */
 class ParDoOverrideFactory {
-  public static class Bound<InputT, OutputT, RestrictionT>
+  public static class ForSingleOutput<InputT, OutputT, RestrictionT>
       implements PTransformOverrideFactory<
           PCollection<? extends InputT>, PCollection<OutputT>, ParDo.Bound<InputT, OutputT>> {
     @Override
     public PTransform<PCollection<? extends InputT>, PCollection<OutputT>> override(
         ParDo.Bound<InputT, OutputT> transform) {
       DoFn<InputT, OutputT> fn = transform.getNewFn();
-      if (!DoFnSignatures.INSTANCE.signatureForDoFn(fn).processElement().isSplittable()) {
+      if (!DoFnSignatures.getSignature(fn.getClass()).processElement().isSplittable()) {
         return transform;
       }
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -47,7 +47,7 @@ class ParDoOverrideFactory {
     }
   }
 
-  public static class BoundMulti<InputT, OutputT, RestrictionT>
+  public static class ForSideOutputs<InputT, OutputT, RestrictionT>
       implements PTransformOverrideFactory<
           PCollection<? extends InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>> {
     @Override
