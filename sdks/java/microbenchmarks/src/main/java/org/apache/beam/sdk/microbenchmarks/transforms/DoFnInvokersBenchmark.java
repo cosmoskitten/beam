@@ -21,7 +21,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
+import org.apache.beam.sdk.transforms.DoFn.Arguments;
+import org.apache.beam.sdk.transforms.DoFn.FakeArguments;
 import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -56,8 +57,8 @@ public class DoFnInvokersBenchmark {
   private StubOldDoFnProcessContext stubOldDoFnContext =
       new StubOldDoFnProcessContext(oldDoFn, ELEMENT);
   private StubDoFnProcessContext stubDoFnContext = new StubDoFnProcessContext(doFn, ELEMENT);
-  private ExtraContextFactory<String, String> extraContextFactory =
-      new DoFn.FakeExtraContextFactory<>();
+  private Arguments<String, String> arguments =
+      new FakeArguments<>();
 
   private OldDoFn<String, String> adaptedDoFnWithContext;
 
@@ -83,7 +84,7 @@ public class DoFnInvokersBenchmark {
 
   @Benchmark
   public String invokeDoFnWithContext() throws Exception {
-    invoker.invokeProcessElement(extraContextFactory);
+    invoker.invokeProcessElement(arguments);
     return stubDoFnContext.output;
   }
 

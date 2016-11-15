@@ -29,6 +29,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Arguments;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -391,19 +392,19 @@ public class SplittableParDo<
       };
     }
 
-    /** Creates an {@link DoFn.ExtraContextFactory} that provides just the given tracker. */
-    private DoFn.ExtraContextFactory<InputT, OutputT> wrapTracker(
+    /** Creates an {@link Arguments} that provides just the given tracker. */
+    private Arguments<InputT, OutputT> wrapTracker(
         TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
-      return new ExtraContextFactoryForTracker<>(tracker, processContext);
+      return new ArgumentsForTracker<>(tracker, processContext);
     }
 
-    private static class ExtraContextFactoryForTracker<
+    private static class ArgumentsForTracker<
             InputT, OutputT, TrackerT extends RestrictionTracker<?>>
-        implements DoFn.ExtraContextFactory<InputT, OutputT> {
+        implements Arguments<InputT, OutputT> {
       private final TrackerT tracker;
       private final DoFn<InputT, OutputT>.ProcessContext processContext;
 
-      ExtraContextFactoryForTracker(
+      ArgumentsForTracker(
           TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
         this.tracker = tracker;
         this.processContext = processContext;
