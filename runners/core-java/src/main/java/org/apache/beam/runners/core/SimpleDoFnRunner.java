@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Arguments;
 import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.DoFn.InputProvider;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -179,7 +180,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
   private static class DoFnContext<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
+      implements Arguments<InputT, OutputT> {
     private static final int MAX_SIDE_OUTPUTS = 1000;
 
     final PipelineOptions options;
@@ -422,7 +423,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
   private class DoFnProcessContext<InputT, OutputT> extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
+      implements Arguments<InputT, OutputT> {
 
     final DoFn<InputT, OutputT> fn;
     final DoFnContext<InputT, OutputT> context;

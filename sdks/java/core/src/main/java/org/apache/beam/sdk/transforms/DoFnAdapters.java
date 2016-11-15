@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import java.io.IOException;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn.Arguments;
 import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -77,7 +78,7 @@ public class DoFnAdapters {
   public static <InputT, OutputT> OldDoFn<InputT, OutputT>.ProcessContext adaptProcessContext(
       OldDoFn<InputT, OutputT> fn,
       final DoFn<InputT, OutputT>.ProcessContext c,
-      final DoFn.ExtraContextFactory<InputT, OutputT> extra) {
+      final Arguments<InputT, OutputT> extra) {
     return fn.new ProcessContext() {
       @Override
       public InputT element() {
@@ -270,12 +271,12 @@ public class DoFnAdapters {
   }
 
   /**
-   * Wraps an {@link OldDoFn.Context} as a {@link DoFn.ExtraContextFactory} inside a {@link
+   * Wraps an {@link OldDoFn.Context} as a {@link Arguments} inside a {@link
    * DoFn.StartBundle} or {@link DoFn.FinishBundle} method, which means the extra context is
    * unavailable.
    */
   private static class ContextAdapter<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
+      implements Arguments<InputT, OutputT> {
 
     private OldDoFn<InputT, OutputT>.Context context;
 
@@ -371,11 +372,11 @@ public class DoFnAdapters {
   }
 
   /**
-   * Wraps an {@link OldDoFn.ProcessContext} as a {@link DoFn.ExtraContextFactory} method.
+   * Wraps an {@link OldDoFn.ProcessContext} as a {@link Arguments} method.
    */
   private static class ProcessContextAdapter<InputT, OutputT>
       extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
+      implements Arguments<InputT, OutputT> {
 
     private OldDoFn<InputT, OutputT>.ProcessContext context;
 
