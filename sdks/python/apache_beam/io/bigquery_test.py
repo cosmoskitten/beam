@@ -589,6 +589,99 @@ class TestBigQueryWriter(unittest.TestCase):
     writer = sink.writer()
     self.assertEquals('myproject', writer.project_id)
 
+
+class TestBigQueryWrapper(unittest.TestCase):
+
+    def test_delete_non_existing_dataset(self):
+      client = mock.Mock()
+      client.datasets.Delete.side_effect = HttpError(
+        response={'status': '404'}, url='', content='')
+      wrapper = beam.io.bigquery.BigQueryWrapper(client)
+      wrapper._delete_dataset('', '')
+      self.assertTrue(client.datasets.Delete.called)
+
+    def test_delete_dataset_retries_fail(self):
+      client = mock.Mock()
+      client.datasets.Delete.side_effect = ValueError("Cannot delete")
+      wrapper = beam.io.bigquery.BigQueryWrapper(client)
+      with self.assertRaises(ValueError) as exn:
+        wrapper._delete_dataset('', '')
+      self.assertEqual(
+          beam.io.bigquery.MAX_RETRIES + 1, client.datasets.Delete.call_count)
+      self.assertTrue(client.datasets.Delete.called)
+
+    def test_delete_non_existing_table(self):
+      client = mock.Mock()
+      client.tables.Delete.side_effect = HttpError(
+        response={'status': '404'}, url='', content='')
+      wrapper = beam.io.bigquery.BigQueryWrapper(client)
+      wrapper._delete_table('', '', '')
+      self.assertTrue(client.tables.Delete.called)
+
+    def test_delete_table_retries_fail(self):
+      client = mock.Mock()
+      client.tables.Delete.side_effect = ValueError("Cannot delete")
+      wrapper = beam.io.bigquery.BigQueryWrapper(client)
+      with self.assertRaises(ValueError) as exn:
+        wrapper._delete_table('', '', '')
+      self.assertTrue(client.tables.Delete.called)
+
+    # TODO(Sourabhbajaj): Uncomment these tests after fixing
+    # a shared state issue in the retry decorator across function calls
+    # during the run of the unittests.
+    def test_delete_dataset_retries_for_timeouts(self):
+      client = mock.Mock()
+      client.datasets.Delete.side_effect = [
+        HttpError(
+          response={'status': '408'}, url='', content=''),
+        bigquery.BigqueryDatasetsDeleteResponse()
+      ]
+      wrapper = beam.io.bigquery.BigQueryWrapper(client)
+      wrapper._delete_dataset('', '')
+      self.assertTrue(client.datasets.Delete.called)
+
+    def test_delete_table_retries_for_timeouts(self):
+      client = mock.Mock()
+      client.tables.Delete.side_effect = [
+        HttpError(
+          response={'status': '408'}, url='', content=''),
+        bigquery.BigqueryTablesDeleteResponse()
+      ]
+      wrapper = beam.io.bigquery.BigQueryWrapper(client)
+      wrapper._delete_table('', '', '')
+      self.assertTrue(client.tables.Delete.called)
+
+    def test_temporary_dataset_is_unique(self):
+      client = mock.Mock()
+      client.datasets.Get.return_value = bigquery.Dataset(
+            datasetReference=bigquery.DatasetReference(
+                projectId='project_id', datasetId='dataset_id'))
+      wrapper = beam.io.bigquery.BigQueryWrapper(client)
+      with self.assertRaises(RuntimeError) as exn:
+        wrapper.create_temporary_dataset('project_id')
+      self.assertTrue(client.datasets.Get.called)
+
+    def test_get_or_create_dataset_created(self):
+      client = mock.Mock()
+      client.datasets.Get.side_effect = HttpError(
+        response={'status': '404'}, url='', content='')
+      client.datasets.Insert.return_value = bigquery.Dataset(
+            datasetReference=bigquery.DatasetReference(
+                projectId='project_id', datasetId='dataset_id'))
+      wrapper = beam.io.bigquery.BigQueryWrapper(client)
+      new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
+      self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
+
+    def test_get_or_create_dataset_fetched(self):
+      client = mock.Mock()
+      client.datasets.Get.return_value = bigquery.Dataset(
+            datasetReference=bigquery.DatasetReference(
+                projectId='project_id', datasetId='dataset_id'))
+      wrapper = beam.io.bigquery.BigQueryWrapper(client)
+      new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
+      self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

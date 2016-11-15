@@ -637,9 +637,12 @@ class BigQueryWrapper(object):
         dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
         project=project_id)
 
-  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _start_query_job(self, project_id, query, use_legacy_sql, flatten_results,
-                       dry_run=False):
+                       job_id, dry_run=False):
+    reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=bigquery.Job(
@@ -650,11 +653,14 @@ class BigQueryWrapper(object):
                     useLegacySql=use_legacy_sql,
                     allowLargeResults=True,
                     destinationTable=self._get_temp_table(project_id),
-                    flattenResults=flatten_results))))
+                    flattenResults=flatten_results)),
+            jobReference=reference))
     response = self.client.jobs.Insert(request)
     return response.jobReference.jobId
 
-  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _get_query_results(self, project_id, job_id,
                          page_token=None, max_results=10000):
     request = bigquery.BigqueryJobsGetQueryResultsRequest(
@@ -663,8 +669,11 @@ class BigQueryWrapper(object):
     response = self.client.jobs.GetQueryResults(request)
     return response
 
-  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _insert_all_rows(self, project_id, dataset_id, table_id, rows):
+    # TODO(SourabhBajaj): The retry might add duplicate rows here
     # The rows argument is a list of
     # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
     # required bu the InsertAll() method.
@@ -678,7 +687,9 @@ class BigQueryWrapper(object):
     # response.insertErrors is not [] if errors encountered.
     return not response.insertErrors, response.insertErrors
 
-  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _get_table(self, project_id, dataset_id, table_id):
     request = bigquery.BigqueryTablesGetRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
@@ -686,9 +697,6 @@ class BigQueryWrapper(object):
     # The response is a bigquery.Table instance.
     return response
 
-  @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _create_table(self, project_id, dataset_id, table_id, schema):
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -722,7 +730,9 @@ class BigQueryWrapper(object):
       else:
         raise
 
-  @retry.with_exponential_backoff(num_retries=MAX_RETRIES)
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _is_table_empty(self, project_id, dataset_id, table_id):
     request = bigquery.BigqueryTabledataListRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id,
@@ -741,6 +751,8 @@ class BigQueryWrapper(object):
       self.client.tables.Delete(request)
     except HttpError as exn:
       if exn.status_code == 404:
+        logging.warning('Table %s:%s.%s does not exist', project_id,
+                        dataset_id, table_id)
         return
       else:
         raise
@@ -756,12 +768,18 @@ class BigQueryWrapper(object):
       self.client.datasets.Delete(request)
     except HttpError as exn:
       if exn.status_code == 404:
+        logging.warning('Dataaset %s:%s does not exist', project_id,
+                        dataset_id)
         return
       else:
         raise
 
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def create_temporary_dataset(self, project_id):
     dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
+    # Check if dataset exists to make sure that the temporary id is unique
     try:
       self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
           projectId=project_id, datasetId=dataset_id))
@@ -772,10 +790,14 @@ class BigQueryWrapper(object):
             % (project_id, dataset_id))
     except HttpError as exn:
       if exn.status_code == 404:
+        logging.warning('Dataset does not exist so we will create it')
         self.get_or_create_dataset(project_id, dataset_id)
       else:
         raise
 
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def clean_up_temporary_dataset(self, project_id):
     temp_table = self._get_temp_table(project_id)
     try:
@@ -790,6 +812,9 @@ class BigQueryWrapper(object):
         raise
     self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
 
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_or_create_table(
       self, project_id, dataset_id, table_id, schema,
       create_disposition, write_disposition):
@@ -861,7 +886,8 @@ class BigQueryWrapper(object):
   def run_query(self, project_id, query, use_legacy_sql,
                 flatten_results, dry_run=False):
     job_id = self._start_query_job(project_id, query, use_legacy_sql,
-                                   flatten_results, dry_run)
+                                   flatten_results, job_id=uuid.uuid4().hex,
+                                   dry_run=dry_run)
     if dry_run:
       # If this was a dry run then the fact that we get here means the
       # query has no errors. The start_query_job would raise an error otherwise.
