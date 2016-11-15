@@ -71,7 +71,7 @@ public class GcsIOChannelFactory implements IOChannelFactory {
   public long getSizeBytes(String spec) throws IOException {
     GcsPath path = GcsPath.fromUri(spec);
     GcsUtil util = options.getGcsUtil();
-    return util.fileSize(path);
+    return util.fileSizes(path);
   }
 
   @Override
