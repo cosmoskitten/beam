@@ -47,6 +47,7 @@ class PropertyNames(object):
   BIGQUERY_QUERY = 'bigquery_query'
   BIGQUERY_USE_LEGACY_SQL = 'bigquery_use_legacy_sql'
   BIGQUERY_FLATTEN_RESULTS = 'bigquery_flatten_results'
+  BIGQUERY_EXPORT_FORMAT = 'bigquery_export_format'
   BIGQUERY_TABLE = 'table'
   BIGQUERY_PROJECT = 'project'
   BIGQUERY_SCHEMA = 'schema'
