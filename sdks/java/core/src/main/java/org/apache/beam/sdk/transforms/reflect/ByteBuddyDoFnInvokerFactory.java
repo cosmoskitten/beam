@@ -140,19 +140,41 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public abstract static class DoFnInvokerBase<InputT, OutputT, DoFnT extends DoFn<InputT, OutputT>>
       implements DoFnInvoker<InputT, OutputT> {
     protected DoFnT delegate;
+
     private Map<String, OnTimerInvoker> onTimerInvokers = new HashMap<>();
 
     public DoFnInvokerBase(DoFnT delegate) {
       this.delegate = delegate;
     }
 
+    /**
+     * Associates the given timer ID with the given {@link OnTimerInvoker}.
+     *
+     * <p>ByteBuddy does not like to generate conditional code, so we use a map + lookup
+     * of the timer ID rather than a generated conditional branch to choose which
+     * OnTimerInvoker to invoke.
+     *
+     * <p>This method has package level access as it is intended only for assembly of the
+     * {@link DoFnInvokerBase} not by any subclass.
+     */
     void addOnTimerInvoker(String timerId, OnTimerInvoker onTimerInvoker) {
       this.onTimerInvokers.put(timerId, onTimerInvoker);
     }
 
     @Override
     public void invokeOnTimer(String timerId, DoFn.ExtraContextFactory<InputT, OutputT> args) {
-      onTimerInvokers.get(timerId).invokeOnTimer(args);
+      @Nullable OnTimerInvoker onTimerInvoker = onTimerInvokers.get(timerId);
+
+      if (onTimerInvoker != null) {
+        onTimerInvoker.invokeOnTimer(args);
+      } else {
+        throw new IllegalArgumentException(
+            String.format(
+                "Attempted to invoke timer %s on %s, but that timer is not registered."
+                    + " This is the responsibility of the runner, which must only deliver"
+                    + " registered timers.",
+                timerId, delegate.getClass().getName()));
+      }
     }
   }
 
