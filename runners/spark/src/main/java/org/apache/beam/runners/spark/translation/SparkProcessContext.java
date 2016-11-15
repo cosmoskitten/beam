@@ -242,16 +242,24 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
       }
 
       @Override
-      public void outputWindowedValue(OutputT output, Instant timestamp, Collection<?
-          extends BoundedWindow> windows, PaneInfo paneInfo) {
-        SparkProcessContext.this.outputWindowedValue(WindowedValue.of(output, timestamp, windows, paneInfo));
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        SparkProcessContext.this.outputWindowedValue(
+            WindowedValue.of(output, timestamp, windows, paneInfo));
       }
 
       @Override
       public <SideOutputT> void sideOutputWindowedValue(
-          TupleTag<SideOutputT> tag, SideOutputT output, Instant timestamp,
-          Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
-        SparkProcessContext.this.sideOutputWindowedValue(tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+          TupleTag<SideOutputT> tag,
+          SideOutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        SparkProcessContext.this.sideOutputWindowedValue(
+            tag, WindowedValue.of(output, timestamp, windows, paneInfo));
       }
 
       @Override
@@ -274,8 +282,8 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
       }
 
       @Override
-      public <T> void writePCollectionViewData(TupleTag<?> tag,
-          Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
+      public <T> void writePCollectionViewData(
+          TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
         throw new UnsupportedOperationException(
             "WindowingInternals#writePCollectionViewData() is not yet supported.");
       }
