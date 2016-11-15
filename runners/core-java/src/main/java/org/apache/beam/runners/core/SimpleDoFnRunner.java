@@ -141,11 +141,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
     final DoFn<InputT, OutputT>.ProcessContext processContext = createProcessContext(elem);
-
-    // Note that if the element must be exploded into all its windows, that has to be done outside
-    // of this runner.
     final DoFn.ExtraContextFactory<InputT, OutputT> extraContextFactory =
-        createExtraContextFactory(elem);
+        new DoFnExtraContextFactory<>(elem.getWindows(), elem.getPane());
 
     // This can contain user code. Wrap it in case it throws an exception.
     try {
@@ -169,11 +166,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   /** Returns a new {@link DoFn.ProcessContext} for the given element. */
   private DoFn<InputT, OutputT>.ProcessContext createProcessContext(WindowedValue<InputT> elem) {
     return new DoFnProcessContext<InputT, OutputT>(fn, context, elem);
-  }
-
-  private DoFn.ExtraContextFactory<InputT, OutputT> createExtraContextFactory(
-      WindowedValue<InputT> elem) {
-    return new DoFnExtraContextFactory<InputT, OutputT>(elem.getWindows(), elem.getPane());
   }
 
   private RuntimeException wrapUserCodeException(Throwable t) {
@@ -387,7 +379,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     final DoFnContext<InputT, OutputT> context;
     final WindowedValue<InputT> windowedValue;
 
-    public DoFnProcessContext(
+    private DoFnProcessContext(
         DoFn<InputT, OutputT> fn,
         DoFnContext<InputT, OutputT> context,
         WindowedValue<InputT> windowedValue) {
@@ -447,14 +439,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkTimestamp(timestamp);
       context.outputWindowedValue(
           output, timestamp, windowedValue.getWindows(), windowedValue.getPane());
-    }
-
-    void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      context.outputWindowedValue(output, timestamp, windows, pane);
     }
 
     @Override
@@ -589,7 +573,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             OutputT output,
             Instant timestamp,
             Collection<? extends BoundedWindow> windows,
-            PaneInfo pane) {}
+            PaneInfo pane) {
+          throw new UnsupportedOperationException("A DoFn cannot output to a different window");
+        }
 
         @Override
         public <SideOutputT> void sideOutputWindowedValue(
@@ -597,7 +583,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             SideOutputT output,
             Instant timestamp,
             Collection<? extends BoundedWindow> windows,
-            PaneInfo pane) {}
+            PaneInfo pane) {
+          throw new UnsupportedOperationException(
+              "A DoFn cannot side output to a different window");
+        }
 
         @Override
         public <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow) {

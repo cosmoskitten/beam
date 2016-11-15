@@ -283,7 +283,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      throw new UnsupportedOperationException("Can't output to side outputs from a ReduceFn");
+      throw new UnsupportedOperationException("GroupAlsoByWindow should not use side outputs");
     }
   }
 }
