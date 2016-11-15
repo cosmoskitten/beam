@@ -55,6 +55,8 @@ public class PaneInfoTracker {
     state.access(PANE_INFO_TAG).clear();
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch side effect")
   public void prefetchPaneInfo(ReduceFn<?, ?, ?, ?>.Context context) {
     context.state().access(PaneInfoTracker.PANE_INFO_TAG).readLater();
   }
