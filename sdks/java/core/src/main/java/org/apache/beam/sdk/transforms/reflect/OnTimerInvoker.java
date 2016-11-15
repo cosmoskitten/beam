@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ArgumentProvider;
+import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 
-/** Interface for invoking the {@link DoFn.OnTimer} method for a particular timer. */
+/** Interface for invoking the {@link OnTimer} method for a particular timer. */
 interface OnTimerInvoker<InputT, OutputT> {
 
-  /** Invoke the {@link DoFn.OnTimer} method in the provided context. */
-  void invokeOnTimer(DoFn.ExtraContextFactory<InputT, OutputT> extra);
+  /** Invoke the {@link OnTimer} method in the provided context. */
+  void invokeOnTimer(ArgumentProvider<InputT, OutputT> extra);
 }
