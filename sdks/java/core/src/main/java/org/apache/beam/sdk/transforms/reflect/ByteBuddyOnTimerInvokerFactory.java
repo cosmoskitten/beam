@@ -214,7 +214,9 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     @Override
     public InstrumentedType prepare(InstrumentedType instrumentedType) {
       // Remember the field description of the instrumented type.
-      // Kind of a hack to set the protected value
+      // Kind of a hack to set the protected value, because the instrumentedType
+      // is only available to prepare, while we need this information in
+      // beforeDelegation
       delegateField =
           instrumentedType
               .getDeclaredFields() // the delegate is declared on the OnTimerInvoker

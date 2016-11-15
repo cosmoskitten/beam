@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
@@ -92,6 +93,10 @@ public class DoFnInvokersTest {
 
   private ProcessContinuation invokeProcessElement(DoFn<String, String> fn) {
     return DoFnInvokers.invokerFor(fn).invokeProcessElement(mockContext, extraContextFactory);
+  }
+
+  private void invokeOnTimer(String timerId, DoFn<String, String> fn) {
+    DoFnInvokers.invokerFor(fn).invokeOnTimer(timerId, extraContextFactory);
   }
 
   @Test
@@ -455,7 +460,79 @@ public class DoFnInvokersTest {
   }
 
   // ---------------------------------------------------------------------------------------
-  // Tests for ability to invoke private, inner and anonymous classes.
+  // Tests for ability to invoke @OnTimer for private, inner and anonymous classes.
+  // ---------------------------------------------------------------------------------------
+
+  private static final String TIMER_ID = "test-timer-id";
+
+  private static class PrivateDoFnWithTimers extends DoFn<String, String> {
+    @ProcessElement
+    public void processThis(ProcessContext c) {}
+
+    @TimerId(TIMER_ID)
+    private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    @OnTimer(TIMER_ID)
+    public void onTimer(BoundedWindow w) {}
+  }
+
+  @Test
+  public void testLocalPrivateDoFnWithTimers() throws Exception {
+    PrivateDoFnWithTimers fn = mock(PrivateDoFnWithTimers.class);
+    invokeOnTimer(TIMER_ID, fn);
+    verify(fn).onTimer(mockWindow);
+  }
+
+  @Test
+  public void testStaticPackagePrivateDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(DoFnInvokersTestHelper.newStaticPackagePrivateDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyStaticPackagePrivateDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testInnerPackagePrivateDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(new DoFnInvokersTestHelper().newInnerPackagePrivateDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyInnerPackagePrivateDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testStaticPrivateDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(DoFnInvokersTestHelper.newStaticPrivateDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyStaticPrivateDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testInnerPrivateDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(new DoFnInvokersTestHelper().newInnerPrivateDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyInnerPrivateDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testAnonymousInnerDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(new DoFnInvokersTestHelper().newInnerAnonymousDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyInnerAnonymousDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testStaticAnonymousDoFnWithTimersInOtherPackage() throws Exception {
+    // Can't use mockito for this one - the anonymous class is final and can't be mocked.
+    DoFn<String, String> fn = DoFnInvokersTestHelper.newStaticAnonymousDoFnWithTimers();
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyStaticAnonymousDoFnWithTimersInvoked(fn, mockWindow);
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Tests for ability to invoke @ProcessElement for private, inner and anonymous classes.
   // ---------------------------------------------------------------------------------------
 
   private static class PrivateDoFnClass extends DoFn<String, String> {

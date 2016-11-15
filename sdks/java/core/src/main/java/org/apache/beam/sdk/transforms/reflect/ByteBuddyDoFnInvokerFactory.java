@@ -44,9 +44,7 @@ import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.Implementation.Context;
 import net.bytebuddy.implementation.MethodDelegation;
-import net.bytebuddy.implementation.bind.annotation.Argument;
 import net.bytebuddy.implementation.bind.annotation.TargetMethodAnnotationDrivenBinder;
-import net.bytebuddy.implementation.bind.annotation.This;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.Throw;
@@ -225,7 +223,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public abstract static class DoFnInvokerBase<InputT, OutputT, DoFnT extends DoFn<InputT, OutputT>>
       implements DoFnInvoker<InputT, OutputT> {
     protected DoFnT delegate;
-    protected Map<String, OnTimerInvoker> onTimerInvokers = new HashMap<>();
+    private Map<String, OnTimerInvoker> onTimerInvokers = new HashMap<>();
 
     public DoFnInvokerBase(DoFnT delegate) {
       this.delegate = delegate;
@@ -233,6 +231,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     void addOnTimerInvoker(String timerId, OnTimerInvoker onTimerInvoker) {
       this.onTimerInvokers.put(timerId, onTimerInvoker);
+    }
+
+    @Override
+    public void invokeOnTimer(String timerId, DoFn.ExtraContextFactory<InputT, OutputT> args) {
+      onTimerInvokers.get(timerId).invokeOnTimer(args);
     }
   }
 
@@ -345,12 +348,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .method(ElementMatchers.named("invokeProcessElement"))
             .intercept(new ProcessElementDelegation(clazzDescription, signature.processElement()))
 
-            //   public invokeOnTimer(String timerId, ExtraContextFactory c) {
-            //     onTimerInvokers.get(timerId).invokeOnTimer(c);
-            //   }
-            .method(ElementMatchers.named("invokeOnTimer"))
-            .intercept(MethodDelegation.to(OnTimerMethodDelegation.class))
-
             //   public invokeStartBundle(Context c) { delegate.<@StartBundle>(c); }
             //   ... etc ...
             .method(ElementMatchers.named("invokeStartBundle"))
@@ -424,22 +421,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     return (method == null)
         ? ExceptionMethod.throwing(UnsupportedOperationException.class)
         : new DowncastingParametersMethodDelegation(doFnType, method.targetMethod());
-  }
-
-  /**
-   * Internal delegation class for generated {@link DoFnInvoker} instances.
-   *
-   * <p>This class should <i>not</i> be accessed directly, or by Beam users. It must be public for
-   * generated instances to have adequate access, as they are generated "inside" the invoked {@link
-   * DoFn} class.
-   */
-  public static class OnTimerMethodDelegation {
-    public static void invokeOnTimer(
-        @This DoFnInvokerBase invoker,
-        @Argument(0) String timerId,
-        @Argument(1) ExtraContextFactory args) {
-      ((OnTimerInvoker) invoker.onTimerInvokers.get(timerId)).invokeOnTimer(args);
-    }
   }
 
   /**
