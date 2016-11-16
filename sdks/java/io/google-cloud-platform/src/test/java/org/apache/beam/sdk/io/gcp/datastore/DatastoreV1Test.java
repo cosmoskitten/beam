@@ -79,6 +79,7 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.UpsertFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.V1DatastoreFactory;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
@@ -106,6 +107,7 @@ import org.mockito.stubbing.Answer;
  */
 @RunWith(JUnit4.class)
 public class DatastoreV1Test {
+
   private static final String PROJECT_ID = "testProject";
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
@@ -117,6 +119,7 @@ public class DatastoreV1Test {
     QUERY = q.build();
     V_1_OPTIONS = V1Options.from(PROJECT_ID, QUERY, NAMESPACE);
   }
+
   private DatastoreV1.Read initialRead;
 
   @Mock
@@ -146,9 +149,9 @@ public class DatastoreV1Test {
   public void testBuildRead() throws Exception {
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
-    assertEquals(QUERY, read.getQuery());
-    assertEquals(PROJECT_ID, read.getProjectId());
-    assertEquals(NAMESPACE, read.getNamespace());
+    assertEquals(QUERY, read.getQuery().get());
+    assertEquals(PROJECT_ID, read.getProjectId().get());
+    assertEquals(NAMESPACE, read.getNamespace().get());
   }
 
   /**
@@ -158,9 +161,9 @@ public class DatastoreV1Test {
   public void testBuildReadAlt() throws Exception {
     DatastoreV1.Read read =  DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY);
-    assertEquals(QUERY, read.getQuery());
-    assertEquals(PROJECT_ID, read.getProjectId());
-    assertEquals(NAMESPACE, read.getNamespace());
+    assertEquals(QUERY, read.getQuery().get());
+    assertEquals(PROJECT_ID, read.getProjectId().get());
+    assertEquals(NAMESPACE, read.getNamespace().get());
   }
 
   @Test
@@ -593,7 +596,8 @@ public class DatastoreV1Test {
         eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, numSplits));
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, StaticValueProvider.of(numSplits),
+        mockDatastoreFactory);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
     /**
      * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
@@ -639,7 +643,8 @@ public class DatastoreV1Test {
         eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, expectedNumSplits));
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, StaticValueProvider.of(numSplits),
+        mockDatastoreFactory);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
@@ -661,7 +666,8 @@ public class DatastoreV1Test {
         .setLimit(Int32Value.newBuilder().setValue(1))
         .build();
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, StaticValueProvider.of(10),
+        mockDatastoreFactory);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<KV<Integer, Query>> queries = doFnTester.processBundle(queryWithLimit);
