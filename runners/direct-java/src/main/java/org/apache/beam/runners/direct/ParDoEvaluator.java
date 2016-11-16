@@ -85,7 +85,12 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
     }
 
     return new ParDoEvaluator<>(
-        evaluationContext, runner, application, aggregatorChanges, outputBundles.values(), stepContext);
+        evaluationContext,
+        runner,
+        application,
+        aggregatorChanges,
+        outputBundles.values(),
+        stepContext);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
