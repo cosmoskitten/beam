@@ -88,6 +88,7 @@ public class DirectRunner
               .put(TestStream.class, new DirectTestStreamFactory())
               .put(Write.Bound.class, new WriteWithShardingFactory())
               .put(ParDo.Bound.class, new ParDoOverrideFactory())
+              .put(ParDo.BoundMulti.class, new ParDoMultiOverrideFactory())
               .put(
                   GBKIntoKeyedWorkItems.class,
                   new DirectGBKIntoKeyedWorkItemsOverrideFactory())

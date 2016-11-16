@@ -51,9 +51,6 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             .put(Read.Bounded.class, new BoundedReadEvaluatorFactory(ctxt))
             .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory(ctxt))
             .put(
-                ParDo.Bound.class,
-                new ParDoEvaluatorFactory<>(ctxt, new ParDoSingleEvaluatorHooks<>()))
-            .put(
                 ParDo.BoundMulti.class,
                 new ParDoEvaluatorFactory<>(ctxt, new ParDoMultiEvaluatorHooks<>()))
             .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory(ctxt))

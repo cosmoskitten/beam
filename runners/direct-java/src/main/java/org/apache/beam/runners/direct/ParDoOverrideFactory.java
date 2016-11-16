@@ -17,19 +17,16 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.core.SplittableParDo;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 
 /**
- * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
- * in the direct runner. Currently overrides applications of <a
- * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
+ * A {@link PTransformOverrideFactory} that overrides single-output {@link ParDo} to implement
+ * it in terms of multi-output {@link ParDo}.
  */
 class ParDoOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
@@ -38,16 +35,32 @@ class ParDoOverrideFactory<InputT, OutputT>
   @SuppressWarnings("unchecked")
   public PTransform<PCollection<? extends InputT>, PCollection<OutputT>> override(
       ParDo.Bound<InputT, OutputT> transform) {
-    ParDo.Bound<InputT, OutputT> that = (ParDo.Bound<InputT, OutputT>) transform;
-    DoFn<InputT, OutputT> fn = DoFnAdapters.getDoFn(that.getFn());
-    if (fn == null) {
-      // This is an OldDoFn, hence not splittable.
-      return transform;
+    return new ParDoSingleViaMulti(transform);
+  }
+
+  static class ParDoSingleViaMulti<InputT, OutputT>
+      extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+    private static final String MAIN_OUTPUT_TAG = "main";
+
+    private final ParDo.Bound<InputT, OutputT> underlyingParDo;
+
+    public ParDoSingleViaMulti(ParDo.Bound<InputT, OutputT> underlyingParDo) {
+      this.underlyingParDo = underlyingParDo;
     }
-    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-    if (!signature.processElement().isSplittable()) {
-      return transform;
+
+    @Override
+    public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
+
+      // Output tags for ParDo need only be unique up to applied transform
+      TupleTag<OutputT> mainOutputTag = new TupleTag<OutputT>(MAIN_OUTPUT_TAG);
+
+      PCollectionTuple output =
+          input.apply(
+              ParDo.of(underlyingParDo.getNewFn())
+                  .withSideInputs(underlyingParDo.getSideInputs())
+                  .withOutputTags(mainOutputTag, TupleTagList.empty()));
+
+      return output.get(mainOutputTag);
     }
-    return new SplittableParDo(fn);
   }
 }
