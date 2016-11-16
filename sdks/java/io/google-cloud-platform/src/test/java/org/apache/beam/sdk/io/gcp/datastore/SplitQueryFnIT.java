@@ -85,8 +85,7 @@ public class SplitQueryFnIT {
     Query.Builder query = Query.newBuilder();
     query.addKindBuilder().setName(kind);
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(
-        V1Options.from(projectId, query.build(), namespace), 0);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V1Options.from(projectId, namespace), 0);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
 
     List<KV<Integer, Query>> queries = doFnTester.processBundle(query.build());

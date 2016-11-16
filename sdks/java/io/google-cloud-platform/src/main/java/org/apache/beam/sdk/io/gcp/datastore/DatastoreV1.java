@@ -45,6 +45,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
+import com.google.datastore.v1.GqlQuery;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Key.PathElement;
 import com.google.datastore.v1.Mutation;
@@ -67,8 +68,12 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -86,6 +91,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -227,9 +233,10 @@ public class DatastoreV1 {
      */
     static final int QUERY_BATCH_LIMIT = 500;
 
-    @Nullable public abstract String getProjectId();
+    @Nullable public abstract ValueProvider<String> getProjectId();
     @Nullable public abstract Query getQuery();
-    @Nullable public abstract String getNamespace();
+    @Nullable public abstract ValueProvider<String> getGqlQuery();
+    @Nullable public abstract ValueProvider<String> getNamespace();
     public abstract int getNumQuerySplits();
 
     @Override
@@ -239,9 +246,10 @@ public class DatastoreV1 {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setProjectId(String projectId);
+      abstract Builder setProjectId(ValueProvider<String> projectId);
       abstract Builder setQuery(Query query);
-      abstract Builder setNamespace(String namespace);
+      abstract Builder setGqlQuery(ValueProvider<String> gqlQuery);
+      abstract Builder setNamespace(ValueProvider<String> namespace);
       abstract Builder setNumQuerySplits(int numQuerySplits);
       abstract Read build();
     }
@@ -273,7 +281,9 @@ public class DatastoreV1 {
     private static long queryLatestStatisticsTimestamp(Datastore datastore,
         @Nullable String namespace)  throws DatastoreException {
       Query.Builder query = Query.newBuilder();
-      if (namespace == null) {
+      // Note: namespace either being null or empty represents the default namespace, in which
+      // case we treat it as not provided by the user.
+      if (namespace == null || namespace.isEmpty()) {
         query.addKindBuilder().setName("__Stat_Total__");
       } else {
         query.addKindBuilder().setName("__Stat_Ns_Total__");
@@ -308,7 +318,7 @@ public class DatastoreV1 {
       LOG.info("Latest stats timestamp for kind {} is {}", ourKind, latestTimestamp);
 
       Query.Builder queryBuilder = Query.newBuilder();
-      if (namespace == null) {
+      if (namespace == null || namespace.isEmpty()) {
         queryBuilder.addKindBuilder().setName("__Stat_Kind__");
       } else {
         queryBuilder.addKindBuilder().setName("__Stat_Ns_Kind__");
@@ -336,7 +346,19 @@ public class DatastoreV1 {
     /** Builds a {@link RunQueryRequest} from the {@code query} and {@code namespace}. */
     static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
       RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
-      if (namespace != null) {
+      // Note: namespace either being null or empty represents the default namespace.
+      // Datastore Client libraries expect users to not set the namespace proto field in
+      // either of these cases.
+      if (namespace != null && !namespace.isEmpty()) {
+        requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
+      }
+      return requestBuilder.build();
+    }
+
+    /** Builds a {@link RunQueryRequest} from the {@code GqlQuery} and {@code namespace}. */
+    static RunQueryRequest makeRequest(GqlQuery gqlQuery, @Nullable String namespace) {
+      RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setGqlQuery(gqlQuery);
+      if (namespace != null && !namespace.isEmpty()) {
         requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
       }
       return requestBuilder.build();
@@ -350,7 +372,7 @@ public class DatastoreV1 {
         Datastore datastore, QuerySplitter querySplitter, int numSplits) throws DatastoreException {
       // If namespace is set, include it in the split request so splits are calculated accordingly.
       PartitionId.Builder partitionBuilder = PartitionId.newBuilder();
-      if (namespace != null) {
+      if (namespace != null && !namespace.isEmpty()) {
         partitionBuilder.setNamespaceId(namespace);
       }
 
@@ -363,6 +385,14 @@ public class DatastoreV1 {
      */
     public DatastoreV1.Read withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
+      return toBuilder().setProjectId(StaticValueProvider.of(projectId)).build();
+    }
+
+    /**
+     * Same as {@link Read#withProjectId(String)} but with a {@link ValueProvider}.
+     */
+    public DatastoreV1.Read withProjectId(ValueProvider<String> projectId) {
+      checkNotNull(projectId, "projectId ValueProvider");
       return toBuilder().setProjectId(projectId).build();
     }
 
@@ -382,9 +412,34 @@ public class DatastoreV1 {
     }
 
     /**
+     * Returns a new {@link DatastoreV1.Read} that reads the results of the specified gql query.
+     */
+    @Experimental(Kind.SOURCE_SINK)
+    public DatastoreV1.Read withGqlQuery(String gqlQuery) {
+      checkNotNull(gqlQuery, "gql query");
+      return toBuilder().setGqlQuery(StaticValueProvider.of(gqlQuery)).build();
+    }
+
+    /**
+     * Same as {@link Read#withGqlQuery(String)} but with a {@link ValueProvider}.
+     */
+    @Experimental(Kind.SOURCE_SINK)
+    public DatastoreV1.Read withGqlQuery(ValueProvider<String> gqlQuery) {
+      checkNotNull(gqlQuery, "gql query ValueProvider");
+      return toBuilder().setGqlQuery(gqlQuery).build();
+    }
+
+    /**
      * Returns a new {@link DatastoreV1.Read} that reads from the given namespace.
      */
     public DatastoreV1.Read withNamespace(String namespace) {
+      return toBuilder().setNamespace(StaticValueProvider.of(namespace)).build();
+    }
+
+    /**
+     * Same as {@link Read#withNamespace(String)} but with a {@link ValueProvider}.
+     */
+    public DatastoreV1.Read withNamespace(ValueProvider<String> namespace) {
       return toBuilder().setNamespace(namespace).build();
     }
 
@@ -412,29 +467,40 @@ public class DatastoreV1 {
 
     @Override
     public PCollection<Entity> expand(PBegin input) {
-      V1Options v1Options = V1Options.from(getProjectId(), getQuery(),
-          getNamespace());
+      V1Options v1Options = V1Options.from(getProjectId(), getNamespace());
 
       /*
        * This composite transform involves the following steps:
-       *   1. Create a singleton of the user provided {@code query} and apply a {@link ParDo} that
-       *   splits the query into {@code numQuerySplits} and assign each split query a unique
-       *   {@code Integer} as the key. The resulting output is of the type
-       *   {@code PCollection<KV<Integer, Query>>}.
+       *   1. Create a singleton of the user provided {@code query} or if {@code gqlQuery} is
+       *   provided apply a {@link ParDo} that translates the {@code gqlQuery} into a {@code query}.
+       *
+       *   2. A {@link ParDo} splits the resulting query into {@code numQuerySplits} and
+       *   assign each split query a unique {@code Integer} as the key. The resulting output is
+       *   of the type {@code PCollection<KV<Integer, Query>>}.
        *
        *   If the value of {@code numQuerySplits} is less than or equal to 0, then the number of
        *   splits will be computed dynamically based on the size of the data for the {@code query}.
        *
-       *   2. The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
+       *   3. The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
        *   queries are extracted from they {@code KV<Integer, Iterable<Query>>} and flattened to
        *   output a {@code PCollection<Query>}.
        *
-       *   3. In the third step, a {@code ParDo} reads entities for each query and outputs
+       *   4. In the third step, a {@code ParDo} reads entities for each query and outputs
        *   a {@code PCollection<Entity>}.
        */
-      PCollection<KV<Integer, Query>> queries = input
-          .apply(Create.of(getQuery()))
-          .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
+
+      PCollection<KV<Integer, Query>> queries;
+      if (getQuery() != null) {
+        queries = input
+            .apply(Create.of(getQuery()))
+            .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
+      } else {
+        queries = input
+            .apply(Create.of(getGqlQuery()).withCoder(
+                SerializableCoder.of(new TypeDescriptor<ValueProvider<String>>() {})))
+            .apply(ParDo.of(new GqlQueryTranslatorFn(v1Options)))
+            .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
+      }
 
       PCollection<Query> shardedQueries = queries
           .apply(GroupByKey.<Integer, Query>create())
@@ -449,53 +515,136 @@ public class DatastoreV1 {
 
     @Override
     public void validate(PBegin input) {
-      checkNotNull(getProjectId(), "projectId");
-      checkNotNull(getQuery(), "query");
+      checkNotNull(getProjectId(), "projectId ValueProvider");
+
+      if (getProjectId().isAccessible()) {
+        checkNotNull(getProjectId().get(), "projectId");
+      }
+
+      if (getQuery() == null && getGqlQuery() == null) {
+        throw new IllegalArgumentException(
+            "Either query or gql query ValueProvider should be provided");
+      }
+
+      if (getQuery() != null && getGqlQuery() != null) {
+        throw new IllegalArgumentException(
+            "Only one of query or gql query ValueProvider should be provided");
+      }
+
+      if (getGqlQuery() != null && getGqlQuery().isAccessible()) {
+        checkNotNull(getGqlQuery().get(), "gql query");
+      }
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
+      String query = getQuery() == null ? null : getQuery().toString();
       builder
           .addIfNotNull(DisplayData.item("projectId", getProjectId())
               .withLabel("ProjectId"))
           .addIfNotNull(DisplayData.item("namespace", getNamespace())
               .withLabel("Namespace"))
-          .addIfNotNull(DisplayData.item("query", getQuery().toString())
-              .withLabel("Query"));
+          .addIfNotNull(DisplayData.item("query", query)
+              .withLabel("Query"))
+          .addIfNotNull(DisplayData.item("gqlQuery", getGqlQuery()));
     }
 
-    /**
-     * A class for v1 Cloud Datastore related options.
-     */
     @VisibleForTesting
     static class V1Options implements Serializable {
-      private final Query query;
-      private final String projectId;
+      private final ValueProvider<String> project;
       @Nullable
-      private final String namespace;
+      private final ValueProvider<String> namespace;
 
-      private V1Options(String projectId, Query query, @Nullable String namespace) {
-        this.projectId = checkNotNull(projectId, "projectId");
-        this.query = checkNotNull(query, "query");
+      private V1Options(ValueProvider<String> project, ValueProvider<String> namespace) {
+        this.project = project;
         this.namespace = namespace;
       }
 
-      public static V1Options from(String projectId, Query query, @Nullable String namespace) {
-        return new V1Options(projectId, query, namespace);
+      public static V1Options from(String projectId, String namespace) {
+        return from(StaticValueProvider.of(projectId), StaticValueProvider.of(namespace));
       }
 
-      public Query getQuery() {
-        return query;
+      public static V1Options from(ValueProvider<String> project, ValueProvider<String> namespace) {
+        return new V1Options(project, namespace);
       }
 
       public String getProjectId() {
-        return projectId;
+        return project.get();
       }
 
       @Nullable
       public String getNamespace() {
+        return namespace == null ? null : namespace.get();
+      }
+
+      public ValueProvider<String> getProjectValueProvider() {
+        return project;
+      }
+
+      @Nullable
+      public ValueProvider<String> getNamespaceValueProvider() {
         return namespace;
+      }
+
+    }
+
+    /**
+     * A DoFn that translates a Cloud Datastore gql query string to {@code Query}.
+     */
+    static class GqlQueryTranslatorFn
+        extends DoFn<ValueProvider<String>, Query> {
+      private final V1Options options;
+      private transient Datastore datastore;
+      private final V1DatastoreFactory datastoreFactory;
+
+      GqlQueryTranslatorFn(V1Options options) {
+        this(options, new V1DatastoreFactory());
+      }
+
+      @VisibleForTesting
+      GqlQueryTranslatorFn(V1Options options, V1DatastoreFactory datastoreFactory) {
+        this.options = options;
+        this.datastoreFactory = datastoreFactory;
+      }
+
+      @StartBundle
+      public void startBundle(Context c) throws Exception {
+        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId());
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) throws Exception {
+        ValueProvider<String> gqlQuery = c.element();
+        LOG.info("User query: '{}'", gqlQuery.get());
+        // Gql query is provided, convert it to query
+        // Note: If user's query already has a limit, then that limit could take precedence
+        // over limit 0. resulting in actually reading entities but should not be a large
+        // number since service has a cap on the number of entities returned in a single request.
+        String gqlQueryWithZeroLimit = gqlQuery.get() + " limit 0";
+        GqlQuery gql = GqlQuery.newBuilder().setQueryString(gqlQueryWithZeroLimit)
+            .setAllowLiterals(true).build();
+
+        RunQueryRequest req = makeRequest(gql, options.getNamespace());
+        RunQueryResponse resp = datastore.runQuery(req);
+        Query translatedQuery = resp.getQuery();
+
+        if (translatedQuery.getLimit().getValue() == 0) {
+          // Clear the limit if we set it to 0
+          translatedQuery = translatedQuery.toBuilder().clearLimit().build();
+        }
+        LOG.info("User gql query translated to Query({})", translatedQuery);
+        c.output(translatedQuery);
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder
+            .addIfNotNull(DisplayData.item("projectId", options.getProjectValueProvider())
+                .withLabel("ProjectId"))
+            .addIfNotNull(DisplayData.item("namespace", options.getNamespaceValueProvider())
+                .withLabel("Namespace"));
       }
     }
 
@@ -529,7 +678,7 @@ public class DatastoreV1 {
 
       @StartBundle
       public void startBundle(Context c) throws Exception {
-        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.projectId);
+        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId());
         querySplitter = datastoreFactory.getQuerySplitter();
       }
 
@@ -572,12 +721,10 @@ public class DatastoreV1 {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder
-            .addIfNotNull(DisplayData.item("projectId", options.getProjectId())
+            .addIfNotNull(DisplayData.item("projectId", options.getProjectValueProvider())
                 .withLabel("ProjectId"))
-            .addIfNotNull(DisplayData.item("namespace", options.getNamespace())
-                .withLabel("Namespace"))
-            .addIfNotNull(DisplayData.item("query", options.getQuery().toString())
-                .withLabel("Query"));
+            .addIfNotNull(DisplayData.item("namespace", options.getNamespaceValueProvider())
+                .withLabel("Namespace"));
       }
     }
 
@@ -656,6 +803,16 @@ public class DatastoreV1 {
                   || (currentBatch.getMoreResults() == NOT_FINISHED));
         }
       }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder
+            .addIfNotNull(DisplayData.item("projectId", options.getProjectValueProvider())
+                .withLabel("ProjectId"))
+            .addIfNotNull(DisplayData.item("namespace", options.getNamespaceValueProvider())
+                .withLabel("Namespace"));
+      }
     }
   }
 
@@ -693,7 +850,7 @@ public class DatastoreV1 {
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    Write(@Nullable String projectId) {
+    Write(@Nullable ValueProvider<String> projectId) {
       super(projectId, new UpsertFn());
     }
 
@@ -702,6 +859,14 @@ public class DatastoreV1 {
      */
     public Write withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
+      return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}.
+     */
+    public Write withProjectId(ValueProvider<String> projectId) {
+      checkNotNull(projectId, "projectId ValueProvider");
       return new Write(projectId);
     }
   }
@@ -716,7 +881,7 @@ public class DatastoreV1 {
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    DeleteEntity(@Nullable String projectId) {
+    DeleteEntity(@Nullable ValueProvider<String> projectId) {
       super(projectId, new DeleteEntityFn());
     }
 
@@ -726,6 +891,14 @@ public class DatastoreV1 {
      */
     public DeleteEntity withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
+      return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Same as {@link DeleteEntity#withProjectId(String)} but with a {@link ValueProvider}.
+     */
+    public DeleteEntity withProjectId(ValueProvider<String> projectId) {
+      checkNotNull(projectId, "projectId ValueProvider");
       return new DeleteEntity(projectId);
     }
   }
@@ -741,7 +914,7 @@ public class DatastoreV1 {
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    DeleteKey(@Nullable String projectId) {
+    DeleteKey(@Nullable ValueProvider<String> projectId) {
       super(projectId, new DeleteKeyFn());
     }
 
@@ -751,6 +924,14 @@ public class DatastoreV1 {
      */
     public DeleteKey withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
+      return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Same as {@link DeleteKey#withProjectId(String)} but with a {@link ValueProvider}.
+     */
+    public DeleteKey withProjectId(ValueProvider<String> projectId) {
+      checkNotNull(projectId, "projectId ValueProvider");
       return new DeleteKey(projectId);
     }
   }
@@ -765,7 +946,7 @@ public class DatastoreV1 {
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
-    private final String projectId;
+    private final ValueProvider<String> projectId;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 
@@ -773,7 +954,7 @@ public class DatastoreV1 {
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    Mutate(@Nullable String projectId, SimpleFunction<T, Mutation> mutationFn) {
+    Mutate(@Nullable ValueProvider<String> projectId, SimpleFunction<T, Mutation> mutationFn) {
       this.projectId = projectId;
       this.mutationFn = checkNotNull(mutationFn);
     }
@@ -788,7 +969,10 @@ public class DatastoreV1 {
 
     @Override
     public void validate(PCollection<T> input) {
-      checkNotNull(projectId, "projectId");
+      checkNotNull(projectId, "projectId ValueProvider");
+      if (projectId.isAccessible()) {
+        checkNotNull(projectId.get(), "projectId");
+      }
       checkNotNull(mutationFn, "mutationFn");
     }
 
@@ -810,7 +994,7 @@ public class DatastoreV1 {
     }
 
     public String getProjectId() {
-      return projectId;
+      return projectId.get();
     }
   }
 
@@ -831,7 +1015,7 @@ public class DatastoreV1 {
   @VisibleForTesting
   static class DatastoreWriterFn extends DoFn<Mutation, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
-    private final String projectId;
+    private final ValueProvider<String> projectId;
     private transient Datastore datastore;
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
@@ -843,18 +1027,22 @@ public class DatastoreV1 {
             .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
 
     DatastoreWriterFn(String projectId) {
+      this(StaticValueProvider.of(projectId));
+    }
+
+    DatastoreWriterFn(ValueProvider<String> projectId) {
       this(projectId, new V1DatastoreFactory());
     }
 
     @VisibleForTesting
-    DatastoreWriterFn(String projectId, V1DatastoreFactory datastoreFactory) {
+    DatastoreWriterFn(ValueProvider<String> projectId, V1DatastoreFactory datastoreFactory) {
       this.projectId = checkNotNull(projectId, "projectId");
       this.datastoreFactory = datastoreFactory;
     }
 
     @StartBundle
     public void startBundle(Context c) {
-      datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId);
+      datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get());
     }
 
     @ProcessElement
