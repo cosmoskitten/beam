@@ -886,7 +886,7 @@ public class ParDo {
      *     fully supported by wrapping it into a {@link DoFn}, such as {@link RequiresWindowAccess}.
      */
     @Deprecated
-    public Object getOriginalFn() {
+    public Serializable getOriginalFn() {
       return fn;
     }
 
@@ -1134,6 +1134,17 @@ public class ParDo {
       } else {
         return adapt((DoFn<InputT, OutputT>) fn);
       }
+    }
+
+    /**
+     * Returns the {@link OldDoFn} or {@link DoFn} used to create this transform.
+     *
+     * @deprecated for migration purposes only. There are some cases of {@link OldDoFn} that are not
+     *     fully supported by wrapping it into a {@link DoFn}, such as {@link RequiresWindowAccess}.
+     */
+    @Deprecated
+    public Serializable getOriginalFn() {
+      return fn;
     }
 
     public DoFn<InputT, OutputT> getNewFn() {
