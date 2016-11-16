@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -204,8 +203,7 @@ final class ParDoEvaluatorFactory<
                           StateSpec.class.getName(), doFn.getClass().getName()),
                       e);
                 }
-                State state = stepContext.stateInternals().state(namespace, tag);
-                state.clear();
+                stepContext.stateInternals().state(namespace, tag).clear();
               }
               cleanupRegistry.invalidate(transformOutputWindow);
             }
