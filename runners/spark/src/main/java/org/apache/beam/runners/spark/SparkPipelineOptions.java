@@ -50,6 +50,11 @@ public interface SparkPipelineOptions
   Long getBatchIntervalMillis();
   void setBatchIntervalMillis(Long batchInterval);
 
+  @Description("Storage level used in batch mode.")
+  @Default.String("MEMORY_AND_DISK")
+  String getBatchStorageLevel();
+  void setBatchStorageLevel(String storageLevel);
+
   @Description("Minimum time to spend on read, for each micro-batch.")
   @Default.Long(200)
   Long getMinReadTimeMillis();

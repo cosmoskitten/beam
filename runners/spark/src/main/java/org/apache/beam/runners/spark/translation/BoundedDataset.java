@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.storage.StorageLevel;
 
 /**
  * Holds an RDD or values for deferred conversion to an RDD if needed. PCollections are sometimes
@@ -43,15 +44,18 @@ public class BoundedDataset<T> implements Dataset {
   // only set if creating an RDD from a static collection
   @Nullable private transient JavaSparkContext jsc;
 
+  @Nullable private String storageLevel;
   private Iterable<WindowedValue<T>> windowedValues;
   private Coder<T> coder;
   private JavaRDD<WindowedValue<T>> rdd;
 
-  BoundedDataset(JavaRDD<WindowedValue<T>> rdd) {
+  BoundedDataset(String storageLevel, JavaRDD<WindowedValue<T>> rdd) {
+    this.storageLevel = storageLevel;
     this.rdd = rdd;
   }
 
-  BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
+  BoundedDataset(String storageLevel, Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
+    this.storageLevel = storageLevel;
     this.windowedValues =
         Iterables.transform(values, WindowingHelpers.<T>windowValueFunction());
     this.jsc = jsc;
@@ -98,7 +102,11 @@ public class BoundedDataset<T> implements Dataset {
 
   @Override
   public void cache() {
-    rdd.cache();
+    if (storageLevel == null) {
+      rdd.cache();
+    } else {
+      rdd.persist(StorageLevel.fromString(storageLevel));
+    }
   }
 
   @Override

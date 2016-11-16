@@ -27,6 +27,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.sdk.AggregatorRetrievalException;
@@ -135,7 +136,9 @@ public class EvaluationContext implements EvaluationResult {
 
   <T> void putBoundedDatasetFromValues(PTransform<?, ?> transform, Iterable<T> values,
                                        Coder<T> coder) {
-    datasets.put((PValue) getOutput(transform), new BoundedDataset<>(values, jsc, coder));
+    datasets.put((PValue) getOutput(transform), new BoundedDataset<>(getRuntimeContext()
+        .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(), values,
+        jsc, coder));
   }
 
   public <T> void putUnboundedDatasetFromQueue(

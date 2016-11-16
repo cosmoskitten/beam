@@ -31,6 +31,7 @@ import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.beam.runners.core.AssignWindowsDoFn;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.io.SourceRDD;
@@ -102,7 +103,9 @@ public final class TransformTranslator {
           }
           unionRDD = context.getSparkContext().union(rdds);
         }
-        context.putDataset(transform, new BoundedDataset<>(unionRDD));
+        context.putDataset(transform, new BoundedDataset<>(context.getRuntimeContext()
+                .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(),
+            unionRDD));
       }
     };
   }
@@ -122,7 +125,9 @@ public final class TransformTranslator {
                 AccumulatorSingleton.getInstance(context.getSparkContext());
 
         context.putDataset(transform,
-            new BoundedDataset<>(GroupCombineFunctions.groupByKey(inRDD, accum, coder,
+            new BoundedDataset<>(context.getRuntimeContext()
+                .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(),
+                GroupCombineFunctions.groupByKey(inRDD, accum, coder,
                 context.getRuntimeContext(), context.getInput(transform).getWindowingStrategy())));
       }
     };
@@ -152,8 +157,9 @@ public final class TransformTranslator {
             new SparkKeyedCombineFn<>(fn, context.getRuntimeContext(),
                 TranslationUtils.getSideInputs(transform.getSideInputs(), context),
                 windowingStrategy);
-        context.putDataset(transform, new BoundedDataset<>(inRDD.map(new TranslationUtils
-            .CombineGroupedValues<>(
+        context.putDataset(transform, new BoundedDataset<>(context.getRuntimeContext()
+            .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(),
+            inRDD.map(new TranslationUtils.CombineGroupedValues<>(
             combineFnWithContext))));
       }
     };
@@ -183,7 +189,9 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<InputT>> inRdd =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
 
-        context.putDataset(transform, new BoundedDataset<>(GroupCombineFunctions
+        context.putDataset(transform, new BoundedDataset<>(context.getRuntimeContext()
+            .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(),
+            GroupCombineFunctions
             .combineGlobally(inRdd, combineFn,
                 iCoder, oCoder, runtimeContext, windowingStrategy, sideInputs, hasDefault)));
       }
@@ -214,7 +222,9 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, InputT>>> inRdd =
             ((BoundedDataset<KV<K, InputT>>) context.borrowDataset(transform)).getRDD();
 
-        context.putDataset(transform, new BoundedDataset<>(GroupCombineFunctions
+        context.putDataset(transform, new BoundedDataset<>(context.getRuntimeContext()
+            .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(),
+            GroupCombineFunctions
             .combinePerKey(inRdd, combineFn,
                 inputCoder, runtimeContext, windowingStrategy, sideInputs)));
       }
@@ -236,7 +246,9 @@ public final class TransformTranslator {
         Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         context.putDataset(transform,
-            new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, transform.getFn(),
+            new BoundedDataset<>(context.getRuntimeContext()
+                .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(),
+                inRDD.mapPartitions(new DoFnFunction<>(accum, transform.getFn(),
                 context.getRuntimeContext(), sideInputs, windowFn))));
       }
     };
@@ -269,7 +281,8 @@ public final class TransformTranslator {
           // Object is the best we can do since different outputs can have different tags
           JavaRDD<WindowedValue<Object>> values =
               (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
-          context.putDataset(e.getValue(), new BoundedDataset<>(values));
+          context.putDataset(e.getValue(), new BoundedDataset<>(context.getRuntimeContext()
+              .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(), values));
         }
       }
     };
@@ -283,7 +296,8 @@ public final class TransformTranslator {
         String pattern = transform.getFilepattern();
         JavaRDD<WindowedValue<String>> rdd = context.getSparkContext().textFile(pattern)
             .map(WindowingHelpers.<String>windowFunction());
-        context.putDataset(transform, new BoundedDataset<>(rdd));
+        context.putDataset(transform, new BoundedDataset<>(context.getRuntimeContext()
+            .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(), rdd));
       }
     };
   }
@@ -332,7 +346,8 @@ public final class TransformTranslator {
                 return key.datum();
               }
             }).map(WindowingHelpers.<T>windowFunction());
-        context.putDataset(transform, new BoundedDataset<>(rdd));
+        context.putDataset(transform, new BoundedDataset<>(context.getRuntimeContext()
+            .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(), rdd));
       }
     };
   }
@@ -378,7 +393,9 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<T>> input = new SourceRDD.Bounded<>(
             jsc.sc(), transform.getSource(), runtimeContext).toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
-        context.putDataset(transform, new BoundedDataset<>(input.cache()));
+        context.putDataset(transform, new BoundedDataset<>(context.getRuntimeContext()
+            .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(), input
+            .cache()));
       }
     };
   }
@@ -401,7 +418,8 @@ public final class TransformTranslator {
             return KV.of(t2._1(), t2._2());
           }
         }).map(WindowingHelpers.<KV<K, V>>windowFunction());
-        context.putDataset(transform, new BoundedDataset<>(rdd));
+        context.putDataset(transform, new BoundedDataset<>(context.getRuntimeContext()
+            .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(), rdd));
       }
     };
   }
@@ -497,7 +515,8 @@ public final class TransformTranslator {
             ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD();
 
         if (TranslationUtils.skipAssignWindows(transform, context)) {
-          context.putDataset(transform, new BoundedDataset<>(inRDD));
+          context.putDataset(transform, new BoundedDataset<>(context.getRuntimeContext()
+              .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(), inRDD));
         } else {
           @SuppressWarnings("unchecked")
           WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
@@ -505,7 +524,9 @@ public final class TransformTranslator {
           Accumulator<NamedAggregators> accum =
               AccumulatorSingleton.getInstance(context.getSparkContext());
           context.putDataset(transform,
-              new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, addWindowsDoFn,
+              new BoundedDataset<>(context.getRuntimeContext()
+                  .getPipelineOptions().as(SparkPipelineOptions.class).getBatchStorageLevel(),
+                  inRDD.mapPartitions(new DoFnFunction<>(accum, addWindowsDoFn,
                   context.getRuntimeContext(), null, null))));
         }
       }
