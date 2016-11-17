@@ -52,42 +52,4 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       return new SplittableParDo(fn);
     }
   }
-
-  static class GbkThenStatefulParDo<K, InputT, OutputT>
-      extends PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> {
-    private final ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo;
-
-    public GbkThenStatefulParDo(ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo) {
-      this.underlyingParDo = underlyingParDo;
-    }
-
-    @Override
-    public PCollectionTuple apply(PCollection<KV<K, InputT>> input) {
-      return input
-          .apply("Group by key", new GBKIntoKeyedWorkItems<K, InputT>())
-          .apply("Stateful ParDo", new StatefulParDo<>(underlyingParDo));
-    }
-  }
-
-  static class StatefulParDo<K, InputT, OutputT>
-      extends PTransform<PCollection<? extends KeyedWorkItem<K, InputT>>, PCollectionTuple> {
-    private final ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo;
-
-    public StatefulParDo(ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo) {
-      this.underlyingParDo = underlyingParDo;
-    }
-
-    public ParDo.BoundMulti<KV<K, InputT>, OutputT> getUnderlyingParDo() {
-      return underlyingParDo;
-    }
-
-    public PCollectionTuple apply(PCollection<? extends KeyedWorkItem<K, InputT>> input) {
-      return PCollectionTuple.ofPrimitiveOutputsInternal(
-          input.getPipeline(),
-          TupleTagList.of(underlyingParDo.getMainOutputTag())
-              .and(underlyingParDo.getSideOutputTags().getAll()),
-          input.getWindowingStrategy(),
-          input.isBounded());
-    }
-  }
 }
