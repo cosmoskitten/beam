@@ -74,9 +74,6 @@
                 <dependency>org.apache.beam:beam-sdks-java-core</dependency>
                 <dependency>org.apache.beam:beam-runners-core-java</dependency>
               </dependenciesToScan>
-              <excludes>
-                <exclude>org.apache.beam.sdk.transforms.OldDoFnTest</exclude>
-              </excludes>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
                   [
