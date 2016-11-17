@@ -24,7 +24,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.AggregatorValues;
