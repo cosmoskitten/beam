@@ -24,10 +24,13 @@
 HERE="$(dirname $0)"
 
 # The directory of the examples-java module
-EXAMPLES_ROOT="${HERE}/../../../examples/java"
+EXAMPLES_ROOT="${HERE}/../../../../examples/java"
 
 # The root of the examples archetype
-ARCHETYPE_ROOT="${HERE}/examples/src/main/resources/archetype-resources"
+ARCHETYPE_ROOT="${HERE}/src/main/resources/archetype-resources"
+
+mkdir -p "${ARCHETYPE_ROOT}/src/main/java"
+mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 
 #
 # Copy the Java subset of the examples project verbatim. 
