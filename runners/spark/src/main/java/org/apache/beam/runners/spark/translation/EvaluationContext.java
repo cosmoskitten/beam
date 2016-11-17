@@ -157,7 +157,7 @@ public class EvaluationContext implements EvaluationResult {
     leaves.remove(dataset);
     if (multiReads.contains(pvalue)) {
       // Ensure the RDD is marked as cached
-      dataset.cache(runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel());
+      dataset.cache(storageLevel());
     } else {
       multiReads.add(pvalue);
     }
@@ -175,7 +175,7 @@ public class EvaluationContext implements EvaluationResult {
   public void computeOutputs() {
     for (Dataset dataset : leaves) {
       // cache so that any subsequent get() is cheap.
-      dataset.cache(runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel());
+      dataset.cache(storageLevel());
       dataset.action(); // force computation.
     }
   }
@@ -275,5 +275,9 @@ public class EvaluationContext implements EvaluationResult {
 
   private boolean isStreamingPipeline() {
     return jssc != null;
+  }
+
+  private String storageLevel() {
+    return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
   }
 }
