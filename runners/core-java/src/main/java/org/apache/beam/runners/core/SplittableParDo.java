@@ -377,9 +377,9 @@ public class SplittableParDo {
      */
     private StateTag<Object, ValueState<RestrictionT>> restrictionTag;
 
-    private StateInternalsFactory<String> stateInternalsFactory;
-    private TimerInternalsFactory<String> timerInternalsFactory;
-    private OutputWindowedValue<OutputT> outputWindowedValue;
+    private transient StateInternalsFactory<String> stateInternalsFactory;
+    private transient TimerInternalsFactory<String> timerInternalsFactory;
+    private transient OutputWindowedValue<OutputT> outputWindowedValue;
 
     private final DoFn<InputT, OutputT> fn;
     private final Coder<? extends BoundedWindow> windowCoder;
