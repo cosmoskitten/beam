@@ -214,7 +214,7 @@ public class DoFnAdapters {
     }
 
     @Override
-    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+    public RestrictionTracker<?> restrictionTracker() {
       throw new UnsupportedOperationException("This is a non-splittable DoFn");
     }
 
@@ -326,7 +326,7 @@ public class DoFnAdapters {
     }
 
     @Override
-    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+    public RestrictionTracker<?> restrictionTracker() {
       throw new UnsupportedOperationException("This is a non-splittable DoFn");
     }
 
