@@ -65,6 +65,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ContextParameter;
@@ -101,7 +102,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   /**
    * Creates a {@link DoFnInvoker} for the given {@link DoFn} by generating bytecode that directly
-   * invokes its methods with arguments extracted from the {@link DoFn.ArgumentProvider}.
+   * invokes its methods with arguments extracted from the {@link ArgumentProvider}.
    */
   @Override
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(DoFn<InputT, OutputT> fn) {
@@ -161,7 +162,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
 
     @Override
-    public void invokeOnTimer(String timerId, DoFn.ArgumentProvider<InputT, OutputT> arguments) {
+    public void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments) {
       @Nullable OnTimerInvoker onTimerInvoker = onTimerInvokers.get(timerId);
 
       if (onTimerInvoker != null) {
@@ -504,18 +505,18 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       String methodName, Class<?>... parameterTypes) {
     try {
       return new MethodDescription.ForLoadedMethod(
-          DoFn.ArgumentProvider.class.getMethod(methodName, parameterTypes));
+          ArgumentProvider.class.getMethod(methodName, parameterTypes));
     } catch (Exception e) {
       throw new IllegalStateException(
           String.format(
               "Failed to locate required method %s.%s",
-              DoFn.ArgumentProvider.class.getSimpleName(), methodName),
+              ArgumentProvider.class.getSimpleName(), methodName),
           e);
     }
   }
 
   /**
-   * Calls a zero-parameter getter on the {@link DoFn.ArgumentProvider}, which must be on top of the
+   * Calls a zero-parameter getter on the {@link ArgumentProvider}, which must be on top of the
    * stack.
    */
   private static StackManipulation simpleExtraContextParameter(String methodName) {

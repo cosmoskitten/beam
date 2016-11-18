@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -77,7 +78,7 @@ public class DoFnAdapters {
   public static <InputT, OutputT> OldDoFn<InputT, OutputT>.ProcessContext adaptProcessContext(
       OldDoFn<InputT, OutputT> fn,
       final DoFn<InputT, OutputT>.ProcessContext c,
-      final DoFn.ArgumentProvider<InputT, OutputT> extra) {
+      final ArgumentProvider<InputT, OutputT> extra) {
     return fn.new ProcessContext() {
       @Override
       public InputT element() {
@@ -270,12 +271,12 @@ public class DoFnAdapters {
   }
 
   /**
-   * Wraps an {@link OldDoFn.Context} as a {@link DoFn.ArgumentProvider} inside a {@link
+   * Wraps an {@link OldDoFn.Context} as a {@link ArgumentProvider} inside a {@link
    * DoFn.StartBundle} or {@link DoFn.FinishBundle} method, which means the extra context is
    * unavailable.
    */
   private static class ContextAdapter<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
-      implements DoFn.ArgumentProvider<InputT, OutputT> {
+      implements ArgumentProvider<InputT, OutputT> {
 
     private OldDoFn<InputT, OutputT>.Context context;
 
@@ -371,11 +372,11 @@ public class DoFnAdapters {
   }
 
   /**
-   * Wraps an {@link OldDoFn.ProcessContext} as a {@link DoFn.ArgumentProvider} method.
+   * Wraps an {@link OldDoFn.ProcessContext} as a {@link ArgumentProvider} method.
    */
   private static class ProcessContextAdapter<InputT, OutputT>
       extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFn.ArgumentProvider<InputT, OutputT> {
+      implements ArgumentProvider<InputT, OutputT> {
 
     private OldDoFn<InputT, OutputT>.ProcessContext context;
 

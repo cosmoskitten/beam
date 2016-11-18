@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn.InputProvider;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -183,7 +184,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
   private static class DoFnContext<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
-      implements DoFn.ArgumentProvider<InputT, OutputT> {
+      implements ArgumentProvider<InputT, OutputT> {
     private static final int MAX_SIDE_OUTPUTS = 1000;
 
     final PipelineOptions options;
@@ -424,7 +425,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
   private class DoFnProcessContext<InputT, OutputT> extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFn.ArgumentProvider<InputT, OutputT> {
+      implements ArgumentProvider<InputT, OutputT> {
 
     final DoFn<InputT, OutputT> fn;
     final DoFnContext<InputT, OutputT> context;

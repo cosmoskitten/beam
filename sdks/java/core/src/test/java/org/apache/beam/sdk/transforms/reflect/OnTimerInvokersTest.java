@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -43,7 +44,7 @@ public class OnTimerInvokersTest {
 
   @Mock private BoundedWindow mockWindow;
 
-  @Mock private DoFn.ArgumentProvider<String, String> mockArgumentProvider;
+  @Mock private ArgumentProvider<String, String> mockArgumentProvider;
 
   @Before
   public void setUp() {

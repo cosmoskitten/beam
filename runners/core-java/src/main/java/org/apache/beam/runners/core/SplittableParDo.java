@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -392,10 +393,10 @@ public class SplittableParDo<
     }
 
     /**
-     * Creates an {@link DoFn.ArgumentProvider} that provides the given tracker as well as the given
+     * Creates an {@link ArgumentProvider} that provides the given tracker as well as the given
      * {@link ProcessContext} (which is also provided when a {@link Context} is requested.
      */
-    private DoFn.ArgumentProvider<InputT, OutputT> wrapTracker(
+    private ArgumentProvider<InputT, OutputT> wrapTracker(
         TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
 
       return new ArgumentProviderForTracker<>(tracker, processContext);
@@ -403,7 +404,7 @@ public class SplittableParDo<
 
     private static class ArgumentProviderForTracker<
             InputT, OutputT, TrackerT extends RestrictionTracker<?>>
-        implements DoFn.ArgumentProvider<InputT, OutputT> {
+        implements ArgumentProvider<InputT, OutputT> {
       private final TrackerT tracker;
       private final DoFn<InputT, OutputT>.ProcessContext processContext;
 
