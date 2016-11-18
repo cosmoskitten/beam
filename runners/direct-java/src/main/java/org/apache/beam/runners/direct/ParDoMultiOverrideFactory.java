@@ -17,18 +17,14 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.core.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.util.KeyedWorkItem;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TupleTagList;
 
 /**
  * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}

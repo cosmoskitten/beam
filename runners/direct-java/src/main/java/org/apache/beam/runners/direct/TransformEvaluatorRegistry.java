@@ -50,9 +50,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
         ImmutableMap.<Class<? extends PTransform>, TransformEvaluatorFactory>builder()
             .put(Read.Bounded.class, new BoundedReadEvaluatorFactory(ctxt))
             .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory(ctxt))
-            .put(
-                ParDo.BoundMulti.class,
-                new ParDoEvaluatorFactory<>(ctxt, new ParDoMultiEvaluatorHooks<>()))
+            .put(ParDo.BoundMulti.class, new ParDoEvaluatorFactory<>(ctxt))
             .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory(ctxt))
             .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory(ctxt))
             .put(Window.Bound.class, new WindowEvaluatorFactory(ctxt))
