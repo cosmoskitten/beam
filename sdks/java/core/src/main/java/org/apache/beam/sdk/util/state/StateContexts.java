@@ -24,7 +24,7 @@ import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Factory that produces {@link StateContext} based on different inputs.
+ * Static methods for working with {@link StateContext}.
  */
 public class StateContexts {
   private static final StateContext<BoundedWindow> NULL_CONTEXT =
@@ -42,21 +42,44 @@ public class StateContexts {
         @Override
         public BoundedWindow window() {
           throw new IllegalArgumentException("cannot call window() in a null context");
-        }};
+        }
+      };
 
-  /**
-   * Returns a fake {@link StateContext}.
-   */
+  /** Returns a fake {@link StateContext}. */
   @SuppressWarnings("unchecked")
   public static <W extends BoundedWindow> StateContext<W> nullContext() {
     return (StateContext<W>) NULL_CONTEXT;
   }
 
   /**
-   * Deprecated, do not use.
-   *
-   * <p>This exists only for temporary compatibility with Dataflow worker and should be deleted
-   * once a worker image is released that uses runners-core build after
+   * @deprecated This exists only for temporary compatibility with Dataflow worker and should be deleted once
+   * a worker image is released that uses runners-core build after
+   * https://github.com/apache/incubator-beam/pull/1353.
+   */
+  @Deprecated
+  public static <W extends BoundedWindow> StateContext<W> windowOnly(final W window) {
+    return new StateContext<W>() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        throw new IllegalArgumentException(
+            "cannot call getPipelineOptions() in a window only context");
+      }
+
+      @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        throw new IllegalArgumentException("cannot call sideInput() in a window only context");
+      }
+
+      @Override
+      public W window() {
+        return window;
+      }
+    };
+  }
+
+  /**
+   * @deprecated This exists only for temporary compatibility with Dataflow worker and should be deleted once
+   * a worker image is released that uses runners-core build after
    * https://github.com/apache/incubator-beam/pull/1353.
    */
   @Deprecated
