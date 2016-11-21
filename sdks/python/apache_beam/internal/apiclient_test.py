@@ -18,7 +18,6 @@
 
 import unittest
 
-from apache_beam.internal import apiclient
 from apache_beam.utils.options import PipelineOptions
 from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
 
@@ -30,7 +29,6 @@ class UtilTest(unittest.TestCase):
     apiclient.DataflowApplicationClient(
         pipeline_options,
         DataflowPipelineRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
-
 
 if __name__ == '__main__':
   unittest.main()
