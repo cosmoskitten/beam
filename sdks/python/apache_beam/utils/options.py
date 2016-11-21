@@ -119,7 +119,7 @@ class PipelineOptions(HasDisplayData):
     Returns:
       Dictionary of all args and values.
     """
-    parser = argparse.ArgumentParser(conflict_handler='resolve')
+    parser = argparse.ArgumentParser()
     for cls in PipelineOptions.__subclasses__():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     known_args, _ = parser.parse_known_args(self._flags)

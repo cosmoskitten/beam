@@ -33,7 +33,6 @@ from apache_beam.internal.auth import get_service_credentials
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import dependency
 from apache_beam.utils import retry
 from apache_beam.utils.dependency import get_required_container_version
@@ -243,27 +242,11 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
 
-      items = self.format_options_display_data(options)
+      dd = DisplayData.create_from_options(options)
+      items = [item.get_dict() for item in dd.items]
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
-
-  @classmethod
-  def format_options_display_data(cls, options):
-    dd = DisplayData.create_from(options)
-    items = []
-    for item in dd.items:
-      try:
-        items.append(item.get_dict())
-      except ValueError:
-        if isinstance(item.value, list):
-          value = ', '.join(item.value)
-          item = DisplayDataItem(value, key=item.key, namespace=item.namespace,
-                                 label=item.label)
-          items.append(item.get_dict())
-        else:
-          raise
-    return items
 
 
 class Job(object):

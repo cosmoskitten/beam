@@ -18,13 +18,9 @@
 
 import unittest
 
-import hamcrest as hc
-
 from apache_beam.internal import apiclient
 from apache_beam.utils.options import PipelineOptions
 from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
-from apache_beam.transforms.display import HasDisplayData
-from apache_beam.transforms.display import DisplayDataItem
 
 
 class UtilTest(unittest.TestCase):
@@ -34,29 +30,6 @@ class UtilTest(unittest.TestCase):
     apiclient.DataflowApplicationClient(
         pipeline_options,
         DataflowPipelineRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
-
-  def test_unsupported_type_display_data(self):
-    it = DisplayDataItem({'key': 'value'})
-
-    class MyDisplayComponent(HasDisplayData):
-      def display_data(self):
-        return {'item_key': self.it}
-
-      def __init__(self, it):
-        self.it = it
-
-    with self.assertRaises(ValueError):
-      apiclient.Environment.format_options_display_data(MyDisplayComponent(it))
-
-  def test_create_list_display_data(self):
-    flags = ['--extra_package', 'package1', '--extra_package', 'package2']
-    pipeline_options = PipelineOptions(flags=flags)
-    items = apiclient.Environment.format_options_display_data(pipeline_options)
-    hc.assert_that(
-        [{'type': 'STRING',
-          'namespace': 'apache_beam.utils.options.PipelineOptions',
-          'value': 'package1, package2', 'key': 'extra_packages'}],
-        hc.contains_inanyorder(*items))
 
 
 if __name__ == '__main__':
