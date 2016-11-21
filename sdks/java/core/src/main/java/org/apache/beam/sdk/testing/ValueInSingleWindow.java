@@ -18,13 +18,14 @@
 package org.apache.beam.sdk.testing;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.joda.time.Instant;
@@ -58,19 +59,22 @@ public abstract class ValueInSingleWindow<T> {
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
-  public static class FullCoder<T> extends AtomicCoder<ValueInSingleWindow<T>> {
-    private final Coder<T> valueCoder;
-    private final Coder<BoundedWindow> windowCoder;
+  public static class Coder<T> extends StandardCoder<ValueInSingleWindow<T>> {
+    private final org.apache.beam.sdk.coders.Coder<T> valueCoder;
+    private final org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder;
 
-    public static <T> FullCoder<T> of(
-        Coder<T> valueCoder, Coder<? extends BoundedWindow> windowCoder) {
-      return new FullCoder<>(valueCoder, windowCoder);
+    public static <T> Coder<T> of(
+        org.apache.beam.sdk.coders.Coder<T> valueCoder,
+        org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
+      return new Coder<>(valueCoder, windowCoder);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    FullCoder(Coder<T> valueCoder, Coder<? extends BoundedWindow> windowCoder) {
+    Coder(
+        org.apache.beam.sdk.coders.Coder<T> valueCoder,
+        org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
       this.valueCoder = valueCoder;
-      this.windowCoder = (Coder) windowCoder;
+      this.windowCoder = (org.apache.beam.sdk.coders.Coder) windowCoder;
     }
 
     @Override
@@ -91,6 +95,17 @@ public abstract class ValueInSingleWindow<T> {
       BoundedWindow window = windowCoder.decode(inStream, nestedContext);
       PaneInfo pane = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream, nestedContext);
       return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, pane);
+    }
+
+    @Override
+    public List<? extends org.apache.beam.sdk.coders.Coder<?>> getCoderArguments() {
+      return ImmutableList.of(valueCoder);
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      valueCoder.verifyDeterministic();
+      windowCoder.verifyDeterministic();
     }
   }
 }

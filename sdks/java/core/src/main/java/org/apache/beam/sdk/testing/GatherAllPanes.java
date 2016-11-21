@@ -61,7 +61,7 @@ public class GatherAllPanes<T>
     return input
         .apply(ParDo.of(new ReifyTimestampsAndWindowsFn<T>()))
         .setCoder(
-            ValueInSingleWindow.FullCoder.of(
+            ValueInSingleWindow.Coder.of(
                 input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()))
         .apply(
             WithKeys.<Integer, ValueInSingleWindow<T>>of(0)
@@ -82,7 +82,7 @@ public class GatherAllPanes<T>
   private static class ReifyTimestampsAndWindowsFn<T> extends DoFn<T, ValueInSingleWindow<T>> {
     @DoFn.ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
-      c.output(new AutoValue_ValueInSingleWindow<T>(c.element(), c.timestamp(), window, c.pane()));
+      c.output(ValueInSingleWindow.of(c.element(), c.timestamp(), window, c.pane()));
     }
   }
 }
