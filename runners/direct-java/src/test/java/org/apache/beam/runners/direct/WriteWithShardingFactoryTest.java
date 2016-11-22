@@ -52,6 +52,7 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.util.PathUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -80,7 +81,7 @@ public class WriteWithShardingFactoryTest {
 
     String fileName = "resharded_write";
     String outputPath = tmp.getRoot().getAbsolutePath();
-    String targetLocation = IOChannelUtils.resolve(outputPath, fileName);
+    String targetLocation = PathUtils.resolve(outputPath, fileName);
     TestPipeline p = TestPipeline.create();
     // TextIO is implemented in terms of the Write PTransform. When sharding is not specified,
     // resharding should be automatically applied
