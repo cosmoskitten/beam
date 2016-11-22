@@ -75,8 +75,8 @@ public abstract class TypeDescriptor<T> implements Serializable {
    * resolve to a concrete type in the context of the class {@code clazz}.
    *
    * <p>Unlike {@link TypeDescriptor#TypeDescriptor(Class)} this will also use context's of the
-   * enclosing instances while attempting to resolve the type. This means that the types of any
-   * classes instantiated in the concrete instance should be resolvable.
+   * enclosing instances while attempting to resolve the type. This means that
+   * the types of any classes instantiated in the concrete instance should be resolvable.
    */
   protected TypeDescriptor(Object instance) {
     TypeToken<?> unresolvedToken = new TypeToken<T>(getClass()) {};

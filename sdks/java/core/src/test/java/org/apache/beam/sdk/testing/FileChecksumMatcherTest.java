@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
 
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.PathUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -124,7 +124,7 @@ public class FileChecksumMatcherTest {
     FileChecksumMatcher matcher =
         new FileChecksumMatcher(
             "90552392c28396935fe4f123bd0b5c2d0f6260c8",
-            IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "result-*"));
+            PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "result-*"));
 
     assertThat(pResult, matcher);
   }
@@ -136,7 +136,7 @@ public class FileChecksumMatcherTest {
     FileChecksumMatcher matcher =
         new FileChecksumMatcher(
             "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-            IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
+            PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"));
 
     assertThat(pResult, matcher);
   }
@@ -153,7 +153,7 @@ public class FileChecksumMatcherTest {
         Pattern.compile("(?x) result (?<shardnum>\\d+) - total (?<numshards>\\d+)");
     FileChecksumMatcher matcher = new FileChecksumMatcher(
         "90552392c28396935fe4f123bd0b5c2d0f6260c8",
-        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"),
+        PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"),
         customizedTemplate);
 
     assertThat(pResult, matcher);
@@ -166,7 +166,7 @@ public class FileChecksumMatcherTest {
 
     FileChecksumMatcher matcher = new FileChecksumMatcher(
         "mock-checksum",
-        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"),
+        PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"),
         Pattern.compile("incorrect-template"));
 
     thrown.expect(IOException.class);
@@ -183,7 +183,8 @@ public class FileChecksumMatcherTest {
 
     FileChecksumMatcher matcher =
         spy(new FileChecksumMatcher(
-            "mock-checksum", IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*")));
+            "mock-checksum",
+            PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*")));
     doThrow(IOException.class)
         .when(matcher).readLines(anyCollection(), any(IOChannelFactory.class));
 
@@ -198,7 +199,7 @@ public class FileChecksumMatcherTest {
   public void testReadWithRetriesFailsWhenOutputDirEmpty() throws Exception {
     FileChecksumMatcher matcher =
         new FileChecksumMatcher(
-            "mock-checksum", IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
+            "mock-checksum", PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"));
 
     thrown.expect(IOException.class);
     thrown.expectMessage(
@@ -214,7 +215,7 @@ public class FileChecksumMatcherTest {
 
     FileChecksumMatcher matcher =
         new FileChecksumMatcher(
-            "mock-checksum", IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
+            "mock-checksum", PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"));
 
     thrown.expect(IOException.class);
     thrown.expectMessage(
