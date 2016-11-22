@@ -273,7 +273,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .createBundle(producingTransform.getInput())
             .add(gbkOutputElement)
             .commit(Instant.now());
-    TransformEvaluator<KV<String, Iterable<Integer>>> evaluator = factory.forApplication(producingTransform, inputBundle);
+    TransformEvaluator<KV<String, Iterable<Integer>>> evaluator =
+        factory.forApplication(producingTransform, inputBundle);
     evaluator.processElement(gbkOutputElement);
 
     // This should push back just one element for the combined key and window, not two
