@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -307,15 +306,15 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     private static String buildTemporaryDirectoryName(String baseOutputFilename) {
       try {
-        IOChannelFactory factory = IOChannelUtils.getFactory(baseOutputFilename);
-        Path baseOutputPath = factory.toPath(baseOutputFilename);
-        return baseOutputPath
-            .resolveSibling(
-                "temp-beam-"
-                    + baseOutputPath.getFileName()
-                    + "-"
-                    + Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")))
-            .toString();
+        IOChannelFactory ioChannelFactory = IOChannelUtils.getFactory(baseOutputFilename);
+        String tempDirectory = String.format(
+            "temp-beam-%s-%s",
+            ioChannelFactory.getFileName(baseOutputFilename),
+            Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")));
+
+        return ioChannelFactory.resolveSibling(
+            baseOutputFilename,
+            tempDirectory);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

@@ -21,7 +21,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 
@@ -105,8 +104,25 @@ public interface IOChannelFactory {
    */
   String resolve(String path, String other) throws IOException;
 
-  /** Converts the given string to a {@link Path}. */
-  Path toPath(String path);
+   /**
+   * Resolve the given {@code other} against the {@code path}'s parent.
+   *
+   * <p>If {@code path} does not have a parent path, or {@code other} is absolute,
+   * then this method returns {@code other}. If {@code other} is an empty path
+   * then this method returns this path's parent, or where this path doesn't have a parent,
+   * the empty path.
+   */
+  String resolveSibling(String path, String other) throws IOException;
+
+  /**
+   * Returns the name of the file or directory denoted by this path as a
+   * {@code String}. The file name is the <em>farthest</em> element from
+   * the root in the directory hierarchy.
+   *
+   * @return  a string representing the name of the file or directory, or
+   *          {@code null} if this path has zero elements
+   */
+  String getFileName(String path) throws IOException;
 
   /**
    * Copies a collection of files from one location to another.
