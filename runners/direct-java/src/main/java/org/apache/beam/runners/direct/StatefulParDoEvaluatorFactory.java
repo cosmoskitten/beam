@@ -18,9 +18,18 @@
 package org.apache.beam.runners.direct;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Function;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
@@ -213,8 +222,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     }
 
     @Override
-    public void processElement(WindowedValue<KV<K, Iterable<InputT>>> gbkResult)
-        throws Exception {
+    public void processElement(WindowedValue<KV<K, Iterable<InputT>>> gbkResult) throws Exception {
 
       for (InputT value : gbkResult.getValue().getValue()) {
         delegateEvaluator.processElement(
@@ -224,7 +232,66 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
     @Override
     public TransformResult finishBundle() throws Exception {
-      return delegateEvaluator.finishBundle();
+      TransformResult delegateResult = delegateEvaluator.finishBundle();
+
+      StepTransformResult.Builder regroupedResult =
+          StepTransformResult.withHold(
+                  delegateResult.getTransform(), delegateResult.getWatermarkHold())
+              .withTimerUpdate(delegateResult.getTimerUpdate())
+              .withAggregatorChanges(delegateResult.getAggregatorChanges())
+              .withMetricUpdates(delegateResult.getLogicalMetricUpdates())
+              .addOutput(Lists.newArrayList(delegateResult.getOutputBundles()));
+
+      // The delegate may have pushed back unprocessed elements across multiple keys and windows,
+      // but each key and window much remain grouped for single-threaded processing when it is
+      // ready.
+      // The pushed-back values are synthetic and guaranteed to all have the same timestamp per
+      // key and window.
+      Map<BoundedWindow, Map<K, List<WindowedValue<KV<K, InputT>>>>> unprocessed = new HashMap<>();
+      for (WindowedValue<?> untypedUnprocessed : delegateResult.getUnprocessedElements()) {
+        WindowedValue<KV<K, InputT>> windowedKv = (WindowedValue<KV<K, InputT>>) untypedUnprocessed;
+        for (BoundedWindow w : windowedKv.getWindows()) {
+          @Nullable Map<K, List<WindowedValue<KV<K, InputT>>>> kvMap = unprocessed.get(w);
+          if (kvMap == null) {
+            kvMap = new HashMap<>();
+            unprocessed.put(w, kvMap);
+          }
+
+          K key = windowedKv.getValue().getKey();
+          @Nullable List<WindowedValue<KV<K, InputT>>> unprocessedValues = kvMap.get(key);
+          if (unprocessedValues == null) {
+            unprocessedValues = new ArrayList<>();
+            kvMap.put(key, unprocessedValues);
+          }
+          unprocessedValues.add(windowedKv);
+        }
+      }
+
+      for (Map.Entry<BoundedWindow, Map<K, List<WindowedValue<KV<K, InputT>>>>> windowedEntry :
+          unprocessed.entrySet()) {
+        for (Map.Entry<K, List<WindowedValue<KV<K, InputT>>>> unprocessedKvEntry :
+            windowedEntry.getValue().entrySet()) {
+          // Guaranteed to exist or we wouldn't have created the entry
+          WindowedValue<KV<K, InputT>> representativeElement = unprocessedKvEntry.getValue().get(0);
+
+          regroupedResult.addUnprocessedElements(
+              representativeElement.withValue(
+                  KV.of(
+                      representativeElement.getValue().getKey(),
+                      Iterables.transform(
+                          unprocessedKvEntry.getValue(),
+                          new Function<WindowedValue<KV<K, InputT>>, InputT>() {
+                            @Nonnull
+                            @Override
+                            public InputT apply(
+                                @Nonnull WindowedValue<KV<K, InputT>> kvWindowedValue) {
+                              return kvWindowedValue.getValue().getValue();
+                            }
+                          }))));
+        }
+      }
+
+      return regroupedResult.build();
     }
   }
 }
