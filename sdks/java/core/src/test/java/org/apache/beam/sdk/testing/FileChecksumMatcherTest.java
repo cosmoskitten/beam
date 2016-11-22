@@ -25,7 +25,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.PathUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -97,7 +97,7 @@ public class FileChecksumMatcherTest {
     FileChecksumMatcher matcher =
         new FileChecksumMatcher(
             "90552392c28396935fe4f123bd0b5c2d0f6260c8",
-            IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
+            PathUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
 
     assertThat(pResult, matcher);
   }
