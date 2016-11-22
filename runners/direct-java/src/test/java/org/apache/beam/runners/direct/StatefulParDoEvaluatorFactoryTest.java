@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
@@ -31,6 +30,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
@@ -277,18 +277,22 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
         factory.forApplication(producingTransform, inputBundle);
     evaluator.processElement(gbkOutputElement);
 
-    // This should push back just one element for the combined key and window, not two
+    // This should push back every element as a KV<String, Iterable<Integer>>
+    // in the appropriate window. Since the keys are equal they are single-threaded
     TransformResult result = evaluator.finishBundle();
-    assertThat(Iterables.size(result.getUnprocessedElements()), equalTo(1));
 
-    // The element should be in the firstWindow
-    WindowedValue<KV<String, Iterable<Integer>>> unprocessedElement =
-        (WindowedValue<KV<String, Iterable<Integer>>>)
-            Iterables.get(result.getUnprocessedElements(), 0);
-    assertThat(unprocessedElement.getWindows(), contains((BoundedWindow) firstWindow));
+    List<Integer> pushedBackInts = new ArrayList<>();
 
-    KV<String, Iterable<Integer>> unprocessedKv = unprocessedElement.getValue();
-    assertThat(unprocessedKv.getKey(), equalTo("hello"));
-    assertThat(unprocessedKv.getValue(), containsInAnyOrder(15, 1, 13));
+    for (WindowedValue<?> unprocessedElement : result.getUnprocessedElements()) {
+      WindowedValue<KV<String, Iterable<Integer>>> unprocessedKv =
+          (WindowedValue<KV<String, Iterable<Integer>>>) unprocessedElement;
+
+      assertThat(Iterables.getOnlyElement(unprocessedElement.getWindows()), equalTo((BoundedWindow) firstWindow));
+      assertThat(unprocessedKv.getValue().getKey(), equalTo("hello"));
+      for (Integer i : unprocessedKv.getValue().getValue()) {
+        pushedBackInts.add(i);
+      }
+    }
+    assertThat(pushedBackInts, containsInAnyOrder(1, 13, 15));
   }
 }
