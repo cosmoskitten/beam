@@ -116,6 +116,16 @@ public interface IOChannelFactory {
   String resolveSibling(String path, String other) throws IOException;
 
   /**
+   * Returns the name of the file or directory denoted by this path as a
+   * {@code String}. The file name is the <em>farthest</em> element from
+   * the root in the directory hierarchy.
+   *
+   * @return  a string representing the name of the file or directory, or
+   *          {@code null} if this path has zero elements
+   */
+  String getFileName(String path) throws IOException;
+
+  /**
    * Copies a collection of files from one location to another.
    *
    * <p>The number of source filenames must equal the number of destination filenames.

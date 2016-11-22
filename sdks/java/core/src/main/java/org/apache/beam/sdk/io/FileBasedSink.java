@@ -307,12 +307,13 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     private static String buildTemporaryDirectoryName(String baseOutputFilename) {
       try {
+        IOChannelFactory ioChannelFactory = IOChannelUtils.getFactory(baseOutputFilename);
         String tempDirectory = String.format(
-            "%s-temp-beam-%s",
-            baseOutputFilename,
+            "temp-beam-%s-%s",
+            ioChannelFactory.getFileName(baseOutputFilename),
             Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")));
 
-        return IOChannelUtils.getFactory(baseOutputFilename).resolveSibling(
+        return ioChannelFactory.resolveSibling(
             baseOutputFilename,
             tempDirectory);
       } catch (IOException e) {
