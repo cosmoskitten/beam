@@ -105,8 +105,15 @@ public interface IOChannelFactory {
    */
   String resolve(String path, String other) throws IOException;
 
-  /** Converts the given string to a {@link Path}. */
-  Path toPath(String path);
+   /**
+   * Resolve the given {@code other} against the {@code path}'s parent.
+   *
+   * <p>If {@code path} does not have a parent path, or {@code other} is absolute,
+   * then this method returns {@code other}. If {@code other} is an empty path
+   * then this method returns this path's parent, or where this path doesn't have a parent,
+   * the empty path.
+   */
+  String resolveSibling(String path, String other) throws IOException;
 
   /**
    * Copies a collection of files from one location to another.

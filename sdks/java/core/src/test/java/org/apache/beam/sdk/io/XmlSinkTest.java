@@ -149,7 +149,8 @@ public class XmlSinkTest {
     Path tempPath = new File(writeOp.tempDirectory).toPath();
     assertEquals(outputPath.getParent(), tempPath.getParent());
     assertThat(
-        tempPath.getFileName().toString(), containsString("temp-beam-" + outputPath.getFileName()));
+        tempPath.getFileName().toString(),
+        containsString(outputPath.getFileName() + "-temp-beam-"));
   }
 
   /**
@@ -166,7 +167,8 @@ public class XmlSinkTest {
     Path tempPath = new File(writer.getWriteOperation().tempDirectory).toPath();
     assertEquals(outputPath.getParent(), tempPath.getParent());
     assertThat(
-        tempPath.getFileName().toString(), containsString("temp-beam-" + outputPath.getFileName()));
+        tempPath.getFileName().toString(),
+        containsString(outputPath.getFileName() + "-temp-beam-"));
     assertEquals(testRootElement, writer.getWriteOperation().getSink().rootElementName);
     assertNotNull(writer.marshaller);
   }
