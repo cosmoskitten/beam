@@ -26,9 +26,9 @@ import com.google.common.collect.Ordering;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -286,12 +286,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /** Directory for temporary output files. */
     protected final String tempDirectory;
 
-    /** Constructs a temporary file path given the temporary directory and a filename. */
-    protected static String buildTemporaryFilename(String tempDirectory, String filename)
-        throws IOException {
-      return IOChannelUtils.getFactory(tempDirectory).resolve(tempDirectory, filename);
-    }
-
     /**
      * Constructs a FileBasedWriteOperation using the default strategy for generating a temporary
      * directory from the base output filename.
@@ -306,19 +300,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     private static String buildTemporaryDirectoryName(String baseOutputFilename) {
-      try {
-        IOChannelFactory factory = IOChannelUtils.getFactory(baseOutputFilename);
-        Path baseOutputPath = factory.toPath(baseOutputFilename);
-        return baseOutputPath
-            .resolveSibling(
-                "temp-beam-"
-                    + baseOutputPath.getFileName()
-                    + "-"
-                    + Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")))
-            .toString();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+      String tempDirectory = String.format(
+          "temp-beam-%s-%s/",
+          IOChannelUtils.getFileName(baseOutputFilename),
+          Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")));
+      return URI.create(baseOutputFilename).resolve(tempDirectory).toString();
     }
 
     /**
@@ -455,7 +441,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // (produced by successfully completed bundles).
       // This may still fail to remove temporary outputs of some failed bundles, but at least
       // the common case (where all bundles succeed) is guaranteed to be fully addressed.
-      Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
+      String glob = IOChannelUtils.resolve(tempDirectory, "*");
+      Collection<String> matches = factory.match(glob);
       Set<String> allMatches = new HashSet<>(matches);
       allMatches.addAll(knownFiles);
       LOG.debug(
@@ -562,8 +549,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     @Override
     public final void open(String uId) throws Exception {
       this.id = uId;
-      filename = FileBasedWriteOperation.buildTemporaryFilename(
-          getWriteOperation().tempDirectory, uId);
+      filename = IOChannelUtils.resolve(getWriteOperation().tempDirectory, uId);
       LOG.debug("Opening {}.", filename);
       final WritableByteChannelFactory factory =
           getWriteOperation().getSink().writableByteChannelFactory;

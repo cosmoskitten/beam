@@ -45,12 +45,12 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.junit.Rule;
 import org.junit.Test;
@@ -194,8 +194,7 @@ public class FileBasedSinkTest {
   private List<File> generateTemporaryFilesForFinalize(int numFiles) throws Exception {
     List<File> temporaryFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      String temporaryFilename =
-          FileBasedWriteOperation.buildTemporaryFilename(tempDirectory, "" + i);
+      String temporaryFilename = IOChannelUtils.resolve(tempDirectory, String.valueOf(i));
       File tmpFile = new File(tmpFolder.getRoot(), temporaryFilename);
       tmpFile.getParentFile().mkdirs();
       assertTrue(tmpFile.createNewFile());
@@ -246,8 +245,8 @@ public class FileBasedSinkTest {
     List<File> temporaryFiles = new ArrayList<>();
     List<File> outputFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      File tmpFile = new File(tmpFolder.getRoot(),
-          FileBasedWriteOperation.buildTemporaryFilename(baseTemporaryFilename, "" + i));
+      File tmpFile = new File(
+          tmpFolder.getRoot(), IOChannelUtils.resolve(baseTemporaryFilename, String.valueOf(i)));
       tmpFile.getParentFile().mkdirs();
       assertTrue(tmpFile.createNewFile());
       temporaryFiles.add(tmpFile);

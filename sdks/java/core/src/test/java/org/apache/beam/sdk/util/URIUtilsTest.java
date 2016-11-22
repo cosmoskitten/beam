@@ -1,0 +1,83 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.util;
+
+import static org.junit.Assert.assertEquals;
+
+import java.nio.file.Path;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+/**
+ * Unit tests for {@link URIUtils}.
+ */
+public class URIUtilsTest {
+  @Rule
+  public TemporaryFolder tmpFolder = new TemporaryFolder();
+
+  @Test
+  public void testResolveSinglePath() throws Exception {
+    String expected = tmpFolder.getRoot().toPath().resolve("aa").toString();
+    assertEquals(expected, URIUtils.resolve(tmpFolder.getRoot().toString(), "aa"));
+  }
+
+  @Test
+  public void testResolveMultiplePaths() throws Exception {
+    String expected =
+        tmpFolder.getRoot().toPath()
+            .resolve("aa")
+            .resolve("bb")
+            .resolve("cc/").toString();
+    assertEquals(expected,
+        URIUtils.resolve(tmpFolder.getRoot().getPath(), "aa/", "bb/", "cc/"));
+  }
+
+  @Test
+  public void testResolve() throws Exception {
+    Path rootPath = tmpFolder.getRoot().toPath();
+    String rootString = rootPath.toString();
+
+    String expected = rootPath.resolve("aa").toString();
+    assertEquals(expected, URIUtils.resolve(rootString, "aa"));
+    assertEquals(expected, URIUtils.resolve("file:" + rootString, "aa"));
+    assertEquals(expected, URIUtils.resolve("file://" + rootString, "aa"));
+  }
+
+  @Test
+  public void testResolveOtherIsFullPath() throws Exception {
+    String expected = tmpFolder.getRoot().getPath();
+    assertEquals(expected, URIUtils.resolve(expected, expected));
+  }
+
+  @Test
+  public void testResolveOtherIsEmptyPath() throws Exception {
+    String expected = tmpFolder.getRoot().getPath();
+    assertEquals(expected, URIUtils.resolve(expected, ""));
+  }
+
+  @Test
+  public void testGetFileName() throws Exception {
+    assertEquals("", URIUtils.getFileName(""));
+    assertEquals("", URIUtils.getFileName("/"));
+    assertEquals("", URIUtils.getFileName("//"));
+    assertEquals("a", URIUtils.getFileName("/a/"));
+    assertEquals("ab", URIUtils.getFileName("ab/"));
+    assertEquals("c", URIUtils.getFileName("/ab/c"));
+  }
+}

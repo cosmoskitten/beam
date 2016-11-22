@@ -456,7 +456,7 @@ public class AvroIOTest {
   public void testPrimitiveWriteDisplayData() throws IOException {
     PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
     String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
-    String outputPath = IOChannelUtils.getFactory(tempRoot).resolve(tempRoot, "foo");
+    String outputPath = IOChannelUtils.resolve(tempRoot, "foo");
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 

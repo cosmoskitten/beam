@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -98,20 +99,6 @@ public class IOChannelUtilsTest {
     File file = tmpFolder.newFile();
     Files.write(data, file, StandardCharsets.UTF_8);
     assertEquals(data.length(), IOChannelUtils.getSizeBytes(file.getPath()));
-  }
-
-  @Test
-  public void testResolveSinglePath() throws Exception {
-    String expected = tmpFolder.getRoot().toPath().resolve("aa").toString();
-    assertEquals(expected, IOChannelUtils.resolve(tmpFolder.getRoot().toString(), "aa"));
-  }
-
-  @Test
-  public void testResolveMultiplePaths() throws Exception {
-    String expected =
-        tmpFolder.getRoot().toPath().resolve("aa").resolve("bb").resolve("cc").toString();
-    assertEquals(expected,
-        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "aa", "bb", "cc"));
   }
 
   @Test
