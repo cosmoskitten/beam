@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 
@@ -28,7 +29,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +48,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.util.PathUtils;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
@@ -296,7 +297,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /** Constructs a temporary file path given the temporary directory and a filename. */
     protected static String buildTemporaryFilename(String tempDirectory, String filename)
         throws IOException {
-      return IOChannelUtils.getFactory(tempDirectory).resolve(tempDirectory, filename);
+      return PathUtils.resolveAgainstDirectory(tempDirectory, filename);
     }
 
     /**
@@ -313,7 +314,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
           sink.getBaseOutputFilenameProvider(), new TemporaryDirectoryBuilder()));
     }
 
-    private static class TemporaryDirectoryBuilder
+    @VisibleForTesting
+    static class TemporaryDirectoryBuilder
         implements SerializableFunction<String, String> {
       // The intent of the code is to have a consistent value of tempDirectory across
       // all workers, which wouldn't happen if now() was called inline.
@@ -321,19 +323,13 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
       @Override
       public String apply(String baseOutputFilename) {
-        try {
-          IOChannelFactory factory = IOChannelUtils.getFactory(baseOutputFilename);
-          Path baseOutputPath = factory.toPath(baseOutputFilename);
-          return baseOutputPath
-              .resolveSibling(
-                  "temp-beam-"
-                  + baseOutputPath.getFileName()
-                  + "-"
-                  + now.toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")))
-              .toString();
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
+        String tempDir = String.format(
+            "temp-beam-%s-%s/",
+            PathUtils.getFileName(baseOutputFilename),
+            Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")));
+        return PathUtils.resolveAgainstDirectory(
+            PathUtils.getDirectory(baseOutputFilename),
+            tempDir);
       }
     }
 
@@ -480,10 +476,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // TODO: Windows OS cannot resolves and matches '*' in the path,
       // ignore the exception for now to avoid failing the pipeline.
       try {
-        matches.addAll(factory.match(factory.resolve(tempDir, "*")));
+        matches.addAll(factory.match(PathUtils.resolveAgainstDirectory(tempDir, "*")));
       } catch (Exception e) {
         LOG.warn("Failed to match temporary files under: [{}].", tempDir);
       }
+
       Set<String> allMatches = new HashSet<>(matches);
       allMatches.addAll(knownFiles);
       LOG.debug(

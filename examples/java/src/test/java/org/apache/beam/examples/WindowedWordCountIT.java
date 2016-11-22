@@ -40,7 +40,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.ExplicitShardedFile;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.PathUtils;
 import org.apache.beam.sdk.util.ShardedFile;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -98,7 +98,7 @@ public class WindowedWordCountIT {
     options.setWindowSize(10);
 
     options.setOutput(
-        IOChannelUtils.resolve(
+        PathUtils.resolveAgainstDirectory(
             options.getTempRoot(),
             String.format("WindowedWordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
             "output",

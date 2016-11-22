@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import java.io.IOException;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
@@ -32,7 +31,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.PathUtils;
 
 /**
  * Options that can be used to configure the {@link DataflowRunner}.
@@ -120,13 +119,7 @@ public interface DataflowPipelineOptions
             "Error constructing default value for stagingLocation: gcpTempLocation is not"
             + " a valid GCS path, %s. ", gcpTempLocation), e);
       }
-      try {
-        return IOChannelUtils.resolve(gcpTempLocation, "staging");
-      } catch (IOException e) {
-        throw new IllegalArgumentException(String.format(
-            "Unable to resolve stagingLocation from gcpTempLocation: %s."
-            + " Please set the staging location explicitly.", gcpTempLocation), e);
-      }
+      return PathUtils.resolveAgainstDirectory(gcpTempLocation, "staging");
     }
   }
 }

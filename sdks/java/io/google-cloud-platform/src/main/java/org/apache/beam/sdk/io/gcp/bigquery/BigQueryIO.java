@@ -114,6 +114,7 @@ import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.util.PathUtils;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
@@ -725,15 +726,8 @@ public class BigQueryIO {
         BoundedSource<TableRow> source;
         final BigQueryServices bqServices = getBigQueryServices();
 
-        final String extractDestinationDir;
-        String tempLocation = bqOptions.getTempLocation();
-        try {
-          IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-          extractDestinationDir = factory.resolve(tempLocation, stepUuid);
-        } catch (IOException e) {
-          throw new RuntimeException(
-              String.format("Failed to resolve extract destination directory in %s", tempLocation));
-        }
+        final String extractDestinationDir =
+            PathUtils.resolveAgainstDirectory(bqOptions.getTempLocation(), stepUuid);
 
         final String executingProject = bqOptions.getProject();
         if (query != null && (!query.isAccessible() || !Strings.isNullOrEmpty(query.get()))) {
@@ -767,7 +761,8 @@ public class BigQueryIO {
                   IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
                   Collection<String> dirMatch = factory.match(extractDestinationDir);
                   if (!dirMatch.isEmpty()) {
-                    extractFiles = factory.match(factory.resolve(extractDestinationDir, "*"));
+                    extractFiles = factory.match(
+                        PathUtils.resolveAgainstDirectory(extractDestinationDir, "*"));
                   }
                 }
                 if (extractFiles != null && !extractFiles.isEmpty()) {
@@ -1459,10 +1454,9 @@ public class BigQueryIO {
     long filesCount = counts.get(0);
 
     ImmutableList.Builder<String> paths = ImmutableList.builder();
-    IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
     for (long i = 0; i < filesCount; ++i) {
-      String filePath =
-          factory.resolve(extractDestinationDir, String.format("%012d%s", i, ".avro"));
+      String filePath = PathUtils.resolveAgainstDirectory(
+          extractDestinationDir, String.format("%012d%s", i, ".avro"));
       paths.add(filePath);
     }
     return paths.build();
@@ -1975,17 +1969,8 @@ public class BigQueryIO {
             jobUuid, new BeamJobUuidToBigQueryJobUuid());
 
         String tempLocation = options.getTempLocation();
-        String tempFilePrefix;
-        try {
-          IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-          tempFilePrefix = factory.resolve(
-                  factory.resolve(tempLocation, "BigQueryWriteTemp"),
-                  stepUuid);
-        } catch (IOException e) {
-          throw new RuntimeException(
-              String.format("Failed to resolve BigQuery temp location in %s", tempLocation),
-              e);
-        }
+        String tempFilePrefix =
+            PathUtils.resolveAgainstDirectory(tempLocation, "BigQueryWriteTemp", stepUuid);
 
         PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
 

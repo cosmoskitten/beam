@@ -40,6 +40,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.util.PathUtils;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -119,7 +120,7 @@ public class PackageUtil {
 
       // Create the DataflowPackage with staging name and location.
       String uniqueName = getUniqueContentName(classpathElement, hash);
-      String resourcePath = IOChannelUtils.resolve(stagingPath, uniqueName);
+      String resourcePath = PathUtils.resolveAgainstDirectory(stagingPath, uniqueName);
       DataflowPackage target = new DataflowPackage();
       target.setName(overridePackageName != null ? overridePackageName : uniqueName);
       target.setLocation(resourcePath);
