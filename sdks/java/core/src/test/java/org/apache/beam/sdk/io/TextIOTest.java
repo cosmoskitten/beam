@@ -29,7 +29,6 @@ import static org.apache.beam.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.ZIP;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static org.apache.beam.sdk.util.IOChannelUtils.resolve;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -370,7 +369,7 @@ public class TextIOTest {
     List<File> expectedFiles = new ArrayList<>();
     if (numShards == 0) {
       String pattern =
-          resolve(rootLocation.toAbsolutePath().toString(), outputName + "*");
+          IOChannelUtils.resolve(rootLocation.toAbsolutePath().toString(), outputName + "*");
       for (String expected : IOChannelUtils.getFactory(pattern).match(pattern)) {
         expectedFiles.add(new File(expected));
       }
@@ -587,7 +586,7 @@ public class TextIOTest {
   public void testPrimitiveWriteDisplayData() throws IOException {
     PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
     String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
-    String outputPath = IOChannelUtils.getFactory(tempRoot).resolve(tempRoot, "foobar");
+    String outputPath = IOChannelUtils.resolve(tempRoot, "foobar");
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 

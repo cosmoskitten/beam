@@ -49,6 +49,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -1299,6 +1300,7 @@ public class BigQueryIO {
     ImmutableList.Builder<String> paths = ImmutableList.builder();
     IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
     for (long i = 0; i < filesCount; ++i) {
+      URI.create(extractDestinationDir);
       String filePath =
           factory.resolve(extractDestinationDir, String.format("%012d%s", i, ".avro"));
       paths.add(filePath);
@@ -2806,5 +2808,16 @@ public class BigQueryIO {
       map.put(key, value);
     }
     return value;
+  }
+
+  @VisibleForTesting
+  private static String resovle(String dir, String other) {
+    URI uri;
+    if (dir.endsWith("/")) {
+      uri = URI.create(dir);
+    } else {
+      uri = URI.create(dir + "/");
+    }
+    return uri.resolve(other).toString();
   }
 }

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.api.client.repackaged.com.google.common.base.Strings;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -28,6 +31,7 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.channels.WritableByteChannel;
 import java.text.DecimalFormat;
 import java.util.Arrays;
@@ -57,6 +61,8 @@ public class IOChannelUtils {
   private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+)");
 
   private static final ClassLoader CLASS_LOADER = ReflectHelpers.findClassLoader();
+
+  private static final String URI_DELIMITER = "/";
 
   /**
    * Associates a scheme with an {@link IOChannelFactory}.
@@ -308,21 +314,47 @@ public class IOChannelUtils {
   }
 
   /**
-   * Resolve multiple {@code others} against the {@code path} sequentially.
+   * Resolve multiple {@code others} against the {@code directory} sequentially.
    *
    * <p>Empty paths in {@code others} are ignored. If {@code others} contains one or more
    * absolute paths, then this method returns a path that starts with the last absolute path
    * in {@code others} joined with the remaining paths. Resolution of paths is highly
    * implementation dependent and therefore unspecified.
    */
-  public static String resolve(String path, String... others) throws IOException {
-    IOChannelFactory ioFactory = getFactory(path);
-    String fullPath = path;
+  public static String resolve(String directory, String... others) throws IOException {
+    URI dirUri;
+    if (directory.endsWith(URI_DELIMITER)) {
+      dirUri = URI.create(directory);
+    } else {
+      dirUri = URI.create(directory + URI_DELIMITER);
+    }
+    URI fullPath = dirUri;
 
     for (String other : others) {
-      fullPath = ioFactory.resolve(fullPath, other);
+      fullPath = fullPath.resolve(other);
     }
+    return fullPath.toString();
+  }
 
-    return fullPath;
+  /**
+   * Returns the name of the file or directory denoted by this path as a
+   * {@code String}. The file name is the <em>farthest</em> element from
+   * the root in the directory hierarchy.
+   *
+   * @return a string representing the name of the file or directory,
+   *         or an empty {@code String} if this path is "/" or empty,
+   *         or {@code null} if this path is {@code null}.
+   */
+  public static String getFileName(String path) {
+    checkNotNull(path, "path");
+    if (path.isEmpty() || path.equals(URI_DELIMITER)) {
+      return "";
+    } else if (path.endsWith(URI_DELIMITER)) {
+      return path.substring(
+          path.lastIndexOf(URI_DELIMITER, path.length() - 2) + 1,
+          path.length() - 1);
+    } else {
+      return path.substring(path.lastIndexOf(URI_DELIMITER) + 1);
+    }
   }
 }

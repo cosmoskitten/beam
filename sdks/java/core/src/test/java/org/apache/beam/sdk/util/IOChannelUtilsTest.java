@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -109,9 +110,35 @@ public class IOChannelUtilsTest {
   @Test
   public void testResolveMultiplePaths() throws Exception {
     String expected =
-        tmpFolder.getRoot().toPath().resolve("aa").resolve("bb").resolve("cc").toString();
+        tmpFolder.getRoot().toPath()
+            .resolve("aa")
+            .resolve("bb")
+            .resolve("cc/").toString();
     assertEquals(expected,
-        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "aa", "bb", "cc"));
+        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "aa/", "bb/", "cc/"));
+  }
+
+  @Test
+  public void testResolve() throws Exception {
+    Path rootPath = tmpFolder.getRoot().toPath();
+    String rootString = rootPath.toString();
+
+    String expected = rootPath.resolve("aa").toString();
+    assertEquals(expected, IOChannelUtils.resolve(rootString, "aa"));
+    assertEquals(expected, IOChannelUtils.resolve("file:" + rootString, "aa"));
+    assertEquals(expected, IOChannelUtils.resolve("file://" + rootString, "aa"));
+  }
+
+  @Test
+  public void testResolveOtherIsFullPath() throws Exception {
+    String expected = tmpFolder.getRoot().getPath();
+    assertEquals(expected, IOChannelUtils.resolve(expected, expected));
+  }
+
+  @Test
+  public void testResolveOtherIsEmptyPath() throws Exception {
+    String expected = tmpFolder.getRoot().getPath();
+    assertEquals(expected, IOChannelUtils.resolve(expected, ""));
   }
 
   @Test
@@ -144,5 +171,15 @@ public class IOChannelUtilsTest {
         Sets.<IOChannelFactoryRegistrar>newHashSet(
             new FileIOChannelFactoryRegistrar(),
             new FileIOChannelFactoryRegistrar()));
+  }
+
+  @Test
+  public void testGetFileName() throws Exception {
+    assertEquals("", IOChannelUtils.getFileName(""));
+    assertEquals("", IOChannelUtils.getFileName("/"));
+    assertEquals("", IOChannelUtils.getFileName("//"));
+    assertEquals("a", IOChannelUtils.getFileName("/a/"));
+    assertEquals("ab", IOChannelUtils.getFileName("ab/"));
+    assertEquals("c", IOChannelUtils.getFileName("/ab/c"));
   }
 }

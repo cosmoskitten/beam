@@ -165,16 +165,6 @@ public class FileIOChannelFactory implements IOChannelFactory {
   }
 
   @Override
-  public String resolve(String path, String other) throws IOException {
-    return toPath(path).resolve(other).toString();
-  }
-
-  @Override
-  public Path toPath(String path) {
-    return specToFile(path).toPath();
-  }
-
-  @Override
   public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
     checkArgument(
         srcFilenames.size() == destFilenames.size(),

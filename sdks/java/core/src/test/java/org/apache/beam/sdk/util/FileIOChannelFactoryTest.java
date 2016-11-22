@@ -29,9 +29,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.Reader;
 import java.io.Writer;
+import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -137,7 +139,7 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("ab");
 
     // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
-    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "b") + "*"),
+    assertThat(factory.match(IOChannelUtils.resolve(temporaryFolder.getRoot().getPath(), "b") + "*"),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -146,7 +148,7 @@ public class FileIOChannelFactoryTest {
     List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
     temporaryFolder.newFile("aa");
 
-    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a")),
+    assertThat(factory.match(IOChannelUtils.resolve(temporaryFolder.getRoot().getPath(), "a")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -155,7 +157,7 @@ public class FileIOChannelFactoryTest {
     List<String> expected = ImmutableList.of();
     temporaryFolder.newFile("aa");
 
-    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a")),
+    assertThat(factory.match(IOChannelUtils.resolve(temporaryFolder.getRoot().getPath(), "a")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -170,7 +172,7 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("bb");
 
     // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
-    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a") + "*"),
+    assertThat(factory.match(IOChannelUtils.resolve(temporaryFolder.getRoot().getPath(), "a") + "*"),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -189,7 +191,8 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("bb");
 
     // Windows doesn't like resolving paths with * in them, so the ** is appended after resolve.
-    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a") + "**"),
+    assertThat(
+        factory.match(IOChannelUtils.resolve(temporaryFolder.getRoot().getPath(), "a") + "**"),
         Matchers.hasItems(expected.toArray(new String[expected.size()])));
   }
 
@@ -199,39 +202,17 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFolder("a_dir_that_should_not_be_matched");
 
     // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
-    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a") + "*"),
+    assertThat(
+        factory.match(IOChannelUtils.resolve(temporaryFolder.getRoot().getPath(), "a") + "*"),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
   public void testMatchWithoutParentDirectory() throws Exception {
-    String pattern = factory.resolve(
-        factory.resolve(temporaryFolder.getRoot().getPath(), "non_existing_dir"),
+    String pattern = IOChannelUtils.resolve(
+        IOChannelUtils.resolve(temporaryFolder.getRoot().getPath(), "non_existing_dir"),
         "*");
     assertTrue(factory.match(pattern).isEmpty());
-  }
-
-  @Test
-  public void testResolve() throws Exception {
-    Path rootPath = temporaryFolder.getRoot().toPath();
-    String rootString = rootPath.toString();
-
-    String expected = rootPath.resolve("aa").toString();
-    assertEquals(expected, factory.resolve(rootString, "aa"));
-    assertEquals(expected, factory.resolve("file:" + rootString, "aa"));
-    assertEquals(expected, factory.resolve("file://" + rootString, "aa"));
-  }
-
-  @Test
-  public void testResolveOtherIsFullPath() throws Exception {
-    String expected = temporaryFolder.getRoot().getPath();
-    assertEquals(expected, factory.resolve(expected, expected));
-  }
-
-  @Test
-  public void testResolveOtherIsEmptyPath() throws Exception {
-    String expected = temporaryFolder.getRoot().getPath();
-    assertEquals(expected, factory.resolve(expected, ""));
   }
 
   @Test
@@ -246,6 +227,6 @@ public class FileIOChannelFactoryTest {
   public void testGetSizeBytesForNonExistentFile() throws Exception {
     thrown.expect(FileNotFoundException.class);
     factory.getSizeBytes(
-        factory.resolve(temporaryFolder.getRoot().getPath(), "non-existent-file"));
+        IOChannelUtils.resolve(temporaryFolder.getRoot().getPath(), "non-existent-file"));
   }
 }
