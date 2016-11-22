@@ -72,10 +72,10 @@ public abstract class TypeDescriptor<T> implements Serializable {
 
   /**
    * Creates a {@link TypeDescriptor} representing the type parameter {@code T}, which should
-   * resolve to a concrete type in the context of the class {@code clazz}.
+   * resolveAgainstDirectory to a concrete type in the context of the class {@code clazz}.
    *
    * <p>Unlike {@link TypeDescriptor#TypeDescriptor(Class)} this will also use context's of the
-   * enclosing instances while attempting to resolve the type. This means that the types of any
+   * enclosing instances while attempting to resolveAgainstDirectory the type. This means that the types of any
    * classes instantiated in the concrete instance should be resolvable.
    */
   protected TypeDescriptor(Object instance) {
@@ -146,7 +146,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
 
   /**
    * Creates a {@link TypeDescriptor} representing the type parameter
-   * {@code T}, which should resolve to a concrete type in the context
+   * {@code T}, which should resolveAgainstDirectory to a concrete type in the context
    * of the class {@code clazz}.
    */
   @SuppressWarnings("unchecked")

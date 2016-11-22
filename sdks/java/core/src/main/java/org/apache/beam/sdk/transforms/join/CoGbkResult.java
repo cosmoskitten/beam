@@ -424,7 +424,7 @@ public class CoGbkResult {
       if (unions.hasNext()) {
         return true;
       } else {
-        // Now that we've iterated over all the values, we can resolve all the "unknown" null
+        // Now that we've iterated over all the values, we can resolveAgainstDirectory all the "unknown" null
         // values to false.
         for (int i = 0; i < containsTag.length; i++) {
           if (containsTag[i] == null) {

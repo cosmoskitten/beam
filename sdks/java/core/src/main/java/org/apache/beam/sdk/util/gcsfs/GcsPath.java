@@ -442,7 +442,7 @@ public class GcsPath implements Path {
   @Override
   public Path resolveSibling(String other) {
     if (getNameCount() < 2) {
-      throw new UnsupportedOperationException("Can't resolve the sibling of a root path: " + this);
+      throw new UnsupportedOperationException("Can't resolveAgainstDirectory the sibling of a root path: " + this);
     }
     GcsPath parent = getParent();
     return (parent == null) ? fromUri(other) : parent.resolve(other);

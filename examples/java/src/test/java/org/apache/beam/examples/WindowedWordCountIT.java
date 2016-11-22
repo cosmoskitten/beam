@@ -25,7 +25,7 @@ import org.apache.beam.sdk.testing.BigqueryMatcher;
 import org.apache.beam.sdk.testing.StreamingIT;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.PathUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -73,7 +73,7 @@ public class WindowedWordCountIT {
 
     // Note: currently unused because the example writes to BigQuery, but WindowedWordCount.Options
     // are tightly coupled to WordCount.Options, where the option is required.
-    options.setOutput(IOChannelUtils.resolve(
+    options.setOutput(PathUtils.resolveAgainstDirectory(
         options.getTempRoot(),
         String.format("WindowedWordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
         "output",

@@ -51,7 +51,9 @@ import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.PathUtils;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -194,8 +196,7 @@ public class FileBasedSinkTest {
   private List<File> generateTemporaryFilesForFinalize(int numFiles) throws Exception {
     List<File> temporaryFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      String temporaryFilename =
-          FileBasedWriteOperation.buildTemporaryFilename(tempDirectory, "" + i);
+      String temporaryFilename = PathUtils.resolveAgainstDirectory(tempDirectory, String.valueOf(i));
       File tmpFile = new File(tmpFolder.getRoot(), temporaryFilename);
       tmpFile.getParentFile().mkdirs();
       assertTrue(tmpFile.createNewFile());
@@ -246,8 +247,8 @@ public class FileBasedSinkTest {
     List<File> temporaryFiles = new ArrayList<>();
     List<File> outputFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      File tmpFile = new File(tmpFolder.getRoot(),
-          FileBasedWriteOperation.buildTemporaryFilename(baseTemporaryFilename, "" + i));
+      File tmpFile = new File(
+          tmpFolder.getRoot(), PathUtils.resolveAgainstDirectory(baseTemporaryFilename, String.valueOf(i)));
       tmpFile.getParentFile().mkdirs();
       assertTrue(tmpFile.createNewFile());
       temporaryFiles.add(tmpFile);
@@ -415,6 +416,13 @@ public class FileBasedSinkTest {
     assertEquals(expected, actual);
   }
 
+  @Test
+  public void testBuildTemporaryDirectoryName() {
+    assertThat(
+        FileBasedWriteOperation.buildTemporaryDirectoryName("file:/home/output"),
+        Matchers.startsWith("file:/home/temp-beam-output"));
+  }
+
   /**
    * {@link CompressionType#BZIP2} correctly writes Gzipped data.
    */
@@ -484,10 +492,9 @@ public class FileBasedSinkTest {
     SimpleSink.SimpleWriteOperation writeOp =
         new SimpleSink(getBaseOutputFilename(), "txt", new DrunkWritableByteChannelFactory())
             .createWriteOperation(null);
-    final FileBasedWriter<String> writer =
-        writeOp.createWriter(null);
+    final FileBasedWriter<String> writer = writeOp.createWriter(null);
     final String expectedFilename =
-        writeOp.tempDirectory + "/" + testUid;
+        PathUtils.resolveAgainstDirectory(writeOp.tempDirectory, testUid);
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");

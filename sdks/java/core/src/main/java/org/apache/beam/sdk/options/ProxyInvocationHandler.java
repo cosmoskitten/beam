@@ -332,7 +332,7 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
-   * Helper class to resolve a {@link DisplayData} type and value from {@link PipelineOptions}.
+   * Helper class to resolveAgainstDirectory a {@link DisplayData} type and value from {@link PipelineOptions}.
    */
   @AutoValue
   abstract static class DisplayDataValue {
