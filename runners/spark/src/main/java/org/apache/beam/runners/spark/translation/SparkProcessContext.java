@@ -282,13 +282,6 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
       }
 
       @Override
-      public <T> void writePCollectionViewData(
-          TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
-        throw new UnsupportedOperationException(
-            "WindowingInternals#writePCollectionViewData() is not yet supported.");
-      }
-
-      @Override
       public <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow) {
         throw new UnsupportedOperationException(
             "WindowingInternals#sideInput() is not yet supported.");

@@ -701,14 +701,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         }
 
         @Override
-        public <T> void writePCollectionViewData(
-            TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder)
-            throws IOException {
-          throw new UnsupportedOperationException(
-              "WritePCollectionViewData is not supported in in the context of DoFnTester");
-        }
-
-        @Override
         public <T> T sideInput(
             PCollectionView<T> view, BoundedWindow sideInputWindow) {
           throw new UnsupportedOperationException(

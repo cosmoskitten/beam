@@ -153,12 +153,6 @@ abstract class FlinkProcessContextBase<InputT, OutputT>
       }
 
       @Override
-      public <T> void writePCollectionViewData(TupleTag<?> tag,
-          Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
       public <ViewT> ViewT sideInput(
           PCollectionView<ViewT> view,
           BoundedWindow sideInputWindow) {

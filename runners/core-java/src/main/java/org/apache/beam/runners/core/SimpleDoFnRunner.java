@@ -595,21 +595,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         }
 
         @Override
-        public <T> void writePCollectionViewData(
-            TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder)
-            throws IOException {
-          @SuppressWarnings("unchecked")
-          Coder<BoundedWindow> windowCoder = (Coder<BoundedWindow>) context.windowFn.windowCoder();
-
-          context.stepContext.writePCollectionViewData(
-              tag,
-              data,
-              IterableCoder.of(WindowedValue.getFullCoder(elemCoder, windowCoder)),
-              window(),
-              windowCoder);
-        }
-
-        @Override
         public StateInternals<?> stateInternals() {
           return context.stepContext.stateInternals();
         }
