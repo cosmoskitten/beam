@@ -26,6 +26,8 @@ from datetime import datetime
 import json
 import unittest
 
+import hamcrest as hc
+
 import apache_beam as beam
 
 from apache_beam.internal import apiclient
@@ -36,6 +38,9 @@ from apache_beam.runners import DirectPipelineRunner
 import apache_beam.transforms as ptransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.options import PipelineOptions
+
+from apache_beam.metrics.base import MetricResult
+from apache_beam.metrics.cells import DistributionData
 
 
 class RunnerTest(unittest.TestCase):
@@ -121,6 +126,38 @@ class RunnerTest(unittest.TestCase):
     expected_data = sorted(expected_data, key=lambda x: x['namespace']+x['key'])
     self.assertEqual(len(disp_data), 3)
     self.assertEqual(disp_data, expected_data)
+
+  def test_direct_runner_metrics(self):
+    from apache_beam.metrics.metric import Metrics
+
+    class MyDoFn(beam.DoFn):
+      def process(self, context):
+        count = Metrics.counter(self.__class__, 'elements')
+        count.inc()
+        distro = Metrics.distribution(self.__class__, 'element-dist')
+        distro.update(context.element)
+        return [context.element]
+
+    runner = DirectPipelineRunner()
+    p = Pipeline(runner,
+                 options=PipelineOptions(self.default_properties))
+    # pylint: disable=expression-not-assigned
+    (p | 'create' >> ptransform.Create([1, 2, 3, 4, 5])
+     | 'do' >> beam.ParDo(MyDoFn()))
+    result = p.run()
+    metrics = result.metrics().query()
+    namespace = '{}.{}'.format(MyDoFn.__module__,
+                               MyDoFn.__name__)
+    hc.assert_that(
+        metrics['counters'],
+        hc.contains_inanyorder(
+            MetricResult((namespace, 'elements'), 'do', 5, 5)))
+    hc.assert_that(
+        metrics['distributions'],
+        hc.contains_inanyorder(
+            MetricResult((namespace, 'element-dist'), 'do',
+                         DistributionData(15, 5, 1, 5),
+                         DistributionData(15, 5, 1, 5))))
 
   def test_no_group_by_key_directly_after_bigquery(self):
     remote_runner = DataflowPipelineRunner()

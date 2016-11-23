@@ -17,10 +17,10 @@
 
 import unittest
 
+from apache_beam.metrics.base import MetricName
 from apache_beam.metrics.cells import DirtyState
 from apache_beam.metrics.internal import MetricsContainer
 from apache_beam.metrics.internal import MetricsEnvironment
-from apache_beam.metrics.internal import MetricName
 from apache_beam.metrics.metric import Metrics
 
 

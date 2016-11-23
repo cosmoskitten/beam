@@ -23,33 +23,20 @@ state consistent.
 from collections import defaultdict
 import threading
 
-from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.base import MetricResult
+from apache_beam.metrics.cells import CounterAggregator
+from apache_beam.metrics.cells import DistributionAggregator
 from apache_beam.metrics.metric import MetricResults
-from apache_beam.metrics.metric import MetricResult
 
 
 class DirectMetrics(MetricResults):
   def __init__(self):
     self._counters = defaultdict(
-        lambda : DirectMetric(DirectMetrics.CounterAggregator()))
+        lambda: DirectMetric(CounterAggregator()))
     self._distributions = defaultdict(
-        lambda : DirectMetric(DirectMetrics.DistributionAggregator()))
+        lambda: DirectMetric(DistributionAggregator()))
 
-  class CounterAggregator(object):
-    def zero(self):
-      return 0
-
-    def combine(self, x, y):
-      return x + y
-
-  class DistributionAggregator(object):
-    def zero(self):
-      return DistributionData(0, 0, None, None)
-
-    def combine(self, x, y):
-      return x.combine(y)
-
-  def apply_operation(self, bundle, updates, op):
+  def _apply_operation(self, bundle, updates, op):
     for k, v in updates.counters.items():
       op(self._counters[k], bundle, v)
 
@@ -58,17 +45,17 @@ class DirectMetrics(MetricResults):
 
   def commit_logical(self, bundle, updates):
     op = lambda obj, bundle, update: obj.commit_logical(bundle, update)
-    self.apply_operation(bundle, updates, op)
+    self._apply_operation(bundle, updates, op)
 
   def commit_physical(self, bundle, updates):
     op = lambda obj, bundle, update: obj.commit_physical(bundle, update)
-    self.apply_operation(bundle, updates, op)
+    self._apply_operation(bundle, updates, op)
 
   def update_physical(self, bundle, updates):
     op = lambda obj, bundle, update: obj.update_physical(bundle, update)
-    self.apply_operation(bundle, updates, op)
+    self._apply_operation(bundle, updates, op)
 
-  def query_metrics(self, filter=None):
+  def query(self, filter=None):
     counters = [MetricResult(k.metric,
                              k.step,
                              v.extract_committed(),
@@ -115,12 +102,7 @@ class DirectMetric(object):
 
   def extract_latest_attempted(self):
     res = self.finished_attempted
-    for k, u in self.inflight_attempted.items():
+    for _, u in self.inflight_attempted.items():
       res = self.aggregator.combine(res, u)
 
     return res
-
-
-class MetricAggregation(object):
-  def combine(self, updates):
-    raise NotImplementedError

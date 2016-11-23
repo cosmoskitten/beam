@@ -112,25 +112,26 @@ class TestDistributionCell(unittest.TestCase):
     self.assertEqual(d.get_cumulative().mean, 912/3)
 
 
-  class TestDirtyState(unittest.TestCase):
-    def test_basic_path(self):
-      ds = DirtyState()
-      # Starts dirty
-      self.assertTrue(ds.before_commit())
-      ds.after_commit()
-      self.assertFalse(ds.before_commit())
+class TestDirtyState(unittest.TestCase):
+  def test_basic_path(self):
+    ds = DirtyState()
+    # Starts dirty
+    self.assertTrue(ds.before_commit())
+    ds.after_commit()
+    self.assertFalse(ds.before_commit())
 
-      # Make it dirty again
-      ds.modified()
-      self.assertTrue(ds.before_commit())
-      ds.after_commit()
-      self.assertFalse(ds.before_commit())
+    # Make it dirty again
+    ds.modified()
+    self.assertTrue(ds.before_commit())
+    ds.after_commit()
+    self.assertFalse(ds.before_commit())
 
-      # Dirty again and then modified
-      self.assertTrue(ds.before_commit())
-      ds.modified()
-      ds.after_commit()
-      self.assertTrue(ds.before_commit())
+    # Dirty again
+    ds.modified()
+    self.assertTrue(ds.before_commit())
+    ds.modified()
+    ds.after_commit()
+    self.assertTrue(ds.before_commit())
 
 
 if __name__ == '__main__':

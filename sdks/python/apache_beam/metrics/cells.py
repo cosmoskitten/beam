@@ -17,8 +17,8 @@
 
 import threading
 
-from apache_beam.metrics.metric import Counter
-from apache_beam.metrics.metric import Distribution
+from apache_beam.metrics.base import Counter
+from apache_beam.metrics.base import Distribution
 
 
 class DirtyState(object):
@@ -125,7 +125,7 @@ class DistributionData(object):
   def __neq__(self, other):
     return not self.__eq__(other)
 
-  def __str__(self):
+  def __repr__(self):
     return '<DistributionData({}, {}, {}, {})>'.format(self.sum,
                                                        self.count,
                                                        self.min,
@@ -138,13 +138,37 @@ class DistributionData(object):
   def combine(self, other):
     if other is None:
       return self
-
-    return DistributionData(
-        self.sum + other.sum,
-        self.count + other.count,
-        min(x for x in (self.min, other.min) if x is not None),
-        max(x for x in (self.max, other.max) if x is not None))
+    else:
+      return DistributionData(
+          self.sum + other.sum,
+          self.count + other.count,
+          min(x for x in (self.min, other.min) if x is not None),
+          max(x for x in (self.max, other.max) if x is not None))
 
   @classmethod
   def singleton(cls, value):
     return DistributionData(value, 1, value, value)
+
+
+class MetricAggregation(object):
+  def combine(self, updates):
+    raise NotImplementedError
+
+  def zero(self):
+    raise NotImplementedError
+
+
+class CounterAggregator(object):
+  def zero(self):
+    return 0
+
+  def combine(self, x, y):
+    return x + y
+
+
+class DistributionAggregator(object):
+  def zero(self):
+    return DistributionData(0, 0, None, None)
+
+  def combine(self, x, y):
+    return x.combine(y)

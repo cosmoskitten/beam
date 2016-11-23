@@ -26,12 +26,11 @@ Available classes:
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
 """
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 import threading
 
-
-MetricName = namedtuple('MetricName', 'namespace name')
-MetricKey = namedtuple('MetricKey', 'step metric')
+from apache_beam.metrics.base import MetricKey, MetricsUpdates
+from apache_beam.metrics.cells import CounterCell, DistributionCell
 
 
 class MetricsEnvironment(object):
@@ -71,7 +70,6 @@ class MetricsContainer(object):
   """
   def __init__(self, step_name):
     # Import here to avoid the circular dependency
-    from apache_beam.metrics.cells import CounterCell, DistributionCell
     self.step_name = step_name
     self.counters = defaultdict(lambda: CounterCell())
     self.distributions = defaultdict(lambda: DistributionCell())
@@ -116,9 +114,3 @@ class MetricsContainer(object):
     they have been committed or not.
     """
     return self._get_updates()
-
-
-class MetricsUpdates(object):
-  def __init__(self, counters=None, distributions=None):
-    self.counters = counters or {}
-    self.distributions = distributions or {}

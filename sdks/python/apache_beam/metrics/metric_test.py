@@ -17,10 +17,10 @@
 
 import unittest
 
+from apache_beam.metrics.base import MetricName
+from apache_beam.metrics.base import MetricKey
 from apache_beam.metrics.internal import MetricsContainer
 from apache_beam.metrics.internal import MetricsEnvironment
-from apache_beam.metrics.internal import MetricName
-from apache_beam.metrics.internal import MetricKey
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.cells import DistributionData
 
@@ -37,6 +37,7 @@ class NameTest(unittest.TestCase):
     self.assertEqual(key.metric.namespace, 'namespace1')
     self.assertEqual(key.metric.name, 'name1')
     self.assertEqual(key, ('step1', ('namespace1', 'name1')))
+
 
 class MetricsTest(unittest.TestCase):
   def test_get_namespace_class(self):

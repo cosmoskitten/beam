@@ -21,43 +21,14 @@ User-facing classes for Metrics API.
 The classes in this file allow users to define and use metrics to be collected
 and displayed as part of their pipeline execution.
 
-Available classes:
-- Metric - Base class of a metrics object. Provides very basic methods.
-- Counter - Base class of a counter metric object. It provides methods to
-    increment/decrement a count variable accross a pipeline execution.
-- Distribution - Base class of a distribution metric object. It provides
-    methods to keep track of statistics about the distribution of a variable.
-
 - Metrics - This class lets pipeline and transform writers create and access
     metric objects such as counters, distributions, etc.
 """
-import collections
 import inspect
 
+from apache_beam.metrics.base import Counter, Distribution
+from apache_beam.metrics.base import MetricName
 from apache_beam.metrics.internal import MetricsEnvironment
-from apache_beam.metrics.internal import MetricName
-
-
-class Metric(object):
-  """ Base class of a metric object.
-  """
-
-
-class Counter(Metric):
-  """ Base class of a Counter metric object
-  """
-  def inc(self, n=1):
-    raise NotImplementedError
-
-  def dec(self, n=1):
-    self.inc(-n)
-
-
-class Distribution(Metric):
-  """ Base class of a Distribution metric object
-  """
-  def update(self, value):
-    raise NotImplementedError
 
 
 class Metrics(object):
@@ -107,12 +78,8 @@ class MetricResults(object):
     #TODO
     return True
 
-  def query(self):
+  def query(self, filter):
     raise NotImplementedError
-
-
-MetricResult = collections.namedtuple(
-    'MetricResult', 'metric step committed attempted')
 
 
 class MetricsFilter(object):
