@@ -25,6 +25,7 @@ import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
@@ -32,18 +33,27 @@ import org.joda.time.Instant;
 
 /**
  * The result of evaluating an {@link AppliedPTransform} with a {@link TransformEvaluator}.
+ *
+ * <p>Every transform evaluator has a defined input type, but {@link ParDo} has multiple outputs
+ * so there is not necesssarily a defined output type.
  */
-public interface TransformResult<InputT, OutputT> {
+public interface TransformResult<InputT> {
   /**
    * Returns the {@link AppliedPTransform} that produced this result.
+   *
+   * <p>This is treated as an opaque identifier so evaluators can delegate to other evaluators
+   * that may not have compatible types.
    */
   AppliedPTransform<?, ?, ?> getTransform();
 
   /**
    * Returns the {@link UncommittedBundle (uncommitted) Bundles} output by this transform. These
    * will be committed by the evaluation context as part of completing this result.
+   *
+   * <p>Note that the bundles need not have a uniform type, for example in the case of multi-output
+   * {@link ParDo}.
    */
-  Iterable<? extends UncommittedBundle<OutputT>> getOutputBundles();
+  Iterable<? extends UncommittedBundle<?>> getOutputBundles();
 
   /**
    * Returns elements that were provided to the {@link TransformEvaluator} as input but were not
@@ -97,5 +107,5 @@ public interface TransformResult<InputT, OutputT> {
    * Returns a new TransformResult based on this one but overwriting any existing logical metric
    * updates with {@code metricUpdates}.
    */
-  TransformResult withLogicalMetricUpdates(MetricUpdates metricUpdates);
+  TransformResult<InputT> withLogicalMetricUpdates(MetricUpdates metricUpdates);
 }

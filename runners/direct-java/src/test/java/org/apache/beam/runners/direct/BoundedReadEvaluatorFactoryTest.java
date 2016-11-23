@@ -110,7 +110,7 @@ public class BoundedReadEvaluatorFactoryTest {
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
-      TransformResult<?, ?> result = evaluator.finishBundle();
+      TransformResult<?> result = evaluator.finishBundle();
       assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
       assertThat(
           Iterables.size(result.getOutputBundles()),
@@ -158,7 +158,7 @@ public class BoundedReadEvaluatorFactoryTest {
         for (WindowedValue<?> shard : shardBundle.getElements()) {
           evaluator.processElement((WindowedValue) shard);
         }
-        TransformResult<Long, ?> result = evaluator.finishBundle();
+        TransformResult<Long> result = evaluator.finishBundle();
         assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
         assertThat(
             Iterables.size(result.getOutputBundles()),
@@ -207,7 +207,7 @@ public class BoundedReadEvaluatorFactoryTest {
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
-      TransformResult<?, ?> result = evaluator.finishBundle();
+      TransformResult<?> result = evaluator.finishBundle();
       assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
       assertThat(
           Iterables.size(result.getOutputBundles()),
@@ -277,7 +277,7 @@ public class BoundedReadEvaluatorFactoryTest {
       when(context.createBundle(longs)).thenReturn(outputBundle);
       evaluator.processElement(shard);
     }
-    TransformResult<?, ?> result = evaluator.finishBundle();
+    TransformResult<?> result = evaluator.finishBundle();
     assertThat(Iterables.size(result.getOutputBundles()), equalTo(splits.size()));
 
     List<WindowedValue<?>> outputElems = new ArrayList<>();

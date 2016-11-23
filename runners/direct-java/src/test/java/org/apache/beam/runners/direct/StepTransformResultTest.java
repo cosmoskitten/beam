@@ -56,17 +56,17 @@ public class StepTransformResultTest {
   @Test
   public void producedBundlesProducedOutputs() {
     UncommittedBundle<Integer> bundle = bundleFactory.createBundle(pc);
-    TransformResult<Integer, Integer> result =
-        StepTransformResult.<Integer, Integer>withoutHold(transform).addOutput(bundle).build();
+    TransformResult<Integer> result =
+        StepTransformResult.<Integer>withoutHold(transform).addOutput(bundle).build();
 
     assertThat(
-        result.getOutputBundles(), Matchers.<UncommittedBundle<Integer>>containsInAnyOrder(bundle));
+        result.getOutputBundles(), Matchers.<UncommittedBundle<?>>containsInAnyOrder(bundle));
   }
 
   @Test
   public void withAdditionalOutputProducedOutputs() {
-    TransformResult<Integer, Integer> result =
-        StepTransformResult.<Integer, Integer>withoutHold(transform)
+    TransformResult<Integer> result =
+        StepTransformResult.<Integer>withoutHold(transform)
             .withAdditionalOutput(OutputType.PCOLLECTION_VIEW)
             .build();
 
@@ -75,8 +75,8 @@ public class StepTransformResultTest {
 
   @Test
   public void producedBundlesAndAdditionalOutputProducedOutputs() {
-    TransformResult<Integer, Integer> result =
-        StepTransformResult.<Integer, Integer>withoutHold(transform)
+    TransformResult<Integer> result =
+        StepTransformResult.<Integer>withoutHold(transform)
             .addOutput(bundleFactory.createBundle(pc))
             .withAdditionalOutput(OutputType.PCOLLECTION_VIEW)
             .build();
@@ -86,8 +86,7 @@ public class StepTransformResultTest {
 
   @Test
   public void noBundlesNoAdditionalOutputProducedOutputsFalse() {
-    TransformResult<Integer, Integer> result =
-        StepTransformResult.<Integer, Integer>withoutHold(transform).build();
+    TransformResult<Integer> result = StepTransformResult.<Integer>withoutHold(transform).build();
 
     assertThat(result.getOutputTypes(), emptyIterable());
   }

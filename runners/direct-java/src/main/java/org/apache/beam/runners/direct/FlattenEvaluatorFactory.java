@@ -56,17 +56,17 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
           application) {
     final UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(application.getOutput());
-    final TransformResult<InputT, InputT> result =
-        StepTransformResult.<InputT, InputT>withoutHold(application).addOutput(outputBundle).build();
+    final TransformResult<InputT> result =
+        StepTransformResult.<InputT>withoutHold(application).addOutput(outputBundle).build();
     return new FlattenEvaluator<>(outputBundle, result);
   }
 
   private static class FlattenEvaluator<InputT> implements TransformEvaluator<InputT> {
     private final UncommittedBundle<InputT> outputBundle;
-    private final TransformResult<InputT, InputT> result;
+    private final TransformResult<InputT> result;
 
     public FlattenEvaluator(
-        UncommittedBundle<InputT> outputBundle, TransformResult<InputT, InputT> result) {
+        UncommittedBundle<InputT> outputBundle, TransformResult<InputT> result) {
       this.outputBundle = outputBundle;
       this.result = result;
     }
@@ -77,7 +77,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public TransformResult<InputT, InputT> finishBundle() {
+    public TransformResult<InputT> finishBundle() {
       return result;
     }
   }

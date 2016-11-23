@@ -37,20 +37,20 @@ import org.joda.time.Instant;
  * An immutable {@link TransformResult}.
  */
 @AutoValue
-public abstract class StepTransformResult<InputT, OutputT> implements TransformResult<InputT, OutputT> {
+public abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
-  public static <InputT, OutputT> Builder<InputT, OutputT> withHold(
+  public static <InputT> Builder<InputT> withHold(
       AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
   }
 
-  public static <InputT, OutputT> Builder<InputT, OutputT> withoutHold(
+  public static <InputT> Builder<InputT> withoutHold(
       AppliedPTransform<?, ?, ?> transform) {
     return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
   @Override
-  public TransformResult withLogicalMetricUpdates(MetricUpdates metricUpdates) {
+  public TransformResult<InputT> withLogicalMetricUpdates(MetricUpdates metricUpdates) {
     return new AutoValue_StepTransformResult(
         getTransform(),
         getOutputBundles(),
@@ -66,9 +66,9 @@ public abstract class StepTransformResult<InputT, OutputT> implements TransformR
   /**
    * A builder for creating instances of {@link StepTransformResult}.
    */
-  public static class Builder<InputT, OutputT> {
+  public static class Builder<InputT> {
     private final AppliedPTransform<?, ?, ?> transform;
-    private final ImmutableList.Builder<UncommittedBundle<OutputT>> bundlesBuilder;
+    private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElementsBuilder;
     private MetricUpdates metricUpdates;
     private CopyOnAccessInMemoryStateInternals<?> state;
@@ -87,7 +87,7 @@ public abstract class StepTransformResult<InputT, OutputT> implements TransformR
       this.metricUpdates = MetricUpdates.EMPTY;
     }
 
-    public StepTransformResult<InputT, OutputT> build() {
+    public StepTransformResult<InputT> build() {
       return new AutoValue_StepTransformResult<>(
           transform,
           bundlesBuilder.build(),
@@ -100,51 +100,51 @@ public abstract class StepTransformResult<InputT, OutputT> implements TransformR
           producedOutputs);
     }
 
-    public Builder<InputT, OutputT> withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
+    public Builder<InputT> withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
       this.aggregatorChanges = aggregatorChanges;
       return this;
     }
 
-    public Builder<InputT, OutputT> withMetricUpdates(MetricUpdates metricUpdates) {
+    public Builder<InputT> withMetricUpdates(MetricUpdates metricUpdates) {
       this.metricUpdates = metricUpdates;
       return this;
     }
 
-    public Builder<InputT, OutputT> withState(CopyOnAccessInMemoryStateInternals<?> state) {
+    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals<?> state) {
       this.state = state;
       return this;
     }
 
-    public Builder<InputT, OutputT> withTimerUpdate(TimerUpdate timerUpdate) {
+    public Builder<InputT> withTimerUpdate(TimerUpdate timerUpdate) {
       this.timerUpdate = timerUpdate;
       return this;
     }
 
-    public Builder<InputT, OutputT> addUnprocessedElements(WindowedValue<InputT>... unprocessed) {
+    public Builder<InputT> addUnprocessedElements(WindowedValue<InputT>... unprocessed) {
       unprocessedElementsBuilder.addAll(Arrays.asList(unprocessed));
       return this;
     }
 
-    public Builder<InputT, OutputT> addUnprocessedElements(
+    public Builder<InputT> addUnprocessedElements(
         Iterable<? extends WindowedValue<InputT>> unprocessed) {
       unprocessedElementsBuilder.addAll(unprocessed);
       return this;
     }
 
-    public Builder<InputT, OutputT> addOutput(
-        UncommittedBundle<OutputT> outputBundle, UncommittedBundle<OutputT>... outputBundles) {
+    public Builder<InputT> addOutput(
+        UncommittedBundle<?> outputBundle, UncommittedBundle<?>... outputBundles) {
       bundlesBuilder.add(outputBundle);
       bundlesBuilder.add(outputBundles);
       return this;
     }
 
-    public Builder<InputT, OutputT> addOutput(
-        Collection<UncommittedBundle<OutputT>> outputBundles) {
+    public Builder<InputT> addOutput(
+        Collection<UncommittedBundle<?>> outputBundles) {
       bundlesBuilder.addAll(outputBundles);
       return this;
     }
 
-    public Builder<InputT, OutputT> withAdditionalOutput(OutputType producedAdditionalOutput) {
+    public Builder<InputT> withAdditionalOutput(OutputType producedAdditionalOutput) {
       producedOutputs.add(producedAdditionalOutput);
       return this;
     }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertThat;
@@ -85,20 +84,18 @@ public class FlattenEvaluatorFactoryTest {
     rightSideEvaluator.processElement(
         WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)));
 
-    TransformResult<Integer, Integer> rightSideResult =
-        (TransformResult<Integer, Integer>) rightSideEvaluator.finishBundle();
-    TransformResult<Integer, Integer> leftSideResult =
-        (TransformResult<Integer, Integer>) leftSideEvaluator.finishBundle();
+    TransformResult<Integer> rightSideResult = rightSideEvaluator.finishBundle();
+    TransformResult<Integer> leftSideResult = leftSideEvaluator.finishBundle();
 
     assertThat(
         rightSideResult.getOutputBundles(),
-        contains(flattenedRightBundle));
+        Matchers.<UncommittedBundle<?>>contains(flattenedRightBundle));
     assertThat(
         rightSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));
     assertThat(
         leftSideResult.getOutputBundles(),
-        contains(flattenedLeftBundle));
+        Matchers.<UncommittedBundle<?>>contains(flattenedLeftBundle));
     assertThat(
         leftSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));
@@ -134,8 +131,7 @@ public class FlattenEvaluatorFactoryTest {
             flattened.getProducingTransformInternal(),
             bundleFactory.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
 
-    TransformResult<Integer, Integer> leftSideResult =
-        (TransformResult<Integer, Integer>) emptyEvaluator.finishBundle();
+    TransformResult<Integer> leftSideResult = emptyEvaluator.finishBundle();
 
     CommittedBundle<?> outputBundle =
         Iterables.getOnlyElement(leftSideResult.getOutputBundles()).commit(Instant.now());
