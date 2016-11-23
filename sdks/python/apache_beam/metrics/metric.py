@@ -45,11 +45,29 @@ class Metrics(object):
 
   @staticmethod
   def counter(namespace, name):
+    """ Obtains or creates a Counter metric.
+
+    Args:
+      namespace - A class or string that gives the namespace to a metric
+      name - A string that gives a unique name to a metric
+
+    Returns:
+      An object of Counter class.
+    """
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingCounter(MetricName(namespace, name))
 
   @staticmethod
   def distribution(namespace, name):
+    """ Obtains or creates a Distribution metric.
+
+    Args:
+      namespace - A class or string that gives the namespace to a metric
+      name - A string that gives a unique name to a metric
+
+    Returns:
+      An object of Distribution class.
+    """
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingDistribution(MetricName(namespace, name))
 
@@ -74,14 +92,65 @@ class Metrics(object):
 
 class MetricResults(object):
   @staticmethod
-  def matches(metric, filter):
-    #TODO
-    return True
+  def matches(filter, metric_key):
+    if filter is None:
+      return True
+
+    if (metric_key.step in filter.steps and
+        metric_key.metric.namespace in filter.namespaces and
+        metric_key.metric.name in filter.names):
+      return True
+    else:
+      return False
 
   def query(self, filter):
     raise NotImplementedError
 
 
 class MetricsFilter(object):
-  # TODO implement
-  pass
+  def __init__(self):
+    self._names = set()
+    self._namespaces = set()
+    self._steps = set()
+
+  @property
+  def steps(self):
+    return frozenset(self._steps)
+
+  @property
+  def names(self):
+    return frozenset(self._names)
+
+  @property
+  def namespaces(self):
+    return frozenset(self._namespaces)
+
+  def with_name(self, name):
+    return self.with_names([name])
+
+  def with_names(self, names):
+    if isinstance(names, str):
+      raise ValueError('Names must be an iterable, not a string')
+
+    self._steps.update(names)
+    return self
+
+  def with_namespace(self, namespace):
+    return self.with_namespaces([namespace])
+
+  def with_namespaces(self, namespaces):
+    if isinstance(namespaces, str):
+      raise ValueError('Namespaces must be an iterable, not a string')
+
+    self._namespaces.update([Metrics.get_namespace(ns) for ns in namespaces])
+    return self
+
+  def with_step(self, step):
+    return self.with_steps([step])
+
+  def with_steps(self, steps):
+    if isinstance(namespaces, str):
+      raise ValueError('Steps must be an iterable, not a string')
+
+    self._steps.update(steps)
+    return self

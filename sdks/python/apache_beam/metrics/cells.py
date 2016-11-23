@@ -22,6 +22,10 @@ from apache_beam.metrics.base import Distribution
 
 
 class DirtyState(object):
+  """ Keeps track of a cell's commit status
+
+  It's thread-safe.
+  """
   DIRTY = 0
   CLEAN = 1
   COMMITTING = 2
@@ -53,6 +57,10 @@ class DirtyState(object):
 
 
 class MetricCell(object):
+  """ Base class of a Cell that tracks the state of a metric.
+
+  It's thread safe.
+  """
   def __init__(self):
     self.dirty = DirtyState()
     self._lock = threading.Lock()
@@ -62,6 +70,10 @@ class MetricCell(object):
 
 
 class CounterCell(Counter, MetricCell):
+  """ Tracks the state of a counter metric.
+
+  It's thread safe.
+  """
   def __init__(self, *args):
     super(CounterCell, self).__init__(*args)
     self.value = 0
@@ -81,6 +93,10 @@ class CounterCell(Counter, MetricCell):
 
 
 class DistributionCell(Distribution, MetricCell):
+  """ Tracks the state of a distribution metric.
+
+  It's thread safe.
+  """
   def __init__(self, *args):
     super(DistributionCell, self).__init__(*args)
     self.data = DistributionData(0, 0, None, None)
@@ -151,6 +167,8 @@ class DistributionData(object):
 
 
 class MetricAggregation(object):
+  """ Base class for aggregating metric data.
+  """
   def combine(self, updates):
     raise NotImplementedError
 
@@ -159,6 +177,10 @@ class MetricAggregation(object):
 
 
 class CounterAggregator(object):
+  """ Class for aggregating data from Counter metrics.
+
+  It works with pure integers.
+  """
   def zero(self):
     return 0
 
@@ -167,6 +189,10 @@ class CounterAggregator(object):
 
 
 class DistributionAggregator(object):
+  """ Class for aggregating data from Distribution metrics.
+
+  It works with DistributionData objects.
+  """
   def zero(self):
     return DistributionData(0, 0, None, None)
 

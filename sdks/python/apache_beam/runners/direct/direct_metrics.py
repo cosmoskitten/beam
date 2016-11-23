@@ -74,6 +74,11 @@ class DirectMetrics(MetricResults):
 
 
 class DirectMetric(object):
+  """ Keeps a consistent state for a single metric.
+
+  It keeps track of the metric's physical and logical updates.
+  It's thread safe.
+  """
   def __init__(self, aggregator):
     self.aggregator = aggregator
     self._attempted_lock = threading.Lock()
