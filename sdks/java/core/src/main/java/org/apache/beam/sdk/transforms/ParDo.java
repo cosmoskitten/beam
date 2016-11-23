@@ -1136,6 +1136,17 @@ public class ParDo {
       }
     }
 
+    /**
+     * Returns the {@link OldDoFn} or {@link DoFn} used to create this transform.
+     *
+     * @deprecated for migration purposes only. There are some cases of {@link OldDoFn} that are not
+     *     fully supported by wrapping it into a {@link DoFn}, such as {@link RequiresWindowAccess}.
+     */
+    @Deprecated
+    public Serializable getOriginalFn() {
+      return fn;
+    }
+
     public DoFn<InputT, OutputT> getNewFn() {
       if (fn instanceof DoFn) {
         return (DoFn<InputT, OutputT>) fn;
