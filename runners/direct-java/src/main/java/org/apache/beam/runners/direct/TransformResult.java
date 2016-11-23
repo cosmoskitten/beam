@@ -33,7 +33,7 @@ import org.joda.time.Instant;
 /**
  * The result of evaluating an {@link AppliedPTransform} with a {@link TransformEvaluator}.
  */
-public interface TransformResult {
+public interface TransformResult<InputT, OutputT> {
   /**
    * Returns the {@link AppliedPTransform} that produced this result.
    */
@@ -43,13 +43,13 @@ public interface TransformResult {
    * Returns the {@link UncommittedBundle (uncommitted) Bundles} output by this transform. These
    * will be committed by the evaluation context as part of completing this result.
    */
-  Iterable<? extends UncommittedBundle<?>> getOutputBundles();
+  Iterable<? extends UncommittedBundle<OutputT>> getOutputBundles();
 
   /**
    * Returns elements that were provided to the {@link TransformEvaluator} as input but were not
    * processed.
    */
-  Iterable<? extends WindowedValue<?>> getUnprocessedElements();
+  Iterable<? extends WindowedValue<InputT>> getUnprocessedElements();
 
   /**
    * Returns the {@link AggregatorContainer.Mutator} used by this {@link PTransform}, or null if

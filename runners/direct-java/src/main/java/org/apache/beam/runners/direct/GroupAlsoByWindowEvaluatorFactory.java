@@ -113,7 +113,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         windowingStrategy;
 
     private final StructuralKey<?> structuralKey;
-    private final Collection<UncommittedBundle<?>> outputBundles;
+    private final Collection<UncommittedBundle<KV<K, Iterable<V>>>> outputBundles;
     private final ImmutableList.Builder<WindowedValue<KeyedWorkItem<K, V>>> unprocessedElements;
     private final AggregatorContainer.Mutator aggregatorChanges;
 
@@ -211,7 +211,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     public TransformResult finishBundle() throws Exception {
       // State is initialized within the constructor. It can never be null.
       CopyOnAccessInMemoryStateInternals<?> state = stepContext.commitState();
-      return StepTransformResult.withHold(application, state.getEarliestWatermarkHold())
+      return StepTransformResult.<KeyedWorkItem<K, V>, KV<K, Iterable<V>>>withHold(
+              application, state.getEarliestWatermarkHold())
           .withState(state)
           .addOutput(outputBundles)
           .withTimerUpdate(stepContext.getTimerUpdate())

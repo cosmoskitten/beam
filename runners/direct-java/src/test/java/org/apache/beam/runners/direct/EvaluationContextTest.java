@@ -460,7 +460,7 @@ public class EvaluationContextTest {
         context.handleResult(
             null,
             ImmutableList.<TimerData>of(),
-            StepTransformResult.withoutHold(created.getProducingTransformInternal())
+            StepTransformResult.<Integer, Integer>withoutHold(created.getProducingTransformInternal())
                 .addOutput(rootBundle)
                 .build());
     @SuppressWarnings("unchecked")

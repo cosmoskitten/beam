@@ -159,9 +159,10 @@ public class UnboundedReadEvaluatorFactoryTest {
             longs.getProducingTransformInternal(), inputShards);
 
     evaluator.processElement((WindowedValue) Iterables.getOnlyElement(inputShards.getElements()));
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<? super UnboundedSourceShard<Long, ?>, ?> result = evaluator.finishBundle();
 
-    WindowedValue<?> residual = Iterables.getOnlyElement(result.getUnprocessedElements());
+    WindowedValue<? super UnboundedSourceShard<Long, ?>> residual =
+        Iterables.getOnlyElement(result.getUnprocessedElements());
     assertThat(
         residual.getTimestamp(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
     UnboundedSourceShard<Long, ?> residualShard =

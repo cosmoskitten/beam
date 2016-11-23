@@ -103,8 +103,10 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public TransformResult finishBundle() throws Exception {
-      return StepTransformResult.withoutHold(transform).addOutput(outputBundle).build();
+    public TransformResult<InputT, InputT> finishBundle() throws Exception {
+      return StepTransformResult.<InputT, InputT>withoutHold(transform)
+          .addOutput(outputBundle)
+          .build();
     }
   }
 
