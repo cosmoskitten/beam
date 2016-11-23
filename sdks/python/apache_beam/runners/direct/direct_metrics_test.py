@@ -20,7 +20,7 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.metrics.base import MetricName, MetricKey
-from apache_beam.metrics.base import MetricsUpdates
+from apache_beam.metrics.base import MetricUpdates
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.base import MetricResult
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
@@ -54,7 +54,7 @@ class DirectMetricsTest(unittest.TestCase):
     metrics = DirectMetrics()
     metrics.commit_logical(
         self.bundle1,
-        MetricsUpdates(
+        MetricUpdates(
             counters={MetricKey('step1', self.name1): 5,
                       MetricKey('step1', self.name2): 8},
             distributions={
@@ -62,7 +62,7 @@ class DirectMetricsTest(unittest.TestCase):
 
     metrics.commit_logical(
         self.bundle1,
-        MetricsUpdates(
+        MetricUpdates(
             counters={MetricKey('step2', self.name1): 7,
                       MetricKey('step1', self.name2): 4},
             distributions={
@@ -86,12 +86,12 @@ class DirectMetricsTest(unittest.TestCase):
   def test_apply_physical_no_filter(self):
     metrics = DirectMetrics()
     metrics.update_physical(object(),
-                            MetricsUpdates(
+                            MetricUpdates(
                                 counters={MetricKey('step1', self.name1): 5,
                                           MetricKey('step1', self.name3): 8}))
 
     metrics.update_physical(object(),
-                            MetricsUpdates(
+                            MetricUpdates(
                                 counters={MetricKey('step2', self.name1): 7,
                                           MetricKey('step1', self.name3): 4}))
     results = metrics.query()
@@ -101,7 +101,7 @@ class DirectMetricsTest(unittest.TestCase):
                        MetricResult(self.name3, 'step1', 0, 12),
                        MetricResult(self.name1, 'step2', 0, 7)]))
 
-    metrics.commit_physical(object(), MetricsUpdates())
+    metrics.commit_physical(object(), MetricUpdates())
     results = metrics.query()
     hc.assert_that(results['counters'],
                    hc.contains_inanyorder(*[
@@ -114,7 +114,7 @@ class DirectMetricsTest(unittest.TestCase):
     dist_zero = DistributionData(0, 0, None, None)
     metrics.update_physical(
         object(),
-        MetricsUpdates(
+        MetricUpdates(
             counters={MetricKey('step1', self.name1): 7,
                       MetricKey('step1', self.name2): 5,
                       MetricKey('step2', self.name1): 1},
@@ -137,7 +137,7 @@ class DirectMetricsTest(unittest.TestCase):
 
     metrics.commit_physical(
         object(),
-        MetricsUpdates(
+        MetricUpdates(
             counters={MetricKey('step1', self.name1): -3,
                       MetricKey('step2', self.name1): -5},
             distributions={MetricKey('step1', self.name1):
@@ -161,7 +161,7 @@ class DirectMetricsTest(unittest.TestCase):
 
     metrics.commit_logical(
         object(),
-        MetricsUpdates(
+        MetricUpdates(
             counters={MetricKey('step1', self.name1): 3,
                       MetricKey('step1', self.name2): 5,
                       MetricKey('step2', self.name1): -3},
