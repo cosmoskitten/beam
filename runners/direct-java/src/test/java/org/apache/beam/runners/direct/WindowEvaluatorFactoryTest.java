@@ -301,7 +301,7 @@ public class WindowEvaluatorFactoryTest {
     return outputBundle;
   }
 
-  private TransformResult runEvaluator(
+  private TransformResult<Long> runEvaluator(
       PCollection<Long> windowed,
       CommittedBundle<Long> inputBundle,
       Window.Bound<Long> windowTransform /* Required while Window.Bound is a composite */)
@@ -313,7 +313,7 @@ public class WindowEvaluatorFactoryTest {
     evaluator.processElement(valueInGlobalWindow);
     evaluator.processElement(valueInGlobalAndTwoIntervalWindows);
     evaluator.processElement(valueInIntervalWindow);
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<Long> result = evaluator.finishBundle();
     return result;
   }
 

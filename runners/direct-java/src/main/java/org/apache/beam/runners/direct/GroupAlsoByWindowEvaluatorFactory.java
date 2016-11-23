@@ -208,7 +208,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public TransformResult finishBundle() throws Exception {
+    public TransformResult<KeyedWorkItem<K, V>> finishBundle() throws Exception {
       // State is initialized within the constructor. It can never be null.
       CopyOnAccessInMemoryStateInternals<?> state = stepContext.commitState();
       return StepTransformResult.<KeyedWorkItem<K, V>>withHold(
