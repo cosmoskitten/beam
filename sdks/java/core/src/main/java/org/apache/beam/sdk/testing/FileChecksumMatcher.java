@@ -96,7 +96,8 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
     int i = 0;
     for (String file : files) {
       try (Reader reader =
-          Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
+          Channels.newReader(
+              factory.open(file, 0 /* startingPosition */), StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         readData.addAll(lines);
         LOG.info(
