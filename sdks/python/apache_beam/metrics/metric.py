@@ -108,6 +108,11 @@ class MetricResults(object):
 
 
 class MetricsFilter(object):
+  """ Simple object to filter metrics results.
+
+  If filters by matching a result's step-namespace-name with three internal
+  sets.
+  """
   def __init__(self):
     self._names = set()
     self._namespaces = set()

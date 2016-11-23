@@ -29,7 +29,7 @@ Available classes:
 from collections import defaultdict
 import threading
 
-from apache_beam.metrics.base import MetricKey, MetricsUpdates
+from apache_beam.metrics.base import MetricKey, MetricUpdates
 from apache_beam.metrics.cells import CounterCell, DistributionCell
 
 
@@ -97,7 +97,7 @@ class MetricsContainer(object):
                      for k, v in self.distributions.items()
                      if filter(v)}
 
-    return MetricsUpdates(counters, distributions)
+    return MetricUpdates(counters, distributions)
 
   def get_updates(self):
     """ Return cumulative values of metrics that changed since the last commit.

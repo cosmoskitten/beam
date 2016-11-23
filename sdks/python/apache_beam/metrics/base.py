@@ -61,7 +61,7 @@ class Distribution(Metric):
     raise NotImplementedError
 
 
-class MetricsUpdates(object):
+class MetricUpdates(object):
   """ Simple class that contains metrics updates.
 
   A metric update is an object containing information to update a metric.
