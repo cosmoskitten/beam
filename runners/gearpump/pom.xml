@@ -82,12 +82,6 @@
                     <exclude>
                       org.apache.beam.sdk.transforms.ParDoTest
                     </exclude>
-                    <!-- merging windows is not supported in Gearpump -->
-                    <exclude>
-                      org.apache.beam.sdk.transforms.CombineTest,
-                      org.apache.beam.sdk.transforms.windowing.WindowingTest,
-                      org.apache.beam.sdk.util.ReshuffleTest
-                    </exclude>
                   </excludes>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
@@ -168,7 +162,7 @@
     </dependency>
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
-      <artifactId>annotations</artifactId>
+      <artifactId>jsr305</artifactId>
       <version>3.0.1</version>
     </dependency>
     <dependency>
