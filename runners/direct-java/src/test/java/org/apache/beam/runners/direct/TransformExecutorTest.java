@@ -96,7 +96,7 @@ public class TransformExecutorTest {
 
   @Test
   public void callWithNullInputBundleFinishesBundleAndCompletes() throws Exception {
-    final TransformResult result =
+    final TransformResult<Object> result =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     final AtomicBoolean finishCalled = new AtomicBoolean(false);
     TransformEvaluator<Object> evaluator =
@@ -107,7 +107,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public TransformResult finishBundle() throws Exception {
+          public TransformResult<Object> finishBundle() throws Exception {
             finishCalled.set(true);
             return result;
           }
@@ -128,7 +128,7 @@ public class TransformExecutorTest {
     executor.run();
 
     assertThat(finishCalled.get(), is(true));
-    assertThat(completionCallback.handledResult, equalTo(result));
+    assertThat(completionCallback.handledResult, Matchers.<TransformResult<?>>equalTo(result));
     assertThat(completionCallback.handledException, is(nullValue()));
   }
 
@@ -154,8 +154,8 @@ public class TransformExecutorTest {
 
   @Test
   public void inputBundleProcessesEachElementFinishesAndCompletes() throws Exception {
-    final TransformResult result =
-        StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build();
+    final TransformResult<String> result =
+        StepTransformResult.<String>withoutHold(downstream.getProducingTransformInternal()).build();
     final Collection<WindowedValue<String>> elementsProcessed = new ArrayList<>();
     TransformEvaluator<String> evaluator =
         new TransformEvaluator<String>() {
@@ -166,7 +166,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public TransformResult finishBundle() throws Exception {
+          public TransformResult<String> finishBundle() throws Exception {
             return result;
           }
         };
@@ -194,14 +194,14 @@ public class TransformExecutorTest {
     evaluatorCompleted.await();
 
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
-    assertThat(completionCallback.handledResult, equalTo(result));
+    assertThat(completionCallback.handledResult, Matchers.<TransformResult<?>>equalTo(result));
     assertThat(completionCallback.handledException, is(nullValue()));
   }
 
   @Test
   public void processElementThrowsExceptionCallsback() throws Exception {
-    final TransformResult result =
-        StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build();
+    final TransformResult<String> result =
+        StepTransformResult.<String>withoutHold(downstream.getProducingTransformInternal()).build();
     final Exception exception = new Exception();
     TransformEvaluator<String> evaluator =
         new TransformEvaluator<String>() {
@@ -211,7 +211,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public TransformResult finishBundle() throws Exception {
+          public TransformResult<String> finishBundle() throws Exception {
             return result;
           }
         };
@@ -248,7 +248,7 @@ public class TransformExecutorTest {
           public void processElement(WindowedValue<String> element) throws Exception {}
 
           @Override
-          public TransformResult finishBundle() throws Exception {
+          public TransformResult<String> finishBundle() throws Exception {
             throw exception;
           }
         };
@@ -277,7 +277,7 @@ public class TransformExecutorTest {
 
   @Test
   public void callWithEnforcementAppliesEnforcement() throws Exception {
-    final TransformResult result =
+    final TransformResult<Object> result =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build();
 
     TransformEvaluator<Object> evaluator =
@@ -286,7 +286,7 @@ public class TransformExecutorTest {
           public void processElement(WindowedValue<Object> element) throws Exception {}
 
           @Override
-          public TransformResult finishBundle() throws Exception {
+          public TransformResult<Object> finishBundle() throws Exception {
             return result;
           }
         };
@@ -317,7 +317,7 @@ public class TransformExecutorTest {
     assertThat(
         testEnforcement.afterElements,
         Matchers.<WindowedValue<?>>containsInAnyOrder(barElem, fooElem));
-    assertThat(testEnforcement.finishedBundles, contains(result));
+    assertThat(testEnforcement.finishedBundles, Matchers.<TransformResult<?>>contains(result));
   }
 
   @Test
@@ -333,7 +333,7 @@ public class TransformExecutorTest {
               }
             });
 
-    final TransformResult result =
+    final TransformResult<Object> result =
         StepTransformResult.withoutHold(pcBytes.getProducingTransformInternal()).build();
     final CountDownLatch testLatch = new CountDownLatch(1);
     final CountDownLatch evaluatorLatch = new CountDownLatch(1);
@@ -344,7 +344,7 @@ public class TransformExecutorTest {
           public void processElement(WindowedValue<Object> element) throws Exception {}
 
           @Override
-          public TransformResult finishBundle() throws Exception {
+          public TransformResult<Object> finishBundle() throws Exception {
             testLatch.countDown();
             evaluatorLatch.await();
             return result;
@@ -389,7 +389,7 @@ public class TransformExecutorTest {
               }
             });
 
-    final TransformResult result =
+    final TransformResult<Object> result =
         StepTransformResult.withoutHold(pcBytes.getProducingTransformInternal()).build();
     final CountDownLatch testLatch = new CountDownLatch(1);
     final CountDownLatch evaluatorLatch = new CountDownLatch(1);
@@ -403,7 +403,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public TransformResult finishBundle() throws Exception {
+          public TransformResult<Object> finishBundle() throws Exception {
             return result;
           }
         };
@@ -434,7 +434,7 @@ public class TransformExecutorTest {
   }
 
   private static class RegisteringCompletionCallback implements CompletionCallback {
-    private TransformResult handledResult = null;
+    private TransformResult<?> handledResult = null;
     private boolean handledEmpty = false;
     private Exception handledException = null;
     private final CountDownLatch onMethod;
@@ -444,7 +444,7 @@ public class TransformExecutorTest {
     }
 
     @Override
-    public CommittedResult handleResult(CommittedBundle<?> inputBundle, TransformResult result) {
+    public CommittedResult handleResult(CommittedBundle<?> inputBundle, TransformResult<?> result) {
       handledResult = result;
       onMethod.countDown();
       @SuppressWarnings("rawtypes")
@@ -490,7 +490,7 @@ public class TransformExecutorTest {
   private static class TestEnforcement<T> implements ModelEnforcement<T> {
     private final List<WindowedValue<T>> beforeElements = new ArrayList<>();
     private final List<WindowedValue<T>> afterElements = new ArrayList<>();
-    private final List<TransformResult> finishedBundles = new ArrayList<>();
+    private final List<TransformResult<?>> finishedBundles = new ArrayList<>();
 
     @Override
     public void beforeElement(WindowedValue<T> element) {
@@ -505,7 +505,7 @@ public class TransformExecutorTest {
     @Override
     public void afterFinish(
         CommittedBundle<T> input,
-        TransformResult result,
+        TransformResult<T> result,
         Iterable<? extends CommittedBundle<?>> outputs) {
       finishedBundles.add(result);
     }
