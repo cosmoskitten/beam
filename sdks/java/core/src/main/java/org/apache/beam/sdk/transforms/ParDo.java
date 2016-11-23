@@ -886,7 +886,7 @@ public class ParDo {
      *     fully supported by wrapping it into a {@link DoFn}, such as {@link RequiresWindowAccess}.
      */
     @Deprecated
-    public Object getOriginalFn() {
+    public Serializable getOriginalFn() {
       return fn;
     }
 
