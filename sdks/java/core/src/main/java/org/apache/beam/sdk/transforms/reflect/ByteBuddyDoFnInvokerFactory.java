@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -174,6 +175,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     + " registered timers.",
                 timerId, delegate.getClass().getName()));
       }
+    }
+
+    @Override
+    public Serializable getFn() {
+      return delegate;
     }
   }
 

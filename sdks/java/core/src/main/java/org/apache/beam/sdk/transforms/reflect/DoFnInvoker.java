@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import java.io.Serializable;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -83,6 +85,9 @@ public interface DoFnInvoker<InputT, OutputT> {
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
   <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> TrackerT invokeNewTracker(
       RestrictionT restriction);
+
+  /** Get the bound {@link DoFn} or {@link OldDoFn}. */
+  Serializable getFn();
 
   /**
    * Interface for runner implementors to provide implementations of extra context information.

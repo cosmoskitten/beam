@@ -180,5 +180,10 @@ public class DoFnInvokers {
         TrackerT invokeNewTracker(RestrictionT restriction) {
       throw new UnsupportedOperationException("OldDoFn is not splittable");
     }
+
+    @Override
+    public Serializable getFn() {
+      return fn;
+    }
   }
 }
