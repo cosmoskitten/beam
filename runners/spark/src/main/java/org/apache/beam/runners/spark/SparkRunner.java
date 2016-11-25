@@ -27,6 +27,7 @@ import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -120,13 +121,14 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     mOptions = options;
   }
 
-
   @Override
   public EvaluationResult run(Pipeline pipeline) {
     try {
       LOG.info("Executing pipeline using the SparkRunner.");
-
-      if (mOptions.isStreaming()) {
+      // we make a first traversal to detect if there are unbounded sources (streaming mode is needed)
+      PipelineTranslationOptimizer optimizer = new PipelineTranslationOptimizer(TranslationMode.BATCH, mOptions);
+      pipeline.traverseTopologically(optimizer);
+      if (optimizer.getTranslationMode().equals(TranslationMode.STREAMING)) {
         SparkRunnerStreamingContextFactory contextFactory =
             new SparkRunnerStreamingContextFactory(pipeline, mOptions);
         JavaStreamingContext jssc = JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(),
@@ -136,7 +138,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         jssc.start();
 
         // if recovering from checkpoint, we have to reconstruct the EvaluationResult instance.
-        return contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sc(),
+        return contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sparkContext(),
             pipeline, jssc) : contextFactory.getCtxt();
       } else {
         JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
@@ -164,6 +166,50 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       }
       // otherwise just wrap in a RuntimeException
       throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * The translation mode of the Beam Pipeline.
+   */
+  public enum TranslationMode {
+    /** Uses the batch mode */
+    BATCH,
+    /** Uses the streaming mode */
+    STREAMING
+  }
+
+  /**
+   * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline.
+   */
+  static class PipelineTranslationOptimizer extends Pipeline.PipelineVisitor.Defaults {
+    private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationOptimizer.class);
+
+    private TranslationMode translationMode;
+    private final SparkPipelineOptions options;
+
+    PipelineTranslationOptimizer(TranslationMode defaultMode, SparkPipelineOptions options) {
+      this.translationMode = defaultMode;
+      this.options = options;
+    }
+
+    TranslationMode getTranslationMode() {
+      // override user-specified translation mode
+      if (options.isStreaming()) {
+        return TranslationMode.STREAMING;
+      }
+      return translationMode;
+    }
+
+    @Override
+    public void visitPrimitiveTransform(TransformTreeNode node) {
+      if (translationMode.equals(TranslationMode.BATCH)) {
+        Class<? extends PTransform> transformClass = node.getTransform().getClass();
+        if (transformClass == Read.Unbounded.class) {
+          LOG.info("Found {}. Switching to streaming execution.", transformClass);
+          translationMode = TranslationMode.STREAMING;
+        }
+      }
     }
   }
 
