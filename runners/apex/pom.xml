@@ -229,10 +229,52 @@
               </ignoredUsedUndeclaredDependencies>
             </configuration>
           </execution>
+          <execution>
+            <!--  used in ApexYarnLauncher to filter compile time Hadoop dependencies -->
+            <id>dependency-tree</id>
+            <phase>generate-test-resources</phase>
+            <goals>
+              <goal>tree</goal>
+            </goals>
+            <configuration>
+              <outputFile>${project.build.directory}/classes/org/apache/beam/runners/apex/dependency-tree</outputFile>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
 
     </plugins>
+
+    <pluginManagement>
+      <plugins>
+        <!-- Eclipse has a problem with dependency:tree when it is not in package phase -->
+        <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
+        <plugin>
+          <groupId>org.eclipse.m2e</groupId>
+          <artifactId>lifecycle-mapping</artifactId>
+          <version>1.0.0</version>
+          <configuration>
+            <lifecycleMappingMetadata>
+              <pluginExecutions>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <versionRange>[2.10,)</versionRange>
+                    <goals>
+                      <goal>tree</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore></ignore>
+                  </action>
+                </pluginExecution>
+              </pluginExecutions>
+            </lifecycleMappingMetadata>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
   </build>
 
 </project>
