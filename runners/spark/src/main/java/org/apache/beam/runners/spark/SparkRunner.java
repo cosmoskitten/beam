@@ -137,7 +137,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         jssc.start();
 
         // if recovering from checkpoint, we have to reconstruct the EvaluationResult instance.
-        return contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sc(),
+        return contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sparkContext(),
             pipeline, jssc) : contextFactory.getCtxt();
       } else {
         JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
