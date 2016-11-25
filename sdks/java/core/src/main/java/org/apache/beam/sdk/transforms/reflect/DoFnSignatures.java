@@ -283,7 +283,7 @@ public class DoFnSignatures {
       String id = onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
       errors.checkArgument(
           fnContext.getTimerDeclarations().containsKey(id),
-          "Callback %s is for for undeclared timer %s",
+          "Callback %s is for undeclared timer %s",
           onTimerMethod,
           id);
 
