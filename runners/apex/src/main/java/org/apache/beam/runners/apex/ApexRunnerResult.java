@@ -18,11 +18,11 @@
 package org.apache.beam.runners.apex;
 
 import com.datatorrent.api.DAG;
-import com.datatorrent.api.LocalMode;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 
+import org.apache.apex.api.Launcher.AppHandle;
+import org.apache.apex.api.Launcher.ShutdownMode;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
@@ -36,12 +36,12 @@ import org.joda.time.Duration;
  */
 public class ApexRunnerResult implements PipelineResult {
   private final DAG apexDAG;
-  private final LocalMode.Controller ctrl;
+  private final AppHandle apexApp;
   private State state = State.UNKNOWN;
 
-  public ApexRunnerResult(DAG dag, LocalMode.Controller ctrl) {
+  public ApexRunnerResult(DAG dag, AppHandle apexApp) {
     this.apexDAG = dag;
-    this.ctrl = ctrl;
+    this.apexApp = apexApp;
   }
 
   @Override
@@ -57,19 +57,19 @@ public class ApexRunnerResult implements PipelineResult {
 
   @Override
   public State cancel() throws IOException {
-    ctrl.shutdown();
+    apexApp.shutdown(ShutdownMode.KILL);
     state = State.CANCELLED;
     return state;
   }
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    return ApexRunnerResult.waitUntilFinished(ctrl, duration);
+    return ApexRunnerResult.waitUntilFinished(apexApp, duration);
   }
 
   @Override
   public State waitUntilFinish() {
-    return ApexRunnerResult.waitUntilFinished(ctrl, null);
+    return ApexRunnerResult.waitUntilFinished(apexApp, null);
   }
 
   @Override
@@ -85,24 +85,18 @@ public class ApexRunnerResult implements PipelineResult {
     return apexDAG;
   }
 
-  public static State waitUntilFinished(LocalMode.Controller ctrl, Duration duration) {
-    // we need to rely on internal field for now
-    // Apex should make it available through API in upcoming release.
+  public static State waitUntilFinished(AppHandle apexApp, Duration duration) {
     long timeout = (duration == null || duration.getMillis() < 1) ? Long.MAX_VALUE
         : System.currentTimeMillis() + duration.getMillis();
-    Field appDoneField;
     try {
-      appDoneField = ctrl.getClass().getDeclaredField("appDone");
-      appDoneField.setAccessible(true);
-      while (!appDoneField.getBoolean(ctrl) && System.currentTimeMillis() < timeout) {
+      while (!apexApp.isFinished() && System.currentTimeMillis() < timeout) {
         if (ApexRunner.ASSERTION_ERROR.get() != null) {
           throw ApexRunner.ASSERTION_ERROR.get();
         }
         Thread.sleep(500);
       }
-      return appDoneField.getBoolean(ctrl) ? State.DONE : null;
-    } catch (NoSuchFieldException | SecurityException | IllegalArgumentException
-        | IllegalAccessException | InterruptedException e) {
+      return apexApp.isFinished() ? State.DONE : null;
+    } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
   }
