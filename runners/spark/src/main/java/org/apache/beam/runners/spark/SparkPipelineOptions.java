@@ -23,16 +23,13 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
-
-
 
 /**
  * Spark runner {@link PipelineOptions} handles Spark execution-related configurations,
  * such as the master address, batch-interval, and other user-related knobs.
  */
 public interface SparkPipelineOptions
-    extends PipelineOptions, StreamingOptions, ApplicationNameOptions {
+    extends PipelineOptions, ApplicationNameOptions {
 
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
   @Default.String("local[4]")

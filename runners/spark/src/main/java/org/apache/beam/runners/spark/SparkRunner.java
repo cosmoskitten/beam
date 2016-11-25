@@ -120,13 +120,14 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     mOptions = options;
   }
 
-
   @Override
   public EvaluationResult run(Pipeline pipeline) {
     try {
       LOG.info("Executing pipeline using the SparkRunner.");
-
-      if (mOptions.isStreaming()) {
+      // we make a first traversal to detect if they are unbounded sources (streaming mode is needed)
+      DetectUnboundedPipelineVisitor se = new DetectUnboundedPipelineVisitor();
+      pipeline.traverseTopologically(se);
+      if (se.isUnbounded()) {
         SparkRunnerStreamingContextFactory contextFactory =
             new SparkRunnerStreamingContextFactory(pipeline, mOptions);
         JavaStreamingContext jssc = JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(),
@@ -164,6 +165,30 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       }
       // otherwise just wrap in a RuntimeException
       throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * A pipeline visitor that detects if the pipeline has unbounded nodes.
+   */
+  static class DetectUnboundedPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
+    private boolean unbounded;
+
+    @Override
+    public void visitPrimitiveTransform(TransformTreeNode node) {
+      if (!unbounded) {
+        PInput input = node.getInput();
+        if (input != null && input instanceof PCollection) {
+          PCollection pColInput = (PCollection) input;
+          if (pColInput.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+            unbounded = true;
+          }
+        }
+      }
+    }
+
+    boolean isUnbounded() {
+      return unbounded;
     }
   }
 
