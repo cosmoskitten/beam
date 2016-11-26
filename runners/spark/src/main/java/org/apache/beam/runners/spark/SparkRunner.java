@@ -150,7 +150,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
         return ctxt;
       }
-    } catch (Exception e) {
+    } catch (Throwable e) {
       // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
       // won't let you catch something that is not declared, so we can't catch
       // SparkException here. Instead we do an instanceof check.

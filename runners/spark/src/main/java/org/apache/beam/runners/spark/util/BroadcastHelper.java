@@ -77,8 +77,8 @@ public abstract class BroadcastHelper<T> implements Serializable {
     }
 
     @Override
-    public void broadcast(JavaSparkContext jsc) {
-      this.bcast = jsc.broadcast(value);
+    public synchronized void broadcast(JavaSparkContext jsc) {
+      this.bcast = jsc.broadcast(getValue());
     }
   }
 
@@ -107,8 +107,8 @@ public abstract class BroadcastHelper<T> implements Serializable {
     }
 
     @Override
-    public void broadcast(JavaSparkContext jsc) {
-      this.bcast = jsc.broadcast(CoderHelpers.toByteArray(value, coder));
+    public synchronized void broadcast(JavaSparkContext jsc) {
+      this.bcast = jsc.broadcast(CoderHelpers.toByteArray(getValue(), coder));
     }
 
     private T deserialize() {
