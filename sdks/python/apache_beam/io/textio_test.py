@@ -257,7 +257,7 @@ class TextSourceTest(unittest.TestCase):
     dd = DisplayData.create_from(read)
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
-        DisplayDataItemMatcher('filePattern', 'prefix'),
+        DisplayDataItemMatcher('file_pattern', 'prefix'),
         DisplayDataItemMatcher('strip_nwln', True)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
@@ -469,11 +469,13 @@ class TextSinkTest(unittest.TestCase):
     dd = DisplayData.create_from(write)
     expected_items = [
         DisplayDataItemMatcher(
+            'append_nwln', True),
+        DisplayDataItemMatcher(
             'compression', 'auto'),
         DisplayDataItemMatcher(
             'shards', 0),
         DisplayDataItemMatcher(
-            'filePattern',
+            'file_pattern',
             '{}{}'.format('prefix',
                           '-%(shard_num)05d-of-%(num_shards)05d'))]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
