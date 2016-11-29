@@ -474,7 +474,7 @@ public class DatastoreV1 {
 
       PCollection<KV<Integer, Query>> queries = input
           .apply(Create.of(KV.of(getGqlQuery(), getQuery())).withCoder(valueProviderCoder))
-          .apply(ParDo.of(new GqlQueryTranslatorDoFn(v1Options)))
+          .apply(ParDo.of(new GqlQueryTranslatorFn(v1Options)))
           .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
 
       PCollection<Query> shardedQueries = queries
@@ -501,7 +501,7 @@ public class DatastoreV1 {
             "Either query or gql query ValueProvider should be provided");
       }
 
-      if (getQuery() != null && getGqlQuery() != null) {
+      if (getGqlQuery() != null && getGqlQuery() != null) {
         throw new IllegalArgumentException(
             "Only one of query or gql query ValueProvider should be provided");
       }
@@ -578,15 +578,23 @@ public class DatastoreV1 {
       }
     }
 
-    static class GqlQueryTranslatorDoFn
+    /**
+     * A DoFn that translates a Cloud Datastore gql query string to {@code Query}.
+     */
+    static class GqlQueryTranslatorFn
         extends DoFn<KV<ValueProvider<String>, ValueProvider<Query>>, Query> {
       private final V1Options options;
       private transient Datastore datastore;
       private final V1DatastoreFactory datastoreFactory;
 
-      GqlQueryTranslatorDoFn(V1Options options) {
+      GqlQueryTranslatorFn(V1Options options) {
+        this(options, new V1DatastoreFactory());
+      }
+
+      @VisibleForTesting
+      GqlQueryTranslatorFn(V1Options options, V1DatastoreFactory datastoreFactory) {
         this.options = options;
-        this.datastoreFactory = new V1DatastoreFactory();
+        this.datastoreFactory = datastoreFactory;
       }
 
       @StartBundle
@@ -926,7 +934,7 @@ public class DatastoreV1 {
     @Override
     public void validate(PCollection<T> input) {
       checkNotNull(projectId, "projectId ValueProvider");
-      if(projectId.isAccessible()) {
+      if (projectId.isAccessible()) {
         checkNotNull(projectId.get(), "projectId");
       }
       checkNotNull(mutationFn, "mutationFn");

@@ -51,6 +51,7 @@ import static org.mockito.Mockito.when;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
+import com.google.datastore.v1.GqlQuery;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Mutation;
 import com.google.datastore.v1.PartitionId;
@@ -72,6 +73,7 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntity;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntityFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKey;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKeyFn;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.GqlQueryTranslatorFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
@@ -79,6 +81,7 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.UpsertFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.V1DatastoreFactory;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -107,7 +110,6 @@ import org.mockito.stubbing.Answer;
  */
 @RunWith(JUnit4.class)
 public class DatastoreV1Test {
-
   private static final String PROJECT_ID = "testProject";
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
@@ -673,6 +675,61 @@ public class DatastoreV1Test {
     readFnTest(5 * QUERY_BATCH_LIMIT);
   }
 
+  @Test
+  public void testGqlTranslatorFnWithQuery() throws Exception {
+    GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
+    DoFnTester<KV<ValueProvider<String>, ValueProvider<Query>>, Query> doFnTester =
+        DoFnTester.of(translatorFn);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    ValueProvider<Query> query = StaticValueProvider.of(QUERY);
+    List<Query> queries = doFnTester.processBundle(KV.of((ValueProvider<String>) null, query));
+
+    assertEquals(queries.size(), 1);
+    assertEquals(queries.get(0), QUERY);
+    verifyNoMoreInteractions(mockDatastore);
+  }
+
+  @Test
+  public void testGqlTranslatorFnWithGqlQuery() throws Exception {
+    GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
+    DoFnTester<KV<ValueProvider<String>, ValueProvider<Query>>, Query> doFnTester =
+        DoFnTester.of(translatorFn);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    ValueProvider<String> gqlQuery = StaticValueProvider.of("SELECT * from " + KIND);
+    RunQueryRequest gqlRequest = makeGqlRequest(gqlQuery.get());
+    when(mockDatastore.runQuery(gqlRequest))
+        .thenReturn(RunQueryResponse.newBuilder().setQuery(QUERY).build());
+
+    List<Query> queries = doFnTester.processBundle(KV.of(gqlQuery, (ValueProvider<Query>) null));
+
+    assertEquals(queries.size(), 1);
+    assertEquals(queries.get(0), QUERY);
+    verify(mockDatastore, times(1)).runQuery(gqlRequest);
+  }
+
+  @Test
+  public void testGqlTranslatorFnWithGqlQueryWithLimit() throws Exception {
+    GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
+    DoFnTester<KV<ValueProvider<String>, ValueProvider<Query>>, Query> doFnTester =
+        DoFnTester.of(translatorFn);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    int limit = 100;
+    Query queryWithLimit = QUERY.toBuilder().setLimit(
+        Int32Value.newBuilder().setValue(limit).build()).build();
+    ValueProvider<String> gqlQuery = StaticValueProvider.of(
+        String.format("SELECT * from %s %d", KIND, limit));
+
+    RunQueryRequest gqlRequest = makeGqlRequest(gqlQuery.get());
+    when(mockDatastore.runQuery(gqlRequest))
+        .thenReturn(RunQueryResponse.newBuilder().setQuery(queryWithLimit).build());
+
+    List<Query> queries = doFnTester.processBundle(KV.of(gqlQuery, (ValueProvider<Query>) null));
+
+    assertEquals(queries.size(), 1);
+    assertEquals(queries.get(0), queryWithLimit);
+    verify(mockDatastore, times(1)).runQuery(gqlRequest);
+  }
+
   /** Helper Methods */
 
   /** A helper function that verifies if all the queries have unique keys. */
@@ -816,5 +873,13 @@ public class DatastoreV1Test {
       queries.add(query.toBuilder().clone().build());
     }
     return queries;
+  }
+
+  /** Builds a RunQueryRequest for the give gqlQuery. */
+  private RunQueryRequest makeGqlRequest(String gqlQuery) {
+    String gqlQueryWithZeroLimit = gqlQuery + " limit 0";
+    GqlQuery gql = GqlQuery.newBuilder().setQueryString(gqlQueryWithZeroLimit)
+        .setAllowLiterals(true).build();
+    return RunQueryRequest.newBuilder().setGqlQuery(gql).build();
   }
 }
