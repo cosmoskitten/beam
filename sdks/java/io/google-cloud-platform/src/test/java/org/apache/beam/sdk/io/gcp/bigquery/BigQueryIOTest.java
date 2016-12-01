@@ -708,21 +708,23 @@ public class BigQueryIOTest implements Serializable {
   public void testValidateReadSetsDefaultProject() throws Exception {
     String projectId = "someproject";
     String datasetId = "somedataset";
+    String tableId = "sometable";
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject(projectId);
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
+    FakeDatasetService fakeDatasetService =
+        new FakeDatasetService().withTable(projectId, datasetId, tableId, null);
+
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(mockJobService)
-        .withDatasetService(mockDatasetService);
-    when(mockDatasetService.getDataset(projectId, datasetId)).thenThrow(
-        new RuntimeException("Unable to confirm BigQuery dataset presence"));
+        .withJobService(new FakeJobService())
+        .withDatasetService(fakeDatasetService);
 
     Pipeline p = TestPipeline.create(bqOptions);
 
     TableReference tableRef = new TableReference();
     tableRef.setDatasetId(datasetId);
-    tableRef.setTableId("sometable");
+    tableRef.setTableId(tableId);
 
     thrown.expect(RuntimeException.class);
     // Message will be one of following depending on the execution environment.
