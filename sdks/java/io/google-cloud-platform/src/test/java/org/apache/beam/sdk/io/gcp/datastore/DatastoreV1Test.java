@@ -114,6 +114,7 @@ public class DatastoreV1Test {
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
   private static final Query QUERY;
+  private static final String GQL_QUERY = "SELECT * from " + KIND;
   private static final V1Options V_1_OPTIONS;
   static {
     Query.Builder q = Query.newBuilder();
@@ -181,6 +182,18 @@ public class DatastoreV1Test {
     DatastoreV1.Read read =  DatastoreIO.v1().read().withProjectId(PROJECT_ID);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Either query or gql query ValueProvider should be provided");
+    read.validate(null);
+  }
+
+  @Test
+  public void testReadValidationFailsQueryAndGqlQuery() throws Exception {
+    DatastoreV1.Read read =  DatastoreIO.v1().read()
+        .withProjectId(PROJECT_ID)
+        .withGqlQuery(GQL_QUERY)
+        .withQuery(QUERY);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Only one of query or gql query ValueProvider should be provided");
     read.validate(null);
   }
 
@@ -695,7 +708,7 @@ public class DatastoreV1Test {
     DoFnTester<KV<ValueProvider<String>, ValueProvider<Query>>, Query> doFnTester =
         DoFnTester.of(translatorFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    ValueProvider<String> gqlQuery = StaticValueProvider.of("SELECT * from " + KIND);
+    ValueProvider<String> gqlQuery = StaticValueProvider.of(GQL_QUERY);
     RunQueryRequest gqlRequest = makeGqlRequest(gqlQuery.get());
     when(mockDatastore.runQuery(gqlRequest))
         .thenReturn(RunQueryResponse.newBuilder().setQuery(QUERY).build());
@@ -717,7 +730,7 @@ public class DatastoreV1Test {
     Query queryWithLimit = QUERY.toBuilder().setLimit(
         Int32Value.newBuilder().setValue(limit).build()).build();
     ValueProvider<String> gqlQuery = StaticValueProvider.of(
-        String.format("SELECT * from %s %d", KIND, limit));
+        String.format("%s limit %d", GQL_QUERY, limit));
 
     RunQueryRequest gqlRequest = makeGqlRequest(gqlQuery.get());
     when(mockDatastore.runQuery(gqlRequest))
