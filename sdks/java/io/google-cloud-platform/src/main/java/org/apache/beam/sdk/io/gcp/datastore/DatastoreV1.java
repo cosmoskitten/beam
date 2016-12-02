@@ -501,7 +501,7 @@ public class DatastoreV1 {
             "Either query or gql query ValueProvider should be provided");
       }
 
-      if (getGqlQuery() != null && getGqlQuery() != null) {
+      if (getQuery() != null && getGqlQuery() != null) {
         throw new IllegalArgumentException(
             "Only one of query or gql query ValueProvider should be provided");
       }
