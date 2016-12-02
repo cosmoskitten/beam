@@ -282,7 +282,7 @@ public class DatastoreV1 {
     private static long queryLatestStatisticsTimestamp(Datastore datastore,
         @Nullable String namespace)  throws DatastoreException {
       Query.Builder query = Query.newBuilder();
-      if (namespace == null) {
+      if (namespace == null || namespace.isEmpty()) {
         query.addKindBuilder().setName("__Stat_Total__");
       } else {
         query.addKindBuilder().setName("__Stat_Ns_Total__");
@@ -317,7 +317,7 @@ public class DatastoreV1 {
       LOG.info("Latest stats timestamp for kind {} is {}", ourKind, latestTimestamp);
 
       Query.Builder queryBuilder = Query.newBuilder();
-      if (namespace == null) {
+      if (namespace == null || namespace.isEmpty()) {
         queryBuilder.addKindBuilder().setName("__Stat_Kind__");
       } else {
         queryBuilder.addKindBuilder().setName("__Stat_Ns_Kind__");
@@ -345,7 +345,16 @@ public class DatastoreV1 {
     /** Builds a {@link RunQueryRequest} from the {@code query} and {@code namespace}. */
     static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
       RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
-      if (namespace != null) {
+      if (namespace != null && !namespace.isEmpty()) {
+        requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
+      }
+      return requestBuilder.build();
+    }
+
+    /** Builds a {@link RunQueryRequest} from the {@code GqlQuery} and {@code namespace}. */
+    static RunQueryRequest makeRequest(GqlQuery gqlQuery, @Nullable String namespace) {
+      RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setGqlQuery(gqlQuery);
+      if (namespace != null && !namespace.isEmpty()) {
         requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
       }
       return requestBuilder.build();
@@ -359,7 +368,7 @@ public class DatastoreV1 {
         Datastore datastore, QuerySplitter querySplitter, int numSplits) throws DatastoreException {
       // If namespace is set, include it in the split request so splits are calculated accordingly.
       PartitionId.Builder partitionBuilder = PartitionId.newBuilder();
-      if (namespace != null) {
+      if (namespace != null && !namespace.isEmpty()) {
         partitionBuilder.setNamespaceId(namespace);
       }
 
@@ -620,7 +629,8 @@ public class DatastoreV1 {
           String gqlQueryWithZeroLimit = gqlQuery.get() + " limit 0";
           GqlQuery gql = GqlQuery.newBuilder().setQueryString(gqlQueryWithZeroLimit)
               .setAllowLiterals(true).build();
-          RunQueryRequest req = RunQueryRequest.newBuilder().setGqlQuery(gql).build();
+
+          RunQueryRequest req = makeRequest(gql, options.getNamespace());
           RunQueryResponse resp = datastore.runQuery(req);
           Query translatedQuery = resp.getQuery();
 
@@ -703,17 +713,6 @@ public class DatastoreV1 {
         for (Query subquery : querySplits) {
           c.output(KV.of(key++, subquery));
         }
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-
-        builder
-            .addIfNotNull(DisplayData.item("projectId", options.getProjectId())
-                .withLabel("ProjectId"))
-            .addIfNotNull(DisplayData.item("namespace", options.getNamespace())
-                .withLabel("Namespace"));
       }
     }
 

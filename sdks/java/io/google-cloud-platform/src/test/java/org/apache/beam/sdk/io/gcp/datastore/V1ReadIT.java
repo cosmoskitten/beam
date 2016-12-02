@@ -126,7 +126,7 @@ public class V1ReadIT {
 
   // Creates entities and write them to datastore
   private static void writeEntitiesToDatastore(V1TestOptions options, String project,
-                                               String ancestor, long numEntities) throws Exception {
+      String ancestor, long numEntities) throws Exception {
     Datastore datastore = getDatastore(options, project);
     // Write test entities to datastore
     V1TestWriter writer = new V1TestWriter(datastore, new UpsertMutationBuilder());

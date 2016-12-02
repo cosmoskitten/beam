@@ -22,6 +22,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -54,6 +55,8 @@ public class DatastoreDelete {
     void setGqlQuery(ValueProvider<String> value);
 
     @Description("Cloud Datastore Namespace")
+    // Emtpy String denotes default namespace.
+    @Default.String("")
     ValueProvider<String> getNamespace();
     void setNamespace(@Nullable ValueProvider<String> value);
   }
