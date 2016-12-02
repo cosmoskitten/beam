@@ -728,9 +728,7 @@ public class BigQueryIOTest implements Serializable {
 
     thrown.expect(RuntimeException.class);
     // Message will be one of following depending on the execution environment.
-    thrown.expectMessage(
-        Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
-            .or(Matchers.containsString("BigQuery dataset not found for table")));
+    thrown.expectMessage(Matchers.containsString("Unsupported"));
     p.apply(BigQueryIO.Read.from(tableRef)
         .withTestServices(fakeBqServices));
   }
