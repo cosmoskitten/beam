@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -63,7 +64,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
+import org.apache.beam.sdk.options.PipelineOptionsFactory.AnnotationPredicates;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -130,6 +131,8 @@ class ProxyInvocationHandler implements InvocationHandler {
       return equals(args[0]);
     } else if (args == null && "hashCode".equals(method.getName())) {
       return hashCode();
+    } else if (args == null && "outputRuntimeOptions".equals(method.getName())) {
+      return outputRuntimeOptions((PipelineOptions) proxy);
     } else if (args != null && "as".equals(method.getName()) && args[0] instanceof Class) {
       @SuppressWarnings("unchecked")
       Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
@@ -239,6 +242,29 @@ class ProxyInvocationHandler implements InvocationHandler {
   @Override
   public int hashCode() {
     return hashCode;
+  }
+
+  /**
+   * Returns a map of properties which correspond to {@link RuntimeValueProvider}.
+   */
+  public Map<String, Map<String, Object>> outputRuntimeOptions(PipelineOptions options) {
+    Set<PipelineOptionSpec> optionSpecs = PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
+    Map<String, Map<String, Object>> properties = Maps.newHashMap();
+
+    for (PipelineOptionSpec spec : optionSpecs) {
+      if (spec.getGetterMethod().getReturnType().equals(ValueProvider.class)) {
+        Object vp = invoke(options, spec.getGetterMethod(), null);
+        if (((ValueProvider) vp).isAccessible()) {
+          continue;
+        }
+        Map<String, Object> property = Maps.newHashMap();
+        property.put("type",
+                     ((ParameterizedType) spec.getGetterMethod()
+                      .getGenericReturnType()).getActualTypeArguments()[0]);
+        properties.put(spec.getName(), property);
+      }
+    }
+    return properties;
   }
 
   /**
@@ -638,7 +664,8 @@ class ProxyInvocationHandler implements InvocationHandler {
       // Find all the method names that are annotated with JSON ignore.
       Set<String> jsonIgnoreMethodNames = FluentIterable.from(
           ReflectHelpers.getClosureOfMethodsOnInterfaces(interfaces))
-          .filter(JsonIgnorePredicate.INSTANCE).transform(new Function<Method, String>() {
+          .filter(AnnotationPredicates.JSON_IGNORE.forMethod)
+          .transform(new Function<Method, String>() {
             @Override
             public String apply(Method input) {
               return input.getName();

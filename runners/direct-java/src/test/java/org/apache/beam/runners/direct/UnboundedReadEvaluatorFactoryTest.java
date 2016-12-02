@@ -49,7 +49,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -63,11 +63,11 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 import org.junit.Before;
@@ -159,9 +159,10 @@ public class UnboundedReadEvaluatorFactoryTest {
             longs.getProducingTransformInternal(), inputShards);
 
     evaluator.processElement((WindowedValue) Iterables.getOnlyElement(inputShards.getElements()));
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<? super UnboundedSourceShard<Long, ?>> result = evaluator.finishBundle();
 
-    WindowedValue<?> residual = Iterables.getOnlyElement(result.getUnprocessedElements());
+    WindowedValue<? super UnboundedSourceShard<Long, ?>> residual =
+        Iterables.getOnlyElement(result.getUnprocessedElements());
     assertThat(
         residual.getTimestamp(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
     UnboundedSourceShard<Long, ?> residualShard =
@@ -206,7 +207,8 @@ public class UnboundedReadEvaluatorFactoryTest {
       evaluator.processElement(
           (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>) value);
     }
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> result =
+        evaluator.finishBundle();
     assertThat(
         output.commit(Instant.now()).getElements(),
         containsInAnyOrder(tgw(1L), tgw(2L), tgw(4L), tgw(3L), tgw(0L)));
@@ -230,7 +232,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     TestPipeline p = TestPipeline.create();
     // Read with a very slow rate so by the second read there are no more elements
     PCollection<Long> pcollection =
-        p.apply(CountingInput.unbounded().withRate(1L, Duration.standardDays(1)));
+        p.apply(Read.from(new TestUnboundedSource<>(VarLongCoder.of(), 1L)));
     AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
@@ -248,7 +250,8 @@ public class UnboundedReadEvaluatorFactoryTest {
       evaluator.processElement(
           (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>) value);
     }
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> result =
+        evaluator.finishBundle();
 
     // Read from the residual of the first read. This should not produce any output, but should
     // include a residual shard in the result.
@@ -260,7 +263,9 @@ public class UnboundedReadEvaluatorFactoryTest {
         (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>)
             Iterables.getOnlyElement(result.getUnprocessedElements());
     secondEvaluator.processElement(residual);
-    TransformResult secondResult = secondEvaluator.finishBundle();
+
+    TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> secondResult =
+        secondEvaluator.finishBundle();
 
     // Sanity check that nothing was output (The test would have to run for more than a day to do
     // so correctly.)
@@ -268,11 +273,14 @@ public class UnboundedReadEvaluatorFactoryTest {
         secondOutput.commit(Instant.now()).getElements(),
         Matchers.<WindowedValue<Long>>emptyIterable());
 
-    // Test that even though the reader produced no outputs, there is still a residual shard.
-    UnboundedSourceShard<Long, TestCheckpointMark> residualShard =
-        (UnboundedSourceShard<Long, TestCheckpointMark>)
-            Iterables.getOnlyElement(secondResult.getUnprocessedElements()).getValue();
-    assertThat(residualShard.getExistingReader(), not(nullValue()));
+    // Test that even though the reader produced no outputs, there is still a residual shard with
+    // the updated watermark.
+    WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> unprocessed =
+        (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>)
+            Iterables.getOnlyElement(secondResult.getUnprocessedElements());
+    assertThat(
+        unprocessed.getTimestamp(), Matchers.<ReadableInstant>greaterThan(residual.getTimestamp()));
+    assertThat(unprocessed.getValue().getExistingReader(), not(nullValue()));
   }
 
   @Test
@@ -304,7 +312,8 @@ public class UnboundedReadEvaluatorFactoryTest {
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, inputBundle);
     evaluator.processElement(shard);
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> result =
+        evaluator.finishBundle();
 
     CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> residual =
         inputBundle.withElements(
@@ -346,7 +355,8 @@ public class UnboundedReadEvaluatorFactoryTest {
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, inputBundle);
     evaluator.processElement(shard);
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> result =
+        evaluator.finishBundle();
 
     CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> residual =
         inputBundle.withElements(
@@ -377,6 +387,8 @@ public class UnboundedReadEvaluatorFactoryTest {
   }
 
   private static class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMark> {
+    private static int getWatermarkCalls = 0;
+
     static int readerClosedCount;
     static int readerAdvancedCount;
     private final Coder<T> coder;
@@ -398,8 +410,8 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     @Override
     public UnboundedSource.UnboundedReader<T> createReader(
-        PipelineOptions options, TestCheckpointMark checkpointMark) {
-      return new TestUnboundedReader(elems);
+        PipelineOptions options, @Nullable TestCheckpointMark checkpointMark) {
+      return new TestUnboundedReader(elems, checkpointMark == null ? -1 : checkpointMark.index);
     }
 
     @Override
@@ -425,9 +437,9 @@ public class UnboundedReadEvaluatorFactoryTest {
       private final List<T> elems;
       private int index;
 
-      public TestUnboundedReader(List<T> elems) {
+      public TestUnboundedReader(List<T> elems, int startIndex) {
         this.elems = elems;
-        this.index = -1;
+        this.index = startIndex;
       }
 
       @Override
@@ -447,12 +459,13 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public Instant getWatermark() {
-        return Instant.now();
+        getWatermarkCalls++;
+        return new Instant(index + getWatermarkCalls);
       }
 
       @Override
       public CheckpointMark getCheckpointMark() {
-        return new TestCheckpointMark();
+        return new TestCheckpointMark(index);
       }
 
       @Override
@@ -488,6 +501,12 @@ public class UnboundedReadEvaluatorFactoryTest {
   }
 
   private static class TestCheckpointMark implements CheckpointMark {
+    final int index;
+
+    private TestCheckpointMark(int index) {
+      this.index = index;
+    }
+
     @Override
     public void finalizeCheckpoint() throws IOException {}
 
@@ -497,13 +516,15 @@ public class UnboundedReadEvaluatorFactoryTest {
           TestCheckpointMark value,
           OutputStream outStream,
           org.apache.beam.sdk.coders.Coder.Context context)
-          throws CoderException, IOException {}
+          throws CoderException, IOException {
+        VarInt.encode(value.index, outStream);
+      }
 
       @Override
       public TestCheckpointMark decode(
           InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
           throws CoderException, IOException {
-        return new TestCheckpointMark();
+        return new TestCheckpointMark(VarInt.decodeInt(inStream));
       }
     }
   }

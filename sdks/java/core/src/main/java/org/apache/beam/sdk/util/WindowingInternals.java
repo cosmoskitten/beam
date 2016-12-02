@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import java.io.IOException;
 import java.util.Collection;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -52,6 +50,16 @@ public interface WindowingInternals<InputT, OutputT> {
       Collection<? extends BoundedWindow> windows, PaneInfo pane);
 
   /**
+   * Output the value to a side output at the specified timestamp in the listed windows.
+   */
+  <SideOutputT> void sideOutputWindowedValue(
+      TupleTag<SideOutputT> tag,
+      SideOutputT output,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo pane);
+
+  /**
    * Return the timer manager provided by the underlying system, or null if Timers need
    * to be emulated.
    */
@@ -68,15 +76,7 @@ public interface WindowingInternals<InputT, OutputT> {
   PaneInfo pane();
 
   /**
-   * Write the given {@link PCollectionView} data to a location accessible by other workers.
+   * Return the value of the side input for a particular side input window.
    */
-  <T> void writePCollectionViewData(
-      TupleTag<?> tag,
-      Iterable<WindowedValue<T>> data,
-      Coder<T> elemCoder) throws IOException;
-
-  /**
-   * Return the value of the side input for the window of a main input element.
-   */
-  <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow);
+  <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow);
 }

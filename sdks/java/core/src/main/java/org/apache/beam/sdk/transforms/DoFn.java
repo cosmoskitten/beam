@@ -28,6 +28,8 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -38,13 +40,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
@@ -76,15 +76,15 @@ import org.joda.time.Instant;
  *
  * <p>Example usage:
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<String> lines = ... ;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFn<String, String>() {
- *         @ProcessElement
+ *         {@literal @}ProcessElement
  *         public void processElement(ProcessContext c, BoundedWindow window) {
  *
  *         }}));
- * } </pre>
+ * }</pre>
  *
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
@@ -120,6 +120,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
      */
     public abstract void output(OutputT output);
 
@@ -142,6 +145,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
      * timestamp.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
      */
     public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
 
@@ -168,6 +174,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
+     *
      * @see ParDo#withOutputTags
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
@@ -191,6 +200,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
      * timestamp.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
      *
      * @see ParDo#withOutputTags
      */
@@ -238,7 +250,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
       aggregator.setDelegate(delegate);
     }
-
   }
 
   /**
@@ -300,6 +311,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   protected Map<String, DelegatingAggregator<?, ?>> aggregators = new HashMap<>();
 
+  Collection<Aggregator<?, ?>> getAggregators() {
+    return Collections.<Aggregator<?, ?>>unmodifiableCollection(aggregators.values());
+  }
+
   /**
    * Protects aggregators from being created after initialization.
    */
@@ -312,7 +327,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>See {@link #getOutputTypeDescriptor} for more discussion.
    */
-  protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+  public TypeDescriptor<InputT> getInputTypeDescriptor() {
     return new TypeDescriptor<InputT>(getClass()) {};
   }
 
@@ -327,60 +342,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * for choosing a default output {@code Coder<O>} for the output
    * {@code PCollection<O>}.
    */
-  protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+  public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
     return new TypeDescriptor<OutputT>(getClass()) {};
-  }
-
-  /**
-   * Interface for runner implementors to provide implementations of extra context information.
-   *
-   * <p>The methods on this interface are called by {@link DoFnInvoker} before invoking an
-   * annotated {@link StartBundle}, {@link ProcessElement} or {@link FinishBundle} method that
-   * has indicated it needs the given extra context.
-   *
-   * <p>In the case of {@link ProcessElement} it is called once per invocation of
-   * {@link ProcessElement}.
-   */
-  public interface ExtraContextFactory<InputT, OutputT> {
-    /**
-     * Construct the {@link BoundedWindow} to use within a {@link DoFn} that
-     * needs it. This is called if the {@link ProcessElement} method has a parameter of type
-     * {@link BoundedWindow}.
-     *
-     * @return {@link BoundedWindow} of the element currently being processed.
-     */
-    BoundedWindow window();
-
-    /**
-     * A placeholder for testing purposes.
-     */
-    InputProvider<InputT> inputProvider();
-
-    /**
-     * A placeholder for testing purposes.
-     */
-    OutputReceiver<OutputT> outputReceiver();
-
-    /**
-     * For migration from {@link OldDoFn} to {@link DoFn}, provide
-     * a {@link WindowingInternals} so an {@link OldDoFn} can be run
-     * via {@link DoFnInvoker}.
-     *
-     * <p>This is <i>not</i> exposed via the reflective capabilities
-     * of {@link DoFn}.
-     *
-     * @deprecated Please port occurences of {@link OldDoFn} to {@link DoFn}. If they require
-     * state and timers, they will need to wait for the arrival of those features. Do not introduce
-     * new uses of this method.
-     */
-    @Deprecated
-    WindowingInternals<InputT, OutputT> windowingInternals();
-
-    /**
-     * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
-     * the current {@link ProcessElement} call.
-     */
-    <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker();
   }
 
   /** Receives values of the given type. */
@@ -391,34 +354,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /** Provides a single value of the given type. */
   public interface InputProvider<T> {
     T get();
-  }
-
-  /** For testing only, this {@link ExtraContextFactory} returns {@code null} for all parameters. */
-  public static class FakeExtraContextFactory<InputT, OutputT>
-      implements ExtraContextFactory<InputT, OutputT> {
-    @Override
-    public BoundedWindow window() {
-      return null;
-    }
-
-    @Override
-    public InputProvider<InputT> inputProvider() {
-      return null;
-    }
-
-    @Override
-    public OutputReceiver<OutputT> outputReceiver() {
-      return null;
-    }
-
-    @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      return null;
-    }
-
-    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
-      return null;
-    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -436,14 +371,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <pre>{@code
    * new DoFn<KV<Key, Foo>, Baz>() {
-   *   @StateId("my-state-id")
+   *   {@literal @}StateId("my-state-id")
    *   private final StateSpec<K, ValueState<MyState>> myStateSpec =
    *       StateSpecs.value(new MyStateCoder());
    *
-   *   @ProcessElement
+   *   {@literal @}ProcessElement
    *   public void processElement(
    *       ProcessContext c,
-   *       @StateId("my-state-id") ValueState<MyState> myState) {
+   *       {@literal @}StateId("my-state-id") ValueState<MyState> myState) {
    *     myState.read();
    *     myState.write(...);
    *   }
@@ -480,17 +415,17 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <pre>{@code
    * new DoFn<KV<Key, Foo>, Baz>() {
-   *   @TimerId("my-timer-id")
+   *   {@literal @}TimerId("my-timer-id")
    *   private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
    *
-   *   @ProcessElement
+   *   {@literal @}ProcessElement
    *   public void processElement(
    *       ProcessContext c,
-   *       @TimerId("my-timer-id") Timer myTimer) {
+   *       {@literal @}TimerId("my-timer-id") Timer myTimer) {
    *     myTimer.setForNowPlus(Duration.standardSeconds(...));
    *   }
    *
-   *   @OnTimer("my-timer-id")
+   *   {@literal @}OnTimer("my-timer-id")
    *   public void onMyTimer() {
    *     ...
    *   }
@@ -578,7 +513,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    * <li>Its first argument must be a {@link DoFn.ProcessContext}.
    * <li>If one of its arguments is a subtype of {@link RestrictionTracker}, then it is a <a
-   *     href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} subject to the
+   *     href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} subject to the
    *     separate requirements described below. Items below are assuming this is not a splittable
    *     {@link DoFn}.
    * <li>If one of its arguments is {@link BoundedWindow}, this argument corresponds to the window

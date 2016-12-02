@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -75,28 +74,43 @@ public class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<
       processElement(elem);
       return Collections.emptyList();
     }
-    ImmutableList.Builder<WindowedValue<InputT>> pushedBack = ImmutableList.builder();
+    ImmutableList.Builder<BoundedWindow> readyWindowsBuilder = ImmutableList.builder();
+    ImmutableList.Builder<BoundedWindow> pushedBackWindowsBuilder = ImmutableList.builder();
     for (WindowedValue<InputT> windowElem : elem.explodeWindows()) {
       BoundedWindow mainInputWindow = Iterables.getOnlyElement(windowElem.getWindows());
-      boolean isReady = !notReadyWindows.contains(mainInputWindow);
-      for (PCollectionView<?> view : views) {
-        BoundedWindow sideInputWindow =
-            view.getWindowingStrategyInternal()
-                .getWindowFn()
-                .getSideInputWindow(mainInputWindow);
-        if (!sideInputReader.isReady(view, sideInputWindow)) {
-          isReady = false;
-          break;
-        }
-      }
-      if (isReady) {
-        processElement(windowElem);
+      if (isReady(mainInputWindow)) {
+        readyWindowsBuilder.add(mainInputWindow);
       } else {
         notReadyWindows.add(mainInputWindow);
-        pushedBack.add(windowElem);
+        pushedBackWindowsBuilder.add(mainInputWindow);
       }
     }
-    return pushedBack.build();
+    ImmutableList<BoundedWindow> readyWindows = readyWindowsBuilder.build();
+    ImmutableList<BoundedWindow> pushedBackWindows = pushedBackWindowsBuilder.build();
+    if (!readyWindows.isEmpty()) {
+      processElement(
+          WindowedValue.of(
+              elem.getValue(), elem.getTimestamp(), readyWindows, elem.getPane()));
+    }
+    return pushedBackWindows.isEmpty()
+        ? ImmutableList.<WindowedValue<InputT>>of()
+        : ImmutableList.of(
+            WindowedValue.of(
+                elem.getValue(), elem.getTimestamp(), pushedBackWindows, elem.getPane()));
+  }
+
+  private boolean isReady(BoundedWindow mainInputWindow) {
+    if (notReadyWindows.contains(mainInputWindow)) {
+      return false;
+    }
+    for (PCollectionView<?> view : views) {
+      BoundedWindow sideInputWindow =
+          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
+      if (!sideInputReader.isReady(view, sideInputWindow)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override

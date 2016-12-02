@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,39 +28,38 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
-class ParDoEvaluator<T> implements TransformEvaluator<T> {
-  public static <InputT, OutputT> ParDoEvaluator<InputT> create(
+class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
+
+  public static <InputT, OutputT> ParDoEvaluator<InputT, OutputT> create(
       EvaluationContext evaluationContext,
       DirectStepContext stepContext,
-      CommittedBundle<InputT> inputBundle,
-      AppliedPTransform<PCollection<InputT>, ?, ?> application,
+      AppliedPTransform<?, ?, ?> application,
+      WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
       Serializable fn, // may be OldDoFn or DoFn
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs) {
-    DirectExecutionContext executionContext =
-        evaluationContext.getExecutionContext(application, inputBundle.getKey());
-
     AggregatorContainer.Mutator aggregatorChanges = evaluationContext.getAggregatorMutator();
 
     Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
       outputBundles.put(
-          outputEntry.getKey(),
-          evaluationContext.createBundle(outputEntry.getValue()));
+          outputEntry.getKey(), evaluationContext.createBundle(outputEntry.getValue()));
     }
+    BundleOutputManager outputManager = BundleOutputManager.create(outputBundles);
 
     ReadyCheckingSideInputReader sideInputReader =
         evaluationContext.createSideInputReader(sideInputs);
@@ -70,12 +68,12 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
             evaluationContext.getPipelineOptions(),
             fn,
             sideInputReader,
-            BundleOutputManager.create(outputBundles),
+            outputManager,
             mainOutputTag,
             sideOutputTags,
             stepContext,
             aggregatorChanges,
-            application.getInput().getWindowingStrategy());
+            windowingStrategy);
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =
         PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
 
@@ -86,37 +84,44 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
     }
 
     return new ParDoEvaluator<>(
-        runner, application, aggregatorChanges, outputBundles.values(), stepContext);
+        evaluationContext, runner, application, aggregatorChanges, outputManager, stepContext);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private final PushbackSideInputDoFnRunner<T, ?> fnRunner;
-  private final AppliedPTransform<PCollection<T>, ?, ?> transform;
+  private final EvaluationContext evaluationContext;
+  private final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
+  private final AppliedPTransform<?, ?, ?> transform;
   private final AggregatorContainer.Mutator aggregatorChanges;
-  private final Collection<UncommittedBundle<?>> outputBundles;
+  private final BundleOutputManager outputManager;
   private final DirectStepContext stepContext;
 
-  private final ImmutableList.Builder<WindowedValue<T>> unprocessedElements;
+  private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElements;
 
   private ParDoEvaluator(
-      PushbackSideInputDoFnRunner<T, ?> fnRunner,
-      AppliedPTransform<PCollection<T>, ?, ?> transform,
+      EvaluationContext evaluationContext,
+      PushbackSideInputDoFnRunner<InputT, ?> fnRunner,
+      AppliedPTransform<?, ?, ?> transform,
       AggregatorContainer.Mutator aggregatorChanges,
-      Collection<UncommittedBundle<?>> outputBundles,
+      BundleOutputManager outputManager,
       DirectStepContext stepContext) {
+    this.evaluationContext = evaluationContext;
     this.fnRunner = fnRunner;
     this.transform = transform;
-    this.outputBundles = outputBundles;
+    this.outputManager = outputManager;
     this.stepContext = stepContext;
     this.aggregatorChanges = aggregatorChanges;
     this.unprocessedElements = ImmutableList.builder();
   }
 
+  public BundleOutputManager getOutputManager() {
+    return outputManager;
+  }
+
   @Override
-  public void processElement(WindowedValue<T> element) {
+  public void processElement(WindowedValue<InputT> element) {
     try {
-      Iterable<WindowedValue<T>> unprocessed = fnRunner.processElementInReadyWindows(element);
+      Iterable<WindowedValue<InputT>> unprocessed = fnRunner.processElementInReadyWindows(element);
       unprocessedElements.addAll(unprocessed);
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
@@ -124,7 +129,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
   }
 
   @Override
-  public TransformResult finishBundle() {
+  public TransformResult<InputT> finishBundle() {
     try {
       fnRunner.finishBundle();
     } catch (Exception e) {
@@ -140,7 +145,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
       resultBuilder = StepTransformResult.withoutHold(transform);
     }
     return resultBuilder
-        .addOutput(outputBundles)
+        .addOutput(outputManager.bundles.values())
         .withTimerUpdate(stepContext.getTimerUpdate())
         .withAggregatorChanges(aggregatorChanges)
         .addUnprocessedElements(unprocessedElements.build())

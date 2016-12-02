@@ -33,6 +33,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
+import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -91,6 +92,13 @@ public interface ValueProvider<T> extends Serializable {
     public boolean isAccessible() {
       return true;
     }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("value", value)
+          .toString();
+    }
   }
 
   /**
@@ -125,6 +133,13 @@ public interface ValueProvider<T> extends Serializable {
     public boolean isAccessible() {
       return value.isAccessible();
     }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("value", value)
+          .toString();
+    }
   }
 
   /**
@@ -133,7 +148,7 @@ public interface ValueProvider<T> extends Serializable {
    * construction time.
    *
    * <p>To enforce this contract, if there is no default, users must only call
-   * {@link #get()} at execution time (after a call to {@link Pipeline#run}),
+   * {@link #get()} at execution time (after a call to {@link org.apache.beam.sdk.Pipeline#run}),
    * which will provide the value of {@code optionsMap}.
    */
   class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
@@ -211,6 +226,15 @@ public interface ValueProvider<T> extends Serializable {
      */
     public String propertyName() {
       return propertyName;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("propertyName", propertyName)
+          .add("default", defaultValue)
+          .add("value", isAccessible() ? get() : null)
+          .toString();
     }
   }
 

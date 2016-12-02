@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -49,7 +50,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -58,6 +58,7 @@ import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -86,6 +87,7 @@ import org.apache.beam.runners.dataflow.internal.ReadTranslator;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.Pipeline;
@@ -117,7 +119,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -125,7 +127,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -140,6 +141,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.PathValidator;
 import org.apache.beam.sdk.util.PropertyNames;
@@ -208,9 +210,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // Default Docker container images that execute Dataflow worker harness, residing in Google
   // Container Registry, separately for Batch and Streaming.
   public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE =
-      "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20161031";
+      "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20161129";
   public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE =
-      "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20161031";
+      "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20161129";
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -236,7 +238,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   public static DataflowRunner fromOptions(PipelineOptions options) {
     // (Re-)register standard IO factories. Clobbers any prior credentials.
-    IOChannelUtils.registerStandardIOFactories(options);
+    IOChannelUtils.registerIOFactoriesAllowOverride(options);
 
     DataflowPipelineOptions dataflowOptions =
         PipelineOptionsValidator.validate(DataflowPipelineOptions.class, options);
@@ -511,10 +513,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     Job newJob = jobSpecification.getJob();
     newJob.setClientRequestId(requestId);
 
-    String version = ReleaseInfo.getReleaseInfo().getVersion();
+    ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
+    String version = releaseInfo.getVersion();
+    checkState(
+        !version.equals("${pom.version}"),
+        "Unable to submit a job to the Dataflow service with unset version ${pom.version}");
     System.out.println("Dataflow SDK version: " + version);
 
-    newJob.getEnvironment().setUserAgent(ReleaseInfo.getReleaseInfo());
+    newJob.getEnvironment().setUserAgent(releaseInfo);
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
     if (!isNullOrEmpty(options.getGcpTempLocation())) {
@@ -550,16 +556,35 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       hooks.modifyEnvironmentBeforeSubmission(newJob.getEnvironment());
     }
 
-    if (!isNullOrEmpty(options.getDataflowJobFile())) {
+    if (!isNullOrEmpty(options.getDataflowJobFile())
+        || !isNullOrEmpty(options.getTemplateLocation())) {
+      boolean isTemplate = !isNullOrEmpty(options.getTemplateLocation());
+      if (isTemplate) {
+        checkArgument(isNullOrEmpty(options.getDataflowJobFile()),
+            "--dataflowJobFile and --templateLocation are mutually exclusive.");
+      }
+      String fileLocation = firstNonNull(
+          options.getTemplateLocation(), options.getDataflowJobFile());
+      checkArgument(fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
+          String.format(
+              "Location must be local or on Cloud Storage, got {}.", fileLocation));
+      String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
       try (PrintWriter printWriter = new PrintWriter(
-          new File(options.getDataflowJobFile()))) {
-        String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
+          Channels.newOutputStream(IOChannelUtils.create(fileLocation, MimeTypes.TEXT)))) {
         printWriter.print(workSpecJson);
-        LOG.info("Printed workflow specification to {}", options.getDataflowJobFile());
-      } catch (IllegalStateException ex) {
-        LOG.warn("Cannot translate workflow spec to json for debug.");
-      } catch (FileNotFoundException ex) {
-        LOG.warn("Cannot create workflow spec output file.");
+        LOG.info("Printed job specification to {}", fileLocation);
+      } catch (IOException ex) {
+        String error =
+            String.format("Cannot create output file at %s", fileLocation);
+        if (isTemplate) {
+          throw new RuntimeException(error, ex);
+        } else {
+          LOG.warn(error, ex);
+        }
+      }
+      if (isTemplate) {
+        LOG.info("Template successfully created.");
+        return new DataflowTemplateJob();
       }
     }
 
@@ -663,18 +688,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       final SortedSet<String> ptransformViewNamesWithNonDeterministicKeyCoders = new TreeSet<>();
       pipeline.traverseTopologically(new PipelineVisitor() {
         @Override
-        public void visitValue(PValue value, TransformTreeNode producer) {
+        public void visitValue(PValue value, TransformHierarchy.Node producer) {
         }
 
         @Override
-        public void visitPrimitiveTransform(TransformTreeNode node) {
+        public void visitPrimitiveTransform(TransformHierarchy.Node node) {
           if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
             ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
           }
         }
 
         @Override
-        public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+        public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
           if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
             ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
           }
@@ -682,7 +707,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         }
 
         @Override
-        public void leaveCompositeTransform(TransformTreeNode node) {
+        public void leaveCompositeTransform(TransformHierarchy.Node node) {
         }
       });
 
@@ -2335,12 +2360,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * A specialized {@link DoFn} for writing the contents of a {@link PCollection}
-   * to a streaming {@link PCollectionView} backend implementation.
+   * A marker {@link DoFn} for writing the contents of a {@link PCollection} to a streaming
+   * {@link PCollectionView} backend implementation.
    */
   @Deprecated
-  public static class StreamingPCollectionViewWriterFn<T>
-  extends OldDoFn<Iterable<T>, T> implements OldDoFn.RequiresWindowAccess {
+  public static class StreamingPCollectionViewWriterFn<T> extends DoFn<Iterable<T>, T> {
     private final PCollectionView<?> view;
     private final Coder<T> dataCoder;
 
@@ -2362,15 +2386,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return dataCoder;
     }
 
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
-      List<WindowedValue<T>> output = new ArrayList<>();
-      for (T elem : c.element()) {
-        output.add(WindowedValue.of(elem, c.timestamp(), c.window(), c.pane()));
-      }
-
-      c.windowingInternals().writePCollectionViewData(
-          view.getTagInternal(), output, dataCoder);
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow w) throws Exception {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s is a marker class only and should never be executed.", getClass().getName()));
     }
   }
 

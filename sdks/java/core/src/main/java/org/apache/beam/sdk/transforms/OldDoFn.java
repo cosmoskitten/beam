@@ -671,19 +671,24 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     }
 
     @Override
-    protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+    public TypeDescriptor<InputT> getInputTypeDescriptor() {
       return OldDoFn.this.getInputTypeDescriptor();
     }
 
     @Override
-    protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+    Collection<Aggregator<?, ?>> getAggregators() {
+      return OldDoFn.this.getAggregators();
+    }
+
+    @Override
+    public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return OldDoFn.this.getOutputTypeDescriptor();
     }
   }
 
   /**
    * A {@link ProcessContext} for an {@link OldDoFn} that implements
-   * {@link OldDoFn.RequiresWindowAcccess}, via a context for a proper {@link DoFn}.
+   * {@link RequiresWindowAccess}, via a context for a proper {@link DoFn}.
    */
   private class AdaptedRequiresWindowAccessProcessContext extends AdaptedProcessContext {
 
@@ -741,12 +746,12 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     }
 
     @Override
-    protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+    public TypeDescriptor<InputT> getInputTypeDescriptor() {
       return OldDoFn.this.getInputTypeDescriptor();
     }
 
     @Override
-    protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+    public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return OldDoFn.this.getOutputTypeDescriptor();
     }
   }
