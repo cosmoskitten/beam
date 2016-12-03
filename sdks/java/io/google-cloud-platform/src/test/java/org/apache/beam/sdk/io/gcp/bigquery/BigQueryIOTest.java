@@ -762,7 +762,7 @@ public class BigQueryIOTest implements Serializable {
     p.apply("ReadMyTable",
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
-            .fromQuery(StaticValueProvider.of("query")));
+        .fromQuery("query"));
     p.run();
   }
 
@@ -977,7 +977,7 @@ public class BigQueryIOTest implements Serializable {
 
     BigQueryIO.Read.Bound read = BigQueryIO.Read
         .from(tableSpec)
-        .fromQuery(StaticValueProvider.of("myQuery"))
+        .fromQuery("myQuery")
         .withoutResultFlattening()
         .usingStandardSql()
         .withoutValidation();

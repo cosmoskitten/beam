@@ -503,6 +503,13 @@ public class BigQueryIO {
        * <p>By default, the query will use BigQuery's legacy SQL dialect. To use the BigQuery
        * Standard SQL dialect, use {@link BigQueryIO.Read.Bound#usingStandardSql}.
        */
+      public Bound fromQuery(String query) {
+        return fromQuery(StaticValueProvider.of(query));
+      }
+
+      /**
+       * Like {@link #fromQuery(String)}, but from a {@link ValueProvider}.
+       */
       public Bound fromQuery(ValueProvider<String> query) {
         return new Bound(name, query, jsonTableRef, validate,
             MoreObjects.firstNonNull(flattenResults, Boolean.TRUE),
