@@ -178,7 +178,7 @@ class DataflowPipelineRunner(PipelineRunner):
     self.result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job))
 
-    if self.blocking:
+    if self.result.has_job and self.blocking:
       thread = threading.Thread(
           target=DataflowPipelineRunner.poll_for_job_completion,
           args=(self, self.result.job_id()))
@@ -194,6 +194,31 @@ class DataflowPipelineRunner(PipelineRunner):
             'Dataflow pipeline failed:\n%s'
             % getattr(self, 'last_error_msg', None), self.result)
     return self.result
+
+    # # Proposal
+    # # if not pipeline.options.view_as(GoogleCloudOptions).template_location)
+    # job_message = self.dataflow_client.create_job(self.job)
+    # is_template = job_message is None
+    # self.result = DataflowPipelineResult(job_message)
+
+    # if job_message:
+    #   self.result = DataflowPipelineResult(job_message)
+    #   if self.blocking:
+    #     thread = threading.Thread(
+    #         target=DataflowPipelineRunner.poll_for_job_completion,
+    #         args=(self, self.result.job_id()))
+    #     # Mark the thread as a daemon thread so a keyboard interrupt on the main
+    #     # thread will terminate everything. This is also the reason we will not
+    #     # use thread.join() to wait for the polling thread.
+    #     thread.daemon = True
+    #     thread.start()
+    #     while thread.isAlive():
+    #       time.sleep(5.0)
+    #     if self.result.current_state() != PipelineState.DONE:
+    #       raise DataflowRuntimeException(
+    #           'Dataflow pipeline failed:\n%s'
+    #           % getattr(self, 'last_error_msg', None), self.result)
+    # return self.result
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
@@ -656,6 +681,10 @@ class DataflowPipelineResult(PipelineResult):
 
   def job_id(self):
     return self._job.id
+
+  @property
+  def has_job(self):
+    return self._job is not None
 
   def current_state(self):
     """Return the current state of the remote job.

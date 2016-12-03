@@ -1,0 +1,272 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1404\cocoasubrtf470
+{\fonttbl\f0\fswiss\fcharset0 ArialMT;}
+{\colortbl;\red255\green255\blue255;\red29\green29\blue29;\red29\green38\blue42;\red0\green0\blue233;
+\red196\green207\blue212;\red161\green176\blue184;}
+\margl1440\margr1440\vieww20560\viewh13120\viewkind0
+\deftab720
+\pard\pardeftab720\sl300\partightenfactor0
+
+\f0\fs52 \cf2 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 download community intelliJ\
+clone the repo\
+open intelliJ, change the Maven version to 3.3.9\
+import project -> import project from external modal Maven -> everything default (I know you changed stuff here, so I think I may be missing some because on the maven Project window, it complains about \'93syntax error in pom.xml\'94\
+\
+does java 1.8 work?\
+\
+\pard\pardeftab720\sl320\partightenfactor0
+
+\fs26 \cf3 \strokec3 \uc0\u8234 Hi Eugene, I was trying the same thing at my personal laptop, and this is what I did:\'a0\'a0\uc0\u8236 \
+\uc0\u8234 - download community intelliJ\uc0\u8236 \
+\uc0\u8234 - clone the repo\uc0\u8236 \
+\uc0\u8234 - open intelliJ, change the Maven version to 3.3.9\uc0\u8236 \
+\uc0\u8234 - import project -> import project from external modal Maven -> everything default (I know you changed stuff here, so I think I may be missing some because on the maven Project window, it complains about \'93syntax error in pom.xml\'94\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://plus.google.com/u/0/102259076916626230313/about"}}{\fldrslt \cf4 \strokec4 \
+}}\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb5 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Is the repository a clean checkout? (git status)\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 And is it definitely the same pom.xml? (the one in DataflowJavaSDK/ root directory)\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb6 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 yes, it is clean\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 let me check the other thing\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://plus.google.com/u/0/102259076916626230313/about"}}{\fldrslt \cf4 \strokec4 \pard\pardeftab720\sl300\partightenfactor0
+\cf4 \
+}}\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb5 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Also does it say what the error is? It might say that in "Event Log" (see lower right corner of the IntelliJ window)\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb6 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 "Non-resolvable parent POM for com.google.cloud.dataflow:google-cloud-dataflow-java-sdk-parent:1.9.0-SNAPSHOT: Could not transfer artifact..."\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://plus.google.com/u/0/102259076916626230313/about"}}{\fldrslt \cf4 \strokec4 \pard\pardeftab720\sl300\partightenfactor0
+\cf4 \
+}}\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb5 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Hmm. Please confirm that it's the same pom.xml you opened on the work laptop. I think there's several and you need the root one.\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb6 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 yes, it's the pom.xml at project root\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://plus.google.com/u/0/102259076916626230313/about"}}{\fldrslt \cf4 \strokec4 \pard\pardeftab720\sl300\partightenfactor0
+\cf4 \
+}}\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb5 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 That's odd. Are you able to build the project manually with mvn verify?\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb6 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 \'a0you mean still in intelliJ, right?\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://plus.google.com/u/0/102259076916626230313/about"}}{\fldrslt \cf4 \strokec4 \pard\pardeftab720\sl300\partightenfactor0
+\cf4 \
+}}\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb5 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 No, in command line\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb6 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 haven't tried. trying now\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 didn't work, "Unsupported major.minor version 51.0". I just downloaded the same zip version of 3.3.9, like on my work laptop\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://plus.google.com/u/0/102259076916626230313/about"}}{\fldrslt \cf4 \strokec4 \pard\pardeftab720\sl300\partightenfactor0
+\cf4 \
+}}\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb5 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Hmmm. Try mvn clean verify, rather than simply verify?\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Sounds like a JDK version mismatch\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Make sure that "java -version" in command line matches the JDK you have setup in project settings in IntelliJ\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 And it had to be JDK 1.8\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb6 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 i have jdk 1.8.0_66\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 on work laptop, it's\'a01.8.0_91-b14\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://plus.google.com/u/0/102259076916626230313/about"}}{\fldrslt \cf4 \strokec4 \pard\pardeftab720\sl300\partightenfactor0
+\cf4 \
+}}\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb5 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 This should make no difference. But confirm that you have this JDK in IntelliJ.\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Because "unsupported major.minor version 51.0" definitely means that some class files were produced and consumed with different JDKs\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb6 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 it's the same version. What I'm concerned about is that the downloaded maven doesn't run at all. i cannot even do mvn -h\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 maybe my java path has some problem\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://plus.google.com/u/0/102259076916626230313/about"}}{\fldrslt \cf4 \strokec4 \pard\pardeftab720\sl300\partightenfactor0
+\cf4 \
+}}\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb5 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Oh, so mvn doesn't run at all - I thought that it started compiling the project and later complained about that 51.0 thing\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 It definitely sounds like a problem with Java. Make sure your JAVA_HOME environment variable points to the right one.\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Or maybe it's JDK_HOME. You can take a look at which one "mvn" looks at (it's probably a shell script)\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb6 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 let me take a look\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 it was not set. i did a which java, it showed /usr/bin/java, the variable is called JAVA_HOME, should I set it to\'a0/usr/bin/java or something else?\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://plus.google.com/u/0/102259076916626230313/about"}}{\fldrslt \cf4 \strokec4 \pard\pardeftab720\sl300\partightenfactor0
+\cf4 \
+}}\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb5 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Does the "mvn" script definitely look at JAVA_HOME?\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 (confirmed: yes it does)\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 Interesting, I don't have this env variable on my computer\uc0\u8236 \
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \strokec2 \
+\
+\pard\pardeftab720\sl300\partightenfactor0
+\cf2 \cb6 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \cb1 \strokec3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 it has a bunch of logics to determine the path\uc0\u8236 \
+\pard\pardeftab720\sl320\qc\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl320\partightenfactor0
+\cf3 \uc0\u8234 on the work laptop, it's not set either\uc0\u8236 \
+}

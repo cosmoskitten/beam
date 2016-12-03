@@ -1,0 +1,216 @@
+{
+  "environment": {
+    "clusterManagerApiService": "compute.googleapis.com", 
+    "dataset": "bigquery.googleapis.com/cloud_dataflow", 
+    "sdkPipelineOptions": {
+      "dataflow_endpoint": "ignored", 
+      "dataflow_job_file": "borrar/file", 
+      "job_name": "test-job", 
+      "no_auth": true, 
+      "pipeline_type_check": true, 
+      "profile_cpu": false, 
+      "profile_memory": false, 
+      "project": "test-project", 
+      "runtime_type_check": false, 
+      "save_main_session": false, 
+      "sdk_location": "default", 
+      "staging_location": "ignored", 
+      "streaming": false, 
+      "temp_location": "/dev/null", 
+      "type_check_strictness": "DEFAULT_TO_ANY"
+    }, 
+    "tempStoragePrefix": "/dev/null", 
+    "userAgent": {
+      "name": "Google Cloud Dataflow SDK for Python", 
+      "version": "0.4.3"
+    }, 
+    "version": {
+      "job_type": "PYTHON_BATCH", 
+      "major": "4"
+    }, 
+    "workerPools": [
+      {
+        "autoscalingSettings": {}, 
+        "kind": "harness", 
+        "packages": [
+          {
+            "location": "ignored/dataflow_python_sdk.tar", 
+            "name": "dataflow_python_sdk.tar"
+          }
+        ], 
+        "taskrunnerSettings": {
+          "parallelWorkerSettings": {
+            "baseUrl": "https://dataflow.googleapis.com", 
+            "servicePath": "ignored"
+          }
+        }, 
+        "workerHarnessContainerImage": "dataflow.gcr.io/v1beta3/python:0.4.3"
+      }
+    ]
+  }, 
+  "name": "test-job", 
+  "steps": [
+    {
+      "kind": "CreateCollection", 
+      "name": "s1", 
+      "properties": {
+        "element": [
+          "STEKLg==", 
+          "STIKLg==", 
+          "STMKLg=="
+        ], 
+        "output_info": [
+          {
+            "encoding": {
+              "@type": "WindowedValueCoder$<string of 192 bytes>", 
+              "component_encodings": [
+                {
+                  "@type": "PickleCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwBmcnZOanOIA5XIYNmYyFjbSFTkh4A9DYR/g==", 
+                  "component_encodings": [
+                    {
+                      "@type": "PickleCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwBmcnZOanOIA5XIYNmYyFjbSFTkh4A9DYR/g==", 
+                      "component_encodings": []
+                    }, 
+                    {
+                      "@type": "PickleCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwBmcnZOanOIA5XIYNmYyFjbSFTkh4A9DYR/g==", 
+                      "component_encodings": []
+                    }
+                  ], 
+                  "is_pair_like": true
+                }, 
+                {
+                  "@type": "TimestampCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwhmbmpxSWJuQXOID5XIYNmYyFjbSFTkh4ANWETWg==", 
+                  "component_encodings": []
+                }, 
+                {
+                  "@type": "PickleCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwBmcnZOanOIA5XIYNmYyFjbSFTkh4A9DYR/g==", 
+                  "component_encodings": [
+                    {
+                      "@type": "PickleCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwBmcnZOanOIA5XIYNmYyFjbSFTkh4A9DYR/g==", 
+                      "component_encodings": []
+                    }, 
+                    {
+                      "@type": "PickleCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwBmcnZOanOIA5XIYNmYyFjbSFTkh4A9DYR/g==", 
+                      "component_encodings": []
+                    }
+                  ], 
+                  "is_pair_like": true
+                }
+              ], 
+              "is_wrapper": true
+            }, 
+            "output_name": "out", 
+            "user_name": "create.out"
+          }
+        ], 
+        "user_name": "create"
+      }
+    }, 
+    {
+      "kind": "ParallelDo", 
+      "name": "s2", 
+      "properties": {
+        "non_parallel_inputs": {}, 
+        "output_info": [
+          {
+            "encoding": {
+              "@type": "WindowedValueCoder$<string of 404 bytes>", 
+              "component_encodings": [
+                {
+                  "@type": "TupleCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwhpQU5qc4gNlchg2ZjIWNtIVMoezxEtpAZj86wxCLPvBKoVhagVtbaQrakDBCLvbaQI6mtkLM4SQ8A4GwrDQ==", 
+                  "component_encodings": [
+                    {
+                      "@type": "VarIntCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlxhiUWeeSXOIA5XIYNmYyFjbSFTkh4A89cR+g==", 
+                      "component_encodings": []
+                    }, 
+                    {
+                      "@type": "VarIntCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlxhiUWeeSXOIA5XIYNmYyFjbSFTkh4A89cR+g==", 
+                      "component_encodings": []
+                    }
+                  ], 
+                  "is_pair_like": true
+                }, 
+                {
+                  "@type": "TimestampCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwhmbmpxSWJuQXOID5XIYNmYyFjbSFTkh4ANWETWg==", 
+                  "component_encodings": []
+                }, 
+                {
+                  "@type": "SingletonCoder$<string of 252 bytes>", 
+                  "component_encodings": []
+                }
+              ], 
+              "is_wrapper": true
+            }, 
+            "output_name": "out", 
+            "user_name": "do.out"
+          }
+        ], 
+        "parallel_input": {
+          "@type": "OutputReference", 
+          "output_name": "out", 
+          "step_name": "s1"
+        }, 
+        "serialized_fn": "<string of 916 bytes>", 
+        "user_name": "do"
+      }
+    }, 
+    {
+      "kind": "GroupByKey", 
+      "name": "s3", 
+      "properties": {
+        "output_info": [
+          {
+            "encoding": {
+              "@type": "WindowedValueCoder$<string of 460 bytes>", 
+              "component_encodings": [
+                {
+                  "@type": "TupleCoder$<string of 188 bytes>", 
+                  "component_encodings": [
+                    {
+                      "@type": "VarIntCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlxhiUWeeSXOIA5XIYNmYyFjbSFTkh4A89cR+g==", 
+                      "component_encodings": []
+                    }, 
+                    {
+                      "@type": "FastPrimitivesCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlxuicUlAUWZuZklmWWpxc4gQa5CBs3GQsbaQqZQ/vi0xJycpMTk7Hiw+kJmPEYFZCZn56RCjWABGsFaW8iWVJykBwDlGS3/", 
+                      "component_encodings": [
+                        {
+                          "@type": "FastPrimitivesCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlxuicUlAUWZuZklmWWpxc4gQa5CBs3GQsbaQqZQ/vi0xJycpMTk7Hiw+kJmPEYFZCZn56RCjWABGsFaW8iWVJykBwDlGS3/", 
+                          "component_encodings": []
+                        }, 
+                        {
+                          "@type": "FastPrimitivesCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlxuicUlAUWZuZklmWWpxc4gQa5CBs3GQsbaQqZQ/vi0xJycpMTk7Hiw+kJmPEYFZCZn56RCjWABGsFaW8iWVJykBwDlGS3/", 
+                          "component_encodings": []
+                        }
+                      ], 
+                      "is_pair_like": true
+                    }
+                  ], 
+                  "is_pair_like": true
+                }, 
+                {
+                  "@type": "TimestampCoder$eJxrYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlwhmbmpxSWJuQXOID5XIYNmYyFjbSFTkh4ANWETWg==", 
+                  "component_encodings": []
+                }, 
+                {
+                  "@type": "SingletonCoder$<string of 252 bytes>", 
+                  "component_encodings": []
+                }
+              ], 
+              "is_wrapper": true
+            }, 
+            "output_name": "out", 
+            "user_name": "gbk.out"
+          }
+        ], 
+        "parallel_input": {
+          "@type": "OutputReference", 
+          "output_name": "out", 
+          "step_name": "s2"
+        }, 
+        "serialized_fn": "<string of 252 bytes>", 
+        "user_name": "gbk"
+      }
+    }
+  ], 
+  "type": "JOB_TYPE_BATCH"
+}

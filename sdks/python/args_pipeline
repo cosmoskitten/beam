@@ -1,0 +1,22 @@
+GCS_LOCATION=gs://clouddfe-mariagh
+
+# Job name needs to be unique
+JOBNAME=py-wordcount-mariagh`date +%s`
+
+PROJECT=google.com:clouddfe
+
+# Create a tarball
+python setup.py sdist
+
+# Run wordcount on the Google Cloud Dataflow service
+python -m apache_beam.examples.wordcount \
+--output $GCS_LOCATION/py-wordcount-cloud \
+--staging_location $GCS_LOCATION/staging-wordcount \
+--temp_location $GCS_LOCATION/temp-wordcount \
+--runner BlockingDataflowPipelineRunner \
+--job_name $JOBNAME \
+--project $PROJECT \
+--sdk_location dist/apache-beam-sdk-*.tar.gz \
+--num_workers 1 \
+--extra_packages test_tar.tar.gz \
+--extra_package test_tar.tar.gz

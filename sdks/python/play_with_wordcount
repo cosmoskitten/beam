@@ -1,0 +1,17 @@
+GCS_LOCATION=gs://clouddfe-mariagh
+
+# Job name needs to be unique
+JOBNAME=py-wordcount-mariagh`date +%s`
+
+PROJECT=google.com:clouddfe
+
+# Run wordcount on the Google Cloud Dataflow service
+python /Users/mariagh/Documents/beam/incubator-beam/sdks/python/apache_beam/examples/wordcount.py \
+--output $GCS_LOCATION/py-wordcount-cloud \
+--staging_location $GCS_LOCATION/staging-wordcount \
+--temp_location $GCS_LOCATION/temp-wordcount \
+--runner BlockingDataflowPipelineRunner \
+--job_name $JOBNAME \
+--project $PROJECT \
+--sdk_location dist/apache-beam-sdk-*.tar.gz \
+--num_workers 1 \
