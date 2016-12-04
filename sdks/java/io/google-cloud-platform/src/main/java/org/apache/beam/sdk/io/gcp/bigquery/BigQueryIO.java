@@ -651,7 +651,7 @@ public class BigQueryIO {
         }
 
         final String executingProject = bqOptions.getProject();
-        if (query != null && !Strings.isNullOrEmpty(query.get())) {
+        if (query != null && (!query.isAccessible() || !Strings.isNullOrEmpty(query.get()))) {
           String queryTempDatasetId = "temp_dataset_" + uuid;
           String queryTempTableId = "temp_table_" + uuid;
 
