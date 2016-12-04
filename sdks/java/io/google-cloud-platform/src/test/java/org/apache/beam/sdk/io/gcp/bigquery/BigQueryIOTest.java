@@ -1848,7 +1848,7 @@ public class BigQueryIOTest implements Serializable {
         jobIdToken,
         tempFilePrefix,
         StaticValueProvider.of(jsonTable),
-        jsonSchema,
+        StaticValueProvider.of(jsonSchema),
         WriteDisposition.WRITE_EMPTY,
         CreateDisposition.CREATE_IF_NEEDED);
 

@@ -325,6 +325,22 @@ public class BigQueryIO {
     return table.isAccessible() ? table.get() : table.toString();
   }
 
+  private static class JsonSchemaToTableSchema
+      implements SerializableFunction<String, TableSchema> {
+    @Override
+    public TableSchema apply(String from) {
+      return fromJsonString(from, TableSchema.class);
+    }
+  }
+
+  private static class TableSchemaToJsonSchema
+      implements SerializableFunction<TableSchema, String> {
+    @Override
+    public String apply(TableSchema from) {
+      return toJsonString(from);
+    }
+  }
+
   private static class JsonTableRefToTableRef
       implements SerializableFunction<String, TableReference> {
     @Override
@@ -1571,6 +1587,13 @@ public class BigQueryIO {
       return new Bound().withSchema(schema);
     }
 
+    /**
+     * Like {@link #withSchema(TableSchema)}, but with a {@link ValueProvider}.
+     */
+    public static Bound withSchema(ValueProvider<TableSchema> schema) {
+      return new Bound().withSchema(schema);
+    }
+
     /** Creates a write transformation with the specified options for creating the table. */
     public static Bound withCreateDisposition(CreateDisposition disposition) {
       return new Bound().withCreateDisposition(disposition);
@@ -1611,7 +1634,7 @@ public class BigQueryIO {
       @Nullable final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
 
       // Table schema. The schema is required only if the table does not exist.
-      @Nullable final String jsonSchema;
+      @Nullable final ValueProvider<String> jsonSchema;
 
       // Options for creating the table. Valid values are CREATE_IF_NEEDED and
       // CREATE_NEVER.
@@ -1660,7 +1683,7 @@ public class BigQueryIO {
 
       private Bound(String name, @Nullable ValueProvider<String> jsonTableRef,
           @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
-          @Nullable String jsonSchema,
+          @Nullable ValueProvider<String> jsonSchema,
           CreateDisposition createDisposition, WriteDisposition writeDisposition, boolean validate,
           @Nullable BigQueryServices bigQueryServices) {
         super(name);
@@ -1751,7 +1774,17 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withSchema(TableSchema schema) {
-        return new Bound(name, jsonTableRef, tableRefFunction, toJsonString(schema),
+        return new Bound(name, jsonTableRef, tableRefFunction,
+            StaticValueProvider.of(toJsonString(schema)),
+            createDisposition, writeDisposition, validate, bigQueryServices);
+      }
+
+      /**
+       * Like {@link #withSchema(TableSchema)}, but with a {@link ValueProvider}.
+       */
+      public Bound withSchema(ValueProvider<TableSchema> schema) {
+        return new Bound(name, jsonTableRef, tableRefFunction,
+            NestedValueProvider.of(schema, new TableSchemaToJsonSchema()),
             createDisposition, writeDisposition, validate, bigQueryServices);
       }
 
@@ -2037,7 +2070,7 @@ public class BigQueryIO {
         builder
             .addIfNotNull(DisplayData.item("table", displayTableProvider(jsonTableRef))
               .withLabel("Table Reference"))
-            .addIfNotNull(DisplayData.item("schema", jsonSchema)
+            .addIfNotNull(DisplayData.item("schema", "jsonSchema")
               .withLabel("Table Schema"));
 
         if (tableRefFunction != null) {
@@ -2066,7 +2099,8 @@ public class BigQueryIO {
 
       /** Returns the table schema. */
       public TableSchema getSchema() {
-        return fromJsonString(jsonSchema, TableSchema.class);
+        return fromJsonString(
+            jsonSchema == null ? null : jsonSchema.get(), TableSchema.class);
       }
 
       /**
@@ -2210,7 +2244,7 @@ public class BigQueryIO {
       private final String jobIdToken;
       private final String tempFilePrefix;
       private final ValueProvider<String> jsonTableRef;
-      private final String jsonSchema;
+      private final ValueProvider<String> jsonSchema;
       private final WriteDisposition writeDisposition;
       private final CreateDisposition createDisposition;
 
@@ -2220,7 +2254,7 @@ public class BigQueryIO {
           String jobIdToken,
           String tempFilePrefix,
           ValueProvider<String> jsonTableRef,
-          String jsonSchema,
+          ValueProvider<String> jsonSchema,
           WriteDisposition writeDisposition,
           CreateDisposition createDisposition) {
         this.singlePartition = singlePartition;
@@ -2246,7 +2280,8 @@ public class BigQueryIO {
             bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
             jobIdPrefix,
             ref,
-            fromJsonString(jsonSchema, TableSchema.class),
+            fromJsonString(
+                jsonSchema == null ? null : jsonSchema.get(), TableSchema.class),
             partition,
             writeDisposition,
             createDisposition);
@@ -2331,7 +2366,7 @@ public class BigQueryIO {
                 .withLabel("Temporary File Prefix"))
             .addIfNotNull(DisplayData.item("jsonTableRef", displayTableProvider(jsonTableRef))
                 .withLabel("Table Reference"))
-            .addIfNotNull(DisplayData.item("jsonSchema", jsonSchema)
+            .addIfNotNull(DisplayData.item("jsonSchema", "jsonSchema")
                 .withLabel("Table Schema"));
       }
     }
