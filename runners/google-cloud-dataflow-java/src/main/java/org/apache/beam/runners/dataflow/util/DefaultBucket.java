@@ -65,7 +65,7 @@ public class DefaultBucket {
     }
     final String bucketName =
       "dataflow-staging-" + region + "-" + projectNumber;
-    LOG.info("No staging location provided, attempting to use default bucket: %s",
+    LOG.info("No staging location provided, attempting to use default bucket: {}",
              bucketName);
     Bucket bucket = new Bucket()
       .setName(bucketName)
@@ -75,7 +75,7 @@ public class DefaultBucket {
     try {
       dataflowOptions.getGcsUtil().createBucket(projectId, bucket);
     } catch (FileAlreadyExistsException e) {
-      LOG.debug("Bucket '" + bucketName + "' already exists, verifying access.");
+      LOG.debug("Bucket '{}'' already exists, verifying access.", bucketName);
     } catch (IOException e) {
       throw new RuntimeException("Unable create default bucket.", e);
     }

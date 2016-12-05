@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.options;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -172,6 +173,14 @@ public class DataflowPipelineOptionsTest {
         "Error constructing default value for stagingLocation: gcpTempLocation is not"
         + " a valid GCS path");
     options.getStagingLocation();
+  }
+
+  @Test
+  public void testGcpTempLocationIsNull() {
+    // Demonstrate that this could be handled more effectively.
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setTempLocation("file://temp");
+    assertNull(options.getGcpTempLocation());
   }
 
   @Test

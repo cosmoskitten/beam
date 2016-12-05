@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.io.IOException;
@@ -99,11 +98,6 @@ public interface DataflowPipelineOptions
         gcpTempLocation = DefaultBucket.tryCreateDefaultBucket(options);
         gcsOptions.setGcpTempLocation(gcpTempLocation);
       }
-
-      checkArgument(!isNullOrEmpty(gcpTempLocation),
-          "Error constructing default value for stagingLocation: gcpTempLocation is missing."
-          + "Either stagingLocation must be set explicitly or a valid value must be provided"
-          + "for gcpTempLocation.");
       try {
         gcsOptions.getPathValidator().validateOutputFilePrefixSupported(gcpTempLocation);
       } catch (Exception e) {
