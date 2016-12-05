@@ -36,7 +36,7 @@ from apache_beam.metrics.cells import CounterCell, DistributionCell
 class MetricsEnvironment(object):
   """ Holds the MetricsContainer for every thread and other metric information.
 
-  This class is not meant to be instantiated, instead being used as to keep
+  This class is not meant to be instantiated, instead being used to keep
   track of global state.
   """
   METRICS_SUPPORTED = False
@@ -69,15 +69,14 @@ class MetricsContainer(object):
   """ Holds the metrics of a single step and a single bundle.
   """
   def __init__(self, step_name):
-    # Import here to avoid the circular dependency
     self.step_name = step_name
     self.counters = defaultdict(lambda: CounterCell())
     self.distributions = defaultdict(lambda: DistributionCell())
 
-  def get_Counter(self, metric_name):
+  def get_counter(self, metric_name):
     return self.counters[metric_name]
 
-  def get_Distribution(self, metric_name):
+  def get_distribution(self, metric_name):
     return self.distributions[metric_name]
 
   def _get_updates(self, filter=None):

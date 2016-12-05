@@ -78,7 +78,7 @@ class Metrics(object):
     def inc(self, n=1):
       container = MetricsEnvironment.current_container()
       if container is not None:
-        container.get_Counter(self.metric_name).inc(n)
+        container.get_counter(self.metric_name).inc(n)
 
   class DelegatingDistribution(Distribution):
     def __init__(self, metric_name):
@@ -87,7 +87,7 @@ class Metrics(object):
     def update(self, value):
       container = MetricsEnvironment.current_container()
       if container is not None:
-        container.get_Distribution(self.metric_name).update(value)
+        container.get_distribution(self.metric_name).update(value)
 
 
 class MetricResults(object):
@@ -111,7 +111,9 @@ class MetricsFilter(object):
   """ Simple object to filter metrics results.
 
   If filters by matching a result's step-namespace-name with three internal
-  sets.
+  sets. No execution/matching logic is added to this object, so that it may
+  be used to construct arguments as an RPC request. It is left for runners
+  to implement matching logic by themselves.
   """
   def __init__(self):
     self._names = set()

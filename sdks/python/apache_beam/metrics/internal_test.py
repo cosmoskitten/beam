@@ -28,14 +28,14 @@ class TestMetricsContainer(unittest.TestCase):
   def test_create_new_counter(self):
     mc = MetricsContainer('astep')
     self.assertFalse(mc.counters.has_key(('namespace', 'name')))
-    mc.get_Counter(MetricName('namespace', 'name'))
+    mc.get_counter(MetricName('namespace', 'name'))
     self.assertTrue(mc.counters.has_key(('namespace', 'name')))
 
   def test_add_to_counter(self):
     mc = MetricsContainer('astep')
-    counter = mc.get_Counter(MetricName('namespace', 'name'))
+    counter = mc.get_counter(MetricName('namespace', 'name'))
     counter.inc()
-    counter = mc.get_Counter(MetricName('namespace', 'name'))
+    counter = mc.get_counter(MetricName('namespace', 'name'))
     self.assertEqual(counter.value, 1)
 
   def test_get_cumulative_or_updates(self):
@@ -44,8 +44,8 @@ class TestMetricsContainer(unittest.TestCase):
     clean_values = []
     dirty_values = []
     for i in range(1, 11):
-      counter = mc.get_Counter(MetricName('namespace', 'name{}'.format(i)))
-      distribution = mc.get_Distribution(
+      counter = mc.get_counter(MetricName('namespace', 'name{}'.format(i)))
+      distribution = mc.get_distribution(
           MetricName('namespace', 'name{}'.format(i)))
       counter.inc(i)
       distribution.update(i)
