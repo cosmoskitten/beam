@@ -77,13 +77,6 @@ public class FileChecksumMatcherTest {
   }
 
   @Test
-  public void testPreconditionFilePathIsNull() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("Expected valid file path, but received"));
-    new FileChecksumMatcher("checksumString", null);
-  }
-
-  @Test
   public void testPreconditionFilePathIsEmpty() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString("Expected valid file path, but received"));
@@ -157,69 +150,5 @@ public class FileChecksumMatcherTest {
         customizedTemplate);
 
     assertThat(pResult, matcher);
-  }
-
-  @Test
-  public void testReadWithRetriesFailsWhenTemplateIncorrect() throws Exception {
-    File tmpFile = tmpFolder.newFile();
-    Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
-
-    FileChecksumMatcher matcher = new FileChecksumMatcher(
-        "mock-checksum",
-        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"),
-        Pattern.compile("incorrect-template"));
-
-    thrown.expect(IOException.class);
-    thrown.expectMessage(
-        containsString(
-            "Unable to read file(s) after retrying " + FileChecksumMatcher.MAX_READ_RETRIES));
-    matcher.readFilesWithRetries(fastClock, backOff);
-  }
-
-  @Test
-  public void testReadWithRetriesFailsSinceFilesystemError() throws Exception {
-    File tmpFile = tmpFolder.newFile();
-    Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
-
-    FileChecksumMatcher matcher =
-        spy(new FileChecksumMatcher(
-            "mock-checksum", IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*")));
-    doThrow(IOException.class)
-        .when(matcher).readLines(anyCollection(), any(IOChannelFactory.class));
-
-    thrown.expect(IOException.class);
-    thrown.expectMessage(
-        containsString(
-            "Unable to read file(s) after retrying " + FileChecksumMatcher.MAX_READ_RETRIES));
-    matcher.readFilesWithRetries(fastClock, backOff);
-  }
-
-  @Test
-  public void testReadWithRetriesFailsWhenOutputDirEmpty() throws Exception {
-    FileChecksumMatcher matcher =
-        new FileChecksumMatcher(
-            "mock-checksum", IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
-
-    thrown.expect(IOException.class);
-    thrown.expectMessage(
-        containsString(
-            "Unable to read file(s) after retrying " + FileChecksumMatcher.MAX_READ_RETRIES));
-    matcher.readFilesWithRetries(fastClock, backOff);
-  }
-
-  @Test
-  public void testReadWithRetriesFailsWhenRedundantFileLoaded() throws Exception {
-    tmpFolder.newFile("result-000-of-001");
-    tmpFolder.newFile("tmp-result-000-of-001");
-
-    FileChecksumMatcher matcher =
-        new FileChecksumMatcher(
-            "mock-checksum", IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
-
-    thrown.expect(IOException.class);
-    thrown.expectMessage(
-        containsString(
-            "Unable to read file(s) after retrying " + FileChecksumMatcher.MAX_READ_RETRIES));
-    matcher.readFilesWithRetries(fastClock, backOff);
   }
 }
