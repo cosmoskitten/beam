@@ -58,7 +58,7 @@ for execution.
 * Runner - specifies where and how the Pipeline should execute.
 
 For a further, detailed introduction, please read the
-[Beam Programming Model](http://beam.incubator.apache.org/learn/programming-guide.md). 
+[Beam Programming Model](http://beam.incubator.apache.org/learn/programming-guide.md).
 
 ## Getting Started
 
@@ -106,13 +106,13 @@ directory you created.
 
 #### Download and install
 
-1. Clone the Apache Beam repo from GitHub: 
+1. Clone the Apache Beam repo from GitHub:
   `git clone https://github.com/apache/incubator-beam.git --branch python-sdk`
 
-2. Navigate to the `python` directory: 
+2. Navigate to the `python` directory:
   `cd incubator-beam/sdks/python/`
 
-3. Create the Apache Beam Python SDK installation package: 
+3. Create the Apache Beam Python SDK installation package:
   `python setup.py sdist`
 
 4. Navigate to the `dist` directory:
@@ -123,7 +123,7 @@ directory you created.
 
 ### Execute a pipeline locally
 
-The Apache Beam [examples](https://github.com/apache/incubator-beam/tree/python-sdk/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the arguments required by the example script. 
+The Apache Beam [examples](https://github.com/apache/incubator-beam/tree/python-sdk/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the arguments required by the example script.
 
 For example, to run `wordcount.py`, run:
 
@@ -157,14 +157,14 @@ Make sure you installed the package first. If not, run `python setup.py install`
 
 ## Simple Examples
 
-The following examples demonstrate some basic, fundamental concepts for using Apache Beam's Python SDK. For more detailed examples, Beam provides a [directory of examples](https://github.com/apache/incubator-beam/tree/python-sdk/sdks/python/apache_beam/examples) for Python.  
+The following examples demonstrate some basic, fundamental concepts for using Apache Beam's Python SDK. For more detailed examples, Beam provides a [directory of examples](https://github.com/apache/incubator-beam/tree/python-sdk/sdks/python/apache_beam/examples) for Python.
 
 ### Basic pipeline
 
 A basic pipeline will take as input an iterable, apply the
 beam.Create `PTransform`, and produce a `PCollection` that can
-be written to a file or modified by further `PTransform`s. The
-pipe operator allows to chain `PTransform`s.
+be written to a file or modified by further `PTransform`s. `>>`
+is used to label PTransforms and `|` is used to chain them.
 
 ```python
 # Standard imports
