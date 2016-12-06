@@ -126,6 +126,16 @@ public class GcpOptionsTest {
     assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
   }
 
+  @Test
+  public void testDefaultGcpTempLocationDoesNotExist() throws Exception {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    String tempLocation = "gs://does/not/exist";
+    options.setTempLocation(tempLocation);
+    String msg = "gcpTempLocation should accept non-existing default tempLocation so downstream "
+        + "validation can provide a better error message";
+    assertEquals(msg, tempLocation, options.getGcpTempLocation());
+  }
+
   private static void makePropertiesFileWithProject(File path, String projectId)
       throws IOException {
     String properties = String.format("[core]%n"

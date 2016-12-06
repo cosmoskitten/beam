@@ -198,7 +198,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       if (!Strings.isNullOrEmpty(tempLocation)) {
         try {
           PathValidator validator = options.as(GcsOptions.class).getPathValidator();
-          validator.validateOutputFilePrefixSupported(tempLocation);
+          validator.verifyPath(tempLocation);
         } catch (Exception e) {
           // Ignore the temp location because it is not a valid 'gs://' path.
           return null;
