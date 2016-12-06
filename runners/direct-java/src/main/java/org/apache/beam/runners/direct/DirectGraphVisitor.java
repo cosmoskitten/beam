@@ -35,6 +35,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * Tracks the {@link AppliedPTransform AppliedPTransforms} that consume each {@link PValue} in the
@@ -79,14 +80,16 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    toFinalize.removeAll(node.getInputs());
+    for (TaggedPValue consumed : node.getInputs()) {
+      toFinalize.remove(consumed.getValue());
+    }
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(node);
     stepNames.put(appliedTransform, genStepName());
     if (node.getInputs().isEmpty()) {
       rootTransforms.add(appliedTransform);
     } else {
-      for (PValue value : node.getInputs()) {
-        primitiveConsumers.put(value, appliedTransform);
+      for (TaggedPValue value : node.getInputs()) {
+        primitiveConsumers.put(value.getValue(), appliedTransform);
       }
     }
   }
@@ -96,16 +99,11 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
     toFinalize.add(value);
 
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(producer);
+    if (value instanceof PCollectionView) {
+      views.add((PCollectionView<?>) value);
+    }
     if (!producers.containsKey(value)) {
       producers.put(value, appliedTransform);
-    }
-    for (PValue expandedValue : value.expand()) {
-      if (expandedValue instanceof PCollectionView) {
-        views.add((PCollectionView<?>) expandedValue);
-      }
-      if (!producers.containsKey(expandedValue)) {
-        producers.put(value, appliedTransform);
-      }
     }
   }
 
