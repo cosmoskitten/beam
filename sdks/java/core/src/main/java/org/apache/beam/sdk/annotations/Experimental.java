@@ -85,6 +85,9 @@ public @interface Experimental {
     SPLITTABLE_DO_FN,
 
     /** Metrics-related experimental APIs. */
-    METRICS
+    METRICS,
+
+    /** Experimental feature related to making the encoded element type available from a Coder. */
+    CODER_TYPE_ENCODING
   }
 }
