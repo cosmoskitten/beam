@@ -34,6 +34,7 @@ import java.util.List;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * An abstract base class to implement a {@link Coder} that defines equality, hashing, and printing
@@ -53,6 +54,9 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
  * </ul>
  */
 public abstract class StandardCoder<T> implements Coder<T> {
+  protected static final TypeDescriptor<Object> DEFAULT_TYPE_DESCRIPTOR =
+      TypeDescriptor.of(Object.class);
+
   protected StandardCoder() {}
 
   @Override
@@ -227,5 +231,11 @@ public abstract class StandardCoder<T> implements Coder<T> {
             "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
       }
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return (TypeDescriptor<T>) DEFAULT_TYPE_DESCRIPTOR;
   }
 }

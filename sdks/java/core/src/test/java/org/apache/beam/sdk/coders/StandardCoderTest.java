@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
@@ -194,5 +198,35 @@ public class StandardCoderTest {
 
     Assert.assertThat(coderWithArgs.toString(),
         CoreMatchers.equalTo("StandardCoderTest$1(BigDecimalCoder,BigIntegerCoder)"));
+  }
+
+  @Test
+  public void testGenericStandardCoderFallsBackToObject() throws Exception {
+    assertThat(
+        new Foo<String>().getEncodedTypeDescriptor().getType(),
+        equalTo(TypeDescriptor.of(Object.class).getType()));
+  }
+
+  private static class Foo<T> extends StandardCoder<T> {
+
+    @Override
+    public void encode(T value, OutputStream outStream, Coder.Context context)
+        throws CoderException, IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public T decode(InputStream inStream, Coder.Context context)
+        throws CoderException, IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void verifyDeterministic() throws Coder.NonDeterministicException {}
   }
 }
