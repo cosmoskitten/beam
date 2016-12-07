@@ -16,29 +16,11 @@
 #
 """Unit tests for the auth module."""
 
-import os
-import sys
 import unittest
-
-import mock
-
-from apache_beam.internal import auth
 
 
 class AuthTest(unittest.TestCase):
-
-  def test_create_application_client(self):
-    try:
-      test_args = [
-          'test', '--service_account_name', 'abc', '--service_account_key_file',
-          os.path.join(
-              os.path.dirname(__file__), '..', 'tests/data/privatekey.p12')]
-      with mock.patch.object(sys, 'argv', test_args):
-        credentials = auth.get_service_credentials()
-        self.assertIsNotNone(credentials)
-    except NotImplementedError:
-      self.skipTest('service account tests require pyOpenSSL module.')
-
+  pass
 
 if __name__ == '__main__':
   unittest.main()

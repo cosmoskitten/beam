@@ -46,10 +46,6 @@ from apache_beam.utils.options import WorkerOptions
 from apache_beam.internal.clients import storage
 import apache_beam.internal.clients.dataflow as dataflow
 
-BIGQUERY_API_SERVICE = 'bigquery.googleapis.com'
-COMPUTE_API_SERVICE = 'compute.googleapis.com'
-STORAGE_API_SERVICE = 'storage.googleapis.com'
-
 
 class Step(object):
   """Wrapper for a dataflow Step protobuf."""
@@ -121,11 +117,13 @@ class Environment(object):
     self.worker_options = options.view_as(WorkerOptions)
     self.debug_options = options.view_as(DebugOptions)
     self.proto = dataflow.Environment()
-    self.proto.clusterManagerApiService = COMPUTE_API_SERVICE
-    self.proto.dataset = '%s/cloud_dataflow' % BIGQUERY_API_SERVICE
+    self.proto.clusterManagerApiService = GoogleCloudOptions.COMPUTE_API_SERVICE
+    self.proto.dataset = '{}/cloud_dataflow'.format(
+        GoogleCloudOptions.BIGQUERY_API_SERVICE)
     self.proto.tempStoragePrefix = (
-        self.google_cloud_options.temp_location.replace('gs:/',
-                                                        STORAGE_API_SERVICE))
+        self.google_cloud_options.temp_location.replace(
+            'gs:/',
+            GoogleCloudOptions.STORAGE_API_SERVICE))
     # User agent information.
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
@@ -165,7 +163,7 @@ class Environment(object):
           dataflow.Package(
               location='%s/%s' % (
                   self.google_cloud_options.staging_location.replace(
-                      'gs:/', STORAGE_API_SERVICE),
+                      'gs:/', GoogleCloudOptions.STORAGE_API_SERVICE),
                   package),
               name=package))
 
@@ -174,7 +172,7 @@ class Environment(object):
         packages=package_descriptors,
         taskrunnerSettings=dataflow.TaskRunnerSettings(
             parallelWorkerSettings=dataflow.WorkerSettings(
-                baseUrl='https://dataflow.googleapis.com',
+                baseUrl=GoogleCloudOptions.DATAFLOW_ENDPOINT,
                 servicePath=self.google_cloud_options.dataflow_endpoint)))
     pool.autoscalingSettings = dataflow.AutoscalingSettings()
     # Set worker pool options received through command line.
@@ -195,8 +193,6 @@ class Environment(object):
       pool.diskSizeGb = self.worker_options.disk_size_gb
     if self.worker_options.disk_type:
       pool.diskType = self.worker_options.disk_type
-    if self.worker_options.disk_source_image:
-      pool.diskSourceImage = self.worker_options.disk_source_image
     if self.worker_options.zone:
       pool.zone = self.worker_options.zone
     if self.worker_options.network:
