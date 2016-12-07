@@ -592,9 +592,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         }
 
         private void noteOutput() {
-          if (++numOutputs >= MAX_OUTPUTS_PER_BUNDLE) {
+          if (++numOutputs >= MAX_OUTPUTS_PER_BUNDLE && residualRestrictionHolder[0] == null) {
             // Request a checkpoint. The fn *may* produce more output, but hopefully not too much.
-            residualRestrictionHolder[0] = tracker.checkpoint();
+            residualRestrictionHolder[0] = checkNotNull(tracker.checkpoint());
           }
         }
 
