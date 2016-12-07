@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -163,6 +164,11 @@ public class NullableCoderTest {
   public void testNestedNullableCoder() {
     NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
     assertThat(NullableCoder.of(coder), theInstance(coder));
+  }
+
+  @Test
+  public void testEncodedTypeDescriptor() throws Exception {
+    assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(String.class)));
   }
 
   private static class EntireStreamExpectingCoder extends DeterministicStandardCoder<String> {

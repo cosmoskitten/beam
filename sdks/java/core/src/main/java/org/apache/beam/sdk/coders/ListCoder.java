@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 
 /**
  * A {@link Coder} for {@link List}, using the format of {@link IterableLikeCoder}.
@@ -37,6 +39,8 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
+
+  private final TypeDescriptor<List<T>> typeDescriptor;
 
   @Override
   protected final List<T> decodeToIterable(List<T> decodedElements) {
@@ -61,6 +65,8 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
 
   protected ListCoder(Coder<T> elemCoder) {
     super(elemCoder, "List");
+    this.typeDescriptor = new TypeDescriptor<List<T>>(getClass()) {}.where(
+        new TypeParameter<T>() {}, elemCoder.getEncodedTypeDescriptor());
   }
 
   /**
@@ -73,4 +79,8 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
         "ListCoder.elemCoder must be deterministic", getElemCoder());
   }
 
+  @Override
+  public TypeDescriptor<List<T>> getEncodedTypeDescriptor() {
+    return typeDescriptor;
+  }
 }

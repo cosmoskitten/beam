@@ -195,4 +195,33 @@ public class StandardCoderTest {
     Assert.assertThat(coderWithArgs.toString(),
         CoreMatchers.equalTo("StandardCoderTest$1(BigDecimalCoder,BigIntegerCoder)"));
   }
+
+  @Test
+  public void testGenericStandardCoderFallsBackToObject() throws Exception {
+    Assert.assertThat(new Foo<String>().getEncodedTypeDescriptor().getType(),
+        CoreMatchers.equalTo(TypeDescriptor.of(Object.class).getType()));
+  }
+
+  private static class Foo<T> extends StandardCoder<T> {
+
+    @Override
+    public void encode(T value, OutputStream outStream, Coder.Context context)
+        throws CoderException, IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public T decode(InputStream inStream, Coder.Context context)
+        throws CoderException, IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void verifyDeterministic() throws Coder.NonDeterministicException {}
+  }
 }
