@@ -23,9 +23,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -73,5 +78,36 @@ public class CoderTest {
     assertThat(exception.getReasons(), contains("Problem"));
     assertThat(exception.toString(), containsString("Problem"));
     assertThat(exception.toString(), containsString("is not deterministic"));
+  }
+
+  @Test
+  public void testTypeIsPreserved() throws Exception {
+    assertEquals(TypeDescriptor.of(Void.class), VoidCoder.of().getEncodedTypeDescriptor());
+  }
+
+  @Test
+  public void testGenericStandardCoderFallsBackToObject() throws Exception {
+    assertEquals(TypeDescriptor.of(Object.class), new Foo<String>().getEncodedTypeDescriptor());
+  }
+
+  private static class Foo<T> extends StandardCoder<T> {
+
+    @Override
+    public void encode(T value, OutputStream outStream, Coder.Context context)
+        throws CoderException, IOException {}
+
+    @Override
+    public T decode(InputStream inStream, Coder.Context context)
+        throws CoderException, IOException {
+      return null;
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return null;
+    }
+
+    @Override
+    public void verifyDeterministic() throws Coder.NonDeterministicException {}
   }
 }

@@ -25,6 +25,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 
 /**
  * A {@link SetCoder} encodes any {@link Set} using the format of {@link IterableLikeCoder}. The
@@ -64,6 +66,11 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
         "Ordering of elements in a set may be non-deterministic.");
   }
 
+  @Override
+  public TypeDescriptor<Set<T>> getEncodedTypeDescriptor() {
+    return typeDescriptor;
+  }
+
   /**
    * Returns the first element in this set if it is non-empty,
    * otherwise returns {@code null}.
@@ -75,6 +82,8 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
+
+  private final TypeDescriptor<Set<T>> typeDescriptor;
 
   /**
    * {@inheritDoc}
@@ -89,5 +98,8 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
 
   protected SetCoder(Coder<T> elemCoder) {
     super(elemCoder, "Set");
+    this.typeDescriptor =
+        new TypeDescriptor<Set<T>>() {}.where(
+            new TypeParameter<T>() {}, elemCoder.getEncodedTypeDescriptor());
   }
 }
