@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.DoFn.InputProvider;
+import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
@@ -64,6 +66,7 @@ import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
 
@@ -403,6 +406,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access OnTimerContext outside of @OnTimer methods.");
+    }
+
+    @Override
     public InputProvider<InputT> inputProvider() {
       throw new UnsupportedOperationException("InputProvider is for testing only.");
     }
@@ -589,6 +598,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access OnTimerContext outside of @OnTimer methods.");
+    }
+
+    @Override
     public InputProvider<InputT> inputProvider() {
       throw new UnsupportedOperationException("InputProvider parameters are not supported.");
     }
@@ -669,6 +684,46 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           return context.sideInput(view, sideInputWindow);
         }
       };
+    }
+  }
+
+  private static class TimerInternalsTimer implements Timer {
+    private final TimerInternals timerInternals;
+    private final String timerId;
+    private final TimerSpec spec;
+    private final StateNamespace namespace;
+
+    public TimerInternalsTimer(
+        StateNamespace namespace, String timerId, TimerSpec spec, TimerInternals timerInternals) {
+      this.namespace = namespace;
+      this.timerId = timerId;
+      this.spec = spec;
+      this.timerInternals = timerInternals;
+    }
+
+    @Override
+    public void setForNowPlus(Duration durationFromNow) {
+      timerInternals.setTimer(
+          namespace, timerId, getCurrentTime().plus(durationFromNow), spec.getTimeDomain());
+    }
+
+    @Override
+    public void cancel() {
+      timerInternals.deleteTimer(namespace, timerId);
+    }
+
+    private Instant getCurrentTime() {
+      switch(spec.getTimeDomain()) {
+        case EVENT_TIME:
+          return timerInternals.currentInputWatermarkTime();
+        case PROCESSING_TIME:
+          return timerInternals.currentProcessingTime();
+        case SYNCHRONIZED_PROCESSING_TIME:
+          return timerInternals.currentSynchronizedProcessingTime();
+        default:
+          throw new IllegalStateException(
+              String.format("Timer created for unknown time domain %s", spec.getTimeDomain()));
+      }
     }
   }
 }
