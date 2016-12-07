@@ -56,7 +56,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     return key;
   }
 
-  interface InMemoryState<T extends InMemoryState<T>> {
+  public interface InMemoryState<T extends InMemoryState<T>> {
     boolean isCleared();
     T copy();
   }
@@ -94,11 +94,11 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
   /**
    * A {@link StateBinder} that returns In Memory {@link State} objects.
    */
-  static class InMemoryStateBinder<K> implements StateBinder<K> {
+  public static class InMemoryStateBinder<K> implements StateBinder<K> {
     private final K key;
     private final StateContext<?> c;
 
-    InMemoryStateBinder(K key, StateContext<?> c) {
+    public InMemoryStateBinder(K key, StateContext<?> c) {
       this.key = key;
       this.c = c;
     }
@@ -150,7 +150,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  static final class InMemoryValue<T> implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
+  public static final class InMemoryValue<T>
+      implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
     private boolean isCleared = true;
     private T value = null;
 
@@ -194,7 +195,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  static final class InMemoryWatermarkHold<W extends BoundedWindow>
+  public static final class InMemoryWatermarkHold<W extends BoundedWindow>
       implements WatermarkHoldState<W>, InMemoryState<InMemoryWatermarkHold<W>> {
 
     private final OutputTimeFn<? super W> outputTimeFn;
@@ -267,7 +268,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  static final class InMemoryCombiningValue<K, InputT, AccumT, OutputT>
+  public static final class InMemoryCombiningValue<K, InputT, AccumT, OutputT>
       implements AccumulatorCombiningState<InputT, AccumT, OutputT>,
           InMemoryState<InMemoryCombiningValue<K, InputT, AccumT, OutputT>> {
     private final K key;
@@ -275,7 +276,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
     private AccumT accum;
 
-    InMemoryCombiningValue(
+    public InMemoryCombiningValue(
         K key, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
       this.key = key;
       this.combineFn = combineFn;
@@ -353,7 +354,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  static final class InMemoryBag<T> implements BagState<T>, InMemoryState<InMemoryBag<T>> {
+  public static final class InMemoryBag<T> implements BagState<T>, InMemoryState<InMemoryBag<T>> {
     private List<T> contents = new ArrayList<>();
 
     @Override
