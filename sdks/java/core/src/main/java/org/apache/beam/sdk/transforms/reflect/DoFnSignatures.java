@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -583,6 +584,18 @@ public class DoFnSignatures {
   }
 
   /**
+   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.Context} given {@code
+   * InputT} and {@code OutputT}.
+   */
+  private static <InputT, OutputT>
+      TypeDescriptor<DoFn<InputT, OutputT>.OnTimerContext> doFnOnTimerContextTypeOf(
+          TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
+    return new TypeDescriptor<DoFn<InputT, OutputT>.OnTimerContext>() {}.where(
+        new TypeParameter<InputT>() {}, inputT)
+        .where(new TypeParameter<OutputT>() {}, outputT);
+  }
+
+  /**
    * Generates a {@link TypeDescriptor} for {@code DoFn.InputProvider<InputT>} given {@code InputT}.
    */
   private static <InputT> TypeDescriptor<DoFn.InputProvider<InputT>> inputProviderTypeOf(
@@ -635,6 +648,12 @@ public class DoFnSignatures {
               inputT,
               outputT));
     }
+
+    checkArgument(Iterables.all(extraParameters, Predicates.or(
+        Predicates.instanceOf(Parameter.OnTimerContextParameter.class),
+        Predicates.instanceOf(Parameter.WindowParameter.class),
+        Predicates.instanceOf(Parameter.TimerParameter.class),
+        Predicates.instanceOf(Parameter.StateParameter.class))));
 
     return DoFnSignature.OnTimerMethod.create(m, timerId, windowT, extraParameters);
   }
@@ -693,6 +712,20 @@ public class DoFnSignatures {
           DoFn.ProcessContext.class.getSimpleName(),
           RestrictionTracker.class.getSimpleName(),
           methodContext.getExtraParameters());
+    } else {
+      // These are the parameters allowed for non-splittable @ProcessElement
+      errors.checkArgument(
+          Iterables.all(
+              methodContext.getExtraParameters(),
+              Predicates.or(
+                  Predicates.instanceOf(Parameter.ProcessContextParameter.class),
+                  Predicates.instanceOf(Parameter.WindowParameter.class),
+                  Predicates.instanceOf(Parameter.TimerParameter.class),
+                  Predicates.instanceOf(Parameter.StateParameter.class))),
+          "%s @%s has illegal parameter: %s",
+          DoFn.class.getSimpleName(),
+          DoFn.ProcessElement.class.getSimpleName(),
+          methodContext.getExtraParameters());
     }
 
     return DoFnSignature.ProcessElementMethod.create(
@@ -714,6 +747,7 @@ public class DoFnSignatures {
 
     TypeDescriptor<?> expectedProcessContextT = doFnProcessContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedContextT = doFnContextTypeOf(inputT, outputT);
+    TypeDescriptor<?> expectedOnTimerContextT = doFnOnTimerContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedInputProviderT = inputProviderTypeOf(inputT);
     TypeDescriptor<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
 
@@ -732,6 +766,11 @@ public class DoFnSignatures {
           "Must take %s as the Context argument",
           formatType(expectedContextT));
       return Parameter.context();
+    } else if (rawType.equals(DoFn.OnTimerContext.class)) {
+        methodErrors.checkArgument(paramT.equals(expectedOnTimerContextT),
+            "Must take %s as the OnTimerContext argument",
+            formatType(expectedOnTimerContextT));
+        return Parameter.onTimerContext();
     } else if (BoundedWindow.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasWindowParameter(),
