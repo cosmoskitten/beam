@@ -59,7 +59,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       // Just trust the context's decision as to whether the output should be keyed.
       // The logic for whether this ParDo is key-preserving and whether the input
       // is keyed lives elsewhere.
-      if (evaluationContext.isKeyed((PCollection<?>) application.getOutput())) {
+      if (evaluationContext.isKeyed(outputEntry.getValue())) {
         outputBundles.put(
             outputEntry.getKey(), evaluationContext.createKeyedBundle(key, outputEntry.getValue()));
       } else {
