@@ -129,6 +129,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
         finalized,
         "Can't call finishSpecifyingRemainder before the Pipeline has been completely traversed");
     for (PValue unfinalized : toFinalize) {
+      AppliedPTransform<?, ?, ?> producer = producers.get(unfinalized);
       unfinalized.finishSpecifying();
     }
   }

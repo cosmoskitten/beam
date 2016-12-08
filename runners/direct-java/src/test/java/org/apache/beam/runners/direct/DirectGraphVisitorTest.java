@@ -28,6 +28,7 @@ import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
@@ -110,6 +111,7 @@ public class DirectGraphVisitorTest implements Serializable {
     FlattenPCollectionList<String> flatten = Flatten.pCollections();
     PCollectionList<String> emptyList = PCollectionList.empty(p);
     PCollection<String> empty = emptyList.apply(flatten);
+    empty.setCoder(StringUtf8Coder.of());
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();
     assertThat(
