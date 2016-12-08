@@ -31,6 +31,7 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PValue;
 
 /**
@@ -105,7 +106,12 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   }
 
   private static boolean isKeyPreserving(PTransform<?, ?> transform) {
-    // There are currently no key-preserving transforms; this lays the infrastructure for them
-    return false;
+    // This is a somewhat hacky check for what is considered key-preserving to the direct runner
+    if (transform instanceof ParDo.BoundMulti) {
+      ParDo.BoundMulti parDo = (ParDo.BoundMulti<?, ?>) transform;
+      return parDo.getNewFn() instanceof ParDoMultiOverrideFactory.ToKeyedWorkItem;
+    } else {
+      return false;
+    }
   }
 }
