@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -29,9 +30,9 @@ import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -50,10 +51,10 @@ import org.junit.runners.JUnit4;
  * Tests for {@link TransformHierarchy}.
  */
 @RunWith(JUnit4.class)
-public class TransformHierarchyTest {
-  @Rule public ExpectedException thrown = ExpectedException.none();
-  private TransformHierarchy hierarchy;
-  private TestPipeline pipeline;
+public class TransformHierarchyTest implements Serializable {
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+  private transient TransformHierarchy hierarchy;
+  private transient TestPipeline pipeline;
 
   @Before
   public void setup() {
@@ -156,18 +157,21 @@ public class TransformHierarchyTest {
         PCollection.createPrimitiveOutputInternal(
             pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
 
-    MapElements<Long, Long> map = MapElements.via(new SimpleFunction<Long, Long>() {
-      @Override
-      public Long apply(Long input) {
-        return input;
-      }
-    });
+    ParDo.Bound<Long, Long> pardo =
+        ParDo.of(
+            new DoFn<Long, Long>() {
+              @ProcessElement
+              public void processElement(ProcessContext ctxt) {
+                ctxt.output(ctxt.element());
+              }
+            });
 
     PCollection<Long> mapped =
         PCollection.createPrimitiveOutputInternal(
             pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
 
     TransformHierarchy.Node compositeNode = hierarchy.pushNode("Create", begin, create);
+    hierarchy.finishSpecifyingInput();
     assertThat(hierarchy.getCurrent(), equalTo(compositeNode));
     assertThat(compositeNode.getInputs(), Matchers.emptyIterable());
     assertThat(compositeNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(create));
@@ -177,6 +181,7 @@ public class TransformHierarchyTest {
 
     TransformHierarchy.Node primitiveNode = hierarchy.pushNode("Create/Read", begin, read);
     assertThat(hierarchy.getCurrent(), equalTo(primitiveNode));
+    hierarchy.finishSpecifyingInput();
     hierarchy.setOutput(created);
     hierarchy.popNode();
     assertThat(primitiveNode.getOutputs(), Matchers.<PValue>containsInAnyOrder(created));
@@ -191,7 +196,8 @@ public class TransformHierarchyTest {
     assertThat(hierarchy.getProducer(created), equalTo(primitiveNode));
     hierarchy.popNode();
 
-    TransformHierarchy.Node otherPrimitive = hierarchy.pushNode("ParDo", created, map);
+    TransformHierarchy.Node otherPrimitive = hierarchy.pushNode("ParDo", created, pardo);
+    hierarchy.finishSpecifyingInput();
     hierarchy.setOutput(mapped);
     hierarchy.popNode();
 
