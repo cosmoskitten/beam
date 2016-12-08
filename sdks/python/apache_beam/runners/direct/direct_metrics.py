@@ -24,6 +24,7 @@ from collections import defaultdict
 import threading
 
 from apache_beam.metrics.base import MetricResult
+from apache_beam.metrics.base import MetricKey
 from apache_beam.metrics.cells import CounterAggregator
 from apache_beam.metrics.cells import DistributionAggregator
 from apache_beam.metrics.metric import MetricResults
@@ -56,14 +57,12 @@ class DirectMetrics(MetricResults):
     self._apply_operation(bundle, updates, op)
 
   def query(self, filter=None):
-    counters = [MetricResult(k.metric,
-                             k.step,
+    counters = [MetricResult(MetricKey(k.step, k.metric),
                              v.extract_committed(),
                              v.extract_latest_attempted())
                 for k, v in self._counters.items()
                 if self.matches(filter, k)]
-    distributions = [MetricResult(k.metric,
-                                  k.step,
+    distributions = [MetricResult(MetricKey(k.step, k.metric),
                                   v.extract_committed(),
                                   v.extract_latest_attempted())
                      for k, v in self._distributions.items()

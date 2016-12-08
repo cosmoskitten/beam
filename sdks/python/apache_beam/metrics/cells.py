@@ -22,7 +22,7 @@ from apache_beam.metrics.base import Distribution
 
 
 class DirtyState(object):
-  """ Keeps track of a cell's commit status
+  """Keeps track of a cell's commit status.
 
   It's thread-safe.
   """
@@ -57,9 +57,11 @@ class DirtyState(object):
 
 
 class MetricCell(object):
-  """ Base class of a Cell that tracks the state of a metric.
+  """Base class of Cell that tracks state of a metric during pipeline execution.
 
-  It's thread safe.
+  All subclasses must be thread safe, as these are used in the
+  pipeline runners, and may be subject to parallel/concurrent
+  updates.
   """
   def __init__(self):
     self.dirty = DirtyState()
@@ -70,7 +72,7 @@ class MetricCell(object):
 
 
 class CounterCell(Counter, MetricCell):
-  """ Tracks the state of a counter metric.
+  """Keeps the state of a counter metric during pipeline execution.
 
   It's thread safe.
   """
@@ -89,11 +91,12 @@ class CounterCell(Counter, MetricCell):
       self.dirty.modified()
 
   def get_cumulative(self):
-    return self.value
+    with self._lock:
+      return self.value
 
 
 class DistributionCell(Distribution, MetricCell):
-  """ Tracks the state of a distribution metric.
+  """Keeps the state of a distribution metric during pipeline execution.
 
   It's thread safe.
   """
@@ -112,25 +115,31 @@ class DistributionCell(Distribution, MetricCell):
       self._update(value)
 
   def _update(self, value):
-    self.data.count += 1
-    self.data.sum += value
-    self.data.min = (value
-                     if self.data.min is None or self.data.min > value
-                     else self.data.min)
-    self.data.max = (value
-                     if self.data.max is None or self.data.max < value
-                     else self.data.max)
+    self.data._count += 1
+    self.data._sum += value
+    self.data._min = (value
+                      if self.data.min is None or self.data.min > value
+                      else self.data.min)
+    self.data._max = (value
+                      if self.data.max is None or self.data.max < value
+                      else self.data.max)
 
   def get_cumulative(self):
-    return self.data
+    with self._lock:
+      return self.data.get_cumulative()
 
 
 class DistributionData(object):
+  """The data structure that holds data about a distribution metric.
+
+  This object is not thread safe, so it's not supposed to be modified
+  by other than the DistributionCell that contains it.
+  """
   def __init__(self, sum, count, min, max):
-    self.sum = sum
-    self.count = count
-    self.min = min
-    self.max = max
+    self._sum = sum
+    self._count = count
+    self._min = min
+    self._max = max
 
   def __eq__(self, other):
     return (self.sum == other.sum and
@@ -147,19 +156,40 @@ class DistributionData(object):
                                                        self.min,
                                                        self.max)
 
+  def get_cumulative(self):
+    return DistributionData(self.sum, self.count, self.min, self.max)
+
+  @property
+  def sum(self):
+    return self._sum
+
+  @property
+  def count(self):
+    return self._count
+
+  @property
+  def min(self):
+    return self._min
+
+  @property
+  def max(self):
+    return self._max
+
   @property
   def mean(self):
-    return self.sum/self.count
+    return self.sum / self.count
 
   def combine(self, other):
     if other is None:
       return self
     else:
+      new_min = (None if self.min is None and other.min is None else
+                 min(x for x in (self.min, other.min) if x is not None))
       return DistributionData(
           self.sum + other.sum,
           self.count + other.count,
-          min(x for x in (self.min, other.min) if x is not None),
-          max(x for x in (self.max, other.max) if x is not None))
+          new_min,
+          max(self.max, other.max))
 
   @classmethod
   def singleton(cls, value):
@@ -167,8 +197,7 @@ class DistributionData(object):
 
 
 class MetricAggregation(object):
-  """ Base class for aggregating metric data.
-  """
+  """Base class for aggregating metric data."""
   def combine(self, updates):
     raise NotImplementedError
 
@@ -177,7 +206,7 @@ class MetricAggregation(object):
 
 
 class CounterAggregator(object):
-  """ Class for aggregating data from Counter metrics.
+  """Class for aggregating data from Counter metrics.
 
   It works with pure integers.
   """
@@ -189,7 +218,7 @@ class CounterAggregator(object):
 
 
 class DistributionAggregator(object):
-  """ Class for aggregating data from Distribution metrics.
+  """Class for aggregating data from Distribution metrics.
 
   It works with DistributionData objects.
   """

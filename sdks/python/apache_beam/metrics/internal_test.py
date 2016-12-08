@@ -18,6 +18,7 @@
 import unittest
 
 from apache_beam.metrics.base import MetricName
+from apache_beam.metrics.base import MetricKey
 from apache_beam.metrics.cells import DirtyState
 from apache_beam.metrics.internal import MetricsContainer
 from apache_beam.metrics.internal import MetricsEnvironment
@@ -27,9 +28,9 @@ from apache_beam.metrics.metric import Metrics
 class TestMetricsContainer(unittest.TestCase):
   def test_create_new_counter(self):
     mc = MetricsContainer('astep')
-    self.assertFalse(mc.counters.has_key(('namespace', 'name')))
+    self.assertFalse(mc.counters.has_key(MetricName('namespace', 'name')))
     mc.get_counter(MetricName('namespace', 'name'))
-    self.assertTrue(mc.counters.has_key(('namespace', 'name')))
+    self.assertTrue(mc.counters.has_key(MetricName('namespace', 'name')))
 
   def test_add_to_counter(self):
     mc = MetricsContainer('astep')
@@ -91,11 +92,11 @@ class TestMetricsEnvironment(unittest.TestCase):
 
     self.assertEqual(
         c1.get_cumulative().counters.items(),
-        [(('step1', ('ns', 'name')), 1)])
+        [(MetricKey('step1', MetricName('ns', 'name')), 1)])
 
     self.assertEqual(
         c2.get_cumulative().counters.items(),
-        [(('step2', ('ns', 'name')), 3)])
+        [(MetricKey('step2', MetricName('ns', 'name')), 3)])
 
   def test_no_container(self):
     self.assertEqual(MetricsEnvironment.current_container(),

@@ -30,13 +30,13 @@ class NameTest(unittest.TestCase):
     name = MetricName('namespace1', 'name1')
     self.assertEqual(name.namespace, 'namespace1')
     self.assertEqual(name.name, 'name1')
-    self.assertEqual(name, ('namespace1', 'name1'))
+    self.assertEqual(name, MetricName('namespace1', 'name1'))
 
     key = MetricKey('step1', name)
     self.assertEqual(key.step, 'step1')
     self.assertEqual(key.metric.namespace, 'namespace1')
     self.assertEqual(key.metric.name, 'name1')
-    self.assertEqual(key, ('step1', ('namespace1', 'name1')))
+    self.assertEqual(key, MetricKey('step1', MetricName('namespace1', 'name1')))
 
 
 class MetricsTest(unittest.TestCase):
@@ -74,10 +74,10 @@ class MetricsTest(unittest.TestCase):
 
     container = MetricsEnvironment.current_container()
     self.assertEqual(
-        container.counters[(counter_ns, name)].get_cumulative(),
+        container.counters[MetricName(counter_ns, name)].get_cumulative(),
         7)
     self.assertEqual(
-        container.distributions[(distro_ns, name)].get_cumulative(),
+        container.distributions[MetricName(distro_ns, name)].get_cumulative(),
         DistributionData(12, 2, 2, 10))
 
 

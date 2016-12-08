@@ -32,7 +32,7 @@ from apache_beam.metrics.internal import MetricsEnvironment
 
 
 class Metrics(object):
-  """ Lets users create/access metric objects during pipeline execution.
+  """Lets users create/access metric objects during pipeline execution.
   """
   @staticmethod
   def get_namespace(namespace):
@@ -45,11 +45,11 @@ class Metrics(object):
 
   @staticmethod
   def counter(namespace, name):
-    """ Obtains or creates a Counter metric.
+    """Obtains or creates a Counter metric.
 
     Args:
-      namespace - A class or string that gives the namespace to a metric
-      name - A string that gives a unique name to a metric
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
 
     Returns:
       An object of Counter class.
@@ -59,11 +59,11 @@ class Metrics(object):
 
   @staticmethod
   def distribution(namespace, name):
-    """ Obtains or creates a Distribution metric.
+    """Obtains or creates a Distribution metric.
 
     Args:
-      namespace - A class or string that gives the namespace to a metric
-      name - A string that gives a unique name to a metric
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
 
     Returns:
       An object of Distribution class.
@@ -108,7 +108,7 @@ class MetricResults(object):
 
 
 class MetricsFilter(object):
-  """ Simple object to filter metrics results.
+  """Simple object to filter metrics results.
 
   If filters by matching a result's step-namespace-name with three internal
   sets. No execution/matching logic is added to this object, so that it may

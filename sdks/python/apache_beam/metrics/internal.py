@@ -34,7 +34,7 @@ from apache_beam.metrics.cells import CounterCell, DistributionCell
 
 
 class MetricsEnvironment(object):
-  """ Holds the MetricsContainer for every thread and other metric information.
+  """Holds the MetricsContainer for every thread and other metric information.
 
   This class is not meant to be instantiated, instead being used to keep
   track of global state.
@@ -66,7 +66,7 @@ class MetricsEnvironment(object):
 
 
 class MetricsContainer(object):
-  """ Holds the metrics of a single step and a single bundle.
+  """Holds the metrics of a single step and a single bundle.
   """
   def __init__(self, step_name):
     self.step_name = step_name
@@ -80,7 +80,7 @@ class MetricsContainer(object):
     return self.distributions[metric_name]
 
   def _get_updates(self, filter=None):
-    """ Return cumulative values of metrics filtered according to a lambda.
+    """Return cumulative values of metrics filtered according to a lambda.
 
     This returns all the cumulative values for all metrics after filtering
     then with the filter parameter lambda function. If None is passed in,
@@ -99,7 +99,7 @@ class MetricsContainer(object):
     return MetricUpdates(counters, distributions)
 
   def get_updates(self):
-    """ Return cumulative values of metrics that changed since the last commit.
+    """Return cumulative values of metrics that changed since the last commit.
 
     This returns all the cumulative values for all metrics only if their state
     prior to the function call was COMMITTING or DIRTY.
@@ -107,7 +107,7 @@ class MetricsContainer(object):
     return self._get_updates(filter=lambda v: v.dirty.before_commit())
 
   def get_cumulative(self):
-    """ Return MetricUpdates with cumulative values of all metrics in container.
+    """Return MetricUpdates with cumulative values of all metrics in container.
 
     This returns all the cumulative values for all metrics regardless of whether
     they have been committed or not.
