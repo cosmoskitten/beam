@@ -47,6 +47,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       AppliedPTransform<?, ?, ?> application,
       WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
       Serializable fn, // may be OldDoFn or DoFn
+      StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -55,8 +56,16 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
 
     Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
-      outputBundles.put(
-          outputEntry.getKey(), evaluationContext.createBundle(outputEntry.getValue()));
+      // If there is an execution key, this we are single-threaded per key.
+      // If the DoFn is key preserving then downstream transforms should also be
+      // keyed
+      if (evaluationContext.isKeyed((PCollection<?>) application.getOutput())) {
+        outputBundles.put(
+            outputEntry.getKey(), evaluationContext.createKeyedBundle(key, outputEntry.getValue()));
+      } else {
+        outputBundles.put(
+            outputEntry.getKey(), evaluationContext.createBundle(outputEntry.getValue()));
+      }
     }
     BundleOutputManager outputManager = BundleOutputManager.create(outputBundles);
 
@@ -84,6 +93,10 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
 
     return new ParDoEvaluator<>(
         evaluationContext, runner, application, aggregatorChanges, outputManager, stepContext);
+  }
+
+  private static boolean isKeyPreserving(Serializable fn) {
+    return false;
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
