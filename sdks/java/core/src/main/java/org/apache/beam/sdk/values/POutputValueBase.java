@@ -94,7 +94,7 @@ public abstract class POutputValueBase implements POutput {
    * finalization.
    */
   @Override
-  public void finishSpecifyingOutput() { }
+  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) { }
 
   /**
    * The {@link PTransform} that produces this {@link POutputValueBase}.
