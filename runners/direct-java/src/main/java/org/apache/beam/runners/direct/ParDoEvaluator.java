@@ -36,6 +36,7 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -59,7 +60,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       // Just trust the context's decision as to whether the output should be keyed.
       // The logic for whether this ParDo is key-preserving and whether the input
       // is keyed lives elsewhere.
-      if (evaluationContext.isKeyed((PCollection<?>) application.getOutput())) {
+      if (evaluationContext.isKeyed(outputEntry.getValue())) {
         outputBundles.put(
             outputEntry.getKey(), evaluationContext.createKeyedBundle(key, outputEntry.getValue()));
       } else {
