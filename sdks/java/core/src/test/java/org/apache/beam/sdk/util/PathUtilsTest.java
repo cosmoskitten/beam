@@ -19,57 +19,45 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
-import java.nio.file.Path;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 /**
  * Unit tests for {@link PathUtils}.
  */
 public class PathUtilsTest {
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
-
   @Test
   public void testResolveSinglePath() throws Exception {
-    String expected = tmpFolder.getRoot().toPath().resolve("aa").toString();
-    assertEquals(expected, PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().toString(), "aa"));
+    assertEquals(
+        "/root/tmp/aa",
+        PathUtils.resolveAgainstDirectory("/root/tmp", "aa"));
   }
 
   @Test
   public void testResolveMultiplePaths() throws Exception {
-    String expected =
-        tmpFolder.getRoot().toPath()
-            .resolve("aa")
-            .resolve("bb")
-            .resolve("cc").toString();
-    assertEquals(expected,
-        PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "aa", "bb", "cc"));
+    assertEquals(
+        "/root/tmp/aa/bb/cc",
+        PathUtils.resolveAgainstDirectory("/root/tmp", "aa", "bb", "cc"));
   }
-
 
   @Test
   public void testResolveWithScheme() throws Exception {
-    Path rootPath = tmpFolder.getRoot().toPath();
-    String rootString = rootPath.toString();
-
-    String expected = rootPath.resolve("aa").toString();
-    assertEquals(expected, PathUtils.resolveAgainstDirectory(rootString, "aa"));
-    assertEquals("file:" + expected, PathUtils.resolveAgainstDirectory("file:" + rootString, "aa"));
     assertEquals(
-        "file:" + expected, PathUtils.resolveAgainstDirectory("file://" + rootString, "aa"));
+        "file:/root/tmp/aa",
+        PathUtils.resolveAgainstDirectory("file:/root/tmp", "aa"));
+    assertEquals(
+        "gs://bucket/tmp/aa",
+        PathUtils.resolveAgainstDirectory("gs://bucket/tmp", "aa"));
   }
 
   @Test
-  public void testResolveOtherIsFullPath() throws Exception {
-    String expected = tmpFolder.getRoot().getPath();
+  public void testResolveOtherIsAbsolutePath() throws Exception {
+    String expected = "/root/tmp/aa";
     assertEquals(expected, PathUtils.resolveAgainstDirectory(expected, expected));
   }
 
   @Test
   public void testResolveOtherIsEmptyPath() throws Exception {
-    String expected = tmpFolder.getRoot().getPath();
+    String expected = "/root/tmp/aa";
     assertEquals(expected, PathUtils.resolveAgainstDirectory(expected, "", ""));
   }
 
