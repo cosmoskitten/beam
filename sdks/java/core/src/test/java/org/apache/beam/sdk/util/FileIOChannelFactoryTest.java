@@ -136,11 +136,9 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("aa");
     temporaryFolder.newFile("ab");
 
-    // Windows doesn't like resolving paths with * in them,
-    // so the * is appended after resolveAgainstDirectory.
     assertThat(
         factory.match(
-            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "b") + "*"),
+            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "b*")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -174,11 +172,9 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("ba");
     temporaryFolder.newFile("bb");
 
-    // Windows doesn't like resolving paths with * in them,
-    // so the * is appended after resolveAgainstDirectory.
     assertThat(
         factory.match(
-            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a") + "*"),
+            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a*")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -196,11 +192,9 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("ba");
     temporaryFolder.newFile("bb");
 
-    // Windows doesn't like resolving paths with * in them,
-    // so the ** is appended after resolveAgainstDirectory.
     assertThat(
         factory.match(
-            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a") + "**"),
+            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a**")),
         Matchers.hasItems(expected.toArray(new String[expected.size()])));
   }
 
@@ -209,11 +203,9 @@ public class FileIOChannelFactoryTest {
     List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
     temporaryFolder.newFolder("a_dir_that_should_not_be_matched");
 
-    // Windows doesn't like resolving paths with * in them,
-    // so the * is appended after resolveAgainstDirectory.
     assertThat(
         factory.match(
-            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a") + "*"),
+            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a*")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
