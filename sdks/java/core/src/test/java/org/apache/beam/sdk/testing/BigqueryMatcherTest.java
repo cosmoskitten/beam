@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -56,7 +54,7 @@ public class BigqueryMatcherTest {
   private final String projectId = "test-project";
   private final String query = "test-query";
 
-  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none().handleAssertionErrors();
   @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
   @Mock private Bigquery mockBigqueryClient;
   @Mock private Bigquery.Jobs mockJobs;
@@ -90,18 +88,15 @@ public class BigqueryMatcherTest {
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockQuery.execute()).thenReturn(createResponseContainingTestData());
 
+    thrown.expect(AssertionError.class);
+    thrown.expectMessage("Total number of rows are: 1");
+    thrown.expectMessage("abc");
     try {
       assertThat(mockResult, matcher);
-    } catch (AssertionError expected) {
-      assertThat(expected.getMessage(), containsString("Total number of rows are: 1"));
-      assertThat(expected.getMessage(), containsString("abc"));
+    } finally {
       verify(matcher).newBigqueryClient(eq(appName));
       verify(mockJobs).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
-      return;
     }
-    // Note that fail throws an AssertionError which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("AssertionError is expected.");
   }
 
   @Test
@@ -111,18 +106,15 @@ public class BigqueryMatcherTest {
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockQuery.execute()).thenReturn(new QueryResponse().setJobComplete(false));
 
+    thrown.expect(AssertionError.class);
+    thrown.expectMessage("The query job hasn't completed.");
+    thrown.expectMessage("jobComplete=false");
     try {
       assertThat(mockResult, matcher);
-    } catch (AssertionError expected) {
-      assertThat(expected.getMessage(), containsString("The query job hasn't completed."));
-      assertThat(expected.getMessage(), containsString("jobComplete=false"));
+    } finally {
       verify(matcher).newBigqueryClient(eq(appName));
       verify(mockJobs).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
-      return;
     }
-    // Note that fail throws an AssertionError which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("AssertionError is expected.");
   }
 
   @Test
