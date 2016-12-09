@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.runners.core.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -65,6 +67,14 @@ public class DoFnFunction<InputT, OutputT>
     this.mRuntimeContext = runtime;
     this.mSideInputs = sideInputs;
     this.windowFn = windowFn;
+  }
+
+  public DoFnFunction(Accumulator<NamedAggregators> accum,
+                      DoFn<InputT, OutputT> fn,
+                      SparkRuntimeContext runtime,
+                      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
+                      WindowFn<Object, ?> windowFn) {
+    this(accum, DoFnAdapters.toOldDoFn(fn), runtime, sideInputs, windowFn);
   }
 
 

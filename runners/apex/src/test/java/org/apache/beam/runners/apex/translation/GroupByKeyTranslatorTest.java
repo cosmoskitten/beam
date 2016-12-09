@@ -20,17 +20,13 @@ package org.apache.beam.runners.apex.translation;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
@@ -42,12 +38,13 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -106,22 +103,18 @@ public class GroupByKeyTranslatorTest {
 
   }
 
-  @SuppressWarnings("serial")
-  private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    protected static final HashSet<Object> RESULTS = new HashSet<>();
+  private static class EmbeddedCollector extends DoFn<Object, Void> {
+    protected static final ConcurrentHashSet<Object> RESULTS = new ConcurrentHashSet<>();
 
-    public EmbeddedCollector() {
-    }
-
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       RESULTS.add(c.element());
     }
   }
 
-  private static class KeyedByTimestamp<T> extends OldDoFn<T, KV<Instant, T>> {
+  private static class KeyedByTimestamp<T> extends DoFn<T, KV<Instant, T>> {
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(KV.of(c.timestamp(), c.element()));
     }

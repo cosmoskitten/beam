@@ -28,8 +28,8 @@ import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -37,6 +37,8 @@ import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
 import org.apache.beam.sdk.transforms.Sum.SumIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -134,68 +136,52 @@ public class OldDoFnTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
-  public void testCreateAggregatorInStartBundleThrows() {
-    TestPipeline p = createTestPipeline(new OldDoFn<String, String>() {
+  public void testCreateAggregatorThrowsWhenAggregatorsAreFinal() throws Exception {
+    OldDoFn<String, String> fn = new OldDoFn<String, String>() {
       @Override
-      public void startBundle(OldDoFn<String, String>.Context c) throws Exception {
-        createAggregator("anyAggregate", new MaxIntegerFn());
+      public void processElement(ProcessContext c) throws Exception { }
+    };
+    OldDoFn<String, String>.Context context = createContext(fn);
+    context.setupDelegateAggregators();
+
+    thrown.expect(isA(IllegalStateException.class));
+    fn.createAggregator("anyAggregate", new MaxIntegerFn());
+  }
+
+  private OldDoFn<String, String>.Context createContext(OldDoFn<String, String> fn) {
+    return fn.new Context() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        throw new UnsupportedOperationException();
       }
 
       @Override
-      public void processElement(OldDoFn<String, String>.ProcessContext c) throws Exception {}
-    });
-
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
-
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCreateAggregatorInProcessElementThrows() {
-    TestPipeline p = createTestPipeline(new OldDoFn<String, String>() {
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
-        createAggregator("anyAggregate", new MaxIntegerFn());
-      }
-    });
-
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
-
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCreateAggregatorInFinishBundleThrows() {
-    TestPipeline p = createTestPipeline(new OldDoFn<String, String>() {
-      @Override
-      public void finishBundle(OldDoFn<String, String>.Context c) throws Exception {
-        createAggregator("anyAggregate", new MaxIntegerFn());
+      public void output(String output) {
+        throw new UnsupportedOperationException();
       }
 
       @Override
-      public void processElement(OldDoFn<String, String>.ProcessContext c) throws Exception {}
-    });
+      public void outputWithTimestamp(String output, Instant timestamp) {
+        throw new UnsupportedOperationException();
+      }
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
+      @Override
+      public <T> void sideOutput(TupleTag<T> tag, T output) {
+        throw new UnsupportedOperationException();
+      }
 
-    p.run();
-  }
+      @Override
+      public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        throw new UnsupportedOperationException();
+      }
 
-  /**
-   * Initialize a test pipeline with the specified {@link OldDoFn}.
-   */
-  private <InputT, OutputT> TestPipeline createTestPipeline(OldDoFn<InputT, OutputT> fn) {
-    TestPipeline pipeline = TestPipeline.create();
-    pipeline.apply(Create.of((InputT) null))
-     .apply(ParDo.of(fn));
-
-    return pipeline;
+      @Override
+      public <AggInputT, AggOutputT>
+      Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+              String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
+        throw new UnsupportedOperationException();
+      }
+    };
   }
 
   @Test
@@ -229,8 +215,8 @@ public class OldDoFnTest implements Serializable {
     assertThat(valuesMap.get(output.getProducingTransformInternal().getFullName()), equalTo(4));
   }
 
-  private static class CountOddsFn extends OldDoFn<Integer, Void> {
-    @Override
+  private static class CountOddsFn extends DoFn<Integer, Void> {
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       if (c.element() % 2 == 1) {
         aggregator.addValue(1);

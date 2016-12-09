@@ -24,11 +24,8 @@ import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
-
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
@@ -39,8 +36,9 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -113,14 +111,10 @@ public class ReadUnboundTranslatorTest {
     Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
   }
 
-  @SuppressWarnings("serial")
-  private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    protected static final HashSet<Object> RESULTS = new HashSet<>();
+  private static class EmbeddedCollector extends DoFn<Object, Void> {
+    private static final ConcurrentHashSet<Object> RESULTS = new ConcurrentHashSet<>();
 
-    public EmbeddedCollector() {
-    }
-
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       RESULTS.add(c.element());
     }

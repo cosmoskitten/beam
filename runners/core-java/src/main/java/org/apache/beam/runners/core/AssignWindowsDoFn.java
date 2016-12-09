@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
 /**
- * {@link OldDoFn} that tags elements of a {@link PCollection} with windows, according to the
+ * {@link DoFn} that tags elements of a {@link PCollection} with windows, according to the
  * provided {@link WindowFn}.
  *
  * @param <T> Type of elements being windowed

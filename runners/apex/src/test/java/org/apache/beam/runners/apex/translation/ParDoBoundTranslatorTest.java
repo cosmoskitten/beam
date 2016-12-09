@@ -26,14 +26,12 @@ import com.datatorrent.api.Sink;
 import com.datatorrent.lib.util.KryoCloneUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Pattern;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
@@ -49,7 +47,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
@@ -60,6 +58,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -114,7 +113,7 @@ public class ParDoBoundTranslatorTest {
   }
 
   @SuppressWarnings("serial")
-  private static class Add extends OldDoFn<Integer, Integer> {
+  private static class Add extends DoFn<Integer, Integer> {
     private Integer number;
     private PCollectionView<Integer> sideInputView;
 
@@ -126,7 +125,7 @@ public class ParDoBoundTranslatorTest {
       this.sideInputView = sideInputView;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       if (sideInputView != null) {
         number = c.sideInput(sideInputView);
@@ -135,15 +134,14 @@ public class ParDoBoundTranslatorTest {
     }
   }
 
-  private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    private static final long serialVersionUID = 1L;
-    protected static final HashSet<Object> RESULTS = new HashSet<>();
+  private static class EmbeddedCollector extends DoFn<Object, Void> {
+    private static final ConcurrentHashSet<Object> RESULTS = new ConcurrentHashSet<>();
 
     public EmbeddedCollector() {
       RESULTS.clear();
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       RESULTS.add(c.element());
     }
@@ -303,7 +301,7 @@ public class ParDoBoundTranslatorTest {
      Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
   }
 
-  private static class TestMultiOutputWithSideInputsFn extends OldDoFn<Integer, String> {
+  private static class TestMultiOutputWithSideInputsFn extends DoFn<Integer, String> {
     private static final long serialVersionUID = 1L;
 
     final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
@@ -315,7 +313,7 @@ public class ParDoBoundTranslatorTest {
       this.sideOutputTupleTags.addAll(sideOutputTupleTags);
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       outputToAllWithSideInputs(c, "processing: " + c.element());
     }
