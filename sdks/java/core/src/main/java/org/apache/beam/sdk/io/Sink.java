@@ -23,6 +23,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -240,6 +242,12 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
      * fault tolerance. See {@link Sink} for more information about bundle ids.
      */
     public abstract void open(String uId) throws Exception;
+
+    public abstract void setWindowAndPane(BoundedWindow window, PaneInfo paneInfo) throws Exception;
+
+    public abstract void setShard(int shard, int numShards);
+
+    public abstract void cleanup() throws Exception;
 
     /**
      * Called for each value in the bundle.
