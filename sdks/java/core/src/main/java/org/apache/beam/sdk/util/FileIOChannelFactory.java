@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import autovalue.shaded.com.google.common.common.collect.Lists;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
@@ -175,16 +176,19 @@ public class FileIOChannelFactory implements IOChannelFactory {
   }
 
   @Override
-  public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
+  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames) throws
+      IOException {
+    List<String> srcList = Lists.newArrayList(srcFilenames);
+    List<String> destList = Lists.newArrayList(destFilenames);
     checkArgument(
-        srcFilenames.size() == destFilenames.size(),
+        srcList.size() == destList.size(),
         "Number of source files %s must equal number of destination files %s",
-        srcFilenames.size(),
-        destFilenames.size());
-    int numFiles = srcFilenames.size();
+        srcList.size(),
+        destList.size());
+    int numFiles = srcList.size();
     for (int i = 0; i < numFiles; i++) {
-      String src = srcFilenames.get(i);
-      String dst = destFilenames.get(i);
+      String src = srcList.get(i);
+      String dst = destList.get(i);
       LOG.debug("Copying {} to {}", src, dst);
       try {
         // Copy the source file, replacing the existing destination.
