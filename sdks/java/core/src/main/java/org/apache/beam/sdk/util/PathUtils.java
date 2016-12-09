@@ -62,15 +62,14 @@ public class PathUtils {
 
   /**
    * Returns the directory portion of the {@code path}, which includes all but the file name.
-   * If {@code path} doesn't have the file name, then return {@code path}.
+   *
+   * @return a string representing the directory portion of the {@code path},
+   *         or the {@code path} itself, if it is already a directory,
+   *         or an empty {@link String}, if {@code path} is "~", ".", "..".
    */
   public static String getDirectory(String path) {
     checkNotNull(path, "path");
-    if (path.isEmpty() || path.endsWith(URI_DELIMITER)) {
-      return path;
-    } else {
-      return path.substring(0, path.lastIndexOf(URI_DELIMITER) + 1);
-    }
+    return URI.create(path).resolve("").toString();
   }
 
   /**
@@ -79,7 +78,8 @@ public class PathUtils {
    * the root in the directory hierarchy.
    *
    * @return a string representing the name of the file or directory,
-   *         or an empty {@code String} if this path is "/" or empty,
+   *         or the {@code path} itself, if {@code path} is "~", ".", "..",
+   *         or an empty {@link String} if this path is "/" or empty,
    *         or {@code null} if this path is {@code null}.
    */
   public static String getFileName(String path) {
