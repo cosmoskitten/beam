@@ -43,7 +43,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
         PCollection<? extends InputT>, PCollectionTuple, BoundMulti<InputT, OutputT>> {
   @Override
-  public PTransform<PCollection<? extends InputT>, PCollectionTuple> getTransform(
+  public PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
       BoundMulti<InputT, OutputT> transform) {
     DoFn<InputT, OutputT> fn = transform.getNewFn();
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());

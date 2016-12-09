@@ -28,7 +28,7 @@ final class DirectGroupByKeyOverrideFactory<K, V>
     implements PTransformOverrideFactory<
         PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupByKey<K, V>> {
   @Override
-  public PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> getTransform(
+  public PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> getReplacementTransform(
       GroupByKey<K, V> transform) {
     return new DirectGroupByKey<>(transform);
   }

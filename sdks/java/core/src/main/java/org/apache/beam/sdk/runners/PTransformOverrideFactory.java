@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.POutput;
  * Produces {@link PipelineRunner}-specific overrides of {@link PTransform PTransforms}, and
  * provides mappings between original and replacement outputs.
  */
-@Experimental(Kind.UNSPECIFIED)
+@Experimental(Kind.CORE_RUNNERS_ONLY)
 public interface PTransformOverrideFactory<
     InputT extends PInput,
     OutputT extends POutput,
@@ -37,5 +37,5 @@ public interface PTransformOverrideFactory<
   /**
    * Returns a {@link PTransform} that produces equivalent output to the provided transform.
    */
-  PTransform<InputT, OutputT> getTransform(TransformT transform);
+  PTransform<InputT, OutputT> getReplacementTransform(TransformT transform);
 }

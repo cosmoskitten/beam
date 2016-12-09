@@ -288,7 +288,8 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     PTransformOverrideFactory<InputT, OutputT, PTransform<InputT, OutputT>> overrideFactory =
         defaultTransformOverrides.get(transform.getClass());
     if (overrideFactory != null) {
-      PTransform<InputT, OutputT> customTransform = overrideFactory.getTransform(transform);
+      PTransform<InputT, OutputT> customTransform =
+          overrideFactory.getReplacementTransform(transform);
       if (customTransform != transform) {
         return Pipeline.applyTransform(transform.getName(), input, customTransform);
       }

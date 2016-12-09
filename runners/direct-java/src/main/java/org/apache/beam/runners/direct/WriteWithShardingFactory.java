@@ -52,7 +52,7 @@ class WriteWithShardingFactory<InputT>
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
 
   @Override
-  public PTransform<PCollection<InputT>, PDone> getTransform(
+  public PTransform<PCollection<InputT>, PDone> getReplacementTransform(
       Bound<InputT> transform) {
     if (transform.getNumShards() == 0) {
       return new DynamicallyReshardedWrite<>(transform);
@@ -81,7 +81,7 @@ class WriteWithShardingFactory<InputT>
       PCollection<T> resharded =
           records
               .apply(
-                  "ApplySlxkjharding",
+                  "ApplySharding",
                   ParDo.withSideInputs(numRecords)
                       .of(
                           new KeyBasedOnCountFn<T>(

@@ -160,7 +160,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       implements PTransformOverrideFactory<PBegin, PCollection<T>, TestStream<T>> {
 
     @Override
-    public PTransform<PBegin, PCollection<T>> getTransform(
+    public PTransform<PBegin, PCollection<T>> getReplacementTransform(
         TestStream<T> transform) {
       return new DirectTestStream<>(transform);
     }
