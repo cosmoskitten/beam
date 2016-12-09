@@ -27,6 +27,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import autovalue.shaded.com.google.common.common.collect.Lists;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -48,18 +49,28 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroIO.Write.Bound;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions.DirectRunner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -68,6 +79,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import sun.net.www.content.text.Generic;
 
 /**
  * Tests for AvroIO Read and Write transforms.
@@ -276,6 +288,94 @@ public class AvroIOTest {
 
     PAssert.that(input).containsInAnyOrder(expected);
     p.run();
+  }
+
+  private TimestampedValue<GenericClass> newValue(GenericClass element, Duration duration) {
+    return TimestampedValue.of(element, new Instant(0).plus(duration));
+  }
+
+  private static class WindowedFilenamePolicy extends FilenamePolicy {
+    String outputFilePrefix;
+
+    WindowedFilenamePolicy(String outputFilePrefix) {
+      this.outputFilePrefix = outputFilePrefix;
+    }
+
+    @Override
+    public String getBaseOutputFilename() {
+      return outputFilePrefix;
+    }
+
+    @Override
+    public String apply(Context input) {
+      String filename = outputFilePrefix + "-" + input.window.toString()+  "-" + input.shardNumber
+          + "-of-" + (input.numShards - 1) + "-pane-" + input.paneInfo.getIndex();
+      if (input.paneInfo.isLast()) {
+        filename += "-final";
+      }
+      return filename;
+    }
+  }
+
+  @Test
+  public void testWindowedAvroIOWrite() throws Throwable {
+    File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
+    final String outputFilePrefix = baseOutputFile.getAbsolutePath();
+
+    ArrayList<GenericClass> elements = Lists.newArrayList(
+        new GenericClass(0, "0"),
+        new GenericClass(1, "1"),
+        new GenericClass(2, "2"),
+        new GenericClass(3, "3"),
+        new GenericClass(4, "4"),
+        new GenericClass(5, "5"),
+        new GenericClass(6, "6"),
+        new GenericClass(7, "7"));
+
+        TestPipeline p = TestPipeline.create();
+    TestStream<GenericClass> values = TestStream.create(AvroCoder.of(GenericClass.class))
+        .advanceWatermarkTo(new Instant(0))
+        .addElements(newValue(elements.get(0), Duration.standardSeconds(0)))
+        .addElements(newValue(elements.get(1), Duration.standardSeconds(10)))
+        .addElements(newValue(elements.get(2), Duration.standardSeconds(20)))
+        .addElements(newValue(elements.get(3), Duration.standardSeconds(30)))
+        .advanceWatermarkTo(new Instant(0).plus(Duration.standardMinutes(1)))
+        .addElements(newValue(elements.get(4), Duration.standardSeconds(60)))
+        .addElements(newValue(elements.get(5), Duration.standardSeconds(70)))
+        .addElements(newValue(elements.get(6), Duration.standardSeconds(80)))
+        .addElements(newValue(elements.get(7), Duration.standardSeconds(90)))
+        .advanceWatermarkToInfinity();
+
+    p.apply(values)
+        .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
+        .apply(AvroIO.Write.to(new WindowedFilenamePolicy(outputFilePrefix))
+            .withWindowedWrites()
+            .withNumShards(2)
+            .withSchema(GenericClass.class));
+    p.run();
+
+    // Validate that the data written matches the expected elements in the expected order
+    List<File> expectedFiles = new ArrayList<>();
+    for (int shard = 0; shard < 2; shard++) {
+      for (int window = 0; window < 2; window++) {
+        Instant windowStart = new Instant(0).plus(Duration.standardMinutes(window));
+        IntervalWindow intervalWindow = new IntervalWindow(
+            windowStart, Duration.standardMinutes(1));
+        expectedFiles.add(
+            new File(outputFilePrefix + "-" + intervalWindow.toString() + "-" + shard + "-of-1"
+                + "-pane-0-final"));
+      }
+    }
+
+    List<GenericClass> actualElements = new ArrayList<>();
+    for (File outputFile : expectedFiles) {
+      assertTrue("Expected output file " + outputFile.getAbsolutePath(), outputFile.exists());
+      try (DataFileReader<GenericClass> reader =
+               new DataFileReader<>(outputFile, AvroCoder.of(GenericClass.class).createDatumReader())) {
+        Iterators.addAll(actualElements, reader);
+      }
+    }
+    assertThat(actualElements, containsInAnyOrder(elements.toArray()));
   }
 
   @Test

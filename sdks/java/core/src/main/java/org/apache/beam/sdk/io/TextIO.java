@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -403,6 +404,10 @@ public class TextIO {
       return new Bound<>(DEFAULT_TEXT_CODER).to(prefix);
     }
 
+    public static Bound<String> to(FilenamePolicy filenamePolicy) {
+      return new Bound<>(DEFAULT_TEXT_CODER).to(filenamePolicy);
+
+    }
     /**
      * Like {@link #to(String)}, but with a {@link ValueProvider}.
      */
@@ -550,6 +555,12 @@ public class TextIO {
       /** An option to indicate if output validation is desired. Default is true. */
       private final boolean validate;
 
+      /** A policy for naming output files. */
+      private final FilenamePolicy filenamePolicy;
+
+      /** Whether to write windowed output files. */
+      private boolean windowedWrites;
+
       /**
        * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
        * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
@@ -558,13 +569,15 @@ public class TextIO {
 
       Bound(Coder<T> coder) {
         this(null, null, "", null, null, coder, 0, DEFAULT_SHARD_TEMPLATE, true,
-            FileBasedSink.CompressionType.UNCOMPRESSED);
+            FileBasedSink.CompressionType.UNCOMPRESSED, null, false);
       }
 
       private Bound(String name, ValueProvider<String> filenamePrefix, String filenameSuffix,
           @Nullable String header, @Nullable String footer, Coder<T> coder, int numShards,
           String shardTemplate, boolean validate,
-          WritableByteChannelFactory writableByteChannelFactory) {
+          WritableByteChannelFactory writableByteChannelFactory,
+          FilenamePolicy filenamePolicy,
+          boolean windowedWrites) {
         super(name);
         this.header = header;
         this.footer = footer;
@@ -576,6 +589,8 @@ public class TextIO {
         this.validate = validate;
         this.writableByteChannelFactory =
             firstNonNull(writableByteChannelFactory, FileBasedSink.CompressionType.UNCOMPRESSED);
+        this.filenamePolicy = filenamePolicy;
+        this.windowedWrites = windowedWrites;
       }
 
       /**
@@ -590,7 +605,7 @@ public class TextIO {
         validateOutputComponent(filenamePrefix);
         return new Bound<>(name, StaticValueProvider.of(filenamePrefix), filenameSuffix,
             header, footer, coder, numShards, shardTemplate, validate,
-            writableByteChannelFactory);
+            writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -598,7 +613,12 @@ public class TextIO {
        */
       public Bound<T> to(ValueProvider<String> filenamePrefix) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+      }
+
+      public Bound<T> to(FilenamePolicy filenamePolicy) {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -612,7 +632,7 @@ public class TextIO {
       public Bound<T> withSuffix(String nameExtension) {
         validateOutputComponent(nameExtension);
         return new Bound<>(name, filenamePrefix, nameExtension, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -632,7 +652,7 @@ public class TextIO {
       public Bound<T> withNumShards(int numShards) {
         checkArgument(numShards >= 0);
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -645,7 +665,7 @@ public class TextIO {
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -663,7 +683,7 @@ public class TextIO {
        */
       public Bound<T> withoutSharding() {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, 1, "",
-            validate, writableByteChannelFactory);
+            validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -676,7 +696,7 @@ public class TextIO {
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -691,7 +711,7 @@ public class TextIO {
        */
       public Bound<T> withoutValidation() {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false, writableByteChannelFactory);
+            shardTemplate, false, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -706,7 +726,7 @@ public class TextIO {
        */
       public Bound<T> withHeader(@Nullable String header) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -721,7 +741,7 @@ public class TextIO {
        */
       public Bound<T> withFooter(@Nullable String footer) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -738,21 +758,39 @@ public class TextIO {
       public Bound<T> withWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+      }
+
+      public Bound<T> withWindowedWriters() {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, true);
       }
 
       @Override
+
       public PDone expand(PCollection<T> input) {
-        if (filenamePrefix == null) {
+        if (filenamePolicy == null && filenamePrefix == null) {
           throw new IllegalStateException(
-              "need to set the filename prefix of a TextIO.Write transform");
+              "need to set the filename prefix of an TextIO.Write transform");
         }
-        org.apache.beam.sdk.io.Write.Bound<T> write =
-            org.apache.beam.sdk.io.Write.to(
-                new TextSink<>(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
-                    coder, writableByteChannelFactory));
+        if (filenamePolicy != null && filenamePrefix != null) {
+          throw new IllegalStateException(
+              "cannot set both a filename policy and a filename prefix");
+        }
+        org.apache.beam.sdk.io.Write.Bound<T> write = null;
+        if (filenamePolicy != null) {
+         write = org.apache.beam.sdk.io.Write.to(
+             new TextSink<>(filenamePolicy, header, footer, coder, writableByteChannelFactory));
+        } else {
+          write = org.apache.beam.sdk.io.Write.to(
+              new TextSink<>(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
+                  coder, writableByteChannelFactory));
+        }
         if (getNumShards() > 0) {
           write = write.withNumShards(getNumShards());
+        }
+        if (windowedWrites) {
+          write = write.withWindowedWrites();
         }
         return input.apply("Write", write);
       }
@@ -1117,6 +1155,15 @@ public class TextIO {
     @Nullable private final String header;
     @Nullable private final String footer;
 
+    @VisibleForTesting
+    TextSink(FilenamePolicy filenamePolicy, @Nullable String header, @Nullable String footer,
+             Coder<T> coder,
+             WritableByteChannelFactory writableByteChannelFactory) {
+      super(filenamePolicy, writableByteChannelFactory);
+      this.coder = coder;
+      this.header = header;
+      this.footer = footer;
+    }
     @VisibleForTesting
     TextSink(
         ValueProvider<String> baseOutputFilename, String extension,

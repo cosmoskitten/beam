@@ -27,12 +27,15 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -40,6 +43,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -84,7 +88,7 @@ public class Write {
    */
   public static <T> Bound<T> to(Sink<T> sink) {
     checkNotNull(sink, "sink");
-    return new Bound<>(sink, 0 /* runner-controlled sharding */);
+    return new Bound<>(sink, 0 /* runner-controlled sharding */, false);
   }
 
   /**
@@ -97,16 +101,18 @@ public class Write {
   public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
     private final Sink<T> sink;
     private int numShards;
+    private boolean windowedWrites;
 
-    private Bound(Sink<T> sink, int numShards) {
+    private Bound(Sink<T> sink, int numShards, boolean windowedWrites) {
       this.sink = sink;
       this.numShards = numShards;
+      this.windowedWrites = windowedWrites;
     }
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkArgument(IsBounded.BOUNDED == input.isBounded(),
-          "%s can only be applied to a Bounded PCollection",
+      checkArgument(IsBounded.BOUNDED == input.isBounded() || windowedWrites == true,
+          "%s can only be applied to an unbounded PCollection if doing windowed writes",
           Write.class.getSimpleName());
       PipelineOptions options = input.getPipeline().getOptions();
       sink.validate(options);
@@ -151,7 +157,25 @@ public class Write {
      * runner-controlled sharding.
      */
     public Bound<T> withNumShards(int numShards) {
-      return new Bound<>(sink, Math.max(numShards, 0));
+      return new Bound<>(sink, Math.max(numShards, 0), windowedWrites);
+    }
+
+    /**
+     * Returns a new {@link Write.Bound} that writes preserves windowing on it's input.
+     *
+     * <p>If this option is not specified, windowing and triggering are replaced by
+     * {@link GlobalWindows} and {@link DefaultTrigger}.
+     *
+     * <p>If there is no data for a window, no output shards will be generated for that window.
+     * If a window triggers multiple times, then more than a single output shard might be
+     * generated multiple times; it's up to the sink implementation to keep these output shards
+     * unique.
+     *
+     * <p>This option can only be used if {@link Bound#withNumShards(int)} is also set to a
+     * positive value.
+     */
+    public Bound<T> withWindowedWrites() {
+      return new Bound<>(sink, numShards, true);
     }
 
     /**
@@ -169,13 +193,18 @@ public class Write {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
+      public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
         // Lazily initialize the Writer
         if (writer == null) {
           WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
           LOG.info("Opening writer for write operation {}", writeOperation);
           writer = writeOperation.createWriter(c.getPipelineOptions());
           writer.open(UUID.randomUUID().toString());
+          if (windowedWrites) {
+            writer.setWindowAndPane(window, c.pane());
+          } else {
+            writer.setWindowAndPane(null, null);
+          }
           LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
         }
         try {
@@ -227,36 +256,46 @@ public class Write {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
+      public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
         // In a sharded write, single input element represents one shard. We can open and close
         // the writer in each call to processElement.
         WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
         LOG.info("Opening writer for write operation {}", writeOperation);
         Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
         writer.open(UUID.randomUUID().toString());
+        writer.setShard(c.element().getKey(), getNumShards());
+        if (windowedWrites) {
+          writer.setWindowAndPane(window, c.pane());
+        }
         LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
 
         try {
-          for (T t : c.element().getValue()) {
-            writer.write(t);
-          }
-        } catch (Exception e) {
           try {
-            writer.close();
-          } catch (Exception closeException) {
-            if (closeException instanceof InterruptedException) {
-              // Do not silently ignore interrupted state.
-              Thread.currentThread().interrupt();
+            for (T t : c.element().getValue()) {
+              writer.write(t);
             }
-            // Do not mask the exception that caused the write to fail.
-            e.addSuppressed(closeException);
+          } catch (Exception e) {
+            try {
+              writer.close();
+            } catch (Exception closeException) {
+              if (closeException instanceof InterruptedException) {
+                // Do not silently ignore interrupted state.
+                Thread.currentThread().interrupt();
+              }
+              // Do not mask the exception that caused the write to fail.
+              e.addSuppressed(closeException);
+            }
+            throw e;
           }
+
+          // Close the writer; if this throws let the error propagate.
+          WriteT result = writer.close();
+          c.output(result);
+        } catch (Exception e) {
+          // If anything goes wrong, make sure to delete the temporary file.
+          writer.cleanup(c.getPipelineOptions());
           throw e;
         }
-
-        // Close the writer; if this throws let the error propagate.
-        WriteT result = writer.close();
-        c.output(result);
       }
 
       @Override
@@ -354,12 +393,15 @@ public class Write {
       final PCollectionView<WriteOperation<T, WriteT>> writeOperationView =
           operationCollection.apply(View.<WriteOperation<T, WriteT>>asSingleton());
 
-      // Re-window the data into the global window and remove any existing triggers.
-      PCollection<T> inputInGlobalWindow =
-          input.apply(
-              Window.<T>into(new GlobalWindows())
-                  .triggering(DefaultTrigger.of())
-                  .discardingFiredPanes());
+      if (!windowedWrites) {
+        // Re-window the data into the global window and remove any existing triggers.
+        input =
+            input.apply(
+                Window.<T>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of())
+                    .discardingFiredPanes());
+      }
+
 
       // Perform the per-bundle writes as a ParDo on the input PCollection (with the WriteOperation
       // as a side input) and collect the results of the writes in a PCollection.
@@ -367,12 +409,16 @@ public class Write {
       // as a side input), so this will happen after the initial ParDo.
       PCollection<WriteT> results;
       if (getNumShards() <= 0) {
-        results = inputInGlobalWindow
+        if (windowedWrites) {
+          throw new IllegalStateException("When doing windowed writes, numShards must be set" +
+              "explicitly to a positive value");
+        }
+        results = input
             .apply("WriteBundles",
                 ParDo.of(new WriteBundles<>(writeOperationView))
                     .withSideInputs(writeOperationView));
       } else {
-        results = inputInGlobalWindow
+        results = input
             .apply("ApplyShardLabel", WithKeys.of(new ApplyShardingKey<T>(getNumShards())))
             .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
             .apply("WriteShardedBundles",
@@ -381,43 +427,76 @@ public class Write {
       }
       results.setCoder(writeOperation.getWriterResultCoder());
 
-      final PCollectionView<Iterable<WriteT>> resultsView =
-          results.apply(View.<WriteT>asIterable());
+      if (windowedWrites) {
+        // When processing streaming windowed writes, results will arrive multiple times. This
+        // means we can't share the below implementation that turns the results into a side input,
+        // as new data arriving into a side input does not trigger the listening DoFn. Instead
+        // we aggregate the result set using a singleton GroupByKey, so the DoFn will be triggered
+        // whenever new data arrives.
+        PCollection<KV<Void, WriteT>> keyedResults =
+            results.apply("AttachSingletonKey", WithKeys.<Void, WriteT>of((Void) null));
+        keyedResults.setCoder(KvCoder.<Void, WriteT>of(VoidCoder.of(), writeOperation
+            .getWriterResultCoder()));
 
-      // Finalize the write in another do-once ParDo on the singleton collection containing the
-      // Writer. The results from the per-bundle writes are given as an Iterable side input.
-      // The WriteOperation's state is the same as after its initialization in the first do-once
-      // ParDo. There is a dependency between this ParDo and the parallel write (the writer results
-      // collection as a side input), so it will happen after the parallel write.
-      operationCollection
-          .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
-            @ProcessElement
-            public void processElement(ProcessContext c) throws Exception {
-              WriteOperation<T, WriteT> writeOperation = c.element();
-              LOG.info("Finalizing write operation {}.", writeOperation);
-              List<WriteT> results = Lists.newArrayList(c.sideInput(resultsView));
-              LOG.debug("Side input initialized to finalize write operation {}.", writeOperation);
-
-              // We must always output at least 1 shard, and honor user-specified numShards if set.
-              int minShardsNeeded = Math.max(1, getNumShards());
-              int extraShardsNeeded = minShardsNeeded - results.size();
-              if (extraShardsNeeded > 0) {
-                LOG.info(
-                    "Creating {} empty output shards in addition to {} written for a total of {}.",
-                    extraShardsNeeded, results.size(), minShardsNeeded);
-                for (int i = 0; i < extraShardsNeeded; ++i) {
-                  Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
-                  writer.open(UUID.randomUUID().toString());
-                  WriteT emptyWrite = writer.close();
-                  results.add(emptyWrite);
-                }
-                LOG.debug("Done creating extra shards.");
+        // TODO We need a way to specify faster finalization. Today if an hour window is set with
+        // a rollover trigger of 100K elements, this GBK will inherit that windowing and only
+        // trigger at the end of the hour (since it's unlikely that 100k files will be generated
+        // before). The user can speed up this finalization by specifying a short processing-time
+        // trigger, however that will also affect the WriteShardedBundles transform, causing too
+        // many files to be generated. We should allow for a faster trigger to be specified just
+        // on this finalization step.
+        keyedResults
+            .apply("FinalizeGroupByKey", GroupByKey.<Void, WriteT>create())
+            .apply("Finalize", ParDo.of(new DoFn<KV<Void, Iterable<WriteT>>, Integer>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) throws Exception {
+                WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
+                LOG.info("Finalizing write operation {}.", writeOperation);
+                List<WriteT> results = Lists.newArrayList(c.element().getValue());
+                writeOperation.finalize(results, c.getPipelineOptions());
+                LOG.debug("Done finalizing write operation {}", writeOperation);
               }
+            }).withSideInputs(writeOperationView));
+      } else {
+        final PCollectionView<Iterable<WriteT>> resultsView =
+            results.apply(View.<WriteT>asIterable());
 
-              writeOperation.finalize(results, c.getPipelineOptions());
-              LOG.debug("Done finalizing write operation {}", writeOperation);
-            }
-          }).withSideInputs(resultsView));
+        // Finalize the write in another do-once ParDo on the singleton collection containing the
+        // Writer. The results from the per-bundle writes are given as an Iterable side input.
+        // The WriteOperation's state is the same as after its initialization in the first do-once
+        // ParDo. There is a dependency between this ParDo and the parallel write (the writer results
+        // collection as a side input), so it will happen after the parallel write.
+        operationCollection
+            .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) throws Exception {
+                WriteOperation<T, WriteT> writeOperation = c.element();
+                LOG.info("Finalizing write operation {}.", writeOperation);
+                List<WriteT> results = Lists.newArrayList(c.sideInput(resultsView));
+                LOG.debug("Side input initialized to finalize write operation {}.", writeOperation);
+
+                // We must always output at least 1 shard, and honor user-specified numShards if set.
+                int minShardsNeeded = Math.max(1, getNumShards());
+                int extraShardsNeeded = minShardsNeeded - results.size();
+                if (extraShardsNeeded > 0) {
+                  LOG.info(
+                      "Creating {} empty output shards in addition to {} written for a total of {}.",
+                      extraShardsNeeded, results.size(), minShardsNeeded);
+                  for (int i = 0; i < extraShardsNeeded; ++i) {
+                    Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
+                    writer.open(UUID.randomUUID().toString());
+                    writer.setWindowAndPane(null, null);
+                    WriteT emptyWrite = writer.close();
+                    results.add(emptyWrite);
+                  }
+                  LOG.debug("Done creating extra shards.");
+                }
+
+                writeOperation.finalize(results, c.getPipelineOptions());
+                LOG.debug("Done finalizing write operation {}", writeOperation);
+              }
+            }).withSideInputs(resultsView));
+      }
       return PDone.in(input.getPipeline());
     }
   }
