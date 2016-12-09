@@ -67,7 +67,9 @@ import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -641,6 +643,16 @@ public class WriteTest {
     }
 
     @Override
+    public void setWindowAndPane(BoundedWindow window, PaneInfo paneInfo) {
+
+    }
+
+    @Override
+    public void setShard(int shard, int numShards) {
+
+    }
+
+    @Override
     public void write(String value) throws Exception {
       assertThat(state, anyOf(equalTo(State.OPENED), equalTo(State.WRITING)));
       state = State.WRITING;
@@ -653,7 +665,12 @@ public class WriteTest {
       state = State.CLOSED;
       return new TestWriterResult(uId, elementsWritten);
     }
+
+    @Override
+    public void cleanup(PipelineOptions options) throws Exception {
+    }
   }
+
 
   /**
    * Options for test, exposed for PipelineOptionsFactory.

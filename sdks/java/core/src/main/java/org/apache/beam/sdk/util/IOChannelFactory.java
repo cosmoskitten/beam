@@ -116,7 +116,7 @@ public interface IOChannelFactory {
    * @param srcFilenames the source filenames.
    * @param destFilenames the destination filenames.
    */
-  void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
+  void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames) throws IOException;
 
   /**
    * Removes a collection of files or directories.

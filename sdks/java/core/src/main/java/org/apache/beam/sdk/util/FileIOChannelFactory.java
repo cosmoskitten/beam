@@ -45,6 +45,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
+
+import com.google.common.collect.Lists;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -175,16 +177,19 @@ public class FileIOChannelFactory implements IOChannelFactory {
   }
 
   @Override
-  public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
+  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames) throws
+      IOException {
+    List<String> srcList = Lists.newArrayList(srcFilenames);
+    List<String> destList = Lists.newArrayList(destFilenames);
     checkArgument(
-        srcFilenames.size() == destFilenames.size(),
+        srcList.size() == destList.size(),
         "Number of source files %s must equal number of destination files %s",
-        srcFilenames.size(),
-        destFilenames.size());
-    int numFiles = srcFilenames.size();
+        srcList.size(),
+        destList.size());
+    int numFiles = srcList.size();
     for (int i = 0; i < numFiles; i++) {
-      String src = srcFilenames.get(i);
-      String dst = destFilenames.get(i);
+      String src = srcList.get(i);
+      String dst = destList.get(i);
       LOG.debug("Copying {} to {}", src, dst);
       try {
         // Copy the source file, replacing the existing destination.
