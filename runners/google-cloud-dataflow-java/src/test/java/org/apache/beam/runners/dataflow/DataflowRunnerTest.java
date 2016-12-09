@@ -528,7 +528,7 @@ public class DataflowRunnerTest {
     thrown.expectCause(Matchers.allOf(
         instanceOf(IllegalArgumentException.class),
         ThrowableMessageMatcher.hasMessage(
-            containsString("expected a valid 'gs://' path but was given"))));
+            containsString("Expected a valid 'gs://' path but was given"))));
     p.run();
     assertValidJob(jobCaptor.getValue());
   }
@@ -539,7 +539,7 @@ public class DataflowRunnerTest {
     PCollection<String> pc = p.apply("ReadMyGcsFile", TextIO.Read.from("gs://bucket/object"));
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
+    thrown.expectMessage(containsString("Expected a valid 'gs://' path but was given"));
     pc.apply("WriteMyNonGcsFile", TextIO.Write.to("/tmp/file"));
   }
 
@@ -575,7 +575,7 @@ public class DataflowRunnerTest {
     options.setGcpTempLocation("file://temp/location");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
+    thrown.expectMessage(containsString("Expected a valid 'gs://' path but was given"));
     DataflowRunner.fromOptions(options);
     assertValidJob(jobCaptor.getValue());
   }
@@ -589,7 +589,8 @@ public class DataflowRunnerTest {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "DataflowRunner requires gcpTempLocation, and it is missing in PipelineOptions.");
+        "DataflowRunner requires gcpTempLocation, "
+            + "but failed to retrieve a value from PipelineOptions");
     DataflowRunner.fromOptions(options);
   }
 
@@ -601,14 +602,14 @@ public class DataflowRunnerTest {
       DataflowRunner.fromOptions(options);
       fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
-      assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
+      assertThat(e.getMessage(), containsString("Expected a valid 'gs://' path but was given"));
     }
     options.setStagingLocation("my/staging/location");
     try {
       DataflowRunner.fromOptions(options);
       fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
-      assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
+      assertThat(e.getMessage(), containsString("Expected a valid 'gs://' path but was given"));
     }
   }
 
@@ -746,8 +747,8 @@ public class DataflowRunnerTest {
     options.setProject("foo-project");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "DataflowRunner requires gcpTempLocation, and it is missing in PipelineOptions.");
+    thrown.expectMessage("DataflowRunner requires gcpTempLocation, "
+        + "but failed to retrieve a value from PipelineOption");
     DataflowRunner.fromOptions(options);
   }
 

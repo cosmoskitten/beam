@@ -107,17 +107,21 @@ public interface DataflowPipelineOptions
     @Override
     public String create(PipelineOptions options) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
-      String gcpTempLocation = gcsOptions.getGcpTempLocation();
-      checkArgument(!isNullOrEmpty(gcpTempLocation),
-          "Error constructing default value for stagingLocation: gcpTempLocation is missing."
-          + "Either stagingLocation must be set explicitly or a valid value must be provided"
-          + "for gcpTempLocation.");
+      String gcpTempLocation;
+      try {
+        gcpTempLocation = gcsOptions.getGcpTempLocation();
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+        "Error constructing default value for stagingLocation: failed to retrieve gcpTempLocation. "
+            + "Either stagingLocation must be set explicitly or a valid value must be provided"
+            + "for gcpTempLocation.", e);
+      }
       try {
         gcsOptions.getPathValidator().validateOutputFilePrefixSupported(gcpTempLocation);
       } catch (Exception e) {
         throw new IllegalArgumentException(String.format(
             "Error constructing default value for stagingLocation: gcpTempLocation is not"
-            + " a valid GCS path, %s. ", gcpTempLocation));
+            + " a valid GCS path, %s. ", gcpTempLocation), e);
       }
       try {
         return IOChannelUtils.resolve(gcpTempLocation, "staging");
