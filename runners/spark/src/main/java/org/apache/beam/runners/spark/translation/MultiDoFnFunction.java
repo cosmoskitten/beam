@@ -26,6 +26,8 @@ import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -61,15 +63,15 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param sideInputs        Side inputs used in DoFunction.
    * @param windowFn          Input {@link WindowFn}.
    */
-  public MultiDoFnFunction(Accumulator<NamedAggregators> accum,
-                           OldDoFn<InputT, OutputT> fn,
-                           SparkRuntimeContext runtimeContext,
-                           TupleTag<OutputT> mainOutputTag,
-                           Map<TupleTag<?>, KV<WindowingStrategy<?, ?>,
-                               BroadcastHelper<?>>> sideInputs,
-                           WindowFn<Object, ?> windowFn) {
+  public MultiDoFnFunction(
+      Accumulator<NamedAggregators> accum,
+      DoFn<InputT, OutputT> fn,
+      SparkRuntimeContext runtimeContext,
+      TupleTag<OutputT> mainOutputTag,
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
+      WindowFn<Object, ?> windowFn) {
     this.accum = accum;
-    this.mFunction = fn;
+    this.mFunction = DoFnAdapters.toOldDoFn(fn);
     this.mRuntimeContext = runtimeContext;
     this.mMainOutputTag = mainOutputTag;
     this.mSideInputs = sideInputs;

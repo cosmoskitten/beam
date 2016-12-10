@@ -243,7 +243,7 @@ public final class TransformTranslator {
         Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         context.putDataset(transform,
-            new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, transform.getFn(),
+            new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, transform.getNewFn(),
                 context.getRuntimeContext(), sideInputs, windowFn))));
       }
     };
@@ -266,7 +266,7 @@ public final class TransformTranslator {
             SparkAggregators.getNamedAggregators(context.getSparkContext());
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all = inRDD
             .mapPartitionsToPair(
-                new MultiDoFnFunction<>(accum, transform.getFn(), context.getRuntimeContext(),
+                new MultiDoFnFunction<>(accum, transform.getNewFn(), context.getRuntimeContext(),
                 transform.getMainOutputTag(), TranslationUtils.getSideInputs(
                     transform.getSideInputs(), context), windowFn)).cache();
         PCollectionTuple pct = context.getOutput(transform);

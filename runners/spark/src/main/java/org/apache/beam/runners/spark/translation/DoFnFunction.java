@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -48,13 +50,7 @@ public class DoFnFunction<InputT, OutputT>
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> mSideInputs;
   private final WindowFn<Object, ?> windowFn;
 
-  /**
-   * @param accum             The Spark Accumulator that handles the Beam Aggregators.
-   * @param fn                DoFunction to be wrapped.
-   * @param runtime           Runtime to apply function in.
-   * @param sideInputs        Side inputs used in DoFunction.
-   * @param windowFn          Input {@link WindowFn}.
-   */
+  @Deprecated
   public DoFnFunction(Accumulator<NamedAggregators> accum,
                       OldDoFn<InputT, OutputT> fn,
                       SparkRuntimeContext runtime,
@@ -65,6 +61,21 @@ public class DoFnFunction<InputT, OutputT>
     this.mRuntimeContext = runtime;
     this.mSideInputs = sideInputs;
     this.windowFn = windowFn;
+  }
+
+  /**
+   * @param accum             The Spark Accumulator that handles the Beam Aggregators.
+   * @param fn                DoFunction to be wrapped.
+   * @param runtime           Runtime to apply function in.
+   * @param sideInputs        Side inputs used in DoFunction.
+   * @param windowFn          Input {@link WindowFn}.
+   */
+  public DoFnFunction(Accumulator<NamedAggregators> accum,
+                      DoFn<InputT, OutputT> fn,
+                      SparkRuntimeContext runtime,
+                      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
+                      WindowFn<Object, ?> windowFn) {
+    this(accum, DoFnAdapters.toOldDoFn(fn), runtime, sideInputs, windowFn);
   }
 
 
