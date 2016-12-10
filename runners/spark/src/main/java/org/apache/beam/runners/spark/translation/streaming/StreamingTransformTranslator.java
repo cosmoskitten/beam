@@ -369,7 +369,8 @@ final class StreamingTransformTranslator {
             final Accumulator<NamedAggregators> accum =
                 SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
             return rdd.mapPartitions(
-                new DoFnFunction<>(accum, transform.getFn(), runtimeContext, sideInputs, windowFn));
+                new DoFnFunction<>(
+                    accum, transform.getNewFn(), runtimeContext, sideInputs, windowFn));
           }
         });
 
@@ -403,7 +404,7 @@ final class StreamingTransformTranslator {
               JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
             final Accumulator<NamedAggregators> accum =
                 SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
-            return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, transform.getFn(),
+            return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, transform.getNewFn(),
                 runtimeContext, transform.getMainOutputTag(), sideInputs, windowFn));
           }
         }).cache();
