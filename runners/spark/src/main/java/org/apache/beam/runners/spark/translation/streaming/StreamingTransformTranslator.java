@@ -350,7 +350,7 @@ final class StreamingTransformTranslator {
       @Override
       public void evaluate(final ParDo.Bound<InputT, OutputT> transform,
                            final EvaluationContext context) {
-        DoFn<InputT, OutputT> doFn = transform.getNewFn();
+        DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectStateAndTimers(doFn);
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
         final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
@@ -370,7 +370,7 @@ final class StreamingTransformTranslator {
                 SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
             return rdd.mapPartitions(
                 new DoFnFunction<>(
-                    accum, transform.getNewFn(), runtimeContext, sideInputs, windowFn));
+                    accum, transform.getFn(), runtimeContext, sideInputs, windowFn));
           }
         });
 
@@ -385,7 +385,7 @@ final class StreamingTransformTranslator {
       @Override
       public void evaluate(final ParDo.BoundMulti<InputT, OutputT> transform,
                            final EvaluationContext context) {
-        DoFn<InputT, OutputT> doFn = transform.getNewFn();
+        DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectStateAndTimers(doFn);
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
         final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
@@ -404,7 +404,7 @@ final class StreamingTransformTranslator {
               JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
             final Accumulator<NamedAggregators> accum =
                 SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
-            return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, transform.getNewFn(),
+            return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, transform.getFn(),
                 runtimeContext, transform.getMainOutputTag(), sideInputs, windowFn));
           }
         }).cache();
