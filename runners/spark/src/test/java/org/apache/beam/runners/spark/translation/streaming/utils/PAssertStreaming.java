@@ -27,8 +27,8 @@ import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
@@ -93,7 +93,7 @@ public final class PAssertStreaming implements Serializable {
     return runAndAssertContents(p, actual, expected, timeout, true);
   }
 
-  private static class AssertDoFn<T> extends OldDoFn<Iterable<T>, Void> {
+  private static class AssertDoFn<T> extends DoFn<Iterable<T>, Void> {
     private final Aggregator<Integer, Integer> success =
         createAggregator(PAssert.SUCCESS_COUNTER, new Sum.SumIntegerFn());
     private final Aggregator<Integer, Integer> failure =
@@ -104,7 +104,7 @@ public final class PAssertStreaming implements Serializable {
       this.expected = expected;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       try {
         assertThat(c.element(), containsInAnyOrder(expected));
