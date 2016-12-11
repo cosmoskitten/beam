@@ -28,6 +28,7 @@ import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectS
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
@@ -235,16 +236,15 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
-        @SuppressWarnings("unchecked")
-        final WindowFn<Object, ?> windowFn =
-            (WindowFn<Object, ?>) context.getInput(transform).getWindowingStrategy().getWindowFn();
+        WindowingStrategy<?, ?> windowingStrategy =
+            context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> accum =
             SparkAggregators.getNamedAggregators(context.getSparkContext());
         Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         context.putDataset(transform,
-            new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, transform.getFn(),
-                context.getRuntimeContext(), sideInputs, windowFn))));
+            new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, doFn,
+                context.getRuntimeContext(), sideInputs, windowingStrategy))));
       }
     };
   }
@@ -259,16 +259,15 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
-        @SuppressWarnings("unchecked")
-        final WindowFn<Object, ?> windowFn =
-            (WindowFn<Object, ?>) context.getInput(transform).getWindowingStrategy().getWindowFn();
+        WindowingStrategy<?, ?> windowingStrategy =
+            context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> accum =
             SparkAggregators.getNamedAggregators(context.getSparkContext());
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all = inRDD
             .mapPartitionsToPair(
-                new MultiDoFnFunction<>(accum, transform.getFn(), context.getRuntimeContext(),
+                new MultiDoFnFunction<>(accum, doFn, context.getRuntimeContext(),
                 transform.getMainOutputTag(), TranslationUtils.getSideInputs(
-                    transform.getSideInputs(), context), windowFn)).cache();
+                    transform.getSideInputs(), context), windowingStrategy)).cache();
         PCollectionTuple pct = context.getOutput(transform);
         for (Map.Entry<TupleTag<?>, PCollection<?>> e : pct.getAll().entrySet()) {
           @SuppressWarnings("unchecked")
@@ -513,9 +512,18 @@ public final class TransformTranslator {
           OldDoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
           Accumulator<NamedAggregators> accum =
               SparkAggregators.getNamedAggregators(context.getSparkContext());
-          context.putDataset(transform,
-              new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, addWindowsDoFn,
-                  context.getRuntimeContext(), null, null))));
+          HashMap<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> noSideInputs =
+              Maps.newHashMap();
+          WindowingStrategy<?, ?> windowingStrategy =
+              context.getInput(transform).getWindowingStrategy();
+          context.putDataset(transform, new BoundedDataset<>(
+              inRDD.mapPartitions(
+                  new DoFnFunction<>(
+                      accum,
+                      addWindowsDoFn.toDoFn(),
+                      context.getRuntimeContext(),
+                      noSideInputs,
+                      windowingStrategy))));
         }
       }
     };

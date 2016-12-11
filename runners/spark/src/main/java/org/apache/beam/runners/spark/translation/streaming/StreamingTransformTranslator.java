@@ -22,6 +22,7 @@ import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectS
 
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.AssignWindowsDoFn;
@@ -191,6 +192,10 @@ final class StreamingTransformTranslator {
         } else {
           final OldDoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
           final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
+          final HashMap<TupleTag<?>, KV<WindowingStrategy<?, ?>,
+              BroadcastHelper<?>>> noSideInputs = Maps.newHashMap();
+          final WindowingStrategy<?, ?> windowingStrategy =
+              context.getInput(transform).getWindowingStrategy();
           JavaDStream<WindowedValue<T>> outStream = windowedDStream.transform(
               new Function<JavaRDD<WindowedValue<T>>, JavaRDD<WindowedValue<T>>>() {
             @Override
@@ -198,7 +203,8 @@ final class StreamingTransformTranslator {
               final Accumulator<NamedAggregators> accum =
                   SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
               return rdd.mapPartitions(
-                new DoFnFunction<>(accum, addWindowsDoFn, runtimeContext, null, null));
+                new DoFnFunction<>(accum, addWindowsDoFn.toDoFn(), runtimeContext,
+                    noSideInputs, windowingStrategy));
             }
           });
           context.putDataset(transform, new UnboundedDataset<>(outStream));
@@ -350,13 +356,13 @@ final class StreamingTransformTranslator {
       @Override
       public void evaluate(final ParDo.Bound<InputT, OutputT> transform,
                            final EvaluationContext context) {
-        DoFn<InputT, OutputT> doFn = transform.getNewFn();
+        final DoFn<InputT, OutputT> doFn = transform.getNewFn();
         rejectStateAndTimers(doFn);
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
         final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
-        final WindowFn<Object, ?> windowFn =
-            (WindowFn<Object, ?>) context.getInput(transform).getWindowingStrategy().getWindowFn();
+        final WindowingStrategy<?, ?> windowingStrategy =
+            context.getInput(transform).getWindowingStrategy();
         JavaDStream<WindowedValue<InputT>> dStream =
             ((UnboundedDataset<InputT>) context.borrowDataset(transform)).getDStream();
 
@@ -369,7 +375,7 @@ final class StreamingTransformTranslator {
             final Accumulator<NamedAggregators> accum =
                 SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
             return rdd.mapPartitions(
-                new DoFnFunction<>(accum, transform.getFn(), runtimeContext, sideInputs, windowFn));
+                new DoFnFunction<>(accum, doFn, runtimeContext, sideInputs, windowingStrategy));
           }
         });
 
@@ -384,14 +390,13 @@ final class StreamingTransformTranslator {
       @Override
       public void evaluate(final ParDo.BoundMulti<InputT, OutputT> transform,
                            final EvaluationContext context) {
-        DoFn<InputT, OutputT> doFn = transform.getNewFn();
+        final DoFn<InputT, OutputT> doFn = transform.getNewFn();
         rejectStateAndTimers(doFn);
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
         final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
-        @SuppressWarnings("unchecked")
-        final WindowFn<Object, ?> windowFn =
-            (WindowFn<Object, ?>) context.getInput(transform).getWindowingStrategy().getWindowFn();
+        final WindowingStrategy<?, ?> windowingStrategy =
+            context.getInput(transform).getWindowingStrategy();
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<InputT>> dStream =
             ((UnboundedDataset<InputT>) context.borrowDataset(transform)).getDStream();
@@ -403,8 +408,8 @@ final class StreamingTransformTranslator {
               JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
             final Accumulator<NamedAggregators> accum =
                 SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
-            return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, transform.getFn(),
-                runtimeContext, transform.getMainOutputTag(), sideInputs, windowFn));
+            return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, doFn,
+                runtimeContext, transform.getMainOutputTag(), sideInputs, windowingStrategy));
           }
         }).cache();
         PCollectionTuple pct = context.getOutput(transform);
@@ -423,8 +428,8 @@ final class StreamingTransformTranslator {
     };
   }
 
-  private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS = Maps
-      .newHashMap();
+  private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS =
+      Maps.newHashMap();
 
   static {
     EVALUATORS.put(Read.Unbounded.class, readUnbounded());
