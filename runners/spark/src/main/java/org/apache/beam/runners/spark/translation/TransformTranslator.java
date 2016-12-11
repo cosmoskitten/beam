@@ -28,12 +28,10 @@ import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectS
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
-import org.apache.beam.runners.core.AssignWindowsDoFn;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -55,13 +53,11 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -507,23 +503,8 @@ public final class TransformTranslator {
         if (TranslationUtils.skipAssignWindows(transform, context)) {
           context.putDataset(transform, new BoundedDataset<>(inRDD));
         } else {
-          @SuppressWarnings("unchecked")
-          WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
-          OldDoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
-          Accumulator<NamedAggregators> accum =
-              SparkAggregators.getNamedAggregators(context.getSparkContext());
-          HashMap<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> noSideInputs =
-              Maps.newHashMap();
-          WindowingStrategy<?, ?> windowingStrategy =
-              context.getInput(transform).getWindowingStrategy();
           context.putDataset(transform, new BoundedDataset<>(
-              inRDD.mapPartitions(
-                  new DoFnFunction<>(
-                      accum,
-                      addWindowsDoFn.toDoFn(),
-                      context.getRuntimeContext(),
-                      noSideInputs,
-                      windowingStrategy))));
+              inRDD.map(new SparkAssignWindowFn<>(transform.getWindowFn()))));
         }
       }
     };

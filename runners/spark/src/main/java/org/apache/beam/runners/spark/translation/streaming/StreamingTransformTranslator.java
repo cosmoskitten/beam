@@ -22,10 +22,8 @@ import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectS
 
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.AssignWindowsDoFn;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.io.ConsoleIO;
@@ -37,6 +35,7 @@ import org.apache.beam.runners.spark.translation.DoFnFunction;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
 import org.apache.beam.runners.spark.translation.MultiDoFnFunction;
+import org.apache.beam.runners.spark.translation.SparkAssignWindowFn;
 import org.apache.beam.runners.spark.translation.SparkKeyedCombineFn;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
@@ -52,7 +51,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -164,7 +162,7 @@ final class StreamingTransformTranslator {
   private static <T, W extends BoundedWindow> TransformEvaluator<Window.Bound<T>> window() {
     return new TransformEvaluator<Window.Bound<T>>() {
       @Override
-      public void evaluate(Window.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(final Window.Bound<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
         @SuppressWarnings("unchecked")
@@ -190,21 +188,11 @@ final class StreamingTransformTranslator {
         if (TranslationUtils.skipAssignWindows(transform, context)) {
           context.putDataset(transform, new UnboundedDataset<>(windowedDStream));
         } else {
-          final OldDoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
-          final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
-          final HashMap<TupleTag<?>, KV<WindowingStrategy<?, ?>,
-              BroadcastHelper<?>>> noSideInputs = Maps.newHashMap();
-          final WindowingStrategy<?, ?> windowingStrategy =
-              context.getInput(transform).getWindowingStrategy();
           JavaDStream<WindowedValue<T>> outStream = windowedDStream.transform(
               new Function<JavaRDD<WindowedValue<T>>, JavaRDD<WindowedValue<T>>>() {
             @Override
             public JavaRDD<WindowedValue<T>> call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
-              final Accumulator<NamedAggregators> accum =
-                  SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
-              return rdd.mapPartitions(
-                new DoFnFunction<>(accum, addWindowsDoFn.toDoFn(), runtimeContext,
-                    noSideInputs, windowingStrategy));
+              return rdd.map(new SparkAssignWindowFn<>(transform.getWindowFn()));
             }
           });
           context.putDataset(transform, new UnboundedDataset<>(outStream));
