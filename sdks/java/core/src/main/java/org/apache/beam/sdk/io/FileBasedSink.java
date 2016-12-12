@@ -30,7 +30,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -461,7 +460,14 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // (produced by successfully completed bundles).
       // This may still fail to remove temporary outputs of some failed bundles, but at least
       // the common case (where all bundles succeed) is guaranteed to be fully addressed.
-      Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
+      Set<String> matches = new HashSet<>();
+      // TODO: Windows OS cannot resolves and matches '*' in the path,
+      // ignore the exception for now to avoid failing the pipeline.
+      try {
+        matches.addAll(factory.match(factory.resolve(tempDirectory, "*")));
+      } catch (Exception e) {
+        LOG.warn("Failed to match temporary outputs under: [{}].", tempDirectory);
+      }
       Set<String> allMatches = new HashSet<>(matches);
       allMatches.addAll(knownFiles);
       LOG.debug(
@@ -470,8 +476,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
           tempDirectory,
           matches.size(),
           allMatches.size() - matches.size());
-      factory.remove(allMatches);
-      factory.remove(ImmutableList.of(tempDirectory));
+      try {
+        factory.remove(allMatches);
+        factory.remove(ImmutableList.of(tempDirectory));
+      } catch (Exception e) {
+        LOG.warn("Failed to remove temporary directory: [{}].", tempDirectory);
+      }
     }
 
     /**
