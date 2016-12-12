@@ -19,11 +19,8 @@
 package org.apache.beam.runners.spark.translation;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.runners.core.GroupAlsoByWindowsViaOutputBufferDoFn;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -34,7 +31,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.CombineWithContext;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -59,7 +55,7 @@ public class GroupCombineFunctions {
   /**
    * Apply {@link org.apache.beam.sdk.transforms.GroupByKey} to a Spark RDD.
    */
-  public static <K, V,  W extends BoundedWindow> JavaRDD<WindowedValue<KV<K,
+  public static <K, V, W extends BoundedWindow> JavaRDD<WindowedValue<KV<K,
       Iterable<V>>>> groupByKey(JavaRDD<WindowedValue<KV<K, V>>> rdd,
                                 Accumulator<NamedAggregators> accum,
                                 KvCoder<K, V> coder,
@@ -86,16 +82,14 @@ public class GroupCombineFunctions {
             .map(WindowingHelpers.<KV<K, Iterable<WindowedValue<V>>>>windowFunction());
 
     //--- now group also by window.
-    // GroupAlsoByWindow current uses a dummy in-memory StateInternals
-    DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> gabwDoFn =
-        new GroupAlsoByWindowsViaOutputBufferDoFn<>(
+    // GroupAlsoByWindow currently uses a dummy in-memory StateInternals
+    return groupedByKey.flatMap(
+        new SparkGroupAlsoByWindowFn<>(
             windowingStrategy,
             new TranslationUtils.InMemoryStateInternalsFactory<K>(),
-            SystemReduceFn.<K, V, W>buffering(valueCoder)).toDoFn();
-    final HashMap<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> noSideInputs =
-        Maps.newHashMap();
-    return groupedByKey.mapPartitions(new DoFnFunction<>(accum, gabwDoFn, runtimeContext,
-        noSideInputs, windowingStrategy));
+            SystemReduceFn.<K, V, W>buffering(valueCoder),
+            runtimeContext,
+            accum));
   }
 
   /**
