@@ -21,9 +21,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -65,6 +70,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /**
  * Unit tests for {@link UnboundedReadFromBoundedSource}.
@@ -101,25 +107,73 @@ public class UnboundedReadFromBoundedSourceTest {
 
     PCollection<Long> output =
         p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));
+    applyCountingAssertions(numElements, output);
 
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAdapterKryoSerialization() {
+    long numElements = 100;
+    BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
+    UnboundedSource<Long, Checkpoint<Long>> unboundedSource =
+        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+
+    //Kryo instantiation
+    Kryo kryo = new Kryo();
+    kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+
+    //Serialization of object without any memoization
+    ByteArrayOutputStream adapterWithoutMemoizationBos = new ByteArrayOutputStream();
+    try (Output output = new Output(adapterWithoutMemoizationBos)) {
+      kryo.writeObject(output, unboundedSource);
+    }
+
+    // Serialization of object with memoized fields
+    ByteArrayOutputStream coderWithMemoizationBos = new ByteArrayOutputStream();
+    try (Output output = new Output(coderWithMemoizationBos)) {
+      kryo.writeObject(output, unboundedSource);
+    }
+
+    // Copy empty and memoized variants of the Coder
+    ByteArrayInputStream bisWithoutMemoization =
+        new ByteArrayInputStream(adapterWithoutMemoizationBos.toByteArray());
+    UnboundedSource<Long, Checkpoint<Long>> copiedWithoutMemoization =
+        kryo.readObject(new Input(bisWithoutMemoization), UnboundedSource.class);
+    ByteArrayInputStream bisWithMemoization =
+        new ByteArrayInputStream(coderWithMemoizationBos.toByteArray());
+    UnboundedSource<Long, Checkpoint<Long>> copiedWithMemoization =
+        kryo.readObject(new Input(bisWithMemoization), UnboundedSource.class);
+
+    TestPipeline p = TestPipeline.create();
+    PCollection<Long> withoutMemoization = p.apply(Read.from(copiedWithoutMemoization));
+    PCollection<Long> withMemoiziation = p.apply(Read.from(copiedWithMemoization));
+
+    applyCountingAssertions(numElements, withoutMemoization);
+    applyCountingAssertions(numElements, withMemoiziation);
+
+    p.run();
+  }
+
+  private void applyCountingAssertions(long numElements, PCollection<Long> output) {
     // Count == numElements
     PAssert
-      .thatSingleton(output.apply("Count", Count.<Long>globally()))
-      .isEqualTo(numElements);
+        .thatSingleton(output.apply("Count", Count.<Long>globally()))
+        .isEqualTo(numElements);
     // Unique count == numElements
     PAssert
-      .thatSingleton(output.apply(Distinct.<Long>create())
-                          .apply("UniqueCount", Count.<Long>globally()))
-      .isEqualTo(numElements);
+        .thatSingleton(output.apply(Distinct.<Long>create())
+            .apply("UniqueCount", Count.<Long>globally()))
+        .isEqualTo(numElements);
     // Min == 0
     PAssert
-      .thatSingleton(output.apply("Min", Min.<Long>globally()))
-      .isEqualTo(0L);
+        .thatSingleton(output.apply("Min", Min.<Long>globally()))
+        .isEqualTo(0L);
     // Max == numElements-1
     PAssert
-      .thatSingleton(output.apply("Max", Max.<Long>globally()))
-      .isEqualTo(numElements - 1);
-    p.run();
+        .thatSingleton(output.apply("Max", Max.<Long>globally()))
+        .isEqualTo(numElements - 1);
   }
 
   @Test
