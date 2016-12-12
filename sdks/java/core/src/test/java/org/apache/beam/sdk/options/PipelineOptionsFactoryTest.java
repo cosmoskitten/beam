@@ -753,8 +753,8 @@ public class PipelineOptionsFactoryTest {
         "--byte="};
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Empty argument value is only allowed for String, String Array, and Collections"
-        + " of Strings");
+        "Empty argument value is only allowed for String, String Array, String ValueProvider and "
+            + "Collections of Strings");
     PipelineOptionsFactory.fromArgs(args).as(Primitives.class);
   }
 
@@ -789,6 +789,10 @@ public class PipelineOptionsFactoryTest {
     void setClassValue(Class<?> value);
     TestEnum getEnum();
     void setEnum(TestEnum value);
+    ValueProvider<String> getStringValue();
+    void setStringValue(ValueProvider<String> value);
+    ValueProvider<Long> getLongValue();
+    void setLongValue(ValueProvider<Long> value);
   }
 
   @Test
@@ -805,7 +809,9 @@ public class PipelineOptionsFactoryTest {
         "--string=stringValue",
         "--emptyString=",
         "--classValue=" + PipelineOptionsFactoryTest.class.getName(),
-        "--enum=" + TestEnum.Value};
+        "--enum=" + TestEnum.Value,
+        "--stringValue=beam",
+        "--longValue=12389049585840"};
 
     Objects options = PipelineOptionsFactory.fromArgs(args).as(Objects.class);
     assertTrue(options.getBoolean());
@@ -820,6 +826,8 @@ public class PipelineOptionsFactoryTest {
     assertTrue(options.getEmptyString().isEmpty());
     assertEquals(PipelineOptionsFactoryTest.class, options.getClassValue());
     assertEquals(TestEnum.Value, options.getEnum());
+    assertEquals("beam", options.getStringValue().get());
+    assertEquals(Long.valueOf(12389049585840L), options.getLongValue().get());
   }
 
   /** A test class for verifying JSON -> Object conversion. */
@@ -962,8 +970,8 @@ public class PipelineOptionsFactoryTest {
   public void testEmptyInNonStringArrays() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Empty argument value is only allowed for String, String Array, and Collections"
-        + " of Strings");
+        "Empty argument value is only allowed for String, String Array, String ValueProvider and "
+            + "Collections of Strings");
 
     String[] args = new String[] {
         "--boolean=true",
@@ -977,12 +985,36 @@ public class PipelineOptionsFactoryTest {
   public void testEmptyInNonStringArraysWithCommaList() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Empty argument value is only allowed for String, String Array, and Collections"
-        + " of Strings");
+        "Empty argument value is only allowed for String, String Array, String ValueProvider and "
+            + "Collections of Strings");
 
     String[] args = new String[] {
         "--int=1,,9"};
     PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
+  }
+
+  @Test
+  public void testEmptyInStringValueProvider() {
+    String[] args = new String[] {
+        "--stringValue="
+    };
+
+    Objects options =  PipelineOptionsFactory.fromArgs(args).as(Objects.class);
+    assertEquals("", options.getStringValue().get());
+  }
+
+  @Test
+  public void testEmptyInNonStringValueProvider() {
+    String[] args = new String[] {
+        "--longValue="
+    };
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Empty argument value is only allowed for String, String Array, String ValueProvider and "
+            + "Collections of Strings");
+
+    PipelineOptionsFactory.fromArgs(args).as(Objects.class);
   }
 
   @Test
@@ -1055,8 +1087,8 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-      "Empty argument value is only allowed for String, String Array, and Collections of Strings,"
-      + " but received: java.util.List<java.lang.Integer>");
+      "Empty argument value is only allowed for String, String Array, String ValueProvider and "
+          + "Collections of Strings, but received: java.util.List<java.lang.Integer>");
     options = PipelineOptionsFactory.fromArgs(missingArg).as(Lists.class);
   }
 
@@ -1128,7 +1160,7 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-      "Empty argument value is only allowed for String, String Array, and "
+      "Empty argument value is only allowed for String, String Array, String ValueProvider and "
       + "Collections of Strings, but received: java.util.Map<java.lang.Integer, "
       + "java.lang.Integer>");
     options = PipelineOptionsFactory.fromArgs(missingArg).as(Maps.class);
@@ -1151,9 +1183,9 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-      "Empty argument value is only allowed for String, String Array, and Collections of "
-      + "Strings, but received: java.util.Map<java.lang.Integer, "
-      + "java.util.Map<java.lang.Integer, java.lang.Integer>>");
+      "Empty argument value is only allowed for String, String Array, String ValueProvider and "
+          + "Collections of Strings, but received: java.util.Map<java.lang.Integer, "
+          + "java.util.Map<java.lang.Integer, java.lang.Integer>>");
     options = PipelineOptionsFactory.fromArgs(missingArg).as(Maps.class);
   }
 

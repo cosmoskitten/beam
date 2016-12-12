@@ -1632,25 +1632,26 @@ public class PipelineOptionsFactory {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
                   "Empty argument value is only allowed for String, String Array, "
-                            + "and Collections of Strings, but received: %s",
-                            method.getGenericReturnType());
+                      + "String ValueProvider and Collections of Strings, but received: %s",
+                  method.getGenericReturnType());
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
         } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()
                    || returnType.equals(ValueProvider.class)) {
           String value = Iterables.getOnlyElement(entry.getValue());
-          checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-               "Empty argument value is only allowed for String, String Array, "
-                        + "and Collections of Strings, but received: %s",
-                        method.getGenericReturnType());
+          checkArgument(returnType.equals(String.class) || !value.isEmpty()
+                  || (returnType.equals(ValueProvider.class)
+                  && type.containedType(0).getRawClass().equals(String.class)),
+              "Empty argument value is only allowed for String, String Array, String ValueProvider "
+                  + "and Collections of Strings, but received: %s", method.getGenericReturnType());
+
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
         } else {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-                "Empty argument value is only allowed for String, String Array, "
-                        + "and Collections of Strings, but received: %s",
-                        method.getGenericReturnType());
+              "Empty argument value is only allowed for String, String Array, String ValueProvider "
+                  + "and Collections of Strings, but received: %s", method.getGenericReturnType());
           try {
             convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
           } catch (IOException e) {
