@@ -51,28 +51,28 @@ public class TestPipelineRule extends TestPipeline implements TestRule {
     }
 
     @Override
-    public void leaveCompositeTransform(TransformHierarchy.Node node) {
+    public void leaveCompositeTransform(final TransformHierarchy.Node node) {
       hasPAssert = hasPAssert || isPAssertNode(node);
     }
   }
 
   public static class PipelineRunBeforePAssertException extends RuntimeException {
 
-    PipelineRunBeforePAssertException(String msg) {
+    PipelineRunBeforePAssertException(final String msg) {
       super(msg);
     }
   }
 
   public static class PipelineRunMissingException extends RuntimeException {
 
-    PipelineRunMissingException(String msg) {
+    PipelineRunMissingException(final String msg) {
       super(msg);
     }
   }
 
   private PipelineResult pipelineResult;
 
-  public TestPipelineRule(PipelineOptions pipelineOptions) {
+  public TestPipelineRule(final PipelineOptions pipelineOptions) {
     super(PipelineRunner.fromOptions(pipelineOptions), pipelineOptions);
   }
 

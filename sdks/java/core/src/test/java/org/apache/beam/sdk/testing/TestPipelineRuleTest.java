@@ -52,12 +52,12 @@ public class TestPipelineRuleTest implements Serializable {
   private static class DummyRunner extends PipelineRunner<PipelineResult> {
 
     @SuppressWarnings("unused") // used by reflection
-    public static DummyRunner fromOptions(PipelineOptions opts) {
+    public static DummyRunner fromOptions(final PipelineOptions opts) {
       return new DummyRunner();
     }
 
     @Override
-    public PipelineResult run(Pipeline pipeline) {
+    public PipelineResult run(final Pipeline pipeline) {
       return new PipelineResult() {
 
         @Override
@@ -71,7 +71,7 @@ public class TestPipelineRuleTest implements Serializable {
         }
 
         @Override
-        public State waitUntilFinish(Duration duration) {
+        public State waitUntilFinish(final Duration duration) {
           return null;
         }
 
@@ -81,7 +81,7 @@ public class TestPipelineRuleTest implements Serializable {
         }
 
         @Override
-        public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
+        public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator)
             throws AggregatorRetrievalException {
           return null;
         }
@@ -108,7 +108,7 @@ public class TestPipelineRuleTest implements Serializable {
   public transient ExpectedException expectedException = ExpectedException.none();
 
   private TestPipelineRule initPipelineRule() {
-    PipelineOptions pipelineOptions = TestPipeline.testingPipelineOptions();
+    final PipelineOptions pipelineOptions = TestPipeline.testingPipelineOptions();
     pipelineOptions.setRunner(DummyRunner.class);
     return new TestPipelineRule(pipelineOptions);
   }
@@ -119,7 +119,7 @@ public class TestPipelineRuleTest implements Serializable {
         .apply(MapElements.via(new SimpleFunction<String, String>() {
 
           @Override
-          public String apply(String input) {
+          public String apply(final String input) {
             return EXPECTED;
           }
         }));
@@ -157,7 +157,7 @@ public class TestPipelineRuleTest implements Serializable {
     };
   }
 
-  private void runTestCase(Statement statement) throws Throwable {
+  private void runTestCase(final Statement statement) throws Throwable {
     final TestRule rule = pipeline;
     rule.apply(statement, null).evaluate();
   }
