@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -56,6 +57,10 @@ public class TestPipelineRule extends TestPipeline implements TestRule {
     }
   }
 
+  /**
+   * An exception thrown in case an invocation of {@link Pipeline#run()} was performed before any
+   * {@link PAssert} assertions were set up.
+   */
   public static class PipelineRunBeforePAssertException extends RuntimeException {
 
     PipelineRunBeforePAssertException(final String msg) {
@@ -63,6 +68,9 @@ public class TestPipelineRule extends TestPipeline implements TestRule {
     }
   }
 
+  /**
+   * An exception thrown in case a test finishes without invoking {@link Pipeline#run()}.
+   */
   public static class PipelineRunMissingException extends RuntimeException {
 
     PipelineRunMissingException(final String msg) {
