@@ -21,9 +21,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -52,11 +57,17 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -65,6 +76,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /**
  * Unit tests for {@link UnboundedReadFromBoundedSource}.
@@ -101,26 +113,130 @@ public class UnboundedReadFromBoundedSourceTest {
 
     PCollection<Long> output =
         p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));
-
     // Count == numElements
     PAssert
-      .thatSingleton(output.apply("Count", Count.<Long>globally()))
-      .isEqualTo(numElements);
+        .thatSingleton(output.apply("Count", Count.<Long>globally()))
+        .isEqualTo(numElements);
     // Unique count == numElements
     PAssert
-      .thatSingleton(output.apply(Distinct.<Long>create())
-                          .apply("UniqueCount", Count.<Long>globally()))
-      .isEqualTo(numElements);
+        .thatSingleton(output.apply(Distinct.<Long>create())
+            .apply("UniqueCount", Count.<Long>globally()))
+        .isEqualTo(numElements);
     // Min == 0
     PAssert
-      .thatSingleton(output.apply("Min", Min.<Long>globally()))
-      .isEqualTo(0L);
+        .thatSingleton(output.apply("Min", Min.<Long>globally()))
+        .isEqualTo(0L);
     // Max == numElements-1
     PAssert
-      .thatSingleton(output.apply("Max", Max.<Long>globally()))
-      .isEqualTo(numElements - 1);
+        .thatSingleton(output.apply("Max", Max.<Long>globally()))
+        .isEqualTo(numElements - 1);
+
     p.run();
   }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAdapterKryoSerializationNoMemoization() {
+    long numElements = 100;
+    BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
+    UnboundedSource<Long, Checkpoint<Long>> unboundedSource =
+        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+
+    //Kryo instantiation
+    Kryo kryo = new Kryo();
+    kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+
+    //Serialization of object without any memoization
+    ByteArrayOutputStream adapterWithoutMemoizationBos = new ByteArrayOutputStream();
+    try (Output output = new Output(adapterWithoutMemoizationBos)) {
+      kryo.writeObject(output, unboundedSource);
+    }
+
+    // Copy empty and memoized variants of the Adapater
+    ByteArrayInputStream bisWithoutMemoization =
+        new ByteArrayInputStream(adapterWithoutMemoizationBos.toByteArray());
+    BoundedToUnboundedSourceAdapter<Long> copiedWithoutMemoization =
+        kryo.readObject(new Input(bisWithoutMemoization), BoundedToUnboundedSourceAdapter.class);
+
+    TestPipeline p = TestPipeline.create();
+    FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
+    PCollection<Long> withoutMemoization =
+        p.apply(Read.from(copiedWithoutMemoization))
+            .apply(Window.<Long>into(windowFn));
+
+    BoundedWindow window = windowFn.assignWindow(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    addWindowedAssertions(numElements, withoutMemoization, window);
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAdapterKryoSerializationWithMemoization() {
+    long numElements = 100;
+    BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
+    UnboundedSource<Long, Checkpoint<Long>> unboundedSource =
+        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+
+    //Kryo instantiation
+    Kryo kryo = new Kryo();
+    kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+    // Serialization of object with memoized fields
+    ByteArrayOutputStream coderWithMemoizationBos = new ByteArrayOutputStream();
+    try (Output output = new Output(coderWithMemoizationBos)) {
+      kryo.writeObject(output, unboundedSource);
+    }
+
+    ByteArrayInputStream bisWithMemoization =
+        new ByteArrayInputStream(coderWithMemoizationBos.toByteArray());
+    BoundedToUnboundedSourceAdapter<Long> copiedWithMemoization =
+        kryo.readObject(new Input(bisWithMemoization), BoundedToUnboundedSourceAdapter.class);
+
+    TestPipeline p = TestPipeline.create();
+    FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
+    PCollection<Long> withMemoiziation =
+        p.apply("ReadWithMemoization", Read.from(copiedWithMemoization))
+            .apply(Window.<Long>into(windowFn));
+    BoundedWindow window = windowFn.assignWindow(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    // Count == numElements
+    addWindowedAssertions(numElements, withMemoiziation, window);
+
+    p.run();
+  }
+
+  /**
+   * Add assertions that the adapter produces the appropriate outputs into the appropriate window.
+   *
+   * <p>As the input {@link PCollection} is the result of a primitive read from a {@link
+   * BoundedToUnboundedSourceAdapter}, it will be an {@link IsBounded#UNBOUNDED} {@link
+   * PCollection}, and assertions must be applied to the appropriate window or the contained
+   * {@link GroupByKey} will fail at application time.
+   */
+  private void addWindowedAssertions(long numElements, PCollection<Long> pc, BoundedWindow window) {
+    // Count == numElements
+    PAssert
+        .that(pc.apply("Count", Count.<Long>globally().withoutDefaults()))
+        .inOnTimePane(window)
+        .containsInAnyOrder(numElements);
+    // Unique count == numElements
+    PAssert
+        .that(pc.apply(Distinct.<Long>create())
+            .apply("UniqueCount", Count.<Long>globally().withoutDefaults()))
+        .inOnTimePane(window)
+        .containsInAnyOrder(numElements);
+    // Min == 0
+    PAssert
+        .that(pc.apply("Min", Min.<Long>globally().withoutDefaults()))
+        .inOnTimePane(window)
+        .containsInAnyOrder(0L);
+    // Max == numElements-1
+    PAssert
+        .that(pc.apply("Max", Max.<Long>globally().withoutDefaults()))
+        .inOnTimePane(window)
+        .containsInAnyOrder(numElements - 1);
+  }
+
 
   @Test
   public void testCountingSourceToUnboundedCheckpoint() throws Exception {

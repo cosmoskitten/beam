@@ -262,7 +262,15 @@
       </exclusions>
       <scope>test</scope>
     </dependency>
-    
+
+    <!-- Required for UnboundedReadFromBoundedSourceTest -->
+    <dependency>
+      <groupId>com.esotericsoftware.kryo</groupId>
+      <artifactId>kryo</artifactId>
+      <version>2.21</version>
+      <scope>test</scope>
+    </dependency>
+
     <!-- needed for eclipse-jdt generated core as the test-jar references classes from this -->
     <dependency>
         <groupId>com.google.cloud.dataflow</groupId>
