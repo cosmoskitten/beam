@@ -392,8 +392,6 @@
                     <shadedPattern>org.apache.beam.spark.relocated.com.esotericsoftware.kryo</shadedPattern>
                   </relocation>
                 </relocations>
-                <shadedArtifactAttached>true</shadedArtifactAttached>
-                <shadedClassifierName>spark-app</shadedClassifierName>
                 <transformers>
                   <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                 </transformers>
