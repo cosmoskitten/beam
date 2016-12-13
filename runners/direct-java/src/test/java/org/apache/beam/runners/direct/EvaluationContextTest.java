@@ -111,7 +111,10 @@ public class EvaluationContextTest {
     graph = DirectGraphs.getGraph(p);
     context =
         EvaluationContext.create(
-            runner.getPipelineOptions(), NanosOffsetClock.create(), bundleFactory, graph,
+            runner.getPipelineOptions(),
+            NanosOffsetClock.create(),
+            bundleFactory,
+            graph,
             keyedPValueTrackingVisitor.getKeyedPValues());
 
     createdProducer = graph.getProducer(created);
