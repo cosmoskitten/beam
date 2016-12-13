@@ -106,7 +106,10 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   }
 
   private static boolean isKeyPreserving(PTransform<?, ?> transform) {
-    // This is a somewhat hacky check for what is considered key-preserving to the direct runner
+    // This is a hacky check for what is considered key-preserving to the direct runner
+    // The most obvious alternative would be a package-private marker interface, but
+    // better to make this obviously hacky so it is less likely to proliferate. Meanwhile
+    // we intend to allow explicit expression of key-preserving DoFn in the model.
     if (transform instanceof ParDo.BoundMulti) {
       ParDo.BoundMulti parDo = (ParDo.BoundMulti<?, ?>) transform;
       return parDo.getNewFn() instanceof ParDoMultiOverrideFactory.ToKeyedWorkItem;
