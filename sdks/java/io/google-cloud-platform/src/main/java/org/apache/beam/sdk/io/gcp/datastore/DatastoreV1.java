@@ -68,6 +68,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.GcpOptions;
@@ -384,6 +385,9 @@ public class DatastoreV1 {
       return toBuilder().setProjectId(StaticValueProvider.of(projectId)).build();
     }
 
+    /**
+     * Same as {@link Read#withProjectId(String)} but with a {@link ValueProvider}.
+     */
     public DatastoreV1.Read withProjectId(ValueProvider<String> projectId) {
       checkNotNull(projectId, "projectId");
       return toBuilder().setProjectId(projectId).build();
@@ -404,15 +408,26 @@ public class DatastoreV1 {
       return toBuilder().setQuery(StaticValueProvider.of(query)).build();
     }
 
+    /**
+     * Same as {@link Read#withQuery(Query)} but with a {@link ValueProvider}.
+     */
     public DatastoreV1.Read withQuery(ValueProvider<Query> query) {
       checkNotNull(query, "query");
       return toBuilder().setQuery(query).build();
     }
 
+    /**
+     * Returns a new {@link DatastoreV1.Read} that reads the results of the specified gql query.
+     */
+    @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withGqlQuery(String gqlQuery) {
       return toBuilder().setGqlQuery(StaticValueProvider.of(gqlQuery)).build();
     }
 
+    /**
+     * Same as {@link Read#withGqlQuery(String)} but with a {@link ValueProvider}.
+     */
+    @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withGqlQuery(ValueProvider<String> gqlQuery) {
       return toBuilder().setGqlQuery(gqlQuery).build();
     }
@@ -424,6 +439,9 @@ public class DatastoreV1 {
       return toBuilder().setNamespace(StaticValueProvider.of(namespace)).build();
     }
 
+    /**
+     * Same as {@link Read#withNamespace(String)} but with a {@link ValueProvider}.
+     */
     public DatastoreV1.Read withNamespace(ValueProvider<String> namespace) {
       return toBuilder().setNamespace(namespace).build();
     }
@@ -461,19 +479,22 @@ public class DatastoreV1 {
 
       /*
        * This composite transform involves the following steps:
-       *   1. Create a singleton of the user provided {@code query} and apply a {@link ParDo} that
-       *   splits the query into {@code numQuerySplits} and assign each split query a unique
-       *   {@code Integer} as the key. The resulting output is of the type
-       *   {@code PCollection<KV<Integer, Query>>}.
+       *   1. Create a singleton of the user provided {@code query} or {@code gqlQuery} and
+       *   apply a {@link ParDo} that translates the {@code gqlQuery} into a {@query}, if a
+       *   gqlQuery is provided, else the query is bypassed.
+       *
+       *   2. A {@link ParDo} splits the resulting query into {@code numQuerySplits} and
+       *   assign each split query a unique {@code Integer} as the key. The resulting output is
+       *   of the type {@code PCollection<KV<Integer, Query>>}.
        *
        *   If the value of {@code numQuerySplits} is less than or equal to 0, then the number of
        *   splits will be computed dynamically based on the size of the data for the {@code query}.
        *
-       *   2. The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
+       *   3. The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
        *   queries are extracted from they {@code KV<Integer, Iterable<Query>>} and flattened to
        *   output a {@code PCollection<Query>}.
        *
-       *   3. In the third step, a {@code ParDo} reads entities for each query and outputs
+       *   4. In the third step, a {@code ParDo} reads entities for each query and outputs
        *   a {@code PCollection<Entity>}.
        */
 
@@ -527,35 +548,19 @@ public class DatastoreV1 {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
-      String projectId;
-      String namespace = null;
       String query = null;
-      String gqlQuery = null;
-
-      projectId = getProjectId().isAccessible() ? getProjectId().get() : getProjectId().toString();
-
-      if (getNamespace() != null) {
-        namespace = getNamespace().isAccessible() ? getNamespace().get() :
-            getNamespace().toString();
-      }
-
       if (getQuery() != null) {
-        query = getQuery().isAccessible() ? getQuery().get().toString() : getQuery().toString();
-      }
-
-      if (getGqlQuery() != null) {
-        gqlQuery = getGqlQuery().isAccessible() ? getGqlQuery().get() : getGqlQuery().toString();
+        query = getQuery().isAccessible() ? getQuery().get().toString() : null;
       }
 
       builder
-          .addIfNotNull(DisplayData.item("projectId", projectId)
+          .addIfNotNull(DisplayData.item("projectId", getProjectId())
               .withLabel("ProjectId"))
-          .addIfNotNull(DisplayData.item("namespace", namespace)
+          .addIfNotNull(DisplayData.item("namespace", getNamespace())
               .withLabel("Namespace"))
           .addIfNotNull(DisplayData.item("query", query)
               .withLabel("Query"))
-          .addIfNotNull(DisplayData.item("gqlQuery", gqlQuery));
+          .addIfNotNull(DisplayData.item("gqlQuery", getGqlQuery()));
     }
 
     @VisibleForTesting
@@ -585,6 +590,16 @@ public class DatastoreV1 {
       public String getNamespace() {
         return namespace == null ? null : namespace.get();
       }
+
+      public ValueProvider<String> getProjectValueProvider() {
+        return project;
+      }
+
+      @Nullable
+      public ValueProvider<String> getNamespaceValueProvider() {
+        return namespace;
+      }
+
     }
 
     /**
@@ -643,6 +658,16 @@ public class DatastoreV1 {
         } else {
           throw new RuntimeException("Either query or gql query should be provided");
         }
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder
+            .addIfNotNull(DisplayData.item("projectId", options.getProjectValueProvider())
+                .withLabel("ProjectId"))
+            .addIfNotNull(DisplayData.item("namespace", options.getNamespaceValueProvider())
+                .withLabel("Namespace"));
       }
     }
 
@@ -713,6 +738,16 @@ public class DatastoreV1 {
         for (Query subquery : querySplits) {
           c.output(KV.of(key++, subquery));
         }
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder
+            .addIfNotNull(DisplayData.item("projectId", options.getProjectValueProvider())
+                .withLabel("ProjectId"))
+            .addIfNotNull(DisplayData.item("namespace", options.getNamespaceValueProvider())
+                .withLabel("Namespace"));
       }
     }
 
@@ -790,6 +825,16 @@ public class DatastoreV1 {
                   && ((numFetch == QUERY_BATCH_LIMIT)
                   || (currentBatch.getMoreResults() == NOT_FINISHED));
         }
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder
+            .addIfNotNull(DisplayData.item("projectId", options.getProjectValueProvider())
+                .withLabel("ProjectId"))
+            .addIfNotNull(DisplayData.item("namespace", options.getNamespaceValueProvider())
+                .withLabel("Namespace"));
       }
     }
   }
@@ -950,9 +995,8 @@ public class DatastoreV1 {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      String outputProject = projectId.isAccessible() ? projectId.get() : projectId.toString();
       builder
-          .addIfNotNull(DisplayData.item("projectId", outputProject)
+          .addIfNotNull(DisplayData.item("projectId", projectId)
               .withLabel("Output Project"))
           .include("mutationFn", mutationFn);
     }
@@ -1067,9 +1111,8 @@ public class DatastoreV1 {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      String outputProject = projectId.isAccessible() ? projectId.get() : projectId.toString();
       builder
-          .addIfNotNull(DisplayData.item("projectId", outputProject)
+          .addIfNotNull(DisplayData.item("projectId", projectId)
               .withLabel("Output Project"));
     }
   }
