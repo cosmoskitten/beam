@@ -275,7 +275,9 @@ def _parse_table_reference(table, dataset=None, project=None):
       then the table argument must contain the entire table reference:
       'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'. This argument can be a
       bigquery.TableReference instance in which case dataset and project are
-      ignored and the reference is returned as a result.
+      ignored and the reference is returned as a result.  Additionally, for date
+      partitioned tables, appending '$YYYYmmdd' to the table name is supported,
+      e.g. 'DATASET.TABLE$YYYYmmdd'.
     dataset: The ID of the dataset containing this table or null if the table
       reference is specified entirely by the table argument.
     project: The ID of the project containing this table or null if the table
