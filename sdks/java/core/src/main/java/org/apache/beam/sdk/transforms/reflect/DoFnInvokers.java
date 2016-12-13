@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /** Static utilities for working with {@link DoFnInvoker}. */
@@ -33,6 +34,23 @@ public class DoFnInvokers {
   public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(
       DoFn<InputT, OutputT> fn) {
     return ByteBuddyDoFnInvokerFactory.only().newByteBuddyInvoker(fn);
+  }
+
+  /**
+   * Temporarily retained for compatibility with Dataflow worker.
+   * TODO: delete this when Dataflow worker is fixed to call {@link #invokerFor(DoFn)}.
+   *
+   * @deprecated Use {@link #invokerFor(DoFn)}.
+   */
+  @SuppressWarnings("unchecked")
+  @Deprecated
+  public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(
+      Serializable deserializedFn) {
+    if (deserializedFn instanceof DoFn) {
+      return invokerFor((DoFn<InputT, OutputT>) deserializedFn);
+    }
+    throw new UnsupportedOperationException(
+        "Only DoFn supported, was: " + deserializedFn.getClass());
   }
 
   private DoFnInvokers() {}
