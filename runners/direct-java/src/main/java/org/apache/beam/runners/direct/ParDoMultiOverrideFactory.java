@@ -157,8 +157,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
   }
 
   /**
-   * A runner-specific primitive that is just a key-preserving {@link ParDo}, but we do not have the
-   * machinery to detect or enforce that yet.
+   * A distinguished key-preserving {@link DoFn}.
    *
    * <p>This wraps the {@link GroupByKey} output in a {@link KeyedWorkItem} to be able to deliver
    * timers. It also explodes them into single {@link KV KVs} since this is what the user's {@link
