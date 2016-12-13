@@ -104,7 +104,7 @@ class MetricsContainer(object):
     This returns all the cumulative values for all metrics only if their state
     prior to the function call was COMMITTING or DIRTY.
     """
-    return self._get_updates(filter=lambda v: v.dirty.before_commit())
+    return self._get_updates(filter=lambda v: v.commit.before_commit())
 
   def get_cumulative(self):
     """Return MetricUpdates with cumulative values of all metrics in container.

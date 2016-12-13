@@ -21,7 +21,7 @@ from apache_beam.metrics.base import Counter
 from apache_beam.metrics.base import Distribution
 
 
-class DirtyState(object):
+class CellCommitState(object):
   """Keeps track of a cell's commit status.
 
   It's thread-safe.
@@ -32,7 +32,7 @@ class DirtyState(object):
 
   def __init__(self):
     self._lock = threading.Lock()
-    self._state = DirtyState.DIRTY
+    self._state = CellCommitState.DIRTY
 
   @property
   def state(self):
@@ -40,19 +40,19 @@ class DirtyState(object):
 
   def modified(self):
     with self._lock:
-      self._state = DirtyState.DIRTY
+      self._state = CellCommitState.DIRTY
 
   def after_commit(self):
     with self._lock:
-      if self._state == DirtyState.COMMITTING:
-        self._state = DirtyState.CLEAN
+      if self._state == CellCommitState.COMMITTING:
+        self._state = CellCommitState.CLEAN
 
   def before_commit(self):
     with self._lock:
-      if self._state == DirtyState.CLEAN:
+      if self._state == CellCommitState.CLEAN:
         return False
       else:
-        self._state = DirtyState.COMMITTING
+        self._state = CellCommitState.COMMITTING
         return True
 
 
@@ -64,7 +64,7 @@ class MetricCell(object):
   updates.
   """
   def __init__(self):
-    self.dirty = DirtyState()
+    self.commit = CellCommitState()
     self._lock = threading.Lock()
 
   def get_cumulative(self):
@@ -88,7 +88,7 @@ class CounterCell(Counter, MetricCell):
   def inc(self, n=1):
     with self._lock:
       self.value += n
-      self.dirty.modified()
+      self.commit.modified()
 
   def get_cumulative(self):
     with self._lock:
@@ -111,7 +111,7 @@ class DistributionCell(Distribution, MetricCell):
 
   def update(self, value):
     with self._lock:
-      self.dirty.modified()
+      self.commit.modified()
       self._update(value)
 
   def _update(self, value):

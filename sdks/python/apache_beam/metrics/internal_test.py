@@ -19,7 +19,7 @@ import unittest
 
 from apache_beam.metrics.base import MetricName
 from apache_beam.metrics.base import MetricKey
-from apache_beam.metrics.cells import DirtyState
+from apache_beam.metrics.cells import CellCommitState
 from apache_beam.metrics.internal import MetricsContainer
 from apache_beam.metrics.internal import MetricsEnvironment
 from apache_beam.metrics.metric import Metrics
@@ -56,13 +56,13 @@ class TestMetricsContainer(unittest.TestCase):
         dirty_values.append(i)
         continue
       # Assert: Counter/Distribution is DIRTY or COMMITTING (not CLEAN)
-      self.assertEqual(distribution.dirty.before_commit(), True)
-      self.assertEqual(counter.dirty.before_commit(), True)
-      distribution.dirty.after_commit()
-      counter.dirty.after_commit()
+      self.assertEqual(distribution.commit.before_commit(), True)
+      self.assertEqual(counter.commit.before_commit(), True)
+      distribution.commit.after_commit()
+      counter.commit.after_commit()
       # Assert: Counter/Distribution has been committed, therefore it's CLEAN
-      self.assertEqual(counter.dirty.state, DirtyState.CLEAN)
-      self.assertEqual(distribution.dirty.state, DirtyState.CLEAN)
+      self.assertEqual(counter.commit.state, CellCommitState.CLEAN)
+      self.assertEqual(distribution.commit.state, CellCommitState.CLEAN)
       clean_values.append(i)
 
     # Retrieve NON-COMMITTED updates.

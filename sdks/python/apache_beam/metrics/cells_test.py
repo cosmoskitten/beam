@@ -21,7 +21,7 @@ import unittest
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import DistributionData
-from apache_beam.metrics.cells import DirtyState
+from apache_beam.metrics.cells import CellCommitState
 
 
 class TestCounterCell(unittest.TestCase):
@@ -112,9 +112,9 @@ class TestDistributionCell(unittest.TestCase):
     self.assertEqual(d.get_cumulative().mean, 912/3)
 
 
-class TestDirtyState(unittest.TestCase):
+class TestCellCommitState(unittest.TestCase):
   def test_basic_path(self):
-    ds = DirtyState()
+    ds = CellCommitState()
     # Starts dirty
     self.assertTrue(ds.before_commit())
     ds.after_commit()
