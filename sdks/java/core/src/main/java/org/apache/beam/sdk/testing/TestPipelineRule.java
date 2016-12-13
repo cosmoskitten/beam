@@ -56,14 +56,14 @@ public class TestPipelineRule extends TestPipeline implements TestRule {
     }
   }
 
-  static class PipelineRunBeforePAssertException extends RuntimeException {
+  public static class PipelineRunBeforePAssertException extends RuntimeException {
 
     PipelineRunBeforePAssertException(String msg) {
       super(msg);
     }
   }
 
-  static class PipelineRunMissingException extends RuntimeException {
+  public static class PipelineRunMissingException extends RuntimeException {
 
     PipelineRunMissingException(String msg) {
       super(msg);
