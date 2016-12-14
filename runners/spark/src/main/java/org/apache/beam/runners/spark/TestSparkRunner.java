@@ -89,7 +89,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     // read it as unbounded source via UnboundedReadFromBoundedSource.
     if (isStreaming && transform instanceof BoundedReadFromUnboundedSource) {
       return (OutputT) delegate.apply(new AdaptedBoundedAsUnbounded(
-          (BoundedReadFromUnboundedSource) transform), (PBegin) input);
+          (BoundedReadFromUnboundedSource) transform), input);
     } else {
       return delegate.apply(transform, input);
     }
@@ -114,19 +114,19 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     return result;
   }
 
-  private static class AdaptedBoundedAsUnbounded extends PTransform<PBegin, PCollection<?>> {
-    private final BoundedReadFromUnboundedSource<?> source;
+  private static class AdaptedBoundedAsUnbounded<T> extends PTransform<PBegin, PCollection<T>> {
+    private final BoundedReadFromUnboundedSource<T> source;
 
-    AdaptedBoundedAsUnbounded(BoundedReadFromUnboundedSource<?> source) {
+    AdaptedBoundedAsUnbounded(BoundedReadFromUnboundedSource<T> source) {
       this.source = source;
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public PCollection<?> expand(PBegin input) {
-      PTransform<PBegin, ? extends PCollection<?>> replacingTransform =
+    public PCollection<T> expand(PBegin input) {
+      PTransform<PBegin, ? extends PCollection<ValueWithRecordId<T>>> replacingTransform =
           new UnboundedReadFromBoundedSource<>(source.getAdaptedSource());
-      return (PCollection<?>) input.apply(replacingTransform)
+      return (PCollection<T>) input.apply(replacingTransform)
           .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn()));
     }
   }
