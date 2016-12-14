@@ -93,32 +93,31 @@ public class ForceStreamingTest {
   private static class FakeUnboundedSource extends UnboundedSource {
 
     @Override
-      public List<? extends UnboundedSource> generateInitialSplits(
-          int desiredNumSplits,
-          PipelineOptions options) throws Exception {
-        return null;
-      }
+    public List<? extends UnboundedSource> generateInitialSplits(
+        int desiredNumSplits,
+        PipelineOptions options) throws Exception {
+      return null;
+    }
 
-      @Override
-      public UnboundedReader createReader(
-          PipelineOptions options,
-          CheckpointMark checkpointMark) throws IOException {
-        return null;
-      }
+    @Override
+    public UnboundedReader createReader(
+        PipelineOptions options,
+        CheckpointMark checkpointMark) throws IOException {
+      return null;
+    }
 
-      @Override
-      public Coder getCheckpointMarkCoder() {
-        return null;
-      }
+    @Override
+    public Coder getCheckpointMarkCoder() {
+      return null;
+    }
 
-      @Override
-      public void validate() { }
+    @Override
+    public void validate() { }
 
-      @Override
-      public Coder getDefaultOutputCoder() {
-        return null;
-      }
-
+    @Override
+    public Coder getDefaultOutputCoder() {
+      return null;
+    }
   }
 
 }
