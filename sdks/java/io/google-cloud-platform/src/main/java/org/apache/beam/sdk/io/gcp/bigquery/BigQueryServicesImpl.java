@@ -524,8 +524,8 @@ class BigQueryServicesImpl implements BigQueryServices {
               if (BackOffUtils.next(sleeper, backoff)) {
                 if (!retry) {
                   LOG.info(
-                          "Quota limit reached when creating table {}:{}.{}, retrying up to {} " +
-                          "minutes",
+                          "Quota limit reached when creating table {}:{}.{}, retrying up to {} "
+                          + "minutes",
                           projectId,
                           datasetId,
                           table.getTableReference().getTableId(),

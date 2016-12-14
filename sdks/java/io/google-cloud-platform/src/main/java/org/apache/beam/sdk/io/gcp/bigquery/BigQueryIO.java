@@ -1537,6 +1537,9 @@ public class BigQueryIO {
       WRITE_EMPTY
     }
 
+    /**
+     * Context passed to {@link RetryPolicy#apply(RetryContext)}.
+     */
     public static class RetryContext {
       public RetryContext(TableDataInsertAllResponse.InsertErrors errors) {
         this.errors = errors;
@@ -1549,7 +1552,7 @@ public class BigQueryIO {
     /**
      * RetryPolicy for streaming BigQuery inserts.
      */
-    public static abstract class RetryPolicy implements SerializableFunction<RetryContext,
+    public abstract static class RetryPolicy implements SerializableFunction<RetryContext,
         Boolean> {
       /**
        * Return true if the errors should be retried.
