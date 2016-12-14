@@ -83,10 +83,18 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     this.maxReadTime = maxReadTime;
   }
 
+  /**
+   * Returns an adapted {@link BoundedSource} wrapping the underlying {@link UnboundedSource},
+   * with the specified bounds on number of records and read time.
+   */
+  public BoundedSource<ValueWithRecordId<T>> getAdaptedSource() {
+    return new UnboundedToBoundedSourceAdapter<>(source, maxNumRecords, maxReadTime);
+  }
+
   @Override
   public PCollection<T> expand(PBegin input) {
     PCollection<ValueWithRecordId<T>> read = Pipeline.applyTransform(input,
-        Read.from(new UnboundedToBoundedSourceAdapter<>(source, maxNumRecords, maxReadTime)));
+        Read.from(getAdaptedSource()));
     if (source.requiresDeduping()) {
       read = read.apply(Distinct.withRepresentativeValueFn(
           new SerializableFunction<ValueWithRecordId<T>, byte[]>() {
