@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Distinct;
@@ -50,6 +51,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   private final UnboundedSource<T, ?> source;
   private final long maxNumRecords;
   private final Duration maxReadTime;
+  private final BoundedSource<ValueWithRecordId<T>> adaptedSource;
   private static final FluentBackoff BACKOFF_FACTORY =
       FluentBackoff.DEFAULT
           .withInitialBackoff(Duration.millis(10))
@@ -81,14 +83,16 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     this.source = source;
     this.maxNumRecords = maxNumRecords;
     this.maxReadTime = maxReadTime;
+    this.adaptedSource = new UnboundedToBoundedSourceAdapter<>(source, maxNumRecords, maxReadTime);
   }
 
   /**
    * Returns an adapted {@link BoundedSource} wrapping the underlying {@link UnboundedSource},
    * with the specified bounds on number of records and read time.
    */
+  @Experimental
   public BoundedSource<ValueWithRecordId<T>> getAdaptedSource() {
-    return new UnboundedToBoundedSourceAdapter<>(source, maxNumRecords, maxReadTime);
+    return adaptedSource;
   }
 
   @Override
