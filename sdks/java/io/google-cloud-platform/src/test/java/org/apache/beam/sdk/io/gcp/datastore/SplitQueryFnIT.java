@@ -26,7 +26,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
@@ -86,9 +85,7 @@ public class SplitQueryFnIT {
     Query.Builder query = Query.newBuilder();
     query.addKindBuilder().setName(kind);
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(
-        V1Options.from(projectId, namespace),
-        ValueProvider.StaticValueProvider.of(0));
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V1Options.from(projectId, namespace), 0);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
 
     List<KV<Integer, Query>> queries = doFnTester.processBundle(query.build());

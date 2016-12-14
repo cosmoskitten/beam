@@ -155,7 +155,7 @@ public class DatastoreV1Test {
   public void testBuildRead() throws Exception {
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
-    assertEquals(QUERY, read.getQuery().get());
+    assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId().get());
     assertEquals(NAMESPACE, read.getNamespace().get());
   }
@@ -176,7 +176,7 @@ public class DatastoreV1Test {
   public void testBuildReadAlt() throws Exception {
     DatastoreV1.Read read =  DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY);
-    assertEquals(QUERY, read.getQuery().get());
+    assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId().get());
     assertEquals(NAMESPACE, read.getNamespace().get());
   }
@@ -626,8 +626,7 @@ public class DatastoreV1Test {
         eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, numSplits));
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, StaticValueProvider.of(numSplits),
-        mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
     /**
      * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
@@ -673,8 +672,7 @@ public class DatastoreV1Test {
         eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, expectedNumSplits));
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, StaticValueProvider.of(numSplits),
-        mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
@@ -696,8 +694,7 @@ public class DatastoreV1Test {
         .setLimit(Int32Value.newBuilder().setValue(1))
         .build();
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, StaticValueProvider.of(10),
-        mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, mockDatastoreFactory);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<KV<Integer, Query>> queries = doFnTester.processBundle(queryWithLimit);
@@ -727,24 +724,9 @@ public class DatastoreV1Test {
   }
 
   @Test
-  public void testGqlTranslatorFnWithQuery() throws Exception {
-    GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
-    DoFnTester<KV<ValueProvider<String>, ValueProvider<Query>>, Query> doFnTester =
-        DoFnTester.of(translatorFn);
-    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    ValueProvider<Query> query = StaticValueProvider.of(QUERY);
-    List<Query> queries = doFnTester.processBundle(KV.of((ValueProvider<String>) null, query));
-
-    assertEquals(queries.size(), 1);
-    assertEquals(queries.get(0), QUERY);
-    verifyNoMoreInteractions(mockDatastore);
-  }
-
-  @Test
   public void testGqlTranslatorFnWithGqlQuery() throws Exception {
     GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
-    DoFnTester<KV<ValueProvider<String>, ValueProvider<Query>>, Query> doFnTester =
-        DoFnTester.of(translatorFn);
+    DoFnTester<ValueProvider<String>, Query> doFnTester = DoFnTester.of(translatorFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     ValueProvider<String> gqlQuery = StaticValueProvider.of(GQL_QUERY);
     String gqlQueryWithZeroLimit = gqlQuery.get() + " limit 0";
@@ -754,7 +736,7 @@ public class DatastoreV1Test {
     when(mockDatastore.runQuery(gqlRequest))
         .thenReturn(RunQueryResponse.newBuilder().setQuery(QUERY).build());
 
-    List<Query> queries = doFnTester.processBundle(KV.of(gqlQuery, (ValueProvider<Query>) null));
+    List<Query> queries = doFnTester.processBundle(gqlQuery);
 
     assertEquals(queries.size(), 1);
     assertEquals(queries.get(0), QUERY);
@@ -764,8 +746,7 @@ public class DatastoreV1Test {
   @Test
   public void testGqlTranslatorFnWithGqlQueryWithLimit() throws Exception {
     GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
-    DoFnTester<KV<ValueProvider<String>, ValueProvider<Query>>, Query> doFnTester =
-        DoFnTester.of(translatorFn);
+    DoFnTester<ValueProvider<String>, Query> doFnTester = DoFnTester.of(translatorFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     int limit = 100;
     Query queryWithLimit = QUERY.toBuilder().setLimit(
@@ -781,7 +762,7 @@ public class DatastoreV1Test {
     when(mockDatastore.runQuery(gqlRequest))
         .thenReturn(RunQueryResponse.newBuilder().setQuery(queryWithLimit).build());
 
-    List<Query> queries = doFnTester.processBundle(KV.of(gqlQuery, (ValueProvider<Query>) null));
+    List<Query> queries = doFnTester.processBundle(gqlQuery);
 
     assertEquals(queries.size(), 1);
     assertEquals(queries.get(0), queryWithLimit);
@@ -792,9 +773,6 @@ public class DatastoreV1Test {
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getDatastoreProject();
     void setDatastoreProject(ValueProvider<String> value);
-
-    ValueProvider<Query> getQuery();
-    void setQuery(ValueProvider<Query> value);
 
     ValueProvider<String> getGqlQuery();
     void setGqlQuery(ValueProvider<String> value);
@@ -810,7 +788,7 @@ public class DatastoreV1Test {
     pipeline
         .apply(DatastoreIO.v1().read()
             .withProjectId(options.getDatastoreProject())
-            .withQuery(options.getQuery()))
+            .withQuery(QUERY))
         .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
   }
 
@@ -832,7 +810,7 @@ public class DatastoreV1Test {
     pipeline
         .apply(DatastoreIO.v1().read()
             .withProjectId(options.getDatastoreProject())
-            .withQuery(options.getQuery())
+            .withGqlQuery(options.getGqlQuery())
             .withNamespace(options.getNamespace()))
         .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
   }
