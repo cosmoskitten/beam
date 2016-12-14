@@ -440,6 +440,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Nullable
     Table tryCreateTable(Table table, BackOff backoff, Sleeper sleeper)
             throws IOException {
+      LOG.info("Trying to create BigQuery table: {}",
+          BigQueryIO.toTableSpec(table.getTableReference()));
       boolean retry = false;
       while (true) {
         try {
@@ -463,74 +465,6 @@ class BigQueryServicesImpl implements BigQueryServices {
                       table.getTableReference().getDatasetId(),
                       table.getTableReference().getTableId(),
                       TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS) / 60.0);
-                  retry = true;
-                }
-                continue;
-              }
-            } catch (InterruptedException e1) {
-              // Restore interrupted state and throw the last failure.
-              Thread.currentThread().interrupt();
-              throw e;
-            }
-          }
-          throw e;
-        }
-      }
-    }
-
-
-    /**
-     * Tries to create the BigQuery table.
-     * If a table with the same name already exists in the dataset, the table
-     * creation fails, and the function returns null.  In such a case,
-     * the existing table doesn't necessarily have the same schema as specified
-     * by the parameter.
-     *
-     * @param schema Schema of the new BigQuery table.
-     * @return The newly created BigQuery table information, or null if the table
-     *     with the same name already exists.
-     * @throws IOException if other error than already existing table occurs.
-     */
-    @Nullable
-    private Table tryCreateTable(TableReference ref, TableSchema schema) throws IOException {
-      LOG.info("Trying to create BigQuery table: {}", BigQueryIO.toTableSpec(ref));
-      BackOff backoff =
-              new ExponentialBackOff.Builder()
-                      .setMaxElapsedTimeMillis(RETRY_CREATE_TABLE_DURATION_MILLIS)
-                      .build();
-
-      Table table = new Table().setTableReference(ref).setSchema(schema);
-      return tryCreateTable(table, ref.getProjectId(), ref.getDatasetId(), backoff,
-          Sleeper.DEFAULT);
-    }
-
-    @VisibleForTesting
-    @Nullable
-    Table tryCreateTable(
-            Table table, String projectId, String datasetId, BackOff backoff, Sleeper sleeper)
-            throws IOException {
-      boolean retry = false;
-      while (true) {
-        try {
-          return client.tables().insert(projectId, datasetId, table).execute();
-        } catch (IOException e) {
-          ApiErrorExtractor extractor = new ApiErrorExtractor();
-          if (extractor.itemAlreadyExists(e)) {
-            // The table already exists, nothing to return.
-            return null;
-          } else if (extractor.rateLimited(e)) {
-            // The request failed because we hit a temporary quota. Back off and try again.
-            try {
-              if (BackOffUtils.next(sleeper, backoff)) {
-                if (!retry) {
-                  LOG.info(
-                          "Quota limit reached when creating table {}:{}.{}, retrying up to {} "
-                          + "minutes",
-                          projectId,
-                          datasetId,
-                          table.getTableReference().getTableId(),
-                          TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS)
-                              / 60.0);
                   retry = true;
                 }
                 continue;
