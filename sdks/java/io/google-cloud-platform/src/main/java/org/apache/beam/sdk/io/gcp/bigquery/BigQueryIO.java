@@ -91,7 +91,6 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -1538,7 +1537,7 @@ public class BigQueryIO {
       WRITE_EMPTY
     }
 
-    static public class RetryContext {
+    public static class RetryContext {
       public RetryContext(TableDataInsertAllResponse.InsertErrors errors) {
         this.errors = errors;
       }
@@ -1547,11 +1546,21 @@ public class BigQueryIO {
       TableDataInsertAllResponse.InsertErrors errors;
     }
 
-    static public abstract class RetryPolicy implements SerializableFunction<RetryContext, Boolean> {
+    /**
+     * RetryPolicy for streaming BigQuery inserts.
+     */
+    public static abstract class RetryPolicy implements SerializableFunction<RetryContext,
+        Boolean> {
+      /**
+       * Return true if the errors should be retried.
+       */
       @Override
       public abstract Boolean apply(RetryContext retryContext);
     }
 
+    /**
+     * Policy that does not retry any errors.
+     */
     static class DontRetry extends RetryPolicy {
       @Override
       public Boolean apply(RetryContext retryContext) {
@@ -1559,8 +1568,12 @@ public class BigQueryIO {
       }
     }
 
+    /**
+     * Default policy that retries all errors except for known persistent errors.
+     */
     static class DontRetryPersistentErrors extends RetryPolicy {
-      static Set<String> persistentErrors = ImmutableSet.of("invalid", "invalidQuery", "notImplemented");
+      static Set<String> persistentErrors =
+          ImmutableSet.of("invalid", "invalidQuery", "notImplemented");
       @Override
       public Boolean apply(RetryContext retryContext) {
         if (retryContext.errors.getErrors() != null) {
@@ -1578,13 +1591,13 @@ public class BigQueryIO {
      * Default retry policy for failed inserts. Retry all errors except for known persistent
      * errors.
      */
-    public static RetryPolicy DEFAULT_RETRY_POLICY = new DontRetryPersistentErrors();
+    public static final RetryPolicy DEFAULT_RETRY_POLICY = new DontRetryPersistentErrors();
 
     /**
      * Policy which does not retry any insert failures. Use with care, as many failures are
      * ephemeral, and go away upon retry.
      */
-    public static RetryPolicy DONT_RETRY = new DontRetry();
+    public static final RetryPolicy DONT_RETRY = new DontRetry();
 
 
 
@@ -1678,8 +1691,8 @@ public class BigQueryIO {
      * A {@link PTransform} that can write either a bounded or unbounded
      * {@link PCollection} of {@link TableRow TableRows} to a BigQuery table.
      */
-    public static class Bound<OutType extends POutput>
-            extends PTransform<PCollection<TableRow>, OutType> {
+    public static class Bound<OutT extends POutput>
+            extends PTransform<PCollection<TableRow>, OutT> {
       // Maximum number of files in a single partition.
       static final int MAX_NUM_FILES = 10000;
 
@@ -1751,7 +1764,9 @@ public class BigQueryIO {
       private Bound(String name, @Nullable ValueProvider<String> jsonTableRef,
                     @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
                     @Nullable ValueProvider<String> jsonSchema,
-                    CreateDisposition createDisposition, WriteDisposition writeDisposition, boolean validate,
+                    CreateDisposition createDisposition,
+                    WriteDisposition writeDisposition,
+                    boolean validate,
                     @Nullable BigQueryServices bigQueryServices,
                     @Nullable RetryPolicy shouldRetry) {
         super(name);
@@ -1771,7 +1786,7 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      public Bound<OutType> to(String tableSpec) {
+      public Bound<OutT> to(String tableSpec) {
         return toTableRef(NestedValueProvider.of(
             StaticValueProvider.of(tableSpec), new TableSpecToTableRef()));
       }
@@ -1781,7 +1796,7 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      public Bound<OutType> to(TableReference table) {
+      public Bound<OutT> to(TableReference table) {
         return to(StaticValueProvider.of(toTableSpec(table)));
       }
 
@@ -1791,7 +1806,7 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      public Bound<OutType> to(ValueProvider<String> tableSpec) {
+      public Bound<OutT> to(ValueProvider<String> tableSpec) {
         return toTableRef(NestedValueProvider.of(tableSpec, new TableSpecToTableRef()));
       }
 
@@ -1800,7 +1815,7 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      private Bound<OutType> toTableRef(ValueProvider<TableReference> table) {
+      private Bound<OutT> toTableRef(ValueProvider<TableReference> table) {
         return new Bound<>(name,
             NestedValueProvider.of(table, new TableRefToJson()),
             tableRefFunction, jsonSchema, createDisposition,
@@ -1816,7 +1831,7 @@ public class BigQueryIO {
        * <p>{@code tableSpecFunction} should be deterministic. When given the same window, it
        * should always return the same table specification.
        */
-      public Bound<OutType> to(
+      public Bound<OutT> to(
           SerializableFunction<BoundedWindow, String> tableSpecFunction) {
         return toTableReference(new TranslateTableSpecFunction(tableSpecFunction));
       }
@@ -1830,7 +1845,7 @@ public class BigQueryIO {
        * <p>{@code tableRefFunction} should be deterministic. When given the same window, it should
        * always return the same table reference.
        */
-      public Bound<OutType> toTableReference(
+      public Bound<OutT> toTableReference(
           SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
         return new Bound<>(name, jsonTableRef, tableRefFunction, jsonSchema,
                 createDisposition, writeDisposition, validate, bigQueryServices, shouldRetry);
@@ -1842,7 +1857,7 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      public Bound<OutType> withSchema(TableSchema schema) {
+      public Bound<OutT> withSchema(TableSchema schema) {
         return new Bound<>(name, jsonTableRef, tableRefFunction,
             StaticValueProvider.of(toJsonString(schema)),
             createDisposition, writeDisposition, validate, bigQueryServices, shouldRetry);
@@ -1851,7 +1866,7 @@ public class BigQueryIO {
       /**
        * Like {@link #withSchema(TableSchema)}, but with a {@link ValueProvider}.
        */
-      public Bound<OutType> withSchema(ValueProvider<TableSchema> schema) {
+      public Bound<OutT> withSchema(ValueProvider<TableSchema> schema) {
         return new Bound<>(name, jsonTableRef, tableRefFunction,
             NestedValueProvider.of(schema, new TableSchemaToJsonSchema()),
             createDisposition, writeDisposition, validate, bigQueryServices, shouldRetry);
@@ -1862,7 +1877,7 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      public Bound<OutType> withCreateDisposition(CreateDisposition createDisposition) {
+      public Bound<OutT> withCreateDisposition(CreateDisposition createDisposition) {
         return new Bound<>(name, jsonTableRef, tableRefFunction, jsonSchema,
                 createDisposition, writeDisposition, validate, bigQueryServices, shouldRetry);
       }
@@ -1872,7 +1887,7 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      public Bound<OutType> withWriteDisposition(WriteDisposition writeDisposition) {
+      public Bound<OutT> withWriteDisposition(WriteDisposition writeDisposition) {
         return new Bound<>(name, jsonTableRef, tableRefFunction, jsonSchema,
                 createDisposition, writeDisposition, validate, bigQueryServices, shouldRetry);
       }
@@ -1882,13 +1897,13 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      public Bound<OutType> withoutValidation() {
+      public Bound<OutT> withoutValidation() {
         return new Bound<>(name, jsonTableRef, tableRefFunction, jsonSchema,
                 createDisposition, writeDisposition, false, bigQueryServices, shouldRetry);
       }
 
       @VisibleForTesting
-      Bound<OutType> withTestServices(BigQueryServices testServices) {
+      Bound<OutT> withTestServices(BigQueryServices testServices) {
         return new Bound<>(name, jsonTableRef, tableRefFunction, jsonSchema,
                 createDisposition, writeDisposition, validate, testServices, shouldRetry);
       }
@@ -1989,7 +2004,7 @@ public class BigQueryIO {
       }
 
       @Override
-      public OutType expand(PCollection<TableRow> input) {
+      public OutT expand(PCollection<TableRow> input) {
         Pipeline p = input.getPipeline();
         BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
         BigQueryServices bqServices = getBigQueryServices();
@@ -1998,7 +2013,7 @@ public class BigQueryIO {
         // StreamWithDeDup and BigQuery's streaming import API.
         if (input.isBounded() == IsBounded.UNBOUNDED || tableRefFunction != null) {
           return input.apply(
-              new StreamWithDeDup<OutType>(getTable(), tableRefFunction,
+              new StreamWithDeDup<OutT>(getTable(), tableRefFunction,
                   NestedValueProvider.of(jsonSchema, new JsonSchemaToTableSchema()), bqServices,
                   shouldRetry));
         }
@@ -2085,8 +2100,8 @@ public class BigQueryIO {
                 createDisposition)));
 
         // This only is reached if the input is bounded, and in this case we are guaranteed
-        // that OutType is PDone.
-        return (OutType)PDone.in(input.getPipeline());
+        // that OutT is PDone.
+        return (OutT) PDone.in(input.getPipeline());
       }
 
       private static class WriteBundles extends DoFn<TableRow, KV<String, Long>> {
@@ -2974,8 +2989,8 @@ public class BigQueryIO {
   * PTransform that performs streaming BigQuery write. To increase consistency,
   * it leverages BigQuery best effort de-dup mechanism.
    */
-  private static class StreamWithDeDup<OutType extends POutput>
-          extends PTransform<PCollection<TableRow>, OutType> {
+  private static class StreamWithDeDup<OutT extends POutput>
+          extends PTransform<PCollection<TableRow>, OutT> {
     private final transient ValueProvider<TableReference> tableReference;
     private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
     private final transient ValueProvider<TableSchema> tableSchema;
@@ -3002,7 +3017,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public OutType expand(PCollection<TableRow> input) {
+    public OutT expand(PCollection<TableRow> input) {
       // A naive implementation would be to simply stream data directly to BigQuery.
       // However, this could occasionally lead to duplicated data, e.g., when
       // a VM that runs this code is restarted and the code is re-run.
@@ -3027,14 +3042,14 @@ public class BigQueryIO {
           .apply(ParDo.of(new StreamingWriteFn(tableSchema, bqServices, shouldRetry)));
 
       if (shouldRetry != null) {
-        return (OutType)deadLetter;
+        return (OutT) deadLetter;
       } else {
         // Note that the implementation to return PDone here breaks the
         // implicit assumption about the job execution order. If a user
         // implements a PTransform that takes PDone returned here as its
         // input, the transform may not necessarily be executed after
         // the BigQueryIO.Write.
-        return (OutType) PDone.in(input.getPipeline());
+        return (OutT) PDone.in(input.getPipeline());
       }
     }
   }

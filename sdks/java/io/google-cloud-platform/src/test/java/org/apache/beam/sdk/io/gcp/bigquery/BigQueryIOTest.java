@@ -87,11 +87,11 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import javax.annotation.Nullable;
 
+import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.avro.Schema;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -113,7 +113,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -670,9 +669,9 @@ public class BigQueryIOTest implements Serializable {
           }
 
           boolean shouldInsert = true;
-          if (errors != null &&
-              shouldRetry != null &&
-              !shouldRetry.apply(new BigQueryIO.Write.RetryContext(errors))) {
+          if (errors != null
+              && shouldRetry != null
+              && !shouldRetry.apply(new BigQueryIO.Write.RetryContext(errors))) {
             deadLetter.add(tableRow);
             shouldInsert = false;
           }
@@ -1111,7 +1110,7 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
-    public static class PartitionedGlobalWindow extends BoundedWindow {
+  private static class PartitionedGlobalWindow extends BoundedWindow {
       String value;
 
       public PartitionedGlobalWindow(String value) {
@@ -2351,7 +2350,9 @@ public class BigQueryIOTest implements Serializable {
     logged.verifyNotLogged("Failed to delete the table " + toJsonString(tableRefs.get(2)));
   }
 
-  // Test options.
+  /**
+   * Test options.
+   */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getInputTable();
     void setInputTable(ValueProvider<String> value);

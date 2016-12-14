@@ -28,7 +28,6 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
-import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -48,7 +47,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -502,7 +500,8 @@ class BigQueryServicesImpl implements BigQueryServices {
                       .build();
 
       Table table = new Table().setTableReference(ref).setSchema(schema);
-      return tryCreateTable(table, ref.getProjectId(), ref.getDatasetId(), backoff, Sleeper.DEFAULT);
+      return tryCreateTable(table, ref.getProjectId(), ref.getDatasetId(), backoff,
+          Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
@@ -525,11 +524,13 @@ class BigQueryServicesImpl implements BigQueryServices {
               if (BackOffUtils.next(sleeper, backoff)) {
                 if (!retry) {
                   LOG.info(
-                          "Quota limit reached when creating table {}:{}.{}, retrying up to {} minutes",
+                          "Quota limit reached when creating table {}:{}.{}, retrying up to {} " +
+                          "minutes",
                           projectId,
                           datasetId,
                           table.getTableReference().getTableId(),
-                          TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS) / 60.0);
+                          TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS)
+                              / 60.0);
                   retry = true;
                 }
                 continue;
@@ -782,10 +783,10 @@ class BigQueryServicesImpl implements BigQueryServices {
                   throw new IOException("Insert failed: " + allErrors);
                 }
 
-                boolean skip_retry = shouldRetry != null && !shouldRetry.apply(
+                boolean skipRetry = shouldRetry != null && !shouldRetry.apply(
                         new BigQueryIO.Write.RetryContext(error));
                 int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
-                if (skip_retry) {
+                if (skipRetry) {
                   deadLetter.add(rowsToPublish.get(errorIndex));
                 } else {
                   allErrors.add(error);
