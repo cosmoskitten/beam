@@ -955,7 +955,7 @@ public class DataflowPipelineTranslator {
           private <InputT, OutputT> void translateMultiHelper(
               ParDo.BoundMulti<InputT, OutputT> transform,
               TranslationContext context) {
-            rejectStatefulDoFn(transform.getNewFn());
+            rejectStatefulDoFn(transform.getFn());
 
             context.addStep(transform, "ParallelDo");
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);
@@ -985,7 +985,7 @@ public class DataflowPipelineTranslator {
           private <InputT, OutputT> void translateSingleHelper(
               ParDo.Bound<InputT, OutputT> transform,
               TranslationContext context) {
-            rejectStatefulDoFn(transform.getNewFn());
+            rejectStatefulDoFn(transform.getFn());
 
             context.addStep(transform, "ParallelDo");
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);
