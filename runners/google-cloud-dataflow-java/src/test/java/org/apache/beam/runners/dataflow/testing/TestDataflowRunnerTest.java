@@ -95,7 +95,7 @@ public class TestDataflowRunnerTest {
   @Mock private MockLowLevelHttpRequest request;
   @Mock private GcsUtil mockGcsUtil;
 
-  private static final String WATERMARK_METRIC_SUFFIX = "windmill-data-watermark";
+  private static final String WATERMARK_METRIC_SUFFIX = "DataWatermark";
   private static final BigDecimal DEFAULT_MAX_WATERMARK = new BigDecimal(-2);
 
   private TestDataflowPipelineOptions options;
