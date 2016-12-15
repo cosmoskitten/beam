@@ -402,6 +402,10 @@ public class BigQueryServicesImplTest {
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
 
+  // A BackOff that makes a total of 4 attempts
+  private static final FluentBackoff TEST_BACKOFF =
+      FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(1)).withExponent(1).withMaxRetries(3);
+
   /**
    * Tests that {@link DatasetServiceImpl#insertAll} fails gracefully when persistent issues.
    */

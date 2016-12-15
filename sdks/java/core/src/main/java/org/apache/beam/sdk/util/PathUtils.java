@@ -20,6 +20,8 @@ package org.apache.beam.sdk.util;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Strings;
+
+import javax.annotation.Nonnull;
 import java.net.URI;
 
 /**
@@ -47,8 +49,10 @@ public class PathUtils {
     return ret;
   }
 
-  private static String resolveAgainstDirectory(String directory, String other) {
-    if (Strings.isNullOrEmpty(other)) {
+  private static String resolveAgainstDirectory(@Nonnull String directory, @Nonnull String other) {
+    checkNotNull(directory, "directory");
+    checkNotNull(other, "other");
+    if (other.isEmpty()) {
       return directory;
     }
     URI dirUri;
@@ -67,7 +71,7 @@ public class PathUtils {
    *         or the {@code path} itself, if it is already a directory,
    *         or an empty {@link String}, if {@code path} is "~", ".", "..".
    */
-  public static String getDirectory(String path) {
+  public static String getDirectory(@Nonnull String path) {
     checkNotNull(path, "path");
     return URI.create(path).resolve("").toString();
   }
@@ -79,10 +83,9 @@ public class PathUtils {
    *
    * @return a string representing the name of the file or directory,
    *         or the {@code path} itself, if {@code path} is "~", ".", "..",
-   *         or an empty {@link String} if this path is "/" or empty,
-   *         or {@code null} if this path is {@code null}.
+   *         or an empty {@link String} if this path is "/" or empty.
    */
-  public static String getFileName(String path) {
+  public static String getFileName(@Nonnull String path) {
     checkNotNull(path, "path");
     if (path.isEmpty() || path.equals(URI_DELIMITER)) {
       return "";
