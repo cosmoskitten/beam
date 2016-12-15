@@ -61,7 +61,9 @@ import org.slf4j.LoggerFactory;
  */
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
-  private static final String WATERMARK_METRIC_SUFFIX = "windmill-data-watermark";
+  // TODO: Create a better api for getting the watermark
+  private static final String LEGACY_WATERMARK_METRIC_SUFFIX = "windmill-data-watermark";
+  private static final String WATERMARK_METRIC_SUFFIX = "DataWatermark";
   private static final long MAX_WATERMARK_VALUE = -2L;
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
 
@@ -258,7 +260,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     for (MetricUpdate metric : metrics.getMetrics()) {
       if (metric.getName() == null
           || metric.getName().getName() == null
-          || !metric.getName().getName().endsWith(WATERMARK_METRIC_SUFFIX)
+          || !(metric.getName().getName().endsWith(LEGACY_WATERMARK_METRIC_SUFFIX) ||
+               metric.getName().getName().endsWith(WATERMARK_METRIC_SUFFIX))
           || metric.getScalar() == null) {
         continue;
       }
