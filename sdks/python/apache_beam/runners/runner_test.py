@@ -39,10 +39,10 @@ import apache_beam.transforms as ptransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.options import PipelineOptions
 
-from apache_beam.metrics.base import MetricResult
-from apache_beam.metrics.base import MetricKey
-from apache_beam.metrics.base import MetricName
 from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.metricbase import MetricName
 
 
 class RunnerTest(unittest.TestCase):

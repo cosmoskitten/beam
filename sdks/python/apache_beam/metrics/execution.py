@@ -21,6 +21,8 @@ Internal classes for Metrics API.
 The classes in this file keep shared state, and organize metrics information.
 
 Available classes:
+- MetricKey - Internal key for a metric.
+- MetricResult - Current status of a metric's updates/commits.
 - MetricsEnvironment - Keeps track of MetricsContainer and other metrics
     information for every single execution working thread.
 - MetricsContainer - Holds the metrics of a single step and a single
@@ -29,8 +31,69 @@ Available classes:
 from collections import defaultdict
 import threading
 
-from apache_beam.metrics.base import MetricKey, MetricUpdates
 from apache_beam.metrics.cells import CounterCell, DistributionCell
+
+
+class MetricKey(object):
+  """Metrics are internally keyed by the step name they associated with and
+  the name of the metric.
+  """
+  def __init__(self, step, metric):
+    """Initializes ``MetricKey``.
+
+    Args:
+      step: A string with the step this metric cell is part of.
+      metric: A ``MetricName`` that identifies a metric.
+    """
+    self.step = step
+    self.metric = metric
+
+  def __eq__(self, other):
+    return (self.step == other.step and
+            self.metric == other.metric)
+
+  def __str__(self):
+    return 'MetricKey(step={}, metric={})'.format(
+        self.step, self.metric)
+
+  def __hash__(self):
+    return hash((self.step, self.metric))
+
+
+class MetricResult(object):
+  """Keeps track of the status of a metric within a single bundle.
+
+  It contains the physical and logical updates to the metric. Physical updates
+  are updates that have not necessarily been committed, but that have been made
+  during pipeline execution. Logical updates are updates that have been
+  committed.
+
+  Attributes:
+    key: A ``MetricKey`` that identifies the metric and bundle of this result.
+    committed: The committed updates of the metric. This attribute's type is
+      that of the underlying cell data (e.g. int, DistributionData).
+    attempted: The logical updates of the metric. This attribute's type is that
+      of the underlying cell data (e.g. int, DistributionData).
+  """
+  def __init__(self, key, committed, attempted):
+    """Initializes ``MetricResult``.
+    Args:
+      key: A ``MetricKey`` object.
+      committed: Metric data that has been committed (e.g. logical updates)
+      attempted: Metric data that has been attempted (e.g. physical updates)
+    """
+    self.key = key
+    self.committed = committed
+    self.attempted = attempted
+
+  def __eq__(self, other):
+    return (self.key == other.key and
+            self.committed == other.committed and
+            self.attempted == other.attempted)
+
+  def __str__(self):
+    return 'MetricResult(key={}, committed={}, attempted={})'.format(
+        self.key, self.committed, self.attempted)
 
 
 class MetricsEnvironment(object):
@@ -66,8 +129,7 @@ class MetricsEnvironment(object):
 
 
 class MetricsContainer(object):
-  """Holds the metrics of a single step and a single bundle.
-  """
+  """Holds the metrics of a single step and a single bundle."""
   def __init__(self, step_name):
     self.step_name = step_name
     self.counters = defaultdict(lambda: CounterCell())
@@ -113,3 +175,34 @@ class MetricsContainer(object):
     they have been committed or not.
     """
     return self._get_updates()
+
+
+class ScopedMetricsContainer(MetricsContainer):
+  def __init__(self, step_name):
+    self._old_container = MetricsEnvironment.current_container()
+    super(ScopedMetricsContainer, self).__init__(step_name)
+
+  def __enter__(self):
+    MetricsEnvironment.set_current_container(self)
+    return self
+
+  def __exit__(self, type, value, traceback):
+    MetricsEnvironment.set_current_container(self._old_container)
+
+
+class MetricUpdates(object):
+  """Contains updates for several metrics.
+
+  A metric update is an object containing information to update a metric.
+  For Distribution metrics, it is DistributionData, and for Counter metrics,
+  it's an int.
+  """
+  def __init__(self, counters=None, distributions=None):
+    """Create a MetricUpdates object.
+
+    Args:
+      counters: Dictionary of MetricKey:MetricUpdate updates.
+      distributions: Dictionary of MetricKey:MetricUpdate objects.
+    """
+    self.counters = counters or {}
+    self.distributions = distributions or {}

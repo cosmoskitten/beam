@@ -17,12 +17,12 @@
 
 import unittest
 
-from apache_beam.metrics.base import MetricName
-from apache_beam.metrics.base import MetricKey
-from apache_beam.metrics.internal import MetricsContainer
-from apache_beam.metrics.internal import MetricsEnvironment
-from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metric import Metrics
+from apache_beam.metrics.metricbase import MetricName
 
 
 class NameTest(unittest.TestCase):

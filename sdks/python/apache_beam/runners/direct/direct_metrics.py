@@ -23,10 +23,10 @@ state consistent.
 from collections import defaultdict
 import threading
 
-from apache_beam.metrics.base import MetricResult
-from apache_beam.metrics.base import MetricKey
 from apache_beam.metrics.cells import CounterAggregator
 from apache_beam.metrics.cells import DistributionAggregator
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import MetricResults
 
 

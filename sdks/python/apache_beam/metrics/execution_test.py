@@ -17,12 +17,13 @@
 
 import unittest
 
-from apache_beam.metrics.base import MetricName
-from apache_beam.metrics.base import MetricKey
 from apache_beam.metrics.cells import CellCommitState
-from apache_beam.metrics.internal import MetricsContainer
-from apache_beam.metrics.internal import MetricsEnvironment
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metric import Metrics
+from apache_beam.metrics.metricbase import MetricName
 
 
 class TestMetricsContainer(unittest.TestCase):
@@ -31,6 +32,27 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertFalse(mc.counters.has_key(MetricName('namespace', 'name')))
     mc.get_counter(MetricName('namespace', 'name'))
     self.assertTrue(mc.counters.has_key(MetricName('namespace', 'name')))
+
+  def test_scoped_container(self):
+    with ScopedMetricsContainer('mystep') as c1:
+      self.assertEqual(c1, MetricsEnvironment.current_container())
+      counter = Metrics.counter('ns', 'name')
+      counter.inc(2)
+
+      with ScopedMetricsContainer('myinternalstep') as c2:
+        self.assertEqual(c2, MetricsEnvironment.current_container())
+        counter = Metrics.counter('ns', 'name')
+        counter.inc(3)
+        self.assertEqual(
+            c2.get_cumulative().counters.items(),
+            [(MetricKey('myinternalstep', MetricName('ns', 'name')), 3)])
+
+      self.assertEqual(c1, MetricsEnvironment.current_container())
+      counter = Metrics.counter('ns', 'name')
+      counter.inc(4)
+      self.assertEqual(
+          c1.get_cumulative().counters.items(),
+          [(MetricKey('mystep', MetricName('ns', 'name')), 6)])
 
   def test_add_to_counter(self):
     mc = MetricsContainer('astep')

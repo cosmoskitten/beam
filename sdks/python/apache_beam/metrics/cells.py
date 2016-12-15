@@ -15,39 +15,81 @@
 # limitations under the License.
 #
 
+"""
+This file contains metric cell classes. A Metric cell is used to accumulate
+in-memory changes to a metric. It represents a specific metric in a single
+context.
+
+Cells depend on a 'dirty-bit' in the CellCommitState class that tracks whether
+a cell's updates have been committed.
+"""
+
 import threading
 
-from apache_beam.metrics.base import Counter
-from apache_beam.metrics.base import Distribution
+from apache_beam.metrics.metricbase import Counter
+from apache_beam.metrics.metricbase import Distribution
 
 
 class CellCommitState(object):
-  """Keeps track of a cell's commit status.
+  """Atomically tracks a cell's dirty/clean commit status.
 
-  It's thread-safe.
+  Reporting a metric udate works in a two-step process: First updates to the
+  metric are received, and the metric is marked as 'dirty'. Later updates are
+  committed, and then the cell may be marked as 'clean'.
+
+  The tracking of a cell's state is done conservatively: A metric may be
+  reported DIRTY even if updates have not occurred.
+
+  This class is thread-safe.
   """
+
+  # Indicates that there have been changes to the cell since the last commit.
   DIRTY = 0
+  # Indicates that there have NOT been changes to the cell since last commit.
   CLEAN = 1
+  # Indicates that a commit of the current value is in progress.
   COMMITTING = 2
 
   def __init__(self):
+    """Initializes ``CellCommitState``.
+
+    A cell is initialized as dirty
+    """
     self._lock = threading.Lock()
     self._state = CellCommitState.DIRTY
 
   @property
   def state(self):
-    return self._state
+    with self._lock:
+      return self._state
 
-  def modified(self):
+  def after_modification(self):
+    """Indicate that changes have been made to the metric being tracked.
+
+    Should be called after modification of the metric value.
+    """
     with self._lock:
       self._state = CellCommitState.DIRTY
 
   def after_commit(self):
+    """Mark changes made up to the last call to ``before_commit`` as committed.
+
+    The next call to ``before_commit`` will return ``false`` unless there have
+    been changes made.
+    """
     with self._lock:
       if self._state == CellCommitState.COMMITTING:
         self._state = CellCommitState.CLEAN
 
   def before_commit(self):
+    """Check the dirty state, and mark the metric as committing.
+
+    After this call, the state is either CLEAN, or COMMITTING. If the state
+    was already CLEAN, then we simply return. If it was either DIRTY or
+    COMMITTING, then we set the cell as COMMITTING (e.g. in the middle of
+    a commit).
+    After a commit is successful, ``after_commit`` should be called.
+    """
     with self._lock:
       if self._state == CellCommitState.CLEAN:
         return False
@@ -57,11 +99,12 @@ class CellCommitState(object):
 
 
 class MetricCell(object):
-  """Base class of Cell that tracks state of a metric during pipeline execution.
+  """Accumulates in-memory changes to a metric.
 
-  All subclasses must be thread safe, as these are used in the
-  pipeline runners, and may be subject to parallel/concurrent
-  updates.
+  A MetricCell represents a specific metric in a single context and bundle.
+  All subclasses must be thread safe, as these are used in the pipeline runners,
+  and may be subject to parallel/concurrent updates. Cells should only be used
+  directly within a runner.
   """
   def __init__(self):
     self.commit = CellCommitState()
@@ -72,9 +115,13 @@ class MetricCell(object):
 
 
 class CounterCell(Counter, MetricCell):
-  """Keeps the state of a counter metric during pipeline execution.
+  """Tracks the current value and delta of a counter metric.
 
-  It's thread safe.
+  Each cell tracks the state of a metric independently per context per bundle.
+  Therefore, each metric has a different cell in each bundle, cells are
+  aggregated by the runner.
+
+  This class is thread safe.
   """
   def __init__(self, *args):
     super(CounterCell, self).__init__(*args)
@@ -88,7 +135,7 @@ class CounterCell(Counter, MetricCell):
   def inc(self, n=1):
     with self._lock:
       self.value += n
-      self.commit.modified()
+      self.commit.after_modification()
 
   def get_cumulative(self):
     with self._lock:
@@ -96,9 +143,13 @@ class CounterCell(Counter, MetricCell):
 
 
 class DistributionCell(Distribution, MetricCell):
-  """Keeps the state of a distribution metric during pipeline execution.
+  """Tracks the current value and delta for a distribution metric.
 
-  It's thread safe.
+  Each cell tracks the state of a metric independently per context per bundle.
+  Therefore, each metric has a different cell in each bundle, that is later
+  aggregated.
+
+  This class is thread safe.
   """
   def __init__(self, *args):
     super(DistributionCell, self).__init__(*args)
@@ -111,10 +162,11 @@ class DistributionCell(Distribution, MetricCell):
 
   def update(self, value):
     with self._lock:
-      self.commit.modified()
+      self.commit.after_modification()
       self._update(value)
 
   def _update(self, value):
+    value = int(value)
     self.data._count += 1
     self.data._sum += value
     self.data._min = (value
@@ -177,7 +229,8 @@ class DistributionData(object):
 
   @property
   def mean(self):
-    return self.sum / self.count
+    """Returns the float mean of the distribution."""
+    return float(self.sum) / self.count
 
   def combine(self, other):
     if other is None:
@@ -185,19 +238,21 @@ class DistributionData(object):
     else:
       new_min = (None if self.min is None and other.min is None else
                  min(x for x in (self.min, other.min) if x is not None))
+      new_max = (None if self.max is None and other.max is None else
+                 max(x for x in (self.max, other.max) if x is not None))
       return DistributionData(
           self.sum + other.sum,
           self.count + other.count,
           new_min,
-          max(self.max, other.max))
+          new_max)
 
   @classmethod
   def singleton(cls, value):
     return DistributionData(value, 1, value, value)
 
 
-class MetricAggregation(object):
-  """Base class for aggregating metric data."""
+class MetricAggregator(object):
+  """Base interface for aggregating metric data during pipeline execution."""
   def combine(self, updates):
     raise NotImplementedError
 
@@ -205,22 +260,22 @@ class MetricAggregation(object):
     raise NotImplementedError
 
 
-class CounterAggregator(object):
-  """Class for aggregating data from Counter metrics.
+class CounterAggregator(MetricAggregator):
+  """Aggregator for Counter metric data during pipeline execution.
 
-  It works with pure integers.
+  Values aggregated should be ``int`` objects.
   """
   def zero(self):
     return 0
 
   def combine(self, x, y):
-    return x + y
+    return int(x) + int(y)
 
 
-class DistributionAggregator(object):
-  """Class for aggregating data from Distribution metrics.
+class DistributionAggregator(MetricAggregator):
+  """Aggregator for Distribution metric data during pipeline execution.
 
-  It works with DistributionData objects.
+  Values aggregated should be ``DistributionData`` objects.
   """
   def zero(self):
     return DistributionData(0, 0, None, None)

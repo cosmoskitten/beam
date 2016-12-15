@@ -27,7 +27,7 @@ import collections
 import logging
 
 from apache_beam.runners.direct.bundle_factory import BundleFactory
-from apache_beam.metrics.internal import MetricsEnvironment
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState

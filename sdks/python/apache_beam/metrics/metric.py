@@ -26,9 +26,9 @@ and displayed as part of their pipeline execution.
 """
 import inspect
 
-from apache_beam.metrics.base import Counter, Distribution
-from apache_beam.metrics.base import MetricName
-from apache_beam.metrics.internal import MetricsEnvironment
+from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metricbase import Counter, Distribution
+from apache_beam.metrics.metricbase import MetricName
 
 
 class Metrics(object):

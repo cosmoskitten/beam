@@ -26,8 +26,8 @@ import threading
 import traceback
 from weakref import WeakValueDictionary
 
-from apache_beam.metrics.internal import MetricsContainer
-from apache_beam.metrics.internal import MetricsEnvironment
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.execution import MetricsEnvironment
 
 
 class ExecutorService(object):

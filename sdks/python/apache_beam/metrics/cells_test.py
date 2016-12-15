@@ -111,6 +111,14 @@ class TestDistributionCell(unittest.TestCase):
                      DistributionData(912, 3, 2, 900))
     self.assertEqual(d.get_cumulative().mean, 912/3)
 
+  def test_integer_only(self):
+    d = DistributionCell()
+    d.update(3.1)
+    d.update(3.2)
+    d.update(3.3)
+    self.assertEqual(d.get_cumulative(),
+                     DistributionData(9, 3, 3, 3))
+
 
 class TestCellCommitState(unittest.TestCase):
   def test_basic_path(self):
@@ -121,15 +129,15 @@ class TestCellCommitState(unittest.TestCase):
     self.assertFalse(ds.before_commit())
 
     # Make it dirty again
-    ds.modified()
+    ds.after_modification()
     self.assertTrue(ds.before_commit())
     ds.after_commit()
     self.assertFalse(ds.before_commit())
 
     # Dirty again
-    ds.modified()
+    ds.after_modification()
     self.assertTrue(ds.before_commit())
-    ds.modified()
+    ds.after_modification()
     ds.after_commit()
     self.assertTrue(ds.before_commit())
 
