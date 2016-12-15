@@ -29,6 +29,7 @@ import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
+import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
@@ -255,10 +256,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     private final EvaluationContext ctxt;
     private final SparkPipelineTranslator translator;
+    private final SparkPCollectionView pview;
 
     public Evaluator(SparkPipelineTranslator translator, EvaluationContext ctxt) {
       this.translator = translator;
       this.ctxt = ctxt;
+      pview = new SparkPCollectionView();
     }
 
     @Override
@@ -324,7 +327,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       LOG.info("Evaluating {}", transform);
       AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
       ctxt.setCurrentTransform(appliedTransform);
-      evaluator.evaluate(transform, ctxt);
+      evaluator.evaluate(transform, ctxt, pview);
       ctxt.setCurrentTransform(null);
     }
 

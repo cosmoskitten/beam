@@ -55,7 +55,6 @@ public class EvaluationContext {
   private final Set<Dataset> leaves = new LinkedHashSet<>();
   private final Set<PValue> multiReads = new LinkedHashSet<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
-  private final Map<PValue, Iterable<? extends WindowedValue<?>>> pview = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
@@ -129,10 +128,6 @@ public class EvaluationContext {
     datasets.put((PValue) getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
   }
 
-  void putPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
-    pview.put(view, value);
-  }
-
   public Dataset borrowDataset(PTransform<?, ?> transform) {
     return borrowDataset((PValue) getInput(transform));
   }
@@ -147,10 +142,6 @@ public class EvaluationContext {
       multiReads.add(pvalue);
     }
     return dataset;
-  }
-
-  <T> Iterable<? extends WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
-    return pview.get(view);
   }
 
   /**
