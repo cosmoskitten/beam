@@ -19,8 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Strings;
-
 import javax.annotation.Nonnull;
 import java.net.URI;
 

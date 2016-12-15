@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
+import java.net.URI;
 import org.junit.Test;
 
 /**
@@ -80,5 +81,10 @@ public class PathUtilsTest {
     assertEquals("a", PathUtils.getFileName("/a/"));
     assertEquals("ab", PathUtils.getFileName("ab/"));
     assertEquals("c", PathUtils.getFileName("/ab/c"));
+  }
+
+  @Test
+  public void testURI() throws Exception {
+    System.out.print(URI.create("gs-s3://abc/dfd/.././dfd/..").normalize().toString());
   }
 }
