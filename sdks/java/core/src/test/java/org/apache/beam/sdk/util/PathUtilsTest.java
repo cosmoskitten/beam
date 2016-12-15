@@ -19,66 +19,117 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
+import java.net.URI;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /**
  * Unit tests for {@link PathUtils}.
  */
 public class PathUtilsTest {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
   @Test
-  public void testResolveSinglePath() throws Exception {
+  public void testResolveAgainstDirectory() throws Exception {
+    // Tests for local files without the scheme.
     assertEquals(
         "/root/tmp/aa",
         PathUtils.resolveAgainstDirectory("/root/tmp", "aa"));
-  }
-
-  @Test
-  public void testResolveMultiplePaths() throws Exception {
     assertEquals(
         "/root/tmp/aa/bb/cc",
         PathUtils.resolveAgainstDirectory("/root/tmp", "aa", "bb", "cc"));
-  }
 
-  @Test
-  public void testResolveWithScheme() throws Exception {
+    // Tests uris with scheme.
     assertEquals(
         "file:/root/tmp/aa",
         PathUtils.resolveAgainstDirectory("file:/root/tmp", "aa"));
     assertEquals(
+        "file:/aa",
+        PathUtils.resolveAgainstDirectory("file:///", "aa"));
+    assertEquals(
         "gs://bucket/tmp/aa",
         PathUtils.resolveAgainstDirectory("gs://bucket/tmp", "aa"));
-  }
 
-  @Test
-  public void testResolveOtherIsAbsolutePath() throws Exception {
-    String expected = "/root/tmp/aa";
-    assertEquals(expected, PathUtils.resolveAgainstDirectory(expected, expected));
+    // Tests for Windows OS path in URI format.
+    assertEquals(
+        "file:/C:/home%20dir/a%20b/a%20b",
+        PathUtils.resolveAgainstDirectory("file:/C:/home%20dir", "a%20b", "a%20b"));
+
+    // Tests absolute path.
+    assertEquals(
+        "/root/tmp/aa",
+        PathUtils.resolveAgainstDirectory("/root/tmp/aa", "/root/tmp/aa"));
+
+    // Tests query and fragment.
+    assertEquals(
+        "file:/home/output/aa/bb",
+        PathUtils.resolveAgainstDirectory("file:/home/output?query#fragment", "aa", "bb"));
+
+    // Tests normalizing of "." and ".."
+    assertEquals(
+        "s3://authority/../home/bb",
+        PathUtils.resolveAgainstDirectory("s3://authority/../home/output/..", "aa", "..", "bb"));
+    assertEquals(
+        "s3://authority/aa/bb",
+        PathUtils.resolveAgainstDirectory("s3://authority/.", "aa", ".", "bb"));
+    assertEquals(
+        "aa/bb",
+        PathUtils.resolveAgainstDirectory("a/..", "aa", ".", "bb"));
+    assertEquals(
+        "/aa/bb",
+        PathUtils.resolveAgainstDirectory("/a/..", "aa", ".", "bb"));
+
+    // Tests  ".", "./", "..", "../", "~".
+    assertEquals(
+        "aa/bb",
+        PathUtils.resolveAgainstDirectory(".", "aa", "./", "bb"));
+    assertEquals(
+        "aa/bb",
+        PathUtils.resolveAgainstDirectory("./", "aa", "./", "bb"));
+    assertEquals(
+        "../aa/bb",
+        PathUtils.resolveAgainstDirectory("..", "aa", "./", "bb"));
+    assertEquals(
+        "../aa/bb",
+        PathUtils.resolveAgainstDirectory("../", "aa", "./", "bb"));
+    assertEquals(
+        "~/aa/bb",
+        PathUtils.resolveAgainstDirectory("~", "aa", "./", "bb"));
   }
 
   @Test
   public void testResolveOtherIsEmptyPath() throws Exception {
-    String expected = "/root/tmp/aa";
-    assertEquals(expected, PathUtils.resolveAgainstDirectory(expected, "", ""));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected other is not empty.");
+    // Tests resolving empty strings.
+    PathUtils.resolveAgainstDirectory("/root/tmp/aa", "", "");
   }
 
   @Test
-  public void testGetDirectory() throws Exception {
-    assertEquals("", PathUtils.getDirectory(""));
-    assertEquals("/", PathUtils.getDirectory("/"));
-    assertEquals("/", PathUtils.getDirectory("/a"));
-    assertEquals("/a/", PathUtils.getDirectory("/a/"));
-    assertEquals("ab/", PathUtils.getDirectory("ab/"));
-    assertEquals("/ab/", PathUtils.getDirectory("/ab/c"));
+  public void testResolveOtherHasQuery() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no query in other");
+    // Tests resolving empty strings.
+    PathUtils.resolveAgainstDirectory("/root/tmp/aa", "bb?q");
   }
 
   @Test
-  public void testGetFileName() throws Exception {
-    assertEquals("", PathUtils.getFileName(""));
-    assertEquals("", PathUtils.getFileName("/"));
-    assertEquals("", PathUtils.getFileName("//"));
-    assertEquals("a", PathUtils.getFileName("/a"));
-    assertEquals("a", PathUtils.getFileName("/a/"));
-    assertEquals("ab", PathUtils.getFileName("ab/"));
-    assertEquals("c", PathUtils.getFileName("/ab/c"));
+  public void testResolveOtherHasFragment() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no fragment in other");
+    // Tests resolving empty strings.
+    PathUtils.resolveAgainstDirectory("/root/tmp/aa", "bb#q");
+  }
+
+  @Test
+  public void testResolveWithIllegalChar() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Illegal character");
+    // Tests for Windows OS path with unescaped chars in URI format.
+    PathUtils.resolveAgainstDirectory("file:/C:/home dir", "a b", "a b");
   }
 }
