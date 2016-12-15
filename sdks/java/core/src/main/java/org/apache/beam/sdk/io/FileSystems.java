@@ -50,14 +50,18 @@ public class FileSystems {
 
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile("^[a-zA-Z][-a-zA-Z0-9+.]*$");
 
-  private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR = new ConcurrentHashMap();
+  private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR = new ConcurrentHashMap<>();
 
-  private static final Map<String, PipelineOptions> SCHEME_TO_DEFAULT_CONFIG = new ConcurrentHashMap();
+  private static final Map<String, PipelineOptions> SCHEME_TO_DEFAULT_CONFIG = new ConcurrentHashMap<>();
+
+  static {
+    loadFileSystemRegistrars();
+  }
 
   /**
    * Loads available {@link FileSystemRegistrar} services.
    */
-  public static void loadFileSystemRegistrars() {
+  private static void loadFileSystemRegistrars() {
     SCHEME_TO_REGISTRAR.clear();
     Set<FileSystemRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
@@ -120,7 +124,7 @@ public class FileSystems {
         TreeMultimap.create(Ordering.<String>natural(), Ordering.arbitrary());
 
     for (FileSystemRegistrar registrar : registrars) {
-      registrarsBySchemes.put(registrar.getScheme(), registrar);
+      registrarsBySchemes.put(registrar.getScheme().toLowerCase(), registrar);
     }
     for (Entry<String, Collection<FileSystemRegistrar>> entry
         : registrarsBySchemes.asMap().entrySet()) {
