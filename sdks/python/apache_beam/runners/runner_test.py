@@ -40,6 +40,7 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.options import PipelineOptions
 
 from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
@@ -161,8 +162,8 @@ class RunnerTest(unittest.TestCase):
         hc.contains_inanyorder(
             MetricResult(
                 MetricKey('do', MetricName(namespace, 'element-dist')),
-                DistributionData(15, 5, 1, 5),
-                DistributionData(15, 5, 1, 5))))
+                DistributionResult(DistributionData(15, 5, 1, 5)),
+                DistributionResult(DistributionData(15, 5, 1, 5)))))
 
   def test_no_group_by_key_directly_after_bigquery(self):
     remote_runner = DataflowPipelineRunner()

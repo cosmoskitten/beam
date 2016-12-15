@@ -102,11 +102,11 @@ class DirectMetric(object):
     self.inflight_attempted[bundle] = update
 
   def extract_committed(self):
-    return self.finished_committed
+    return self.aggregator.result(self.finished_committed)
 
   def extract_latest_attempted(self):
     res = self.finished_attempted
     for _, u in self.inflight_attempted.items():
       res = self.aggregator.combine(res, u)
 
-    return res
+    return self.aggregator.result(res)

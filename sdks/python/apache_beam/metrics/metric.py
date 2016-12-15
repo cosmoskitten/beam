@@ -61,6 +61,8 @@ class Metrics(object):
   def distribution(namespace, name):
     """Obtains or creates a Distribution metric.
 
+    Distribution metrics are restricted to integer-only distributions.
+
     Args:
       namespace: A class or string that gives the namespace to a metric
       name: A string that gives a unique name to a metric

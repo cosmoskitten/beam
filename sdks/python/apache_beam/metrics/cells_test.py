@@ -99,17 +99,14 @@ class TestDistributionCell(unittest.TestCase):
     d.update(10)
     self.assertEqual(d.get_cumulative(),
                      DistributionData(10, 1, 10, 10))
-    self.assertEqual(d.get_cumulative().mean, 10)
 
     d.update(2)
     self.assertEqual(d.get_cumulative(),
                      DistributionData(12, 2, 2, 10))
-    self.assertEqual(d.get_cumulative().mean, 6)
 
     d.update(900)
     self.assertEqual(d.get_cumulative(),
                      DistributionData(912, 3, 2, 900))
-    self.assertEqual(d.get_cumulative().mean, 912/3)
 
   def test_integer_only(self):
     d = DistributionCell()

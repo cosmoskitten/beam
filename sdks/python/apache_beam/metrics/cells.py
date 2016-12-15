@@ -167,31 +167,64 @@ class DistributionCell(Distribution, MetricCell):
 
   def _update(self, value):
     value = int(value)
-    self.data._count += 1
-    self.data._sum += value
-    self.data._min = (value
-                      if self.data.min is None or self.data.min > value
-                      else self.data.min)
-    self.data._max = (value
-                      if self.data.max is None or self.data.max < value
-                      else self.data.max)
+    self.data.count += 1
+    self.data.sum += value
+    self.data.min = (value
+                     if self.data.min is None or self.data.min > value
+                     else self.data.min)
+    self.data.max = (value
+                     if self.data.max is None or self.data.max < value
+                     else self.data.max)
 
   def get_cumulative(self):
     with self._lock:
       return self.data.get_cumulative()
 
 
+class DistributionResult(object):
+  """The result of a Distribution metric.
+  """
+  def __init__(self, data):
+    self.data = data
+
+  def __eq__(self, other):
+    return self.data == other.data
+
+  @property
+  def max(self):
+    return self.data.max
+
+  @property
+  def min(self):
+    return self.data.min
+
+  @property
+  def count(self):
+    return self.data.count
+
+  @property
+  def sum(self):
+    return self.data.sum
+
+  @property
+  def mean(self):
+    """Returns the float mean of the distribution."""
+    return float(self.data.sum)/self.data.count
+
+
 class DistributionData(object):
   """The data structure that holds data about a distribution metric.
+
+  Distribution metrics are restricted to distributions of integers only.
 
   This object is not thread safe, so it's not supposed to be modified
   by other than the DistributionCell that contains it.
   """
   def __init__(self, sum, count, min, max):
-    self._sum = sum
-    self._count = count
-    self._min = min
-    self._max = max
+    self.sum = sum
+    self.count = count
+    self.min = min
+    self.max = max
 
   def __eq__(self, other):
     return (self.sum == other.sum and
@@ -210,27 +243,6 @@ class DistributionData(object):
 
   def get_cumulative(self):
     return DistributionData(self.sum, self.count, self.min, self.max)
-
-  @property
-  def sum(self):
-    return self._sum
-
-  @property
-  def count(self):
-    return self._count
-
-  @property
-  def min(self):
-    return self._min
-
-  @property
-  def max(self):
-    return self._max
-
-  @property
-  def mean(self):
-    """Returns the float mean of the distribution."""
-    return float(self.sum) / self.count
 
   def combine(self, other):
     if other is None:
@@ -259,6 +271,9 @@ class MetricAggregator(object):
   def zero(self):
     raise NotImplementedError
 
+  def result(self, x):
+    raise NotImplementedError
+
 
 class CounterAggregator(MetricAggregator):
   """Aggregator for Counter metric data during pipeline execution.
@@ -271,6 +286,9 @@ class CounterAggregator(MetricAggregator):
   def combine(self, x, y):
     return int(x) + int(y)
 
+  def result(self, x):
+    return int(x)
+
 
 class DistributionAggregator(MetricAggregator):
   """Aggregator for Distribution metric data during pipeline execution.
@@ -282,3 +300,6 @@ class DistributionAggregator(MetricAggregator):
 
   def combine(self, x, y):
     return x.combine(y)
+
+  def result(self, x):
+    return DistributionResult(x.get_cumulative())
