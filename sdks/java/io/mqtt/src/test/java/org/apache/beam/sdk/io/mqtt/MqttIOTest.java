@@ -80,7 +80,7 @@ public class MqttIOTest implements Serializable {
     brokerService.waitUntilStarted();
   }
 
-  @Test(timeout = 120 * 1000)
+  @Test(timeout = 240 * 1000)
   @Category(NeedsRunner.class)
   public void testRead() throws Exception {
     final Pipeline pipeline = TestPipeline.create();
