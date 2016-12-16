@@ -39,10 +39,8 @@ import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.model.Statement;
 
 /**
  * Tests for the {@link TestPipeline} as a JUnit rule.
@@ -95,10 +93,6 @@ public class TestPipelineRuleTest implements Serializable {
     }
   }
 
-  private abstract class SerializableStatement extends Statement implements Serializable {
-
-  }
-
   private static final List<String> WORDS = Collections.singletonList("hi there");
   private static final String EXPECTED = "expected";
 
@@ -127,106 +121,41 @@ public class TestPipelineRuleTest implements Serializable {
         }));
   }
 
-  private Statement disableStrictPAssertFlow() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        pCollection();
-        pipeline.enableStrictPAssert(false);
-      }
-    };
-  }
-
-  private Statement normalFlowWithPAssert() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-        pipeline.run().waitUntilFinish();
-      }
-    };
-  }
-
-  private Statement autoAddMissingRunFlow() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-        pipeline.enableAutoRunIfMissing(true);
-      }
-    };
-  }
-
-  private Statement pipelineRunMissing() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-      }
-    };
-  }
-
-  private Statement pipelinePAssertMissing() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        pipeline.run().waitUntilFinish();
-      }
-    };
-  }
-
-  private Statement abandonedPTransform() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-        pipeline.run().waitUntilFinish();
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-      }
-    };
-  }
-
-  private void runTestCase(final Statement statement) throws Throwable {
-    final TestRule rule = pipeline;
-    rule.apply(statement, null).evaluate();
-  }
-
   @Test
   public void testPipelineRunMissing() throws Throwable {
     expectedException.expect(TestPipeline.PipelineRunMissingException.class);
-    runTestCase(pipelineRunMissing());
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
   }
 
   @Test
   public void testPipelineHasAbandonedPTransform() throws Throwable {
     expectedException.expect(TestPipeline.AbandonedPTransformException.class);
-    runTestCase(abandonedPTransform());
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+    pipeline.run().waitUntilFinish();
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
   }
 
   @Test
   public void testPipelinePAssertMissing() throws Throwable {
     expectedException.expect(TestPipeline.PAssertMissingException.class);
-    runTestCase(pipelinePAssertMissing());
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testNormalFlowWithPAssert() throws Throwable {
-    runTestCase(normalFlowWithPAssert());
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testAutoAddMissingRunFlow() throws Throwable {
-    runTestCase(autoAddMissingRunFlow());
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+    pipeline.enableAutoRunIfMissing(true);
   }
 
   @Test
   public void testDisableStrictPAssertFlow() throws Throwable {
-    runTestCase(disableStrictPAssertFlow());
+    pCollection();
+    pipeline.enableStrictPAssert(false);
   }
 }
