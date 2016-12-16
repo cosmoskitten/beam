@@ -256,6 +256,13 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
+    parser.add_argument('--service_account_name',
+                        default=None,
+                        help='Name of the service account for Google APIs.')
+    parser.add_argument('--service_account_key_file',
+                        default=None,
+                        help='Path to a file containing the P12 service '
+                        'credentials.')
     parser.add_argument('--service_account_email',
                         default=None,
                         help='Identity to run virtual machines as.')
