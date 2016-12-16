@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
-import org.apache.activemq.store.kahadb.KahaDBStore;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -39,13 +38,11 @@ import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -56,9 +53,6 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 public class MqttIOTest implements Serializable {
-
-  @Rule
-  public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MqttIOTest.class);
 
@@ -76,12 +70,8 @@ public class MqttIOTest implements Serializable {
     LOGGER.info("Starting ActiveMQ brokerService on {}", port);
     brokerService = new BrokerService();
     brokerService.setDeleteAllMessagesOnStartup(true);
-    // use persistence and temporary folder as store
-    brokerService.setPersistent(true);
-    brokerService.setDataDirectory(temporaryFolder.newFolder("activemq-data").getAbsolutePath());
-    KahaDBStore kahaDBStore = new KahaDBStore();
-    kahaDBStore.setDirectory(temporaryFolder.newFolder("activemq-data", "kahadb"));
-    brokerService.setPersistenceAdapter(kahaDBStore);
+    // not use of persistence in the test
+    brokerService.setPersistent(false);
     // doesn't enable the ActiveMQ JMX MBean server (no need)
     brokerService.setUseJmx(false);
     // add MQTT transport connector
@@ -123,8 +113,7 @@ public class MqttIOTest implements Serializable {
         try {
           MqttClient client = new MqttClient("tcp://localhost:" + port,
               MqttClient.generateClientId(),
-              new MqttDefaultFilePersistence(
-                  temporaryFolder.newFolder("paho").getAbsolutePath()));
+              new MemoryPersistence());
           client.connect();
           LOGGER.info("Waiting pipeline connected to the MQTT broker before sending "
               + "messages ...");
@@ -159,12 +148,9 @@ public class MqttIOTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
     final CountDownLatch latch = new CountDownLatch(200);
-
-    String clientId = MqttClient.generateClientId();
     MqttClient client = new MqttClient("tcp://localhost:" + port,
-        clientId,
-        new MqttDefaultFilePersistence(
-            temporaryFolder.newFolder("paho", clientId).getAbsolutePath()));
+        MqttClient.generateClientId(),
+        new MemoryPersistence());
     client.connect();
     client.subscribe("WRITE_TOPIC");
     client.setCallback(new MqttCallback() {
