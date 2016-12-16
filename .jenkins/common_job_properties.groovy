@@ -24,6 +24,10 @@ class common_job_properties {
   static def setTopLevelJobProperties(def context,
                                       def default_branch = 'master',
                                       def default_timeout = 100) {
+
+    context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
+    context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\'T\'HH:mm:ss.SSS')
+
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/incubator-beam/')
