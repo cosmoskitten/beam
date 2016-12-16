@@ -23,7 +23,6 @@ import static org.mockito.Mockito.mock;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.BaseExecutionContext.StepContext;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
