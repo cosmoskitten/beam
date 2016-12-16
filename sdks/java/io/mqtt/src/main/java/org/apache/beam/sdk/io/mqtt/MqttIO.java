@@ -135,8 +135,7 @@ public class MqttIO {
       checkArgument(topic != null,
           "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
               + "topic");
-      return new AutoValue_MqttIO_ConnectionConfiguration(serverUri, topic,
-          MqttClient.generateClientId());
+      return new AutoValue_MqttIO_ConnectionConfiguration(serverUri, topic, "BEAM");
     }
 
     public static ConnectionConfiguration create(String serverUri, String topic, String clientId) {
@@ -157,18 +156,18 @@ public class MqttIO {
       builder.add(DisplayData.item("clientId", clientId()));
     }
 
-    private MqttClient getClient(boolean random) throws MqttException {
-      String id = clientId();
-      if (random) {
-        id = clientId() + "-" + MqttClient.generateClientId();
-      }
-      MqttClient client = new MqttClient(serverUri(), id);
+    /**
+     * This method creates a Paho MQTT client, generating an unique client ID, eventually based
+     * on a prefix provided by user.
+     *
+     * @return A MQTT client instance.
+     * @throws MqttException
+     */
+    private MqttClient getClient() throws MqttException {
+      MqttClient client = new MqttClient(serverUri(), clientId() + "-" + MqttClient
+          .generateClientId());
       client.connect();
       return client;
-    }
-
-    private MqttClient getClient() throws MqttException {
-      return getClient(false);
     }
 
   }
@@ -579,7 +578,7 @@ public class MqttIO {
 
       @Setup
       public void createMqttClient() throws Exception {
-        client = spec.connectionConfiguration().getClient(true);
+        client = spec.connectionConfiguration().getClient();
       }
 
       @ProcessElement
@@ -597,6 +596,8 @@ public class MqttIO {
         if (client != null) {
           try {
             client.disconnect();
+          } catch (Exception e) {
+            LOGGER.warn("Error while disconnecting client", e);
           } finally {
             client.close();
           }
