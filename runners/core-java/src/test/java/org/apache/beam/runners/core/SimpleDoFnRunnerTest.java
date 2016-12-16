@@ -71,7 +71,7 @@ public class SimpleDoFnRunnerTest {
   }
 
   @Test
-  public void testExceptionsWrappedAsUserCodeException() {
+  public void testProcessElementExceptionsWrappedAsUserCodeException() {
     ThrowingDoFn fn = new ThrowingDoFn();
     DoFnRunner<String, String> runner =
         new SimpleDoFnRunner<>(
@@ -89,6 +89,31 @@ public class SimpleDoFnRunnerTest {
     thrown.expectCause(is(fn.exceptionToThrow));
 
     runner.processElement(WindowedValue.valueInGlobalWindow("anyValue"));
+  }
+
+  @Test
+  public void testOnTimerExceptionsWrappedAsUserCodeException() {
+    ThrowingDoFn fn = new ThrowingDoFn();
+    DoFnRunner<String, String> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            fn,
+            null,
+            null,
+            null,
+            Collections.<TupleTag<?>>emptyList(),
+            mockStepContext,
+            null,
+            WindowingStrategy.of(new GlobalWindows()));
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(is(fn.exceptionToThrow));
+
+    runner.onTimer(
+        ThrowingDoFn.TIMER_ID,
+        GlobalWindow.INSTANCE,
+        new Instant(0),
+        TimeDomain.EVENT_TIME);
   }
 
   /**
@@ -127,9 +152,8 @@ public class SimpleDoFnRunnerTest {
   }
 
   /**
-   * Tests that a users call to set a timer gets properly dispatched to the timer internals. From
-   * there on, it is the duty of the runner & step context to set it in whatever way is right for
-   * that runner.
+   * Tests that {@link SimpleDoFnRunner#onTimer} properly dispatches to the underlying
+   * {@link DoFn}.
    */
   @Test
   public void testOnTimerCalled() {
@@ -171,8 +195,18 @@ public class SimpleDoFnRunnerTest {
   static class ThrowingDoFn extends DoFn<String, String> {
     final Exception exceptionToThrow = new UnsupportedOperationException("Expected exception");
 
+    static final String TIMER_ID = "throwingTimerId";
+
+    @TimerId(TIMER_ID)
+    private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
+      throw exceptionToThrow;
+    }
+
+    @OnTimer(TIMER_ID)
+    public void onTimer(OnTimerContext context) throws Exception {
       throw exceptionToThrow;
     }
   }
