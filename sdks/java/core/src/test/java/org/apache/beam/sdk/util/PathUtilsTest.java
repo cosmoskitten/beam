@@ -64,12 +64,12 @@ public class PathUtilsTest {
 
   @Test
   public void testGetDirectory() throws Exception {
-    assertEquals("", PathUtils.getDirectory(""));
     assertEquals("/", PathUtils.getDirectory("/"));
     assertEquals("/", PathUtils.getDirectory("/a"));
     assertEquals("/a/", PathUtils.getDirectory("/a/"));
     assertEquals("ab/", PathUtils.getDirectory("ab/"));
     assertEquals("/ab/", PathUtils.getDirectory("/ab/c"));
+    assertEquals("/ab/", PathUtils.getDirectory("/ab/caa?query#2"));
   }
 
   @Test
@@ -85,6 +85,7 @@ public class PathUtilsTest {
 
   @Test
   public void testURI() throws Exception {
-    System.out.print(URI.create("gs-s3://abc/dfd/.././dfd/..").normalize().toString());
+    System.out.println(URI.create("").toString());
+    System.out.println(URI.create("gs-s3://abc/dfd/.././dfd/../").resolve("a").toString());
   }
 }

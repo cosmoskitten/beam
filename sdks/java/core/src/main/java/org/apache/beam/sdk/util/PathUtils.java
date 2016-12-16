@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.net.URISyntaxException;
 import javax.annotation.Nonnull;
 import java.net.URI;
 
@@ -33,33 +35,51 @@ public class PathUtils {
    * Resolve multiple {@code others} against the {@code directory} sequentially.
    *
    * <p>Unlike {@link URI#resolve}, {@link #resolveAgainstDirectory} includes the last segment of
-   * the path.
+   * the path. Other rules of {@link URI#resolve} apply the same. For example, ".", ".." are
+   * normalized. Sees {@link URI#resolve} and {@link URI#normalize} for details.
    *
-   * <p>Empty paths in {@code others} are ignored. If {@code others} contains one or more
-   * absolute paths, then this method returns a path that starts with the last absolute path
-   * in {@code others} joined with the remaining paths.
+   * <p>{@code others} should not be empty, and should be valid {@link URI URIs} strings but without
+   * query and fragment components.
    */
-  public static String resolveAgainstDirectory(String directory, String... others) {
-    String ret = directory;
+  public static String resolveAgainstDirectory(@Nonnull String base, @Nonnull String... others) {
+    URI ret = URI.create(base);
     for (String other : others) {
-      ret = resolveAgainstDirectory(ret, other);
+      ret = resolveAgainstDirectory(ret, URI.create(other));
     }
-    return ret;
+    return ret.toString();
   }
 
-  private static String resolveAgainstDirectory(@Nonnull String directory, @Nonnull String other) {
-    checkNotNull(directory, "directory");
+  private static URI resolveAgainstDirectory(@Nonnull URI base, @Nonnull URI other) {
+    checkNotNull(base, "directory");
     checkNotNull(other, "other");
-    if (other.isEmpty()) {
-      return directory;
-    }
-    URI dirUri;
-    if (directory.endsWith(URI_DELIMITER)) {
-      dirUri = URI.create(directory);
+    checkArgument(!other.toString().isEmpty(), "Expected other is not empty.");
+    checkArgument(
+        other.getQuery().isEmpty(),
+        String.format("Expected no query in other: [%s].", other));
+    checkArgument(
+        other.getFragment().isEmpty(),
+        String.format("Expected no fragment in other: [%s].", other));
+
+    String path;
+    if (base.getPath().endsWith(URI_DELIMITER)) {
+      path = base.getPath();
     } else {
-      dirUri = URI.create(directory + URI_DELIMITER);
+      path = base.getPath() + URI_DELIMITER;
     }
-    return dirUri.resolve(other).toString();
+    try {
+      return new URI(
+          base.getScheme(),
+          base.getAuthority(),
+          path,
+          base.getQuery(),
+          base.getFragment()).resolve(other);
+    } catch (URISyntaxException e) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Failed to replace the path component in URI: [%s] with [%s].",
+              base.toString(), path),
+          e);
+    }
   }
 
   /**
@@ -71,7 +91,17 @@ public class PathUtils {
    */
   public static String getDirectory(@Nonnull String path) {
     checkNotNull(path, "path");
-    return URI.create(path).resolve("").toString();
+    checkArgument(!path.isEmpty(), "Expected path is not empty.");
+
+    URI pathUri = URI.create(path);
+    checkArgument(
+        pathUri.getQuery().isEmpty(),
+        String.format("Expected no query in path: [%s].", path));
+    checkArgument(
+        pathUri.getFragment().isEmpty(),
+        String.format("Expected no fragment in path: [%s].", path));
+
+    return pathUri.resolve("").toString();
   }
 
   /**

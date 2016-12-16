@@ -27,6 +27,7 @@ import com.google.common.collect.Ordering;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -323,13 +324,15 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
       @Override
       public String apply(String baseOutputFilename) {
-        String tempDir = String.format(
+        URI baseOutputUri = URI.create(baseOutputFilename).normalize();
+        URI pathUri = URI.create(baseOutputUri.getPath());
+        // Resolving an empty string removes the last segment of the path
+        String filename = pathUri.resolve("").relativize(pathUri).toString();
+        String tempDirectoryName = String.format(
             "temp-beam-%s-%s/",
-            PathUtils.getFileName(baseOutputFilename),
+            filename,
             Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")));
-        return PathUtils.resolveAgainstDirectory(
-            PathUtils.getDirectory(baseOutputFilename),
-            tempDir);
+        return baseOutputUri.resolve(tempDirectoryName).toString();
       }
     }
 
