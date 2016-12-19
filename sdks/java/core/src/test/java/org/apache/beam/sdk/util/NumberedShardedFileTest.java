@@ -82,8 +82,8 @@ public class NumberedShardedFileTest {
     Files.write(contents2, tmpFile2, StandardCharsets.UTF_8);
     Files.write(contents3, tmpFile3, StandardCharsets.UTF_8);
 
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "result-*"));
+    NumberedShardedFile shardedFile = new NumberedShardedFile(
+        PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "result-*"));
 
     assertThat(shardedFile.readFilesWithRetries(), containsInAnyOrder(contents1, contents2));
   }
@@ -92,8 +92,8 @@ public class NumberedShardedFileTest {
   public void testReadEmpty() throws Exception {
     File emptyFile = tmpFolder.newFile("result-000-of-001");
     Files.write("", emptyFile, StandardCharsets.UTF_8);
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"));
+    NumberedShardedFile shardedFile = new NumberedShardedFile(
+        PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"));
 
     assertThat(shardedFile.readFilesWithRetries(), empty());
   }
@@ -110,9 +110,8 @@ public class NumberedShardedFileTest {
 
     Pattern customizedTemplate =
         Pattern.compile("(?x) result (?<shardnum>\\d+) - total (?<numshards>\\d+)");
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(
-            PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"), customizedTemplate);
+    NumberedShardedFile shardedFile = new NumberedShardedFile(
+        PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"), customizedTemplate);
 
     assertThat(shardedFile.readFilesWithRetries(), containsInAnyOrder(contents1, contents2));
   }
@@ -139,8 +138,8 @@ public class NumberedShardedFileTest {
     File tmpFile = tmpFolder.newFile();
     Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
 
-    NumberedShardedFile shardedFile =
-        spy(new NumberedShardedFile(PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*")));
+    NumberedShardedFile shardedFile = spy(new NumberedShardedFile(
+        PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*")));
     doThrow(IOException.class)
         .when(shardedFile)
         .readLines(anyCollection(), any(IOChannelFactory.class));
@@ -154,8 +153,8 @@ public class NumberedShardedFileTest {
 
   @Test
   public void testReadWithRetriesFailsWhenOutputDirEmpty() throws Exception {
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"));
+    NumberedShardedFile shardedFile = new NumberedShardedFile(
+        PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"));
 
     thrown.expect(IOException.class);
     thrown.expectMessage(
@@ -169,8 +168,8 @@ public class NumberedShardedFileTest {
     tmpFolder.newFile("result-000-of-001");
     tmpFolder.newFile("tmp-result-000-of-001");
 
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"));
+    NumberedShardedFile shardedFile = new NumberedShardedFile(
+        PathUtils.resolveAgainstDirectory(tmpFolder.getRoot().getPath(), "*"));
 
     thrown.expect(IOException.class);
     thrown.expectMessage(
