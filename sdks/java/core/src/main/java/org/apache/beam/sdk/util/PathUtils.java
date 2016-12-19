@@ -35,8 +35,7 @@ public class PathUtils {
   /**
    * Resolve multiple {@code others} against the given {@code directory} sequentially.
    *
-   * @see {@link #resolveAgainstDirectory(String, String)} for the differences
-   * with {@link URI#resolve}.
+   * <p>Sees {@link #resolveAgainstDirectory} for the differences with {@link URI#resolve}.
    *
    * @throws IllegalArgumentException if others contains {@link URI} query or fragment components.
    */
