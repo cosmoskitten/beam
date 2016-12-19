@@ -572,7 +572,8 @@ public class FileBasedSinkTest {
         new SimpleSink(getBaseOutputFilename(), "txt", new DrunkWritableByteChannelFactory())
             .createWriteOperation(null);
     final FileBasedWriter<String> writer = writeOp.createWriter(null);
-    final String expectedFilename = PathUtils.resolveAgainstDirectory(writeOp.tempDirectory.get(), testUid);
+    final String expectedFilename =
+        PathUtils.resolveAgainstDirectory(writeOp.tempDirectory.get(), testUid);
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");
