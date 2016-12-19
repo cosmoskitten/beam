@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.api.client.repackaged.com.google.common.base.Strings;
-
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Strings;
+import java.net.URI;
 import java.net.URISyntaxException;
 import javax.annotation.Nonnull;
-import java.net.URI;
 
 /**
  * Utility class for handling file paths.
