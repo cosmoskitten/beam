@@ -69,6 +69,7 @@ import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -400,9 +401,6 @@ public class BigQueryServicesImplTest {
     verify(response, times(2)).getContentType();
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
-
-  // A BackOff that makes a total of 4 attempts
-  private static final FluentBackoff TEST_BACKOFF = FluentBackoff.DEFAULT.withMaxRetries(3);
 
   /**
    * Tests that {@link DatasetServiceImpl#insertAll} fails gracefully when persistent issues.
