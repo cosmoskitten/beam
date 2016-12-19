@@ -19,8 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
-import java.net.URI;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -63,6 +61,22 @@ public class PathUtilsTest {
     assertEquals(
         "/root/tmp/aa",
         PathUtils.resolveAgainstDirectory("/root/tmp/aa", "/root/tmp/aa"));
+
+    // Tests authority with empty path.
+    assertEquals(
+        "gs://bucket/staging",
+        PathUtils.resolveAgainstDirectory("gs://bucket/", "staging"));
+    assertEquals(
+        "gs://bucket/staging",
+        PathUtils.resolveAgainstDirectory("gs://bucket", "staging"));
+    assertEquals(
+        "gs://bucket/",
+        PathUtils.resolveAgainstDirectory("gs://bucket", "."));
+
+    // Tests empty authority and path.
+    assertEquals(
+        "file:/aa",
+        PathUtils.resolveAgainstDirectory("file:///", "aa"));
 
     // Tests query and fragment.
     assertEquals(
