@@ -78,11 +78,12 @@ public class PathUtils {
         Strings.isNullOrEmpty(other.getFragment()),
         String.format("Expected no fragment in other: [%s].", other));
 
-    String path;
-    if (directory.getPath().isEmpty() || directory.getPath().endsWith(URI_DELIMITER)) {
-      path = directory.getPath();
-    } else {
-      path = directory.getPath() + URI_DELIMITER;
+    String path = directory.getPath();
+    if (!Strings.isNullOrEmpty(directory.getAuthority()) && Strings.isNullOrEmpty(path)) {
+      // Workaround of [BEAM-1174]: path needs to be absolute if the authority exists.
+      path = URI_DELIMITER;
+    } else if (!Strings.isNullOrEmpty(path) && !path.endsWith(URI_DELIMITER)) {
+      path = path + URI_DELIMITER;
     }
     try {
       return new URI(
