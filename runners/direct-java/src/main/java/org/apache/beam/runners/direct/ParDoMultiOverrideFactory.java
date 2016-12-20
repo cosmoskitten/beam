@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.KeyedWorkItems;
@@ -92,6 +94,11 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
 
       // A KvCoder is required since this goes through GBK. Further, WindowedValueCoder
       // is not registered by default, so we explicitly set the relevant coders.
+      checkState(input.getCoder() instanceof KvCoder,
+          "Input to a %s using state requires a %s, but the coder was %s",
+          ParDo.class.getSimpleName(),
+          KvCoder.class.getSimpleName(),
+          input.getCoder());
       KvCoder<K, InputT> kvCoder = (KvCoder<K, InputT>) input.getCoder();
       Coder<K> keyCoder = kvCoder.getKeyCoder();
       Coder<? extends BoundedWindow> windowCoder =
