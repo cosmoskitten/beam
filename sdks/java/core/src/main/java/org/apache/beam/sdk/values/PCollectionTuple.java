@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -179,7 +180,7 @@ public class PCollectionTuple implements PInput, POutput {
   /////////////////////////////////////////////////////////////////////////////
   // Internal details below here.
 
-  Pipeline pipeline;
+  final Pipeline pipeline;
   final Map<TupleTag<?>, PCollection<?>> pcollectionMap;
 
   PCollectionTuple(Pipeline pipeline) {
@@ -265,5 +266,19 @@ public class PCollectionTuple implements PInput, POutput {
     for (PCollection<?> pc : pcollectionMap.values()) {
       pc.finishSpecifyingOutput();
     }
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof PCollectionTuple)) {
+      return false;
+    }
+    PCollectionTuple that = (PCollectionTuple) other;
+    return this.pipeline.equals(that.pipeline) && this.pcollectionMap.equals(that.pcollectionMap);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.pipeline, this.pcollectionMap);
   }
 }
