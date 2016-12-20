@@ -35,6 +35,8 @@ import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -109,6 +111,12 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               // Stash the original timestamps, etc, for when it is fed to the user's DoFn
               .apply("Reify timestamps", ParDo.of(new ReifyWindowedValueFn<K, InputT>()))
               .setCoder(KvCoder.of(keyCoder, WindowedValue.getFullCoder(kvCoder, windowCoder)))
+
+              // We are going to GBK, but afterwards will restore the original timestamp,
+              // so we set the OutputTimeFn to hold at the minimum of the inputs
+              .apply(
+                  Window.<KV<K, WindowedValue<KV<K, InputT>>>>withOutputTimeFn(
+                      OutputTimeFns.outputAtEarliestInputTimestamp()))
 
               // A full GBK to group by key _and_ window
               .apply("Group by key", GroupByKey.<K, WindowedValue<KV<K, InputT>>>create())
