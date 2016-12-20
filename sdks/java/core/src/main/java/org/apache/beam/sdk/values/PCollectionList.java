@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.values;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -114,7 +116,7 @@ public class PCollectionList<T> implements PInput, POutput {
     return new PCollectionList<>(pipeline,
         ImmutableList.<TaggedPValue>builder()
             .addAll(pcollections)
-            .add(TaggedPValue.of(new TupleTag<>(), pc))
+            .add(Iterables.getOnlyElement(pc.expand()))
             .build());
   }
 
@@ -134,7 +136,7 @@ public class PCollectionList<T> implements PInput, POutput {
         throw new IllegalArgumentException(
             "PCollections come from different Pipelines");
       }
-      builder.add(TaggedPValue.of(new TupleTag<>(), pc));
+      builder.add(Iterables.getOnlyElement(pc.expand()));
     }
     return new PCollectionList<>(pipeline, builder.build());
   }
@@ -243,5 +245,19 @@ public class PCollectionList<T> implements PInput, POutput {
     for (TaggedPValue pc : pcollections) {
       pc.getValue().finishSpecifyingOutput();
     }
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof PCollectionList)) {
+      return false;
+    }
+    PCollectionList that = (PCollectionList) other;
+    return this.pipeline.equals(that.pipeline) && this.pcollections.equals(that.pcollections);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.pipeline, this.pcollections);
   }
 }
