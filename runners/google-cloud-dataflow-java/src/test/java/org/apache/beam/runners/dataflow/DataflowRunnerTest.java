@@ -998,8 +998,13 @@ public class DataflowRunnerTest {
 
             // Note: This is about the minimum needed to fake out a
             // translation. This obviously isn't a real translation.
+<<<<<<< HEAD
             StepTranslationContext stepContext = context.addStep(transform, "TestTranslate");
             stepContext.addOutput(context.getOutput(transform));
+=======
+            context.addStep(transform, "TestTranslate");
+            context.addOutput(context.getOnlyOutput(transform));
+>>>>>>> 7b8f9d0cf... Always expand in AppliedPTransform
           }
         });
 
