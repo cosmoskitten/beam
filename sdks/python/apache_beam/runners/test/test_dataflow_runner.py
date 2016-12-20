@@ -20,7 +20,7 @@
 from apache_beam.internal import pickler
 from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
 from apache_beam.utils.options import TestOptions
-from hamcrest import assert_that
+from hamcrest import assert_that as hc_assert_that
 
 
 class TestDataflowRunner(DataflowPipelineRunner):
@@ -34,5 +34,5 @@ class TestDataflowRunner(DataflowPipelineRunner):
 
     options = pipeline.options.view_as(TestOptions)
     if options.on_success_matcher:
-      assert_that(self.result, pickler.loads(options.on_success_matcher))
+      hc_assert_that(self.result, pickler.loads(options.on_success_matcher))
     return self.result
