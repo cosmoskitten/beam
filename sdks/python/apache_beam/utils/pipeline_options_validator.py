@@ -17,8 +17,6 @@
 
 """Pipeline options validator.
 """
-from datetime import datetime
-import getpass
 import re
 
 from apache_beam.utils.options import DebugOptions
@@ -142,20 +140,11 @@ class PipelineOptionsValidator(object):
 
     return []
 
-  @staticmethod
-  def compute_job_name(options_job_name):
-    if options_job_name is None:
-      user_name = getpass.getuser().lower()
-      date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
-      app_name = 'beamapp'
-      options_job_name = '{}-{}-{}'.format(app_name, user_name, date_component)
-    return options_job_name
-
   def validate_cloud_options(self, view):
     """Validates job_name and project arguments."""
     errors = []
-    view.job_name = self.compute_job_name(view.job_name)
-    if not self.is_full_string_match(self.JOB_PATTERN, view.job_name):
+    if (view.job_name and
+        not self.is_full_string_match(self.JOB_PATTERN, view.job_name)):
       errors.extend(self._validate_error(self.ERR_INVALID_JOB_NAME,
                                          view.job_name))
     project = view.project

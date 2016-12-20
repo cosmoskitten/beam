@@ -18,6 +18,8 @@
 """Dataflow client utility functions."""
 
 import codecs
+from datetime import datetime
+import getpass
 import json
 import logging
 import os
@@ -295,9 +297,22 @@ class Job(object):
         json.loads(encoding.MessageToJson(self.proto), encoding='shortstrings'),
         indent=2, sort_keys=True)
 
+  @staticmethod
+  def default_job_name(job_name):
+    if job_name is None:
+      user_name = getpass.getuser().lower()
+      date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
+      app_name = 'beamapp'
+      job_name = '{}-{}-{}'.format(app_name, user_name, date_component)
+    return job_name
+
   def __init__(self, options):
     self.options = options
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
+    if not self.google_cloud_options.job_name:
+      self.google_cloud_options.job_name = self.default_job_name(
+          self.google_cloud_options.job_name)
+
     required_google_cloud_options = ['project', 'job_name', 'temp_location']
     missing = [
         option for option in required_google_cloud_options

@@ -18,7 +18,6 @@
 """Unit tests for the pipeline options validator module."""
 
 import logging
-import re
 import unittest
 
 from apache_beam.utils.options import PipelineOptions
@@ -61,15 +60,6 @@ class SetupTest(unittest.TestCase):
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertEqual(len(errors), 0)
-
-  def test_default_job_name(self):
-    options = PipelineOptions([''])
-    runner = MockRunners.DataflowPipelineRunner()
-    validator = PipelineOptionsValidator(options, runner)
-    validator.validate()
-    regexp = 'beamapp-[a-z]*-[0-9]{10}-[0-9]{6}'
-    self.assertTrue(re.match(regexp,
-                             options.get_all_options()['job_name']))
 
   def test_missing_required_options(self):
     options = PipelineOptions([''])
