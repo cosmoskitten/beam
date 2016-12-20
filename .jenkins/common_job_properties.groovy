@@ -66,6 +66,7 @@ class common_job_properties {
         branch('${sha1}')
         extensions {
           cleanAfterCheckout()
+          pruneBranches()
         }
       }
     }
