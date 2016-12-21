@@ -376,6 +376,14 @@
                 <goal>shade</goal>
               </goals>
               <configuration>
+                <minimizeJar>true</minimizeJar>
+                <artifactSet>
+                  <includes>
+                    <include>org.apache.beam:beam-runners-spark</include>
+                    <include>com.google.guava:guava</include>
+                    <include>com.esotericsoftware.kryo:kryo</include>
+                  </includes>
+                </artifactSet>
                 <relocations>
                   <!-- relocate Guava used by Beam (v18) since it conflicts with
                     version used by Hadoop (v11) -->
@@ -388,8 +396,8 @@
                     <shadedPattern>org.apache.beam.spark.relocated.com.google.thirdparty</shadedPattern>
                   </relocation>
                   <relocation>
-                    <pattern>com.esotericsoftware.kryo</pattern>
-                    <shadedPattern>org.apache.beam.spark.relocated.com.esotericsoftware.kryo</shadedPattern>
+                    <pattern>com.esotericsoftware.kryo.serializers.JavaSerializer</pattern>
+                    <shadedPattern>org.apache.beam.spark.relocated.com.esotericsoftware.kryo.serializers.JavaSerializer</shadedPattern>
                   </relocation>
                 </relocations>
                 <transformers>
