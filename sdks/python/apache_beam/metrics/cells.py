@@ -214,10 +214,12 @@ class DistributionResult(object):
   def mean(self):
     """Returns the float mean of the distribution.
 
-    If the distribution contains no elements, the mean calculation raises
-    ZeroDivisionError.
+    If the distribution contains no elements, it returns None.
     """
-    return float(self.data.sum)/self.data.count
+    if self.data.count == 0:
+      return None
+    else:
+      return float(self.data.sum)/self.data.count
 
 
 class DistributionData(object):
