@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.io;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -40,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-
 /**
  * Classes implementing Beam {@link Source} {@link RDD}s.
  */
@@ -54,7 +54,7 @@ public class SourceRDD {
   public static class Bounded<T> extends RDD<WindowedValue<T>> {
     private static final Logger LOG = LoggerFactory.getLogger(SourceRDD.Bounded.class);
 
-    private final BoundedSource<T> source;
+    private final BoundedSourceWrapper<T> source;
     private final SparkRuntimeContext runtimeContext;
     private final int numPartitions;
 
@@ -67,7 +67,7 @@ public class SourceRDD {
                    BoundedSource<T> source,
                    SparkRuntimeContext runtimeContext) {
       super(sc, NIL, JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
-      this.source = source;
+      this.source = new BoundedSourceWrapper<>(source);
       this.runtimeContext = runtimeContext;
       // the input parallelism is determined by Spark's scheduler backend.
       // when running on YARN/SparkDeploy it's the result of max(totalCores, 2).
@@ -85,15 +85,16 @@ public class SourceRDD {
     public Partition[] getPartitions() {
       long desiredSizeBytes = DEFAULT_BUNDLE_SIZE;
       try {
-        desiredSizeBytes = source.getEstimatedSizeBytes(
+        desiredSizeBytes = source.getSource().getEstimatedSizeBytes(
             runtimeContext.getPipelineOptions()) / numPartitions;
       } catch (Exception e) {
         LOG.warn("Failed to get estimated bundle size for source {}, using default bundle "
             + "size of {} bytes.", source, DEFAULT_BUNDLE_SIZE);
       }
       try {
-        List<? extends Source<T>> partitionedSources = source.splitIntoBundles(desiredSizeBytes,
-            runtimeContext.getPipelineOptions());
+        List<? extends Source<T>> partitionedSources =
+            source.getSource().splitIntoBundles(desiredSizeBytes,
+                runtimeContext.getPipelineOptions());
         Partition[] partitions = new SourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
           partitions[i] = new SourcePartition<>(id(), i, partitionedSources.get(i));
@@ -170,6 +171,22 @@ public class SourceRDD {
             runtimeContext.getPipelineOptions());
       } catch (IOException e) {
         throw new RuntimeException("Failed to create reader from a BoundedSource.", e);
+      }
+    }
+
+    /**
+     * {@link BoundedSource} wrapper. For serialization purposes.
+     * See: {@link org.apache.beam.runners.spark.coders.BeamSparkRunnerRegistrator}
+     */
+    public static class BoundedSourceWrapper<T> implements Serializable {
+      BoundedSource<T> source;
+
+      BoundedSourceWrapper(BoundedSource<T> boundedSource) {
+        this.source = boundedSource;
+      }
+
+      public BoundedSource<T> getSource() {
+        return source;
       }
     }
   }

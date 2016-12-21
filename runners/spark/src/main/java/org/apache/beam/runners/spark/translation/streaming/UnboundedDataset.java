@@ -23,6 +23,7 @@ import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.coders.CoderWrapper;
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.sdk.coders.Coder;
@@ -62,8 +63,8 @@ public class UnboundedDataset<T> implements Dataset {
   @SuppressWarnings("ConstantConditions")
   JavaDStream<WindowedValue<T>> getDStream() {
     if (dStream == null) {
-      WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
-          WindowedValue.getValueOnlyCoder(coder);
+      CoderWrapper<WindowedValue<T>> windowCoder =
+          new CoderWrapper<>(WindowedValue.getValueOnlyCoder(coder));
       // create the DStream from queue
       Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
       JavaRDD<WindowedValue<T>> lastRDD = null;

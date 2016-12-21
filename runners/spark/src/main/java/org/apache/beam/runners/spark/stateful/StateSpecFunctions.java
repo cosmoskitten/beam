@@ -27,10 +27,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.coders.CoderWrapper;
 import org.apache.beam.runners.spark.io.EmptyCheckpointMark;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -107,7 +107,8 @@ public class StateSpecFunctions {
         // if state exists, use it, otherwise it's first time so use the startCheckpointMark.
         // startCheckpointMark may be EmptyCheckpointMark (the Spark Java API tries to apply
         // Optional(null)), which is handled by the UnboundedSource implementation.
-        Coder<CheckpointMarkT> checkpointCoder = microbatchSource.getCheckpointMarkCoder();
+        CoderWrapper<CheckpointMarkT> checkpointCoder =
+            new CoderWrapper<>(microbatchSource.getCheckpointMarkCoder());
         CheckpointMarkT checkpointMark;
         if (state.exists()) {
           checkpointMark = CoderHelpers.fromByteArray(state.get(), checkpointCoder);

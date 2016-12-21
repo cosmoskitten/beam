@@ -22,6 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.coders.CoderWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
@@ -108,7 +109,8 @@ public abstract class BroadcastHelper<T> implements Serializable {
 
     @Override
     public void broadcast(JavaSparkContext jsc) {
-      this.bcast = jsc.broadcast(CoderHelpers.toByteArray(value, coder));
+      CoderWrapper<T> coderWrapper = new CoderWrapper<>(coder);
+      this.bcast = jsc.broadcast(CoderHelpers.toByteArray(value, coderWrapper));
     }
 
     private T deserialize() {
