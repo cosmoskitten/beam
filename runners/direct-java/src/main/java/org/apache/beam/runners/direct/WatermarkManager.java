@@ -314,12 +314,14 @@ public class WatermarkManager {
           TimerData existingTimer =
               existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
 
-          if (existingTimer != null) {
+          if (existingTimer == null) {
+            pendingTimers.add(timer.getTimestamp());
+            keyTimers.add(timer);
+          } else if (!existingTimer.equals(timer)) {
             keyTimers.remove(existingTimer);
-            pendingTimers.remove(existingTimer.getTimestamp());
-          }
-          keyTimers.add(timer);
-          pendingTimers.add(timer.getTimestamp());
+            keyTimers.add(timer);
+          } // else the timer is already set identically, so noop
+
           existingTimersForKey.put(timer.getNamespace(), timer.getTimerId(), timer);
         }
       }
