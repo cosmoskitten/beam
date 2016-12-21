@@ -121,7 +121,8 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               // We are going to GBK to gather keys and windows but otherwise do not want
               // to alter the flow of data. This entails:
               //  - trigger as fast as possible
-              //  - maintain the full timestamps of elements, so set the hold to the min
+              //  - maintain the full timestamps of elements
+              //  - ensure this GBK holds to the minimum of those timestamps (via OutputTimeFn)
               //  - discard past panes as it is "just a stream" of elements
               .apply(
                   Window.<KV<K, WindowedValue<KV<K, InputT>>>>triggering(
