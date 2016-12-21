@@ -75,7 +75,7 @@ import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TransformTranslator;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
+import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.Translator;
 import org.apache.beam.runners.dataflow.internal.AssignWindows;
 import org.apache.beam.runners.dataflow.internal.DataflowAggregatorTransforms;
 import org.apache.beam.runners.dataflow.internal.DataflowUnboundedReadFromBoundedSource;
@@ -2125,7 +2125,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public void translate(
         StreamingPubsubIORead<T> transform,
-        TranslationContext context) {
+        Translator context) {
       checkArgument(context.getPipelineOptions().isStreaming(),
                     "StreamingPubsubIORead is only for streaming pipelines.");
       PubsubUnboundedSource<T> overriddenTransform = transform.getOverriddenTransform();
@@ -2208,7 +2208,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public void translate(
         StreamingPubsubIOWrite<T> transform,
-        TranslationContext context) {
+        Translator context) {
       checkArgument(context.getPipelineOptions().isStreaming(),
                     "StreamingPubsubIOWrite is only for streaming pipelines.");
       PubsubUnboundedSink<T> overriddenTransform = transform.getOverriddenTransform();
@@ -2321,7 +2321,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         implements DataflowPipelineTranslator.TransformTranslator<ReadWithIds<?>> {
       @Override
       public void translate(ReadWithIds<?> transform,
-          DataflowPipelineTranslator.TranslationContext context) {
+          Translator context) {
         ReadTranslator.translateReadHelper(transform.getSource(), transform, context);
       }
     }
