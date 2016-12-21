@@ -35,6 +35,7 @@ import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeResponse;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.api.services.dataflow.model.Step;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -2117,26 +2118,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  /**
-   * Rewrite {@link StreamingPubsubIORead} to the appropriate internal node.
-   */
-  private static class StreamingPubsubIOReadTranslator<T> implements
-      TransformTranslator<StreamingPubsubIORead<T>> {
+  /** Rewrite {@link StreamingPubsubIORead} to the appropriate internal node. */
+  private static class StreamingPubsubIOReadTranslator<T>
+      implements TransformTranslator<StreamingPubsubIORead<T>> {
     @Override
-    public void translate(
-        StreamingPubsubIORead<T> transform,
-        Translator context) {
-      checkArgument(context.getPipelineOptions().isStreaming(),
-                    "StreamingPubsubIORead is only for streaming pipelines.");
+    public void translate(StreamingPubsubIORead<T> transform, Translator context) {
+      checkArgument(
+          context.getPipelineOptions().isStreaming(),
+          "StreamingPubsubIORead is only for streaming pipelines.");
       PubsubUnboundedSource<T> overriddenTransform = transform.getOverriddenTransform();
-      context.addStep(transform, "ParallelRead");
-      context.addInput(PropertyNames.FORMAT, "pubsub");
+      Step step = context.addStep(transform, "ParallelRead");
+      context.addInput(step, PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider() != null) {
         if (overriddenTransform.getTopicProvider().isAccessible()) {
           context.addInput(
-              PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getV1Beta1Path());
+              step, PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getV1Beta1Path());
         } else {
           context.addInput(
+              step,
               PropertyNames.PUBSUB_TOPIC_OVERRIDE,
               ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
         }
@@ -2144,23 +2143,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (overriddenTransform.getSubscriptionProvider() != null) {
         if (overriddenTransform.getSubscriptionProvider().isAccessible()) {
           context.addInput(
+              step,
               PropertyNames.PUBSUB_SUBSCRIPTION,
               overriddenTransform.getSubscription().getV1Beta1Path());
         } else {
           context.addInput(
+              step,
               PropertyNames.PUBSUB_SUBSCRIPTION_OVERRIDE,
-              ((NestedValueProvider) overriddenTransform.getSubscriptionProvider())
-              .propertyName());
+              ((NestedValueProvider) overriddenTransform.getSubscriptionProvider()).propertyName());
         }
       }
       if (overriddenTransform.getTimestampLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL,
-                         overriddenTransform.getTimestampLabel());
+        context.addInput(
+            step, PropertyNames.PUBSUB_TIMESTAMP_LABEL, overriddenTransform.getTimestampLabel());
       }
       if (overriddenTransform.getIdLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
+        context.addInput(step, PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
-      context.addValueOnlyOutput(context.getOutput(transform));
+      context.addValueOnlyOutput(step, context.getOutput(transform));
     }
   }
 
@@ -2212,26 +2212,27 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       checkArgument(context.getPipelineOptions().isStreaming(),
                     "StreamingPubsubIOWrite is only for streaming pipelines.");
       PubsubUnboundedSink<T> overriddenTransform = transform.getOverriddenTransform();
-      context.addStep(transform, "ParallelWrite");
-      context.addInput(PropertyNames.FORMAT, "pubsub");
+      Step step = context.addStep(transform, "ParallelWrite");
+      context.addInput(step, PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider().isAccessible()) {
         context.addInput(
-            PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getV1Beta1Path());
+            step, PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getV1Beta1Path());
       } else {
         context.addInput(
+            step,
             PropertyNames.PUBSUB_TOPIC_OVERRIDE,
             ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
       }
       if (overriddenTransform.getTimestampLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL,
-                         overriddenTransform.getTimestampLabel());
+        context.addInput(
+            step, PropertyNames.PUBSUB_TIMESTAMP_LABEL, overriddenTransform.getTimestampLabel());
       }
       if (overriddenTransform.getIdLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
+        context.addInput(step, PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
       context.addEncodingInput(
-          WindowedValue.getValueOnlyCoder(overriddenTransform.getElementCoder()));
-      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+          step, WindowedValue.getValueOnlyCoder(overriddenTransform.getElementCoder()));
+      context.addInput(step, PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
 
