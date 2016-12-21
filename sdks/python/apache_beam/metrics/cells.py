@@ -16,7 +16,7 @@
 #
 
 """
-This file contains metric cell classes. A Metric cell is used to accumulate
+This file contains metric cell classes. A metric cell is used to accumulate
 in-memory changes to a metric. It represents a specific metric in a single
 context.
 
@@ -33,8 +33,8 @@ from apache_beam.metrics.metricbase import Distribution
 class CellCommitState(object):
   """Atomically tracks a cell's dirty/clean commit status.
 
-  Reporting a metric udate works in a two-step process: First updates to the
-  metric are received, and the metric is marked as 'dirty'. Later updates are
+  Reporting a metric update works in a two-step process: First, updates to the
+  metric are received, and the metric is marked as 'dirty'. Later, updates are
   committed, and then the cell may be marked as 'clean'.
 
   The tracking of a cell's state is done conservatively: A metric may be
@@ -53,7 +53,7 @@ class CellCommitState(object):
   def __init__(self):
     """Initializes ``CellCommitState``.
 
-    A cell is initialized as dirty
+    A cell is initialized as dirty.
     """
     self._lock = threading.Lock()
     self._state = CellCommitState.DIRTY
@@ -74,7 +74,7 @@ class CellCommitState(object):
   def after_commit(self):
     """Mark changes made up to the last call to ``before_commit`` as committed.
 
-    The next call to ``before_commit`` will return ``false`` unless there have
+    The next call to ``before_commit`` will return ``False`` unless there have
     been changes made.
     """
     with self._lock:
@@ -88,7 +88,11 @@ class CellCommitState(object):
     was already CLEAN, then we simply return. If it was either DIRTY or
     COMMITTING, then we set the cell as COMMITTING (e.g. in the middle of
     a commit).
+
     After a commit is successful, ``after_commit`` should be called.
+
+    Returns:
+      A boolean, which is false if the cell is CLEAN, and true otherwise.
     """
     with self._lock:
       if self._state == CellCommitState.CLEAN:
@@ -208,7 +212,11 @@ class DistributionResult(object):
 
   @property
   def mean(self):
-    """Returns the float mean of the distribution."""
+    """Returns the float mean of the distribution.
+
+    If the distribution contains no elements, the mean calculation raises
+    ZeroDivisionError.
+    """
     return float(self.data.sum)/self.data.count
 
 
@@ -265,10 +273,10 @@ class DistributionData(object):
 
 class MetricAggregator(object):
   """Base interface for aggregating metric data during pipeline execution."""
-  def combine(self, updates):
+  def zero(self):
     raise NotImplementedError
 
-  def zero(self):
+  def combine(self, updates):
     raise NotImplementedError
 
   def result(self, x):

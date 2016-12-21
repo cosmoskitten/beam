@@ -52,7 +52,7 @@ class Metrics(object):
       name: A string that gives a unique name to a metric
 
     Returns:
-      An object of Counter class.
+      A Counter object.
     """
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingCounter(MetricName(namespace, name))
@@ -68,7 +68,7 @@ class Metrics(object):
       name: A string that gives a unique name to a metric
 
     Returns:
-      An object of Distribution class.
+      A Distribution object.
     """
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingDistribution(MetricName(namespace, name))
