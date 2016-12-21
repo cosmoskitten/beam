@@ -220,131 +220,15 @@ public class DataflowPipelineTranslator {
    */
   public interface TransformTranslator<TransformT extends PTransform> {
     void translate(TransformT transform,
-                          TranslationContext context);
+                          Translator context);
   }
-
-  /**
-   * The interface provided to registered callbacks for interacting
-   * with the {@link DataflowRunner}, including reading and writing the
-   * values of {@link PCollection}s and side inputs ({@link PCollectionView}s).
-   */
-  public interface TranslationContext {
-    /**
-     * Returns the configured pipeline options.
-     */
-    DataflowPipelineOptions getPipelineOptions();
-
-    /**
-     * Returns the input of the currently being translated transform.
-     */
-    <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform);
-
-    /**
-     * Returns the output of the currently being translated transform.
-     */
-    <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform);
-
-    /**
-     * Returns the full name of the currently being translated transform.
-     */
-    String getFullName(PTransform<?, ?> transform);
-
-    /**
-     * Adds a step to the Dataflow workflow for the given transform, with
-     * the given Dataflow step type.
-     * This step becomes "current" for the purpose of {@link #addInput} and
-     * {@link #addOutput}.
-     */
-    void addStep(PTransform<?, ?> transform, String type);
-
-    /**
-     * Adds a pre-defined step to the Dataflow workflow. The given PTransform should be
-     * consistent with the Step, in terms of input, output and coder types.
-     *
-     * <p>This is a low-level operation, when using this method it is up to
-     * the caller to ensure that names do not collide.
-     */
-    void addStep(PTransform<?, ? extends PValue> transform, Step step);
-
-    /**
-     * Sets the encoding for the current Dataflow step.
-     */
-    void addEncodingInput(Coder<?> value);
-
-    /**
-     * Adds an input with the given name and value to the current
-     * Dataflow step.
-     */
-    void addInput(String name, Boolean value);
-
-    /**
-     * Adds an input with the given name and value to the current
-     * Dataflow step.
-     */
-    void addInput(String name, String value);
-
-    /**
-     * Adds an input with the given name and value to the current
-     * Dataflow step.
-     */
-    void addInput(String name, Long value);
-
-    /**
-     * Adds an input with the given name to the previously added Dataflow
-     * step, coming from the specified input PValue.
-     */
-    void addInput(String name, PInput value);
-
-    /**
-     * Adds an input that is a dictionary of strings to objects.
-     */
-    void addInput(String name, Map<String, Object> elements);
-
-    /**
-     * Adds an input that is a list of objects.
-     */
-    void addInput(String name, List<? extends Map<String, Object>> elements);
-
-    /**
-     * Adds an output to the previously added Dataflow step,
-     * producing the specified output {@code PValue},
-     * including its {@code Coder} if a {@code TypedPValue}.  If the
-     * {@code PValue} is a {@code PCollection}, wraps its coder inside
-     * a {@code WindowedValueCoder}.  Returns a pipeline level unique id.
-     */
-    long addOutput(PValue value);
-
-    /**
-     * Adds an output to the previously added Dataflow step,
-     * producing the specified output {@code PValue},
-     * including its {@code Coder} if a {@code TypedPValue}.  If the
-     * {@code PValue} is a {@code PCollection}, wraps its coder inside
-     * a {@code ValueOnlyCoder}.  Returns a pipeline level unique id.
-     */
-    long addValueOnlyOutput(PValue value);
-
-    /**
-     * Adds an output to the previously added CollectionToSingleton Dataflow step,
-     * consuming the specified input {@code PValue} and producing the specified output
-     * {@code PValue}.  This step requires special treatment for its
-     * output encoding.  Returns a pipeline level unique id.
-     */
-    long addCollectionToSingletonOutput(PValue inputValue,
-                                               PValue outputValue);
-
-    /**
-     * Encode a PValue reference as an output reference.
-     */
-    OutputReference asOutputReference(PValue value);
-  }
-
 
   /////////////////////////////////////////////////////////////////////////////
 
   /**
    * Translates a Pipeline into the Dataflow representation.
    */
-  class Translator extends PipelineVisitor.Defaults implements TranslationContext {
+  class Translator extends PipelineVisitor.Defaults {
     /**
      * An id generator to be used when giving unique ids for pipeline level constructs.
      * This is purposely wrapped inside of a {@link Supplier} to prevent the incorrect
@@ -484,22 +368,18 @@ public class DataflowPipelineTranslator {
       return job;
     }
 
-    @Override
     public DataflowPipelineOptions getPipelineOptions() {
       return options;
     }
 
-    @Override
     public <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
       return (InputT) getCurrentTransform(transform).getInput();
     }
 
-    @Override
     public <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
       return (OutputT) getCurrentTransform(transform).getOutput();
     }
 
-    @Override
     public String getFullName(PTransform<?, ?> transform) {
       return getCurrentTransform(transform).getFullName();
     }
@@ -545,7 +425,6 @@ public class DataflowPipelineTranslator {
       }
     }
 
-    @Override
     public void addStep(PTransform<?, ?> transform, String type) {
       String stepName = genStepName();
       if (stepNames.put(getCurrentTransform(transform), stepName) != null) {
@@ -567,7 +446,6 @@ public class DataflowPipelineTranslator {
       addDisplayData(stepName, transform);
     }
 
-    @Override
     public void addStep(PTransform<?, ? extends PValue> transform, Step original) {
       Step step = original.clone();
       String stepName = step.getName();
@@ -609,38 +487,31 @@ public class DataflowPipelineTranslator {
       steps.add(step);
     }
 
-    @Override
     public void addEncodingInput(Coder<?> coder) {
       CloudObject encoding = SerializableUtils.ensureSerializable(coder);
       addObject(getProperties(), PropertyNames.ENCODING, encoding);
     }
 
-    @Override
     public void addInput(String name, Boolean value) {
       addBoolean(getProperties(), name, value);
     }
 
-    @Override
     public void addInput(String name, String value) {
       addString(getProperties(), name, value);
     }
 
-    @Override
     public void addInput(String name, Long value) {
       addLong(getProperties(), name, value);
     }
 
-    @Override
     public void addInput(String name, Map<String, Object> elements) {
       addDictionary(getProperties(), name, elements);
     }
 
-    @Override
     public void addInput(String name, List<? extends Map<String, Object>> elements) {
       addList(getProperties(), name, elements);
     }
 
-    @Override
     public void addInput(String name, PInput value) {
       if (value instanceof PValue) {
         addInput(name, asOutputReference((PValue) value));
@@ -649,7 +520,6 @@ public class DataflowPipelineTranslator {
       }
     }
 
-    @Override
     public long addOutput(PValue value) {
       Coder<?> coder;
       if (value instanceof TypedPValue) {
@@ -667,7 +537,6 @@ public class DataflowPipelineTranslator {
       return addOutput(value, coder);
     }
 
-    @Override
     public long addValueOnlyOutput(PValue value) {
       Coder<?> coder;
       if (value instanceof TypedPValue) {
@@ -684,7 +553,6 @@ public class DataflowPipelineTranslator {
       return addOutput(value, coder);
     }
 
-    @Override
     public long addCollectionToSingletonOutput(PValue inputValue,
                                                PValue outputValue) {
       Coder<?> inputValueCoder =
@@ -749,7 +617,6 @@ public class DataflowPipelineTranslator {
       addList(getProperties(), PropertyNames.DISPLAY_DATA, list);
     }
 
-    @Override
     public OutputReference asOutputReference(PValue value) {
       AppliedPTransform<?, ?, ?> transform =
           value.getProducingTransformInternal();
@@ -812,13 +679,13 @@ public class DataflowPipelineTranslator {
           @Override
           public void translate(
               View.CreatePCollectionView transform,
-              TranslationContext context) {
+              Translator context) {
             translateTyped(transform, context);
           }
 
           private <ElemT, ViewT> void translateTyped(
               View.CreatePCollectionView<ElemT, ViewT> transform,
-              TranslationContext context) {
+              Translator context) {
             context.addStep(transform, "CollectionToSingleton");
             context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
             context.addCollectionToSingletonOutput(
@@ -833,13 +700,13 @@ public class DataflowPipelineTranslator {
           @Override
           public void translate(
               Combine.GroupedValues transform,
-              DataflowPipelineTranslator.TranslationContext context) {
+              Translator context) {
             translateHelper(transform, context);
           }
 
           private <K, InputT, OutputT> void translateHelper(
               final Combine.GroupedValues<K, InputT, OutputT> transform,
-              DataflowPipelineTranslator.TranslationContext context) {
+              Translator context) {
             context.addStep(transform, "CombineValues");
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);
 
@@ -863,13 +730,13 @@ public class DataflowPipelineTranslator {
           @Override
           public void translate(
               Flatten.FlattenPCollectionList transform,
-              TranslationContext context) {
+              Translator context) {
             flattenHelper(transform, context);
           }
 
           private <T> void flattenHelper(
               Flatten.FlattenPCollectionList<T> transform,
-              TranslationContext context) {
+              Translator context) {
             context.addStep(transform, "Flatten");
 
             List<OutputReference> inputs = new LinkedList<>();
@@ -887,13 +754,13 @@ public class DataflowPipelineTranslator {
           @Override
           public void translate(
               GroupByKeyAndSortValuesOnly transform,
-              TranslationContext context) {
+              Translator context) {
             groupByKeyAndSortValuesHelper(transform, context);
           }
 
           private <K1, K2, V> void groupByKeyAndSortValuesHelper(
               GroupByKeyAndSortValuesOnly<K1, K2, V> transform,
-              TranslationContext context) {
+              Translator context) {
             context.addStep(transform, "GroupByKey");
             context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
             context.addOutput(context.getOutput(transform));
@@ -911,13 +778,13 @@ public class DataflowPipelineTranslator {
           @Override
           public void translate(
               GroupByKey transform,
-              TranslationContext context) {
+              Translator context) {
             groupByKeyHelper(transform, context);
           }
 
           private <K, V> void groupByKeyHelper(
               GroupByKey<K, V> transform,
-              TranslationContext context) {
+              Translator context) {
             context.addStep(transform, "GroupByKey");
             context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
             context.addOutput(context.getOutput(transform));
@@ -948,13 +815,13 @@ public class DataflowPipelineTranslator {
           @Override
           public void translate(
               ParDo.BoundMulti transform,
-              TranslationContext context) {
+              Translator context) {
             translateMultiHelper(transform, context);
           }
 
           private <InputT, OutputT> void translateMultiHelper(
               ParDo.BoundMulti<InputT, OutputT> transform,
-              TranslationContext context) {
+              Translator context) {
             rejectStatefulDoFn(transform.getFn());
 
             context.addStep(transform, "ParallelDo");
@@ -978,13 +845,13 @@ public class DataflowPipelineTranslator {
           @Override
           public void translate(
               ParDo.Bound transform,
-              TranslationContext context) {
+              Translator context) {
             translateSingleHelper(transform, context);
           }
 
           private <InputT, OutputT> void translateSingleHelper(
               ParDo.Bound<InputT, OutputT> transform,
-              TranslationContext context) {
+              Translator context) {
             rejectStatefulDoFn(transform.getFn());
 
             context.addStep(transform, "ParallelDo");
@@ -1008,12 +875,12 @@ public class DataflowPipelineTranslator {
         new DataflowPipelineTranslator.TransformTranslator<Window.Bound>() {
           @Override
           public void translate(
-              Window.Bound transform, TranslationContext context) {
+              Window.Bound transform, Translator context) {
             translateHelper(transform, context);
           }
 
           private <T> void translateHelper(
-              Window.Bound<T> transform, TranslationContext context) {
+              Window.Bound<T> transform, Translator context) {
             context.addStep(transform, "Bucket");
             context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
             context.addOutput(context.getOutput(transform));
@@ -1048,7 +915,7 @@ public class DataflowPipelineTranslator {
   private static void translateInputs(
       PCollection<?> input,
       List<PCollectionView<?>> sideInputs,
-      TranslationContext context) {
+      Translator context) {
     context.addInput(PropertyNames.PARALLEL_INPUT, input);
     translateSideInputs(sideInputs, context);
   }
@@ -1056,7 +923,7 @@ public class DataflowPipelineTranslator {
   // Used for ParDo
   private static void translateSideInputs(
       List<PCollectionView<?>> sideInputs,
-      TranslationContext context) {
+      Translator context) {
     Map<String, Object> nonParInputs = new HashMap<>();
 
     for (PCollectionView<?> view : sideInputs) {
@@ -1073,7 +940,7 @@ public class DataflowPipelineTranslator {
       WindowingStrategy windowingStrategy,
       Iterable<PCollectionView<?>> sideInputs,
       Coder inputCoder,
-      TranslationContext context,
+      Translator context,
       long mainOutput,
       Map<Long, TupleTag<?>> outputMap) {
     context.addInput(PropertyNames.USER_FN, fn.getClass().getName());
@@ -1087,7 +954,7 @@ public class DataflowPipelineTranslator {
 
   private static BiMap<Long, TupleTag<?>> translateOutputs(
       PCollectionTuple outputs,
-      TranslationContext context) {
+      Translator context) {
     ImmutableBiMap.Builder<Long, TupleTag<?>> mapBuilder = ImmutableBiMap.builder();
     for (Map.Entry<TupleTag<?>, PCollection<?>> entry
              : outputs.getAll().entrySet()) {
