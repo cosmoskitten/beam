@@ -35,6 +35,7 @@ import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.coders.CoderWrapper;
 import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
 import org.apache.beam.runners.spark.io.hadoop.ShardNameTemplateHelper;
@@ -565,13 +566,14 @@ public final class TransformTranslator {
         JavaRDD rdd = ((BoundedDataset) (context).borrowDataset(transform)).getRDD();
         JavaSparkContext javaSparkContext = context.getSparkContext();
 
-        WindowedValue.ValueOnlyWindowedValueCoder<String> windowCoder =
-            WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
+
+        CoderWrapper<WindowedValue<String>> windowCoder = new CoderWrapper<>
+            (WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
         JavaRDD output =
             javaSparkContext.parallelize(
                 CoderHelpers.toByteArrays(
                     Collections.singletonList(rdd.getStorageLevel().description()),
-                    StringUtf8Coder.of()))
+                    new CoderWrapper<>(StringUtf8Coder.of())))
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
         context.putDataset(transform, new BoundedDataset<String>(output));

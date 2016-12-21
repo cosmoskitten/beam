@@ -23,6 +23,7 @@ import com.google.common.collect.Iterables;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.coders.CoderWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -62,8 +63,8 @@ public class BoundedDataset<T> implements Dataset {
   @SuppressWarnings("ConstantConditions")
   public JavaRDD<WindowedValue<T>> getRDD() {
     if (rdd == null) {
-      WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
-          WindowedValue.getValueOnlyCoder(coder);
+      CoderWrapper<WindowedValue<T>> windowCoder = new CoderWrapper<>(WindowedValue
+          .getValueOnlyCoder(coder));
       rdd = jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
           .map(CoderHelpers.fromByteFunction(windowCoder));
     }
@@ -75,13 +76,15 @@ public class BoundedDataset<T> implements Dataset {
       WindowFn<?, ?> windowFn =
           pcollection.getWindowingStrategy().getWindowFn();
       Coder<? extends BoundedWindow> windowCoder = windowFn.windowCoder();
-      final WindowedValue.WindowedValueCoder<T> windowedValueCoder;
+      final CoderWrapper<WindowedValue<T>> windowedValueCoder;
       if (windowFn instanceof GlobalWindows) {
         windowedValueCoder =
-            WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
+            new CoderWrapper<>(
+                WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder()));
       } else {
         windowedValueCoder =
-            WindowedValue.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder);
+            new CoderWrapper<>(
+                WindowedValue.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder));
       }
       JavaRDDLike<byte[], ?> bytesRDD =
           rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
