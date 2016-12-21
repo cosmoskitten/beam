@@ -213,14 +213,11 @@ public class DataflowPipelineTranslator {
   }
 
   /**
-   * A {@link TransformTranslator} knows how to translate
-   * a particular subclass of {@link PTransform} for the
-   * Cloud Dataflow service. It does so by
-   * mutating the {@link TranslationContext}.
+   * A {@link TransformTranslator} knows how to translate a particular subclass of {@link
+   * PTransform} for the Cloud Dataflow service. It does so by mutating the {@link Translator}.
    */
   public interface TransformTranslator<TransformT extends PTransform> {
-    void translate(TransformT transform,
-                          Translator context);
+    void translate(TransformT transform, Translator context);
   }
 
   /////////////////////////////////////////////////////////////////////////////
