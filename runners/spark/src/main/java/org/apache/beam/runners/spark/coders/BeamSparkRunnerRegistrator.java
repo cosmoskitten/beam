@@ -20,8 +20,11 @@ package org.apache.beam.runners.spark.coders;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
+
+import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.io.SourceRDD;
+import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.spark.serializer.KryoRegistrator;
 
 
@@ -31,13 +34,16 @@ import org.apache.spark.serializer.KryoRegistrator;
 public class BeamSparkRunnerRegistrator implements KryoRegistrator {
 
   /**
-   * Register coders and sources with {@link JavaSerializer} since they aren't guaranteed to be
-   * Kryo-serializable.
+   * Register classes with members which implement ${@link org.apache.beam.sdk.coders.Coder} or
+   * {@link org.apache.beam.sdk.io.Source} with {@link JavaSerializer} since such implementations
+   * aren't guaranteed to be Kryo-serializable.
    */
   @Override
   public void registerClasses(Kryo kryo) {
     kryo.register(MicrobatchSource.class, new JavaSerializer());
     kryo.register(SourceRDD.Bounded.BoundedSourceWrapper.class, new JavaSerializer());
     kryo.register(CoderWrapper.class, new JavaSerializer());
+    kryo.register(BroadcastHelper.class, new JavaSerializer());
+    kryo.register(NamedAggregators.CombineFunctionState.class, new JavaSerializer());
   }
 }
