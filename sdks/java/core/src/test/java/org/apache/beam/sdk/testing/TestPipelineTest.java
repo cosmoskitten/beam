@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -24,9 +25,15 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -52,280 +59,467 @@ import org.hamcrest.Description;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
+import org.junit.runner.JUnitCore;
+import org.junit.runner.Request;
+import org.junit.runner.Result;
 import org.junit.runner.RunWith;
+import org.junit.runner.notification.Failure;
 import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Suite;
+import org.junit.runners.model.Statement;
 
 /** Tests for {@link TestPipeline}. */
-@RunWith(JUnit4.class)
+@RunWith(Suite.class)
+@Suite.SuiteClasses({ TestPipelineTest.TestPipelineCreationTest.class,
+                      TestPipelineTest.TestPipelineEnforcementsTest.class })
 public class TestPipelineTest implements Serializable {
-  private static final List<String> WORDS = Collections.singletonList("hi there");
-  private static final String DUMMY = "expected";
 
-  private final transient TestPipeline pipeline =
-      TestPipeline.fromOptions(pipelineOptions()).enableAbandonedNodeEnforcement(true);
+  /**
+   * Tests related to the creation of a {@link TestPipeline}.
+   */
+  @RunWith(JUnit4.class)
+  public static class TestPipelineCreationTest {
+    @Rule public transient TestRule restoreSystemProperties = new RestoreSystemProperties();
+    @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  private final transient ExpectedException exception = ExpectedException.none();
+    @Test
+    public void testCreationUsingDefaults() {
+      assertNotNull(TestPipeline.create());
+    }
 
-  @Rule public transient TestRule restoreSystemProperties = new RestoreSystemProperties();
-  @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient RuleChain ruleOrder = RuleChain.outerRule(exception).around(pipeline);
+    @Test
+    public void testCreationOfPipelineOptions() throws Exception {
+      ObjectMapper mapper = new ObjectMapper();
+      String stringOptions =
+          mapper.writeValueAsString(
+              new String[] {
+                  "--runner=org.apache.beam.sdk.testing.CrashingRunner", "--project=testProject"
+              });
+      System.getProperties().put("beamTestPipelineOptions", stringOptions);
+      GcpOptions options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+      assertEquals(CrashingRunner.class, options.getRunner());
+      assertEquals(options.getProject(), "testProject");
+    }
 
-  @Test
-  public void testNoTestPipelineUsed() { }
+    @Test
+    public void testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase() throws Exception {
+      PipelineOptions options = TestPipeline.testingPipelineOptions();
+      assertThat(
+          options.as(ApplicationNameOptions.class).getAppName(),
+          startsWith("TestPipelineTest$TestPipelineCreationTest"
+                         + "-testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase"));
+    }
 
-  @Test
-  public void testCreationUsingDefaults() {
-    assertNotNull(TestPipeline.create());
-  }
+    @Test
+    public void testToString() {
+      assertEquals("TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToString",
+                   TestPipeline.create().toString());
+    }
 
-  @Test
-  public void testCreationOfPipelineOptions() throws Exception {
-    ObjectMapper mapper = new ObjectMapper();
-    String stringOptions =
-        mapper.writeValueAsString(
-            new String[] {
-              "--runner=org.apache.beam.sdk.testing.CrashingRunner", "--project=testProject"
-            });
-    System.getProperties().put("beamTestPipelineOptions", stringOptions);
-    GcpOptions options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-    assertEquals(CrashingRunner.class, options.getRunner());
-    assertEquals(options.getProject(), "testProject");
-  }
+    @Test
+    public void testToStringNestedMethod() {
+      TestPipeline p = nestedMethod();
 
-  @Test
-  public void testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase() throws Exception {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    assertThat(
-        options.as(ApplicationNameOptions.class).getAppName(),
-        startsWith(
-            "TestPipelineTest-testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase"));
-  }
+      assertEquals(
+          "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToStringNestedMethod",
+          p.toString());
+      assertEquals(
+          "TestPipelineTest$TestPipelineCreationTest-testToStringNestedMethod",
+          p.getOptions().as(ApplicationNameOptions.class).getAppName());
+    }
 
-  @Test
-  public void testToString() {
-    assertEquals("TestPipeline#TestPipelineTest-testToString", TestPipeline.create().toString());
-  }
-
-  @Test
-  public void testToStringNestedMethod() {
-    TestPipeline p = nestedMethod();
-
-    assertEquals("TestPipeline#TestPipelineTest-testToStringNestedMethod", p.toString());
-    assertEquals(
-        "TestPipelineTest-testToStringNestedMethod",
-        p.getOptions().as(ApplicationNameOptions.class).getAppName());
-  }
-
-  private TestPipeline nestedMethod() {
-    return TestPipeline.create();
-  }
-
-  @Test
-  public void testConvertToArgs() {
-    String[] args = new String[] {"--tempLocation=Test_Location"};
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-    String[] arr = TestPipeline.convertToArgs(options);
-    List<String> lst = Arrays.asList(arr);
-    assertEquals(lst.size(), 2);
-    assertThat(
-        lst, containsInAnyOrder("--tempLocation=Test_Location", "--appName=TestPipelineTest"));
-  }
-
-  @Test
-  public void testToStringNestedClassMethod() {
-    TestPipeline p = new NestedTester().p();
-
-    assertEquals("TestPipeline#TestPipelineTest-testToStringNestedClassMethod", p.toString());
-    assertEquals(
-        "TestPipelineTest-testToStringNestedClassMethod",
-        p.getOptions().as(ApplicationNameOptions.class).getAppName());
-  }
-
-  private static class NestedTester {
-    public TestPipeline p() {
+    private TestPipeline nestedMethod() {
       return TestPipeline.create();
     }
-  }
 
-  @Test
-  public void testMatcherSerializationDeserialization() {
-    TestPipelineOptions opts = PipelineOptionsFactory.as(TestPipelineOptions.class);
-    SerializableMatcher<PipelineResult> m1 = new TestMatcher();
-    SerializableMatcher<PipelineResult> m2 = new TestMatcher();
-
-    opts.setOnCreateMatcher(m1);
-    opts.setOnSuccessMatcher(m2);
-
-    String[] arr = TestPipeline.convertToArgs(opts);
-    TestPipelineOptions newOpts =
-        PipelineOptionsFactory.fromArgs(arr).as(TestPipelineOptions.class);
-
-    assertEquals(m1, newOpts.getOnCreateMatcher());
-    assertEquals(m2, newOpts.getOnSuccessMatcher());
-  }
-
-  @Test
-  public void testRunWithDummyEnvironmentVariableFails() {
-    System.getProperties()
-        .setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.toString(true));
-    TestPipeline pipeline = TestPipeline.create();
-    pipeline.apply(Create.of(1, 2, 3));
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Cannot call #run");
-    pipeline.run();
-  }
-
-  /** TestMatcher is a matcher designed for testing matcher serialization/deserialization. */
-  public static class TestMatcher extends BaseMatcher<PipelineResult>
-      implements SerializableMatcher<PipelineResult> {
-    private final UUID uuid = UUID.randomUUID();
-
-    @Override
-    public boolean matches(Object o) {
-      return true;
+    @Test
+    public void testConvertToArgs() {
+      String[] args = new String[] {"--tempLocation=Test_Location"};
+      PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
+      String[] arr = TestPipeline.convertToArgs(options);
+      List<String> lst = Arrays.asList(arr);
+      assertEquals(lst.size(), 2);
+      assertThat(lst, containsInAnyOrder("--tempLocation=Test_Location",
+                                         "--appName=TestPipelineCreationTest"));
     }
 
-    @Override
-    public void describeTo(Description description) {
-      description.appendText(String.format("%tL", new Date()));
+    @Test
+    public void testToStringNestedClassMethod() {
+      TestPipeline p = new NestedTester().p();
+
+      assertEquals(
+          "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToStringNestedClassMethod",
+          p.toString());
+      assertEquals(
+          "TestPipelineTest$TestPipelineCreationTest-testToStringNestedClassMethod",
+          p.getOptions().as(ApplicationNameOptions.class).getAppName());
     }
 
-    @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof TestMatcher)) {
-        return false;
+    private static class NestedTester {
+      public TestPipeline p() {
+        return TestPipeline.create();
       }
-      TestMatcher other = (TestMatcher) obj;
-      return other.uuid.equals(uuid);
     }
 
-    @Override
-    public int hashCode() {
-      return uuid.hashCode();
+    @Test
+    public void testMatcherSerializationDeserialization() {
+      TestPipelineOptions opts = PipelineOptionsFactory.as(TestPipelineOptions.class);
+      SerializableMatcher<PipelineResult> m1 = new TestMatcher();
+      SerializableMatcher<PipelineResult> m2 = new TestMatcher();
+
+      opts.setOnCreateMatcher(m1);
+      opts.setOnSuccessMatcher(m2);
+
+      String[] arr = TestPipeline.convertToArgs(opts);
+      TestPipelineOptions newOpts =
+          PipelineOptionsFactory.fromArgs(arr).as(TestPipelineOptions.class);
+
+      assertEquals(m1, newOpts.getOnCreateMatcher());
+      assertEquals(m2, newOpts.getOnSuccessMatcher());
+    }
+
+    @Test
+    public void testRunWithDummyEnvironmentVariableFails() {
+      System.getProperties()
+            .setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.toString(true));
+      TestPipeline pipeline = TestPipeline.create();
+      pipeline.apply(Create.of(1, 2, 3));
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("Cannot call #run");
+      pipeline.run();
+    }
+
+    /** TestMatcher is a matcher designed for testing matcher serialization/deserialization. */
+    public static class TestMatcher extends BaseMatcher<PipelineResult>
+        implements SerializableMatcher<PipelineResult> {
+      private final UUID uuid = UUID.randomUUID();
+
+      @Override
+      public boolean matches(Object o) {
+        return true;
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText(String.format("%tL", new Date()));
+      }
+
+      @Override
+      public boolean equals(Object obj) {
+        if (!(obj instanceof TestMatcher)) {
+          return false;
+        }
+        TestMatcher other = (TestMatcher) obj;
+        return other.uuid.equals(uuid);
+      }
+
+      @Override
+      public int hashCode() {
+        return uuid.hashCode();
+      }
     }
   }
 
-  private static class DummyRunner extends PipelineRunner<PipelineResult> {
+  /**
+   * Tests for {@link TestPipeline}'s detection of missing {@link Pipeline#run()}, or abandoned
+   * (dangling) {@link PAssert} or {@link org.apache.beam.sdk.transforms.PTransform} nodes.
+   */
+  @RunWith(Parameterized.class)
+  public static class TestPipelineEnforcementsTest implements Serializable {
 
-    @SuppressWarnings("unused") // used by reflection
-    public static DummyRunner fromOptions(final PipelineOptions opts) {
-      return new DummyRunner();
+    private static final List<String> WORDS = Collections.singletonList("hi there");
+    private static final String WHATEVER = "expected";
+    private static final String P_TRANSFORM = "PTransform";
+    private static final String P_ASSERT = "PAssert";
+
+    private static class DummyRunner extends PipelineRunner<PipelineResult> {
+
+      @SuppressWarnings("unused") // used by reflection
+      public static DummyRunner fromOptions(final PipelineOptions opts) {
+        return new DummyRunner();
+      }
+
+      @Override
+      public PipelineResult run(final Pipeline pipeline) {
+        return new PipelineResult() {
+
+          @Override
+          public State getState() {
+            return null;
+          }
+
+          @Override
+          public State cancel() throws IOException {
+            return null;
+          }
+
+          @Override
+          public State waitUntilFinish(final Duration duration) {
+            return null;
+          }
+
+          @Override
+          public State waitUntilFinish() {
+            return null;
+          }
+
+          @Override
+          public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator)
+              throws AggregatorRetrievalException {
+            return null;
+          }
+
+          @Override
+          public MetricResults metrics() {
+            return null;
+          }
+        };
+      }
     }
 
-    @Override
-    public PipelineResult run(final Pipeline pipeline) {
-      return new PipelineResult() {
+    @SuppressWarnings("UnusedReturnValue")
+    private static PCollection<String> addTransform(final PCollection<String> pCollection) {
+      return pCollection.apply("Map2",
+                               MapElements.via(new SimpleFunction<String, String>() {
 
-        @Override
-        public State getState() {
-          return null;
-        }
-
-        @Override
-        public State cancel() throws IOException {
-          return null;
-        }
-
-        @Override
-        public State waitUntilFinish(final Duration duration) {
-          return null;
-        }
-
-        @Override
-        public State waitUntilFinish() {
-          return null;
-        }
-
-        @Override
-        public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator)
-            throws AggregatorRetrievalException {
-          return null;
-        }
-
-        @Override
-        public MetricResults metrics() {
-          return null;
-        }
-      };
+                                 @Override
+                                 public String apply(final String input) {
+                                   return WHATEVER;
+                                 }
+                               }));
     }
-  }
 
-  private static PipelineOptions pipelineOptions() {
-    final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
-    pipelineOptions.setRunner(DummyRunner.class);
-    return pipelineOptions;
-  }
+    private static PCollection<String> pCollection(final Pipeline pipeline) {
+      return pipeline.apply("Create",
+                            Create.of(WORDS).withCoder(StringUtf8Coder.of()))
+                     .apply("Map1",
+                            MapElements.via(new SimpleFunction<String, String>() {
 
-  private PCollection<String> pCollection() {
-    return addTransform(pipeline.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of())));
-  }
+                              @Override
+                              public String apply(final String input) {
+                                return WHATEVER;
+                              }
+                            }));
+    }
 
-  private PCollection<String> addTransform(final PCollection<String> pCollection) {
-    return pCollection.apply(
-        MapElements.via(
-            new SimpleFunction<String, String>() {
+    /**
+     * Tests for {@link TestPipeline}s with a non {@link CrashingRunner}.
+     */
+    public static class NonCrashingRunner {
 
-              @Override
-              public String apply(final String input) {
-                return DUMMY;
-              }
-            }));
-  }
+      private static PipelineOptions dummyRunner() {
+        final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+        pipelineOptions.setRunner(DummyRunner.class);
+        return pipelineOptions;
+      }
 
-  @Test
-  public void testPipelineRunMissing() throws Throwable {
-    exception.expect(TestPipeline.PipelineRunMissingException.class);
-    PAssert.that(pCollection()).containsInAnyOrder(DUMMY);
-    // missing pipeline#run
-  }
+      @Rule
+      public final transient TestPipeline pipeline = TestPipeline.fromOptions(dummyRunner());
 
-  @Test
-  public void testPipelineHasAbandonedPAssertNode() throws Throwable {
-    exception.expect(TestPipeline.AbandonedNodeException.class);
-    exception.expectMessage("PAssert");
+      @Category(RunnableOnService.class)
+      @Test
+      public void testNormalFlow_runnableOnService_expectNoException() throws Exception {
+        addTransform(pCollection(pipeline));
+        pipeline.run();
+      }
 
-    final PCollection<String> pCollection = pCollection();
-    PAssert.that(pCollection).containsInAnyOrder(DUMMY);
-    pipeline.run().waitUntilFinish();
+      @Category(RunnableOnService.class)
+      @Test
+      public void testMissingRun_runnableOnService_expectPipelineRunMissingException()
+          throws Exception {
+        addTransform(pCollection(pipeline));
+      }
 
-    // dangling PAssert
-    PAssert.that(pCollection).containsInAnyOrder(DUMMY);
-  }
+      @Category(RunnableOnService.class)
+      @Test
+      public void testMissingRunWithDisabledEnforcement_runnableOnService_expectNoException()
+          throws Exception {
+        pipeline.enableAbandonedNodeEnforcement(false);
+        addTransform(pCollection(pipeline));
 
-  @Test
-  public void testPipelineHasAbandonedPTransformNode() throws Throwable {
-    exception.expect(TestPipeline.AbandonedNodeException.class);
-    exception.expectMessage("PTransform");
+        // disable abandoned node detection
+      }
 
-    final PCollection<String> pCollection = pCollection();
-    PAssert.that(pCollection).containsInAnyOrder(DUMMY);
-    pipeline.run().waitUntilFinish();
+      @Category(RunnableOnService.class)
+      @Test
+      public void testMissingRunAutoAdd_runnableOnService_expectNoException()
+          throws Exception {
+        pipeline.enableAutoRunIfMissing(true);
+        addTransform(pCollection(pipeline));
 
-    // dangling PTransform
-    addTransform(pCollection);
-  }
+        // have the pipeline.run() auto-added
+      }
 
-  @Test
-  public void testNormalFlowWithPAssert() throws Throwable {
-    PAssert.that(pCollection()).containsInAnyOrder(DUMMY);
-    pipeline.run().waitUntilFinish();
-  }
+      @Category(RunnableOnService.class)
+      @Test
+      public void testDanglingPTransform_runnableOnService_expectAbandonedNodeException()
+          throws Exception {
+        final PCollection<String> pCollection = pCollection(pipeline);
+        PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
+        pipeline.run().waitUntilFinish();
 
-  @Test
-  public void testAutoAddMissingRunFlow() throws Throwable {
-    PAssert.that(pCollection()).containsInAnyOrder(DUMMY);
-    // missing pipeline#run, but have it auto-added.
-    pipeline.enableAutoRunIfMissing(true);
-  }
+        // dangling PTransform
+        addTransform(pCollection);
+      }
 
-  @Test
-  public void testDisableStrictPAssertFlow() throws Throwable {
-    pCollection();
-    // dangling PTransform, but ignore it
-    pipeline.enableAbandonedNodeEnforcement(false);
+      @Category(NeedsRunner.class)
+      @Test
+      public void testDanglingPTransform_needsRunner_expectAbandonedNodeException()
+          throws Exception {
+        final PCollection<String> pCollection = pCollection(pipeline);
+        PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
+        pipeline.run().waitUntilFinish();
+
+        // dangling PTransform
+        addTransform(pCollection);
+      }
+
+      @Category(RunnableOnService.class)
+      @Test
+      public void testDanglingPAssert_runnableOnService_expectAbandonedNodeException()
+          throws Exception {
+        final PCollection<String> pCollection = pCollection(pipeline);
+        PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
+        pipeline.run().waitUntilFinish();
+
+        // dangling PAssert
+        PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
+      }
+
+      @Category(RunnableOnService.class)
+      @Test
+      public void testNoTestPipelineUsed_runnableOnService_expectNoException() { }
+
+
+      @Test
+      public void testNoTestPipelineUsed_noAnnotation_expectNoException() { }
+
+    }
+
+    /**
+     * Tests for {@link TestPipeline}s with a {@link CrashingRunner}.
+     */
+    public static class WithCrashingRunner {
+
+      static {
+        System.setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.TRUE.toString());
+      }
+
+      @Rule
+      public final transient TestPipeline pipeline = TestPipeline.create();
+
+      @Test
+      public void testNoTestPipelineUsed_noAnnotation_expectNoException() { }
+
+      @Test
+      public void testMissingRun_noRunnerAnnotation_expectNoException() throws Exception {
+        addTransform(pCollection(pipeline));
+
+        // pipeline.run() is missing, BUT:
+        // 1. Neither @RunnableOnService nor @NeedsRunner are present, AND
+        // 2. The runner class is CrashingRunner.class
+        // (1) + (2) => we assume this pipeline was never meant to be run, so no exception is
+        // thrown on account of the missing run / dangling nodes.
+      }
+
+    }
+
+    private static List<Object[]> extractTests(final Class<?> testClass) {
+      final ArrayList<org.junit.runner.Description> testDescriptions = Request.aClass(testClass)
+                                                                              .getRunner()
+                                                                              .getDescription()
+                                                                              .getChildren();
+
+      return FluentIterable.from(testDescriptions)
+                           .transform(new Function<org.junit.runner.Description, Object[]>() {
+
+                             @Override
+                             public Object[] apply(final org.junit.runner.Description description) {
+                               return new Object[] {
+                                   Request.method(testClass, description.getMethodName()),
+                                   description.getTestClass().getSimpleName() + "#"
+                                       + description.getMethodName()
+                               };
+                             }
+                           })
+                           .toList();
+    }
+
+    private TestRule withPossibleExceptions(final String testName) {
+      final String expect = testName.substring(testName.indexOf("_expect"));
+      if (expect.contains(TestPipeline.PipelineRunMissingException.class.getSimpleName())) {
+        final ExpectedException exception = ExpectedException.none();
+        exception.expect(TestPipeline.PipelineRunMissingException.class);
+        return exception;
+      } else if (expect.contains(TestPipeline.AbandonedNodeException.class.getSimpleName())) {
+        final ExpectedException exception = ExpectedException.none();
+        exception.expect(TestPipeline.AbandonedNodeException.class);
+        if (testName.contains(P_TRANSFORM)) {
+          exception.expectMessage(P_TRANSFORM);
+        } else if (testName.contains(P_ASSERT)) {
+          exception.expectMessage(P_ASSERT);
+        }
+        return exception;
+      } else {
+        return new TestRule() {
+
+          @Override
+          public Statement apply(final Statement base,
+                                 final org.junit.runner.Description description) {
+            return base;
+          }
+        };
+      }
+    }
+
+    private void runTest(final Request test, final String testName) throws Throwable {
+
+      final JUnitCore jUnitCore = new JUnitCore();
+      final Result result = jUnitCore.run(test);
+
+      handleFailures(testName, result);
+    }
+
+    private void handleFailures(final String testName, final Result result) throws Throwable {
+      for (final Failure failure : result.getFailures()) {
+        withPossibleExceptions(testName)
+            .apply(new Statement() {
+
+                     @Override
+                     public void evaluate() throws Throwable {
+                       throw failure.getException();
+                     }
+                   },
+                   testCase.getRunner().getDescription())
+            .evaluate();
+      }
+    }
+
+    @Parameterized.Parameters(name = "{1}")
+    public static Collection<Object[]> testCombos() {
+      final Iterable<Object[]> tests =
+          Iterables.concat(extractTests(TestPipelineEnforcementsTest.NonCrashingRunner.class),
+                           extractTests(TestPipelineEnforcementsTest.WithCrashingRunner.class));
+
+      return ImmutableList.<Object[]>builder().addAll(tests).build();
+    }
+
+    @SuppressWarnings("DefaultAnnotationParam")
+    @Parameterized.Parameter(0)
+    public Request testCase;
+
+    @Parameterized.Parameter(1)
+    public String testName;
+
+    @Test
+    public void run() throws Throwable {
+      runTest(testCase, testName);
+    }
+
   }
 }
