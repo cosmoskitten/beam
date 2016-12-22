@@ -105,6 +105,7 @@ public class GroupByKeyTranslatorTest {
   }
 
   private static class EmbeddedCollector extends DoFn<Object, Void> {
+    private static final long serialVersionUID = 1L;
     private static final Set<Object> RESULTS = Collections.synchronizedSet(new HashSet<>());
 
     @ProcessElement
@@ -114,6 +115,8 @@ public class GroupByKeyTranslatorTest {
   }
 
   private static class KeyedByTimestamp<T> extends DoFn<T, KV<Instant, T>> {
+    private static final long serialVersionUID = 1L;
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(KV.of(c.timestamp(), c.element()));
@@ -121,7 +124,7 @@ public class GroupByKeyTranslatorTest {
   }
 
   private static class TestSource extends UnboundedSource<String, UnboundedSource.CheckpointMark> {
-
+    private static final long serialVersionUID = 1L;
     private final List<KV<String, Instant>> data;
     private final Instant watermark;
 

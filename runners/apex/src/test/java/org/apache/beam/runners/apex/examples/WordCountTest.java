@@ -142,6 +142,7 @@ public class WordCountTest {
   }
 
   static class CollectResultsFn extends DoFn<KV<String, Long>, String> {
+    private static final long serialVersionUID = 1L;
     static final ConcurrentHashMap<String, Long> RESULTS = new ConcurrentHashMap<>();
 
     @ProcessElement

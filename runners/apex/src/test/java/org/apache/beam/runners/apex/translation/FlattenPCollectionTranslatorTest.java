@@ -83,6 +83,7 @@ public class FlattenPCollectionTranslatorTest {
   }
 
   private static class EmbeddedCollector extends DoFn<Object, Void> {
+    private static final long serialVersionUID = 1L;
     private static final List<Object> RESULTS = Collections.synchronizedList(new ArrayList<>());
 
     @ProcessElement

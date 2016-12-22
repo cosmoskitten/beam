@@ -76,6 +76,7 @@ public class CollectionSource<T> extends UnboundedSource<T, UnboundedSource.Chec
   private static class CollectionReader<T> extends UnboundedSource.UnboundedReader<T>
       implements Serializable {
 
+    private static final long serialVersionUID = 1L;
     private T current;
     private final CollectionSource<T> source;
     private final Collection<T> collection;
