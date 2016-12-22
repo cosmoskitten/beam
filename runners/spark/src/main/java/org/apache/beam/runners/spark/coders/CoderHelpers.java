@@ -135,8 +135,8 @@ public final class CoderHelpers {
     return new PairFunction<Tuple2<K, V>, ByteArray, byte[]>() {
       @Override
       public Tuple2<ByteArray, byte[]> call(Tuple2<K, V> kv) {
-        return new Tuple2<>(new ByteArray(toByteArray(kv._1(), keyCoderWrapper)), toByteArray(kv._2(),
-            valueCoderWrapper));
+        return new Tuple2<>(new ByteArray(toByteArray(kv._1(), keyCoderWrapper)),
+            toByteArray(kv._2(), valueCoderWrapper));
       }
     };
   }
@@ -172,7 +172,8 @@ public final class CoderHelpers {
    * @return A function that accepts a pair of byte arrays and returns a key-value pair.
    */
   public static <K, V> PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>>
-      fromByteFunctionIterable(final CoderWrapper<K> keyCoderWrapper, final CoderWrapper<V> valueCoderWrapper) {
+      fromByteFunctionIterable(final CoderWrapper<K> keyCoderWrapper,
+                               final CoderWrapper<V> valueCoderWrapper) {
     return new PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>>() {
       @Override
       public Tuple2<K, Iterable<V>> call(Tuple2<ByteArray, Iterable<byte[]>> tuple) {
