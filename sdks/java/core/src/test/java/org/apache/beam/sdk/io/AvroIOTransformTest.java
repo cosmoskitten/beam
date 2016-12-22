@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
@@ -136,7 +137,7 @@ public class AvroIOTransformTest {
       }
     }
 
-    private <T> void runTestRead(final String applyName,
+    private <T> void runTestRead(@Nullable final String applyName,
                                  final AvroIO.Read.Bound<T> readBuilder,
                                  final String expectedName,
                                  final T[] expectedOutput) throws Exception {
@@ -145,7 +146,7 @@ public class AvroIOTransformTest {
       generateAvroFile(generateAvroObjects(), avroFile);
       final AvroIO.Read.Bound<T> read = readBuilder.from(avroFile.getPath());
       final PCollection<T> output =
-          applyName.equals("") ? pipeline.apply(read) : pipeline.apply(applyName, read);
+          applyName == null ? pipeline.apply(read) : pipeline.apply(applyName, read);
 
       PAssert.that(output).containsInAnyOrder(expectedOutput);
 
@@ -164,6 +165,8 @@ public class AvroIOTransformTest {
       return
           ImmutableList.<Object[]>builder()
               .add(
+
+                  // test read using generated class
                   new Object[] {
                       "",
                       AvroIO.Read.withSchema(AvroGeneratedUser.class),
@@ -176,15 +179,11 @@ public class AvroIOTransformTest {
                       AvroIO.Read.withSchema(AvroGeneratedUser.class),
                       "MyRead/Read.out",
                       generateAvroObjects(),
-                      generatedClass,
-                      },
+                      generatedClass
+                  },
+
+                  // test read using schema object
                   new Object[] {
-                      "HerRead",
-                      AvroIO.Read.withSchema(AvroGeneratedUser.class),
-                      "HerRead/Read.out",
-                      generateAvroObjects(),
-                      generatedClass,
-                      }, new Object[] {
                       "",
                       AvroIO.Read.withSchema(SCHEMA),
                       "AvroIO.Read/Read.out",
@@ -198,13 +197,8 @@ public class AvroIOTransformTest {
                       generateAvroGenericRecords(),
                       fromSchema
                   },
-                  new Object[] {
-                      "HerRead",
-                      AvroIO.Read.withSchema(SCHEMA),
-                      "HerRead/Read.out",
-                      generateAvroGenericRecords(),
-                      fromSchema
-                  },
+
+                  // test read using schema string
                   new Object[] {
                       "",
                       AvroIO.Read.withSchema(SCHEMA_STRING),
@@ -216,20 +210,14 @@ public class AvroIOTransformTest {
                       "MyRead",
                       AvroIO.Read.withSchema(SCHEMA_STRING),
                       "MyRead/Read.out",
-                      generateAvroGenericRecords(),
-                      fromSchemaString
-                  },
-                  new Object[] {
-                      "HerRead",
-                      AvroIO.Read.withSchema(SCHEMA_STRING),
-                      "HerRead/Read.out",
                       generateAvroGenericRecords(),
                       fromSchemaString
                   })
               .build();
     }
 
-    @Parameterized.Parameter()
+    @SuppressWarnings("DefaultAnnotationParam")
+    @Parameterized.Parameter(0)
     public String transformName;
 
     @Parameterized.Parameter(1)
@@ -298,7 +286,8 @@ public class AvroIOTransformTest {
               .build();
     }
 
-    @Parameterized.Parameter()
+    @SuppressWarnings("DefaultAnnotationParam")
+    @Parameterized.Parameter(0)
     public AvroIO.Write.Bound writeTransform;
 
     @Parameterized.Parameter(1)
