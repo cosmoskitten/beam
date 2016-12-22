@@ -29,8 +29,10 @@ import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -93,8 +95,10 @@ public class TestPipeline extends Pipeline implements TestRule {
 
   private static class PipelineRunEnforcement {
 
+    @SuppressWarnings("WeakerAccess")
     protected boolean enableAutoRunIfMissing;
     protected final Pipeline pipeline;
+
     private boolean runInvoked;
 
     private PipelineRunEnforcement(final Pipeline pipeline) {
@@ -169,11 +173,14 @@ public class TestPipeline extends Pipeline implements TestRule {
           throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
         }
       } else if (runVisitedNodes == null && !enableAutoRunIfMissing) {
-        IsEmptyVisitor isEmptyVisitor = new IsEmptyVisitor();
+        final IsEmptyVisitor isEmptyVisitor = new IsEmptyVisitor();
         pipeline.traverseTopologically(isEmptyVisitor);
 
         if (!isEmptyVisitor.isEmpty()) {
-          throw new PipelineRunMissingException("The pipeline has not been run.");
+          throw new PipelineRunMissingException("The pipeline has not been run (runner: "
+                                                    + pipeline.getOptions()
+                                                              .getRunner()
+                                                              .getSimpleName() + ")");
         }
       }
     }
@@ -239,8 +246,49 @@ public class TestPipeline extends Pipeline implements TestRule {
   public Statement apply(final Statement statement, final Description description) {
     return new Statement() {
 
+      private final Predicate<Annotation> hasCategoryAnnotation = new Predicate<Annotation>() {
+
+        @Override
+        public boolean apply(final Annotation annotation) {
+          return annotation.annotationType() != null
+              && annotation.annotationType().equals(Category.class);
+        }
+      };
+
+      private final Predicate<Annotation> categoryOfNeedsRunner = new Predicate<Annotation>() {
+
+        @Override
+        public boolean apply(final Annotation category) {
+          return
+              FluentIterable
+                  .from(Arrays.asList(((Category) category).value()))
+                  .anyMatch(new Predicate<Class<?>>() {
+
+                    @Override
+                    public boolean apply(final Class<?> aClass) {
+                      return NeedsRunner.class.isAssignableFrom(aClass);
+                    }
+                  });
+        }
+      };
+
+      private void setDeducedEnforcementLevel() {
+
+        final boolean annotatedWithNeedsRunner =
+            FluentIterable
+                .from(description.getAnnotations())
+                .filter(hasCategoryAnnotation)
+                .anyMatch(categoryOfNeedsRunner);
+
+        final boolean crashingRunner =
+            CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
+
+        enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+      }
+
       @Override
       public void evaluate() throws Throwable {
+        setDeducedEnforcementLevel();
         statement.evaluate();
         enforcement.afterTestCompletion();
       }
