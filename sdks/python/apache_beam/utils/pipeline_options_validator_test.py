@@ -27,7 +27,7 @@ from apache_beam.utils.pipeline_options_validator import PipelineOptionsValidato
 # Mock runners to use for validations.
 class MockRunners(object):
 
-  class DataflowPipelineRunner(object):
+  class DataflowRunner(object):
     pass
 
   class OtherRunner(object):
@@ -63,7 +63,7 @@ class SetupTest(unittest.TestCase):
 
   def test_missing_required_options(self):
     options = PipelineOptions([''])
-    runner = MockRunners.DataflowPipelineRunner()
+    runner = MockRunners.DataflowRunner()
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
 
@@ -84,7 +84,7 @@ class SetupTest(unittest.TestCase):
         options.append('--staging_location=' + staging_location)
 
       pipeline_options = PipelineOptions(options)
-      runner = MockRunners.DataflowPipelineRunner()
+      runner = MockRunners.DataflowRunner()
       validator = PipelineOptionsValidator(pipeline_options, runner)
       return validator
 
@@ -139,7 +139,7 @@ class SetupTest(unittest.TestCase):
         options.append('--project=' + project)
 
       pipeline_options = PipelineOptions(options)
-      runner = MockRunners.DataflowPipelineRunner()
+      runner = MockRunners.DataflowRunner()
       validator = PipelineOptionsValidator(pipeline_options, runner)
       return validator
 
@@ -167,7 +167,7 @@ class SetupTest(unittest.TestCase):
         options.append('--job_name=' + job_name)
 
       pipeline_options = PipelineOptions(options)
-      runner = MockRunners.DataflowPipelineRunner()
+      runner = MockRunners.DataflowRunner()
       validator = PipelineOptionsValidator(pipeline_options, runner)
       return validator
 
@@ -195,7 +195,7 @@ class SetupTest(unittest.TestCase):
         options.append('--num_workers=' + num_workers)
 
       pipeline_options = PipelineOptions(options)
-      runner = MockRunners.DataflowPipelineRunner()
+      runner = MockRunners.DataflowRunner()
       validator = PipelineOptionsValidator(pipeline_options, runner)
       return validator
 
@@ -229,27 +229,27 @@ class SetupTest(unittest.TestCase):
             'expected': False,
         },
         {
-            'runner': MockRunners.DataflowPipelineRunner(),
+            'runner': MockRunners.DataflowRunner(),
             'options': ['--dataflow_endpoint=https://another.service.com'],
             'expected': False,
         },
         {
-            'runner': MockRunners.DataflowPipelineRunner(),
+            'runner': MockRunners.DataflowRunner(),
             'options': ['--dataflow_endpoint=https://another.service.com/'],
             'expected': False,
         },
         {
-            'runner': MockRunners.DataflowPipelineRunner(),
+            'runner': MockRunners.DataflowRunner(),
             'options': ['--dataflow_endpoint=https://dataflow.googleapis.com'],
             'expected': True,
         },
         {
-            'runner': MockRunners.DataflowPipelineRunner(),
+            'runner': MockRunners.DataflowRunner(),
             'options': ['--dataflow_endpoint=https://dataflow.googleapis.com/'],
             'expected': True,
         },
         {
-            'runner': MockRunners.DataflowPipelineRunner(),
+            'runner': MockRunners.DataflowRunner(),
             'options': [],
             'expected': True,
         },
