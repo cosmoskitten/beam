@@ -102,7 +102,7 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
     dataOutStream.writeInt(map.size());
     for (Entry<K, V> entry : map.entrySet()) {
       keyCoder.encode(entry.getKey(), outStream, context.nested());
-      valueCoder.encode(entry.getValue(), outStream, context.nested());
+      valueCoder.encode(entry.getValue(), outStream, context);
     }
     dataOutStream.flush();
   }
@@ -115,7 +115,7 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
     Map<K, V> retval = Maps.newHashMapWithExpectedSize(size);
     for (int i = 0; i < size; ++i) {
       K key = keyCoder.decode(inStream, context.nested());
-      V value = valueCoder.decode(inStream, context.nested());
+      V value = valueCoder.decode(inStream, context);
       retval.put(key, value);
     }
     return retval;
@@ -150,10 +150,8 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
       throws Exception {
     observer.update(4L);
     for (Entry<K, V> entry : map.entrySet()) {
-      keyCoder.registerByteSizeObserver(
-          entry.getKey(), observer, context.nested());
-      valueCoder.registerByteSizeObserver(
-          entry.getValue(), observer, context.nested());
+      keyCoder.registerByteSizeObserver(entry.getKey(), observer, context.nested());
+      valueCoder.registerByteSizeObserver(entry.getValue(), observer, context);
     }
   }
 }
