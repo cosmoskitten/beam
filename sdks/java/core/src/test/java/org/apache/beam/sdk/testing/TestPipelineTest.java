@@ -24,36 +24,22 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
-import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -61,17 +47,9 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link TestPipeline}. */
 @RunWith(JUnit4.class)
 public class TestPipelineTest implements Serializable {
-  private static final List<String> WORDS = Collections.singletonList("hi there");
-  private static final String DUMMY = "expected";
-
-  private final transient TestPipeline pipeline =
-      TestPipeline.fromOptions(pipelineOptions()).enableAbandonedNodeEnforcement(true);
-
-  private final transient ExpectedException exception = ExpectedException.none();
 
   @Rule public transient TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient RuleChain ruleOrder = RuleChain.outerRule(exception).around(pipeline);
 
   @Test
   public void testNoTestPipelineUsed() { }
@@ -209,123 +187,4 @@ public class TestPipelineTest implements Serializable {
     }
   }
 
-  private static class DummyRunner extends PipelineRunner<PipelineResult> {
-
-    @SuppressWarnings("unused") // used by reflection
-    public static DummyRunner fromOptions(final PipelineOptions opts) {
-      return new DummyRunner();
-    }
-
-    @Override
-    public PipelineResult run(final Pipeline pipeline) {
-      return new PipelineResult() {
-
-        @Override
-        public State getState() {
-          return null;
-        }
-
-        @Override
-        public State cancel() throws IOException {
-          return null;
-        }
-
-        @Override
-        public State waitUntilFinish(final Duration duration) {
-          return null;
-        }
-
-        @Override
-        public State waitUntilFinish() {
-          return null;
-        }
-
-        @Override
-        public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator)
-            throws AggregatorRetrievalException {
-          return null;
-        }
-
-        @Override
-        public MetricResults metrics() {
-          return null;
-        }
-      };
-    }
-  }
-
-  private static PipelineOptions pipelineOptions() {
-    final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
-    pipelineOptions.setRunner(DummyRunner.class);
-    return pipelineOptions;
-  }
-
-  private PCollection<String> pCollection() {
-    return addTransform(pipeline.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of())));
-  }
-
-  private PCollection<String> addTransform(final PCollection<String> pCollection) {
-    return pCollection.apply(
-        MapElements.via(
-            new SimpleFunction<String, String>() {
-
-              @Override
-              public String apply(final String input) {
-                return DUMMY;
-              }
-            }));
-  }
-
-  @Test
-  public void testPipelineRunMissing() throws Throwable {
-    exception.expect(TestPipeline.PipelineRunMissingException.class);
-    PAssert.that(pCollection()).containsInAnyOrder(DUMMY);
-    // missing pipeline#run
-  }
-
-  @Test
-  public void testPipelineHasAbandonedPAssertNode() throws Throwable {
-    exception.expect(TestPipeline.AbandonedNodeException.class);
-    exception.expectMessage("PAssert");
-
-    final PCollection<String> pCollection = pCollection();
-    PAssert.that(pCollection).containsInAnyOrder(DUMMY);
-    pipeline.run().waitUntilFinish();
-
-    // dangling PAssert
-    PAssert.that(pCollection).containsInAnyOrder(DUMMY);
-  }
-
-  @Test
-  public void testPipelineHasAbandonedPTransformNode() throws Throwable {
-    exception.expect(TestPipeline.AbandonedNodeException.class);
-    exception.expectMessage("PTransform");
-
-    final PCollection<String> pCollection = pCollection();
-    PAssert.that(pCollection).containsInAnyOrder(DUMMY);
-    pipeline.run().waitUntilFinish();
-
-    // dangling PTransform
-    addTransform(pCollection);
-  }
-
-  @Test
-  public void testNormalFlowWithPAssert() throws Throwable {
-    PAssert.that(pCollection()).containsInAnyOrder(DUMMY);
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testAutoAddMissingRunFlow() throws Throwable {
-    PAssert.that(pCollection()).containsInAnyOrder(DUMMY);
-    // missing pipeline#run, but have it auto-added.
-    pipeline.enableAutoRunIfMissing(true);
-  }
-
-  @Test
-  public void testDisableStrictPAssertFlow() throws Throwable {
-    pCollection();
-    // dangling PTransform, but ignore it
-    pipeline.enableAbandonedNodeEnforcement(false);
-  }
 }
