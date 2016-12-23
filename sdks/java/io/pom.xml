@@ -67,9 +67,13 @@
     <module>common</module>
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
+<<<<<<< HEAD
     <module>hadoop-common</module>
     <module>hadoop</module>
     <module>hbase</module>
+=======
+	<module>hadoop-input-format</module>
+>>>>>>> Updated Pom files
     <module>hdfs</module>
     <module>jdbc</module>
     <module>jms</module>
