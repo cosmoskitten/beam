@@ -17,6 +17,7 @@
 """Implements a source for reading Avro files."""
 
 import cStringIO as StringIO
+import gc
 import os
 import zlib
 
@@ -248,8 +249,13 @@ class _AvroSource(filebasedsource.FileBasedSource):
       while range_tracker.try_claim(f.tell()):
         block = _AvroUtils.read_block_from_file(f, codec, schema_string,
                                                 sync_marker)
+
         for record in block.records():
           yield record
+
+        # GC (possibly large) block and associated data.
+        del block
+        gc.collect()
 
 
 class WriteToAvro(beam.transforms.PTransform):
