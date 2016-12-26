@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import gc
 import json
 import logging
 import os
@@ -292,8 +293,14 @@ class TestAvro(unittest.TestCase):
     # Adjusting block size so that we can perform a exhaustive dynamic
     # work rebalancing test that completes within an acceptable amount of time.
     old_sync_interval = avro.datafile.SYNC_INTERVAL
+    avro.datafile.SYNC_INTERVAL = 5
+
+    # Disable GC overhead which is non-trivial for exhaustive tests with a ton
+    # of small blocks.
+    assert gc.isenabled()
+    gc.disable()
+
     try:
-      avro.datafile.SYNC_INTERVAL = 5
       file_name = self._write_data(count=20)
       source = AvroSource(file_name)
       splits = [split
@@ -301,6 +308,7 @@ class TestAvro(unittest.TestCase):
       assert len(splits) == 1
       source_test_utils.assertSplitAtFractionExhaustive(splits[0].source)
     finally:
+      gc.enable()
       avro.datafile.SYNC_INTERVAL = old_sync_interval
 
   def test_corrupted_file(self):

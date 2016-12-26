@@ -253,9 +253,10 @@ class _AvroSource(filebasedsource.FileBasedSource):
         for record in block.records():
           yield record
 
-        # GC (possibly large) block and associated data.
-        del block
-        gc.collect()
+        if gs.isenabled():
+          # GC (possibly large) block and associated data.
+          del block
+          gc.collect()
 
 
 class WriteToAvro(beam.transforms.PTransform):
