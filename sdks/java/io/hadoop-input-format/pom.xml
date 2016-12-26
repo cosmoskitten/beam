@@ -13,8 +13,12 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format</name>
 =======
   <version>0.5.0-incubating-SNAPSHOT</version>
+<<<<<<< HEAD
   <name>Archetype - hadoop-inputformat</name>
 >>>>>>> Added code and tests to read from DummyInputFormat
+=======
+  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format</name>
+>>>>>>> Added Hadoop Input Format module in io pom file and minor changes in pom file.
   <url>http://maven.apache.org</url>
 
   <build>

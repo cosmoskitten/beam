@@ -68,12 +68,16 @@
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
 <<<<<<< HEAD
+<<<<<<< HEAD
     <module>hadoop-common</module>
     <module>hadoop</module>
     <module>hbase</module>
 =======
 	<module>hadoop-input-format</module>
 >>>>>>> Updated Pom files
+=======
+	<module>hadoop-input-format</module>
+>>>>>>> Added Hadoop Input Format module in io pom file and minor changes in pom file.
     <module>hdfs</module>
     <module>jdbc</module>
     <module>jms</module>
