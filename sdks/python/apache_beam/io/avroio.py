@@ -253,7 +253,7 @@ class _AvroSource(filebasedsource.FileBasedSource):
         for record in block.records():
           yield record
 
-        if gs.isenabled():
+        if gc.isenabled():
           # GC (possibly large) block and associated data.
           del block
           gc.collect()
