@@ -35,7 +35,7 @@ class UtilTest(unittest.TestCase):
 
   def test_default_job_name(self):
     job_name = apiclient.Job.default_job_name(None)
-    regexp = 'beamapp-[a-z]*-[0-9]{10}-[0-9]{6}'
+    regexp = 'beamapp-[-_a-z0-9]*-[0-9]{10}-[0-9]{6}'
     self.assertTrue(re.match(regexp, job_name))
 
 
