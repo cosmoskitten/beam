@@ -154,7 +154,7 @@ class RunnerTest(unittest.TestCase):
         distro.update(context.element)
         return [context.element]
 
-    runner = DirectPipelineRunner()
+    runner = DirectRunner()
     p = Pipeline(runner,
                  options=PipelineOptions(self.default_properties))
     # pylint: disable=expression-not-assigned
