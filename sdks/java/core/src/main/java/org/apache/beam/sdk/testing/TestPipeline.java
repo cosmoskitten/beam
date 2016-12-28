@@ -273,17 +273,21 @@ public class TestPipeline extends Pipeline implements TestRule {
       };
 
       private void setDeducedEnforcementLevel() {
+        if (enforcement instanceof PipelineAbandonedNodeEnforcement) {
 
-        final boolean annotatedWithNeedsRunner =
-            FluentIterable
-                .from(description.getAnnotations())
-                .filter(hasCategoryAnnotation)
-                .anyMatch(categoryOfNeedsRunner);
+          final boolean annotatedWithNeedsRunner =
+              FluentIterable
+                  .from(description.getAnnotations())
+                  .filter(hasCategoryAnnotation)
+                  .anyMatch(categoryOfNeedsRunner);
 
-        final boolean crashingRunner =
-            CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
+          final boolean crashingRunner =
+              CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
 
-        enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+          enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+        }
+        // if enforcement instanceof PipelineRunEnforcement at this point, it must have been
+        // set so by the user, so don't second guess it.
       }
 
       @Override
