@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -48,6 +49,8 @@ public class RedisIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(RedisIOTest.class);
 
   private static final List<String> DEFAULT_REDIS = Collections.singletonList("localhost:6379");
+
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Ignore("Require a Redis server")
   @Test
@@ -75,7 +78,6 @@ public class RedisIOTest {
       jedis.set("Key " + i, "Value " + i);
     }
 
-    TestPipeline pipeline = TestPipeline.create();
     PCollection<KV<String, String>> output =
         pipeline.apply(RedisIO.read().withConnection(RedisConnection.create(DEFAULT_REDIS)));
 
@@ -87,6 +89,8 @@ public class RedisIOTest {
       expected.add(kv);
     }
     PAssert.that(output).containsInAnyOrder(expected);
+
+    pipeline.run();
   }
 
   @Ignore("Require a Redis server")
@@ -98,7 +102,6 @@ public class RedisIOTest {
       KV<String, String> kv = KV.of("Key " + i, "Value " + i);
       data.add(kv);
     }
-    TestPipeline pipeline = TestPipeline.create();
     pipeline.apply(Create.of(data))
         .apply(RedisIO.write().withConnection(RedisConnection.create(DEFAULT_REDIS)));
     pipeline.run();
@@ -124,7 +127,6 @@ public class RedisIOTest {
       KV<String, String> kv = KV.of("Key " + i, " Appended");
       data.add(kv);
     }
-    TestPipeline pipeline = TestPipeline.create();
     pipeline.apply(Create.of(data))
         .apply(RedisIO.write().withConnection(RedisConnection.create(DEFAULT_REDIS))
             .withCommand(RedisIO.Write.Command.APPEND));

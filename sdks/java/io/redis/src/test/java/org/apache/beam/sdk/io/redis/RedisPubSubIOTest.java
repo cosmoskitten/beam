@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -47,6 +48,8 @@ public class RedisPubSubIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(RedisPubSubIOTest.class);
 
   private static final List<String> DEFAULT_REDIS = Collections.singletonList("localhost:6379");
+
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Ignore("Require a Redis server")
   @Test
@@ -68,7 +71,6 @@ public class RedisPubSubIOTest {
     };
 
     LOG.info("Creating test pipeline");
-    TestPipeline pipeline = TestPipeline.create();
     PCollection<String> output = pipeline.apply(RedisPubSubIO.read()
         .withConnection(RedisConnection.create(DEFAULT_REDIS))
         .withChannels(Collections.singletonList("TEST_CHANNEL"))
@@ -109,7 +111,6 @@ public class RedisPubSubIOTest {
     };
 
     LOG.info("Creating test pipeline");
-    TestPipeline pipeline = TestPipeline.create();
     PCollection<String> output = pipeline.apply(RedisPubSubIO.read()
         .withConnection(RedisConnection.create(DEFAULT_REDIS))
         .withPatterns(Collections.singletonList("TEST_P*"))
@@ -155,7 +156,6 @@ public class RedisPubSubIOTest {
     subscriber.start();
 
     LOG.info("Starting pipeline");
-    TestPipeline pipeline = TestPipeline.create();
     ArrayList<String> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
       data.add("Test " + i);
