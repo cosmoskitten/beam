@@ -240,11 +240,6 @@ public class RedisIO {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions pipelineOptions) {
-      return false;
-    }
-
-    @Override
     public BoundedReader<KV<String, String>> createReader(PipelineOptions pipelineOptions) {
       return new RedisBoundedReader(this);
     }
