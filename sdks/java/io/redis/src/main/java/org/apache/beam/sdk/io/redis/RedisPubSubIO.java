@@ -276,7 +276,7 @@ public class RedisPubSubIO {
 
     private Jedis jedis;
     private JedisPubSub jedisPubSubCallback;
-    private BlockingQueue<String> queue;
+    private final BlockingQueue<String> queue;
     private String current;
     private Instant currentTimestamp;
 

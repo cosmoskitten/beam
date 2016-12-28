@@ -196,7 +196,7 @@ public class RedisIO {
   // visible for testing
   protected static class BoundedRedisSource extends BoundedSource<KV<String, String>> {
 
-    private Read spec;
+    private final Read spec;
 
     protected BoundedRedisSource(Read spec) {
       this.spec = spec;
@@ -375,7 +375,7 @@ public class RedisIO {
 
     private static class WriteFn extends DoFn<KV<String, String>, Void> {
 
-      private Write spec;
+      private final Write spec;
       private transient Jedis jedis;
 
       public WriteFn(Write spec) {
