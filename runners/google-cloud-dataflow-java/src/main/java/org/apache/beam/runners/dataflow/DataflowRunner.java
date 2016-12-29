@@ -2308,7 +2308,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public String getKindString() {
-      return String.format("Read(%s)", NameUtils.approximateSimpleName(source.getClass()));
+      return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
     }
 
     static {
@@ -2784,7 +2784,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           ? "streaming" : "batch";
       String name =
           transform == null
+<<<<<<< HEAD
               ? NameUtils.approximateSimpleName(doFn.getClass())
+=======
+              ? NameUtils.approximateSimpleName(doFn)
+>>>>>>> 50a7250... squash! Remove .named from Combine
               : NameUtils.approximatePTransformName(transform.getClass());
       throw new UnsupportedOperationException(
           String.format("The DataflowRunner in %s mode does not support %s.", mode, name));
