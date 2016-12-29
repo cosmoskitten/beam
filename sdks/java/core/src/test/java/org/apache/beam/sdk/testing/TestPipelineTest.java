@@ -52,9 +52,6 @@ public class TestPipelineTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testNoTestPipelineUsed() { }
-
-  @Test
   public void testCreationUsingDefaults() {
     assertNotNull(TestPipeline.create());
   }

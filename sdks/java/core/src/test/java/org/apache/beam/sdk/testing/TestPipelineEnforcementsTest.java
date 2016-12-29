@@ -142,7 +142,7 @@ public class TestPipelineEnforcementsTest implements Serializable {
   /**
    * Tests for {@link TestPipeline}s with a non {@link CrashingRunner}.
    */
-  public static class RunnableTestPipelineTests {
+  public static class NonCrashingRunner {
 
     private static PipelineOptions dummyRunner() {
       final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
@@ -223,12 +223,20 @@ public class TestPipelineEnforcementsTest implements Serializable {
       PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
     }
 
+    @Category(RunnableOnService.class)
+    @Test
+    public void testNoTestPipelineUsed_runnableOnService_expectNoException() { }
+
+
+    @Test
+    public void testNoTestPipelineUsed_noAnnotation_expectNoException() { }
+
   }
 
   /**
    * Tests for {@link TestPipeline}s with a {@link CrashingRunner}.
    */
-  public static class UnRunnableTestPipelineTests {
+  public static class WithCrashingRunner {
 
     static {
       System.setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.TRUE.toString());
@@ -236,6 +244,9 @@ public class TestPipelineEnforcementsTest implements Serializable {
 
     @Rule
     public final transient TestPipeline pipeline = TestPipeline.create();
+
+    @Test
+    public void testNoTestPipelineUsed_noAnnotation_expectNoException() { }
 
     @Test
     public void testMissingRun_noRunnerAnnotation_expectNoException() throws Exception {
@@ -263,7 +274,8 @@ public class TestPipelineEnforcementsTest implements Serializable {
                            public Object[] apply(final Description description) {
                              return new Object[] {
                                  Request.method(testClass, description.getMethodName()),
-                                 description.getMethodName()
+                                 description.getTestClass().getSimpleName() + "#"
+                                     + description.getMethodName()
                              };
                            }
                          })
@@ -322,8 +334,8 @@ public class TestPipelineEnforcementsTest implements Serializable {
   @Parameterized.Parameters(name = "{1}")
   public static Collection<Object[]> testCombos() {
     final Iterable<Object[]> tests =
-        Iterables.concat(extractTests(RunnableTestPipelineTests.class),
-                         extractTests(UnRunnableTestPipelineTests.class));
+        Iterables.concat(extractTests(NonCrashingRunner.class),
+                         extractTests(WithCrashingRunner.class));
 
     return ImmutableList.<Object[]>builder().addAll(tests).build();
   }
