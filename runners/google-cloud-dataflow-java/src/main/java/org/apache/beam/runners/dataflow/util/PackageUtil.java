@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.core.Base64Variants;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.common.collect.Lists;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
@@ -39,12 +42,15 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -55,24 +61,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Helper routines for packages. */
-public class PackageUtil {
+class PackageUtil {
   private static final Logger LOG = LoggerFactory.getLogger(PackageUtil.class);
   /**
    * A reasonable upper bound on the number of jars required to launch a Dataflow job.
    */
-  public static final int SANE_CLASSPATH_SIZE = 1000;
-  /**
-   * The initial interval to use between package staging attempts.
-   */
-  private static final Duration INITIAL_BACKOFF_INTERVAL = Duration.standardSeconds(5);
-  /**
-   * The maximum number of retries when staging a file.
-   */
-  private static final int MAX_RETRIES = 4;
+  private static final int SANE_CLASSPATH_SIZE = 1000;
 
   private static final FluentBackoff BACKOFF_FACTORY =
-      FluentBackoff.DEFAULT
-          .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF_INTERVAL);
+      FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(Duration.standardSeconds(5));
 
   /**
    * Translates exceptions from API calls.
@@ -89,7 +86,7 @@ public class PackageUtil {
    * @return a {@link PackageAttributes} that containing metadata about the object to be staged.
    */
   static PackageAttributes createPackageAttributes(File source,
-      String stagingPath, String overridePackageName) {
+      String stagingPath, @Nullable String overridePackageName) {
     try {
       boolean directory = source.isDirectory();
 
@@ -122,50 +119,38 @@ public class PackageUtil {
     }
   }
 
-  /**
-   * Transfers the classpath elements to the staging location.
-   *
-   * @param classpathElements The elements to stage.
-   * @param stagingPath The base location to stage the elements to.
-   * @return A list of cloud workflow packages, each representing a classpath element.
-   */
-  public static List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements, String stagingPath) {
-    return stageClasspathElements(classpathElements, stagingPath, Sleeper.DEFAULT);
+  /** Utility comparator used in uploading packages efficiently. */
+  private static class PackageUploadOrder implements Comparator<PackageAttributes> {
+    @Override
+    public int compare(PackageAttributes o1, PackageAttributes o2) {
+      // Smaller size compares high so that bigger packages are uploaded first.
+      long sizeDiff = o2.getSize() - o1.getSize();
+      if (sizeDiff != 0) {
+        // returns sign of long
+        return Long.signum(sizeDiff);
+      }
+
+      // Otherwise, choose arbitrarily based on hash.
+      return o1.getHash().compareTo(o2.getHash());
+    }
   }
 
-  // Visible for testing.
-  static List<DataflowPackage> stageClasspathElements(
+  /**
+   * Utility function that computes sizes and hashes of packages so that we can validate whether
+   * they have already been correctly staged.
+   */
+  private static List<PackageAttributes> computePackageAttributes(
       Collection<String> classpathElements, final String stagingPath,
-      Sleeper retrySleeper) {
-    LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
-        + "prepare for execution.", classpathElements.size());
-
-    if (classpathElements.size() > SANE_CLASSPATH_SIZE) {
-      LOG.warn("Your classpath contains {} elements, which Google Cloud Dataflow automatically "
-              + "copies to all workers. Having this many entries on your classpath may be indicative "
-              + "of an issue in your pipeline. You may want to consider trimming the classpath to "
-              + "necessary dependencies only, using --filesToStage pipeline option to override "
-              + "what files are being staged, or bundling several dependencies into one.",
-          classpathElements.size());
-    }
-
-    if (stagingPath == null) {
-      throw new IllegalArgumentException(
-          "Can't stage classpath elements on because no staging location has been provided");
-    }
-
-    ListeningExecutorService executorService = MoreExecutors.listeningDecorator(
-        Executors.newFixedThreadPool(32));
+      ListeningExecutorService executorService) {
     List<ListenableFuture<PackageAttributes>> futures = new LinkedList<>();
     for (String classpathElement : classpathElements) {
-      String userPackageName = null;
+      @Nullable String userPackageName = null;
       if (classpathElement.contains("=")) {
         String[] components = classpathElement.split("=", 2);
         userPackageName = components[0];
         classpathElement = components[1];
       }
-      final String packageName = userPackageName;
+      @Nullable final String packageName = userPackageName;
 
       final File file = new File(classpathElement);
       if (!file.exists()) {
@@ -183,9 +168,9 @@ public class PackageUtil {
           });
       futures.add(future);
     }
-    List<PackageAttributes> packageAttributes;
+
     try {
-      packageAttributes = Futures.allAsList(futures).get();
+      return Futures.allAsList(futures).get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException("Interrupted while staging packages", e);
@@ -194,73 +179,123 @@ public class PackageUtil {
     } finally {
       executorService.shutdown();
     }
+  }
 
-    List<DataflowPackage> packages = new ArrayList<>();
-    int numUploaded = 0;
-    int numCached = 0;
+  /**
+   * Utility to verify whether a package has already been staged and, if not, copy it to the
+   * staging location.
+   */
+  private static void stageOnePackage(
+      PackageAttributes attributes, AtomicInteger numUploaded, AtomicInteger numCached,
+      Sleeper retrySleeper) {
+    String source = attributes.getSourcePath();
+    String target = attributes.getDataflowPackage().getLocation();
 
-    for (PackageAttributes attributes : packageAttributes){
-      DataflowPackage workflowPackage = attributes.getDataflowPackage();
-      packages.add(workflowPackage);
-      String source = attributes.getSourcePath();
-      String target = workflowPackage.getLocation();
-
-      // TODO: Should we attempt to detect the Mime type rather than
-      // always using MimeTypes.BINARY?
+    // TODO: Should we attempt to detect the Mime type rather than
+    // always using MimeTypes.BINARY?
+    try {
       try {
-        try {
-          long remoteLength = IOChannelUtils.getSizeBytes(target);
-          if (remoteLength == attributes.getSize()) {
-            LOG.debug("Skipping classpath element already staged: {} at {}",
-                attributes.getSourcePath(), target);
-            numCached++;
-            continue;
-          }
-        } catch (FileNotFoundException expected) {
-          // If the file doesn't exist, it means we need to upload it.
+        long remoteLength = IOChannelUtils.getSizeBytes(target);
+        if (remoteLength == attributes.getSize()) {
+          LOG.debug("Skipping classpath element already staged: {} at {}",
+              attributes.getSourcePath(), target);
+          numCached.incrementAndGet();
+          return;
         }
-
-        // Upload file, retrying on failure.
-        BackOff backoff = BACKOFF_FACTORY.backoff();
-        while (true) {
-          try {
-            LOG.debug("Uploading classpath element {} to {}", source, target);
-            try (WritableByteChannel writer = IOChannelUtils.create(target, MimeTypes.BINARY)) {
-              copyContent(source, writer);
-            }
-            numUploaded++;
-            break;
-          } catch (IOException e) {
-            if (ERROR_EXTRACTOR.accessDenied(e)) {
-              String errorMessage = String.format(
-                  "Uploaded failed due to permissions error, will NOT retry staging "
-                  + "of classpath %s. Please verify credentials are valid and that you have "
-                  + "write access to %s. Stale credentials can be resolved by executing "
-                  + "'gcloud auth login'.", source, target);
-              LOG.error(errorMessage);
-              throw new IOException(errorMessage, e);
-            }
-            long sleep = backoff.nextBackOffMillis();
-            if (sleep == BackOff.STOP) {
-              // Rethrow last error, to be included as a cause in the catch below.
-              LOG.error("Upload failed, will NOT retry staging of classpath: {}",
-                  source, e);
-              throw e;
-            } else {
-              LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
-                  source, e);
-              retrySleeper.sleep(sleep);
-            }
-          }
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Could not stage classpath element: " + source, e);
+      } catch (FileNotFoundException expected) {
+        // If the file doesn't exist, it means we need to upload it.
       }
+
+      // Upload file, retrying on failure.
+      BackOff backoff = BACKOFF_FACTORY.backoff();
+      while (true) {
+        try {
+          LOG.debug("Uploading classpath element {} to {}", source, target);
+          try (WritableByteChannel writer = IOChannelUtils.create(target, MimeTypes.BINARY)) {
+            copyContent(source, writer);
+          }
+          numUploaded.incrementAndGet();
+          break;
+        } catch (IOException e) {
+          if (ERROR_EXTRACTOR.accessDenied(e)) {
+            String errorMessage = String.format(
+                "Uploaded failed due to permissions error, will NOT retry staging "
+                    + "of classpath %s. Please verify credentials are valid and that you have "
+                    + "write access to %s. Stale credentials can be resolved by executing "
+                    + "'gcloud auth application-default login'.", source, target);
+            LOG.error(errorMessage);
+            throw new IOException(errorMessage, e);
+          }
+          long sleep = backoff.nextBackOffMillis();
+          if (sleep == BackOff.STOP) {
+            // Rethrow last error, to be included as a cause in the catch below.
+            LOG.error("Upload failed, will NOT retry staging of classpath: {}",
+                source, e);
+            throw e;
+          } else {
+            LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
+                source, e);
+            retrySleeper.sleep(sleep);
+          }
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not stage classpath element: " + source, e);
+    }
+  }
+
+  /**
+   * Transfers the classpath elements to the staging location.
+   *
+   * @param classpathElements The elements to stage.
+   * @param stagingPath The base location to stage the elements to.
+   * @return A list of cloud workflow packages, each representing a classpath element.
+   */
+  static List<DataflowPackage> stageClasspathElements(
+      Collection<String> classpathElements, String stagingPath) {
+    return stageClasspathElements(
+        classpathElements, stagingPath, Sleeper.DEFAULT,
+        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(32)));
+  }
+
+  // Visible for testing.
+  static List<DataflowPackage> stageClasspathElements(
+      Collection<String> classpathElements, final String stagingPath,
+      Sleeper retrySleeper, ListeningExecutorService executorService) {
+    LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
+        + "prepare for execution.", classpathElements.size());
+
+    if (classpathElements.size() > SANE_CLASSPATH_SIZE) {
+      LOG.warn("Your classpath contains {} elements, which Google Cloud Dataflow automatically "
+              + "copies to all workers. Having this many entries on your classpath may be indicative "
+              + "of an issue in your pipeline. You may want to consider trimming the classpath to "
+              + "necessary dependencies only, using --filesToStage pipeline option to override "
+              + "what files are being staged, or bundling several dependencies into one.",
+          classpathElements.size());
     }
 
-    LOG.info("Uploading PipelineOptions.filesToStage complete: {} files newly uploaded, "
-        + "{} files cached",
-        numUploaded, numCached);
+    checkArgument(
+        stagingPath != null,
+        "Can't stage classpath elements on because no staging location has been provided");
+
+    // Inline a copy here because the inner code returns an immutable list and we want to mutate it.
+    List<PackageAttributes> packageAttributes =
+        new LinkedList<>(computePackageAttributes(classpathElements, stagingPath, executorService));
+    // Order package attributes in descending size order so that we upload the largest files first.
+    Collections.sort(packageAttributes, new PackageUploadOrder());
+
+    List<DataflowPackage> packages = Lists.newArrayListWithExpectedSize(packageAttributes.size());
+    AtomicInteger numUploaded = new AtomicInteger(0);
+    AtomicInteger numCached = new AtomicInteger(0);
+
+    for (PackageAttributes attributes : packageAttributes) {
+      packages.add(attributes.getDataflowPackage());
+      stageOnePackage(attributes, numUploaded, numCached, retrySleeper);
+    }
+
+    LOG.info(
+        "Staging files complete: {} files cached, {} files newly uploaded",
+        numUploaded.get(), numCached.get());
 
     return packages;
   }
