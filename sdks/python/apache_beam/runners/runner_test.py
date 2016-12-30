@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-"""Unit tests for the PipelineRunner and DirectPipelineRunner classes.
+"""Unit tests for the PipelineRunner and DirectRunner classes.
 
-Note that PipelineRunner and DirectPipelineRunner functionality is tested in all
+Note that PipelineRunner and DirectRunner functionality is tested in all
 the other unit tests. In this file we choose to test only aspects related to
 caching and clearing values that are not tested elsewhere.
 """
@@ -26,17 +26,25 @@ from datetime import datetime
 import json
 import unittest
 
+import hamcrest as hc
+
 import apache_beam as beam
 
 from apache_beam.internal import apiclient
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners import create_runner
-from apache_beam.runners import DataflowPipelineRunner
-from apache_beam.runners import DirectPipelineRunner
+from apache_beam.runners import DataflowRunner
+from apache_beam.runners import DirectRunner
 from apache_beam.runners import TestDataflowRunner
 import apache_beam.transforms as ptransform
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+
+from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import DistributionResult
+from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.metricbase import MetricName
 
 
 class RunnerTest(unittest.TestCase):
@@ -50,20 +58,29 @@ class RunnerTest(unittest.TestCase):
 
   def test_create_runner(self):
     self.assertTrue(
-        isinstance(create_runner('DirectPipelineRunner'), DirectPipelineRunner))
+        isinstance(create_runner('DirectRunner'), DirectRunner))
     self.assertTrue(
-        isinstance(create_runner('DataflowPipelineRunner'),
-                   DataflowPipelineRunner))
+        isinstance(create_runner('DataflowRunner'),
+                   DataflowRunner))
     self.assertTrue(
-        isinstance(create_runner('BlockingDataflowPipelineRunner'),
-                   DataflowPipelineRunner))
+        isinstance(create_runner('BlockingDataflowRunner'),
+                   DataflowRunner))
     self.assertTrue(
         isinstance(create_runner('TestDataflowRunner'),
                    TestDataflowRunner))
     self.assertRaises(ValueError, create_runner, 'xyz')
+    # TODO(BEAM-1185): Remove when all references to PipelineRunners are gone.
+    self.assertTrue(
+        isinstance(create_runner('DirectPipelineRunner'), DirectRunner))
+    self.assertTrue(
+        isinstance(create_runner('DataflowPipelineRunner'),
+                   DataflowRunner))
+    self.assertTrue(
+        isinstance(create_runner('BlockingDataflowPipelineRunner'),
+                   DataflowRunner))
 
   def test_remote_runner_translation(self):
-    remote_runner = DataflowPipelineRunner()
+    remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,
                  options=PipelineOptions(self.default_properties))
 
@@ -71,10 +88,10 @@ class RunnerTest(unittest.TestCase):
      | 'do' >> ptransform.FlatMap(lambda x: [(x, x)])
      | 'gbk' >> ptransform.GroupByKey())
     remote_runner.job = apiclient.Job(p.options)
-    super(DataflowPipelineRunner, remote_runner).run(p)
+    super(DataflowRunner, remote_runner).run(p)
 
   def test_remote_runner_display_data(self):
-    remote_runner = DataflowPipelineRunner()
+    remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,
                  options=PipelineOptions(self.default_properties))
 
@@ -105,7 +122,7 @@ class RunnerTest(unittest.TestCase):
      | 'do' >> SpecialParDo(SpecialDoFn(), now))
 
     remote_runner.job = apiclient.Job(p.options)
-    super(DataflowPipelineRunner, remote_runner).run(p)
+    super(DataflowRunner, remote_runner).run(p)
     job_dict = json.loads(str(remote_runner.job))
     steps = [step
              for step in job_dict['steps']
@@ -126,8 +143,43 @@ class RunnerTest(unittest.TestCase):
     self.assertEqual(len(disp_data), 3)
     self.assertEqual(disp_data, expected_data)
 
+  def test_direct_runner_metrics(self):
+    from apache_beam.metrics.metric import Metrics
+
+    class MyDoFn(beam.DoFn):
+      def process(self, context):
+        count = Metrics.counter(self.__class__, 'elements')
+        count.inc()
+        distro = Metrics.distribution(self.__class__, 'element-dist')
+        distro.update(context.element)
+        return [context.element]
+
+    runner = DirectRunner()
+    p = Pipeline(runner,
+                 options=PipelineOptions(self.default_properties))
+    # pylint: disable=expression-not-assigned
+    (p | 'create' >> ptransform.Create([1, 2, 3, 4, 5])
+     | 'do' >> beam.ParDo(MyDoFn()))
+    result = p.run()
+    metrics = result.metrics().query()
+    namespace = '{}.{}'.format(MyDoFn.__module__,
+                               MyDoFn.__name__)
+    hc.assert_that(
+        metrics['counters'],
+        hc.contains_inanyorder(
+            MetricResult(
+                MetricKey('do', MetricName(namespace, 'elements')),
+                5, 5)))
+    hc.assert_that(
+        metrics['distributions'],
+        hc.contains_inanyorder(
+            MetricResult(
+                MetricKey('do', MetricName(namespace, 'element-dist')),
+                DistributionResult(DistributionData(15, 5, 1, 5)),
+                DistributionResult(DistributionData(15, 5, 1, 5)))))
+
   def test_no_group_by_key_directly_after_bigquery(self):
-    remote_runner = DataflowPipelineRunner()
+    remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,
                  options=PipelineOptions([
                      '--dataflow_endpoint=ignored',

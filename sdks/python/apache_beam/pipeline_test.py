@@ -18,6 +18,7 @@
 """Unit tests for the Pipeline class."""
 
 import logging
+import platform
 import unittest
 
 from apache_beam.pipeline import Pipeline
@@ -61,7 +62,7 @@ class FakeSource(NativeSource):
 class PipelineTest(unittest.TestCase):
 
   def setUp(self):
-    self.runner_name = 'DirectPipelineRunner'
+    self.runner_name = 'DirectRunner'
 
   @staticmethod
   def custom_callable(pcoll):
@@ -187,6 +188,10 @@ class PipelineTest(unittest.TestCase):
     except ImportError:
       # Skip the test if resource module is not available (e.g. non-Unix os).
       self.skipTest('resource module not available.')
+    if platform.mac_ver()[0]:
+      # Skip the test on macos, depending on version it returns ru_maxrss in
+      # different units.
+      self.skipTest('ru_maxrss is not in standard units.')
 
     def get_memory_usage_in_bytes():
       return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (2 ** 10)
@@ -202,7 +207,7 @@ class PipelineTest(unittest.TestCase):
     num_elements = 10
     num_maps = 100
 
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (
@@ -231,7 +236,7 @@ class PipelineTest(unittest.TestCase):
         p | Create([ValueError]) | Map(raise_exception)
 
   def test_eager_pipeline(self):
-    p = Pipeline('EagerPipelineRunner')
+    p = Pipeline('EagerRunner')
     self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
 
 

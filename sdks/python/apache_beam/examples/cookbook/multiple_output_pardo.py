@@ -40,7 +40,7 @@ pipeline configuration:
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
   --job_name YOUR_JOB_NAME
-  --runner BlockingDataflowPipelineRunner
+  --runner BlockingDataflowRunner
 
 and an output prefix on GCS:
   --output gs://YOUR_OUTPUT_PREFIX
@@ -54,8 +54,8 @@ import re
 
 import apache_beam as beam
 from apache_beam import pvalue
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import SetupOptions
 
 
 class SplitLinesToWordsFn(beam.DoFn):

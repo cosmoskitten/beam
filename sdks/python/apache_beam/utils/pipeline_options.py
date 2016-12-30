@@ -15,10 +15,7 @@
 # limitations under the License.
 #
 
-"""Pipeline options obtained from command line parsing.
-
-TODO(silviuc): Should rename this module to pipeline_options.
-"""
+"""Pipeline options obtained from command line parsing."""
 
 import argparse
 
@@ -178,15 +175,15 @@ class PipelineOptions(HasDisplayData):
 
 class StandardOptions(PipelineOptions):
 
-  DEFAULT_RUNNER = 'DirectPipelineRunner'
+  DEFAULT_RUNNER = 'DirectRunner'
 
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--runner',
         help=('Pipeline runner used to execute the workflow. Valid values are '
-              'DirectPipelineRunner, DataflowPipelineRunner, '
-              'and BlockingDataflowPipelineRunner.'))
+              'DirectRunner, DataflowRunner, '
+              'and BlockingDataflowRunner.'))
     # Whether to enable streaming mode.
     parser.add_argument('--streaming',
                         default=False,
@@ -218,7 +215,7 @@ class TypeOptions(PipelineOptions):
                         action='store_true',
                         help='Enable type checking at pipeline execution '
                         'time. NOTE: only supported with the '
-                        'DirectPipelineRunner')
+                        'DirectRunner')
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -252,7 +249,7 @@ class GoogleCloudOptions(PipelineOptions):
                         help='GCS path for staging code packages needed by '
                         'workers.')
     # Remote execution must check that this option is not None.
-    # If temp_location is not set, it defaults to staging_location.
+    # If staging_location is not set, it defaults to temp_location.
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')

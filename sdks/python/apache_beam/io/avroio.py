@@ -16,7 +16,7 @@
 #
 """Implements a source for reading Avro files."""
 
-import cStringIO as StringIO
+import cStringIO
 import os
 import zlib
 
@@ -173,20 +173,23 @@ class _AvroBlock(object):
   """Represents a block of an Avro file."""
 
   def __init__(self, block_bytes, num_records, codec, schema_string):
-    self._block_bytes = block_bytes
+    # Decompress data early on (if needed) and thus decrease the number of
+    # parallel copies of the data in memory at any given in time during
+    # block iteration.
+    self._decompressed_block_bytes = self._decompress_bytes(block_bytes, codec)
     self._num_records = num_records
-    self._codec = codec
     self._schema = schema.parse(schema_string)
 
-  def _decompress_bytes(self, data):
-    if self._codec == 'null':
+  @staticmethod
+  def _decompress_bytes(data, codec):
+    if codec == 'null':
       return data
-    elif self._codec == 'deflate':
+    elif codec == 'deflate':
       # zlib.MAX_WBITS is the window size. '-' sign indicates that this is
       # raw data (without headers). See zlib and Avro documentations for more
       # details.
       return zlib.decompress(data, -zlib.MAX_WBITS)
-    elif self._codec == 'snappy':
+    elif codec == 'snappy':
       # Snappy is an optional avro codec.
       # See Snappy and Avro documentation for more details.
       try:
@@ -195,18 +198,20 @@ class _AvroBlock(object):
         raise ValueError('Snappy does not seem to be installed.')
 
       # Compressed data includes a 4-byte CRC32 checksum which we verify.
-      result = snappy.decompress(data[:-4])
-      avroio.BinaryDecoder(StringIO.StringIO(data[-4:])).check_crc32(result)
+      # We take care to avoid extra copies of data while slicing large objects
+      # by use of a buffer.
+      result = snappy.decompress(buffer(data)[:-4])
+      avroio.BinaryDecoder(cStringIO.StringIO(data[-4:])).check_crc32(result)
       return result
     else:
-      raise ValueError('Unknown codec: %r', self._codec)
+      raise ValueError('Unknown codec: %r', codec)
 
   def num_records(self):
     return self._num_records
 
   def records(self):
-    decompressed_bytes = self._decompress_bytes(self._block_bytes)
-    decoder = avroio.BinaryDecoder(StringIO.StringIO(decompressed_bytes))
+    decoder = avroio.BinaryDecoder(
+        cStringIO.StringIO(self._decompressed_block_bytes))
     reader = avroio.DatumReader(
         writers_schema=self._schema, readers_schema=self._schema)
 

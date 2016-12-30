@@ -16,11 +16,10 @@
 #
 """Unit tests for the apiclient module."""
 
-import re
 import unittest
 
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.runners.dataflow_runner import DataflowRunner
 from apache_beam.internal import apiclient
 
 
@@ -31,12 +30,12 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions()
     apiclient.DataflowApplicationClient(
         pipeline_options,
-        DataflowPipelineRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
+        DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
 
   def test_default_job_name(self):
     job_name = apiclient.Job.default_job_name(None)
-    regexp = 'beamapp-[a-z]*-[0-9]{10}-[0-9]{6}'
-    self.assertTrue(re.match(regexp, job_name))
+    regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}'
+    self.assertRegexpMatches(job_name, regexp)
 
 
 if __name__ == '__main__':

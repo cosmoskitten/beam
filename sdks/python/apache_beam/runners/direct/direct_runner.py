@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-"""DirectPipelineRunner, executing on the local machine.
+"""DirectRunner, executing on the local machine.
 
-The DirectPipelineRunner is a runner implementation that executes the entire
+The DirectRunner is a runner implementation that executes the entire
 graph of transformations belonging to a pipeline on the local machine.
 """
 
@@ -27,13 +27,14 @@ import collections
 import logging
 
 from apache_beam.runners.direct.bundle_factory import BundleFactory
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 
 
-class DirectPipelineRunner(PipelineRunner):
+class DirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 
   def __init__(self):
@@ -52,7 +53,8 @@ class DirectPipelineRunner(PipelineRunner):
     from apache_beam.runners.direct.transform_evaluator import \
       TransformEvaluatorRegistry
 
-    logging.info('Running pipeline with DirectPipelineRunner.')
+    MetricsEnvironment.set_metrics_supported(True)
+    logging.info('Running pipeline with DirectRunner.')
     self.visitor = ConsumerTrackingPipelineVisitor()
     pipeline.visit(self.visitor)
 
@@ -152,7 +154,10 @@ class DirectPipelineResult(PipelineResult):
   def aggregated_values(self, aggregator_or_name):
     return self._evaluation_context.get_aggregator_values(aggregator_or_name)
 
+  def metrics(self):
+    return self._evaluation_context.metrics()
 
-class EagerPipelineRunner(DirectPipelineRunner):
+
+class EagerRunner(DirectRunner):
 
   is_eager = True

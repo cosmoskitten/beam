@@ -28,7 +28,7 @@ to be executed for each node visited is specified through a runner object.
 Typical usage:
 
   # Create a pipeline object using a local runner for execution.
-  p = beam.Pipeline('DirectPipelineRunner')
+  p = beam.Pipeline('DirectRunner')
 
   # Add to the pipeline a "Create" transform. When executed this
   # transform will produce a PCollection object with the specified values.
@@ -58,10 +58,10 @@ from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.utils.options import SetupOptions
-from apache_beam.utils.options import StandardOptions
-from apache_beam.utils.options import TypeOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.utils.pipeline_options import StandardOptions
+from apache_beam.utils.pipeline_options import TypeOptions
 from apache_beam.utils.pipeline_options_validator import PipelineOptionsValidator
 
 

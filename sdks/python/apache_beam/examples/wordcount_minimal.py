@@ -51,8 +51,8 @@ import logging
 import re
 
 import apache_beam as beam
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import SetupOptions
 
 
 def run(argv=None):
@@ -71,9 +71,9 @@ def run(argv=None):
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_args.extend([
-      # CHANGE 2/5: (OPTIONAL) Change this to BlockingDataflowPipelineRunner to
+      # CHANGE 2/5: (OPTIONAL) Change this to BlockingDataflowRunner to
       # run your pipeline on the Google Cloud Dataflow Service.
-      '--runner=DirectPipelineRunner',
+      '--runner=DirectRunner',
       # CHANGE 3/5: Your project ID is required in order to run your pipeline on
       # the Google Cloud Dataflow Service.
       '--project=SET_YOUR_PROJECT_ID_HERE',
