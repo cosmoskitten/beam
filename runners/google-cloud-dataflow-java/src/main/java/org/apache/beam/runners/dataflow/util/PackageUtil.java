@@ -17,14 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static com.google.api.client.googleapis.media.MediaHttpUploader.MINIMUM_CHUNK_SIZE;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.core.Base64Variants;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Funnels;
@@ -54,9 +52,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.GcsIOChannelFactory;
+import org.apache.beam.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ZipFiles;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -180,16 +182,14 @@ class PackageUtil {
     }
   }
 
-  private static WritableByteChannel makeWriter(String target, long size) throws IOException {
-    WritableByteChannel channel = IOChannelUtils.create(target, MimeTypes.BINARY);
-    if (channel instanceof GoogleCloudStorageWriteChannel) {
-      long roundedSize = ((size +  MINIMUM_CHUNK_SIZE) / MINIMUM_CHUNK_SIZE) * MINIMUM_CHUNK_SIZE;
-      int roundedMB =
-          ((1024 * 1024 - 1 + MINIMUM_CHUNK_SIZE) / MINIMUM_CHUNK_SIZE) * MINIMUM_CHUNK_SIZE;
-      int bufferSize = (int) Math.min(roundedMB, roundedSize);
-      ((GoogleCloudStorageWriteChannel) channel).setUploadBufferSize(bufferSize);
+  private static WritableByteChannel makeWriter(String target, GcsUtil gcsUtil)
+      throws IOException {
+    IOChannelFactory factory = IOChannelUtils.getFactory(target);
+    if (factory instanceof GcsIOChannelFactory) {
+      return gcsUtil.create(GcsPath.fromUri(target), MimeTypes.BINARY);
+    } else {
+      return factory.create(target, MimeTypes.BINARY);
     }
-    return channel;
   }
 
   /**
@@ -198,7 +198,7 @@ class PackageUtil {
    */
   private static void stageOnePackage(
       PackageAttributes attributes, AtomicInteger numUploaded, AtomicInteger numCached,
-      Sleeper retrySleeper) {
+      Sleeper retrySleeper, GcsUtil gcsUtil) {
     String source = attributes.getSourcePath();
     String target = attributes.getDataflowPackage().getLocation();
 
@@ -222,7 +222,7 @@ class PackageUtil {
       while (true) {
         try {
           LOG.debug("Uploading classpath element {} to {}", source, target);
-          try (WritableByteChannel writer = makeWriter(target, attributes.getSize())) {
+          try (WritableByteChannel writer = makeWriter(target, gcsUtil)) {
             copyContent(source, writer);
           }
           numUploaded.incrementAndGet();
@@ -263,12 +263,12 @@ class PackageUtil {
    * @return A list of cloud workflow packages, each representing a classpath element.
    */
   static List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements, String stagingPath) {
+      Collection<String> classpathElements, String stagingPath, GcsUtil gcsUtil) {
     ListeningExecutorService executorService =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(32));
     try {
       return stageClasspathElements(
-          classpathElements, stagingPath, Sleeper.DEFAULT, executorService);
+          classpathElements, stagingPath, Sleeper.DEFAULT, executorService, gcsUtil);
     } finally {
       executorService.shutdown();
     }
@@ -277,7 +277,7 @@ class PackageUtil {
   // Visible for testing.
   static List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, final String stagingPath,
-      final Sleeper retrySleeper, ListeningExecutorService executorService) {
+      final Sleeper retrySleeper, ListeningExecutorService executorService, final GcsUtil gcsUtil) {
     LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
         + "prepare for execution.", classpathElements.size());
 
@@ -310,7 +310,7 @@ class PackageUtil {
       futures.add(executorService.submit(new Runnable() {
         @Override
         public void run() {
-          stageOnePackage(attributes, numUploaded, numCached, retrySleeper);
+          stageOnePackage(attributes, numUploaded, numCached, retrySleeper, gcsUtil);
         }
       }));
     }
