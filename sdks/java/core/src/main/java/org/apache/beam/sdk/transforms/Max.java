@@ -109,6 +109,18 @@ public class Max {
     return Combine.<K, Double, Double>perKey(new MaxDoubleFn()).named("Max.PerKey");
   }
 
+  public static Combine.BinaryCombineIntegerFn ofIntegers() {
+    return new Max.MaxIntegerFn();
+  }
+
+  public static Combine.BinaryCombineLongFn ofLongs() {
+    return new Max.MaxLongFn();
+  }
+
+  public static Combine.BinaryCombineDoubleFn ofDoubles() {
+    return new Max.MaxDoubleFn();
+  }
+
   /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<T>} and returns a {@code
    * PCollection<T>} whose contents is the maximum according to the natural ordering of {@code T}
@@ -214,7 +226,8 @@ public class Max {
    * A {@code CombineFn} that computes the maximum of a collection of {@code Integer}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
+  private static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
+
     @Override
     public int apply(int left, int right) {
       return left >= right ? left : right;
@@ -230,7 +243,8 @@ public class Max {
    * A {@code CombineFn} that computes the maximum of a collection of {@code Long}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MaxLongFn extends Combine.BinaryCombineLongFn {
+  private static class MaxLongFn extends Combine.BinaryCombineLongFn {
+
     @Override
     public long apply(long left, long right) {
       return left >= right ? left : right;
@@ -246,7 +260,8 @@ public class Max {
    * A {@code CombineFn} that computes the maximum of a collection of {@code Double}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
+  private static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
+
     @Override
     public double apply(double left, double right) {
       return left >= right ? left : right;
