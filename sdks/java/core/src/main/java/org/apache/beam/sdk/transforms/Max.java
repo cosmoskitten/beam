@@ -228,9 +228,6 @@ public class Max {
    */
   public static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
 
-    private MaxIntegerFn() {
-    }
-
     @Override
     public int apply(int left, int right) {
       return left >= right ? left : right;
@@ -248,9 +245,6 @@ public class Max {
    */
   public static class MaxLongFn extends Combine.BinaryCombineLongFn {
 
-    private MaxLongFn() {
-    }
-
     @Override
     public long apply(long left, long right) {
       return left >= right ? left : right;
@@ -267,9 +261,6 @@ public class Max {
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
-
-    private MaxDoubleFn() {
-    }
 
     @Override
     public double apply(double left, double right) {

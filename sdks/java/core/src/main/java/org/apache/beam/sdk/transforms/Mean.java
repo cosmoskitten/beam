@@ -107,7 +107,7 @@ public class Mean {
      * Constructs a combining function that computes the mean over
      * a collection of values of type {@code N}.
      */
-    private MeanFn() {}
+    public MeanFn() {}
 
     @Override
     public CountSum<NumT> createAccumulator() {

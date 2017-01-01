@@ -228,9 +228,6 @@ public class Min {
    */
   public static class MinIntegerFn extends Combine.BinaryCombineIntegerFn {
 
-    private MinIntegerFn() {
-    }
-
     @Override
     public int apply(int left, int right) {
       return left <= right ? left : right;
@@ -248,9 +245,6 @@ public class Min {
    */
   public static class MinLongFn extends Combine.BinaryCombineLongFn {
 
-    private MinLongFn() {
-    }
-
     @Override
     public long apply(long left, long right) {
       return left <= right ? left : right;
@@ -267,9 +261,6 @@ public class Min {
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MinDoubleFn extends Combine.BinaryCombineDoubleFn {
-
-    private MinDoubleFn() {
-    }
 
     @Override
     public double apply(double left, double right) {

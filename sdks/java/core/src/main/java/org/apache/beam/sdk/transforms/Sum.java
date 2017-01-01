@@ -132,9 +132,6 @@ public class Sum {
    */
   public static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
 
-    private SumIntegerFn() {
-    }
-
     @Override
     public int apply(int a, int b) {
       return a + b;
@@ -154,9 +151,6 @@ public class Sum {
   public static class SumLongFn
       extends Combine.BinaryCombineLongFn {
 
-    private SumLongFn() {
-    }
-
     @Override
     public long apply(long a, long b) {
       return a + b;
@@ -174,9 +168,6 @@ public class Sum {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
-
-    private SumDoubleFn() {
-    }
 
     @Override
     public double apply(double a, double b) {
