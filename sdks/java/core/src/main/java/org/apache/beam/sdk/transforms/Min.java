@@ -109,6 +109,18 @@ public class Min {
     return Combine.<K, Double, Double>perKey(new MinDoubleFn()).named("Min.PerKey");
   }
 
+  public static Combine.BinaryCombineIntegerFn ofIntegers() {
+    return new Min.MinIntegerFn();
+  }
+
+  public static Combine.BinaryCombineLongFn ofLongs() {
+    return new Min.MinLongFn();
+  }
+
+  public static Combine.BinaryCombineDoubleFn ofDoubles() {
+    return new Min.MinDoubleFn();
+  }
+
   /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<T>} and returns a {@code
    * PCollection<T>} whose contents is the minimum according to the natural ordering of {@code T}
@@ -216,6 +228,9 @@ public class Min {
    */
   public static class MinIntegerFn extends Combine.BinaryCombineIntegerFn {
 
+    private MinIntegerFn() {
+    }
+
     @Override
     public int apply(int left, int right) {
       return left <= right ? left : right;
@@ -232,6 +247,10 @@ public class Min {
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MinLongFn extends Combine.BinaryCombineLongFn {
+
+    private MinLongFn() {
+    }
+
     @Override
     public long apply(long left, long right) {
       return left <= right ? left : right;
@@ -248,6 +267,9 @@ public class Min {
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MinDoubleFn extends Combine.BinaryCombineDoubleFn {
+
+    private MinDoubleFn() {
+    }
 
     @Override
     public double apply(double left, double right) {

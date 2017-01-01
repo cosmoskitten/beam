@@ -84,6 +84,10 @@ public class Mean {
     return Combine.<K, NumT, Double>perKey(new MeanFn<>()).named("Mean.PerKey");
   }
 
+  public static <NumT extends Number>
+  Combine.AccumulatingCombineFn<NumT, CountSum<NumT>, Double> of() {
+    return new MeanFn<>();
+  }
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -103,7 +107,7 @@ public class Mean {
      * Constructs a combining function that computes the mean over
      * a collection of values of type {@code N}.
      */
-    public MeanFn() {}
+    private MeanFn() {}
 
     @Override
     public CountSum<NumT> createAccumulator() {

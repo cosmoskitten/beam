@@ -50,7 +50,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    return Combine.globally(new SumIntegerFn()).named("Sum.Globally");
+    return Combine.globally(Sum.ofIntegers()).named("Sum.Globally");
   }
 
   /**
@@ -62,7 +62,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    return Combine.<K, Integer, Integer>perKey(new SumIntegerFn()).named("Sum.PerKey");
+    return Combine.<K, Integer, Integer>perKey(Sum.ofIntegers()).named("Sum.PerKey");
   }
 
   /**
@@ -73,7 +73,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    return Combine.globally(new SumLongFn()).named("Sum.Globally");
+    return Combine.globally(Sum.ofLongs()).named("Sum.Globally");
   }
 
   /**
@@ -85,7 +85,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    return Combine.<K, Long, Long>perKey(new SumLongFn()).named("Sum.PerKey");
+    return Combine.<K, Long, Long>perKey(Sum.ofLongs()).named("Sum.PerKey");
   }
 
   /**
@@ -96,7 +96,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    return Combine.globally(new SumDoubleFn()).named("Sum.Globally");
+    return Combine.globally(Sum.ofDoubles()).named("Sum.Globally");
   }
 
   /**
@@ -108,9 +108,20 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    return Combine.<K, Double, Double>perKey(new SumDoubleFn()).named("Sum.PerKey");
+    return Combine.<K, Double, Double>perKey(Sum.ofDoubles()).named("Sum.PerKey");
   }
 
+  public static Combine.BinaryCombineIntegerFn ofIntegers() {
+    return new SumIntegerFn();
+  }
+
+  public static Combine.BinaryCombineDoubleFn ofDoubles() {
+    return new SumDoubleFn();
+  }
+
+  public static Combine.BinaryCombineLongFn ofLongs() {
+    return new SumLongFn();
+  }
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -120,6 +131,10 @@ public class Sum {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
+
+    private SumIntegerFn() {
+    }
+
     @Override
     public int apply(int a, int b) {
       return a + b;
@@ -138,6 +153,10 @@ public class Sum {
    */
   public static class SumLongFn
       extends Combine.BinaryCombineLongFn {
+
+    private SumLongFn() {
+    }
+
     @Override
     public long apply(long a, long b) {
       return a + b;
@@ -155,6 +174,10 @@ public class Sum {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
+
+    private SumDoubleFn() {
+    }
+
     @Override
     public double apply(double a, double b) {
       return a + b;

@@ -96,13 +96,13 @@ public class SimpleStatsFnsTest {
   @Test
   public void testDoubleStats() {
     for (TestCase<Double> t : DOUBLE_CASES) {
-      assertEquals(t.sum, new Sum.SumDoubleFn().apply(t.data),
+      assertEquals(t.sum, Sum.ofDoubles().apply(t.data),
           DOUBLE_COMPARISON_ACCURACY);
-      assertEquals(t.min, new Min.MinDoubleFn().apply(t.data),
+      assertEquals(t.min, Min.ofDoubles().apply(t.data),
           DOUBLE_COMPARISON_ACCURACY);
-      assertEquals(t.max, new Max.MaxDoubleFn().apply(t.data),
+      assertEquals(t.max, Max.ofDoubles().apply(t.data),
           DOUBLE_COMPARISON_ACCURACY);
-      assertEquals(t.mean, new Mean.MeanFn<Double>().apply(t.data),
+      assertEquals(t.mean, Mean.<Double>of().apply(t.data),
           DOUBLE_COMPARISON_ACCURACY);
     }
   }
@@ -110,20 +110,20 @@ public class SimpleStatsFnsTest {
   @Test
   public void testIntegerStats() {
     for (TestCase<Integer> t : INTEGER_CASES) {
-      assertEquals(t.sum, new Sum.SumIntegerFn().apply(t.data));
-      assertEquals(t.min, new Min.MinIntegerFn().apply(t.data));
-      assertEquals(t.max, new Max.MaxIntegerFn().apply(t.data));
-      assertEquals(t.mean, new Mean.MeanFn<Integer>().apply(t.data));
+      assertEquals(t.sum, Sum.ofIntegers().apply(t.data));
+      assertEquals(t.min, Min.ofIntegers().apply(t.data));
+      assertEquals(t.max, Max.ofIntegers().apply(t.data));
+      assertEquals(t.mean, Mean.<Integer>of().apply(t.data));
     }
   }
 
   @Test
   public void testLongStats() {
     for (TestCase<Long> t : LONG_CASES) {
-      assertEquals(t.sum, new Sum.SumLongFn().apply(t.data));
-      assertEquals(t.min, new Min.MinLongFn().apply(t.data));
-      assertEquals(t.max, new Max.MaxLongFn().apply(t.data));
-      assertEquals(t.mean, new Mean.MeanFn<Long>().apply(t.data));
+      assertEquals(t.sum, Sum.ofLongs().apply(t.data));
+      assertEquals(t.min, Min.ofLongs().apply(t.data));
+      assertEquals(t.max, Max.ofLongs().apply(t.data));
+      assertEquals(t.mean, Mean.<Long>of().apply(t.data));
     }
   }
 }
