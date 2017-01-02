@@ -101,13 +101,12 @@ public class Mean {
    *
    * @param <NumT> the type of the {@code Number}s being combined
    */
-  static class MeanFn<NumT extends Number>
+  private static class MeanFn<NumT extends Number>
   extends Combine.AccumulatingCombineFn<NumT, CountSum<NumT>, Double> {
     /**
      * Constructs a combining function that computes the mean over
      * a collection of values of type {@code N}.
      */
-    public MeanFn() {}
 
     @Override
     public CountSum<NumT> createAccumulator() {

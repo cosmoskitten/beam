@@ -226,7 +226,7 @@ public class Max {
    * A {@code CombineFn} that computes the maximum of a collection of {@code Integer}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
+  private static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
 
     @Override
     public int apply(int left, int right) {
@@ -243,7 +243,7 @@ public class Max {
    * A {@code CombineFn} that computes the maximum of a collection of {@code Long}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MaxLongFn extends Combine.BinaryCombineLongFn {
+  private static class MaxLongFn extends Combine.BinaryCombineLongFn {
 
     @Override
     public long apply(long left, long right) {
@@ -260,7 +260,7 @@ public class Max {
    * A {@code CombineFn} that computes the maximum of a collection of {@code Double}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
+  private static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
 
     @Override
     public double apply(double left, double right) {

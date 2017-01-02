@@ -130,7 +130,7 @@ public class Sum {
    * {@code Iterable} of {@code Integer}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
+  private static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
 
     @Override
     public int apply(int a, int b) {
@@ -148,7 +148,7 @@ public class Sum {
    * {@code Iterable} of {@code Long}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumLongFn
+  private static class SumLongFn
       extends Combine.BinaryCombineLongFn {
 
     @Override
@@ -167,7 +167,7 @@ public class Sum {
    * {@code Iterable} of {@code Double}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
+  private static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
 
     @Override
     public double apply(double a, double b) {

@@ -226,7 +226,7 @@ public class Min {
    * A {@code CombineFn} that computes the minimum of a collection of {@code Integer}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MinIntegerFn extends Combine.BinaryCombineIntegerFn {
+  private static class MinIntegerFn extends Combine.BinaryCombineIntegerFn {
 
     @Override
     public int apply(int left, int right) {
@@ -243,7 +243,7 @@ public class Min {
    * A {@code CombineFn} that computes the minimum of a collection of {@code Long}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MinLongFn extends Combine.BinaryCombineLongFn {
+  private static class MinLongFn extends Combine.BinaryCombineLongFn {
 
     @Override
     public long apply(long left, long right) {
@@ -260,7 +260,7 @@ public class Min {
    * A {@code CombineFn} that computes the minimum of a collection of {@code Double}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MinDoubleFn extends Combine.BinaryCombineDoubleFn {
+  private static class MinDoubleFn extends Combine.BinaryCombineDoubleFn {
 
     @Override
     public double apply(double left, double right) {
