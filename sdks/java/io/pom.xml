@@ -62,6 +62,7 @@
     <module>mongodb</module>
     <module>mqtt</module>
     <module>parquet</module>
+    <module>rabbitmq</module>
     <module>redis</module>
     <module>solr</module>
     <module>tika</module>
