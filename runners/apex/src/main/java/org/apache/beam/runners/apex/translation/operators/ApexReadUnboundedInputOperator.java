@@ -84,11 +84,14 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT
 
   @Override
   public void beginWindow(long windowId) {
+    if (outputWatermark == GlobalWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+      // terminate the stream
+      // see BEAM-1140 for why in the next window after the mark was emitted
+      BaseOperator.shutdown();
+    }
     if (!available && (isBoundedSource || source instanceof ValuesSource)) {
       // if it's a Create and the input was consumed, emit final watermark
       emitWatermarkIfNecessary(GlobalWindow.TIMESTAMP_MAX_VALUE.getMillis());
-      // terminate the stream (allows tests to finish faster)
-      BaseOperator.shutdown();
     } else {
       emitWatermarkIfNecessary(reader.getWatermark().getMillis());
     }
