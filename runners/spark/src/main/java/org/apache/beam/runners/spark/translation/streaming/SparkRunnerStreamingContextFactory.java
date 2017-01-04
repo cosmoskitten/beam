@@ -20,6 +20,8 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.HashMap;
+
 import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
@@ -28,6 +30,7 @@ import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -74,7 +77,8 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
     ctxt = new EvaluationContext(jsc, pipeline, jssc);
-    pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
+    pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt,
+        new HashMap<PCollection, Long>()));
     ctxt.computeOutputs();
 
     // set checkpoint dir.
