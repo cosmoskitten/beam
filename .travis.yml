@@ -61,7 +61,7 @@ install:
   - rm -rf "$HOME/.m2/repository/org/apache/beam"
 
 script:
-  - travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates $MAVEN_OVERRIDE install && travis_retry bash -ex .travis/test_wordcount.sh
+  - travis_retry mvn --batch-mode --update-snapshots $MAVEN_OVERRIDE install && travis_retry bash -ex .travis/test_wordcount.sh
 
 cache:
   directories:
@@ -72,3 +72,4 @@ before_cache:
   # rm in `install` redundant unless our config has a bug,
   # but it will be idempotent)
   - rm -rf "$HOME/.m2/repository/org/apache/beam"
+  - rm -rf "$HOME/.m2/repository/org/apache/gearpump"
