@@ -72,3 +72,4 @@ before_cache:
   # rm in `install` redundant unless our config has a bug,
   # but it will be idempotent)
   - rm -rf "$HOME/.m2/repository/org/apache/beam"
+  - rm -rf "$HOME/.m2/repository/org/apache/gearpump"
