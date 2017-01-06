@@ -208,7 +208,6 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     @Nullable
     public String create(PipelineOptions options) {
       String tempLocation = options.getTempLocation();
-      GcpOptions gcpOptions = options.as(GcpOptions.class);
       if (isNullOrEmpty(tempLocation)) {
         tempLocation = DefaultBucket.tryCreateDefaultBucket(options);
         options.setTempLocation(tempLocation);
