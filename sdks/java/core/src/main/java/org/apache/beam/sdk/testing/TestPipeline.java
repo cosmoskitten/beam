@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -160,6 +162,12 @@ public class TestPipeline extends Pipeline implements TestRule {
       return nodeRecorder.visited;
     }
 
+    private boolean isEmptyPipeline(final Pipeline pipeline) {
+      final IsEmptyVisitor isEmptyVisitor = new IsEmptyVisitor();
+      pipeline.traverseTopologically(isEmptyVisitor);
+      return isEmptyVisitor.isEmpty();
+    }
+
     private void verifyPipelineExecution() {
       final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
       if (runVisitedNodes != null && !runVisitedNodes.equals(pipelineNodes)) {
@@ -173,10 +181,7 @@ public class TestPipeline extends Pipeline implements TestRule {
           throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
         }
       } else if (runVisitedNodes == null && !enableAutoRunIfMissing) {
-        final IsEmptyVisitor isEmptyVisitor = new IsEmptyVisitor();
-        pipeline.traverseTopologically(isEmptyVisitor);
-
-        if (!isEmptyVisitor.isEmpty()) {
+        if (!isEmptyPipeline(pipeline)) {
           throw new PipelineRunMissingException("The pipeline has not been run (runner: "
                                                     + pipeline.getOptions()
                                                               .getRunner()
@@ -283,6 +288,13 @@ public class TestPipeline extends Pipeline implements TestRule {
 
           final boolean crashingRunner =
               CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
+
+          checkState(!(annotatedWithNeedsRunner && crashingRunner),
+                     "The test was annotated with a [@%s] / [@%s] while the runner "
+                         + "was set to [%s]. Please re-check your configuration.",
+                     NeedsRunner.class.getSimpleName(),
+                     RunnableOnService.class.getSimpleName(),
+                     CrashingRunner.class.getSimpleName());
 
           enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
         }
