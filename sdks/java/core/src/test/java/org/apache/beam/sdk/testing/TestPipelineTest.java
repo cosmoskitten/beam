@@ -427,6 +427,26 @@ public class TestPipelineTest implements Serializable {
         // thrown on account of the missing run / dangling nodes.
       }
 
+      @Category(NeedsRunner.class)
+      @Test
+      public void testConflict_needsRunnerAnnotation_expectIllegalStateException()
+          throws Exception {
+
+        addTransform(pCollection(pipeline));
+
+        // @NeedsRunner annotation with a CrashingRunner indicates a configuration issue
+      }
+
+      @Category(RunnableOnService.class)
+      @Test
+      public void testConflict_runnableOnServiceAnnotation_expectIllegalStateException()
+          throws Exception {
+
+        addTransform(pCollection(pipeline));
+
+        // @RunnableOnService annotation with a CrashingRunner indicates a configuration issue
+      }
+
     }
 
     private static List<Object[]> extractTests(final Class<?> testClass) {
@@ -464,6 +484,10 @@ public class TestPipelineTest implements Serializable {
         } else if (testName.contains(P_ASSERT)) {
           exception.expectMessage(P_ASSERT);
         }
+        return exception;
+      } else if (expect.contains(IllegalStateException.class.getSimpleName())) {
+        final ExpectedException exception = ExpectedException.none();
+        exception.expect(IllegalStateException.class);
         return exception;
       } else {
         return new TestRule() {
