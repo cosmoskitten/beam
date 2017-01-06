@@ -159,7 +159,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     if (mOptions.isStreaming()) {
       final SparkRunnerStreamingContextFactory contextFactory =
-          new SparkRunnerStreamingContextFactory(pipeline, mOptions);
+          new SparkRunnerStreamingContextFactory(pipeline, mOptions, cacheCandidates);
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(), contextFactory);
 
@@ -245,9 +245,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-      // we populate the cache candidates by updating the map with inputs and outputs of each node.
+      // we populate the cache candidates by updating the map with inputs of each node.
       // The purpose is to detect the PCollection more than one time, and so enable cache on the
       // underlying RDDs or DStream.
+      // A PCollection (RDD/DStream) needs to be cached only if it's used as an input to more
+      // than one transformation so it won't be evaluated again all the way throughout its lineage.
       // update cache candidates with node inputs
       for (TaggedPValue input : node.getInputs()) {
         PValue value = input.getValue();
@@ -256,16 +258,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
           if (cacheCandidates.get(value) != null) {
             count = cacheCandidates.get(value) + 1;
           }
-          cacheCandidates.put(((PCollection) value), count);
-        }
-      }
-      // update cache candidates with node outputs
-      for (TaggedPValue output : node.getOutputs()) {
-        PValue value = output.getValue();
-        if (value instanceof PCollection) {
-          long count = 1L;
-          if (cacheCandidates.get(value) != null) {
-            count = cacheCandidates.get(value) + 1;
+          if (value.getName().equals("Write/WriteBundles.out")) {
+            // hack forcing caching for WriteBundles
+            count = 2L;
           }
           cacheCandidates.put(((PCollection) value), count);
         }
@@ -364,18 +359,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       ctxt.setCurrentTransform(appliedTransform);
       // by default we don't cache
       boolean cacheHint = false;
-      // if the input or output of the node (aka transform) is already known in the cache
-      // candidates map, and it appears more than one time, then we enable caching
-      // considering node input for caching
-      for (TaggedPValue input : node.getInputs()) {
-        PValue value = input.getValue();
-        if ((value instanceof PCollection)
-            && cacheCandidates.containsKey(value)
-            && cacheCandidates.get(value) > 1) {
-          cacheHint = true;
-          break;
-        }
-      }
+      // if the output of the node (aka transform) is already known in the cache
+      // candidates map (initialized with inputs), and it appears more than one time, then we
+      // enable caching
       // considering node output for caching
       for (TaggedPValue output : node.getOutputs()) {
         PValue value = output.getValue();
