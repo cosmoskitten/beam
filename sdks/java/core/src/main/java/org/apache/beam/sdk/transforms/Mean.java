@@ -101,7 +101,7 @@ public class Mean {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private static class MeanFn<NumT extends Number>
+  static class MeanFn<NumT extends Number>
   extends Combine.AccumulatingCombineFn<NumT, CountSum<NumT>, Double> {
     /**
      * Constructs a combining function that computes the mean over
