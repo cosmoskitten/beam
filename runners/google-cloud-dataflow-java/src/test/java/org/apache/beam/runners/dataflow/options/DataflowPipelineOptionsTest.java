@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.options;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
@@ -176,6 +177,14 @@ public class DataflowPipelineOptionsTest {
     thrown.expectCause(
         hasMessage(containsString("Expected a valid 'gs://' path")));
     options.getStagingLocation();
+  }
+
+  @Test
+  public void testGcpTempLocationIsNull() {
+    // Demonstrate that this could be handled more effectively.
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setTempLocation("file://temp");
+    assertNull(options.getGcpTempLocation());
   }
 
   @Test
