@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
@@ -160,6 +161,12 @@ public class TestPipeline extends Pipeline implements TestRule {
       return nodeRecorder.visited;
     }
 
+    private boolean isEmptyPipeline(final Pipeline pipeline) {
+      final IsEmptyVisitor isEmptyVisitor = new IsEmptyVisitor();
+      pipeline.traverseTopologically(isEmptyVisitor);
+      return isEmptyVisitor.isEmpty();
+    }
+
     private void verifyPipelineExecution() {
       final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
       if (runVisitedNodes != null && !runVisitedNodes.equals(pipelineNodes)) {
@@ -173,10 +180,7 @@ public class TestPipeline extends Pipeline implements TestRule {
           throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
         }
       } else if (runVisitedNodes == null && !enableAutoRunIfMissing) {
-        final IsEmptyVisitor isEmptyVisitor = new IsEmptyVisitor();
-        pipeline.traverseTopologically(isEmptyVisitor);
-
-        if (!isEmptyVisitor.isEmpty()) {
+        if (!isEmptyPipeline(pipeline)) {
           throw new PipelineRunMissingException("The pipeline has not been run (runner: "
                                                     + pipeline.getOptions()
                                                               .getRunner()
@@ -283,6 +287,14 @@ public class TestPipeline extends Pipeline implements TestRule {
 
           final boolean crashingRunner =
               CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
+
+          Preconditions
+              .checkState(!(annotatedWithNeedsRunner && crashingRunner),
+                          "The test was annotated with a [@%s] / [@%s] while the runner "
+                              + "was set to [%s]. Please re-check your configuration.",
+                          NeedsRunner.class.getSimpleName(),
+                          RunnableOnService.class.getSimpleName(),
+                          CrashingRunner.class.getSimpleName());
 
           enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
         }
