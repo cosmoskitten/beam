@@ -33,6 +33,7 @@ import java.util.Map;
 import org.apache.beam.sdk.options.GcpOptions.DefaultProjectFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.NoopPathValidator;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -107,6 +108,7 @@ public class GcpOptionsTest {
   }
 
   @Test
+  @Ignore
   public void testEmptyGcpTempLocation() throws Exception {
     GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
     thrown.expect(IllegalArgumentException.class);
