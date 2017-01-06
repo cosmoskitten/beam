@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-package org.apache.beam.runners.dataflow.internal;
+package org.apache.beam.runners.dataflow;
 
 import static org.junit.Assert.assertEquals;
 
@@ -33,7 +33,7 @@ import org.junit.runners.JUnit4;
  * Tests for {@see DataflowUnboundedReadFromBoundedSource}.
  */
 @RunWith(JUnit4.class)
-public class DataflowUnboundedReadFromBoundedSourceTest {
+class DataflowUnboundedReadFromBoundedSourceTest {
   @Test
   public void testKind() {
     DataflowUnboundedReadFromBoundedSource<?> read = new
