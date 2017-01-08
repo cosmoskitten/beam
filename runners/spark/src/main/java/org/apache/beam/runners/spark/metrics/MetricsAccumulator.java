@@ -16,37 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators;
+package org.apache.beam.runners.spark.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 
+
 /**
  * For resilience, {@link Accumulator}s are required to be wrapped in a Singleton.
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
-class AccumulatorSingleton {
+class MetricsAccumulator {
 
-  private static volatile Accumulator<NamedAggregators> instance = null;
+  private static volatile Accumulator<SparkMetricsContainer> instance = null;
 
-  static Accumulator<NamedAggregators> getInstance(JavaSparkContext jsc) {
+  static Accumulator<SparkMetricsContainer> getInstance(JavaSparkContext jsc) {
     if (instance == null) {
-      synchronized (AccumulatorSingleton.class) {
+      if (jsc == null) {
+        throw new IllegalStateException("Metrics accumulator has not been instantiated");
+      }
+      synchronized (MetricsAccumulator.class) {
         if (instance == null) {
-          //TODO: currently when recovering from checkpoint, Spark does not recover the
+          // TODO: currently when recovering from checkpoint, Spark does not recover the
           // last known Accumulator value. The SparkRunner should be able to persist and recover
-          // the NamedAggregators in order to recover Aggregators as well.
-          instance = jsc.sc().accumulator(new NamedAggregators(), new AggAccumParam());
+          // the SparkMetricsContainer in order to recover metrics as well.
+          SparkMetricsContainer initialValue = new SparkMetricsContainer();
+          instance = jsc.sc().accumulator(initialValue, "Beam.Metrics",
+              new MetricsAccumulatorParam());
         }
       }
     }
     return instance;
   }
 
+  @SuppressWarnings("unused")
   @VisibleForTesting
   static void clear() {
-    synchronized (AccumulatorSingleton.class) {
+    synchronized (MetricsAccumulator.class) {
       instance = null;
     }
   }

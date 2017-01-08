@@ -16,35 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators.metrics;
+package org.apache.beam.runners.spark.metrics;
 
-import com.codahale.metrics.MetricRegistry;
+import org.apache.spark.AccumulatorParam;
 
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-import org.apache.spark.metrics.source.Source;
 
 /**
- * A Spark {@link Source} that is tailored to expose an {@link AggregatorMetric},
- * wrapping an underlying {@link NamedAggregators} instance.
+ * Metrics accumulator param.
  */
-public class AggregatorMetricSource implements Source {
-
-  private final String sourceName;
-
-  private final MetricRegistry metricRegistry = new MetricRegistry();
-
-  public AggregatorMetricSource(final String appName, final NamedAggregators aggregators) {
-    sourceName = appName;
-    metricRegistry.register("Beam", AggregatorMetric.of(aggregators));
+class MetricsAccumulatorParam implements AccumulatorParam<SparkMetricsContainer> {
+  @Override
+  public SparkMetricsContainer addAccumulator(SparkMetricsContainer c1, SparkMetricsContainer c2) {
+    return c1.merge(c2);
   }
 
   @Override
-  public String sourceName() {
-    return sourceName;
+  public SparkMetricsContainer addInPlace(SparkMetricsContainer c1, SparkMetricsContainer c2) {
+    return c1.merge(c2);
   }
 
   @Override
-  public MetricRegistry metricRegistry() {
-    return metricRegistry;
+  public SparkMetricsContainer zero(SparkMetricsContainer initialValue) {
+    return initialValue;
   }
 }

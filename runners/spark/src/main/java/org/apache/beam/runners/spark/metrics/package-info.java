@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Defines classes for integrating with Spark's metrics mechanism (Sinks, Sources, etc.).
- */
-package org.apache.beam.runners.spark.aggregators.metrics;
+/** Provides internal utilities for implementing Beam metrics using Spark accumulators. */
+package org.apache.beam.runners.spark.metrics;

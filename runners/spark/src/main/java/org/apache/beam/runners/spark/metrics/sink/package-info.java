@@ -16,29 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators.metrics;
-
-import com.codahale.metrics.Metric;
-
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-
 /**
- * An adapter between the {@link NamedAggregators} and codahale's {@link Metric}
- * interface.
+ * Spark sinks that support
+ * the {@link org.apache.beam.runners.spark.metrics.AggregatorMetric}.
  */
-public class AggregatorMetric implements Metric {
-
-  private final NamedAggregators namedAggregators;
-
-  private AggregatorMetric(final NamedAggregators namedAggregators) {
-    this.namedAggregators = namedAggregators;
-  }
-
-  public static AggregatorMetric of(final NamedAggregators namedAggregators) {
-    return new AggregatorMetric(namedAggregators);
-  }
-
-  NamedAggregators getNamedAggregators() {
-    return namedAggregators;
-  }
-}
+package org.apache.beam.runners.spark.metrics.sink;

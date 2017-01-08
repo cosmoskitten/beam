@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -47,7 +48,9 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 public class DoFnFunction<InputT, OutputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>, WindowedValue<OutputT>> {
 
-  private final Accumulator<NamedAggregators> accumulator;
+  private final Accumulator<NamedAggregators> aggregatorsAccum;
+  private final Accumulator<SparkMetricsContainer> metricsAccum;
+  private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
   private final SparkRuntimeContext runtimeContext;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs;
@@ -62,12 +65,15 @@ public class DoFnFunction<InputT, OutputT>
    */
   public DoFnFunction(
       Accumulator<NamedAggregators> accumulator,
+      Accumulator<SparkMetricsContainer> metricsAccum,
+      String stepName,
       DoFn<InputT, OutputT> doFn,
       SparkRuntimeContext runtimeContext,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
-
-    this.accumulator = accumulator;
+    this.aggregatorsAccum = accumulator;
+    this.metricsAccum = metricsAccum;
+    this.stepName = stepName;
     this.doFn = doFn;
     this.runtimeContext = runtimeContext;
     this.sideInputs = sideInputs;
@@ -78,7 +84,6 @@ public class DoFnFunction<InputT, OutputT>
   @Override
   public Iterable<WindowedValue<OutputT>> call(
       Iterator<WindowedValue<InputT>> iter) throws Exception {
-
     DoFnOutputManager outputManager = new DoFnOutputManager();
     DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.createDefault(
@@ -89,11 +94,15 @@ public class DoFnFunction<InputT, OutputT>
             new TupleTag<OutputT>() {},
             Collections.<TupleTag<?>>emptyList(),
             new SparkProcessContext.NoOpStepContext(),
-            new SparkAggregators.Factory(runtimeContext, accumulator),
+            new SparkAggregators.Factory(runtimeContext, aggregatorsAccum),
             windowingStrategy
         );
 
-    return new SparkProcessContext<>(doFn, doFnRunner, outputManager).processPartition(iter);
+    DoFnRunner<InputT, OutputT> monitoredDoFnRunner =
+        new MonitoredDoFnRunner<>(stepName, doFnRunner, metricsAccum);
+
+    return new SparkProcessContext<>(doFn, monitoredDoFnRunner, outputManager)
+        .processPartition(iter);
   }
 
   private class DoFnOutputManager

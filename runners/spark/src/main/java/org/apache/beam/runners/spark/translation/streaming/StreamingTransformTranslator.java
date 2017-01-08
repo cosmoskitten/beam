@@ -29,6 +29,7 @@ import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.io.SparkUnboundedSource;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.BoundedDataset;
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.DoFnFunction;
@@ -351,6 +352,7 @@ final class StreamingTransformTranslator {
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         final WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
+        final String stepName = context.getCurrentTransform().getFullName();
         JavaDStream<WindowedValue<InputT>> dStream =
             ((UnboundedDataset<InputT>) context.borrowDataset(transform)).getDStream();
 
@@ -360,10 +362,14 @@ final class StreamingTransformTranslator {
           @Override
           public JavaRDD<WindowedValue<OutputT>> call(JavaRDD<WindowedValue<InputT>> rdd) throws
               Exception {
-            final Accumulator<NamedAggregators> accum =
-                SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
+            JavaSparkContext jsc = new JavaSparkContext(rdd.context());
+            final Accumulator<NamedAggregators> aggAccum =
+                SparkAggregators.getNamedAggregators(jsc);
+            final Accumulator<SparkMetricsContainer> metricsAccum =
+                SparkMetricsContainer.getAccumulator(jsc);
             return rdd.mapPartitions(
-                new DoFnFunction<>(accum, doFn, runtimeContext, sideInputs, windowingStrategy));
+                new DoFnFunction<>(aggAccum, metricsAccum, stepName, doFn, runtimeContext,
+                    sideInputs, windowingStrategy));
           }
         });
 
