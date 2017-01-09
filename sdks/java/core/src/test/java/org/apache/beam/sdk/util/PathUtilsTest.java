@@ -60,7 +60,7 @@ public class PathUtilsTest {
     // Tests absolute path.
     assertEquals(
         "/root/tmp/aa",
-        PathUtils.resolveAgainstDirectory("/root/tmp/aa", "/root/tmp/aa"));
+        PathUtils.resolveAgainstDirectory("/root/tmp/bb", "/root/tmp/aa"));
 
     // Tests authority with empty path.
     assertEquals(

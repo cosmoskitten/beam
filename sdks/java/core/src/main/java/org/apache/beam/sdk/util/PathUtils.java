@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.Strings;
 import java.net.URI;
 import java.net.URISyntaxException;
-import javax.annotation.Nonnull;
 
 /**
  * Utility class for handling file paths.
@@ -39,8 +38,7 @@ public class PathUtils {
    *
    * @throws IllegalArgumentException if others contains {@link URI} query or fragment components.
    */
-  public static String resolveAgainstDirectory(
-      @Nonnull String directory, @Nonnull String other, @Nonnull String... others) {
+  public static String resolveAgainstDirectory(String directory, String other, String... others) {
     String ret = resolveAgainstDirectory(directory, other);
     for (String str : others) {
       ret = resolveAgainstDirectory(ret, str);
@@ -61,11 +59,11 @@ public class PathUtils {
    * @throws IllegalArgumentException if other is empty, or is invalid {@link URI},
    * or contains {@link URI} query or fragment components.
    */
-  public static String resolveAgainstDirectory(@Nonnull String directory, @Nonnull String other) {
+  public static String resolveAgainstDirectory(String directory, String other) {
     return resolveAgainstDirectory(URI.create(directory), URI.create(other)).toString();
   }
 
-  private static URI resolveAgainstDirectory(@Nonnull URI directory, @Nonnull URI other) {
+  private static URI resolveAgainstDirectory(URI directory, URI other) {
     checkNotNull(directory, "directory");
     checkNotNull(other, "other");
     checkArgument(!other.toString().isEmpty(), "Expected other is not empty.");
@@ -78,7 +76,8 @@ public class PathUtils {
 
     String path = directory.getPath();
     if (!Strings.isNullOrEmpty(directory.getAuthority()) && Strings.isNullOrEmpty(path)) {
-      // Workaround of [BEAM-1174]: path needs to be absolute if the authority exists.
+      // Workaround of https://issues.apache.org/jira/browse/BEAM-1174:
+      // path needs to be absolute if the authority exists.
       path = URI_DELIMITER;
     } else if (!Strings.isNullOrEmpty(path) && !path.endsWith(URI_DELIMITER)) {
       path = path + URI_DELIMITER;

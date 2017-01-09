@@ -328,10 +328,17 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         URI pathUri = URI.create(baseOutputUri.getRawPath());
         // Resolving an empty string removes the last segment of the path
         String filename = pathUri.resolve("").relativize(pathUri).toString();
-        String tempDirectoryName = String.format(
-            "temp-beam-%s-%s/",
-            filename,
-            Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")));
+        String tempDirectoryName;
+        if (filename.isEmpty()) {
+          tempDirectoryName = String.format(
+              "temp-beam-%s/",
+              now.toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")));
+        } else {
+          tempDirectoryName = String.format(
+              "temp-beam-%s-%s/",
+              filename,
+              now.toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")));
+        }
         return baseOutputUri.resolve(tempDirectoryName).toString();
       }
     }

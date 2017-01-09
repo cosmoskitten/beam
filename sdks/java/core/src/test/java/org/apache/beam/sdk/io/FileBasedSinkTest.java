@@ -421,85 +421,83 @@ public class FileBasedSinkTest {
 
   @Test
   public void testBuildTemporaryDirectoryName() {
+    FileBasedWriteOperation.TemporaryDirectoryBuilder tempDirBuilder =
+        new FileBasedWriteOperation.TemporaryDirectoryBuilder();
     // Tests for local files without the scheme.
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("/home/output"),
+        tempDirBuilder.apply("/home/output"),
         Matchers.startsWith("/home/temp-beam-output"));
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("/home/output/"),
-        Matchers.startsWith("/home/output/temp-beam--"));
+        tempDirBuilder.apply("/home/output/"),
+        Matchers.startsWith("/home/output/temp-beam-"));
 
     // Tests for Windows OS path in URI format.
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("file:/C:/home%20dir/a%20b.txt"),
+        tempDirBuilder.apply("file:/C:/home%20dir/a%20b.txt"),
         Matchers.startsWith("file:/C:/home%20dir/temp-beam-a%20b.txt-"));
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("file:///C:/home%20dir/a%20b.txt"),
+        tempDirBuilder.apply("file:///C:/home%20dir/a%20b.txt"),
         Matchers.startsWith("file:/C:/home%20dir/temp-beam-a%20b.txt-"));
 
     // Tests authority with empty path.
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("gs://bucket/"),
-        Matchers.startsWith("gs://bucket/temp-beam--"));
+        tempDirBuilder.apply("gs://bucket/"),
+        Matchers.startsWith("gs://bucket/temp-beam-"));
 
     // Tests empty authority and path.
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("file:///"),
-        Matchers.startsWith("file:/temp-beam--"));
+        tempDirBuilder.apply("file:///"),
+        Matchers.startsWith("file:/temp-beam-"));
 
     // Tests query and fragment.
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("file:///home/output?query#fragment"),
+        tempDirBuilder.apply("file:///home/output?query#fragment"),
         Matchers.startsWith("file:/home/temp-beam-output"));
 
     // Tests normalizing of "." and ".."
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("s3://authority/../home/output/.."),
-        Matchers.startsWith("s3://authority/../home/temp-beam--"));
+        tempDirBuilder.apply("s3://authority/../home/output/.."),
+        Matchers.startsWith("s3://authority/../home/temp-beam-"));
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("s3://authority/."),
-        Matchers.startsWith("s3://authority/temp-beam--"));
+        tempDirBuilder.apply("s3://authority/."),
+        Matchers.startsWith("s3://authority/temp-beam-"));
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("a/.."),
-        Matchers.startsWith("temp-beam--"));
+        tempDirBuilder.apply("a/.."),
+        Matchers.startsWith("temp-beam-"));
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("/a/.."),
-        Matchers.startsWith("/temp-beam--"));
+        tempDirBuilder.apply("/a/.."),
+        Matchers.startsWith("/temp-beam-"));
 
     // Tests  ".", "./", "../".
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("."),
-        Matchers.startsWith("temp-beam--"));
+        tempDirBuilder.apply("."),
+        Matchers.startsWith("temp-beam-"));
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("./"),
-        Matchers.startsWith("temp-beam--"));
+        tempDirBuilder.apply("./"),
+        Matchers.startsWith("temp-beam-"));
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("../"),
-        Matchers.startsWith("../temp-beam--"));
+        tempDirBuilder.apply("../"),
+        Matchers.startsWith("../temp-beam-"));
 
     // Tests bad inputs [BEAM-1168], such as: "~", "..", are handled gracefully.
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply("~"),
+        tempDirBuilder.apply("~"),
         Matchers.startsWith("temp-beam-~-"));
     assertThat(
-        new FileBasedWriteOperation.TemporaryDirectoryBuilder()
-            .apply(".."),
+        tempDirBuilder.apply(".."),
         Matchers.startsWith("temp-beam-..-"));
+  }
+
+  @Test
+  public void testBuildTemporaryDirectoryNameSameEachInvocation() throws Exception {
+    FileBasedWriteOperation.TemporaryDirectoryBuilder tempDirBuilder =
+        new FileBasedWriteOperation.TemporaryDirectoryBuilder();
+
+    String firstTempDir = tempDirBuilder.apply("/home/output");
+    Thread.sleep(1000);
+    assertEquals(
+        firstTempDir,
+        tempDirBuilder.apply("/home/output"));
   }
 
   /**
