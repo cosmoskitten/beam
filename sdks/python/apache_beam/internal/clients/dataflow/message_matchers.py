@@ -15,22 +15,19 @@
 # limitations under the License.
 #
 
-import hamcrest as hc
 from hamcrest.core.base_matcher import BaseMatcher
-
-import apache_beam.internal.clients.dataflow as dataflow
 
 
 IGNORED = object()
 
 
 class MetricStructuredNameMatcher(BaseMatcher):
-  """ Matches a MetricStructuredName."""
+  """Matches a MetricStructuredName."""
   def __init__(self,
                name=IGNORED,
                origin=IGNORED,
                context=IGNORED):
-    """ Creates a MetricsStructuredNameMatcher.
+    """Creates a MetricsStructuredNameMatcher.
 
     Any property not passed in to the constructor will be ignored when matching.
 
@@ -53,8 +50,8 @@ class MetricStructuredNameMatcher(BaseMatcher):
     if self.origin != IGNORED and item.origin != self.origin:
       return False
     if self.context != IGNORED:
-      for key, name in self.context.items():
-        if key != IGNORED and key not in item.context:
+      for key, name in self.context.iteritems():
+        if key not in item.context:
           return False
         if name != IGNORED and item.context[key] != name:
           return False
@@ -69,18 +66,18 @@ class MetricStructuredNameMatcher(BaseMatcher):
     if self.context != IGNORED:
       descriptors.append('context is ({})'.format(str(self.context)))
 
-    item_description = '{}'.format(' and '.join(descriptors))
+    item_description = ' and '.join(descriptors)
     description.append(item_description)
 
 
 class MetricUpdateMatcher(BaseMatcher):
-  """ Matches a metrics update protocol buffer."""
+  """Matches a metrics update protocol buffer."""
   def __init__(self,
                cumulative=IGNORED,
                name=IGNORED,
                scalar=IGNORED,
                kind=IGNORED):
-    """ Creates a MetricUpdateMatcher.
+    """Creates a MetricUpdateMatcher.
 
     Any property not passed in to the constructor will be ignored when matching.
 
@@ -123,5 +120,5 @@ class MetricUpdateMatcher(BaseMatcher):
     if self.scalar != IGNORED:
       descriptors.append('scalar is ({})'.format(str(self.scalar)))
 
-    item_description = '{}'.format(' and '.join(descriptors))
+    item_description = ' and '.join(descriptors)
     description.append(item_description)

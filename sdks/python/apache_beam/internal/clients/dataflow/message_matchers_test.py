@@ -14,11 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import hamcrest as hc
 import unittest
 
+import hamcrest as hc
+
 import apache_beam.internal.clients.dataflow as dataflow
-import apache_beam.internal.clients.dataflow.message_matchers
+from apache_beam.internal.clients.dataflow import message_matchers
 from apache_beam.internal.json_value import to_json_value
 
 
@@ -29,12 +30,12 @@ class TestMatchers(unittest.TestCase):
     metric_name.name = 'metric1'
     metric_name.origin = 'origin2'
 
-    matcher = dataflow.message_matchers.MetricStructuredNameMatcher(
+    matcher = message_matchers.MetricStructuredNameMatcher(
         name='metric1',
         origin='origin2')
     hc.assert_that(metric_name, hc.is_(matcher))
     with self.assertRaises(AssertionError):
-      matcher = dataflow.message_matchers.MetricStructuredNameMatcher(
+      matcher = message_matchers.MetricStructuredNameMatcher(
           name='metric1',
           origin='origin1')
       hc.assert_that(metric_name, hc.is_(matcher))
@@ -49,10 +50,10 @@ class TestMatchers(unittest.TestCase):
     metric_update.kind = 'sum'
     metric_update.scalar = to_json_value(1, with_type=True)
 
-    name_matcher = dataflow.message_matchers.MetricStructuredNameMatcher(
+    name_matcher = message_matchers.MetricStructuredNameMatcher(
         name='metric1',
         origin='origin1')
-    matcher = dataflow.message_matchers.MetricUpdateMatcher(
+    matcher = message_matchers.MetricUpdateMatcher(
         name=name_matcher,
         kind='sum',
         scalar=1)
