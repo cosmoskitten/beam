@@ -67,7 +67,7 @@ class TestCounterCell(unittest.TestCase):
 class TestDistributionCell(unittest.TestCase):
   @classmethod
   def _modify_distribution(cls, d):
-    for i in range(cls.NUM_ITERATIONS):
+    for i in range(cls.NUM_ITERATIONS + 1):
       d.update(i)
 
   NUM_THREADS = 5
@@ -86,27 +86,34 @@ class TestDistributionCell(unittest.TestCase):
     for t in threads:
       t.join()
 
-    total = (self.NUM_ITERATIONS * (self.NUM_ITERATIONS-1)/2 * self.NUM_THREADS)
+    total = ((self.NUM_ITERATIONS + 1) *
+             (self.NUM_ITERATIONS)/2 *
+             self.NUM_THREADS)
 
-    count = (self.NUM_ITERATIONS * self.NUM_THREADS)
+    count = ((self.NUM_ITERATIONS + 1)* self.NUM_THREADS)
+
+    squares = (self.NUM_ITERATIONS *
+               (self.NUM_ITERATIONS + 1) *
+               (2 * self.NUM_ITERATIONS + 1))/6 * self.NUM_THREADS
 
     self.assertEqual(d.get_cumulative(),
                      DistributionData(total, count, 0,
-                                      self.NUM_ITERATIONS - 1))
+                                      self.NUM_ITERATIONS,
+                                      squares))
 
   def test_basic_operations(self):
     d = DistributionCell()
     d.update(10)
     self.assertEqual(d.get_cumulative(),
-                     DistributionData(10, 1, 10, 10))
+                     DistributionData(10, 1, 10, 10, 100))
 
     d.update(2)
     self.assertEqual(d.get_cumulative(),
-                     DistributionData(12, 2, 2, 10))
+                     DistributionData(12, 2, 2, 10, 104))
 
     d.update(900)
     self.assertEqual(d.get_cumulative(),
-                     DistributionData(912, 3, 2, 900))
+                     DistributionData(912, 3, 2, 900, 810104))
 
   def test_integer_only(self):
     d = DistributionCell()
@@ -114,7 +121,7 @@ class TestDistributionCell(unittest.TestCase):
     d.update(3.2)
     d.update(3.3)
     self.assertEqual(d.get_cumulative(),
-                     DistributionData(9, 3, 3, 3))
+                     DistributionData(9, 3, 3, 3, 9*3))
 
 
 class TestCellCommitState(unittest.TestCase):
