@@ -146,7 +146,7 @@ class ParDoTest(unittest.TestCase):
                      label='larger_than_average')
     beam.assert_that(small_but_nontrivial, beam.equal_to(['bb']),
                      label='small_but_not_trivial')
-    p.run()
+    p.run().wait_until_finish()
 
   def test_pardo_side_input_dofn(self):
     words = ['a', 'bb', 'ccc', 'dddd']
@@ -249,7 +249,7 @@ class TypeHintsTest(unittest.TestCase):
     # possibly on a remote machine, possibly very late.
 
     with self.assertRaises(TypeError):
-      p.run()
+      p.run().wait_until_finish()
 
     # To catch this early, we can assert what types we expect.
     with self.assertRaises(typehints.TypeCheckError):
@@ -295,8 +295,9 @@ class TypeHintsTest(unittest.TestCase):
     p = beam.Pipeline('DirectRunner', argv=sys.argv)
     # [START type_hints_runtime_off]
     p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-    p.run()
+    result = p.run()
     # [END type_hints_runtime_off]
+    result.wait_until_finish()
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
@@ -305,8 +306,9 @@ class TypeHintsTest(unittest.TestCase):
       # [START type_hints_runtime_on]
       p.options.view_as(TypeOptions).runtime_type_check = True
       p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-      p.run()
+      result = p.run()
       # [END type_hints_runtime_on]
+      result.wait_until_finish()
 
   def test_deterministic_key(self):
     p = beam.Pipeline('DirectRunner')
@@ -346,7 +348,7 @@ class TypeHintsTest(unittest.TestCase):
         totals | beam.Map(lambda (k, v): (k.name, v)),
         equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
 
-    p.run()
+    p.run().wait_until_finish()
 
 
 class SnippetsTest(unittest.TestCase):

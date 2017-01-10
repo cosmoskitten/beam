@@ -37,7 +37,7 @@ class PipelineStateMatcher(BaseMatcher):
     self.expected_state = expected_state
 
   def _matches(self, pipeline_result):
-    return pipeline_result.current_state() == self.expected_state
+    return pipeline_result.state == self.expected_state
 
   def describe_to(self, description):
     description \
@@ -47,4 +47,4 @@ class PipelineStateMatcher(BaseMatcher):
   def describe_mismatch(self, pipeline_result, mismatch_description):
     mismatch_description \
       .append_text("Test pipeline job terminated in state: ") \
-      .append_text(pipeline_result.current_state())
+      .append_text(pipeline_result.state)
