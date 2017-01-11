@@ -19,6 +19,9 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
+import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -78,11 +81,6 @@ public class PathUtilsTest {
         "file:/aa",
         PathUtils.resolveAgainstDirectory("file:///", "aa"));
 
-    // Tests query and fragment.
-    assertEquals(
-        "file:/home/output/aa/bb",
-        PathUtils.resolveAgainstDirectory("file:/home/output?query#fragment", "aa", "bb"));
-
     // Tests normalizing of "." and ".."
     assertEquals(
         "s3://authority/../home/bb",
@@ -121,6 +119,22 @@ public class PathUtilsTest {
     thrown.expectMessage("Expected other is not empty.");
     // Tests resolving empty strings.
     PathUtils.resolveAgainstDirectory("/root/tmp/aa", "", "");
+  }
+
+  @Test
+  public void testResolveDirectoryHasQuery() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no query in directory");
+    // Tests resolving empty strings.
+    PathUtils.resolveAgainstDirectory("/root/tmp/aa?q", "bb");
+  }
+
+  @Test
+  public void testResolveDirectoryHasFragment() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no fragment in directory");
+    // Tests resolving empty strings.
+    PathUtils.resolveAgainstDirectory("/root/tmp/aa#q", "bb");
   }
 
   @Test
