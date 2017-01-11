@@ -131,4 +131,82 @@ public class MetricMatchers {
     };
   }
 
+  public static Matcher<MetricResult<DistributionResult>> distributionMinMax(
+      final String namespace, final String name, final String step, final Long committedMin,
+      final Long committedMax, final Long attemptedMin, final Long attemptedMax) {
+    return new TypeSafeMatcher<MetricResult<DistributionResult>>() {
+      @Override
+      protected boolean matchesSafely(MetricResult<DistributionResult> item) {
+        return Objects.equals(namespace, item.name().namespace())
+            && Objects.equals(name, item.name().name())
+            && item.step().contains(step)
+            && Objects.equals(committedMin, item.committed().min())
+            && Objects.equals(committedMax, item.committed().max())
+            && Objects.equals(attemptedMin, item.attempted().min())
+            && Objects.equals(attemptedMax, item.attempted().max());
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description
+            .appendText("MetricResult{inNamespace=").appendValue(namespace)
+            .appendText(", name=").appendValue(name)
+            .appendText(", step=").appendValue(step)
+            .appendText(", committedMin=").appendValue(committedMin)
+            .appendText(", committedMax=").appendValue(committedMax)
+            .appendText(", attemptedMin=").appendValue(attemptedMin)
+            .appendText(", attemptedMax=").appendValue(attemptedMax)
+            .appendText("}");
+      }
+
+      @Override
+      protected void describeMismatchSafely(MetricResult<DistributionResult> item,
+                                            Description mismatchDescription) {
+        mismatchDescription.appendText("MetricResult{");
+        if (!Objects.equals(namespace, item.name().namespace())) {
+          mismatchDescription
+              .appendText("inNamespace: ").appendValue(namespace)
+              .appendText(" != ").appendValue(item.name().namespace());
+        }
+
+        if (!Objects.equals(name, item.name().name())) {
+          mismatchDescription
+              .appendText("name: ").appendValue(name)
+              .appendText(" != ").appendValue(item.name().name());
+        }
+
+        if (!item.step().contains(step)) {
+          mismatchDescription
+              .appendText("step: ").appendValue(step)
+              .appendText(" != ").appendValue(item.step());
+        }
+
+        if (!Objects.equals(committedMin, item.committed())) {
+          mismatchDescription
+              .appendText("committedMin: ").appendValue(committedMin)
+              .appendText(" != ").appendValue(item.committed());
+        }
+
+        if (!Objects.equals(committedMax, item.committed())) {
+          mismatchDescription
+              .appendText("committedMax: ").appendValue(committedMax)
+              .appendText(" != ").appendValue(item.committed());
+        }
+
+        if (!Objects.equals(attemptedMin, item.attempted())) {
+          mismatchDescription
+              .appendText("attemptedMin: ").appendValue(attemptedMin)
+              .appendText(" != ").appendValue(item.attempted());
+        }
+
+        if (!Objects.equals(attemptedMax, item.attempted())) {
+          mismatchDescription
+              .appendText("attemptedMax: ").appendValue(attemptedMax)
+              .appendText(" != ").appendValue(item.attempted());
+        }
+
+        mismatchDescription.appendText("}");
+      }
+    };
+  }
 }
