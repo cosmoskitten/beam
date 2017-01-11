@@ -75,6 +75,7 @@ class TestDistributionCell(unittest.TestCase):
 
   def test_parallel_access(self):
     # We create NUM_THREADS threads that concurrently modify the distribution.
+    # Each thread iterates on x from 1 to N, adding every x to the distribution.
     threads = []
     d = DistributionCell()
     for _ in range(TestDistributionCell.NUM_THREADS):
