@@ -27,7 +27,6 @@ import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.NoopPathValidator;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -182,12 +181,11 @@ public class DataflowPipelineOptionsTest {
   }
 
   @Test
-  @Ignore
   public void testDefaultStagingLocationUnset() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setProject("");
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Error constructing default value for stagingLocation: "
-        + "failed to retrieve gcpTempLocation.");
+    thrown.expectMessage("Error constructing default value for stagingLocation");
     options.getStagingLocation();
   }
 }
