@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.metrics;
 
+import static org.apache.beam.sdk.metrics.MetricMatchers.distributionMinMax;
 import static org.apache.beam.sdk.metrics.MetricMatchers.metricResult;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -116,6 +117,13 @@ public class MetricsTest implements Serializable {
     pipeline
         .apply(Create.of(5, 8, 13))
         .apply("MyStep1", ParDo.of(new DoFn<Integer, Integer>() {
+          Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
+
+          @StartBundle
+          public void startBundle(Context c) {
+            bundleDist.update(10L);
+          }
+
           @ProcessElement
           public void processElement(ProcessContext c) {
             Distribution values = Metrics.distribution(MetricsTest.class, "input");
@@ -124,6 +132,11 @@ public class MetricsTest implements Serializable {
 
             c.output(c.element());
             c.output(c.element());
+          }
+
+          @DoFn.FinishBundle
+          public void finishBundle(Context c) {
+            bundleDist.update(40L);
           }
         }))
         .apply("MyStep2", ParDo.of(new DoFn<Integer, Integer>() {
@@ -141,19 +154,23 @@ public class MetricsTest implements Serializable {
     MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
       .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
       .build());
-    // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
-    assertThat(metrics.counters(), hasItem(
-        metricResult(MetricsTest.class.getName(), "count", "MyStep1", 3L, 3L)));
-    assertThat(metrics.distributions(), hasItem(
-        metricResult(MetricsTest.class.getName(), "input", "MyStep1",
-            DistributionResult.create(26L, 3L, 5L, 13L),
-            DistributionResult.create(26L, 3L, 5L, 13L))));
+    Iterable<MetricResult<Long>> counters = metrics.counters();
+    Iterable<MetricResult<DistributionResult>> distributions = metrics.distributions();
 
-    assertThat(metrics.counters(), hasItem(
-        metricResult(MetricsTest.class.getName(), "count", "MyStep2", 6L, 6L)));
-    assertThat(metrics.distributions(), hasItem(
-        metricResult(MetricsTest.class.getName(), "input", "MyStep2",
-            DistributionResult.create(52L, 6L, 5L, 13L),
-            DistributionResult.create(52L, 6L, 5L, 13L))));
+    String namespace = MetricsTest.class.getName();
+
+    // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
+    assertThat(counters, hasItem(metricResult(namespace, "count", "MyStep1", 3L, 3L)));
+    assertThat(distributions, hasItem(metricResult(namespace, "input", "MyStep1",
+        DistributionResult.create(26L, 3L, 5L, 13L),
+        DistributionResult.create(26L, 3L, 5L, 13L))));
+
+    assertThat(counters, hasItem(metricResult(namespace, "count", "MyStep2", 6L, 6L)));
+    assertThat(distributions, hasItem(metricResult(namespace, "input", "MyStep2",
+        DistributionResult.create(52L, 6L, 5L, 13L),
+        DistributionResult.create(52L, 6L, 5L, 13L))));
+
+    assertThat(distributions, hasItem(
+        distributionMinMax(namespace, "bundle", "MyStep1", 10L, 40L, 10L, 40L)));
   }
 }
