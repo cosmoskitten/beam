@@ -324,7 +324,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
       @Override
       public String apply(String baseOutputFilename) {
-        URI baseOutputUri = URI.create(baseOutputFilename).normalize();
+        URI baseOutputUri = FileSystems.specToURI(baseOutputFilename).normalize();
         URI pathUri = URI.create(baseOutputUri.getRawPath());
         // Resolving an empty string removes the last segment of the path
         String filename = pathUri.resolve("").relativize(pathUri).toString();

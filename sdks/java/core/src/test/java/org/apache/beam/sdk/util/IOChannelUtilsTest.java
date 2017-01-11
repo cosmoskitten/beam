@@ -110,6 +110,8 @@ public class IOChannelUtilsTest {
 
   @Test
   public void testRegisterIOFactories() throws Exception {
+    IOChannelFactory factory = IOChannelUtils.getFactory("c:\\");
+
     IOChannelUtils.deregisterScheme("gs");
     IOChannelUtils.deregisterScheme("file");
 

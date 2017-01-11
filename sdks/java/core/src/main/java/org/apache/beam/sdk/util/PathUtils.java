@@ -68,6 +68,12 @@ public class PathUtils {
     checkNotNull(other, "other");
     checkArgument(!other.toString().isEmpty(), "Expected other is not empty.");
     checkArgument(
+        Strings.isNullOrEmpty(directory.getQuery()),
+        String.format("Expected no query in directory: [%s].", directory));
+    checkArgument(
+        Strings.isNullOrEmpty(directory.getFragment()),
+        String.format("Expected no fragment in directory: [%s].", directory));
+    checkArgument(
         Strings.isNullOrEmpty(other.getQuery()),
         String.format("Expected no query in other: [%s].", other));
     checkArgument(

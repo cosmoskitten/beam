@@ -19,7 +19,9 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.repackaged.com.google.common.base.Strings;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -30,16 +32,21 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.commons.lang3.SystemUtils;
 
 /**
  * Clients facing {@link FileSystem} utility.
@@ -48,7 +55,17 @@ public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "default";
 
-  private static final Pattern URI_SCHEME_PATTERN = Pattern.compile("^[a-zA-Z][-a-zA-Z0-9+.]*$");
+  private static final Pattern URI_SCHEME_SYNTAX_PATTERN =
+      Pattern.compile("^[a-zA-Z][-a-zA-Z0-9+.]*$");
+
+  // Regex to parse the scheme.
+  private static final Pattern URI_SCHEME_PARSING_PATTERN =
+      Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*");
+
+  // Regex to parse the URI (defined in https://tools.ietf.org/html/rfc3986#appendix-B).
+  private static final Pattern URI_PARSING_PATTERN = Pattern.compile(
+      "^((?<scheme>[^:/?#]+):)?(//(?<authority>[^/?#]*))?(?<path>[^?#]*)"
+          + "(\\?(?<query>[^#]*))?(#(?<fragment>.*))?");
 
   private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR =
       new ConcurrentHashMap<>();
@@ -78,6 +95,37 @@ public class FileSystems {
   }
 
   /**
+   * Converts the user spec string to URI.
+   *
+   * <p>It uses {@link Paths} to handle non-URI Windows OS paths.
+   */
+  public static URI specToURI(String spec) {
+    try {
+      // Using the URI constructor in order to escape special characters, such as spaces.
+      // URI.create() will throw for illegal characters if it is called directly.
+      Matcher matcher = URI_PARSING_PATTERN.matcher(spec);
+      checkState(matcher.matches(), "spec: %s doesn't match URI regex.", spec);
+      return new URI(
+          matcher.group("scheme"),
+          matcher.group("authority"),
+          matcher.group("path"),
+          matcher.group("query"),
+          matcher.group("fragment"));
+    } catch (URISyntaxException e) {
+      // Try convert non-URI Windows OS spec to Path, and then to URI.
+      if (isLocalWindowsOSPath(spec)) {
+        // Replace asterisks in the spec with the placeholder (uuid) before converting to a Path.
+        String uuid = UUID.randomUUID().toString();
+        String specAsterisksReplaced = spec.replaceAll("\\*", uuid);
+        String uriAsterisksReplaced = Paths.get(specAsterisksReplaced).toUri().toString();
+        return URI.create(uriAsterisksReplaced.replaceAll(uuid, "\\*"));
+      } else {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
+    }
+  }
+
+  /**
    * Sets the default configuration to be used with a {@link FileSystemRegistrar} for the provided
    * {@code scheme}.
    *
@@ -87,13 +135,33 @@ public class FileSystems {
   public static void setDefaultConfig(String scheme, PipelineOptions options) {
     String lowerCaseScheme = checkNotNull(scheme, "scheme").toLowerCase();
     checkArgument(
-        URI_SCHEME_PATTERN.matcher(lowerCaseScheme).matches(),
+        URI_SCHEME_SYNTAX_PATTERN.matcher(lowerCaseScheme).matches(),
         String.format("Scheme: [%s] doesn't match URI syntax: %s",
-            lowerCaseScheme, URI_SCHEME_PATTERN.pattern()));
+            lowerCaseScheme, URI_SCHEME_SYNTAX_PATTERN.pattern()));
     checkArgument(
         SCHEME_TO_REGISTRAR.containsKey(lowerCaseScheme),
         String.format("No FileSystemRegistrar found for scheme: [%s].", lowerCaseScheme));
     SCHEME_TO_DEFAULT_CONFIG.put(lowerCaseScheme, checkNotNull(options, "options"));
+  }
+
+  @VisibleForTesting
+  static boolean isLocalWindowsOSPath(String spec) {
+    return getLowerCaseScheme(spec).equals(LocalFileSystemRegistrar.LOCAL_FILE_SCHEME)
+        && SystemUtils.IS_OS_WINDOWS;
+  }
+
+  @VisibleForTesting
+  static String getLowerCaseScheme(String spec) {
+    Matcher matcher = URI_SCHEME_PARSING_PATTERN.matcher(spec);
+    if (!matcher.matches()) {
+      return LocalFileSystemRegistrar.LOCAL_FILE_SCHEME;
+    }
+    String scheme = matcher.group("scheme");
+    if (Strings.isNullOrEmpty(scheme)) {
+      return LocalFileSystemRegistrar.LOCAL_FILE_SCHEME;
+    } else {
+      return scheme.toLowerCase();
+    }
   }
 
   @VisibleForTesting

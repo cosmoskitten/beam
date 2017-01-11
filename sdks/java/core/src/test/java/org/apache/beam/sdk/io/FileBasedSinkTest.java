@@ -53,6 +53,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.PathUtils;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -431,13 +432,10 @@ public class FileBasedSinkTest {
         tempDirBuilder.apply("/home/output/"),
         Matchers.startsWith("/home/output/temp-beam-"));
 
-    // Tests for Windows OS path in URI format.
+    // Tests for non-escaping chars.
     assertThat(
-        tempDirBuilder.apply("file:/C:/home%20dir/a%20b.txt"),
-        Matchers.startsWith("file:/C:/home%20dir/temp-beam-a%20b.txt-"));
-    assertThat(
-        tempDirBuilder.apply("file:///C:/home%20dir/a%20b.txt"),
-        Matchers.startsWith("file:/C:/home%20dir/temp-beam-a%20b.txt-"));
+        tempDirBuilder.apply("gs://my bucket/out put"),
+        Matchers.startsWith("gs://my%20bucket/temp-beam-out%20put"));
 
     // Tests authority with empty path.
     assertThat(
@@ -486,6 +484,27 @@ public class FileBasedSinkTest {
     assertThat(
         tempDirBuilder.apply(".."),
         Matchers.startsWith("temp-beam-..-"));
+  }
+
+  @Test
+  public void testBuildTemporaryDirectoryNameWindowsOS() {
+    FileBasedWriteOperation.TemporaryDirectoryBuilder tempDirBuilder =
+        new FileBasedWriteOperation.TemporaryDirectoryBuilder();
+
+    // Tests for Windows OS path in URI format.
+    assertThat(
+        tempDirBuilder.apply("file:/C:/home dir/a b.txt"),
+        Matchers.startsWith("file:/C:/home%20dir/temp-beam-a%20b.txt-"));
+    assertThat(
+        tempDirBuilder.apply("file:///C:/home dir/a b.txt"),
+        Matchers.startsWith("file:/C:/home%20dir/temp-beam-a%20b.txt-"));
+
+    if (SystemUtils.IS_OS_WINDOWS) {
+      // Tests for Windows OS path in non-URI format.
+      assertThat(
+          tempDirBuilder.apply("C:\\my home\\output\\"),
+          Matchers.startsWith("C:\\my home\\output\\"));
+    }
   }
 
   @Test
