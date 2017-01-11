@@ -86,12 +86,16 @@ class TestDistributionCell(unittest.TestCase):
     for t in threads:
       t.join()
 
+    count = ((self.NUM_ITERATIONS + 1)* self.NUM_THREADS)
+
+    # Formula for the series: sum of x for x from 1 to n,
+    # multiplied by the number of threads.
     total = ((self.NUM_ITERATIONS + 1) *
              (self.NUM_ITERATIONS)/2 *
              self.NUM_THREADS)
 
-    count = ((self.NUM_ITERATIONS + 1)* self.NUM_THREADS)
-
+    # Formula for the series: sum of x squared for x from 1 to n,
+    # multiplied by the number of threads.
     squares = (self.NUM_ITERATIONS *
                (self.NUM_ITERATIONS + 1) *
                (2 * self.NUM_ITERATIONS + 1))/6 * self.NUM_THREADS
