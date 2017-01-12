@@ -53,10 +53,9 @@ public class PerKeyCombineFnRunners {
     }
   }
 
-  /**
-   * Returns a {@code Combine.Context} that wraps a {@code OldDoFn.ProcessContext}.
-   */
-  private static CombineWithContext.Context createFromProcessContext(final OldDoFn<?, ?>.ProcessContext c) {
+  /** Returns a {@code Combine.Context} that wraps a {@code OldDoFn.ProcessContext}. */
+  private static CombineWithContext.Context createFromProcessContext(
+      final OldDoFn<?, ?>.ProcessContext c) {
     return new CombineWithContext.Context() {
       @Override
       public PipelineOptions getPipelineOptions() {
