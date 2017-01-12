@@ -49,23 +49,6 @@ public class CombineContextFactory {
   }
 
   /**
-   * Returns a {@code Combine.Context} that wraps a {@code OldDoFn.ProcessContext}.
-   */
-  public static Context createFromProcessContext(final OldDoFn<?, ?>.ProcessContext c) {
-    return new Context() {
-      @Override
-      public PipelineOptions getPipelineOptions() {
-        return c.getPipelineOptions();
-      }
-
-      @Override
-      public <T> T sideInput(PCollectionView<T> view) {
-        return c.sideInput(view);
-      }
-    };
-  }
-
-  /**
    * Returns a {@code Combine.Context} that wraps a {@link StateContext}.
    */
   public static Context createFromStateContext(final StateContext<?> c) {
