@@ -83,6 +83,13 @@ class _TextSource(filebasedsource.FileBasedSource):
     self._coder = coder
     self._buffer_size = buffer_size
 
+  def display_data(self):
+    parent_dd = super(_TextSource, self).display_data()
+    parent_dd['strip_newline'] = DisplayDataItem(
+        self._strip_trailing_newlines,
+        label='Strip Trailing New Lines')
+    return parent_dd
+
   def read_records(self, file_name, range_tracker):
     start_offset = range_tracker.start_position()
     read_buffer = _TextSource.ReadBuffer('', 0)
@@ -252,11 +259,6 @@ class ReadFromText(PTransform):
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
 
-  def display_data(self):
-    return {'source_dd': self._source,
-            'strip_newline': DisplayDataItem(self._strip_trailing_newlines,
-                                             label='Strip Trailing New Lines')}
-
 
 class WriteToText(PTransform):
   """A PTransform for writing to text files."""
@@ -302,16 +304,9 @@ class WriteToText(PTransform):
           compression.
     """
 
-    self._append_trailing_newlines = append_trailing_newlines
     self._sink = _TextSink(file_path_prefix, file_name_suffix,
                            append_trailing_newlines, num_shards,
                            shard_name_template, coder, compression_type)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)
-
-  def display_data(self):
-    return {'sink_dd': self._sink,
-            'append_newline': DisplayDataItem(
-                self._append_trailing_newlines,
-                label='Append Trailing New Lines')}

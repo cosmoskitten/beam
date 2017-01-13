@@ -847,7 +847,8 @@ class FileSink(iobase.Sink):
 
   def display_data(self):
     return {'shards':
-            DisplayDataItem(self.num_shards, label='Number of Shards'),
+            DisplayDataItem(self.num_shards,
+                            label='Number of Shards').drop_if_default(0),
             'compression':
             DisplayDataItem(str(self.compression_type)),
             'file_pattern':
@@ -1087,6 +1088,13 @@ class TextFileSink(FileSink):
                       '\'textio.WriteToText()\' instead of directly '
                       'instantiating a TextFileSink object.')
 
+  def display_data(self):
+    dd_parent = super(TextFileSink, self).display_data()
+    dd_parent['append_newline'] = DisplayDataItem(
+        self.append_trailing_newlines,
+        label='Append Trailing New Lines')
+    return dd_parent
+
   def write_encoded_record(self, file_handle, encoded_value):
     """Writes a single encoded record."""
     file_handle.write(encoded_value)
@@ -1140,7 +1148,7 @@ class NativeFileSink(dataflow_io.NativeSink):
                                         self.file_name_suffix)
     return {'shards':
             DisplayDataItem(self.num_shards,
-                            label='Number of Shards'),
+                            label='Number of Shards').drop_if_default(0),
             'file_pattern':
             DisplayDataItem(file_name_pattern,
                             label='File Name Pattern'),
