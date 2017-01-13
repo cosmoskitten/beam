@@ -55,6 +55,25 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
         doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
   }
 
+  /** TODO: remove this when Dataflow worker uses the DoFn overload. */
+  @Deprecated
+  @SuppressWarnings("unchecked")
+  public static <InputT, OutputT> DoFnInfo<InputT, OutputT> forFn(
+      Serializable doFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
+    return forFn(
+        (DoFn<InputT, OutputT>) doFn,
+        windowingStrategy,
+        sideInputViews,
+        inputCoder,
+        mainOutput,
+        outputMap);
+  }
+
   private DoFnInfo(
       DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
@@ -70,12 +89,13 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     this.outputMap = outputMap;
   }
 
-  /** Returns the embedded function. */
+  /** TODO: remove this when Dataflow worker uses {@link #getDoFn}. */
   @Deprecated
   public Serializable getFn() {
     return doFn;
   }
 
+  /** Returns the embedded function. */
   public DoFn<InputT, OutputT> getDoFn() {
     return doFn;
   }

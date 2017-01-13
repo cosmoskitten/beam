@@ -36,6 +36,7 @@ public class DoFnInvokers {
     return ByteBuddyDoFnInvokerFactory.only().newByteBuddyInvoker(fn);
   }
 
+  /** TODO: remove this when Dataflow worker uses the DoFn overload. */
   @Deprecated
   @SuppressWarnings({"unchecked"})
   public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(
