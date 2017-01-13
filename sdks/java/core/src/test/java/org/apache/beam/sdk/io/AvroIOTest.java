@@ -53,6 +53,8 @@ import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.DirectRunner;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -302,8 +304,8 @@ public class AvroIOTest {
     }
 
     @Override
-    public String getBaseOutputFilename() {
-      return outputFilePrefix;
+    public ValueProvider<String> getBaseOutputFilenameProvider() {
+      return StaticValueProvider.of(outputFilePrefix);
     }
 
     @Override
