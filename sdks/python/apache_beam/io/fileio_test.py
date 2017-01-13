@@ -651,10 +651,7 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
-            'auto'),
-        DisplayDataItemMatcher(
-            'shards',
-            0)]
+            'auto')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_text_file_display_data_suffix(self):
@@ -666,10 +663,7 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}{}'.format(self.path, '-SSSSS-of-NNNNN', '.pdf')),
         DisplayDataItemMatcher(
             'compression',
-            'auto'),
-        DisplayDataItemMatcher(
-            'shards',
-            0)]
+            'auto')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_file_empty(self):
@@ -697,10 +691,7 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
-            'gzip'),
-        DisplayDataItemMatcher(
-            'shards',
-            0)]
+            'gzip')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_gzip_file_auto(self):
@@ -737,10 +728,7 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
-            'bzip2'),
-        DisplayDataItemMatcher(
-            'shards',
-            0)]
+            'bzip2')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_bzip2_file_auto(self):
@@ -865,8 +853,6 @@ class TestFileSink(unittest.TestCase):
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
     dd = DisplayData.create_from(sink)
     expected_items = [
-        DisplayDataItemMatcher(
-            'shards', 0),
         DisplayDataItemMatcher(
             'compression', 'auto'),
         DisplayDataItemMatcher(
