@@ -57,7 +57,6 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -160,7 +159,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * A naming policy for output files.
    */
   public static abstract class FilenamePolicy
-      implements SerializableFunction<Context, String> {
+      implements org.apache.beam.sdk.transforms.SerializableFunction<Context, String> {
     /**
      * Context used for generating a name based on window, pane, shard numer, and num shards.
      * Window and pane will only be provided if windowed writes have been requested using

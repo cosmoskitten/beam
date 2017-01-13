@@ -577,7 +577,7 @@ public class WriteTest {
     }
 
     @Override
-    public void cleanup(PipelineOptions options) throws Exception {
+    public void cleanup() throws Exception {
     }
   }
 

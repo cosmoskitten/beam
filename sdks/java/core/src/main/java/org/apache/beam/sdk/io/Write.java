@@ -293,7 +293,7 @@ public class Write {
           c.output(result);
         } catch (Exception e) {
           // If anything goes wrong, make sure to delete the temporary file.
-          writer.cleanup(c.getPipelineOptions());
+          writer.cleanup();
           throw e;
         }
       }
