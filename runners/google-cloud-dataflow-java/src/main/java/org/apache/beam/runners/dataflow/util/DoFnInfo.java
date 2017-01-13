@@ -71,7 +71,12 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   }
 
   /** Returns the embedded function. */
-  public DoFn<InputT, OutputT> getFn() {
+  @Deprecated
+  public Serializable getFn() {
+    return doFn;
+  }
+
+  public DoFn<InputT, OutputT> getDoFn() {
     return doFn;
   }
 
