@@ -160,7 +160,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * A naming policy for output files.
    */
   public static abstract class FilenamePolicy
-      implements SerializableFunction<FilenamePolicy.Context, String> {
+      implements SerializableFunction<Context, String> {
     /**
      * Context used for generating a name based on window, pane, shard numer, and num shards.
      * Window and pane will only be provided if windowed writes have been requested using
