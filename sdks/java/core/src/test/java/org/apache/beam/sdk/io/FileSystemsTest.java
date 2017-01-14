@@ -26,6 +26,9 @@ import java.net.URI;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.commons.lang3.SystemUtils;
+import org.apache.http.client.utils.URIUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -40,6 +43,64 @@ public class FileSystemsTest {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testSpecToURIWindows() throws Exception {
+    if (SystemUtils.IS_OS_WINDOWS) {
+      assertEquals(
+          "file:///C:/home",
+          FileSystems.specToURI("C:\\home").toString());
+
+      assertEquals(
+          "file:///C:/home/*",
+          FileSystems.specToURI("C:\\home\\*").toString());
+    } else {
+      // Skip tests
+    }
+  }
+
+  @Test
+  public void testSpecToURI() throws Exception {
+    if (!SystemUtils.IS_OS_WINDOWS) {
+      // Test path without scheme.
+      assertEquals(
+          "/home/output",
+          FileSystems.specToURI("/home/output").toString());
+      // Test path with scheme.
+      assertEquals(
+          "file:///home/output",
+          FileSystems.specToURI("file:///home/output").toString());
+      // Test asterisks.
+      assertEquals(
+          "/home/output/**/*",
+          FileSystems.specToURI("/home/output/**/*").toString());
+      // Test escaped chars.
+      assertEquals(
+          "/home/out%20put/*",
+          FileSystems.specToURI("/home/out put/*").toString());
+    } else {
+      // Skip tests
+    }
+  }
+
+  @Test
+  public void testSpecToURINonLocalFileSystem() throws Exception {
+    assertEquals(
+        "gs://my%20bucket/output",
+        FileSystems.specToURI("gs://my bucket/output").toString());
+    assertEquals(
+        "s3://my%20bucket/output/*",
+        FileSystems.specToURI("s3://my bucket/output/*").toString());
+  }
+
+  @Test
+  public void testGetLowerCaseScheme() throws Exception {
+    assertEquals("gs", FileSystems.getLowerCaseScheme("gs://bucket/output"));
+    assertEquals("gs", FileSystems.getLowerCaseScheme("GS://bucket/output"));
+    assertEquals("file", FileSystems.getLowerCaseScheme("/home/output"));
+    assertEquals("file", FileSystems.getLowerCaseScheme("file:///home/output"));
+    assertEquals("file", FileSystems.getLowerCaseScheme("C:\\home\\output"));
+  }
 
   @Test
   public void testSetDefaultConfig() throws Exception {
