@@ -85,10 +85,20 @@ public class TestPipelineTest implements Serializable {
   public static class TestPipelineCreationTest {
     @Rule public transient TestRule restoreSystemProperties = new RestoreSystemProperties();
     @Rule public transient ExpectedException thrown = ExpectedException.none();
+    @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
     @Test
     public void testCreationUsingDefaults() {
+      assertNotNull(pipeline);
       assertNotNull(TestPipeline.create());
+    }
+
+    @Test
+    public void testCreationNotAsTestRule() {
+      thrown.expect(IllegalStateException.class);
+      thrown.expectMessage("@Rule");
+
+      TestPipeline.create().run();
     }
 
     @Test
@@ -186,7 +196,6 @@ public class TestPipelineTest implements Serializable {
     public void testRunWithDummyEnvironmentVariableFails() {
       System.getProperties()
             .setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.toString(true));
-      TestPipeline pipeline = TestPipeline.create();
       pipeline.apply(Create.of(1, 2, 3));
 
       thrown.expect(IllegalArgumentException.class);
@@ -284,14 +293,13 @@ public class TestPipelineTest implements Serializable {
 
     @SuppressWarnings("UnusedReturnValue")
     private static PCollection<String> addTransform(final PCollection<String> pCollection) {
-      return pCollection.apply("Map2",
-                               MapElements.via(new SimpleFunction<String, String>() {
+      return pCollection.apply("Map2", MapElements.via(new SimpleFunction<String, String>() {
 
-                                 @Override
-                                 public String apply(final String input) {
-                                   return WHATEVER;
-                                 }
-                               }));
+        @Override
+        public String apply(final String input) {
+          return WHATEVER;
+        }
+      }));
     }
 
     private static PCollection<String> pCollection(final Pipeline pipeline) {
