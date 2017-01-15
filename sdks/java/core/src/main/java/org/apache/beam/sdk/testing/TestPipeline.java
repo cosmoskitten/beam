@@ -107,7 +107,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       this.pipeline = pipeline;
     }
 
-    private void enableAutoRunIfMissing(final boolean enable) {
+    protected void enableAutoRunIfMissing(final boolean enable) {
       enableAutoRunIfMissing = enable;
     }
 
@@ -226,7 +226,8 @@ public class TestPipeline extends Pipeline implements TestRule {
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  private PipelineRunEnforcement enforcement = new PipelineAbandonedNodeEnforcement(this);
+  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+  private Optional<? extends PipelineRunEnforcement> enforcement = Optional.absent();
 
   /**
    * Creates and returns a new test pipeline.
@@ -251,40 +252,15 @@ public class TestPipeline extends Pipeline implements TestRule {
   public Statement apply(final Statement statement, final Description description) {
     return new Statement() {
 
-      private final Predicate<Annotation> hasCategoryAnnotation = new Predicate<Annotation>() {
-
-        @Override
-        public boolean apply(final Annotation annotation) {
-          return annotation.annotationType() != null
-              && annotation.annotationType().equals(Category.class);
-        }
-      };
-
-      private final Predicate<Annotation> categoryOfNeedsRunner = new Predicate<Annotation>() {
-
-        @Override
-        public boolean apply(final Annotation category) {
-          return
-              FluentIterable
-                  .from(Arrays.asList(((Category) category).value()))
-                  .anyMatch(new Predicate<Class<?>>() {
-
-                    @Override
-                    public boolean apply(final Class<?> aClass) {
-                      return NeedsRunner.class.isAssignableFrom(aClass);
-                    }
-                  });
-        }
-      };
-
       private void setDeducedEnforcementLevel() {
-        if (enforcement instanceof PipelineAbandonedNodeEnforcement) {
+        // if the enforcement level has not been set by the user do auto-inference
+        if (!enforcement.isPresent()) {
 
           final boolean annotatedWithNeedsRunner =
               FluentIterable
                   .from(description.getAnnotations())
-                  .filter(hasCategoryAnnotation)
-                  .anyMatch(categoryOfNeedsRunner);
+                  .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
+                  .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
 
           final boolean crashingRunner =
               CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
@@ -298,15 +274,13 @@ public class TestPipeline extends Pipeline implements TestRule {
 
           enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
         }
-        // if enforcement instanceof PipelineRunEnforcement at this point, it must have been
-        // set so by the user, so don't second guess it.
       }
 
       @Override
       public void evaluate() throws Throwable {
         setDeducedEnforcementLevel();
         statement.evaluate();
-        enforcement.afterTestCompletion();
+        enforcement.get().afterTestCompletion();
       }
     };
   }
@@ -317,6 +291,10 @@ public class TestPipeline extends Pipeline implements TestRule {
    */
   @Override
   public PipelineResult run() {
+    checkState(enforcement.isPresent(),
+               "Attempted to run a pipeline while it's enforcement level was not set. Are you "
+                   + "using TestPipeline without a @Rule annotation?");
+
     try {
       return super.run();
     } catch (RuntimeException exc) {
@@ -327,19 +305,21 @@ public class TestPipeline extends Pipeline implements TestRule {
         throw exc;
       }
     } finally {
-      enforcement.afterPipelineExecution();
+      enforcement.get().afterPipelineExecution();
     }
   }
 
   public TestPipeline enableAbandonedNodeEnforcement(final boolean enable) {
     enforcement =
-        enable ? new PipelineAbandonedNodeEnforcement(this) : new PipelineRunEnforcement(this);
+        enable
+            ? Optional.of(new PipelineAbandonedNodeEnforcement(this))
+            : Optional.of(new PipelineRunEnforcement(this));
 
     return this;
   }
 
   public TestPipeline enableAutoRunIfMissing(final boolean enable) {
-    enforcement.enableAutoRunIfMissing(enable);
+    enforcement.get().enableAutoRunIfMissing(enable);
     return this;
   }
 
