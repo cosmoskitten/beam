@@ -40,6 +40,7 @@
 	     Overview="../sdks/java/javadoc/overview.html"
 	     >
       <arg line="${beam.javadoc_opts}"/>
+
       <link href="https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/"
 	    offline="true" packageListLoc="../sdks/java/javadoc/apiclient-docs"/>
       <link href="https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/"
@@ -80,5 +81,6 @@
       <excludepackage name="org.apache.beam.sdk.microbenchmarks.transforms.generated"/>
       <excludepackage name="org.openjdk.jmh.infra.generated"/>
     </javadoc>
+    <jar destfile="${output.jar}" basedir="${output.dir}" />
   </target>
 </project>
