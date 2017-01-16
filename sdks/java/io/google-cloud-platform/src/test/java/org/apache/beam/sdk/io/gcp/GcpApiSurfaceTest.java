@@ -23,7 +23,7 @@ import com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-import org.apache.beam.sdk.util.ApiSurfaceVerification;
+import org.apache.beam.sdk.util.ApiSurfaceVerificationTest;
 import org.hamcrest.Matcher;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -32,7 +32,7 @@ import org.junit.runners.JUnit4;
  * API surface verification for {@link org.apache.beam.sdk.io.gcp}.
  */
 @RunWith(JUnit4.class)
-public class GcpApiSurfaceTest extends ApiSurfaceVerification {
+public class GcpApiSurfaceTest extends ApiSurfaceVerificationTest {
 
   @Override
   protected Set<Matcher<? extends Class<?>>> allowedPackages() {
