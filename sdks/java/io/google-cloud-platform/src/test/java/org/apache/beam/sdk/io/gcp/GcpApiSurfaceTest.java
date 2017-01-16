@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.equalTo;
 import com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.common.collect.ImmutableSet;
-import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurfaceVerificationTest;
 import org.hamcrest.Matcher;
 import org.junit.runner.RunWith;
@@ -35,7 +34,7 @@ import org.junit.runners.JUnit4;
 public class GcpApiSurfaceTest extends ApiSurfaceVerificationTest {
 
   @Override
-  protected Set<Matcher<? extends Class<?>>> allowedPackages() {
+  protected ImmutableSet<Matcher<? extends Class<?>>> allowedClasses() {
     return
         ImmutableSet.of(
             inPackage("com.google.api.client.json"),
