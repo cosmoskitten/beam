@@ -31,6 +31,9 @@
   <packaging>pom</packaging>
 
   <name>Apache Beam :: SDKs</name>
+  <properties>
+    <beam-top>..</beam-top>
+  </properties>
 
   <modules>
     <module>java</module>

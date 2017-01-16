@@ -40,6 +40,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <flink.version>1.1.2</flink.version>
+    <beam-top>../..</beam-top>
   </properties>
 
   <repositories>

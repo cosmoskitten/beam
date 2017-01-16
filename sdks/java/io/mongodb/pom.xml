@@ -30,6 +30,7 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: MongoDB</name>
   <description>IO to read and write on MongoDB.</description>
 
+
   <build>
     <plugins>
       <plugin>
@@ -49,6 +50,7 @@
 
   <properties>
     <mongo-java-driver.version>3.2.2</mongo-java-driver.version>
+    <beam-top>../../../..</beam-top>
   </properties>
 
   <dependencies>

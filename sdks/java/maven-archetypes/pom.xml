@@ -30,6 +30,9 @@
   <packaging>pom</packaging>
 
   <name>Apache Beam :: SDKs :: Java :: Maven Archetypes</name>
+  <properties>
+    <beam-top>../../..</beam-top>
+  </properties>
 
   <modules>
     <module>starter</module>

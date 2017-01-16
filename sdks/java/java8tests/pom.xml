@@ -32,6 +32,9 @@
     interface for processing virtually any size data.
     This artifact includes tests of the SDK from a Java 8
     user.</description>
+  <properties>
+    <beam-top>../../..</beam-top>
+  </properties>
 
   <build>
     <pluginManagement>

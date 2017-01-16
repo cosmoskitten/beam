@@ -31,6 +31,10 @@
 
   <name>Apache Beam :: SDKs :: Java :: Extensions</name>
 
+  <properties>
+    <beam-top>../../..</beam-top>
+  </properties>
+
   <modules>
     <module>join-library</module>
     <module>sorter</module>

@@ -30,7 +30,9 @@
 
   <name>Apache Beam :: Runners :: Flink :: Core</name>
 
-  <packaging>jar</packaging>
+  <properties>
+    <beam-top>../../..</beam-top>
+  </properties>
 
   <profiles>
     <profile>

@@ -91,6 +91,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <beam-top>.</beam-top>
     <beam.javadoc_opts />
 
     <!-- Disable integration tests by default -->
@@ -164,6 +165,65 @@
               <artifactId>maven-javadoc-plugin</artifactId>
               <configuration>
                 <additionalparam>${beam.javadoc_opts}</additionalparam>
+
+                <windowtitle>Apache Beam SDK for Java, version ${project.version} API</windowtitle>
+                <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
+                <overview>${basedir}/${beam-top}/sdks/java/javadoc/overview.html</overview>
+
+                <subpackages>com.google.cloud.dataflow.sdk</subpackages>
+                <use>false</use>
+                <quiet>true</quiet>
+                <bottom><![CDATA[<br>]]></bottom>
+		<!-- This does not work for mvn javadoc:aggregate from command line, which is why
+		     we have the javadoc-aggregate module. -->
+                <excludePackageNames>org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation,org.apache.beam.runners.apex.translation,org.apache.beam.sdk.microbenchmarks.coders.generated,org.apache.beam.sdk.microbenchmarks.transforms.generated,org.openjdk.jmh.infra.generated</excludePackageNames>
+		
+                <offlineLinks>
+                  <offlineLink>
+                    <url>https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/apiclient-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/avro-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/bq-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>https://cloud.google.com/datastore/docs/apis/javadoc/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/datastore-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/guava-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>http://hamcrest.org/JavaHamcrest/javadoc/1.3/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/hamcrest-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.7/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/jackson-annotations-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>http://fasterxml.github.io/jackson-databind/javadoc/2.7/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/jackson-databind-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>http://www.joda.org/joda-time/apidocs</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/joda-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>http://junit.sourceforge.net/javadoc/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/junit-docs</location>
+                  </offlineLink>
+                  <offlineLink>
+                    <url>https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/</url>
+                    <location>${basedir}/${beam-top}/sdks/java/javadoc/oauth-docs</location>
+                  </offlineLink>
+                </offlineLinks>
               </configuration>
               <executions>
                 <execution>
@@ -216,11 +276,6 @@
           <plugin>
             <groupId>org.apache.rat</groupId>
             <artifactId>apache-rat-plugin</artifactId>
-          </plugin>
-
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
           </plugin>
 
           <plugin>

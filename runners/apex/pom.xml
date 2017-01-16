@@ -38,6 +38,7 @@
     <skipIntegrationTests>true</skipIntegrationTests>
     <!-- memory limit for embedded cluster -->
     <surefire.args>-Xmx2048m</surefire.args>
+    <beam-top>../..</beam-top>
   </properties>
 
   <profiles>

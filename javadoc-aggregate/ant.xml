@@ -40,21 +40,45 @@
 	     Overview="../sdks/java/javadoc/overview.html"
 	     >
       <arg line="${beam.javadoc_opts}"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/jackson-databind-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/junit-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/dataflow-sdk-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/joda-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/hamcrest-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/bq-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/apiclient-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/jackson-annotations-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/guava-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/datastore-docs"/>
-      <link offline="true" packageListLoc="../sdks/java/javadoc/avro-docs"/>
-      <link href="http://avro.apache.org/docs/current/api/java/" offline="true" packageListLoc="../sdks/java/javadoc/oauth-docs"/>
+      <link href="https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/"
+	    offline="true" packageListLoc="../sdks/java/javadoc/apiclient-docs"/>
+      <link href="https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/"
+	    offline="true" packageListLoc="../sdks/java/javadoc/oauth-docs"/>
+      <link href="https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/"
+	  offline="true" packageListLoc="../sdks/java/javadoc/bq-docs"/>
+      <link href="https://cloud.google.com/datastore/docs/apis/javadoc/"
+	    offline="true" packageListLoc="../sdks/java/javadoc/datastore-docs"/>
+      <link href="http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/"
+	    offline="true" packageListLoc="../sdks/java/javadoc/guava-docs"/>
+      <link href="http://hamcrest.org/JavaHamcrest/javadoc/1.3/"
+	  offline="true" packageListLoc="../sdks/java/javadoc/hamcrest-docs"/>
+      <link href="http://fasterxml.github.io/jackson-annotations/javadoc/2.7/"
+	  offline="true" packageListLoc="../sdks/java/javadoc/jackson-annotations-docs"/>
+      <link href="http://fasterxml.github.io/jackson-databind/javadoc/2.7/"
+	    offline="true" packageListLoc="../sdks/java/javadoc/jackson-databind-docs"/>
+      <link href="http://www.joda.org/joda-time/apidocs"
+	    offline="true" packageListLoc="../sdks/java/javadoc/joda-docs"/>
+      <link href="http://junit.sourceforge.net/javadoc/"
+	    offline="true" packageListLoc="../sdks/java/javadoc/junit-docs"/>
       <!--
-	  <excludepackage name=""/>
+	  <link offline="true" packageListLoc="../sdks/java/javadoc/dataflow-sdk-docs"/>
       -->
+      <link href="http://avro.apache.org/docs/1.7.7/api/java/"
+	    offline="true" packageListLoc="../sdks/java/javadoc/avro-docs"/>
+      <excludepackage name="org.apache.beam.examples"/>
+      <excludepackage name="org.apache.beam.examples.complete"/>
+      <excludepackage name="org.apache.beam.examples.complete.game"/>
+      <excludepackage name="org.apache.beam.examples.complete.game.injector"/>
+      <excludepackage name="org.apache.beam.examples.complete.game.utils"/>
+      <excludepackage name="org.apache.beam.runners.dataflow.internal"/>
+      <excludepackage name="org.apache.beam.runners.flink.examples"/>
+      <excludepackage name="org.apache.beam.runners.flink.translation"/>
+      <excludepackage name="org.apache.beam.runners.spark.examples"/>
+      <excludepackage name="org.apache.beam.runners.spark.translation"/>
+      <excludepackage name="org.apache.beam.runners.apex.translation"/>
+      <excludepackage name="org.apache.beam.sdk.microbenchmarks.coders.generated"/>
+      <excludepackage name="org.apache.beam.sdk.microbenchmarks.transforms.generated"/>
+      <excludepackage name="org.openjdk.jmh.infra.generated"/>
     </javadoc>
   </target>
 </project>

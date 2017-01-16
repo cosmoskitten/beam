@@ -32,6 +32,11 @@
   <properties>
     <spark.version>1.6.2</spark.version>
   </properties>
+  <!--
+   Javadoc needs all the dependencies of everything we are documenting. There are a few items
+   that are declared 'provided' or 'optional' in the components that uses them. Those are declared
+   as dependencies here, as well.
+  -->
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -159,6 +164,18 @@
   </dependencies>
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals><goal>analyze-only</goal></goals>
+            <configuration>
+              <skip>true</skip>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

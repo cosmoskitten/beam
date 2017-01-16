@@ -32,6 +32,10 @@
 
   <name>Apache Beam :: SDKs :: Java</name>
 
+  <properties>
+    <beam-top>../..</beam-top>
+  </properties>
+
   <modules>
     <!-- build-tools inherits from the Beam root pom to enable checkstyle
          and other project configuration to be used in all modules.
