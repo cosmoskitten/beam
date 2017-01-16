@@ -616,6 +616,9 @@ public class ApiSurface {
   public static ApiSurface getSdkApiSurface() throws IOException {
     return ApiSurface.ofPackage("org.apache.beam")
         .pruningPattern("org[.]apache[.]beam[.].*Test")
+        .pruningPattern("org[.]apache[.]beam[.]sdk[.]testing.*")
+
+
 
         // Exposes Guava, but not intended for users
         .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
