@@ -31,9 +31,6 @@
   <packaging>pom</packaging>
 
   <name>Apache Beam :: Examples</name>
-  <properties>
-    <maven.javadoc.skip>true</maven.javadoc.skip>
-  </properties>
 
   <modules>
     <module>java</module>
