@@ -19,6 +19,7 @@ package org.apache.beam;
 
 import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
+import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
 import org.apache.beam.sdk.util.ApiSurfaceVerificationTest;
 import org.hamcrest.Matcher;
@@ -37,7 +38,7 @@ public class SdkCoreApiSurfaceTest extends ApiSurfaceVerificationTest {
   }
 
   @Override
-  protected ImmutableSet<Matcher<? extends Class<?>>> allowedClasses() {
+  protected Set<Matcher<? extends Class<?>>> allowedPackages() {
     return
         ImmutableSet.<Matcher<? extends Class<?>>>of(
             inPackage("org.apache.beam"),

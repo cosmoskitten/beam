@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
  * packages/classes.
  * <p>
  * Tests that derive from {@link ApiSurfaceVerificationTest} should be placed under the package to
- * be * tested and implement {@link ApiSurfaceVerificationTest#allowedClasses()}.
+ * be * tested and implement {@link ApiSurfaceVerificationTest#allowedPackages()}.
  * Further customization can be done by overriding {@link ApiSurfaceVerificationTest#apiSurface()}.
  * </p>
  */
@@ -60,7 +60,7 @@ public abstract class ApiSurfaceVerificationTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurfaceVerificationTest.class);
 
-  protected abstract ImmutableSet<Matcher<? extends Class<?>>> allowedClasses();
+  protected abstract Set<Matcher<? extends Class<?>>>  allowedPackages();
 
   private ApiSurface prune(final ApiSurface apiSurface, final Set<String> prunePatterns) {
     ApiSurface prunedApiSurface = apiSurface;
@@ -222,6 +222,6 @@ public abstract class ApiSurfaceVerificationTest {
 
   @Test
   public void testApiSurface() throws Exception {
-    assertApiSurface(apiSurface(), allowedClasses());
+    assertApiSurface(apiSurface(), allowedPackages());
   }
 }
