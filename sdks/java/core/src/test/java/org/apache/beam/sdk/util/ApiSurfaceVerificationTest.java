@@ -60,7 +60,7 @@ public abstract class ApiSurfaceVerificationTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurfaceVerificationTest.class);
 
-  protected abstract Set<Matcher<? extends Class<?>>>  allowedPackages();
+  protected abstract Set<Matcher<Class<?>>>  allowedPackages();
 
   private ApiSurface prune(final ApiSurface apiSurface, final Set<String> prunePatterns) {
     ApiSurface prunedApiSurface = apiSurface;
@@ -84,19 +84,19 @@ public abstract class ApiSurfaceVerificationTest {
   }
 
   private void assertAbandoned(final ApiSurface checkedApiSurface,
-                               final Set<Matcher<? extends Class<?>>> allowedPackages) {
+                               final Set<Matcher<Class<?>>> allowedPackages) {
 
-    final ImmutableSet<Matcher<? extends Class<?>>> matchedPackages =
+    final ImmutableSet<Matcher<Class<?>>> matchedPackages =
         FluentIterable
         .from(allowedPackages)
         .filter(matchedBy(checkedApiSurface.getExposedClasses()))
         .toSet();
 
-    final Sets.SetView<Matcher<? extends Class<?>>> abandonedPackages =
+    final Sets.SetView<Matcher<Class<?>>> abandonedPackages =
         Sets.difference(allowedPackages, matchedPackages);
 
     final StringDescription description = new StringDescription();
-    for (final Matcher<? extends Class<?>> abandonedPackage : abandonedPackages) {
+    for (final Matcher<Class<?>> abandonedPackage : abandonedPackages) {
       description.appendText("No ");
       abandonedPackage.describeTo(description);
       description.appendText("\n\t");
@@ -109,11 +109,11 @@ public abstract class ApiSurfaceVerificationTest {
     }
   }
 
-  private Predicate<Matcher<? extends Class<?>>> matchedBy(final Set<Class<?>> classes) {
-    return new Predicate<Matcher<? extends Class<?>>>() {
+  private Predicate<Matcher<Class<?>>> matchedBy(final Set<Class<?>> classes) {
+    return new Predicate<Matcher<Class<?>>>() {
 
       @Override
-      public boolean apply(@Nonnull final Matcher<? extends Class<?>> packageMatcher) {
+      public boolean apply(@Nonnull final Matcher<Class<?>> packageMatcher) {
         return
             FluentIterable
                 .from(classes)
@@ -129,7 +129,7 @@ public abstract class ApiSurfaceVerificationTest {
   }
 
   private void assertDisallowed(final ApiSurface checkedApiSurface,
-                                final Set<Matcher<? extends Class<?>>> allowedPackages) {
+                                final Set<Matcher<Class<?>>> allowedPackages) {
 
     /* <helper_lambdas> */
 
@@ -182,7 +182,7 @@ public abstract class ApiSurfaceVerificationTest {
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   private boolean classIsAllowed(final Class<?> clazz,
-                                 final Set<Matcher<? extends Class<?>>>  allowedPackages) {
+                                 final Set<Matcher<Class<?>>>  allowedPackages) {
     // Safe cast inexpressible in Java without rawtypes
     return anyOf((Iterable) allowedPackages).matches(clazz);
   }
@@ -213,7 +213,7 @@ public abstract class ApiSurfaceVerificationTest {
   }
 
   private void assertApiSurface(final ApiSurface checkedApiSurface,
-                                final Set<Matcher<? extends Class<?>>> allowedPackages)
+                                final Set<Matcher<Class<?>>> allowedPackages)
       throws Exception {
 
     assertDisallowed(checkedApiSurface, allowedPackages);

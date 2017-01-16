@@ -38,9 +38,9 @@ public class SdkCoreApiSurfaceTest extends ApiSurfaceVerificationTest {
   }
 
   @Override
-  protected Set<Matcher<? extends Class<?>>> allowedPackages() {
+  protected Set<Matcher<Class<?>>> allowedPackages() {
     return
-        ImmutableSet.<Matcher<? extends Class<?>>>of(
+        ImmutableSet.of(
             inPackage("org.apache.beam"),
             inPackage("com.google.api.client"),
             inPackage("com.google.api.services.bigquery"),
