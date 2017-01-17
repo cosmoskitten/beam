@@ -100,7 +100,6 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.IOChannelUtils;
-import org.apache.beam.sdk.util.PathUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
@@ -369,7 +368,7 @@ public class TextIOTest {
       throws Exception {
     List<File> expectedFiles = new ArrayList<>();
     if (numShards == 0) {
-      String pattern = PathUtils.resolveAgainstDirectory(
+      String pattern = FileSystems.resolveAgainstDirectory(
           rootLocation.toAbsolutePath().toString(), outputName + "*");
       for (String expected : IOChannelUtils.getFactory(pattern).match(pattern)) {
         expectedFiles.add(new File(expected));
@@ -586,7 +585,7 @@ public class TextIOTest {
   public void testPrimitiveWriteDisplayData() throws IOException {
     PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
     String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
-    String outputPath = PathUtils.resolveAgainstDirectory(tempRoot, "foobar");
+    String outputPath = FileSystems.resolveAgainstDirectory(tempRoot, "foobar");
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 

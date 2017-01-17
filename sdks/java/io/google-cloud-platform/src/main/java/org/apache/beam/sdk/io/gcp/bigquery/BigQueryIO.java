@@ -84,6 +84,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -114,7 +115,6 @@ import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.sdk.util.PathUtils;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
@@ -727,7 +727,7 @@ public class BigQueryIO {
         final BigQueryServices bqServices = getBigQueryServices();
 
         final String extractDestinationDir =
-            PathUtils.resolveAgainstDirectory(bqOptions.getTempLocation(), stepUuid);
+            FileSystems.resolveAgainstDirectory(bqOptions.getTempLocation(), stepUuid);
 
         final String executingProject = bqOptions.getProject();
         if (query != null && (!query.isAccessible() || !Strings.isNullOrEmpty(query.get()))) {
@@ -762,7 +762,7 @@ public class BigQueryIO {
                   Collection<String> dirMatch = factory.match(extractDestinationDir);
                   if (!dirMatch.isEmpty()) {
                     extractFiles = factory.match(
-                        PathUtils.resolveAgainstDirectory(extractDestinationDir, "*"));
+                        FileSystems.resolveAgainstDirectory(extractDestinationDir, "*"));
                   }
                 }
                 if (extractFiles != null && !extractFiles.isEmpty()) {
@@ -1455,7 +1455,7 @@ public class BigQueryIO {
 
     ImmutableList.Builder<String> paths = ImmutableList.builder();
     for (long i = 0; i < filesCount; ++i) {
-      String filePath = PathUtils.resolveAgainstDirectory(
+      String filePath = FileSystems.resolveAgainstDirectory(
           extractDestinationDir, String.format("%012d%s", i, ".avro"));
       paths.add(filePath);
     }
@@ -1970,7 +1970,7 @@ public class BigQueryIO {
 
         String tempLocation = options.getTempLocation();
         String tempFilePrefix =
-            PathUtils.resolveAgainstDirectory(tempLocation, "BigQueryWriteTemp", stepUuid);
+            FileSystems.resolveAgainstDirectory(tempLocation, "BigQueryWriteTemp", stepUuid);
 
         PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
 
