@@ -61,7 +61,6 @@
 
   <properties>
     <activemq.version>5.13.1</activemq.version>
-    <beam-top>../../../..</beam-top>
   </properties>
 
   <dependencies>

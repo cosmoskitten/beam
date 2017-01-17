@@ -74,7 +74,6 @@
 
   <properties>
     <aws.version>1.11.18</aws.version>
-    <beam-top>../../../..</beam-top>
   </properties>
 
   <dependencies>

@@ -29,9 +29,6 @@
   <artifactId>beam-sdks-java-io-jdbc</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: JDBC</name>
   <description>IO to read and write on JDBC datasource.</description>
-  <properties>
-    <beam-top>../../../..</beam-top>
-  </properties>
 
   <build>
     <plugins>

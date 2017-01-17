@@ -34,7 +34,6 @@
   <properties>
     <activemq.version>5.13.1</activemq.version>
     <geronimo-jms.version>1.1.1</geronimo-jms.version>
-    <beam-top>../../../..</beam-top>
   </properties>
 
   <build>

@@ -29,9 +29,6 @@
   <artifactId>beam-sdks-java-io-hdfs</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: HDFS</name>
   <description>Library to read and write Hadoop/HDFS file formats from Beam.</description>
-  <properties>
-    <beam-top>../../../..</beam-top>
-  </properties>
 
   <build>
     <plugins>

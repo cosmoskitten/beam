@@ -28,9 +28,6 @@
   <artifactId>beam-sdks-java-io-kafka</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: Kafka</name>
   <description>Library to read Kafka topics.</description>
-  <properties>
-    <beam-top>../../../..</beam-top>
-  </properties>
 
   <build>
     <pluginManagement>

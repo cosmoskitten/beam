@@ -50,7 +50,6 @@
 
   <properties>
     <mongo-java-driver.version>3.2.2</mongo-java-driver.version>
-    <beam-top>../../../..</beam-top>
   </properties>
 
   <dependencies>

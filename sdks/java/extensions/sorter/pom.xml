@@ -31,7 +31,6 @@
   
   <properties>
     <hadoop.version>2.7.1</hadoop.version>
-    <beam-top>../../../..</beam-top>
   </properties>
 
   <build>

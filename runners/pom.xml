@@ -31,9 +31,6 @@
   <packaging>pom</packaging>
 
   <name>Apache Beam :: Runners</name>
-  <properties>
-    <beam-top>..</beam-top>
-  </properties>
 
   <modules>
     <module>core-java</module>

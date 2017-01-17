@@ -37,7 +37,6 @@
     <flink.examples.input>kinglear.txt</flink.examples.input>
     <flink.examples.output>wordcounts.txt</flink.examples.output>
     <flink.examples.parallelism>-1</flink.examples.parallelism>
-    <beam-top>../../..</beam-top>
   </properties>
 
   <profiles>

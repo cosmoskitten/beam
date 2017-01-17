@@ -33,7 +33,6 @@
 
   <properties>
     <bigtable.version>0.9.2</bigtable.version>
-    <beam-top>../../../..</beam-top>
   </properties>
 
   <build>
