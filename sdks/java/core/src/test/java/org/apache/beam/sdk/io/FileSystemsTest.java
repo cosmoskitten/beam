@@ -26,9 +26,7 @@ import java.net.URI;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.commons.lang3.SystemUtils;
-import org.apache.http.client.utils.URIUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -94,6 +92,138 @@ public class FileSystemsTest {
     assertEquals(
         "s3://my%20bucket/output/*",
         FileSystems.specToURI("s3://my bucket/output/*").toString());
+  }
+
+
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testResolveAgainstDirectory() throws Exception {
+    // Tests for local files without the scheme.
+    assertEquals(
+        "/root/tmp/aa",
+        FileSystems.resolveAgainstDirectory("/root/tmp", "aa"));
+    assertEquals(
+        "/root/tmp/aa/bb/cc",
+        FileSystems.resolveAgainstDirectory("/root/tmp", "aa", "bb", "cc"));
+
+    // Tests uris with scheme.
+    assertEquals(
+        "file:/root/tmp/aa",
+        FileSystems.resolveAgainstDirectory("file:/root/tmp", "aa"));
+    assertEquals(
+        "file:/aa",
+        FileSystems.resolveAgainstDirectory("file:///", "aa"));
+    assertEquals(
+        "gs://bucket/tmp/aa",
+        FileSystems.resolveAgainstDirectory("gs://bucket/tmp", "aa"));
+
+    // Tests for Windows OS path in URI format.
+    assertEquals(
+        "file:/C:/home%20dir/a%20b/a%20b",
+        FileSystems.resolveAgainstDirectory("file:/C:/home%20dir", "a%20b", "a%20b"));
+
+    // Tests absolute path.
+    assertEquals(
+        "/root/tmp/aa",
+        FileSystems.resolveAgainstDirectory("/root/tmp/bb", "/root/tmp/aa"));
+
+    // Tests authority with empty path.
+    assertEquals(
+        "gs://bucket/staging",
+        FileSystems.resolveAgainstDirectory("gs://bucket/", "staging"));
+    assertEquals(
+        "gs://bucket/staging",
+        FileSystems.resolveAgainstDirectory("gs://bucket", "staging"));
+    assertEquals(
+        "gs://bucket/",
+        FileSystems.resolveAgainstDirectory("gs://bucket", "."));
+
+    // Tests empty authority and path.
+    assertEquals(
+        "file:/aa",
+        FileSystems.resolveAgainstDirectory("file:///", "aa"));
+
+    // Tests normalizing of "." and ".."
+    assertEquals(
+        "s3://authority/../home/bb",
+        FileSystems.resolveAgainstDirectory("s3://authority/../home/output/..", "aa", "..", "bb"));
+    assertEquals(
+        "s3://authority/aa/bb",
+        FileSystems.resolveAgainstDirectory("s3://authority/.", "aa", ".", "bb"));
+    assertEquals(
+        "aa/bb",
+        FileSystems.resolveAgainstDirectory("a/..", "aa", ".", "bb"));
+    assertEquals(
+        "/aa/bb",
+        FileSystems.resolveAgainstDirectory("/a/..", "aa", ".", "bb"));
+
+    // Tests  ".", "./", "..", "../", "~".
+    assertEquals(
+        "aa/bb",
+        FileSystems.resolveAgainstDirectory(".", "aa", "./", "bb"));
+    assertEquals(
+        "aa/bb",
+        FileSystems.resolveAgainstDirectory("./", "aa", "./", "bb"));
+    assertEquals(
+        "../aa/bb",
+        FileSystems.resolveAgainstDirectory("..", "aa", "./", "bb"));
+    assertEquals(
+        "../aa/bb",
+        FileSystems.resolveAgainstDirectory("../", "aa", "./", "bb"));
+    assertEquals(
+        "~/aa/bb",
+        FileSystems.resolveAgainstDirectory("~", "aa", "./", "bb"));
+  }
+
+  @Test
+  public void testResolveOtherIsEmptyPath() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected other is not empty.");
+    // Tests resolving empty strings.
+    FileSystems.resolveAgainstDirectory("/root/tmp/aa", "", "");
+  }
+
+  @Test
+  public void testResolveDirectoryHasQuery() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no query in directory");
+    // Tests resolving empty strings.
+    FileSystems.resolveAgainstDirectory("/root/tmp/aa?q", "bb");
+  }
+
+  @Test
+  public void testResolveDirectoryHasFragment() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no fragment in directory");
+    // Tests resolving empty strings.
+    FileSystems.resolveAgainstDirectory("/root/tmp/aa#q", "bb");
+  }
+
+  @Test
+  public void testResolveOtherHasQuery() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no query in other");
+    // Tests resolving empty strings.
+    FileSystems.resolveAgainstDirectory("/root/tmp/aa", "bb?q");
+  }
+
+  @Test
+  public void testResolveOtherHasFragment() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no fragment in other");
+    // Tests resolving empty strings.
+    FileSystems.resolveAgainstDirectory("/root/tmp/aa", "bb#q");
+  }
+
+  @Test
+  public void testResolveWithIllegalChar() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Illegal character");
+    // Tests for Windows OS path with unescaped chars in URI format.
+    FileSystems.resolveAgainstDirectory("file:/C:/home dir", "a b", "a b");
   }
 
   @Test
