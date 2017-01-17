@@ -58,7 +58,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.IOChannelUtils;
-import org.apache.beam.sdk.util.PathUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.BeforeClass;
@@ -453,7 +452,7 @@ public class AvroIOTest {
   public void testPrimitiveWriteDisplayData() throws IOException {
     PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
     String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
-    String outputPath = PathUtils.resolveAgainstDirectory(tempRoot, "foo");
+    String outputPath = FileSystems.resolveAgainstDirectory(tempRoot, "foo");
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 
