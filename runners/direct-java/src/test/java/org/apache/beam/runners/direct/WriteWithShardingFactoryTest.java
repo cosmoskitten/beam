@@ -42,6 +42,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.KeyBasedOnCountFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.Write;
@@ -52,7 +53,6 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.PCollectionViews;
-import org.apache.beam.sdk.util.PathUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -82,7 +82,7 @@ public class WriteWithShardingFactoryTest {
 
     String fileName = "resharded_write";
     String outputPath = tmp.getRoot().getAbsolutePath();
-    String targetLocation = PathUtils.resolveAgainstDirectory(outputPath, fileName);
+    String targetLocation = FileSystems.resolveAgainstDirectory(outputPath, fileName);
     // TextIO is implemented in terms of the Write PTransform. When sharding is not specified,
     // resharding should be automatically applied
     p.apply(Create.of(strs)).apply(TextIO.Write.to(targetLocation));

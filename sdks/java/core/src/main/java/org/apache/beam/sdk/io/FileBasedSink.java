@@ -49,7 +49,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.sdk.util.PathUtils;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
@@ -298,7 +297,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /** Constructs a temporary file path given the temporary directory and a filename. */
     protected static String buildTemporaryFilename(String tempDirectory, String filename)
         throws IOException {
-      return PathUtils.resolveAgainstDirectory(tempDirectory, filename);
+      return FileSystems.resolveAgainstDirectory(tempDirectory, filename);
     }
 
     /**
@@ -486,7 +485,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // TODO: Windows OS cannot resolves and matches '*' in the path,
       // ignore the exception for now to avoid failing the pipeline.
       try {
-        matches.addAll(factory.match(PathUtils.resolveAgainstDirectory(tempDir, "*")));
+        matches.addAll(factory.match(FileSystems.resolveAgainstDirectory(tempDir, "*")));
       } catch (Exception e) {
         LOG.warn("Failed to match temporary files under: [{}].", tempDir);
       }

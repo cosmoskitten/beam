@@ -33,6 +33,7 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
+import org.apache.beam.sdk.io.FileSystems;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -138,7 +139,7 @@ public class FileIOChannelFactoryTest {
 
     assertThat(
         factory.match(
-            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "b*")),
+            FileSystems.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "b*")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -148,7 +149,7 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("aa");
 
     assertThat(
-        factory.match(PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a")),
+        factory.match(FileSystems.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -158,7 +159,7 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("aa");
 
     assertThat(
-        factory.match(PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a")),
+        factory.match(FileSystems.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -174,7 +175,7 @@ public class FileIOChannelFactoryTest {
 
     assertThat(
         factory.match(
-            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a*")),
+            FileSystems.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a*")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
@@ -194,7 +195,7 @@ public class FileIOChannelFactoryTest {
 
     assertThat(
         factory.match(
-            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a**")),
+            FileSystems.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a**")),
         Matchers.hasItems(expected.toArray(new String[expected.size()])));
   }
 
@@ -205,13 +206,13 @@ public class FileIOChannelFactoryTest {
 
     assertThat(
         factory.match(
-            PathUtils.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a*")),
+            FileSystems.resolveAgainstDirectory(temporaryFolder.getRoot().getPath(), "a*")),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
   public void testMatchWithoutParentDirectory() throws Exception {
-    String pattern = PathUtils.resolveAgainstDirectory(
+    String pattern = FileSystems.resolveAgainstDirectory(
         temporaryFolder.getRoot().getPath(), "non_existing_dir", "*");
     assertTrue(factory.match(pattern).isEmpty());
   }
@@ -227,7 +228,7 @@ public class FileIOChannelFactoryTest {
   @Test
   public void testGetSizeBytesForNonExistentFile() throws Exception {
     thrown.expect(FileNotFoundException.class);
-    factory.getSizeBytes(PathUtils.resolveAgainstDirectory(
+    factory.getSizeBytes(FileSystems.resolveAgainstDirectory(
         temporaryFolder.getRoot().getPath(), "non-existent-file"));
   }
 }

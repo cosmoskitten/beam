@@ -125,6 +125,82 @@ public class FileSystems {
     }
   }
 
+  private static final String URI_DELIMITER = "/";
+
+  /**
+   * Resolve multiple {@code others} against the given {@code directory} sequentially.
+   *
+   * <p>Sees {@link #resolveAgainstDirectory} for the differences with {@link URI#resolve}.
+   *
+   * @throws IllegalArgumentException if others contains {@link URI} query or fragment components.
+   */
+  public static String resolveAgainstDirectory(String directory, String other, String... others) {
+    String ret = resolveAgainstDirectory(directory, other);
+    for (String str : others) {
+      ret = resolveAgainstDirectory(ret, str);
+    }
+    return ret;
+  }
+
+  /**
+   * Resolve {@code other} against the given {@code directory}.
+   *
+   * <p>Unlike {@link URI#resolve}, this function includes the last segment of the path component
+   * in {@code directory}. For example, {@code FileSystems.resolveAgainstDirectory("/home", "output")}
+   * returns "/home/output".
+   *
+   * <p>Other rules of {@link URI#resolve} apply the same. For example, ".", ".." are
+   * normalized. Sees {@link URI#resolve} and {@link URI#normalize} for details.
+   *
+   * @throws IllegalArgumentException if other is empty, or is invalid {@link URI},
+   * or contains {@link URI} query or fragment components.
+   */
+  public static String resolveAgainstDirectory(String directory, String other) {
+    return resolveAgainstDirectory(URI.create(directory), URI.create(other)).toString();
+  }
+
+  private static URI resolveAgainstDirectory(URI directory, URI other) {
+    checkNotNull(directory, "directory");
+    checkNotNull(other, "other");
+    checkArgument(!other.toString().isEmpty(), "Expected other is not empty.");
+    checkArgument(
+        com.google.common.base.Strings.isNullOrEmpty(directory.getQuery()),
+        String.format("Expected no query in directory: [%s].", directory));
+    checkArgument(
+        com.google.common.base.Strings.isNullOrEmpty(directory.getFragment()),
+        String.format("Expected no fragment in directory: [%s].", directory));
+    checkArgument(
+        com.google.common.base.Strings.isNullOrEmpty(other.getQuery()),
+        String.format("Expected no query in other: [%s].", other));
+    checkArgument(
+        com.google.common.base.Strings.isNullOrEmpty(other.getFragment()),
+        String.format("Expected no fragment in other: [%s].", other));
+
+    String path = directory.getPath();
+    if (!com.google.common.base.Strings
+        .isNullOrEmpty(directory.getAuthority()) && com.google.common.base.Strings.isNullOrEmpty(path)) {
+      // Workaround of https://issues.apache.org/jira/browse/BEAM-1174:
+      // path needs to be absolute if the authority exists.
+      path = URI_DELIMITER;
+    } else if (!com.google.common.base.Strings.isNullOrEmpty(path) && !path.endsWith(URI_DELIMITER)) {
+      path = path + URI_DELIMITER;
+    }
+    try {
+      return new URI(
+          directory.getScheme(),
+          directory.getAuthority(),
+          path,
+          directory.getQuery(),
+          directory.getFragment()).resolve(other);
+    } catch (URISyntaxException e) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Failed to replace the path component in URI: [%s] with [%s].",
+              directory.toString(), path),
+          e);
+    }
+  }
+
   /**
    * Sets the default configuration to be used with a {@link FileSystemRegistrar} for the provided
    * {@code scheme}.

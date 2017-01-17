@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.options;
 
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.Default;
@@ -31,7 +32,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.util.PathUtils;
 
 /**
  * Options that can be used to configure the {@link DataflowRunner}.
@@ -119,7 +119,7 @@ public interface DataflowPipelineOptions
             "Error constructing default value for stagingLocation: gcpTempLocation is not"
             + " a valid GCS path, %s. ", gcpTempLocation), e);
       }
-      return PathUtils.resolveAgainstDirectory(gcpTempLocation, "staging");
+      return FileSystems.resolveAgainstDirectory(gcpTempLocation, "staging");
     }
   }
 }
