@@ -51,7 +51,6 @@ class Receiver(object):
   def receive(self, windowed_value):
     raise NotImplementedError
 
-
 class DoFnRunner(Receiver):
   """A helper class for executing ParDo operations.
   """
@@ -170,9 +169,7 @@ class DoFnRunner(Receiver):
     arguments, _, _, defaults = self.dofn.get_function_arguments('process')
     defaults = defaults if defaults else []
 
-    self_in_args = int(isinstance(self.dofn.process, types.MethodType) and \
-        self.dofn.process.im_self is not None and \
-        'self' in arguments)
+    self_in_args = int(self.dofn.is_process_bounded())
 
     # Call for the process function for each window if has windowed side inputs
     # otherwise we can optimize the runner by calling process for entire window
