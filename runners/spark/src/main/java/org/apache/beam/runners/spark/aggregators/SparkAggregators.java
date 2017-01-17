@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 
+
 /**
  * A utility class for handling Beam {@link Aggregator}s.
  */
@@ -69,7 +70,7 @@ public class SparkAggregators {
    * @return a {@link NamedAggregators} instance
    */
   public static Accumulator<NamedAggregators> getNamedAggregators(JavaSparkContext jsc) {
-    return AccumulatorSingleton.getInstance(jsc);
+    return AggregatorsAccumulator.getInstance(jsc);
   }
 
   /**
