@@ -35,29 +35,31 @@ public class GcpApiSurfaceTest extends ApiSurfaceVerificationTest {
 
   @Override
   protected Set<Matcher<Class<?>>> allowedClasses() {
+    //noinspection unchecked
     return
-        ImmutableSet.of(
-            inPackage("com.google.api.client.json"),
-            inPackage("com.google.api.client.util"),
-            inPackage("com.google.api.services.bigquery.model"),
-            inPackage("com.google.auth"),
-            inPackage("com.google.bigtable.v2"),
-            inPackage("com.google.cloud.bigtable.config"),
-            Matchers.<Class<?>>equalTo(BigtableInstanceName.class),
-            Matchers.<Class<?>>equalTo(BigtableTableName.class),
-            // https://github.com/GoogleCloudPlatform/cloud-bigtable-client/pull/1056
-            inPackage("com.google.common.collect"), // via Bigtable, PR above out to fix.
-            inPackage("com.google.datastore.v1"),
-            inPackage("com.google.protobuf"),
-            inPackage("com.google.type"),
-            inPackage("com.fasterxml.jackson.annotation"),
-            inPackage("com.fasterxml.jackson.core"),
-            inPackage("com.fasterxml.jackson.databind"),
-            inPackage("io.grpc"),
-            inPackage("java"),
-            inPackage("javax"),
-            inPackage("org.apache.beam"),
-            inPackage("org.apache.commons.logging"), // via Bigtable
-            inPackage("org.joda.time"));
+        ImmutableSet.of(inPackage("com.google.api.client.json"),
+                        inPackage("com.google.api.client.util"),
+                        inPackage("com.google.api.services.bigquery.model"),
+                        inPackage("com.google.auth"),
+                        inPackage("com.google.bigtable.v2"),
+                        inPackage("com.google.cloud.bigtable.config"),
+                        Matchers.<Class<?>>equalTo(BigtableInstanceName.class),
+                        Matchers.<Class<?>>equalTo(BigtableTableName.class),
+                        // https://github.com/GoogleCloudPlatform/cloud-bigtable-client/pull/1056
+                        inPackage("com.google.common.collect"),
+                        // via Bigtable, PR above out to fix.
+                        inPackage("com.google.datastore.v1"),
+                        inPackage("com.google.protobuf"),
+                        inPackage("com.google.type"),
+                        inPackage("com.fasterxml.jackson.annotation"),
+                        inPackage("com.fasterxml.jackson.core"),
+                        inPackage("com.fasterxml.jackson.databind"),
+                        inPackage("io.grpc"),
+                        inPackage("java"),
+                        inPackage("javax"),
+                        inPackage("org.apache.beam"),
+                        inPackage("org.apache.commons.logging"),
+                        // via Bigtable
+                        inPackage("org.joda.time"));
   }
 }

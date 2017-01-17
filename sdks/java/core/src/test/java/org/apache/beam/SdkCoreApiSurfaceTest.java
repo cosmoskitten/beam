@@ -39,22 +39,23 @@ public class SdkCoreApiSurfaceTest extends ApiSurfaceVerificationTest {
 
   @Override
   protected Set<Matcher<Class<?>>> allowedClasses() {
-    return
-        ImmutableSet.of(
-            inPackage("org.apache.beam"),
-            inPackage("com.google.api.client"),
-            inPackage("com.google.api.services.bigquery"),
-            inPackage("com.google.api.services.cloudresourcemanager"),
-            inPackage("com.google.api.services.pubsub"),
-            inPackage("com.google.api.services.storage"),
-            inPackage("com.google.auth"),
-            inPackage("com.google.protobuf"),
-            inPackage("com.fasterxml.jackson.annotation"),
-            inPackage("com.fasterxml.jackson.core"),
-            inPackage("com.fasterxml.jackson.databind"),
-            inPackage("org.apache.avro"),
-            inPackage("org.hamcrest"), // via DataflowMatchers
-            inPackage("org.codehaus.jackson"), // via Avro
-            inPackage("org.joda.time"));
+    //noinspection unchecked
+    return ImmutableSet.of(inPackage("org.apache.beam"),
+                           inPackage("com.google.api.client"),
+                           inPackage("com.google.api.services.bigquery"),
+                           inPackage("com.google.api.services.cloudresourcemanager"),
+                           inPackage("com.google.api.services.pubsub"),
+                           inPackage("com.google.api.services.storage"),
+                           inPackage("com.google.auth"),
+                           inPackage("com.google.protobuf"),
+                           inPackage("com.fasterxml.jackson.annotation"),
+                           inPackage("com.fasterxml.jackson.core"),
+                           inPackage("com.fasterxml.jackson.databind"),
+                           inPackage("org.apache.avro"),
+                           inPackage("org.hamcrest"),
+                           // via DataflowMatchers
+                           inPackage("org.codehaus.jackson"),
+                           // via Avro
+                           inPackage("org.joda.time"));
   }
 }

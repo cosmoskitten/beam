@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.hamcrest.Matchers.anyOf;
 import static org.junit.Assert.fail;
 
@@ -25,12 +24,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -60,6 +60,31 @@ public abstract class ApiSurfaceVerificationTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurfaceVerificationTest.class);
 
+  private static class ClassInPackage extends TypeSafeDiagnosingMatcher<Class<?>> {
+
+    private final String packageName;
+
+    private ClassInPackage(final String packageName) {
+      this.packageName = packageName;
+    }
+
+    @Override
+    public void describeTo(final Description description) {
+      description.appendText("Class in package \"");
+      description.appendText(packageName);
+      description.appendText("\"");
+    }
+
+    @Override
+    protected boolean matchesSafely(final Class<?> clazz, final Description mismatchDescription) {
+      return clazz.getName().startsWith(packageName + ".");
+    }
+  }
+
+  protected static Matcher<Class<?>> inPackage(final String packageName) {
+    return new ClassInPackage(packageName);
+  }
+
   protected abstract Set<Matcher<Class<?>>> allowedClasses();
 
   private ApiSurface prune(final ApiSurface apiSurface, final Set<String> prunePatterns) {
@@ -70,62 +95,62 @@ public abstract class ApiSurfaceVerificationTest {
     return prunedApiSurface;
   }
 
-  protected Set<String> prunePatterns() {
-    return Sets.newHashSet("org[.]apache[.]beam[.].*Test.*",
-                           "org[.]apache[.]beam[.].*IT",
-                           "java[.]lang.*");
-  }
-
-  protected ApiSurface apiSurface() throws IOException {
-    final String thisPackage = getClass().getPackage().getName();
-    LOG.info("Verifying the surface of API package: {}", thisPackage);
-    final ApiSurface apiSurface = ApiSurface.ofPackage(thisPackage);
-    return prune(apiSurface, prunePatterns());
-  }
-
   private void assertAbandoned(final ApiSurface checkedApiSurface,
                                final Set<Matcher<Class<?>>> allowedPackages) {
+
+    // <helper_lambdas>
+
+    final Function<Matcher<Class<?>>, String> toMessage =
+        new Function<Matcher<Class<?>>, String>() {
+
+          @Override
+          public String apply(@Nonnull final Matcher<Class<?>> abandonedPackage) {
+            final StringDescription description = new StringDescription();
+            description.appendText("No ");
+            abandonedPackage.describeTo(description);
+            return description.toString();
+          }
+        };
+
+    final Predicate<Matcher<Class<?>>> matchedByExposedClasses =
+       new Predicate<Matcher<Class<?>>>() {
+
+        @Override
+        public boolean apply(@Nonnull final Matcher<Class<?>> packageMatcher) {
+          return
+              FluentIterable
+                  .from(checkedApiSurface.getExposedClasses())
+                  .anyMatch(new Predicate<Class<?>>() {
+
+                    @Override
+                    public boolean apply(@Nonnull final Class<?> aClass) {
+                      return packageMatcher.matches(aClass);
+                    }
+                  });
+        }
+      };
+
+    // </helper_lambdas>
 
     final ImmutableSet<Matcher<Class<?>>> matchedPackages =
         FluentIterable
         .from(allowedPackages)
-        .filter(matchedBy(checkedApiSurface.getExposedClasses()))
+        .filter(matchedByExposedClasses)
         .toSet();
 
     final Sets.SetView<Matcher<Class<?>>> abandonedPackages =
         Sets.difference(allowedPackages, matchedPackages);
 
-    final StringDescription description = new StringDescription();
-    for (final Matcher<Class<?>> abandonedPackage : abandonedPackages) {
-      description.appendText("No ");
-      abandonedPackage.describeTo(description);
-      description.appendText("\n\t");
+    final ImmutableList<String> messages =
+        FluentIterable
+        .from(abandonedPackages)
+        .transform(toMessage)
+        .toSortedList(Ordering.<String>natural());
+
+    if (!messages.isEmpty()) {
+      fail("The following white-listed scopes did not have any matching exposed classes:\n\t"
+               + Joiner.on("\n\t").join(messages));
     }
-    final String descriptionString = description.toString();
-
-    if (!isNullOrEmpty(descriptionString)) {
-      fail("The following white listed packages were did not have any matched exposed classes:\n\t"
-               + descriptionString);
-    }
-  }
-
-  private Predicate<Matcher<Class<?>>> matchedBy(final Set<Class<?>> classes) {
-    return new Predicate<Matcher<Class<?>>>() {
-
-      @Override
-      public boolean apply(@Nonnull final Matcher<Class<?>> packageMatcher) {
-        return
-            FluentIterable
-                .from(classes)
-                .anyMatch(new Predicate<Class<?>>() {
-
-                  @Override
-                  public boolean apply(@Nonnull final Class<?> aClass) {
-                    return packageMatcher.matches(aClass);
-                  }
-                });
-      }
-    };
   }
 
   private void assertDisallowed(final ApiSurface checkedApiSurface,
@@ -172,10 +197,13 @@ public abstract class ApiSurfaceVerificationTest {
     final ImmutableMap<Class<?>, List<Class<?>>> exposures =
         Maps.toMap(disallowedClasses, toExposure);
 
-    final Collection<String> messages = Maps.transformEntries(exposures, toMessage).values();
+    final ImmutableList<String> messages =
+        FluentIterable
+            .from(Maps.transformEntries(exposures, toMessage).values())
+            .toSortedList(Ordering.<String>natural());
 
     if (!messages.isEmpty()) {
-      fail("The following disallowed classes appear in the public API surface of the SDK:\n\t"
+      fail("The following disallowed classes appear in the public API surface:\n\t"
                + Joiner.on("\n\t").join(messages));
     }
   }
@@ -187,37 +215,26 @@ public abstract class ApiSurfaceVerificationTest {
     return anyOf((Iterable) allowedPackages).matches(clazz);
   }
 
-  protected static Matcher<Class<?>> inPackage(final String packageName) {
-    return new ClassInPackage(packageName);
-  }
-
-  private static class ClassInPackage extends TypeSafeDiagnosingMatcher<Class<?>> {
-
-    private final String packageName;
-
-    private ClassInPackage(final String packageName) {
-      this.packageName = packageName;
-    }
-
-    @Override
-    public void describeTo(final Description description) {
-      description.appendText("Class in package \"");
-      description.appendText(packageName);
-      description.appendText("\"");
-    }
-
-    @Override
-    protected boolean matchesSafely(final Class<?> clazz, final Description mismatchDescription) {
-      return clazz.getName().startsWith(packageName + ".");
-    }
-  }
-
   private void assertApiSurface(final ApiSurface checkedApiSurface,
                                 final Set<Matcher<Class<?>>> allowedPackages)
       throws Exception {
 
     assertDisallowed(checkedApiSurface, allowedPackages);
     assertAbandoned(checkedApiSurface, allowedPackages);
+  }
+
+  @SuppressWarnings("WeakerAccess")
+  protected Set<String> prunePatterns() {
+    return Sets.newHashSet("org[.]apache[.]beam[.].*Test.*",
+                           "org[.]apache[.]beam[.].*IT",
+                           "java[.]lang.*");
+  }
+
+  protected ApiSurface apiSurface() throws IOException {
+    final String thisPackage = getClass().getPackage().getName();
+    LOG.info("Verifying the surface of API package: {}", thisPackage);
+    final ApiSurface apiSurface = ApiSurface.ofPackage(thisPackage);
+    return prune(apiSurface, prunePatterns());
   }
 
   @Test
