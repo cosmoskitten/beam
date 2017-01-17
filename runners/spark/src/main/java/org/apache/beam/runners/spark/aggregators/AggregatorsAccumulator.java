@@ -26,18 +26,19 @@ import org.apache.spark.api.java.JavaSparkContext;
  * For resilience, {@link Accumulator}s are required to be wrapped in a Singleton.
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
-class AccumulatorSingleton {
+class AggregatorsAccumulator {
 
   private static volatile Accumulator<NamedAggregators> instance = null;
 
   static Accumulator<NamedAggregators> getInstance(JavaSparkContext jsc) {
     if (instance == null) {
-      synchronized (AccumulatorSingleton.class) {
+      synchronized (AggregatorsAccumulator.class) {
         if (instance == null) {
-          //TODO: currently when recovering from checkpoint, Spark does not recover the
+          // TODO: currently when recovering from checkpoint, Spark does not recover the
           // last known Accumulator value. The SparkRunner should be able to persist and recover
           // the NamedAggregators in order to recover Aggregators as well.
-          instance = jsc.sc().accumulator(new NamedAggregators(), new AggAccumParam());
+          instance = jsc.sc().accumulator(new NamedAggregators(), "Beam.Aggregators",
+              new AggAccumParam());
         }
       }
     }
@@ -46,7 +47,7 @@ class AccumulatorSingleton {
 
   @VisibleForTesting
   static void clear() {
-    synchronized (AccumulatorSingleton.class) {
+    synchronized (AggregatorsAccumulator.class) {
       instance = null;
     }
   }

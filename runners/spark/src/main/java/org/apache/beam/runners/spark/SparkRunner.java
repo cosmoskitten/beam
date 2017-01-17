@@ -26,7 +26,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
-import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
+import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
+import org.apache.beam.runners.spark.metrics.CompositeSource;
+import org.apache.beam.runners.spark.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -36,6 +38,7 @@ import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -131,18 +134,26 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   private void registerMetrics(final SparkPipelineOptions opts, final JavaSparkContext jsc) {
-    final Accumulator<NamedAggregators> accum = SparkAggregators.getNamedAggregators(jsc);
-    final NamedAggregators initialValue = accum.value();
+    final Accumulator<NamedAggregators> aggregatorsAccumulator =
+        SparkAggregators.getNamedAggregators(jsc);
     // Instantiate metrics accumulator
     SparkMetricsContainer.getAccumulator(jsc);
-
+    final NamedAggregators initialValue = aggregatorsAccumulator.value();
+    // Instantiate metrics accumulator
+    SparkMetricsContainer.getAccumulator(jsc);
     if (opts.getEnableSparkMetricSinks()) {
       final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+      String appName = opts.getAppName();
       final AggregatorMetricSource aggregatorMetricSource =
-          new AggregatorMetricSource(opts.getAppName(), initialValue);
+          new AggregatorMetricSource(appName, initialValue);
+      final SparkBeamMetricSource metricsSource =
+          new SparkBeamMetricSource(appName);
+      final CompositeSource compositeSource =
+          new CompositeSource(appName,
+              metricsSource.metricRegistry(), aggregatorMetricSource.metricRegistry());
       // re-register the metrics in case of context re-use
-      metricsSystem.removeSource(aggregatorMetricSource);
-      metricsSystem.registerSource(aggregatorMetricSource);
+      metricsSystem.removeSource(compositeSource);
+      metricsSystem.registerSource(compositeSource);
     }
   }
 
@@ -153,6 +164,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     final SparkPipelineResult result;
     final Future<?> startPipeline;
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    MetricsEnvironment.setMetricsSupported(true);
 
     detectTranslationMode(pipeline);
 
@@ -183,7 +196,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         public void run() {
           registerMetrics(mOptions, jsc);
           pipeline.traverseTopologically(new Evaluator(new TransformTranslator.Translator(),
-                                                       evaluationContext));
+              evaluationContext));
           evaluationContext.computeOutputs();
           LOG.info("Batch pipeline execution complete.");
         }
@@ -318,7 +331,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
 
     <TransformT extends PTransform<? super PInput, POutput>> void
-        doVisitTransform(TransformHierarchy.Node node) {
+    doVisitTransform(TransformHierarchy.Node node) {
       @SuppressWarnings("unchecked")
       TransformT transform = (TransformT) node.getTransform();
       @SuppressWarnings("unchecked")
@@ -337,8 +350,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
      * translate with the proper translator.
      */
     private <TransformT extends PTransform<? super PInput, POutput>>
-        TransformEvaluator<TransformT> translate(
-            TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
+    TransformEvaluator<TransformT> translate(
+        TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
       //--- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
       // is BOUNDED or UNBOUNDED, meaning RDD/DStream.
@@ -354,7 +367,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       LOG.debug("Translating {} as {}", transform, isNodeBounded);
       return isNodeBounded.equals(PCollection.IsBounded.BOUNDED)
           ? translator.translateBounded(transformClass)
-              : translator.translateUnbounded(transformClass);
+          : translator.translateUnbounded(transformClass);
     }
 
     private PCollection.IsBounded isBoundedCollection(Collection<TaggedPValue> pValues) {
