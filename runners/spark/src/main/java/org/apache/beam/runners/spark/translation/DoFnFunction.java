@@ -50,7 +50,8 @@ public class DoFnFunction<InputT, OutputT>
 
   private final Accumulator<NamedAggregators> aggregatorsAccum;
   private final Accumulator<SparkMetricsContainer> metricsAccum;
-  private final String stepName;  private final DoFn<InputT, OutputT> doFn;
+  private final String stepName;
+  private final DoFn<InputT, OutputT> doFn;
   private final SparkRuntimeContext runtimeContext;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   private final WindowingStrategy<?, ?> windowingStrategy;
@@ -97,10 +98,10 @@ public class DoFnFunction<InputT, OutputT>
             windowingStrategy
         );
 
-    DoFnRunner<InputT, OutputT> monitoredDoFnRunner =
+    DoFnRunner<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
-    return new SparkProcessContext<>(doFn, monitoredDoFnRunner, outputManager)
+    return new SparkProcessContext<>(doFn, doFnRunnerWithMetrics, outputManager)
         .processPartition(iter);
   }
 

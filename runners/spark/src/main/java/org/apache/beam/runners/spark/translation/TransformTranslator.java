@@ -40,6 +40,7 @@ import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
 import org.apache.beam.runners.spark.io.hadoop.ShardNameTemplateHelper;
 import org.apache.beam.runners.spark.io.hadoop.TemplatedAvroKeyOutputFormat;
 import org.apache.beam.runners.spark.io.hadoop.TemplatedTextOutputFormat;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
@@ -241,7 +242,7 @@ public final class TransformTranslator {
         Accumulator<NamedAggregators> aggAccum =
             SparkAggregators.getNamedAggregators(jsc);
         Accumulator<SparkMetricsContainer> metricsAccum =
-            SparkMetricsContainer.getAccumulator(jsc);
+            MetricsAccumulator.getOrCreateInstance(jsc);
         Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         context.putDataset(transform,
