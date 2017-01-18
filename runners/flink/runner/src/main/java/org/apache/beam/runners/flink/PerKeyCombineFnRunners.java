@@ -19,13 +19,13 @@ package org.apache.beam.runners.flink;
 
 import com.google.common.collect.Iterables;
 import java.util.Collection;
+import org.apache.beam.runners.core.OldDoFn;
 import org.apache.beam.runners.core.PerKeyCombineFnRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CombineContextFactory;
 import org.apache.beam.sdk.util.SideInputReader;
