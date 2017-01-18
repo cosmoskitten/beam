@@ -68,6 +68,7 @@ public class HIFIOCassandraIT implements Serializable {
     conf = getConfiguration(options);
   }
 
+<<<<<<< HEAD
   /**
    * This test reads data from the Cassandra instance and verifies if data is read
    * successfully.
@@ -78,6 +79,19 @@ public class HIFIOCassandraIT implements Serializable {
     Pipeline pipeline = TestPipeline.create(options);
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       private static final long serialVersionUID = 1L;
+=======
+	/**
+	 * This test reads data from the Cassandra instance and verifies if data is
+	 * read successfully.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testHIFReadForCassandra() {
+		Pipeline pipeline = TestPipeline.create(options);
+		SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+			private static final long serialVersionUID = 1L;
+>>>>>>> Removed throws exception from Cassandra IT
 
       @Override
       public String apply(Row input) {
@@ -92,6 +106,7 @@ public class HIFIOCassandraIT implements Serializable {
     pipeline.run();
   }
 
+<<<<<<< HEAD
   /**
    * This test reads data from the Cassandra instance based on query and verifies if data is read successfully.
    * @throws Exception
@@ -104,6 +119,22 @@ public class HIFIOCassandraIT implements Serializable {
         "select * from ycsb.usertable where token(y_id) > ? and token(y_id) <= ? and y_id='user3117720508089767496' allow filtering");
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       private static final long serialVersionUID = 1L;
+=======
+	/**
+	 * This test reads data from the Cassandra instance based on query and
+	 * verifies if data is read successfully.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testHIFReadForCassandraQuery() {
+		Pipeline pipeline = TestPipeline.create(options);
+		conf.set(
+				"cassandra.input.cql",
+				"select * from ycsb.usertable where token(y_id) > ? and token(y_id) <= ? and y_id='user3117720508089767496' allow filtering");
+		SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+			private static final long serialVersionUID = 1L;
+>>>>>>> Removed throws exception from Cassandra IT
 
       @Override
       public String apply(Row input) {
@@ -119,6 +150,7 @@ public class HIFIOCassandraIT implements Serializable {
     pipeline.run();
   }
 
+<<<<<<< HEAD
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
     conf.set("cassandra.input.thrift.port", String.format("%d", options.getServerPort()));
@@ -132,4 +164,29 @@ public class HIFIOCassandraIT implements Serializable {
     conf.setClass("value.class", com.datastax.driver.core.Row.class, Object.class);
     return conf;
   }
+=======
+	/**
+	 * Returns configuration of CqlInutFormat. Mandatory parameters required
+	 * apart from inputformat class name, key class, value class are thrift
+	 * port, thrift address, partitioner class, keyspace and columnfamily name
+	 *
+	 */
+	public static Configuration getConfiguration(HIFTestOptions options) {
+		Configuration conf = new Configuration();
+		conf.set("cassandra.input.thrift.port",
+				String.format("%d", options.getServerPort()));
+		conf.set("cassandra.input.thrift.address", options.getServerIp());
+		conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
+		conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
+		conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
+		conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+				org.apache.cassandra.hadoop.cql3.CqlInputFormat.class,
+				InputFormat.class);
+		conf.setClass(HadoopInputFormatIOContants.KEY_CLASS,
+				java.lang.Long.class, Object.class);
+		conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS,
+				com.datastax.driver.core.Row.class, Object.class);
+		return conf;
+	}
+>>>>>>> Removed throws exception from Cassandra IT
 }
