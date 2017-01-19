@@ -220,9 +220,16 @@ import com.google.common.collect.Lists;
  *   }
  * </pre>
  * <p>
+<<<<<<< HEAD
  * As coder is available for CqlInputFormat key class i.e. {@link java.lang.Long} , key translation
  * is not required. For CqlInputFormat value class i.e. {@link com.datastax.driver.core.Row} coder
  * is not available in Beam, user will need to provide his own translation mechanism like following:
+=======
+ * As default coder is available for CqlInputFormat key class i.e. {@link java.lang.Long} , key
+ * translation is not required. For CqlInputFormat value class i.e.
+ * {@link com.datastax.driver.core.Row}, default coder is not available in Beam, user will need to
+ * provide his/her own translation mechanism like following:
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
  * 
  * <pre>
  * SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, String>() 
@@ -257,10 +264,19 @@ import com.google.common.collect.Lists;
  * PCollection<KV<Text, MapWritable>> elasticData = p.apply("read",
  *     HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(elasticSearchConf));
  * </pre>
+<<<<<<< HEAD
  */
 
 public class HadoopInputFormatIO {
 <<<<<<< HEAD
+=======
+ * 
+ * Here no translation mechanism is required as key and value class both have default coders
+ * available.
+ */
+
+public class HadoopInputFormatIO {
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
   private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatIO.class);
 
   /**
@@ -275,7 +291,11 @@ public class HadoopInputFormatIO {
 
   /**
    * A {@link PTransform} that reads from for any data source which implements Hadoop InputFormat.
+<<<<<<< HEAD
    * For e.g. Cassandra, Elasticsearch, HBase, Redis , Postgres etc. See the class-level Javadoc on
+=======
+   * For e.g. Cassandra, Elasticsearch, HBase, Redis, Postgres etc. See the class-level Javadoc on
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
    * {@link HadoopInputFormatIO} for more information.
    * 
    * @param <K> Type of keys to be read.
@@ -292,6 +312,7 @@ public class HadoopInputFormatIO {
     /**
      * Returns the Hadoop Configuration which contains specification of source.
      */
+<<<<<<< HEAD
     @Nullable
     public abstract SerializableConfiguration getConfiguration();
 
@@ -306,12 +327,20 @@ public class HadoopInputFormatIO {
 
     @Nullable
     public abstract TypeDescriptor<V> getValueClass();
+=======
+    @Nullable public abstract SerializableConfiguration getConfiguration();
+    @Nullable public abstract SimpleFunction<?, K> getKeyTranslationFunction();
+    @Nullable public abstract SimpleFunction<?, V> getValueTranslationFunction();
+    @Nullable public abstract TypeDescriptor<K> getKeyClass();
+    @Nullable public abstract TypeDescriptor<V> getValueClass();
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
 
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setConfiguration(SerializableConfiguration configuration);
+<<<<<<< HEAD
 
       abstract Builder<K, V> setKeyTranslationFunction(SimpleFunction<?, K> function);
 
@@ -321,11 +350,21 @@ public class HadoopInputFormatIO {
 
       abstract Builder<K, V> setValueClass(TypeDescriptor<V> valueClass);
 
+=======
+      abstract Builder<K, V> setKeyTranslationFunction(SimpleFunction<?, K> function);
+      abstract Builder<K, V> setValueTranslationFunction(SimpleFunction<?, V> function);
+      abstract Builder<K, V> setKeyClass(TypeDescriptor<K> keyClass);
+      abstract Builder<K, V> setValueClass(TypeDescriptor<V> valueClass);
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       abstract Read<K, V> build();
     }
 
     /**
+<<<<<<< HEAD
      * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source along with
+=======
+     * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source using the
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
      * options indicated by the given configuration.
      *
      * <p>
@@ -333,6 +372,7 @@ public class HadoopInputFormatIO {
      */
     public Read<K, V> withConfiguration(Configuration configuration) {
       validateConfiguration(configuration);
+<<<<<<< HEAD
       inputFormatClass =
           TypeDescriptor.of(configuration.getClass("mapreduce.job.inputformat.class", null));
       inputFormatKeyClass = TypeDescriptor.of(configuration.getClass("key.class", null));
@@ -347,19 +387,50 @@ public class HadoopInputFormatIO {
       }
       // Sets the output value class to InputFormat value class if withValueTranslation() is not
       // called yet.
+=======
+      inputFormatClass = TypeDescriptor
+          .of(configuration.getClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME, null));
+      inputFormatKeyClass = TypeDescriptor
+          .of(configuration.getClass(HadoopInputFormatIOContants.KEY_CLASS, null));
+      inputFormatValueClass = TypeDescriptor
+          .of(configuration.getClass(HadoopInputFormatIOContants.VALUE_CLASS, null));
+      // Sets the configuration.
+      Builder<K, V> builder = toBuilder()
+          .setConfiguration(new SerializableConfiguration(configuration));
+      /*
+       * Sets the output key class to InputFormat key class if withKeyTranslation() is not called
+       * yet.
+       */
+      if (this.getKeyClass() == null) {
+        builder.setKeyClass((TypeDescriptor<K>) inputFormatKeyClass);
+      }
+      /*
+       * Sets the output value class to InputFormat value class if withValueTranslation() is not
+       * called yet.
+       */
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       if (this.getValueClass() == null) {
         builder.setValueClass((TypeDescriptor<V>) inputFormatValueClass);
       }
       return builder.build();
     }
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
     /**
      * Validates that the mandatory configuration properties such as InputFormat class, InputFormat
      * key class and InputFormat value class are provided in the given Hadoop configuration.
      */
     private void validateConfiguration(Configuration configuration) {
       checkNotNull(configuration, HadoopInputFormatIOContants.NULL_CONFIGURATION_ERROR_MSG);
+<<<<<<< HEAD
       checkNotNull(configuration.get("mapreduce.job.inputformat.class"), HadoopInputFormatIOContants.MISSING_INPUTFORMAT_ERROR_MSG);
+=======
+      checkNotNull(configuration.get("mapreduce.job.inputformat.class"),
+          HadoopInputFormatIOContants.MISSING_INPUTFORMAT_ERROR_MSG);
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       checkNotNull(configuration.get("key.class"),
           HadoopInputFormatIOContants.MISSING_INPUTFORMAT_KEY_CLASS_ERROR_MSG);
       checkNotNull(configuration.get("value.class"),
@@ -397,8 +468,17 @@ public class HadoopInputFormatIO {
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
       HadoopInputFormatBoundedSource<K, V> source = new HadoopInputFormatBoundedSource<K, V>(
+<<<<<<< HEAD
           this.getConfiguration(), this.getKeyCoder(), this.getValueCoder(),
           this.getKeyTranslationFunction(), this.getValueTranslationFunction(), null);
+=======
+          this.getConfiguration(), 
+          this.getKeyCoder(), 
+          this.getValueCoder(),
+          this.getKeyTranslationFunction(), 
+          this.getValueTranslationFunction(), 
+          null);
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -475,8 +555,13 @@ public class HadoopInputFormatIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       if (this.getConfiguration().getHadoopConfiguration() != null) {
+<<<<<<< HEAD
         Iterator<Entry<String, String>> configProperties =
             this.getConfiguration().getHadoopConfiguration().iterator();
+=======
+        Iterator<Entry<String, String>> configProperties = this.getConfiguration()
+            .getHadoopConfiguration().iterator();
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
         while (configProperties.hasNext()) {
           Entry<String, String> property = configProperties.next();
           builder.add(DisplayData.item(property.getKey(), property.getValue())
@@ -489,9 +574,15 @@ public class HadoopInputFormatIO {
           .addIfNotNull(DisplayData.item("ValueClass", getValueClass().getRawType())
               .withLabel("Output value class"));
       if (getKeyTranslationFunction() != null)
+<<<<<<< HEAD
         builder.addIfNotNull(
             DisplayData.item("KeyTranslationSimpleFunction", getKeyTranslationFunction().toString())
                 .withLabel("Key translation SimpleFunction"));
+=======
+        builder.addIfNotNull(DisplayData
+            .item("KeyTranslationSimpleFunction", getKeyTranslationFunction().toString())
+            .withLabel("Key translation SimpleFunction"));
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       if (getValueTranslationFunction() != null)
         builder.addIfNotNull(DisplayData
             .item("ValueTranslationSimpleFunction", getValueTranslationFunction().toString())
@@ -516,6 +607,7 @@ public class HadoopInputFormatIO {
     protected final SerializableSplit inputSplit;
     private transient List<SerializableSplit> inputSplits;
     private long boundedSourceEstimatedSize = 0;
+<<<<<<< HEAD
 
     public HadoopInputFormatBoundedSource(SerializableConfiguration conf, Coder<K> keyCoder,
         Coder<V> valueCoder) {
@@ -525,12 +617,46 @@ public class HadoopInputFormatIO {
     public HadoopInputFormatBoundedSource(SerializableConfiguration conf, Coder<K> keyCoder,
         Coder<V> valueCoder, SimpleFunction<?, K> keyTranslationFunction,
         SimpleFunction<?, V> valueTranslationFunction, SerializableSplit inputSplit) {
+=======
+    private InputFormat<?, ?> inputFormatObj;
+
+    public HadoopInputFormatBoundedSource(
+        SerializableConfiguration conf, 
+        Coder<K> keyCoder,
+        Coder<V> valueCoder) {
+      this(conf, keyCoder, valueCoder, null, null, null, null);
+    }
+
+    public HadoopInputFormatBoundedSource(
+        SerializableConfiguration conf, 
+        Coder<K> keyCoder,
+        Coder<V> valueCoder, 
+        SimpleFunction<?, K> keyTranslationFunction,
+        SimpleFunction<?, V> valueTranslationFunction, 
+        SerializableSplit inputSplit) {
+      this(conf, keyCoder, valueCoder, keyTranslationFunction, valueTranslationFunction, null,
+          inputSplit);
+    }
+
+    public HadoopInputFormatBoundedSource(
+        SerializableConfiguration conf, 
+        Coder<K> keyCoder,
+        Coder<V> valueCoder, 
+        SimpleFunction<?, K> keyTranslationFunction,
+        SimpleFunction<?, V> valueTranslationFunction, 
+        InputFormat<?, ?> inputFormatObj,
+        SerializableSplit inputSplit) {
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       this.conf = conf;
       this.inputSplit = inputSplit;
       this.keyCoder = keyCoder;
       this.valueCoder = valueCoder;
       this.keyTranslationFunction = keyTranslationFunction;
       this.valueTranslationFunction = valueTranslationFunction;
+<<<<<<< HEAD
+=======
+      this.inputFormatObj = inputFormatObj;
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
     }
 
     public SerializableConfiguration getConfiguration() {
@@ -544,6 +670,7 @@ public class HadoopInputFormatIO {
       checkNotNull(valueCoder, HadoopInputFormatIOContants.MISSING_VALUE_CODER_SOURCE_ERROR_MSG);
     }
 
+<<<<<<< HEAD
     // Indicates if the source is split or not.
     private transient boolean isSourceSplit = false;
 
@@ -555,6 +682,8 @@ public class HadoopInputFormatIO {
       this.isSourceSplit = isSourceSplit;
     }
 
+=======
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
     @Override
     public List<BoundedSource<KV<K, V>>> splitIntoBundles(long desiredBundleSizeBytes,
         PipelineOptions options) throws Exception {
@@ -564,19 +693,30 @@ public class HadoopInputFormatIO {
         }
         LOG.info("Generated {} splits each of size {} ", inputSplits.size(),
             inputSplits.get(0).getSplit().getLength());
+<<<<<<< HEAD
         setSourceSplit(true);
+=======
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
         return Lists.transform(inputSplits,
             new Function<SerializableSplit, BoundedSource<KV<K, V>>>() {
               @Override
               public BoundedSource<KV<K, V>> apply(SerializableSplit serializableInputSplit) {
                 HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
                     new HadoopInputFormatBoundedSource<K, V>(conf, keyCoder, valueCoder,
+<<<<<<< HEAD
                         keyTranslationFunction, valueTranslationFunction, serializableInputSplit);
+=======
+                        keyTranslationFunction, valueTranslationFunction, inputFormatObj,
+                        serializableInputSplit);
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
                 return hifBoundedSource;
               }
             });
       } else {
+<<<<<<< HEAD
         setSourceSplit(true);
+=======
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
         LOG.info("Not splitting source {} because source is already split.", this);
         return ImmutableList.of((BoundedSource<KV<K, V>>) this);
       }
@@ -595,6 +735,7 @@ public class HadoopInputFormatIO {
      * This is helper function to compute splits. This method will also calculate size of the data
      * being read. Note : This method is called exactly once, the splits are retrieved and cached
      * for further use by splitIntoBundles() and getEstimatesSizeBytes().
+<<<<<<< HEAD
      */
     private void computeSplits() throws IOException, IllegalAccessException, InstantiationException,
         InterruptedException, ClassNotFoundException {
@@ -602,6 +743,16 @@ public class HadoopInputFormatIO {
       List<InputSplit> splits = job.getInputFormatClass().newInstance().getSplits(job);
       if (splits == null) {
         throw new IOException(HadoopInputFormatIOContants.COMPUTESPLITS_NULL_SPLITS_ERROR_MSG);
+=======
+     * @throws InterruptedException 
+     */
+    private void computeSplits() throws IOException, InterruptedException{
+      inputFormatObj = getInputFormat();
+      List<InputSplit> splits =
+          inputFormatObj.getSplits(Job.getInstance(conf.getHadoopConfiguration()));
+      if (splits == null) {
+        throw new IOException(HadoopInputFormatIOContants.COMPUTESPLITS_NULL_GETSPLITS_ERROR_MSG);
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       }
       if (splits.isEmpty()) {
         throw new IOException(HadoopInputFormatIOContants.COMPUTESPLITS_EMPTY_SPLITS_ERROR_MSG);
@@ -609,11 +760,45 @@ public class HadoopInputFormatIO {
       boundedSourceEstimatedSize = 0;
       inputSplits = new ArrayList<SerializableSplit>();
       for (InputSplit inputSplit : splits) {
+<<<<<<< HEAD
         boundedSourceEstimatedSize = boundedSourceEstimatedSize + inputSplit.getLength();
         inputSplits.add(new SerializableSplit(inputSplit));
       }
     }
 
+=======
+        if (inputSplit == null) {
+          throw new IOException(HadoopInputFormatIOContants.COMPUTESPLITS_NULL_SPLIT_ERROR_MSG);
+        }
+        boundedSourceEstimatedSize = boundedSourceEstimatedSize + inputSplit.getLength();
+        inputSplits.add(new SerializableSplit(inputSplit));
+
+      }
+    }
+
+    /**
+     * Returns instance of InputFormat set in the configuration.
+     */
+    private InputFormat<?, ?> getInputFormat() throws IOException {
+      InputFormat<?, ?> inputFormatObj;
+      try {
+        inputFormatObj = (InputFormat<?, ?>) conf.getHadoopConfiguration()
+            .getClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME, null).newInstance();
+        /**
+         * Sets configuration if provided InputFormat implements Configurable.
+         */
+        if (Configurable.class.isAssignableFrom(inputFormatObj.getClass())) {
+          ((Configurable) inputFormatObj).setConf(conf.getHadoopConfiguration());
+        }
+      } catch (InstantiationException e) {
+        throw new IOException("Unable to create InputFormat : ", e);
+      } catch (IllegalAccessException e) {
+        throw new IOException("Unable to create InputFormat : ", e);
+      }
+      return inputFormatObj;
+    }
+
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
     @Override
     public Coder<KV<K, V>> getDefaultOutputCoder() {
       return KvCoder.of(keyCoder, valueCoder);
@@ -623,6 +808,7 @@ public class HadoopInputFormatIO {
     public BoundedReader<KV<K, V>> createReader(PipelineOptions options) throws IOException {
       this.validate();
       if (inputSplit == null) {
+<<<<<<< HEAD
         if (!isSourceSplit()) {
           throw new IOException(HadoopInputFormatIOContants.CREATEREADER_UNSPLIT_SOURCE_ERROR_MSG);
         } else {
@@ -631,6 +817,12 @@ public class HadoopInputFormatIO {
       } else {
         return new HadoopInputFormatReader<Object>(this, keyTranslationFunction,
             valueTranslationFunction, inputSplit.getSplit());
+=======
+          throw new IOException(HadoopInputFormatIOContants.CREATEREADER_UNSPLIT_SOURCE_ERROR_MSG);
+      } else {
+        return new HadoopInputFormatReader<Object>(this, keyTranslationFunction,
+            valueTranslationFunction, inputFormatObj, inputSplit.getSplit());
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       }
     }
 
@@ -645,6 +837,7 @@ public class HadoopInputFormatIO {
       private final SimpleFunction<T, V> valueTranslationFunction;
       private volatile boolean doneReading = false;
       private long recordsReturned = 0L;
+<<<<<<< HEAD
 
       public HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
@@ -653,6 +846,20 @@ public class HadoopInputFormatIO {
         this.split = split;
         this.keyTranslationFunction = keyTranslationFunction;
         this.valueTranslationFunction = valueTranslationFunction;
+=======
+      InputFormat<?, ?> inputFormatObj;
+
+      public HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
+          @Nullable SimpleFunction keyTranslationFunction,
+          @Nullable SimpleFunction valueTranslationFunction, 
+          InputFormat<?, ?> inputFormatObj,
+          InputSplit split) {
+        this.source = source;
+        this.keyTranslationFunction = keyTranslationFunction;
+        this.valueTranslationFunction = valueTranslationFunction;
+        this.inputFormatObj = inputFormatObj;
+        this.split = split;
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       }
 
       @Override
@@ -668,9 +875,12 @@ public class HadoopInputFormatIO {
         try {
           TaskAttemptContextImpl attemptContext = new TaskAttemptContextImpl(
               source.getConfiguration().getHadoopConfiguration(), new TaskAttemptID());
+<<<<<<< HEAD
           Job job = Job.getInstance(source.getConfiguration().getHadoopConfiguration());
           InputFormat<?, ?> inputFormatObj =
               (InputFormat<?, ?>) job.getInputFormatClass().newInstance();
+=======
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
           currentReader =
               (RecordReader<T, T>) inputFormatObj.createRecordReader(split, attemptContext);
           if (currentReader != null) {
@@ -685,6 +895,7 @@ public class HadoopInputFormatIO {
                     inputFormatObj.getClass()));
           }
         } catch (InterruptedException e) {
+<<<<<<< HEAD
           throw new IOException("Unable to read data : ",e);
         } catch (InstantiationException e) {
           throw new IOException("Unable to create InputFormat : ",e);
@@ -692,6 +903,9 @@ public class HadoopInputFormatIO {
           throw new IOException("Unable to create InputFormat : ",e);
         } catch (ClassNotFoundException e) {
           throw new IOException("Unable to create InputFormat : ",e);
+=======
+          throw new IOException("Unable to read data : ", e);
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
         }
         currentReader = null;
         currentRecord = null;
@@ -709,7 +923,11 @@ public class HadoopInputFormatIO {
           currentRecord = null;
           doneReading = true;
         } catch (InterruptedException e) {
+<<<<<<< HEAD
           throw new IOException("Unable to read data : ",e);
+=======
+          throw new IOException("Unable to read data : ", e);
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
         }
         return false;
       }
@@ -719,7 +937,12 @@ public class HadoopInputFormatIO {
        */
       public KV<K, V> nextPair() throws IOException, InterruptedException {
         // Transform key if required.
+<<<<<<< HEAD
         K key = transformKeyOrValue(currentReader.getCurrentKey(), keyTranslationFunction, keyCoder);
+=======
+        K key =
+            transformKeyOrValue(currentReader.getCurrentKey(), keyTranslationFunction, keyCoder);
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
         // Transform value if required.
         V value = transformKeyOrValue(currentReader.getCurrentValue(), valueTranslationFunction,
             valueCoder);
@@ -749,6 +972,7 @@ public class HadoopInputFormatIO {
        */
       private <T1 extends Object> T1 clone(T1 input, Coder<T1> coder)
 <<<<<<< HEAD
+<<<<<<< HEAD
           throws IOException, InterruptedException, CoderException, ClassCastException{
 =======
           throws IOException, InterruptedException, CoderException,ClassCastException {
@@ -762,6 +986,14 @@ public class HadoopInputFormatIO {
 =======
         
 >>>>>>> Javadoc changes
+=======
+
+          throws IOException, InterruptedException, CoderException, ClassCastException {
+        // If the input object is not of known immutable type, clone the object.
+        if (!isKnownImmutable(input)) {
+          input = CoderUtils.clone(coder, input);
+        }
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
         return input;
       }
 
@@ -865,7 +1097,11 @@ public class HadoopInputFormatIO {
           split = (InputSplit) Class.forName(className).newInstance();
           ((Writable) split).readFields(in);
         } catch (InstantiationException | IllegalAccessException e) {
+<<<<<<< HEAD
           throw new IOException("Unable to create split : "+e);
+=======
+          throw new IOException("Unable to create split : " + e);
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
         }
       }
     }
@@ -910,6 +1146,7 @@ public class HadoopInputFormatIO {
         conf = (Configuration) Class.forName(className).newInstance();
         conf.readFields(in);
       } catch (InstantiationException | IllegalAccessException e) {
+<<<<<<< HEAD
         throw new IOException("Unable to create configuration : "+e);
       }
     }
@@ -1575,4 +1812,10 @@ public class HadoopInputFormatIO {
 		}
 	}
 >>>>>>> Changes in HadoopInputFormat IO to check if InputFormat implements Configurable interface, need to setConf(conf) in that case
+=======
+        throw new IOException("Unable to create configuration : " + e);
+      }
+    }
+  }
+>>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
 }
