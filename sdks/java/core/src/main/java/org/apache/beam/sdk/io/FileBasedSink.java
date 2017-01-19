@@ -472,8 +472,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       Map<String, String> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames, options);
 
+      // THIS LOGIC IS BROKEN IN STREAMING. IT WILL REMOVE IN-PROGRESS FILES.
       // Optionally remove temporary files.
-      // BROKEN IN STREAMING
       // We remove the entire temporary directory, rather than specifically removing the files
       // from writerResults, because writerResults includes only successfully completed bundles,
       // and we'd like to clean up the failed ones too.
