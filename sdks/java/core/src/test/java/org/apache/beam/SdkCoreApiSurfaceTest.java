@@ -17,12 +17,15 @@
  */
 package org.apache.beam;
 
+import static org.apache.beam.sdk.util.ApiSurface.classesInPackage;
+import static org.apache.beam.sdk.util.ApiSurface.containsOnlyClassesMatching;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import com.google.common.collect.ImmutableSet;
-import java.io.IOException;
 import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
-import org.apache.beam.sdk.util.ApiSurfaceVerificationTest;
 import org.hamcrest.Matcher;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -30,32 +33,31 @@ import org.junit.runners.JUnit4;
  * API surface verification for {@link org.apache.beam}.
  */
 @RunWith(JUnit4.class)
-public class SdkCoreApiSurfaceTest extends ApiSurfaceVerificationTest {
+public class SdkCoreApiSurfaceTest {
 
-  @Override
-  protected ApiSurface apiSurface() throws IOException {
-    return ApiSurface.getSdkApiSurface();
-  }
+  @SuppressWarnings("unchecked")
+  private final Set<Matcher<Class<?>>> allowedClasses =
+      ImmutableSet.of(classesInPackage("org.apache.beam"),
+                      classesInPackage("com.google.api.client"),
+                      classesInPackage("com.google.api.services.bigquery"),
+                      classesInPackage("com.google.api.services.cloudresourcemanager"),
+                      classesInPackage("com.google.api.services.pubsub"),
+                      classesInPackage("com.google.api.services.storage"),
+                      classesInPackage("com.google.auth"),
+                      classesInPackage("com.google.protobuf"),
+                      classesInPackage("com.fasterxml.jackson.annotation"),
+                      classesInPackage("com.fasterxml.jackson.core"),
+                      classesInPackage("com.fasterxml.jackson.databind"),
+                      classesInPackage("org.apache.avro"),
+                      classesInPackage("org.hamcrest"),
+                      // via DataflowMatchers
+                      classesInPackage("org.codehaus.jackson"),
+                      // via Avro
+                      classesInPackage("org.joda.time"),
+                      classesInPackage("org.junit"));
 
-  @Override
-  protected Set<Matcher<Class<?>>> allowedClasses() {
-    //noinspection unchecked
-    return ImmutableSet.of(inPackage("org.apache.beam"),
-                           inPackage("com.google.api.client"),
-                           inPackage("com.google.api.services.bigquery"),
-                           inPackage("com.google.api.services.cloudresourcemanager"),
-                           inPackage("com.google.api.services.pubsub"),
-                           inPackage("com.google.api.services.storage"),
-                           inPackage("com.google.auth"),
-                           inPackage("com.google.protobuf"),
-                           inPackage("com.fasterxml.jackson.annotation"),
-                           inPackage("com.fasterxml.jackson.core"),
-                           inPackage("com.fasterxml.jackson.databind"),
-                           inPackage("org.apache.avro"),
-                           inPackage("org.hamcrest"),
-                           // via DataflowMatchers
-                           inPackage("org.codehaus.jackson"),
-                           // via Avro
-                           inPackage("org.joda.time"));
+  @Test
+  public void testSdkApiSurface() throws Exception {
+    assertThat(ApiSurface.getSdkApiSurface(), containsOnlyClassesMatching(allowedClasses));
   }
 }
