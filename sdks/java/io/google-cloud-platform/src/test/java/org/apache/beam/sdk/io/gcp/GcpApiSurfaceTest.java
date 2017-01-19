@@ -68,7 +68,7 @@ public class GcpApiSurfaceTest {
 
   private final ApiSurface apiSurface =
       ApiSurface
-          .ofPackage(getClass().getPackage().getName())
+          .ofCallSitePackage()
           .pruningPattern("org[.]apache[.]beam[.].*Test.*")
           .pruningPattern("org[.]apache[.]beam[.].*IT")
           .pruningPattern("java[.]lang.*");

@@ -325,6 +325,17 @@ public class ApiSurface {
   }
 
   /**
+   * Returns an {@link ApiSurface} object representing the package of the calling site.
+   */
+  public static ApiSurface ofCallSitePackage() throws IOException {
+    final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+    final int classNameFrame = 2;
+    final String className = stackTrace[classNameFrame].getClassName();
+    final String packageName = className.substring(0, className.lastIndexOf("."));
+    return ofPackage(packageName);
+  }
+
+  /**
    * Returns an {@link ApiSurface} object representing the given package and all subpackages.
    */
   public static ApiSurface ofPackage(String packageName) throws IOException {
@@ -855,7 +866,6 @@ public class ApiSurface {
   public static ApiSurface getSdkApiSurface() throws IOException {
     return ApiSurface.ofPackage("org.apache.beam")
         .pruningPattern("org[.]apache[.]beam[.].*Test")
-
 
         // Exposes Guava, but not intended for users
         .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
