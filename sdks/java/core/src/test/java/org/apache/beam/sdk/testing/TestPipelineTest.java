@@ -61,16 +61,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
 import org.junit.runner.JUnitCore;
 import org.junit.runner.Request;
 import org.junit.runner.Result;
 import org.junit.runner.RunWith;
-import org.junit.runner.notification.Failure;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Suite;
-import org.junit.runners.model.Statement;
 
 /** Tests for {@link TestPipeline}. */
 @RunWith(Suite.class)
@@ -320,33 +319,38 @@ public class TestPipelineTest implements Serializable {
      */
     public static class NonCrashingRunner {
 
+      private final transient ExpectedException exception = ExpectedException.none();
+
+      private final transient TestPipeline pipeline = TestPipeline.fromOptions(dummyRunner());
+
+      @Rule
+      public final transient RuleChain chain = RuleChain.outerRule(exception).around(pipeline);
+
       private static PipelineOptions dummyRunner() {
         final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
         pipelineOptions.setRunner(DummyRunner.class);
         return pipelineOptions;
       }
 
-      @Rule
-      public final transient TestPipeline pipeline = TestPipeline.fromOptions(dummyRunner());
-
       @Category(RunnableOnService.class)
       @Test
-      public void testNormalFlow_runnableOnService_expectNoException() throws Exception {
+      public void testNormalFlow() throws Exception {
         addTransform(pCollection(pipeline));
         pipeline.run();
       }
 
       @Category(RunnableOnService.class)
       @Test
-      public void testMissingRun_runnableOnService_expectPipelineRunMissingException()
-          throws Exception {
+      public void testMissingRun() throws Exception {
+
+        exception.expect(TestPipeline.PipelineRunMissingException.class);
+
         addTransform(pCollection(pipeline));
       }
 
       @Category(RunnableOnService.class)
       @Test
-      public void testMissingRunWithDisabledEnforcement_runnableOnService_expectNoException()
-          throws Exception {
+      public void testMissingRunWithDisabledEnforcement() throws Exception {
         pipeline.enableAbandonedNodeEnforcement(false);
         addTransform(pCollection(pipeline));
 
@@ -355,8 +359,7 @@ public class TestPipelineTest implements Serializable {
 
       @Category(RunnableOnService.class)
       @Test
-      public void testMissingRunAutoAdd_runnableOnService_expectNoException()
-          throws Exception {
+      public void testMissingRunAutoAdd() throws Exception {
         pipeline.enableAutoRunIfMissing(true);
         addTransform(pCollection(pipeline));
 
@@ -365,8 +368,11 @@ public class TestPipelineTest implements Serializable {
 
       @Category(RunnableOnService.class)
       @Test
-      public void testDanglingPTransform_runnableOnService_expectAbandonedNodeException()
-          throws Exception {
+      public void testDanglingPTransformRunnableOnService() throws Exception {
+
+        exception.expect(TestPipeline.AbandonedNodeException.class);
+        exception.expectMessage(P_TRANSFORM);
+
         final PCollection<String> pCollection = pCollection(pipeline);
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
         pipeline.run().waitUntilFinish();
@@ -377,8 +383,11 @@ public class TestPipelineTest implements Serializable {
 
       @Category(NeedsRunner.class)
       @Test
-      public void testDanglingPTransform_needsRunner_expectAbandonedNodeException()
-          throws Exception {
+      public void testDanglingPTransformNeedsRunner() throws Exception {
+
+        exception.expect(TestPipeline.AbandonedNodeException.class);
+        exception.expectMessage(P_TRANSFORM);
+
         final PCollection<String> pCollection = pCollection(pipeline);
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
         pipeline.run().waitUntilFinish();
@@ -389,8 +398,11 @@ public class TestPipelineTest implements Serializable {
 
       @Category(RunnableOnService.class)
       @Test
-      public void testDanglingPAssert_runnableOnService_expectAbandonedNodeException()
-          throws Exception {
+      public void testDanglingPAssertRunnableOnService() throws Exception {
+
+        exception.expect(TestPipeline.AbandonedNodeException.class);
+        exception.expectMessage(P_ASSERT);
+
         final PCollection<String> pCollection = pCollection(pipeline);
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
         pipeline.run().waitUntilFinish();
@@ -401,11 +413,11 @@ public class TestPipelineTest implements Serializable {
 
       @Category(RunnableOnService.class)
       @Test
-      public void testNoTestPipelineUsed_runnableOnService_expectNoException() { }
+      public void testNoTestPipelineUsedRunnableOnService() { }
 
 
       @Test
-      public void testNoTestPipelineUsed_noAnnotation_expectNoException() { }
+      public void testNoTestPipelineUsedNoAnnotation() { }
 
     }
 
@@ -418,14 +430,18 @@ public class TestPipelineTest implements Serializable {
         System.setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.TRUE.toString());
       }
 
+      private final transient ExpectedException exception = ExpectedException.none();
+
+      private final transient TestPipeline pipeline = TestPipeline.create();
+
       @Rule
-      public final transient TestPipeline pipeline = TestPipeline.create();
+      public final transient RuleChain chain = RuleChain.outerRule(exception).around(pipeline);
 
       @Test
-      public void testNoTestPipelineUsed_noAnnotation_expectNoException() { }
+      public void testNoTestPipelineUsed() { }
 
       @Test
-      public void testMissingRun_noRunnerAnnotation_expectNoException() throws Exception {
+      public void testMissingRun() throws Exception {
         addTransform(pCollection(pipeline));
 
         // pipeline.run() is missing, BUT:
@@ -435,10 +451,29 @@ public class TestPipelineTest implements Serializable {
         // thrown on account of the missing run / dangling nodes.
       }
 
+    }
+
+    /**
+     * Tests for {@link TestPipeline}s with a {@link CrashingRunner}.
+     */
+    public static class WithConflictingCrashingRunner {
+
+
+      private static final transient ExpectedException exception = ExpectedException.none();
+
+      static {
+        System.setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.TRUE.toString());
+        exception.expect(IllegalStateException.class);
+      }
+
+      private final transient TestPipeline pipeline = TestPipeline.create();
+
+      @Rule
+      public final transient RuleChain chain = RuleChain.outerRule(exception).around(pipeline);
+
       @Category(NeedsRunner.class)
       @Test
-      public void testConflict_needsRunnerAnnotation_expectIllegalStateException()
-          throws Exception {
+      public void testConflictNeedsRunnerWithCrashingRunner() throws Exception {
 
         addTransform(pCollection(pipeline));
 
@@ -447,8 +482,7 @@ public class TestPipelineTest implements Serializable {
 
       @Category(RunnableOnService.class)
       @Test
-      public void testConflict_runnableOnServiceAnnotation_expectIllegalStateException()
-          throws Exception {
+      public void testConflictRunnableOnServiceWithCrashingRunner() throws Exception {
 
         addTransform(pCollection(pipeline));
 
@@ -456,6 +490,7 @@ public class TestPipelineTest implements Serializable {
       }
 
     }
+
 
     private static List<Object[]> extractTests(final Class<?> testClass) {
       final ArrayList<org.junit.runner.Description> testDescriptions = Request.aClass(testClass)
@@ -478,65 +513,27 @@ public class TestPipelineTest implements Serializable {
                            .toList();
     }
 
-    private TestRule withPossibleExceptions(final String testName) {
-      final String expect = testName.substring(testName.indexOf("_expect"));
-      if (expect.contains(TestPipeline.PipelineRunMissingException.class.getSimpleName())) {
-        final ExpectedException exception = ExpectedException.none();
-        exception.expect(TestPipeline.PipelineRunMissingException.class);
-        return exception;
-      } else if (expect.contains(TestPipeline.AbandonedNodeException.class.getSimpleName())) {
-        final ExpectedException exception = ExpectedException.none();
-        exception.expect(TestPipeline.AbandonedNodeException.class);
-        if (testName.contains(P_TRANSFORM)) {
-          exception.expectMessage(P_TRANSFORM);
-        } else if (testName.contains(P_ASSERT)) {
-          exception.expectMessage(P_ASSERT);
-        }
-        return exception;
-      } else if (expect.contains(IllegalStateException.class.getSimpleName())) {
-        final ExpectedException exception = ExpectedException.none();
-        exception.expect(IllegalStateException.class);
-        return exception;
-      } else {
-        return new TestRule() {
-
-          @Override
-          public Statement apply(final Statement base,
-                                 final org.junit.runner.Description description) {
-            return base;
-          }
-        };
+    private void throwOnFailures(final Result runResult) throws Throwable {
+      if (!runResult.getFailures().isEmpty()) {
+        throw Iterables.getFirst(runResult.getFailures(), null).getException();
       }
     }
 
-    private void runTest(final Request test, final String testName) throws Throwable {
+    private void runTest(final Request test) throws Throwable {
 
       final JUnitCore jUnitCore = new JUnitCore();
-      final Result result = jUnitCore.run(test);
+      final Result runResult = jUnitCore.run(test);
 
-      handleFailures(testName, result);
-    }
-
-    private void handleFailures(final String testName, final Result result) throws Throwable {
-      for (final Failure failure : result.getFailures()) {
-        withPossibleExceptions(testName)
-            .apply(new Statement() {
-
-                     @Override
-                     public void evaluate() throws Throwable {
-                       throw failure.getException();
-                     }
-                   },
-                   testCase.getRunner().getDescription())
-            .evaluate();
-      }
+      throwOnFailures(runResult);
     }
 
     @Parameterized.Parameters(name = "{1}")
     public static Collection<Object[]> testCombos() {
       final Iterable<Object[]> tests =
-          Iterables.concat(extractTests(TestPipelineEnforcementsTest.NonCrashingRunner.class),
-                           extractTests(TestPipelineEnforcementsTest.WithCrashingRunner.class));
+          Iterables.concat(
+              extractTests(TestPipelineEnforcementsTest.NonCrashingRunner.class),
+              extractTests(TestPipelineEnforcementsTest.WithCrashingRunner.class),
+              extractTests(TestPipelineEnforcementsTest.WithConflictingCrashingRunner.class));
 
       return ImmutableList.<Object[]>builder().addAll(tests).build();
     }
@@ -550,7 +547,7 @@ public class TestPipelineTest implements Serializable {
 
     @Test
     public void run() throws Throwable {
-      runTest(testCase, testName);
+      runTest(testCase);
     }
 
   }
