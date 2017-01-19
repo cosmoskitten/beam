@@ -445,6 +445,8 @@ public class Write {
         // trigger, however that will also affect the WriteShardedBundles transform, causing too
         // many files to be generated. We should allow for a faster trigger to be specified just
         // on this finalization step.
+        //
+        // Actually, maybe the continuation trigger will just do the right thing :)
         keyedResults
             .apply("FinalizeGroupByKey", GroupByKey.<Void, WriteT>create())
             .apply("Finalize", ParDo.of(new DoFn<KV<Void, Iterable<WriteT>>, Integer>() {
