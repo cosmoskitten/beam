@@ -60,7 +60,6 @@ public class HIFIOElasticIT implements Serializable {
   private static final String ELASTIC_INDEX_NAME = "test_data";
   private static final String ELASTIC_TYPE_NAME = "test_type";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
-  private static Configuration conf;
   private static HIFTestOptions options;
 
   @BeforeClass
@@ -68,7 +67,6 @@ public class HIFIOElasticIT implements Serializable {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
     LOGGER.info("Pipeline created successfully with the options");
-    conf = getConfiguration(options);
   }
 
   /**
@@ -77,11 +75,11 @@ public class HIFIOElasticIT implements Serializable {
   @Test
   public void testHifIOWithElastic() {
     Pipeline pipeline = TestPipeline.create(options);
+    Configuration conf=getConfiguration(options);
     PCollection<KV<Text, MapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo((long) 1000);
-
     pipeline.run().waitUntilFinish();
   }
 
@@ -92,25 +90,34 @@ public class HIFIOElasticIT implements Serializable {
   @Test
   public void testHifIOWithElasticQuery() {
     Pipeline pipeline = TestPipeline.create(options);
+    Configuration conf=getConfiguration(options);
     String query =
-        "{\n" + "  \"query\": {\n"
-              + "  \"match\" : {\n"
-              + "    \"Item_Code\" : {\n"
-              + "      \"query\" : \"86345\",\n"
-              + "      \"type\" : \"boolean\"\n"
-              + "    }\n"
-              + "  }\n"
-              + "  }\n"
+        "{" + "  \"query\": {"
+              + "  \"match\" : {"
+              + "    \"Item_Code\" : {"
+              + "      \"query\" : \"86345\","
+              + "      \"type\" : \"boolean\""
+              + "    }"
+              + "  }"
+              + "  }"
               + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, MapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo((long) 1);
-
     pipeline.run().waitUntilFinish();
   }
 
+<<<<<<< HEAD
+=======
+ /**
+	 * Set the Elasticsearch configuration parameters in the Hadoop
+	 * configuration object. Configuration object should have InputFormat class,
+	 * key class and value class to be set Mandatory fields for ESInputFormat to
+	 * be set are es.resource, es.nodes, es.port, es.internal.es.version
+	 */
+>>>>>>> Modified elastic integration test.
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
 
