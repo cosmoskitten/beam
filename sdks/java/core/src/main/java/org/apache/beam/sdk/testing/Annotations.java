@@ -29,7 +29,7 @@ import org.junit.experimental.categories.Category;
 /**
  * A utility class for querying annotations.
  */
-public class Annotations {
+class Annotations {
 
   /**
    * Annotation predicates.
