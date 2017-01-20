@@ -15,6 +15,8 @@
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
@@ -55,9 +57,14 @@ import com.datastax.driver.core.Row;
 public class HIFIOCassandraIT implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOCassandraIT.class);
+<<<<<<< HEAD
   private static final String CASSANDRA_KEYSPACE = "ycsb";
   private static final String CASSANDRA_TABLE = "usertable";
   private static Configuration conf;
+=======
+  private static final String CASSANDRA_KEYSPACE = "beamdb";
+  private static final String CASSANDRA_TABLE = "scientists";
+>>>>>>> Elastic, Cassandra embedded code and ITs
   private static HIFTestOptions options;
 
   @BeforeClass
@@ -65,6 +72,7 @@ public class HIFIOCassandraIT implements Serializable {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
     LOGGER.info("Pipeline created successfully with the options.");
+<<<<<<< HEAD
     conf = getConfiguration(options);
   }
 
@@ -151,6 +159,70 @@ public class HIFIOCassandraIT implements Serializable {
   }
 
 <<<<<<< HEAD
+=======
+  }
+
+  /**
+   * This test reads data from the Cassandra instance and verifies if data is read successfully.
+   *
+   */
+  @Test
+  public void testHIFReadForCassandra() {
+    Pipeline pipeline = TestPipeline.create(options);
+    Configuration conf = getConfiguration(options);
+    SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+      @Override
+      public String apply(Row input) {
+        return input.getString("id");
+      }
+    };
+    PCollection<KV<Long, String>> cassandraData =
+        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
+            .withValueTranslation(myValueTranslate));
+    PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
+        .isEqualTo(10L);
+
+    List<KV<Long, String>> expectedResults =
+        Arrays.asList(KV.of(1L, "Einstein"), KV.of(2L, "Darwin"), KV.of(3L, "Copernicus"),
+            KV.of(4L, "Pasteur"), KV.of(5L, "Curie"), KV.of(6L, "Faraday"), KV.of(7L, "Newton"),
+            KV.of(8L, "Bohr"), KV.of(9L, "Galilei"), KV.of(10L, "Maxwell"));
+    PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
+    pipeline.run();
+  }
+
+  /**
+   * This test reads data from the Cassandra instance based on query and verifies if data is read
+   * successfully.
+   *
+   */
+  @Test
+  public void testHIFReadForCassandraQuery() {
+    Pipeline pipeline = TestPipeline.create(options);
+    Configuration conf = getConfiguration(options);
+    conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
+        + " where token(id) > ? and token(id) <= ? and scientist='Einstein' allow filtering");
+    SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+      @Override
+      public String apply(Row input) {
+        return input.getString("id");
+      }
+    };
+    PCollection<KV<Long, String>> cassandraData =
+        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
+            .withValueTranslation(myValueTranslate));
+    PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
+        .isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  /**
+   * Returns configuration of CqlInutFormat. Mandatory parameters required apart from inputformat
+   * class name, key class, value class are thrift port, thrift address, partitioner class, keyspace
+   * and columnfamily name.
+   *
+   */
+>>>>>>> Elastic, Cassandra embedded code and ITs
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
     conf.set("cassandra.input.thrift.port", String.format("%d", options.getServerPort()));
@@ -158,6 +230,7 @@ public class HIFIOCassandraIT implements Serializable {
     conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
     conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
     conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
+<<<<<<< HEAD
     conf.setClass("mapreduce.job.inputformat.class",
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
     conf.setClass("key.class", java.lang.Long.class, Object.class);
@@ -189,4 +262,13 @@ public class HIFIOCassandraIT implements Serializable {
 		return conf;
 	}
 >>>>>>> Removed throws exception from Cassandra IT
+=======
+    conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+        org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
+    conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, java.lang.Long.class, Object.class);
+    conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, com.datastax.driver.core.Row.class,
+        Object.class);
+    return conf;
+  }
+>>>>>>> Elastic, Cassandra embedded code and ITs
 }

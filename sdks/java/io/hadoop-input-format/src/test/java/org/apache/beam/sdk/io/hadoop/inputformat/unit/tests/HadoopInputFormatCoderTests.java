@@ -61,9 +61,13 @@ public class HadoopInputFormatCoderTests {
 
   @Test
   public void testDefaultCoderFromCodeRegistry() {
+<<<<<<< HEAD
     TypeDescriptor<Long> td = new TypeDescriptor<Long>() {
       private static final long serialVersionUID = 1L;
     };
+=======
+    TypeDescriptor<Long> td = new TypeDescriptor<Long>() {};
+>>>>>>> Elastic, Cassandra embedded code and ITs
     Configuration conf = loadTestConfiguration();
     Pipeline pipeline = TestPipeline.create();
     Read<Text, String> read = HadoopInputFormatIO.<Text, String>read().withConfiguration(conf);
@@ -73,9 +77,13 @@ public class HadoopInputFormatCoderTests {
 
   @Test
   public void testWritableCoder() {
+<<<<<<< HEAD
     TypeDescriptor<MapWritable> td = new TypeDescriptor<MapWritable>() {
       private static final long serialVersionUID = 1L;
     };
+=======
+    TypeDescriptor<MapWritable> td = new TypeDescriptor<MapWritable>() {};
+>>>>>>> Elastic, Cassandra embedded code and ITs
     Configuration conf = loadTestConfiguration();
     DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
     Pipeline pipeline = Pipeline.create(directRunnerOptions);
@@ -86,9 +94,13 @@ public class HadoopInputFormatCoderTests {
 
   @Test(expected = IllegalStateException.class)
   public void testNonRegisteredCustomCoder() {
+<<<<<<< HEAD
     TypeDescriptor<Row> td = new TypeDescriptor<Row>() {
       private static final long serialVersionUID = 1L;
     };
+=======
+    TypeDescriptor<Row> td = new TypeDescriptor<Row>() {};
+>>>>>>> Elastic, Cassandra embedded code and ITs
     Configuration conf = loadTestConfiguration();
     DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
     Pipeline pipeline = Pipeline.create(directRunnerOptions);
@@ -100,10 +112,17 @@ public class HadoopInputFormatCoderTests {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, "10.51.234.135:9200");
     conf.set("es.resource", "/my_data/logs");
+<<<<<<< HEAD
     conf.setClass("mapreduce.job.inputformat.class",org.elasticsearch.hadoop.mr.EsInputFormat.class,
         InputFormat.class);
     conf.setClass("key.class", Text.class, Object.class);
     conf.setClass("value.class", MapWritable.class, Object.class);
+=======
+    conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+        org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
+    conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class, Object.class);
+    conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, MapWritable.class, Object.class);
+>>>>>>> Elastic, Cassandra embedded code and ITs
     return conf;
   }
 }
