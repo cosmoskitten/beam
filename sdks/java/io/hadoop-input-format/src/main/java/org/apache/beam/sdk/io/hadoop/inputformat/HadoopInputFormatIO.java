@@ -401,15 +401,19 @@ public class HadoopInputFormatIO {
        * Sets the output key class to InputFormat key class if withKeyTranslation() is not called
        * yet.
        */
-      if (this.getKeyClass() == null) {
+      if ( this.getKeyTranslationFunction() == null) {
         builder.setKeyClass((TypeDescriptor<K>) inputFormatKeyClass);
       }
       /*
        * Sets the output value class to InputFormat value class if withValueTranslation() is not
        * called yet.
        */
+<<<<<<< HEAD
 >>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       if (this.getValueClass() == null) {
+=======
+      if ( this.getValueTranslationFunction() == null) {
+>>>>>>> Modifications according to code review comments.
         builder.setValueClass((TypeDescriptor<V>) inputFormatValueClass);
       }
       return builder.build();
@@ -582,19 +586,19 @@ public class HadoopInputFormatIO {
                 .withLabel("Key translation SimpleFunction"));
 =======
         builder.addIfNotNull(DisplayData
-            .item("KeyTranslationSimpleFunction", getKeyTranslationFunction().toString())
+            .item("KeyTranslation", getKeyTranslationFunction().toString())
             .withLabel("Key translation SimpleFunction"));
 >>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
       if (getValueTranslationFunction() != null)
         builder.addIfNotNull(DisplayData
-            .item("ValueTranslationSimpleFunction", getValueTranslationFunction().toString())
+            .item("ValueTranslation", getValueTranslationFunction().toString())
             .withLabel("Value translation SimpleFunction"));
 
     }
   }
 
   /**
-   * Bounded source implementation for HadoopInputFormatIO
+   * Bounded source implementation for HadoopInputFormatIO.
    * 
    * @param <K> Type of keys to be read.
    * @param <V> Type of values to be read.
@@ -726,10 +730,13 @@ public class HadoopInputFormatIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions po) throws Exception {
-      if (inputSplits == null) {
-        computeSplits();
+      if (inputSplit == null) {
+        if (inputSplits == null) {
+          computeSplits();
+        }
+        return boundedSourceEstimatedSize;
       }
-      return boundedSourceEstimatedSize;
+      return inputSplit.getSplit().getLength();
     }
 
 
@@ -833,10 +840,8 @@ public class HadoopInputFormatIO {
 
       private final HadoopInputFormatBoundedSource<K, V> source;
       private final InputSplit split;
-      @Nullable
-      private final SimpleFunction<T, K> keyTranslationFunction;
-      @Nullable
-      private final SimpleFunction<T, V> valueTranslationFunction;
+      @Nullable private final SimpleFunction<T, K> keyTranslationFunction;
+      @Nullable private final SimpleFunction<T, V> valueTranslationFunction;
       private volatile boolean doneReading = false;
       private long recordsReturned = 0L;
 <<<<<<< HEAD
@@ -1068,7 +1073,7 @@ public class HadoopInputFormatIO {
      * using Java's standard serialization mechanisms. Note that the InputSplit has to be Writable
      * (which mostly are).
      */
-    public class SerializableSplit implements Externalizable {
+    public static class SerializableSplit implements Externalizable {
 
       private static final long serialVersionUID = 0L;
 
