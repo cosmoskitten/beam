@@ -19,7 +19,22 @@ public interface HIFTestOptions extends TestPipelineOptions {
   @Description("Server port")
   @Default.Integer(0)
   Integer getServerPort();
-
+ 
   void setServerPort(Integer serverPort);
+<<<<<<< HEAD
 
 }
+=======
+ 
+  @Description("User name")
+  @Default.String("userName")
+  String getUserName();
+  void setUserName(String userName);
+  
+  @Description("User name")
+  @Default.String("password")
+  String getPassword();
+  void setPassword(String password);
+  
+  }
+>>>>>>> Working postgresIT, do not need DBnputWritable, using NullDbWritable instead
