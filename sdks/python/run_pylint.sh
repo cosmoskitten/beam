@@ -36,7 +36,9 @@ set -o pipefail
 }
 
 # Retrieve base branch for comparison. Travis does not fetch it by default.
-git remote set-branches --add origin $BASE_BRANCH
+LOCAL_BRANCH=`git name-rev --name-only HEAD`
+TRACKING_REMOTE=`git config branch.$LOCAL_BRANCH.remote`
+git remote set-branches --add $TRACKING_REMOTE $BASE_BRANCH
 git fetch
 
 # Following generated files are excluded from lint checks.
