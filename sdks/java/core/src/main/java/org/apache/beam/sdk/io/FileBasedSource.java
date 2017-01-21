@@ -525,9 +525,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     @Override
     protected final boolean startImpl() throws IOException {
       FileBasedSource<T> source = getCurrentSource();
-      IOChannelFactory factory = IOChannelUtils.getFactory(
-        source.getFileOrPatternSpecProvider().get());
-      this.channel = factory.open(source.getFileOrPatternSpecProvider().get());
+      this.channel = FileSystems.open(source.getFileOrPatternSpecProvider().get());
 
       if (channel instanceof SeekableByteChannel) {
         SeekableByteChannel seekChannel = (SeekableByteChannel) channel;

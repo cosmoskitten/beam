@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
@@ -143,7 +142,7 @@ public class NumberedShardedFileTest {
         spy(new NumberedShardedFile(IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*")));
     doThrow(IOException.class)
         .when(shardedFile)
-        .readLines(anyCollection(), any(IOChannelFactory.class));
+        .readLines(anyCollection());
 
     thrown.expect(IOException.class);
     thrown.expectMessage(

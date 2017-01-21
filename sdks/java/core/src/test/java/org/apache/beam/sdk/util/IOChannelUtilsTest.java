@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -47,34 +48,12 @@ public class IOChannelUtilsTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  @Test
-  public void testShardFormatExpansion() {
-    assertEquals("output-001-of-123.txt",
-        IOChannelUtils.constructName("output", "-SSS-of-NNN",
-            ".txt",
-            1, 123));
-
-    assertEquals("out.txt/part-00042",
-        IOChannelUtils.constructName("out.txt", "/part-SSSSS", "",
-            42, 100));
-
-    assertEquals("out.txt",
-        IOChannelUtils.constructName("ou", "t.t", "xt", 1, 1));
-
-    assertEquals("out0102shard.txt",
-        IOChannelUtils.constructName("out", "SSNNshard", ".txt", 1, 2));
-
-    assertEquals("out-2/1.part-1-of-2.txt",
-        IOChannelUtils.constructName("out", "-N/S.part-S-of-N",
-            ".txt", 1, 2));
-  }
-
   @Test(expected = IllegalArgumentException.class)
   public void testShardNameCollision() throws Exception {
     File outFolder = tmpFolder.newFolder();
     String filename = outFolder.toPath().resolve("output").toString();
 
-    IOChannelUtils.create(filename, "", "", 2, "text").close();
+    FileSystems.create(filename, "", "", 2, "text").close();
     fail("IOChannelUtils.create expected to fail due "
         + "to filename collision");
   }
@@ -82,7 +61,7 @@ public class IOChannelUtilsTest {
   @Test
   public void testLargeShardCount() {
     Assert.assertEquals("out-100-of-5000.txt",
-        IOChannelUtils.constructName("out", "-SS-of-NN", ".txt",
+        FileSystems.constructName("out", "-SS-of-NN", ".txt",
             100, 5000));
   }
 

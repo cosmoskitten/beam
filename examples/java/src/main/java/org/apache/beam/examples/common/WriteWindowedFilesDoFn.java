@@ -23,10 +23,10 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
@@ -65,8 +65,7 @@ public class WriteWindowedFilesDoFn
     String outputShard = fileForWindow(output, window);
 
     // Open the file and write all the values
-    IOChannelFactory factory = IOChannelUtils.getFactory(outputShard);
-    OutputStream out = Channels.newOutputStream(factory.create(outputShard, "text/plain"));
+    OutputStream out = Channels.newOutputStream(FileSystems.create(outputShard, MimeTypes.TEXT));
     for (KV<String, Long> wordCount : context.element().getValue()) {
       STRING_CODER.encode(
           wordCount.getKey() + ": " + wordCount.getValue(), out, Coder.Context.OUTER);

@@ -627,6 +627,7 @@ public class GcsUtil {
         if (errorExtractor.itemNotFound(e)) {
           // Do nothing on item not found.
           LOG.debug("{} does not exist, assuming this is a retry after deletion.", from);
+          // TODO: re-throw FileNotFoundException once FileSystems supports ignoreMissingFile.
           return;
         }
         throw new IOException(
@@ -649,6 +650,7 @@ public class GcsUtil {
         if (errorExtractor.itemNotFound(e)) {
           // Do nothing on item not found.
           LOG.debug("{} does not exist.", file);
+          // TODO: re-throw FileNotFoundException once FileSystems supports ignoreMissingFile.
           return;
         }
         throw new IOException(String.format("Error trying to delete %s: %s", file, e));

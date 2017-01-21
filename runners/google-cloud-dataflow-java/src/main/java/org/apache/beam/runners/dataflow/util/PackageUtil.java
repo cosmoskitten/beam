@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -208,7 +209,7 @@ public class PackageUtil {
         while (true) {
           try {
             LOG.debug("Uploading classpath element {} to {}", classpathElement, target);
-            try (WritableByteChannel writer = IOChannelUtils.create(target, MimeTypes.BINARY)) {
+            try (WritableByteChannel writer = FileSystems.create(target, MimeTypes.BINARY)) {
               copyContent(classpathElement, writer);
             }
             numUploaded++;

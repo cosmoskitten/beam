@@ -425,8 +425,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
       if (numFiles > 0) {
         LOG.debug("Copying {} files.", numFiles);
-        IOChannelUtils.getFactory(destFilenames.get(0))
-            .copy(srcFilenames, destFilenames);
+        FileSystems.copy(srcFilenames, destFilenames);
       } else {
         LOG.info("No output files to write.");
       }
@@ -445,7 +444,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
       String suffix = getFileExtension(extension);
       for (int i = 0; i < numFiles; i++) {
-        destFilenames.add(IOChannelUtils.constructName(
+        destFilenames.add(FileSystems.constructName(
             baseOutputFilename, fileNamingTemplate, suffix, i, numFiles));
       }
 
@@ -494,8 +493,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
           allMatches.size() - matches.size());
       // Deletion of the temporary directory might fail, if not all temporary files are removed.
       try {
-        factory.remove(allMatches);
-        factory.remove(ImmutableList.of(tempDir));
+        FileSystems.delete(allMatches);
+        FileSystems.delete(ImmutableList.of(tempDir));
       } catch (Exception e) {
         LOG.warn("Failed to remove temporary directory: [{}].", tempDir);
       }
@@ -601,7 +600,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       final WritableByteChannelFactory factory =
           getWriteOperation().getSink().writableByteChannelFactory;
       mimeType = factory.getMimeType();
-      channel = factory.create(IOChannelUtils.create(filename, mimeType));
+      channel = factory.create(FileSystems.create(filename, mimeType));
       try {
         prepareWrite(channel);
         LOG.debug("Writing header to {}.", filename);
