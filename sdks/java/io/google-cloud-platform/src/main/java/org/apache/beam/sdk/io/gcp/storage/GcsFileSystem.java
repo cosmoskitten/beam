@@ -19,8 +19,15 @@ package org.apache.beam.sdk.io.gcp.storage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.util.Collection;
+import java.util.List;
 import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.FileSystems.CreateOptions;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 /**
  * {@link FileSystem} implementation for Google Cloud Storage.
@@ -30,5 +37,34 @@ class GcsFileSystem extends FileSystem {
 
   GcsFileSystem(GcsOptions options) {
     this.options = checkNotNull(options, "options");
+  }
+
+  @Override
+  protected WritableByteChannel create(String file, CreateOptions createOptions)
+      throws IOException {
+    return options.getGcsUtil().create(
+        GcsPath.fromUri(file),
+        createOptions.mimeType());
+  }
+
+  @Override
+  protected ReadableByteChannel open(String file) throws IOException {
+    return options.getGcsUtil().open(GcsPath.fromUri(file));
+  }
+
+  @Override
+  protected void rename(List<String> srcFiles, List<String> destFiles) throws IOException {
+    copy(srcFiles, destFiles);
+    delete(srcFiles);
+  }
+
+  @Override
+  protected void delete(Collection<String> files) throws IOException {
+    options.getGcsUtil().remove(files);
+  }
+
+  @Override
+  protected void copy(List<String> srcUris, List<String> destUris) throws IOException {
+    options.getGcsUtil().copy(srcUris, destUris);
   }
 }

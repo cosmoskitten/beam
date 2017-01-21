@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.io.FileSystems;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,7 +127,7 @@ public class NumberedShardedFile implements ShardedFile {
         }
 
         // Read data from file paths
-        return readLines(files, factory);
+        return readLines(files);
       } catch (IOException e) {
         // Ignore and retry
         lastException = e;
@@ -162,12 +163,12 @@ public class NumberedShardedFile implements ShardedFile {
    * than can be reasonably processed serially, in-memory, by a single thread.
    */
   @VisibleForTesting
-  List<String> readLines(Collection<String> files, IOChannelFactory factory) throws IOException {
+  List<String> readLines(Collection<String> files) throws IOException {
     List<String> allLines = Lists.newArrayList();
     int i = 1;
     for (String file : files) {
       try (Reader reader =
-               Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
+               Channels.newReader(FileSystems.open(file), StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         allLines.addAll(lines);
         LOG.debug(

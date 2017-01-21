@@ -104,6 +104,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.io.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.PubsubUnboundedSource;
@@ -572,7 +573,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               "Location must be local or on Cloud Storage, got {}.", fileLocation));
       String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
       try (PrintWriter printWriter = new PrintWriter(
-          Channels.newOutputStream(IOChannelUtils.create(fileLocation, MimeTypes.TEXT)))) {
+          Channels.newOutputStream(FileSystems.create(fileLocation, MimeTypes.TEXT)))) {
         printWriter.print(workSpecJson);
         LOG.info("Printed job specification to {}", fileLocation);
       } catch (IOException ex) {

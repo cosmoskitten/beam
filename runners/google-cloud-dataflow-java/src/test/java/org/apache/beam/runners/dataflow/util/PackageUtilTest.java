@@ -70,7 +70,12 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import org.apache.beam.runners.dataflow.util.PackageUtil.PackageAttributes;
+import org.apache.beam.sdk.io.FileSystemRegistrar;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.FileSystems.CreateOptions;
+import org.apache.beam.sdk.io.FileSystems.MockFileSystem;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
@@ -101,8 +106,9 @@ public class PackageUtilTest {
   @Rule
   public FastNanoClockAndSleeper fastNanoClockAndSleeper = new FastNanoClockAndSleeper();
 
-  @Mock
-  GcsUtil mockGcsUtil;
+  @Mock GcsUtil mockGcsUtil;
+  @Mock FileSystemRegistrar mockFileSystemRegistrar;
+  @Mock MockFileSystem mockFileSystem;
 
   // 128 bits, base64 encoded is 171 bits, rounds to 22 bytes
   private static final String HASH_PATTERN = "[a-zA-Z0-9+-]{22}";
@@ -139,6 +145,11 @@ public class PackageUtilTest {
 
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
     pipelineOptions.setGcsUtil(mockGcsUtil);
+
+    when(mockFileSystemRegistrar.getScheme()).thenReturn("gs");
+    when(mockFileSystemRegistrar.fromOptions(any(PipelineOptions.class)))
+        .thenReturn(mockFileSystem);
+    FileSystems.overrideFileSystemRegistrarsForTests(mockFileSystemRegistrar);
 
     IOChannelUtils.registerIOFactoriesAllowOverride(pipelineOptions);
   }
@@ -252,15 +263,16 @@ public class PackageUtilTest {
     File tmpFile = makeFileWithContents("file.txt", contents);
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
         .thenThrow(new FileNotFoundException("some/path"));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockFileSystem.create(anyString(), any(CreateOptions.class))).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
         ImmutableList.of(tmpFile.getAbsolutePath()), STAGING_PATH, mockGcsUtil);
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockFileSystem).create(anyString(), any(CreateOptions.class));
     verifyNoMoreInteractions(mockGcsUtil);
+    verifyNoMoreInteractions(mockFileSystem);
 
     assertThat(target.getName(), RegexMatcher.matches("file-" + HASH_PATTERN + ".txt"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + '/' + target.getName()));
@@ -302,14 +314,15 @@ public class PackageUtilTest {
 
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
         .thenThrow(new FileNotFoundException("some/path"));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockFileSystem.create(anyString(), any(CreateOptions.class))).thenReturn(pipe.sink());
 
     PackageUtil.stageClasspathElements(
         ImmutableList.of(tmpDirectory.getAbsolutePath()), STAGING_PATH, mockGcsUtil);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockFileSystem).create(anyString(), any(CreateOptions.class));
     verifyNoMoreInteractions(mockGcsUtil);
+    verifyNoMoreInteractions(mockFileSystem);
 
     ZipInputStream inputStream = new ZipInputStream(Channels.newInputStream(pipe.source()));
     List<String> zipEntryNames = new ArrayList<>();
@@ -329,15 +342,16 @@ public class PackageUtilTest {
 
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
         .thenThrow(new FileNotFoundException("some/path"));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockFileSystem.create(anyString(), any(CreateOptions.class))).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
         ImmutableList.of(tmpDirectory.getAbsolutePath()), STAGING_PATH, mockGcsUtil);
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockFileSystem).create(anyString(), any(CreateOptions.class));
     verifyNoMoreInteractions(mockGcsUtil);
+    verifyNoMoreInteractions(mockFileSystem);
 
     assertThat(target.getName(), RegexMatcher.matches("folder-" + HASH_PATTERN + ".jar"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + '/' + target.getName()));
@@ -349,7 +363,7 @@ public class PackageUtilTest {
     File tmpFile = makeFileWithContents("file.txt", "This is a test!");
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
         .thenThrow(new FileNotFoundException("some/path"));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockFileSystem.create(anyString(), any(CreateOptions.class)))
         .thenThrow(new IOException("Fake Exception: Upload error"));
 
     try {
@@ -359,8 +373,9 @@ public class PackageUtilTest {
           mockGcsUtil);
     } finally {
       verify(mockGcsUtil).fileSize(any(GcsPath.class));
-      verify(mockGcsUtil, times(5)).create(any(GcsPath.class), anyString());
+      verify(mockFileSystem, times(5)).create(anyString(), any(CreateOptions.class));
       verifyNoMoreInteractions(mockGcsUtil);
+      verifyNoMoreInteractions(mockFileSystem);
     }
   }
 
@@ -369,7 +384,7 @@ public class PackageUtilTest {
     File tmpFile = makeFileWithContents("file.txt", "This is a test!");
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
         .thenThrow(new FileNotFoundException("some/path"));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockFileSystem.create(anyString(), any(CreateOptions.class)))
         .thenThrow(new IOException("Failed to write to GCS path " + STAGING_PATH,
             googleJsonResponseException(
                 HttpStatusCodes.STATUS_CODE_FORBIDDEN, "Permission denied", "Test message")));
@@ -393,8 +408,9 @@ public class PackageUtilTest {
                       + "login'")));
     } finally {
       verify(mockGcsUtil).fileSize(any(GcsPath.class));
-      verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+      verify(mockFileSystem).create(anyString(), any(CreateOptions.class));
       verifyNoMoreInteractions(mockGcsUtil);
+      verifyNoMoreInteractions(mockFileSystem);
     }
   }
 
@@ -404,7 +420,7 @@ public class PackageUtilTest {
     File tmpFile = makeFileWithContents("file.txt", "This is a test!");
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
         .thenThrow(new FileNotFoundException("some/path"));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockFileSystem.create(anyString(), any(CreateOptions.class)))
         .thenThrow(new IOException("Fake Exception: 410 Gone")) // First attempt fails
         .thenReturn(pipe.sink());                               // second attempt succeeds
 
@@ -414,8 +430,9 @@ public class PackageUtilTest {
           MoreExecutors.newDirectExecutorService(), mockGcsUtil);
     } finally {
       verify(mockGcsUtil).fileSize(any(GcsPath.class));
-      verify(mockGcsUtil, times(2)).create(any(GcsPath.class), anyString());
+      verify(mockFileSystem, times(2)).create(anyString(), any(CreateOptions.class));
       verifyNoMoreInteractions(mockGcsUtil);
+      verifyNoMoreInteractions(mockFileSystem);
     }
   }
 
@@ -440,14 +457,15 @@ public class PackageUtilTest {
     makeFileWithContents("folder/file.txt", "This is a test!");
     makeFileWithContents("folder/directory/file.txt", "This is also a test!");
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(Long.MAX_VALUE);
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockFileSystem.create(anyString(), any(CreateOptions.class))).thenReturn(pipe.sink());
 
     PackageUtil.stageClasspathElements(
         ImmutableList.of(tmpDirectory.getAbsolutePath()), STAGING_PATH, mockGcsUtil);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockFileSystem).create(anyString(), any(CreateOptions.class));
     verifyNoMoreInteractions(mockGcsUtil);
+    verifyNoMoreInteractions(mockFileSystem);
   }
 
   @Test
@@ -458,7 +476,7 @@ public class PackageUtilTest {
 
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
         .thenThrow(new FileNotFoundException("some/path"));
-    when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
+    when(mockFileSystem.create(anyString(), any(CreateOptions.class))).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
         ImmutableList.of(overriddenName + "=" + tmpFile.getAbsolutePath()), STAGING_PATH,
@@ -466,8 +484,9 @@ public class PackageUtilTest {
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
-    verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+    verify(mockFileSystem).create(anyString(), any(CreateOptions.class));
     verifyNoMoreInteractions(mockGcsUtil);
+    verifyNoMoreInteractions(mockFileSystem);
 
     assertThat(target.getName(), equalTo(overriddenName));
     assertThat(target.getLocation(),

@@ -24,12 +24,8 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
-import com.google.common.io.LineReader;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.Reader;
-import java.io.Writer;
-import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
@@ -47,72 +43,6 @@ public class FileIOChannelFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
   private FileIOChannelFactory factory = FileIOChannelFactory.fromOptions(null);
-
-  private void testCreate(Path path) throws Exception {
-    String expected = "my test string";
-    // First with the path string
-    try (Writer writer = Channels.newWriter(
-        factory.create(path.toString(), MimeTypes.TEXT), StandardCharsets.UTF_8.name())) {
-      writer.write(expected);
-    }
-    assertThat(
-        Files.readLines(path.toFile(), StandardCharsets.UTF_8),
-        containsInAnyOrder(expected));
-
-    // Delete the file before trying as URI
-    assertTrue("Unable to delete file " + path, path.toFile().delete());
-
-    // Second with the path URI
-    try (Writer writer = Channels.newWriter(
-        factory.create(path.toUri().toString(), MimeTypes.TEXT), StandardCharsets.UTF_8.name())) {
-      writer.write(expected);
-    }
-    assertThat(
-        Files.readLines(path.toFile(), StandardCharsets.UTF_8),
-        containsInAnyOrder(expected));
-  }
-
-  @Test
-  public void testCreateWithExistingFile() throws Exception {
-    File existingFile = temporaryFolder.newFile();
-    testCreate(existingFile.toPath());
-  }
-
-  @Test
-  public void testCreateWithinExistingDirectory() throws Exception {
-    testCreate(temporaryFolder.getRoot().toPath().resolve("file.txt"));
-  }
-
-  @Test
-  public void testCreateWithNonExistentSubDirectory() throws Exception {
-    testCreate(temporaryFolder.getRoot().toPath().resolve("non-existent-dir").resolve("file.txt"));
-  }
-
-  @Test
-  public void testReadWithExistingFile() throws Exception {
-    String expected = "my test string";
-    File existingFile = temporaryFolder.newFile();
-    Files.write(expected, existingFile, StandardCharsets.UTF_8);
-    String data;
-    try (Reader reader =
-        Channels.newReader(factory.open(existingFile.getPath()), StandardCharsets.UTF_8.name())) {
-      data = new LineReader(reader).readLine();
-    }
-    assertEquals(expected, data);
-  }
-
-  @Test
-  public void testReadNonExistentFile() throws Exception {
-    thrown.expect(FileNotFoundException.class);
-    factory
-        .open(
-            temporaryFolder
-                .getRoot()
-                .toPath()
-                .resolve("non-existent-file.txt")
-                .toString())
-        .close();
-  }
 
   @Test
   public void testIsReadSeekEfficient() throws Exception {

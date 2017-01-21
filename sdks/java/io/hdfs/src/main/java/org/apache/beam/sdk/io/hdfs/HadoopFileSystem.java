@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.util.Collection;
+import java.util.List;
 import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.FileSystems.CreateOptions;
 
 /**
  * Adapts {@link org.apache.hadoop.fs.FileSystem} connectors to be used as
@@ -26,4 +32,30 @@ import org.apache.beam.sdk.io.FileSystem;
 class HadoopFileSystem extends FileSystem {
 
   HadoopFileSystem() {}
+
+  @Override
+  protected WritableByteChannel create(String file, CreateOptions createOptions)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected ReadableByteChannel open(String file) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected void copy(List<String> srcFiles, List<String> destFiles) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected void rename(List<String> srcFiles, List<String> destFiles) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected void delete(Collection<String> files) throws IOException {
+    throw new UnsupportedOperationException();
+  }
 }

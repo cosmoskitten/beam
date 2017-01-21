@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
-import java.net.URI;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -48,13 +47,13 @@ public class FileSystemsTest {
   @Test
   public void testGetLocalFileSystem() throws Exception {
     assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("~/home/")) instanceof LocalFileSystem);
+        FileSystems.getFileSystemInternal("~/home/") instanceof LocalFileSystem);
     assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("file://home")) instanceof LocalFileSystem);
+        FileSystems.getFileSystemInternal("file://home") instanceof LocalFileSystem);
     assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("FILE://home")) instanceof LocalFileSystem);
+        FileSystems.getFileSystemInternal("FILE://home") instanceof LocalFileSystem);
     assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("File://home")) instanceof LocalFileSystem);
+        FileSystems.getFileSystemInternal("File://home") instanceof LocalFileSystem);
   }
 
   @Test
@@ -75,5 +74,27 @@ public class FileSystemsTest {
                 return "FILE";
               }
             }));
+  }
+
+  @Test
+  public void testShardFormatExpansion() {
+    assertEquals("output-001-of-123.txt",
+        FileSystems.constructName("output", "-SSS-of-NNN",
+            ".txt",
+            1, 123));
+
+    assertEquals("out.txt/part-00042",
+        FileSystems.constructName("out.txt", "/part-SSSSS", "",
+            42, 100));
+
+    assertEquals("out.txt",
+        FileSystems.constructName("ou", "t.t", "xt", 1, 1));
+
+    assertEquals("out0102shard.txt",
+        FileSystems.constructName("out", "SSNNshard", ".txt", 1, 2));
+
+    assertEquals("out-2/1.part-1-of-2.txt",
+        FileSystems.constructName("out", "-N/S.part-S-of-N",
+            ".txt", 1, 2));
   }
 }
