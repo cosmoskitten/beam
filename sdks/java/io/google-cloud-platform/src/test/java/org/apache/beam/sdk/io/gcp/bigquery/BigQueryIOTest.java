@@ -102,6 +102,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryQuerySource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryTableSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.JsonSchemaToTableSchema;
@@ -2367,7 +2368,7 @@ public class BigQueryIOTest implements Serializable {
       for (String destination : destinations) {
         String newDest = destination.replace("*", "000000000000");
         Schema schema = schemaGenerator.apply(null);
-        try (WritableByteChannel channel = IOChannelUtils.create(newDest, MimeTypes.BINARY);
+        try (WritableByteChannel channel = FileSystems.create(newDest, MimeTypes.BINARY);
             DataFileWriter<GenericRecord> tableRowWriter =
                 new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(schema))
                     .create(schema, Channels.newOutputStream(channel))) {

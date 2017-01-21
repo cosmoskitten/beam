@@ -51,14 +51,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.GcsIOChannelFactory;
 import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ZipFiles;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,12 +182,7 @@ class PackageUtil {
 
   private static WritableByteChannel makeWriter(String target, GcsUtil gcsUtil)
       throws IOException {
-    IOChannelFactory factory = IOChannelUtils.getFactory(target);
-    if (factory instanceof GcsIOChannelFactory) {
-      return gcsUtil.create(GcsPath.fromUri(target), MimeTypes.BINARY);
-    } else {
-      return factory.create(target, MimeTypes.BINARY);
-    }
+    return FileSystems.create(target, MimeTypes.BINARY);
   }
 
   /**

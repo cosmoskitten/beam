@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.storage;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.auto.service.AutoService;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.FileSystem;
@@ -32,6 +34,9 @@ public class GcsFileSystemRegistrar implements FileSystemRegistrar {
 
   @Override
   public FileSystem fromOptions(@Nonnull PipelineOptions options) {
+    checkNotNull(
+        options,
+        "Expect the runner have called FileSystems.setDefaultConfigInWorkers().");
     return new GcsFileSystem(options.as(GcsOptions.class));
   }
 

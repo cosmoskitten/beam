@@ -379,7 +379,7 @@ public class TextIOTest {
         expectedFiles.add(
             new File(
                 rootLocation.toString(),
-                IOChannelUtils.constructName(outputName, shardNameTemplate, "", i, numShards)));
+                FileSystems.constructName(outputName, shardNameTemplate, "", i, numShards)));
       }
     }
 

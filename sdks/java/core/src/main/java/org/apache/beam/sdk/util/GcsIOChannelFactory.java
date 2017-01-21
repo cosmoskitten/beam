@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
@@ -62,17 +63,13 @@ public class GcsIOChannelFactory implements IOChannelFactory {
 
   @Override
   public ReadableByteChannel open(String spec) throws IOException {
-    GcsPath path = GcsPath.fromUri(spec);
-    GcsUtil util = options.getGcsUtil();
-    return util.open(path);
+    return FileSystems.open(spec);
   }
 
   @Override
   public WritableByteChannel create(String spec, String mimeType)
       throws IOException {
-    GcsPath path = GcsPath.fromUri(spec);
-    GcsUtil util = options.getGcsUtil();
-    return util.create(path, mimeType);
+    return FileSystems.create(spec, mimeType);
   }
 
   @Override
@@ -100,11 +97,11 @@ public class GcsIOChannelFactory implements IOChannelFactory {
 
   @Override
   public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
-    options.getGcsUtil().copy(srcFilenames, destFilenames);
+    FileSystems.copy(srcFilenames, destFilenames);
   }
 
   @Override
   public void remove(Collection<String> filesOrDirs) throws IOException {
-    options.getGcsUtil().remove(filesOrDirs);
+    FileSystems.delete(filesOrDirs);
   }
 }

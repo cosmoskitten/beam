@@ -25,6 +25,7 @@ import java.util.Arrays;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.beam.sdk.io.FileSystems;
 
 /**
  * A set of utilities for working with Avro files.
@@ -88,7 +89,7 @@ public class AvroUtils {
     String schemaString = null;
     byte[] syncMarker;
     try (InputStream stream =
-        Channels.newInputStream(IOChannelUtils.getFactory(fileName).open(fileName))) {
+        Channels.newInputStream(FileSystems.open(fileName))) {
       BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(stream, null);
 
       // The header of an object container file begins with a four-byte magic number, followed

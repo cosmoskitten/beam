@@ -367,7 +367,7 @@ public class AvroIOTest {
     for (int i = 0; i < numShards; i++) {
       expectedFiles.add(
           new File(
-              IOChannelUtils.constructName(
+              FileSystems.constructName(
                   outputFilePrefix, shardNameTemplate, "" /* no suffix */, i, numShards)));
     }
 

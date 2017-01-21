@@ -84,6 +84,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -2211,7 +2212,7 @@ public class BigQueryIO {
         id = uId;
         fileName = tempFilePrefix + id;
         LOG.debug("Opening {}.", fileName);
-        channel = IOChannelUtils.create(fileName, mimeType);
+        channel = FileSystems.create(fileName, mimeType);
         try {
           out = new CountingOutputStream(Channels.newOutputStream(channel));
           LOG.debug("Writing header to {}.", fileName);
