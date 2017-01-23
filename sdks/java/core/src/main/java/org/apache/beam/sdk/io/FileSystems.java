@@ -374,7 +374,7 @@ public class FileSystems {
   /**
    * An abstract {@link FileSystem} whose methods are public and could be mocked.
    */
-  public abstract class MockFileSystem extends FileSystem {
+  public abstract static class MockFileSystem extends FileSystem {
     @Override
     public abstract WritableByteChannel create(String uri, FileSystems.CreateOptions options)
         throws IOException;
