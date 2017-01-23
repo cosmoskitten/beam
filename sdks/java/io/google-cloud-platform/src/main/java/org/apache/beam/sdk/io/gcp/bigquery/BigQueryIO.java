@@ -1863,25 +1863,27 @@ public class BigQueryIO {
             writeDisposition, validate, testServices);
       }
 
-      private static void verifyTableEmpty(
+      private static void verifyTableNotExistOrEmpty(
           DatasetService datasetService,
-          TableReference table) {
+          TableReference tableRef) {
         try {
-          boolean isEmpty = datasetService.isTableEmpty(
-              table.getProjectId(), table.getDatasetId(), table.getTableId());
-          if (!isEmpty) {
-            throw new IllegalArgumentException(
-                "BigQuery table is not empty: " + BigQueryIO.toTableSpec(table));
+          if (datasetService.getTable(
+              tableRef.getProjectId(),
+              tableRef.getDatasetId(),
+              tableRef.getTableId()) == null) {
+            return;
           }
+          checkState(
+              datasetService.isTableEmpty(
+                  tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+              "BigQuery table is not empty: " + BigQueryIO.toTableSpec(tableRef));
         } catch (IOException | InterruptedException e) {
-          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-          if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
-            // Nothing to do. If the table does not exist, it is considered empty.
-          } else {
-            throw new RuntimeException(
-                "unable to confirm BigQuery table emptiness for table "
-                    + BigQueryIO.toTableSpec(table), e);
+          if (e instanceof  InterruptedException) {
+            Thread.currentThread().interrupt();
           }
+          throw new RuntimeException(
+              "unable to confirm BigQuery table emptiness for table "
+                  + BigQueryIO.toTableSpec(tableRef), e);
         }
       }
 
@@ -1913,11 +1915,11 @@ public class BigQueryIO {
           // stage of the pipeline. For these cases the #withoutValidation method can be used to
           // disable the check.
           verifyDatasetPresence(datasetService, table);
-          if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+          if (getCreateDisposition() == CreateDisposition.CREATE_NEVER) {
             verifyTablePresence(datasetService, table);
           }
           if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
-            verifyTableEmpty(datasetService, table);
+            verifyTableNotExistOrEmpty(datasetService, table);
           }
         }
 
