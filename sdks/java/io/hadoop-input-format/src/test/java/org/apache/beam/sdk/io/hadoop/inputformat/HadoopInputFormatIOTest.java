@@ -522,13 +522,12 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#createReader()
-   * createReader()} and {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#start()
-   * start()} methods if InputFormat's {@link InputFormat#getSplits() getSplits()} returns
-   * InputSplitList having having no records.
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#start()
+   * start()} method if InputFormat's {@link InputFormat#getSplits() getSplits()} returns
+   * InputSplitList having zero records.
    */
   @Test
-  public void testReadersCreateReaderAndStartWithZeroRecords() throws Exception {
+  public void testReadersStartWhenZeroRecords() throws Exception {
     List<BoundedSource<KV<Text, Employee>>> boundedSourceList = getBoundedSourceList(
         BadNoRecordsInputFormat.class,
         Text.class,
@@ -540,8 +539,10 @@ public class HadoopInputFormatIOTest {
     assertEquals(false, reader.start());
     assertEquals(Double.valueOf(1), reader.getFractionConsumed());
   }
+  
   /**
-   * This test validates fractions consumed while reading data.
+   * This test validates the method getFractionConsumed()- which indicates the progress of the read 
+   * in range of 0 to 1.
    */
   @Test
   public void testReadersGetFractionConsumed() throws Exception {
@@ -553,9 +554,11 @@ public class HadoopInputFormatIOTest {
             WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
     long estimatedSize = hifSource.getEstimatedSizeBytes(p.getOptions());
+    // Validate if estimated size is equal to the size of records.
     assertEquals(referenceRecords.size(), estimatedSize);
     List<BoundedSource<KV<Text, Employee>>> boundedSourceList = hifSource
             .splitIntoBundles(0, p.getOptions());
+    // Validate if splitIntoBundles() has split correctly.
     assertEquals(TestEmployeeDataSet.NUMBER_OF_SPLITS, boundedSourceList.size());
     List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
@@ -574,12 +577,15 @@ public class HadoopInputFormatIOTest {
 >>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
 =======
       float recordsRead = 0;
+      // When start is not called, getFractionConsumed() should return 0.
       assertEquals(Double.valueOf(0), reader.getFractionConsumed());
 >>>>>>> Modifications according to code review comments.
       boolean start = reader.start();
       assertEquals(true, start);
       if (start) {
         elements.add(reader.getCurrent());
+        // Validate if getFractionConsumed() returns the correct fraction based on 
+        // the number of records read in the split.
         assertEquals(
             Double.valueOf(++recordsRead / TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
             reader.getFractionConsumed());
@@ -602,6 +608,7 @@ public class HadoopInputFormatIOTest {
 >>>>>>> Tests modifications.
         bundleRecords.addAll(elements);
       }
+      // Validate if getFractionConsumed() returns 1 after reading is complete. 
       assertEquals(Double.valueOf(1), reader.getFractionConsumed());
       reader.close();
     }
