@@ -411,11 +411,18 @@ public class TestPipelineTest implements Serializable {
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
       }
 
+      /**
+       * Tests that a {@link TestPipeline} rule behaves as expected when there is no pipeline usage
+       * within a test that has a {@link RunnableOnService} annotation.
+       */
       @Category(RunnableOnService.class)
       @Test
       public void testNoTestPipelineUsedRunnableOnService() { }
 
-
+      /**
+       * Tests that a {@link TestPipeline} rule behaves as expected when there is no pipeline usage
+       * present in a test.
+       */
       @Test
       public void testNoTestPipelineUsedNoAnnotation() { }
 
@@ -490,7 +497,6 @@ public class TestPipelineTest implements Serializable {
       }
 
     }
-
 
     private static List<Object[]> extractTests(final Class<?> testClass) {
       final ArrayList<org.junit.runner.Description> testDescriptions = Request.aClass(testClass)
