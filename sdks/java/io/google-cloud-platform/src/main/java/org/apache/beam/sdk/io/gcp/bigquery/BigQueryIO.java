@@ -1867,21 +1867,50 @@ public class BigQueryIO {
           DatasetService datasetService,
           TableReference table) {
         try {
-          boolean isEmpty = datasetService.isTableEmpty(
-              table.getProjectId(), table.getDatasetId(), table.getTableId());
-          if (!isEmpty) {
-            throw new IllegalArgumentException(
-                "BigQuery table is not empty: " + BigQueryIO.toTableSpec(table));
+          checkState(
+              datasetService.isTableEmpty(
+                  table.getProjectId(), table.getDatasetId(), table.getTableId()),
+              "BigQuery table is not empty: " + BigQueryIO.toTableSpec(table));
+        } catch (IOException | InterruptedException e) {
+          if (e instanceof  InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
+          throw new RuntimeException(
+              "unable to confirm BigQuery table emptiness for table "
+                  + BigQueryIO.toTableSpec(table), e);
+        }
+      }
+
+
+      /**
+       * Create the table if it does not exist.
+       *
+       * @return true if a new table was created.
+       */
+      private boolean createTableIfNeeded(
+          DatasetService datasetService,
+          TableReference tableRef,
+          String jsonTableSchema) {
+        try {
+          if (datasetService.getTable(
+              tableRef.getProjectId(),
+              tableRef.getDatasetId(),
+              tableRef.getTableId()) == null) {
+            TableSchema tableSchema = JSON_FACTORY.fromString(
+                jsonTableSchema, TableSchema.class);
+            datasetService.createTable(
+                new Table().setTableReference(tableRef).setSchema(tableSchema));
+            return true;
+          } else {
+            return false;
           }
         } catch (IOException | InterruptedException e) {
-          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-          if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
-            // Nothing to do. If the table does not exist, it is considered empty.
-          } else {
-            throw new RuntimeException(
-                "unable to confirm BigQuery table emptiness for table "
-                    + BigQueryIO.toTableSpec(table), e);
+          if (e instanceof  InterruptedException) {
+            Thread.currentThread().interrupt();
           }
+          throw new RuntimeException(
+              "unable to get or create BigQuery table: " + BigQueryIO.toTableSpec(tableRef),
+              e);
         }
       }
 
@@ -1913,8 +1942,10 @@ public class BigQueryIO {
           // stage of the pipeline. For these cases the #withoutValidation method can be used to
           // disable the check.
           verifyDatasetPresence(datasetService, table);
-          if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+          if (getCreateDisposition() == CreateDisposition.CREATE_NEVER) {
             verifyTablePresence(datasetService, table);
+          } else if (getCreateDisposition() == CreateDisposition.CREATE_IF_NEEDED) {
+            createTableIfNeeded(datasetService, table, jsonSchema.get());
           }
           if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
             verifyTableEmpty(datasetService, table);
