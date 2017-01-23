@@ -25,10 +25,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+<<<<<<< HEAD
 <<<<<<< HEAD:sdks/java/io/hadoop-input-format/src/test/java/org/apache/beam/sdk/io/hadoop/inputformat/unit/tests/HIFIOWithElasticTest.java
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 =======
 >>>>>>> Modifications according to code review comments.:sdks/java/io/hadoop-input-format/src/test/java/org/apache/beam/sdk/io/hadoop/inputformat/HIFIOWithElasticTest.java
+=======
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
+>>>>>>> Added tempfolder rule in elastic test, assert changes in cassandra IT, dependency version changes in pom.xml
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -55,9 +60,11 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.FixMethodOrder;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.MethodSorters;
@@ -269,6 +276,9 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final String ELASTIC_TYPE_ID_PREFIX = "xyz22600";
 >>>>>>> Embdded elastic test with value checks and query formatted
 
+  @ClassRule
+  public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
+
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -362,15 +372,14 @@ public class HIFIOWithElasticTest implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private static Node node;
-    private static final String DEFAULT_PATH = "target/ESData";
 
     public static void startElasticEmbeddedServer() throws UnknownHostException,
         NodeValidationException, InterruptedException {
 
       Settings settings =
           Settings.builder().put("node.data", TRUE).put("network.host", ELASTIC_IN_MEM_HOSTNAME)
-              .put("http.port", ELASTIC_IN_MEM_PORT).put("path.data", DEFAULT_PATH)
-              .put("path.home", DEFAULT_PATH).put("transport.type", "local")
+              .put("http.port", ELASTIC_IN_MEM_PORT).put("path.data", elasticTempFolder.getRoot().getPath())
+              .put("path.home", elasticTempFolder.getRoot().getPath()).put("transport.type", "local")
               .put("http.enabled", TRUE).put("node.ingest", TRUE).build();
       node = new PluginNode(settings);
       node.start();
@@ -412,7 +421,7 @@ public class HIFIOWithElasticTest implements Serializable {
 
     private static void deleteElasticDataDirectory() {
       try {
-        FileUtils.deleteDirectory(new File(DEFAULT_PATH));
+        FileUtils.deleteDirectory(new File(elasticTempFolder.getRoot().getPath()));
       } catch (IOException e) {
         throw new RuntimeException("Exception: Could not delete elastic data directory", e);
       }

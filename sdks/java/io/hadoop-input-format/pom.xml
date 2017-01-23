@@ -2,6 +2,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
@@ -319,6 +320,8 @@
   </dependencies>
 =======
 =======
+=======
+>>>>>>> Added tempfolder rule in elastic test, assert changes in cassandra IT, dependency version changes in pom.xml
 <!-- Licensed to the Apache Software Foundation (ASF) under one or more contributor
 	license agreements. See the NOTICE file distributed with this work for additional
 	information regarding copyright ownership. The ASF licenses this file to
@@ -328,6 +331,7 @@
 	by applicable law or agreed to in writing, software distributed under the
 	License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
 	OF ANY KIND, either express or implied. See the License for the specific
+<<<<<<< HEAD
 =======
 <!-- Licensed to the Apache Software Foundation (ASF) under one or more contributor 
 	license agreements. See the NOTICE file distributed with this work for additional 
@@ -339,6 +343,8 @@
 	License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS 
 	OF ANY KIND, either express or implied. See the License for the specific 
 >>>>>>> changes in pom to add checkstyle plugin, jacoco, . Datastore v1 corrected the errors which were pushed by mistake
+=======
+>>>>>>> Added tempfolder rule in elastic test, assert changes in cassandra IT, dependency version changes in pom.xml
 	language governing permissions and limitations under the License. -->
 >>>>>>> Integration test for elastic search, pom file changes added
 <project
@@ -445,7 +451,7 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 			</plugin>
-			<!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-checkstyle-plugin</artifactId> 
+			<!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-checkstyle-plugin</artifactId>
 				</plugin> -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -500,6 +506,7 @@
 		<commons.io.version>2.4</commons.io.version>
 		<findbugs.jsr305.version>3.0.1</findbugs.jsr305.version>
 		<slf4j.api.version>1.7.14</slf4j.api.version>
+		<guava.version>16.0.1</guava.version>
 	</properties>
 
 	<dependencies>
@@ -554,7 +561,7 @@
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>12.0.1</version>
+			<version>${guava.version}</version>
 		</dependency>
 
 		<dependency>
@@ -663,19 +670,6 @@
 			<version>1.2.4</version>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-protocol</artifactId>
-			<version>1.2.4</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>zookeeper</artifactId>
-			<version>3.3.1</version>
-			<scope>test</scope>
-		</dependency>
-
 
 		<!-- Dependencies of Postgresql -->
 		<dependency>
