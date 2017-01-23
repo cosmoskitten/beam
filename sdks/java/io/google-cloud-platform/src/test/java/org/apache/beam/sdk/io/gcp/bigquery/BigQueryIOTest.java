@@ -643,6 +643,15 @@ public class BigQueryIOTest implements Serializable {
         return dataSize;
       }
     }
+
+    @Override
+    public Table patchTableDescription(String project,
+                                       String dataset,
+                                       String tableId,
+                                       String tableDescription)
+        throws IOException, InterruptedException {
+      throw new UnsupportedOperationException("Unsupported");
+    }
   }
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
@@ -682,21 +691,30 @@ public class BigQueryIOTest implements Serializable {
   private void checkWriteObject(
       BigQueryIO.Write.Bound bound, String project, String dataset, String table,
       TableSchema schema, CreateDisposition createDisposition,
-      WriteDisposition writeDisposition) {
+      WriteDisposition writeDisposition, String tableDescription) {
     checkWriteObjectWithValidate(
-        bound, project, dataset, table, schema, createDisposition, writeDisposition, true);
+        bound,
+        project,
+        dataset,
+        table,
+        schema,
+        createDisposition,
+        writeDisposition,
+        tableDescription,
+        true);
   }
 
   private void checkWriteObjectWithValidate(
       BigQueryIO.Write.Bound bound, String project, String dataset, String table,
       TableSchema schema, CreateDisposition createDisposition,
-      WriteDisposition writeDisposition, boolean validate) {
+      WriteDisposition writeDisposition, String tableDescription, boolean validate) {
     assertEquals(project, bound.getTable().get().getProjectId());
     assertEquals(dataset, bound.getTable().get().getDatasetId());
     assertEquals(table, bound.getTable().get().getTableId());
     assertEquals(schema, bound.getSchema());
     assertEquals(createDisposition, bound.createDisposition);
     assertEquals(writeDisposition, bound.writeDisposition);
+    assertEquals(tableDescription, bound.tableDescription);
     assertEquals(validate, bound.validate);
   }
 
@@ -1332,7 +1350,7 @@ public class BigQueryIOTest implements Serializable {
             BigQueryIO.Write.to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -1378,8 +1396,15 @@ public class BigQueryIOTest implements Serializable {
     BigQueryIO.Write.Bound bound =
         BigQueryIO.Write.to("foo.com:project:somedataset.sometable").withoutValidation();
     checkWriteObjectWithValidate(
-        bound, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, false);
+        bound,
+        "foo.com:project",
+        "somedataset",
+        "sometable",
+        null,
+        CreateDisposition.CREATE_IF_NEEDED,
+        WriteDisposition.WRITE_EMPTY,
+        null,
+        false);
   }
 
   @Test
@@ -1387,7 +1412,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.to("somedataset.sometable");
     checkWriteObject(
         bound, null, "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -1399,7 +1424,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.to(table);
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -1419,7 +1444,7 @@ public class BigQueryIOTest implements Serializable {
         BigQueryIO.Write.to("foo.com:project:somedataset.sometable").withSchema(schema);
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
-        schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
+        schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -1429,7 +1454,7 @@ public class BigQueryIOTest implements Serializable {
         .withCreateDisposition(CreateDisposition.CREATE_NEVER);
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_NEVER, WriteDisposition.WRITE_EMPTY);
+        null, CreateDisposition.CREATE_NEVER, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -1439,7 +1464,7 @@ public class BigQueryIOTest implements Serializable {
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -1449,7 +1474,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_TRUNCATE);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_TRUNCATE, null);
   }
 
   @Test
@@ -1459,7 +1484,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND, null);
   }
 
   @Test
@@ -1469,19 +1494,38 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_EMPTY);
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+  }
+
+  @Test
+  public void testBuildWriteWithWriteWithTableDescription() {
+    final String tblDescription = "foo bar table";
+    BigQueryIO.Write.Bound bound = BigQueryIO.Write
+        .to("foo.com:project:somedataset.sometable")
+        .withTableDescription(tblDescription);
+    checkWriteObject(
+        bound,
+        "foo.com:project",
+        "somedataset",
+        "sometable",
+        null,
+        CreateDisposition.CREATE_IF_NEEDED,
+        WriteDisposition.WRITE_EMPTY,
+        tblDescription);
   }
 
   @Test
   public void testBuildWriteDisplayData() {
     String tableSpec = "project:dataset.table";
     TableSchema schema = new TableSchema().set("col1", "type1").set("col2", "type2");
+    final String tblDescription = "foo bar table";
 
     BigQueryIO.Write.Bound write = BigQueryIO.Write
         .to(tableSpec)
         .withSchema(schema)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+        .withTableDescription(tblDescription)
         .withoutValidation();
 
     DisplayData displayData = DisplayData.from(write);
@@ -1492,6 +1536,8 @@ public class BigQueryIOTest implements Serializable {
         hasDisplayItem("createDisposition", CreateDisposition.CREATE_IF_NEEDED.toString()));
     assertThat(displayData,
         hasDisplayItem("writeDisposition", WriteDisposition.WRITE_APPEND.toString()));
+    assertThat(displayData,
+        hasDisplayItem("tableDescription", tblDescription));
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
@@ -2187,7 +2233,8 @@ public class BigQueryIOTest implements Serializable {
         StaticValueProvider.of(jsonTable),
         StaticValueProvider.of(jsonSchema),
         WriteDisposition.WRITE_EMPTY,
-        CreateDisposition.CREATE_IF_NEEDED);
+        CreateDisposition.CREATE_IF_NEEDED,
+        null);
 
     DoFnTester<KV<Long, Iterable<List<String>>>, String> tester = DoFnTester.of(writeTables);
     for (KV<Long, Iterable<List<String>>> partition : partitions) {
@@ -2258,7 +2305,8 @@ public class BigQueryIOTest implements Serializable {
         StaticValueProvider.of(jsonTable),
         WriteDisposition.WRITE_EMPTY,
         CreateDisposition.CREATE_IF_NEEDED,
-        tempTablesView);
+        tempTablesView,
+        null);
 
     DoFnTester<String, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(tempTablesView, GlobalWindow.INSTANCE, tempTables);
