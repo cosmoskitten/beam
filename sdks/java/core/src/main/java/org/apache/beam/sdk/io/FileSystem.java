@@ -62,7 +62,7 @@ public abstract class FileSystem {
    * @param destFiles the destination files.
    *
    * @throws FileNotFoundException if the source files are missing. When it throws,
-   * each file might or might not be copied. In such scenarios, callers can use {@link #match}
+   * each file might or might not be copied. In such scenarios, callers can use {@code match()}
    * to determine the state of the files.
    */
   protected abstract void copy(List<String> srcFiles, List<String> destFiles) throws IOException;
@@ -81,7 +81,7 @@ public abstract class FileSystem {
    * for every (source, destination) pair of files, the following are possible:
    * a) source exists, b) destination exists, c) source and destination both exist.
    * Thus no data is lost, however, duplicated files are possible.
-   * In such scenarios, callers can use {@link #match} to determine the state of the files.
+   * In such scenarios, callers can use {@code match()} to determine the state of the files.
    */
   protected abstract void rename(List<String> srcFiles, List<String> destFiles)
       throws IOException;
@@ -90,12 +90,12 @@ public abstract class FileSystem {
    * Deletes a collection of files (including directories).
    *
    * <p>It is allowed but not recommended to delete directories recursively.
-   * Callers depends on {@link FileSystems} and uses {@link DeleteOptions}.
+   * Callers depends on {@link FileSystems} and uses {@code DeleteOptions}.
    *
    * @param files the files to delete.
    *
    * @throws FileNotFoundException if files are missing. When it throws,
-   * each file might or might not be deleted. In such scenarios, callers can use {@link #match}
+   * each file might or might not be deleted. In such scenarios, callers can use {@code match()}
    * to determine the state of the files.
    */
   protected abstract void delete(Collection<String> files) throws IOException;
