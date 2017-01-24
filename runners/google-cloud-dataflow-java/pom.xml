@@ -69,7 +69,32 @@
                       <dependency>org.apache.beam:beam-sdks-java-core</dependency>
                     </dependenciesToScan>
                     <systemPropertyVariables>
-                      <beamTestPipelineOptions>${validatesRunnerPipelineOptions}</beamTestPipelineOptions>
+                      <beamTestPipelineOptions>
+                        ${validatesRunnerPipelineOptions}
+                      </beamTestPipelineOptions>
+                      <beam.dataflow.forceStreaming>false</beam.dataflow.forceStreaming>
+                    </systemPropertyVariables>
+                  </configuration>
+                </execution>
+                <execution>
+                  <id>streaming-validates-runner-tests</id>
+                  <phase>integration-test</phase>
+                  <goals>
+                    <goal>test</goal>
+                  </goals>
+                  <configuration>
+                    <skip>false</skip>
+                    <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
+                    <parallel>all</parallel>
+                    <threadCount>4</threadCount>
+                    <dependenciesToScan>
+                      <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                    </dependenciesToScan>
+                    <systemPropertyVariables>
+                      <beamTestPipelineOptions>
+                        ${validatesRunnerPipelineOptions}
+                      </beamTestPipelineOptions>
+                      <beam.dataflow.forceStreaming>true</beam.dataflow.forceStreaming>
                     </systemPropertyVariables>
                   </configuration>
                 </execution>
