@@ -830,9 +830,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void set(Instant target) {
+      timerInternals.setTimer(namespace, timerId, target, spec.getTimeDomain());
+    }
+
+    @Override
     public void setForNowPlus(Duration durationFromNow) {
-      timerInternals.setTimer(
-          namespace, timerId, getCurrentTime().plus(durationFromNow), spec.getTimeDomain());
+      set(getCurrentTime().plus(durationFromNow));
     }
 
     @Override

@@ -1675,6 +1675,39 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
 
+  /**
+   * Tests that an event time timer set absolutely for the last possible moment fires and results in
+   * supplementary output. The test is otherwise identical to {@link #testEventTimeTimerBounded()}.
+   */
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testEventTimeTimerAbsolute() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext context, @TimerId(timerId) Timer timer, BoundedWindow window) {
+            timer.set(window.maxTimestamp());
+            context.output(3);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
   @Test
   @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
   public void testSimpleProcessingTimerTimer() throws Exception {
