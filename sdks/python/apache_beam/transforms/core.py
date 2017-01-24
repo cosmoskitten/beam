@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import copy
 import inspect
+import logging
 import types
 
 from apache_beam import pvalue
@@ -237,6 +238,10 @@ class DoFn(WithTypeHints, HasDisplayData):
   define the desired behavior (start_bundle/finish_bundle and process) or wrap a
   callable object using the CallableWrapperDoFn class.
   """
+
+  def __init__(self):
+    logging.warning('Use of DoFn class is deprecated please use NewDoFn instead')
+    super(DoFn, self).__init__()
 
   def default_label(self):
     return self.__class__.__name__
