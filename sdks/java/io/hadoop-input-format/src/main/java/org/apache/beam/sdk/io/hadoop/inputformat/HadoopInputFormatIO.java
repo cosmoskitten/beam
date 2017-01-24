@@ -814,7 +814,7 @@ public class HadoopInputFormatIO {
 =======
     
     /**
-     * Throws exception is InputFormat key/value class set by the user is diffrent than InputFormat's actual key/value class.
+     * Throws exception is InputFormat key/value class set by the user is different than InputFormat's actual key/value class.
      */
     private void validateKeyValueClasses() throws IOException, InterruptedException {
       RecordReader<?, ?> reader = inputFormatObj.createRecordReader(inputSplits.get(0).getSplit(),
@@ -1153,7 +1153,6 @@ public class HadoopInputFormatIO {
         }
       }
     }
-
 
     public boolean producesSortedKeys(PipelineOptions arg0) throws Exception {
       return false;
