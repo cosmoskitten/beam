@@ -47,8 +47,8 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Dataflow') {
       --errors
       --also-make
       -DforkCount=0
-      -Ddataflow.skipStreamingITs=true
-      -Ddataflow.skipBatchITs=false
+      -Ddataflow.skipStreamingITs=false
+      -Ddataflow.skipBatchITs=true
       -DvalidatesRunnerPipelineOptions='[
             "--runner=TestDataflowRunner",
             "--project=apache-beam-testing",
