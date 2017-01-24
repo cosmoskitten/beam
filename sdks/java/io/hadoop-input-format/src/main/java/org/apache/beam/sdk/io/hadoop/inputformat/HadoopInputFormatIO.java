@@ -626,7 +626,7 @@ public class HadoopInputFormatIO {
         SimpleFunction<?, V> valueTranslationFunction, SerializableSplit inputSplit) {
 =======
     private InputFormat<?, ?> inputFormatObj;
-
+    
     public HadoopInputFormatBoundedSource(
         SerializableConfiguration conf, 
         Coder<K> keyCoder,
@@ -758,7 +758,7 @@ public class HadoopInputFormatIO {
      */
     @VisibleForTesting
     void computeSplits() throws IOException, InterruptedException{
-      inputFormatObj = getInputFormat();
+      inputFormatObj = createInputFormat();
       List<InputSplit> splits =
           inputFormatObj.getSplits(Job.getInstance(conf.getHadoopConfiguration()));
       if (splits == null) {
@@ -790,7 +790,7 @@ public class HadoopInputFormatIO {
     /**
      * Returns instance of InputFormat set in the configuration.
      */
-    private InputFormat<?, ?> getInputFormat() throws IOException {
+    private InputFormat<?, ?> createInputFormat() throws IOException {
       InputFormat<?, ?> inputFormatObj;
       try {
         inputFormatObj = (InputFormat<?, ?>) conf.getHadoopConfiguration()
@@ -808,8 +808,20 @@ public class HadoopInputFormatIO {
       }
       return inputFormatObj;
     }
+<<<<<<< HEAD
 
 >>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
+=======
+    
+    /**
+     * Returns InputFormat object.
+     */
+    @VisibleForTesting
+    InputFormat<?, ?> getInputFormat(){
+      return inputFormatObj;
+    }
+    
+>>>>>>> Added getInputFormat() in HadoopInputFormatBoundedSource and modified test testReadingWithConfigurableInputFormat.
     @Override
     public Coder<KV<K, V>> getDefaultOutputCoder() {
       return KvCoder.of(keyCoder, valueCoder);
@@ -847,6 +859,7 @@ public class HadoopInputFormatIO {
       private volatile boolean doneReading = false;
       private long recordsReturned = 0L;
 <<<<<<< HEAD
+<<<<<<< HEAD
 
       public HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
@@ -857,6 +870,9 @@ public class HadoopInputFormatIO {
         this.valueTranslationFunction = valueTranslationFunction;
 =======
       InputFormat<?, ?> inputFormatObj;
+=======
+      private InputFormat<?, ?> inputFormatObj;
+>>>>>>> Added getInputFormat() in HadoopInputFormatBoundedSource and modified test testReadingWithConfigurableInputFormat.
 
       public HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
@@ -982,6 +998,7 @@ public class HadoopInputFormatIO {
       private <T1 extends Object> T1 clone(T1 input, Coder<T1> coder)
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
           throws IOException, InterruptedException, CoderException, ClassCastException{
 =======
           throws IOException, InterruptedException, CoderException,ClassCastException {
@@ -997,6 +1014,8 @@ public class HadoopInputFormatIO {
 >>>>>>> Javadoc changes
 =======
 
+=======
+>>>>>>> Added getInputFormat() in HadoopInputFormatBoundedSource and modified test testReadingWithConfigurableInputFormat.
           throws IOException, InterruptedException, CoderException, ClassCastException {
         // If the input object is not of known immutable type, clone the object.
         if (!isKnownImmutable(input)) {
