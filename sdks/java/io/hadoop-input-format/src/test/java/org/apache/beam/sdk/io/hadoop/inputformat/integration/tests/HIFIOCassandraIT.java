@@ -47,9 +47,15 @@ import com.datastax.driver.core.Row;
  * You need to pass Cassandra server IP and port in beamTestPipelineOptions
  *
  * <p>
+<<<<<<< HEAD
  * You can run just this test by doing the following:
  * mvn test-compile compile failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
  * "--serverPort=<port>" ]'
+=======
+ * You can run just this test by doing the following: mvn test-compile compile
+ * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
+ * "--serverPort=<port>" ]' -Dit.test=HIFIOCassandraIT -DskipITs=false
+>>>>>>> Added tests with scientist data
  *
  */
 @RunWith(JUnit4.class)
@@ -184,8 +190,8 @@ public class HIFIOCassandraIT implements Serializable {
 
     List<KV<Long, String>> expectedResults =
         Arrays.asList(KV.of(1L, "Faraday"), KV.of(2L, "Newton"), KV.of(3L, "Galilei"),
-            KV.of(4L, "Maxwell"), KV.of(5L, "Pasteur"), KV.of(6L, "Copernicus"), KV.of(7L, "Curie"),
-            KV.of(8L, "Bohr"), KV.of(9L, "Darwin"), KV.of(10L, "Einstein"));
+            KV.of(4L, "Maxwell"), KV.of(5L, "Pasteur"), KV.of(6L, "Copernicus"),
+            KV.of(7L, "Curie"), KV.of(8L, "Bohr"), KV.of(9L, "Darwin"), KV.of(10L, "Einstein"));
     PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
     pipeline.run();
   }
