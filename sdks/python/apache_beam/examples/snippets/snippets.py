@@ -845,6 +845,30 @@ def model_textio(renames):
   p.run().wait_until_finish()
 
 
+def model_textio_compressed(renames):
+  """Using a Read and Write transform to read/write text files."""
+  def filter_words(x):
+    import re
+    return re.findall(r'[A-Za-z\']+', x)
+
+  import apache_beam as beam
+  from apache_beam.utils.pipeline_options import PipelineOptions
+
+  # [START model_textio_write_compressed]
+  p = beam.Pipeline(options=PipelineOptions())
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText(
+      'gs://my_bucket/path/to/input-*.csv.gz',
+      compression_type=beam.io.fileio.CompressionTypes.GZIP)
+  # [END model_textio_write_compressed]
+
+  filtered_words = lines | 'FilterWords' >> beam.FlatMap(filter_words)
+  filtered_words | 'WriteToText' >> beam.io.WriteToText(
+      'gs://my_bucket/path/to/numbers', file_name_suffix='.csv')
+
+  p.visit(SnippetUtils.RenameFiles(renames))
+  p.run().wait_until_finish()
+
+
 def model_datastoreio():
   """Using a Read and Write transform to read/write to Cloud Datastore."""
 
