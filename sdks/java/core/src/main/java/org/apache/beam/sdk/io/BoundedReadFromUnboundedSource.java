@@ -141,17 +141,15 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   }
 
   /**
-   * An Adapter wraps the underlying {@link UnboundedSource} with the specified bounds on
-   * number of records and read time into {@link BoundedSource}.
+   * Adapter that wraps the underlying {@link UnboundedSource} with the specified bounds on
+   * number of records and read time into a {@link BoundedSource}.
    */
   @AutoValue
-  public abstract static class UnboundedToBoundedSourceAdapter<T>
+  private abstract static class UnboundedToBoundedSourceAdapter<T>
       extends BoundedSource<ValueWithRecordId<T>> {
     @Nullable abstract UnboundedSource<T, ?> getSource();
     @Nullable abstract long getMaxNumRecords();
     @Nullable abstract Duration getMaxReadTime();
-
-    public abstract String toString();
 
     abstract Builder<T> toBuilder();
 
