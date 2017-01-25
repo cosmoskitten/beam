@@ -112,7 +112,7 @@ import com.google.common.collect.Lists;
 >>>>>>> Modified Javadoc for HadoopInputFormatIO.
  * </ul>
  * For example:
- * 
+ *
  * <pre>
  * {@code
  *   Configuration myHadoopConfiguration = new Configuration(false);
@@ -136,6 +136,7 @@ import com.google.common.collect.Lists;
 =======
  * For example:
 <<<<<<< HEAD
+<<<<<<< HEAD
  *
 >>>>>>> Added synchronization for RecordReader in HadoopInputFormatIO
  * <pre>
@@ -146,6 +147,10 @@ import com.google.common.collect.Lists;
 =======
  * 
  * <pre> 
+=======
+ *
+ * <pre>
+>>>>>>> Temporarily removed validate class check
  * {@code
  *   SimpleFunction<InputFormatKeyClass, MyKeyClass> myOutputKeyType =
  *       new SimpleFunction<InputFormatKeyClass, MyKeyClass>() {
@@ -153,7 +158,7 @@ import com.google.common.collect.Lists;
  *           // ...logic to transform InputFormatKeyClass to MyKeyClass
  *         }
  *       };
- * 
+ *
  *   SimpleFunction<InputFormatValueClass, MyValueClass> myOutputValueType =
  *       new SimpleFunction<InputFormatValueClass, MyValueClass>() {
  *         public MyValueClass apply(InputFormatValueClass input) {
@@ -163,68 +168,68 @@ import com.google.common.collect.Lists;
  * }
 >>>>>>> Modified Javadoc for HadoopInputFormatIO.
  * </pre>
- * 
- * <h3>Reading using HadoopInputFormatIO</h3> 
+ *
+ * <h3>Reading using HadoopInputFormatIO</h3>
  * Pipeline p = ...; // Create pipeline.
  * <P>
  * // Read data only with Hadoop configuration.
- * 
+ *
  * <pre>
- * {@code 
+ * {@code
  * p.apply("read",
- *     HadoopInputFormatIO.<InputFormatKeyClass, InputFormatKeyClass>read() 
- *              .withConfiguration(myHadoopConfiguration); 
+ *     HadoopInputFormatIO.<InputFormatKeyClass, InputFormatKeyClass>read()
+ *              .withConfiguration(myHadoopConfiguration);
  * }
  * </pre>
  * <P>
  * // Read data with configuration and key translation (Example scenario: Beam Coder is not
  * available for key class hence key translation is required.).
- * 
+ *
  * <pre>
- * {@code 
+ * {@code
  * p.apply("read",
- *     HadoopInputFormatIO.<MyKeyClass, InputFormatKeyClass>read() 
- *              .withConfiguration(myHadoopConfiguration) 
+ *     HadoopInputFormatIO.<MyKeyClass, InputFormatKeyClass>read()
+ *              .withConfiguration(myHadoopConfiguration)
  *              .withKeyTranslation(myOutputKeyType);
  * }
  * </pre>
  * <P>
  * // Read data with configuration and value translation (Example scenario: Beam Coder is not
  * available for value class hence value translation is required.).
- * 
+ *
  * <pre>
- * {@code 
+ * {@code
  * p.apply("read",
- *     HadoopInputFormatIO.<InputFormatKeyClass, MyValueClass>read() 
- *              .withConfiguration(myHadoopConfiguration) 
+ *     HadoopInputFormatIO.<InputFormatKeyClass, MyValueClass>read()
+ *              .withConfiguration(myHadoopConfiguration)
  *              .withValueTranslation(myOutputValueType);
  * }
  * </pre>
- * 
+ *
  * <P>
  * // Read data with configuration, value translation and key translation (Example scenario: Beam
  * Coders are not available for both key class and value class of InputFormat hence key and value
  * translation is required.).
- * 
+ *
  * <pre>
- * {@code 
+ * {@code
  * p.apply("read",
- *     HadoopInputFormatIO.<MyKeyClass, MyValueClass>read() 
- *              .withConfiguration(myHadoopConfiguration) 
+ *     HadoopInputFormatIO.<MyKeyClass, MyValueClass>read()
+ *              .withConfiguration(myHadoopConfiguration)
  *              .withKeyTranslation(myOutputKeyType)
  *              .withValueTranslation(myOutputValueType);
  * }
  * </pre>
- * 
+ *
  * <h3>Read data from Cassandra using HadoopInputFormatIO transform</h3>
  * <p>
  * To read data from Cassandra, {@link org.apache.cassandra.hadoop.cql3.CqlInputFormat
  * CqlInputFormat} can be used which needs following properties to be set.
  * <p>
  * Create Cassandra Hadoop configuration as follows:
- * 
+ *
  * <pre>
- * {@code 
+ * {@code
  * Configuration cassandraConf = new Configuration();
  *   cassandraConf.set("cassandra.input.thrift.port" , "9160");
  *   cassandraConf.set("cassandra.input.thrift.address" , CassandraHostIp);
@@ -238,13 +243,13 @@ import com.google.common.collect.Lists;
  * </pre>
  * <p>
  * Call Read transform as follows:
- * 
+ *
  * <pre>
  * {@code
  * PCollection<KV<Long,String>> cassandraData =
  *          p.apply("read",
- *                  HadoopInputFormatIO.<Long, String>read() 
- *                      .withConfiguration( cassandraConf ) 
+ *                  HadoopInputFormatIO.<Long, String>read()
+ *                      .withConfiguration( cassandraConf )
  *                      .withValueTranslation( cassandraOutputValueType );
  * }
  * </pre>
@@ -269,27 +274,31 @@ import com.google.common.collect.Lists;
  * The CqlInputFormat key class is {@link java.lang.Long Long}, which has a Beam Coder. The
  * CqlInputFormat value class is {@link com.datastax.driver.core.Row Row}, which does not have a
  * Beam Coder. Rather than write a coder, we will provide our own translation method as follows:
+<<<<<<< HEAD
  * 
 >>>>>>> Modified Javadoc for HadoopInputFormatIO.
+=======
+ *
+>>>>>>> Temporarily removed validate class check
  * <pre>
- *  
+ *
  * {@code
- * SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, String>() 
+ * SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, String>()
  * {
  *    public String apply(Row row) {
- *      return row.getString('myColName'); 
+ *      return row.getString('myColName');
  *    }
  * };
  * }
  * </pre>
- * 
+ *
  * <h3>Read data from Elasticsearch using HadoopInputFormatIO transform</h3>
  * <p>
  * To read data from Elasticsearch, EsInputFormat can be used which needs following properties to be
  * set.
  * <p>
  * Create ElasticSearch Hadoop configuration as follows:
- * 
+ *
  * <pre>
  * {@code
  * Configuration elasticSearchConf = new Configuration();
@@ -297,19 +306,20 @@ import com.google.common.collect.Lists;
  *   elasticSearchConf.set("es.port", "9200");
  *   elasticSearchConf.set("es.resource", "ElasticIndexName/ElasticTypeName");
  *   elasticSearchConf.setClass("key.class", {@link org.apache.hadoop.io.Text Text.class}, Object.class);
- *   elasticSearchConf.setClass("value.class", {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class} , Object.class); 
+ *   elasticSearchConf.setClass("value.class", {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class} , Object.class);
  *   elasticSearchConf.setClass("mapreduce.job.inputformat.class", {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat.class}, InputFormat.class);
  * }
  * </pre>
- * 
+ *
  * Call Read transform as follows:
- * 
+ *
  * <pre>
  * {@code
  *   PCollection<KV<Text, LinkedMapWritable>> elasticData = p.apply("read",
  *       HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(elasticSearchConf));
  * }
  * </pre>
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -326,6 +336,9 @@ public class HadoopInputFormatIO {
  * available.
 =======
  * 
+=======
+ *
+>>>>>>> Temporarily removed validate class check
  * <p>
  * The {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat} key class is
  * {@link org.apache.hadoop.io.Text Text} and value class is
@@ -898,8 +911,6 @@ public class HadoopInputFormatIO {
       reader.initialize(inputSplits.get(0).getSplit(),
           new TaskAttemptContextImpl(conf.getHadoopConfiguration(), new TaskAttemptID()));
       reader.nextKeyValue();
-      validateClass(reader.getCurrentKey().getClass(),"key.class",HadoopInputFormatIOContants.WRONG_INPUTFORMAT_KEY_CLASS_ERROR_MSG);
-      validateClass(reader.getCurrentValue().getClass(),"value.class",HadoopInputFormatIOContants.WRONG_INPUTFORMAT_VALUE_CLASS_ERROR_MSG);
     }
 
    private void validateClass(Class<?> expectedClass, String property, String errorMessage){
