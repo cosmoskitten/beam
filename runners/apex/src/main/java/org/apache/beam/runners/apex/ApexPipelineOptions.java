@@ -56,5 +56,10 @@ public interface ApexPipelineOptions extends PipelineOptions, java.io.Serializab
   @Default.Long(0)
   long getRunMillis();
 
+  @Description("configuration properties file for the Apex engine")
+  void setConfigURL(String name);
+
+  String getConfigURL();
+
 }
 
