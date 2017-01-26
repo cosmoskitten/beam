@@ -227,6 +227,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   public static DataflowRunner fromOptions(PipelineOptions options) {
     // (Re-)register standard IO factories. Clobbers any prior credentials.
     IOChannelUtils.registerIOFactoriesAllowOverride(options);
+    FileSystems.setDefaultConfigInWorkers(options);
 
     DataflowPipelineOptions dataflowOptions =
         PipelineOptionsValidator.validate(DataflowPipelineOptions.class, options);
