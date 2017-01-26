@@ -46,23 +46,17 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
-<<<<<<< HEAD
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
-=======
 import org.apache.beam.sdk.io.FileSystems;
->>>>>>> 5be0ac120... [BEAM-59] Beam FileSystem: initial implementation.
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.GcsIOChannelFactory;
 import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ZipFiles;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -188,12 +182,7 @@ class PackageUtil {
 
   private static WritableByteChannel makeWriter(String target, GcsUtil gcsUtil)
       throws IOException {
-    IOChannelFactory factory = IOChannelUtils.getFactory(target);
-    if (factory instanceof GcsIOChannelFactory) {
-      return gcsUtil.create(GcsPath.fromUri(target), MimeTypes.BINARY);
-    } else {
-      return factory.create(target, MimeTypes.BINARY);
-    }
+    return FileSystems.create(target, MimeTypes.BINARY);
   }
 
   /**
@@ -287,10 +276,10 @@ class PackageUtil {
 
     if (classpathElements.size() > SANE_CLASSPATH_SIZE) {
       LOG.warn("Your classpath contains {} elements, which Google Cloud Dataflow automatically "
-            + "copies to all workers. Having this many entries on your classpath may be indicative "
-            + "of an issue in your pipeline. You may want to consider trimming the classpath to "
-            + "necessary dependencies only, using --filesToStage pipeline option to override "
-            + "what files are being staged, or bundling several dependencies into one.",
+              + "copies to all workers. Having this many entries on your classpath may be indicative "
+              + "of an issue in your pipeline. You may want to consider trimming the classpath to "
+              + "necessary dependencies only, using --filesToStage pipeline option to override "
+              + "what files are being staged, or bundling several dependencies into one.",
           classpathElements.size());
     }
 
@@ -321,7 +310,6 @@ class PackageUtil {
         public void run() {
           stageOnePackage(attributes, numUploaded, numCached, retrySleeper, gcsUtil);
         }
-<<<<<<< HEAD
       }));
     }
     try {
@@ -331,45 +319,6 @@ class PackageUtil {
       throw new RuntimeException("Interrupted while staging packages", e);
     } catch (ExecutionException e) {
       throw new RuntimeException("Error while staging packages", e.getCause());
-=======
-
-        // Upload file, retrying on failure.
-        BackOff backoff = BACKOFF_FACTORY.backoff();
-        while (true) {
-          try {
-            LOG.debug("Uploading classpath element {} to {}", classpathElement, target);
-            try (WritableByteChannel writer = FileSystems.create(target, MimeTypes.BINARY)) {
-              copyContent(classpathElement, writer);
-            }
-            numUploaded++;
-            break;
-          } catch (IOException e) {
-            if (ERROR_EXTRACTOR.accessDenied(e)) {
-              String errorMessage = String.format(
-                  "Uploaded failed due to permissions error, will NOT retry staging "
-                  + "of classpath %s. Please verify credentials are valid and that you have "
-                  + "write access to %s. Stale credentials can be resolved by executing "
-                  + "'gcloud auth login'.", classpathElement, target);
-              LOG.error(errorMessage);
-              throw new IOException(errorMessage, e);
-            }
-            long sleep = backoff.nextBackOffMillis();
-            if (sleep == BackOff.STOP) {
-              // Rethrow last error, to be included as a cause in the catch below.
-              LOG.error("Upload failed, will NOT retry staging of classpath: {}",
-                  classpathElement, e);
-              throw e;
-            } else {
-              LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
-                  classpathElement, e);
-              retrySleeper.sleep(sleep);
-            }
-          }
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Could not stage classpath element: " + classpathElement, e);
-      }
->>>>>>> 5be0ac120... [BEAM-59] Beam FileSystem: initial implementation.
     }
 
     LOG.info(
