@@ -61,7 +61,7 @@ install:
   - rm -rf "$HOME/.m2/repository/org/apache/beam"
 
 script:
-  - travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates $MAVEN_OVERRIDE install && travis_retry bash -ex .travis/test_wordcount.sh
+  - travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates --threads 1C $MAVEN_OVERRIDE install && travis_retry bash -ex .travis/test_wordcount.sh
 
 cache:
   directories:
