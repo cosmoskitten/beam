@@ -17,21 +17,25 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import java.io.Serializable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Java 8 tests for {@link MapElements}.
+ * Java 8 tests for {@link SimpleFunction}.
  */
 @RunWith(JUnit4.class)
-public class MapElementsJava8Test implements Serializable {
+public class SimpleFunctionJava8Test implements Serializable {
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -41,17 +45,12 @@ public class MapElementsJava8Test implements Serializable {
    * SerializableFunction}).
    */
   @Test
-  public void testMapLambda() throws Exception {
+  public void testGoodTypeForLambda() throws Exception {
+    SimpleFunction<Integer, String> fn =
+        new SimpleFunction<Integer, String>((Integer i) -> i.toString()) {};
 
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(MapElements
-            // Note that the type annotation is required (for Java, not for Dataflow)
-            .via((Integer i) -> i * 2)
-            .withOutputType(new TypeDescriptor<Integer>() {}));
-
-    PAssert.that(output).containsInAnyOrder(6, 2, 4);
-    pipeline.run();
+    assertThat(fn.getInputTypeDescriptor(), equalTo(TypeDescriptors.integers()));
+    assertThat(fn.getOutputTypeDescriptor(), equalTo(TypeDescriptors.strings()));
   }
 
   /**
@@ -59,39 +58,15 @@ public class MapElementsJava8Test implements Serializable {
    * remember its type.
    */
   @Test
-  public void testMapWrappedLambda() throws Exception {
+  public void testGoodTypeForMethodRef() throws Exception {
+    SimpleFunction<Integer, String> fn =
+        new SimpleFunction<Integer, String>(SimpleFunctionJava8Test::toStringThisThing) {};
 
-    PCollection<Integer> output =
-        pipeline
-            .apply(Create.of(1, 2, 3))
-            .apply(
-                MapElements
-                    .via(new SimpleFunction<Integer, Integer>((Integer i) -> i * 2) {}));
-
-    PAssert.that(output).containsInAnyOrder(6, 2, 4);
-    pipeline.run();
+    assertThat(fn.getInputTypeDescriptor(), equalTo(TypeDescriptors.integers()));
+    assertThat(fn.getOutputTypeDescriptor(), equalTo(TypeDescriptors.strings()));
   }
 
-  /**
-   * Basic test of {@link MapElements} with a method reference.
-   */
-  @Test
-  public void testMapMethodReference() throws Exception {
-
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(MapElements
-            // Note that the type annotation is required (for Java, not for Dataflow)
-            .via(new Doubler()::doubleIt)
-            .withOutputType(new TypeDescriptor<Integer>() {}));
-
-    PAssert.that(output).containsInAnyOrder(6, 2, 4);
-    pipeline.run();
-  }
-
-  private static class Doubler implements Serializable {
-    public int doubleIt(int val) {
-      return val * 2;
-    }
+  private static String toStringThisThing(Integer i) {
+    return i.toString();
   }
 }
