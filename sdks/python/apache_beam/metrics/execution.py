@@ -193,15 +193,17 @@ class MetricsContainer(object):
 
 
 class ScopedMetricsContainer(object):
-  def __init__(self, container):
+  def __init__(self, container=None):
     self._stack = MetricsEnvironment.container_stack()
     self._container = container
 
   def enter(self):
-    self._stack.append(self._container)
+    if self._container:
+      self._stack.append(self._container)
 
   def exit(self):
-    self._stack.pop()
+    if self._container:
+      self._stack.pop()
 
   def __enter__(self):
     self.enter()
