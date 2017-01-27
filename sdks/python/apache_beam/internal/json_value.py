@@ -19,6 +19,8 @@
 
 from apitools.base.py import extra_types
 
+from apache_beam.utils.value_provider import StaticValueProvider
+
 
 _MAXINT64 = (1 << 63) - 1
 _MININT64 = - (1 << 63)
@@ -98,6 +100,9 @@ def to_json_value(obj, with_type=False):
       raise TypeError('Can not encode {} as a 64-bit integer'.format(obj))
   elif isinstance(obj, float):
     return extra_types.JsonValue(double_value=obj)
+  elif isinstance(obj, StaticValueProvider):
+    return to_json_value(obj.get())
+
   else:
     raise TypeError('Cannot convert %s to a JSON value.' % repr(obj))
 
