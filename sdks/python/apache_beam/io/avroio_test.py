@@ -195,7 +195,10 @@ class TestAvro(unittest.TestCase):
             str(self.SCHEMA)),
         DisplayDataItemMatcher(
             'file_pattern',
-            'some_avro_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
+            '{}{}{}'.format('StaticValueProvider(type=str, ',
+                            'value=\'some_avro_sink\')',
+                            '-%(shard_num)05d-of-%(num_shards)05d.end')),
+
         DisplayDataItemMatcher(
             'codec',
             'null'),
@@ -215,7 +218,9 @@ class TestAvro(unittest.TestCase):
             str(self.SCHEMA)),
         DisplayDataItemMatcher(
             'file_pattern',
-            'some_avro_sink-%(shard_num)05d-of-%(num_shards)05d'),
+            '{}{}{}'.format('StaticValueProvider(type=str, ',
+                            'value=\'some_avro_sink\')',
+                            '-%(shard_num)05d-of-%(num_shards)05d')),
         DisplayDataItemMatcher(
             'codec',
             'deflate'),
