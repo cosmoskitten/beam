@@ -145,9 +145,9 @@ class TestFileSink(unittest.TestCase):
             'compression', 'auto'),
         DisplayDataItemMatcher(
             'file_pattern',
-            '{}{}'.format(temp_path,
-                          '-%(shard_num)05d-of-%(num_shards)05d.foo'))]
-
+            '{}{}'.format(
+                "StaticValueProvider(type=str, value='%s')" % temp_path,
+                '-%(shard_num)05d-of-%(num_shards)05d.foo'))]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_empty_write(self):
