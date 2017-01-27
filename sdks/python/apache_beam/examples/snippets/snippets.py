@@ -845,6 +845,21 @@ def model_textio(renames):
   p.run().wait_until_finish()
 
 
+def model_textio_compressed(renames, expected):
+  """Using a Read Transform to read compressed text files."""
+  p = TestPipeline()
+
+  # [START model_textio_write_compressed]
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText(
+      'gs://my_bucket/path/to/input-*.csv.gz',
+      compression_type=beam.io.fileio.CompressionTypes.GZIP)
+  # [END model_textio_write_compressed]
+
+  beam.assert_that(lines, beam.equal_to(expected))
+  p.visit(SnippetUtils.RenameFiles(renames))
+  p.run().wait_until_finish()
+
+
 def model_datastoreio():
   """Using a Read and Write transform to read/write to Cloud Datastore."""
 
