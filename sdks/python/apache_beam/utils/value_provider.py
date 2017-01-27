@@ -32,7 +32,7 @@ class ValueProvider(object):
     )
 
 
-class StaticValueProvider(object):
+class StaticValueProvider(ValueProvider):
   def __init__(self, value_type, value):
     self.value_type = value_type
     self.data = value_type(value)
@@ -50,42 +50,40 @@ class StaticValueProvider(object):
 
 
 class RuntimeValueProvider(ValueProvider):
-  options_map = {}
+  pipeline_options_dict = None
 
   def __init__(self, pipeline_options_subclass, option_name,
-               value_type, default_value, optionsid):
+               value_type, default_value):
     self.pipeline_options_subclass = pipeline_options_subclass
     self.option_name = option_name
     self.default_value = default_value
     self.value_type = value_type
-    self.optionsid = 'id'  # TODO (mariapython): remove hard-coded value
-    # self.optionsid = optionsid
     self.data = None
 
   def is_accessible(self):
-    options = RuntimeValueProvider.options_map.get(self.optionsid)
-    return options is not None
+    pipeline_options = RuntimeValueProvider.pipeline_options_dict
+    return pipeline_options is not None
 
   def get(self):
-    options = RuntimeValueProvider.options_map.get(self.optionsid)
-    if options is None:
-      # raise RuntimeError('Not called from a runtime context')
+    pipeline_options_dict = RuntimeValueProvider.pipeline_options_dict
+    if pipeline_options_dict is None:
       raise RuntimeError('%s.get() not called from a runtime context' %self)
-    result = (
-        options.view_as(self.pipeline_options_subclass)
+    pipeline_option = (
+        self.pipeline_options_subclass.from_dictionary(pipeline_options_dict)
         ._visible_options
         .__dict__
         .get(self.option_name)
     )
     value = (
-        result.get()
-        if isinstance(result, StaticValueProvider)
+        pipeline_option.get()
+        if isinstance(pipeline_option, StaticValueProvider)
         else self.default_value
     )
     return value
 
-  def set_runtime_options(self, options):
-    RuntimeValueProvider.options_map['id'] = options
+  @classmethod
+  def set_runtime_options(cls, pipeline_options):
+    RuntimeValueProvider.pipeline_options_dict = pipeline_options
 
   def __str__(self):
     return '%s(option=%s, type=%s, default_value=%s, value=%s)' % (
