@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.storage;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Maps; 
+import java.util.Map;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
@@ -32,12 +34,17 @@ import org.apache.beam.sdk.options.PipelineOptions;
 @AutoService(FileSystemRegistrar.class)
 public class GcsFileSystemRegistrar implements FileSystemRegistrar {
 
+  private static final Map<PipelineOptions, FileSystem> FILE_SYSTEMS_CACHE = Maps.newHashMap();
+
   @Override
   public FileSystem fromOptions(@Nonnull PipelineOptions options) {
     checkNotNull(
         options,
         "Expect the runner have called FileSystems.setDefaultConfigInWorkers().");
-    return new GcsFileSystem(options.as(GcsOptions.class));
+    if (!FILE_SYSTEMS_CACHE.containsKey(options)) {
+      FILE_SYSTEMS_CACHE.put(options, new GcsFileSystem(options.as(GcsOptions.class)));
+    }
+    return FILE_SYSTEMS_CACHE.get(options);
   }
 
   @Override
