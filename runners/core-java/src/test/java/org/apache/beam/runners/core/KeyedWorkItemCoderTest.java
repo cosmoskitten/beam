@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
