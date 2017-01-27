@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.core;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.Futures;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -30,9 +32,12 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
@@ -94,7 +99,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     final ProcessContext processContext = new ProcessContext(element, tracker);
     DoFn.ProcessContinuation cont =
         invoker.invokeProcessElement(
-            new DoFnInvoker.FakeArgumentProvider<InputT, OutputT>() {
+            new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
               @Override
               public DoFn<InputT, OutputT>.ProcessContext processContext(
                   DoFn<InputT, OutputT> doFn) {
@@ -104,6 +109,50 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               @Override
               public RestrictionTracker<?> restrictionTracker() {
                 return tracker;
+              }
+
+              // Unsupported methods below.
+
+              @Override
+              public BoundedWindow window() {
+                throw new UnsupportedOperationException(
+                    "Access to window of the element not supported in Splittable DoFn");
+              }
+
+              @Override
+              public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
+                throw new IllegalStateException(
+                    "Should not access context() from @"
+                        + DoFn.ProcessElement.class.getSimpleName());
+              }
+
+              @Override
+              public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(
+                  DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException(
+                    "Access to timers not supported in Splittable DoFn");
+              }
+
+              @Override
+              public DoFn.InputProvider<InputT> inputProvider() {
+                throw new UnsupportedOperationException("Not expected to call inputProvider()");
+              }
+
+              @Override
+              public DoFn.OutputReceiver<OutputT> outputReceiver() {
+                throw new UnsupportedOperationException("Not expected to call outputReceiver()");
+              }
+
+              @Override
+              public State state(String stateId) {
+                throw new UnsupportedOperationException(
+                    "Access to state not supported in Splittable DoFn");
+              }
+
+              @Override
+              public Timer timer(String timerId) {
+                throw new UnsupportedOperationException(
+                    "Access to timers not supported in Splittable DoFn");
               }
             });
     RestrictionT residual;
@@ -123,8 +172,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     private final TrackerT tracker;
 
     private int numOutputs;
+    // Checkpoint may be initiated either when the given number of outputs is reached,
+    // or when the call runs for the given duration. It must be initiated at most once,
+    // even if these events happen almost at the same time.
+    // This is either the result of the sole tracker.checkpoint() call, or null if
+    // the call completed before reaching the given number of outputs or duration.
     private RestrictionT checkpoint;
-
+    // A handle on the scheduled action to take a checkpoint.
     private Future<?> scheduledCheckpoint;
 
     public ProcessContext(WindowedValue<InputT> element, TrackerT tracker) {
@@ -148,12 +202,22 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     RestrictionT extractCheckpoint() {
       scheduledCheckpoint.cancel(true);
       try {
-        scheduledCheckpoint.get();
-      } catch (InterruptedException | ExecutionException | CancellationException e) {
-        // Ignore
+        Futures.getUnchecked(scheduledCheckpoint);
+      } catch (CancellationException e) {
+        // This is expected if the call took less than the maximum duration.
       }
+      // By now, a checkpoint may or may not have been taken;
+      // via .output() or via scheduledCheckpoint.
       synchronized (this) {
         return checkpoint;
+      }
+    }
+
+    private synchronized void initiateCheckpoint() {
+      // This method may be entered either via .output(), or via scheduledCheckpoint.
+      // Only one of them "wins" - tracker.checkpoint() must be called only once.
+      if (checkpoint == null) {
+        checkpoint = checkNotNull(tracker.checkpoint());
       }
     }
 
@@ -213,12 +277,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       ++numOutputs;
       if (numOutputs >= maxNumOutputs) {
         initiateCheckpoint();
-      }
-    }
-
-    private synchronized void initiateCheckpoint() {
-      if (checkpoint == null) {
-        checkpoint = tracker.checkpoint();
       }
     }
 
