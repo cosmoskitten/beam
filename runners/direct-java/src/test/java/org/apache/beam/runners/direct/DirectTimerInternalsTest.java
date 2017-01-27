@@ -28,7 +28,7 @@ import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.sdk.util.state.StateNamespaces;
+import org.apache.beam.runners.core.StateNamespaces;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
