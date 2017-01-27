@@ -31,7 +31,7 @@ import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
-import org.apache.beam.sdk.util.state.TimerInternalsFactory;
+import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
