@@ -88,6 +88,7 @@ public class JdbcIOTest implements Serializable {
     // 2) wait up to 15 seconds for the derby server to start based on a ping
     // on faster machines and networks, this may return very quick, but on slower
     // networks where the DNS lookups are slow, this may take a little time
+
     while (!started && count < 30) {
       if (out.toString().contains("started")) {
         started = true;

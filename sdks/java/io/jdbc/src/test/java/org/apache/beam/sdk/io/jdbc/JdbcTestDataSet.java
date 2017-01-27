@@ -1,11 +1,28 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.jdbc;
 
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.postgresql.ds.PGSimpleDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
-import javax.xml.crypto.Data;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -19,7 +36,7 @@ import java.util.Date;
  * than every time (which can be more fragile.)
  */
 public class JdbcTestDataSet {
-
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcTestDataSet.class);
   /**
    * Use this to create the read tables before IT read tests.
    *
@@ -31,33 +48,41 @@ public class JdbcTestDataSet {
    * @param args Please pass options from PostgresTestOptions used for connection to postgres as shown above.
    */
   public static void main(String[] args) throws SQLException {
-    PGSimpleDataSource dataSource = new PGSimpleDataSource();
     PipelineOptionsFactory.register(PostgresTestOptions.class);
-    PostgresTestOptions options = PipelineOptionsFactory.fromArgs(args).create().as(PostgresTestOptions.class);
+    PostgresTestOptions options = PipelineOptionsFactory.fromArgs(args).as(PostgresTestOptions.class);
 
+    createReadDataTable(getDataSource(options));
+  }
+
+  public static PGSimpleDataSource getDataSource(PostgresTestOptions options) throws SQLException {
+    PGSimpleDataSource dataSource = new PGSimpleDataSource();
+
+    // Tests must receive parameters for connections from PipelineOptions
+    // Parameters should be generic to all tests that use a particular datasource, not
+    // the particular test.
     dataSource.setDatabaseName(options.getPostgresDatabaseName());
-    dataSource.setServerName(options.getPostgresIp());
+    dataSource.setServerName(options.getPostgresServerName());
     dataSource.setPortNumber(options.getPostgresPort());
     dataSource.setUser(options.getPostgresUsername());
     dataSource.setPassword(options.getPostgresPassword());
     dataSource.setSsl(options.getPostgresSsl());
 
-    createReadDataTable(dataSource);
+    return dataSource;
   }
 
   public final static String READ_TABLE_NAME = "BEAMTESTREAD";
 
   public static void createReadDataTable(DataSource dataSource) throws SQLException {
-    createDataTable_(dataSource, READ_TABLE_NAME);
+    createDataTable(dataSource, READ_TABLE_NAME);
   }
 
   public static String createWriteDataTable(DataSource dataSource) throws SQLException {
     String tableName = "BEAMTEST".concat(new Long(new Date().getTime()).toString());
-    createDataTable_(dataSource, tableName);
+    createDataTable(dataSource, tableName);
     return tableName;
   }
 
-  public static void createDataTable_(DataSource dataSource, String tableName) throws SQLException {
+  private static void createDataTable(DataSource dataSource, String tableName) throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
       // something like this will need to happen in tests on a newly created postgres server,
       // but likely it will happen in perfkit, not here
@@ -85,15 +110,13 @@ public class JdbcTestDataSet {
       connection.commit();
     }
 
-    System.out.println("Created table " + tableName);
+    LOG.info("Created table " + tableName);
   }
 
   public static void cleanUpDataTable(DataSource dataSource, String tableName) throws SQLException {
     if (tableName != null) {
-      try (Connection connection = dataSource.getConnection()) {
-        try (Statement statement = connection.createStatement()) {
-          statement.executeUpdate(String.format("drop table %s", tableName));
-        }
+      try (Connection connection = dataSource.getConnection();Statement statement = connection.createStatement()) {
+        statement.executeUpdate(String.format("drop table %s", tableName));
       }
     }
   }

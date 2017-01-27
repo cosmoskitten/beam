@@ -8,16 +8,18 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
  * These options can be used by a test connecting to a postgres database to configure their connection.
  */
 public interface PostgresTestOptions extends TestPipelineOptions {
-    @Description("IP for postgres server")
-    @Default.String("postgres-ip")
-    String getPostgresIp();
-    void setPostgresIp(String value);
+    @Description("Server name for postgres server (host name/ip address)")
+    @Default.String("postgres-server-name")
+    String getPostgresServerName();
+    void setPostgresServerName(String value);
 
     @Description("Username for postgres server")
     @Default.String("postgres-username")
     String getPostgresUsername();
     void setPostgresUsername(String value);
 
+    // Note that passwords are not as secure an authentication as other methods, and used here for
+    // a test environment only.
     @Description("Password for postgres server")
     @Default.String("postgres-password")
     String getPostgresPassword();

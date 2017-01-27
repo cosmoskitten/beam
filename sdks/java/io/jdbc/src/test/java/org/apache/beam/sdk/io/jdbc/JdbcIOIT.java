@@ -8,14 +8,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Date;
 import javax.sql.DataSource;
 
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -25,21 +24,20 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.postgresql.ds.PGSimpleDataSource;
 
 
 /**
- * Runs tests to validate JdbcIO works with a real instance of Postgres. You'll need
- * a running instance of postgres to validate this test and you'll need to make sure the test data
- * set exists in the database - if not, you can run JdbcTestDataSet and it will create the read
- * table for you.
+ * A test of JdbcIO on an independent Postgres instance.
+ *
+ * <p>This test requires a running instance of Postgres, and the test dataset must exist in the database.
+ * `JdbcTestDataSet` will create the read table.
  *
  * <p>You can run just this test by doing the following:
  * mvn test-compile compile failsafe:integration-test -D beamTestPipelineOptions='[
- * "--postgresIp=1.2.3.4",
+ * "--postgresServerName=1.2.3.4",
  * "--postgresUsername=postgres",
  * "--postgresDatabaseName=myfancydb",
  * "--postgresPassword=yourpassword",
@@ -48,30 +46,14 @@ import org.postgresql.ds.PGSimpleDataSource;
  */
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
-
   public PGSimpleDataSource getDataSource() throws SQLException {
     PipelineOptionsFactory.register(PostgresTestOptions.class);
     PostgresTestOptions options = TestPipeline.testingPipelineOptions()
         .as(PostgresTestOptions.class);
-    PGSimpleDataSource dataSource = new PGSimpleDataSource();
 
-    // Tests must receive parameters for connections from PipelineOptions
-    // Parameters should be generic to all tests that use a particular datasource, not
-    // the particular test.
-    dataSource.setDatabaseName(options.getPostgresDatabaseName());
-    dataSource.setServerName(options.getPostgresIp());
-    dataSource.setPortNumber(options.getPostgresPort());
-    dataSource.setUser(options.getPostgresUsername());
-    dataSource.setPassword(options.getPostgresPassword());
-    dataSource.setSsl(options.getPostgresSsl());
-
-    return dataSource;
+    return JdbcTestDataSet.getDataSource(options);
   }
-
-  // These static classes are used since if they were inlined using anonymous classes, they would cause the JdbcIOIT
-  // class as a whole to be serialized.
-
-  private static class TestRowMapper implements JdbcIO.RowMapper<KV<String, Integer>> {
+  private static class CreateKVOfNameAndId implements JdbcIO.RowMapper<KV<String, Integer>> {
     @Override
     public KV<String, Integer> mapRow(ResultSet resultSet) throws Exception {
       KV<String, Integer> kv =
@@ -80,17 +62,23 @@ public class JdbcIOIT {
     }
   }
 
-  private static class ValidateCountFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
+  private static class AssertCountFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
+    public AssertCountFn(long expectedCount) {
+     this.expectedCount = expectedCount;
+    }
+
+    private long expectedCount;
+
     @Override
     public Void apply(Iterable<KV<String, Long>> input) {
       for (KV<String, Long> element : input) {
-        assertEquals(element.getKey(), 100L, element.getValue().longValue());
+        assertEquals(element.getKey(), expectedCount, element.getValue().longValue());
       }
       return null;
     }
-  };
+  }
 
-  private static class TestStatementSetter implements JdbcIO.PreparedStatementSetter<KV<Integer, String>> {
+  private static class PutKeyInColumnOnePutValueInColumnTwo implements JdbcIO.PreparedStatementSetter<KV<Integer, String>> {
     @Override
     public void setParameters(KV<Integer, String> element, PreparedStatement statement)
                     throws SQLException {
@@ -106,7 +94,6 @@ public class JdbcIOIT {
    * @throws SQLException
    */
   @Test
-  @Category(NeedsRunner.class)
   public void testRead() throws SQLException {
     DataSource dataSource = getDataSource();
 
@@ -117,7 +104,7 @@ public class JdbcIOIT {
     PCollection<KV<String, Integer>> output = pipeline.apply(JdbcIO.<KV<String, Integer>>read()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
             .withQuery("select name,id from " + tableName)
-            .withRowMapper(new TestRowMapper())
+            .withRowMapper(new CreateKVOfNameAndId())
             .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     // TODO: validate actual contents of rows, not just count.
@@ -127,11 +114,10 @@ public class JdbcIOIT {
 
     PAssert.that(output
         .apply("Count Scientist", Count.<String, Integer>perKey())
-    ).satisfies(new ValidateCountFn());
+    ).satisfies(new AssertCountFn(100L));
 
     pipeline.run().waitUntilFinish();
   }
-
 
   /**
    * Tests writes to a real live postgres database.
@@ -142,7 +128,6 @@ public class JdbcIOIT {
    * @throws SQLException
    */
   @Test
-  @Category(NeedsRunner.class)
   public void testWrite() throws SQLException {
     DataSource dataSource = getDataSource();
 
@@ -162,7 +147,7 @@ public class JdbcIOIT {
           .apply(JdbcIO.<KV<Integer, String>>write()
               .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
               .withStatement(String.format("insert into %s values(?, ?)", tableName))
-              .withPreparedStatementSetter(new TestStatementSetter()));
+              .withPreparedStatementSetter(new PutKeyInColumnOnePutValueInColumnTwo()));
 
       pipeline.run().waitUntilFinish();
 
@@ -182,5 +167,4 @@ public class JdbcIOIT {
       JdbcTestDataSet.cleanUpDataTable(dataSource, tableName);
     }
   }
-
 }
