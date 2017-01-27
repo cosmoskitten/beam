@@ -27,11 +27,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 @AutoService(FileSystemRegistrar.class)
 public class LocalFileSystemRegistrar implements FileSystemRegistrar {
 
+  private static final LocalFileSystem INSTANCE = new LocalFileSystem();
+
   static final String LOCAL_FILE_SCHEME = "file";
 
   @Override
   public FileSystem fromOptions(@Nullable PipelineOptions options) {
-    return new LocalFileSystem();
+    return INSTANCE;
   }
 
   @Override
