@@ -43,7 +43,7 @@ import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryWatermarkHold
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateContext;
 import org.apache.beam.sdk.util.state.StateContexts;
-import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.sdk.util.state.StateTag;

@@ -35,7 +35,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.runners.core.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.functions.RuntimeContext;

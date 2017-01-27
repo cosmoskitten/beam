@@ -24,7 +24,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
