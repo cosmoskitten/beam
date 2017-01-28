@@ -53,7 +53,8 @@ class FileBasedSource(iobase.BoundedSource):
     """Initializes ``FileBasedSource``.
 
     Args:
-      file_pattern: the file glob to read.
+      file_pattern: the file glob to read or a ValueProvider (placeholder to
+                    inject a runtime value).
       min_bundle_size: minimum size of bundles that should be generated when
                        performing initial splitting on this source.
       compression_type: compression type to use
@@ -71,15 +72,19 @@ class FileBasedSource(iobase.BoundedSource):
                 creation time.
     Raises:
       TypeError: when compression_type is not valid or if file_pattern is not a
-                 string.
+                 string or a ValueProvider.
       ValueError: when compression and splittable files are specified.
       IOError: when the file pattern specified yields an empty result.
     """
-    if not isinstance(file_pattern, basestring):
-      raise TypeError(
-          '%s: file_pattern must be a string;  got %r instead' %
-          (self.__class__.__name__, file_pattern))
 
+    if (not (isinstance(file_pattern, basestring)
+             or isinstance(file_pattern, ValueProvider))):
+      raise TypeError('%s: file_pattern must be of type string'
+                      ' or ValueProvider; got %r instead'
+                      % (self.__class__.__name__, file_pattern))
+
+    if isinstance(file_pattern, basestring):
+      file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
@@ -232,7 +237,7 @@ class FileBasedSource(iobase.BoundedSource):
                             defined by a given ``RangeTracker``.
 
     Returns:
-      a iterator that gives the records read from the given file.
+      an iterator that gives the records read from the given file.
     """
     raise NotImplementedError
 
