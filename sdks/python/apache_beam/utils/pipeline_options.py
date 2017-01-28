@@ -30,8 +30,11 @@ def static_value_provider_of(value_type):
 
   Args:
     value_type: the type of the value. Since the type param of argparse's
-          add_argument will always be ValueProvider, we need to
-          preserve the type of the actual value.
+                add_argument will always be ValueProvider, we need to
+                preserve the type of the actual value.
+  Returns:
+    A partially constructed StaticValueProvider in the form of a function.
+
   """
   def _f(value):
     _f.func_name = value_type.__name__
@@ -55,7 +58,7 @@ class ValueProviderArgumentParser(argparse.ArgumentParser):
   """
   def add_value_provider_argument(self, *args, **kwargs):
     # extract the option name.
-    # TODO (mariapython): handle multiple positional args like ('--quux',)
+    # TODO(mariapython): handle multiple positional args like ('--quux',)
     option_name = args[0].replace('-', '')
 
     # reassign the type to make room for StaticValueProvider
@@ -75,7 +78,6 @@ class ValueProviderArgumentParser(argparse.ArgumentParser):
         option_name=option_name,
         value_type=value_type,
         default_value=default_value,
-        optionsid='id'
     )
     kwargs['nargs'] = '?'  # make positional arguments optionally templated
 
