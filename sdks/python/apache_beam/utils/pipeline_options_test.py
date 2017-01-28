@@ -222,8 +222,7 @@ class PipelineOptionsTest(unittest.TestCase):
                               pipeline_options_subclass=UserOptions,
                               option_name='foo',
                               value_type=int,
-                              default_value=10,
-                              optionsid='id'))
+                              default_value=10))
     self.assertEqual(options.vp_arg, 5)
     self.assertTrue(options.vp_arg2.is_accessible(),
                     '%s is not accessible' % options.vp_arg2)
