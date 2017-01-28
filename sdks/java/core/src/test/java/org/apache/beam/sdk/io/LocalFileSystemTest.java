@@ -36,7 +36,7 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
-import org.apache.beam.sdk.io.FileSystems.CreateOptions;
+import org.apache.beam.sdk.io.FileSystems.StandardCreateOptions;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.junit.Rule;
 import org.junit.Test;
@@ -147,7 +147,7 @@ public class LocalFileSystemTest {
   private void createFileWithContent(String file, String content) throws Exception {
     try (Writer writer = Channels.newWriter(
         localFileSystem.create(
-            file, CreateOptions.builder().setMimeType(MimeTypes.TEXT).build()),
+            file, StandardCreateOptions.builder().setMimeType(MimeTypes.TEXT).build()),
         StandardCharsets.UTF_8.name())) {
       writer.write(content);
     }

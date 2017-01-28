@@ -493,14 +493,14 @@ public class MqttIO {
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
 
     @Nullable abstract ConnectionConfiguration connectionConfiguration();
-    @Nullable abstract boolean retained();
+    @Nullable abstract Boolean retained();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration configuration);
-      abstract Builder setRetained(boolean retained);
+      abstract Builder setRetained(Boolean retained);
       abstract Write build();
     }
 

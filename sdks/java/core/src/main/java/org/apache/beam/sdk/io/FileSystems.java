@@ -87,7 +87,7 @@ public class FileSystems {
    */
   public static WritableByteChannel create(String filename, String mimeType)
       throws IOException {
-    return create(filename, CreateOptions.builder().setMimeType(mimeType).build());
+    return create(filename, StandardCreateOptions.builder().setMimeType(mimeType).build());
   }
 
   /**
@@ -128,7 +128,10 @@ public class FileSystems {
     return shardingChannel;
   }
 
-  private static WritableByteChannel create(String path, CreateOptions options) throws IOException {
+  /**
+   * Creates a write channel for the given filename with {@link CreateOptions}.
+   */
+  public static WritableByteChannel create(String path, CreateOptions options) throws IOException {
     return getFileSystemInternal(path).create(path, options);
   }
 
@@ -240,9 +243,8 @@ public class FileSystems {
   }
 
   /**
-   * A class that configures how to create files.
+   * An abstract class that contains common configuration options for creating files.
    */
-  @AutoValue
   public abstract static class CreateOptions {
 
     /**
@@ -250,18 +252,33 @@ public class FileSystems {
      */
     public abstract String mimeType();
 
-    public static Builder builder() {
-      return new AutoValue_FileSystems_CreateOptions.Builder();
+    /**
+     * An abstract builder for {@link CreateOptions}.
+     */
+    public abstract static class Builder<BuilderT extends Builder<BuilderT>> {
+      public abstract BuilderT setMimeType(String value);
+    }
+  }
+
+  /**
+   * A standard configuration options with builder.
+   */
+  @AutoValue
+  public abstract static class StandardCreateOptions extends CreateOptions {
+
+    /**
+     * Returns a {@link StandardCreateOptions.Builder}.
+     */
+    public static StandardCreateOptions.Builder builder() {
+      return new AutoValue_FileSystems_StandardCreateOptions.Builder();
     }
 
     /**
-     * Builder for {@link CreateOptions}.
+     * Builder for {@link StandardCreateOptions}.
      */
     @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setMimeType(String value);
-
-      public abstract CreateOptions build();
+    public abstract static class Builder extends CreateOptions.Builder<Builder> {
+      public abstract StandardCreateOptions build();
     }
   }
 

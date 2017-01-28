@@ -148,7 +148,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   abstract static class UnboundedToBoundedSourceAdapter<T>
       extends BoundedSource<ValueWithRecordId<T>> {
     @Nullable abstract UnboundedSource<T, ?> getSource();
-    @Nullable abstract long getMaxNumRecords();
+    @Nullable abstract Long getMaxNumRecords();
     @Nullable abstract Duration getMaxReadTime();
 
     abstract Builder<T> toBuilder();
@@ -156,7 +156,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setSource(UnboundedSource<T, ?> source);
-      abstract Builder<T> setMaxNumRecords(long maxNumRecords);
+      abstract Builder<T> setMaxNumRecords(Long maxNumRecords);
       abstract Builder<T> setMaxReadTime(Duration maxReadTime);
       abstract UnboundedToBoundedSourceAdapter<T> build();
     }

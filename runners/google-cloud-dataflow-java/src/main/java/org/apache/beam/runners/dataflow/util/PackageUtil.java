@@ -53,7 +53,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ZipFiles;
@@ -180,9 +179,12 @@ class PackageUtil {
     }
   }
 
-  private static WritableByteChannel makeWriter(String target, GcsUtil gcsUtil)
+  private static WritableByteChannel makeWriter(String target, int uploadSizeBytes)
       throws IOException {
-    return FileSystems.create(target, MimeTypes.BINARY);
+    if (target.startsWith("gs://"))
+    return FileSystems.create(
+        target,
+        MimeTypes.BINARY);
   }
 
   /**
@@ -191,7 +193,7 @@ class PackageUtil {
    */
   private static void stageOnePackage(
       PackageAttributes attributes, AtomicInteger numUploaded, AtomicInteger numCached,
-      Sleeper retrySleeper, GcsUtil gcsUtil) {
+      Sleeper retrySleeper, int uploadSizeBytes) {
     String source = attributes.getSourcePath();
     String target = attributes.getDataflowPackage().getLocation();
 
@@ -215,7 +217,7 @@ class PackageUtil {
       while (true) {
         try {
           LOG.debug("Uploading classpath element {} to {}", source, target);
-          try (WritableByteChannel writer = makeWriter(target, gcsUtil)) {
+          try (WritableByteChannel writer = makeWriter(target, uploadSizeBytes)) {
             copyContent(source, writer);
           }
           numUploaded.incrementAndGet();
@@ -256,12 +258,12 @@ class PackageUtil {
    * @return A list of cloud workflow packages, each representing a classpath element.
    */
   static List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements, String stagingPath, GcsUtil gcsUtil) {
+      Collection<String> classpathElements, String stagingPath, int uploadSizeBytes) {
     ListeningExecutorService executorService =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(32));
     try {
       return stageClasspathElements(
-          classpathElements, stagingPath, Sleeper.DEFAULT, executorService, gcsUtil);
+          classpathElements, stagingPath, Sleeper.DEFAULT, executorService, uploadSizeBytes);
     } finally {
       executorService.shutdown();
     }
@@ -270,7 +272,7 @@ class PackageUtil {
   // Visible for testing.
   static List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, final String stagingPath,
-      final Sleeper retrySleeper, ListeningExecutorService executorService, final GcsUtil gcsUtil) {
+      final Sleeper retrySleeper, ListeningExecutorService executorService, final int uploadSizeBytes) {
     LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
         + "prepare for execution.", classpathElements.size());
 
@@ -308,7 +310,7 @@ class PackageUtil {
       futures.add(executorService.submit(new Runnable() {
         @Override
         public void run() {
-          stageOnePackage(attributes, numUploaded, numCached, retrySleeper, gcsUtil);
+          stageOnePackage(attributes, numUploaded, numCached, retrySleeper, uploadSizeBytes);
         }
       }));
     }

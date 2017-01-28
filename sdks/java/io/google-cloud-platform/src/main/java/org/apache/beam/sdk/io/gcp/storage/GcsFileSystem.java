@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.storage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -32,7 +33,7 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 /**
  * {@link FileSystem} implementation for Google Cloud Storage.
  */
-class GcsFileSystem extends FileSystem {
+public class GcsFileSystem extends FileSystem {
   private final GcsOptions options;
 
   GcsFileSystem(GcsOptions options) {
@@ -42,9 +43,16 @@ class GcsFileSystem extends FileSystem {
   @Override
   protected WritableByteChannel create(String file, CreateOptions createOptions)
       throws IOException {
-    return options.getGcsUtil().create(
-        GcsPath.fromUri(file),
-        createOptions.mimeType());
+    if (createOptions instanceof GcsCreateOptions) {
+      return options.getGcsUtil().create(
+          GcsPath.fromUri(file),
+          createOptions.mimeType(),
+          ((GcsCreateOptions) createOptions).uploadBufferSizeBytes());
+    } else {
+      return options.getGcsUtil().create(
+          GcsPath.fromUri(file),
+          createOptions.mimeType());
+    }
   }
 
   @Override
@@ -66,5 +74,30 @@ class GcsFileSystem extends FileSystem {
   @Override
   protected void copy(List<String> srcUris, List<String> destUris) throws IOException {
     options.getGcsUtil().copy(srcUris, destUris);
+  }
+
+  /**
+   * A configuration options for {@link GcsFileSystem}.
+   */
+  @AutoValue
+  public abstract static class GcsCreateOptions extends CreateOptions {
+    public abstract int uploadBufferSizeBytes();
+
+    /**
+     * Returns a {@link GcsCreateOptions.Builder}.
+     */
+    public static GcsCreateOptions.Builder builder() {
+      return new AutoValue_GcsFileSystem_GcsCreateOptions.Builder();
+    }
+
+    /**
+     * Builder for {@link GcsCreateOptions}.
+     */
+    @AutoValue.Builder
+    public abstract static class Builder extends CreateOptions.Builder<Builder> {
+      public abstract Builder setUploadBufferSizeBytes(int value);
+
+      public abstract GcsCreateOptions build();
+    }
   }
 }
