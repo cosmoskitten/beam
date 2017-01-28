@@ -34,6 +34,9 @@ from apache_beam.io import fileio
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils.value_provider import ValueProvider
+from apache_beam.utils.value_provider import StaticValueProvider
+from apache_beam.utils.value_provider import RuntimeValueProvider
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
@@ -53,8 +56,8 @@ class FileBasedSource(iobase.BoundedSource):
     """Initializes ``FileBasedSource``.
 
     Args:
-      file_pattern: the file glob to read or a ValueProvider (placeholder to
-                    inject a runtime value).
+      file_pattern: the file glob to read a string or a ValueProvider
+                    (placeholder to inject a runtime value).
       min_bundle_size: minimum size of bundles that should be generated when
                        performing initial splitting on this source.
       compression_type: compression type to use
@@ -98,7 +101,7 @@ class FileBasedSource(iobase.BoundedSource):
     else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
-    if validate:
+    if validate and not isinstance(file_pattern, RuntimeValueProvider):
       self._validate()
 
   def display_data(self):
