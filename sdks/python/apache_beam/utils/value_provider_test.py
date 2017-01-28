@@ -17,7 +17,6 @@
 
 """Unit tests for the ValueProvider class."""
 
-
 import unittest
 
 from apache_beam.utils.pipeline_options import PipelineOptions
