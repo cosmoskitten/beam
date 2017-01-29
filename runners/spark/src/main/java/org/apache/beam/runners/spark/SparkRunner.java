@@ -181,7 +181,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
           registerMetrics(mOptions, jsc);
           pipeline.traverseTopologically(new Evaluator(new TransformTranslator.Translator(),
                                                        evaluationContext));
-          evaluationContext.computeOutputs();
+          evaluationContext.computeOutputs(mOptions.isDebugPipeline());
           LOG.info("Batch pipeline execution complete.");
         }
       });
