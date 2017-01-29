@@ -31,4 +31,6 @@ public interface Dataset extends Serializable {
   void action();
 
   void setName(String name);
+
+  void printDebugString();
 }
