@@ -157,11 +157,15 @@ public class EvaluationContext {
    * Computes the outputs for all RDDs that are leaves in the DAG and do not have any actions (like
    * saving to a file) registered on them (i.e. they are performed for side effects).
    */
-  public void computeOutputs() {
+  public void computeOutputs(boolean debugMode) {
     for (Dataset dataset : leaves) {
       // cache so that any subsequent get() is cheap.
       dataset.cache(storageLevel());
-      dataset.action(); // force computation.
+      if (!debugMode) {
+        dataset.action(); // force computation.
+      } else {
+        dataset.printDebugString();
+      }
     }
   }
 

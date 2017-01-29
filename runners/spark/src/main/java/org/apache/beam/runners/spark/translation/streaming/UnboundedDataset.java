@@ -28,6 +28,7 @@ import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -110,5 +111,16 @@ public class UnboundedDataset<T> implements Dataset {
   @Override
   public void setName(String name) {
     // ignore
+  }
+
+  @Override
+  public void printDebugString() {
+    dStream.foreachRDD(new Function<JavaRDD<WindowedValue<T>>, Void>() {
+      @Override
+      public Void call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
+        LOG.info("Native Spark DStream->RDD pipeline:\n" + rdd.toDebugString());
+        return null;
+      }
+    });
   }
 }

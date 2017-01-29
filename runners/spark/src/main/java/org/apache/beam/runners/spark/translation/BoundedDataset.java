@@ -33,6 +33,8 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.storage.StorageLevel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Holds an RDD or values for deferred conversion to an RDD if needed. PCollections are sometimes
@@ -43,6 +45,8 @@ import org.apache.spark.storage.StorageLevel;
 public class BoundedDataset<T> implements Dataset {
   // only set if creating an RDD from a static collection
   @Nullable private transient JavaSparkContext jsc;
+
+  private static final Logger LOG = LoggerFactory.getLogger(BoundedDataset.class);
 
   private Iterable<WindowedValue<T>> windowedValues;
   private Coder<T> coder;
@@ -110,6 +114,11 @@ public class BoundedDataset<T> implements Dataset {
   @Override
   public void setName(String name) {
     rdd.setName(name);
+  }
+
+  @Override
+  public void printDebugString() {
+    LOG.info("Native Spark RDD pipeline:\n" + rdd.toDebugString());
   }
 
 }
