@@ -223,9 +223,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         @Override
         public void run() {
           registerMetrics(mOptions, jsc);
-          pipeline.traverseTopologically(new Evaluator(new TransformTranslator.Translator(),
-                                                       evaluationContext));
-          evaluationContext.computeOutputs(mOptions.isDebugPipeline());
+          TransformTranslator.Translator translator = new TransformTranslator.Translator();
+          Evaluator evaluator = mOptions.isDebugPipeline()
+              ? new SparkNativePipelineVisitor(translator, evaluationContext)
+              : new Evaluator(translator, evaluationContext);
+          pipeline.traverseTopologically(evaluator);
+          evaluationContext.computeOutputs(evaluator, mOptions.isDebugPipeline());
           LOG.info("Batch pipeline execution complete.");
         }
       });
@@ -298,10 +301,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * Evaluator on the pipeline.
    */
   public static class Evaluator extends Pipeline.PipelineVisitor.Defaults {
+
     private static final Logger LOG = LoggerFactory.getLogger(Evaluator.class);
 
-    private final EvaluationContext ctxt;
-    private final SparkPipelineTranslator translator;
+    final EvaluationContext ctxt;
+    final SparkPipelineTranslator translator;
 
     public Evaluator(SparkPipelineTranslator translator, EvaluationContext ctxt) {
       this.translator = translator;
@@ -316,6 +320,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
             (Class<PTransform<?, ?>>) node.getTransform().getClass();
         if (translator.hasTranslation(transformClass) && !shouldDefer(node)) {
           LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
+
           LOG.debug("Composite transform class: '{}'", transformClass);
           doVisitTransform(node);
           return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
@@ -324,7 +329,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
-    private boolean shouldDefer(TransformHierarchy.Node node) {
+    boolean shouldDefer(TransformHierarchy.Node node) {
       // if the input is not a PCollection, or it is but with non merging windows, don't defer.
       if (node.getInputs().size() != 1) {
         return false;
@@ -379,9 +384,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
      * Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded, and
      * translate with the proper translator.
      */
-    private <TransformT extends PTransform<? super PInput, POutput>>
-        TransformEvaluator<TransformT> translate(
-            TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
+    <TransformT extends PTransform<? super PInput, POutput>>
+    TransformEvaluator<TransformT> translate(
+        TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
       //--- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
       // is BOUNDED or UNBOUNDED, meaning RDD/DStream.
@@ -397,16 +402,16 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       LOG.debug("Translating {} as {}", transform, isNodeBounded);
       return isNodeBounded.equals(PCollection.IsBounded.BOUNDED)
           ? translator.translateBounded(transformClass)
-              : translator.translateUnbounded(transformClass);
+          : translator.translateUnbounded(transformClass);
     }
 
-    private PCollection.IsBounded isBoundedCollection(Collection<TaggedPValue> pValues) {
+    PCollection.IsBounded isBoundedCollection(Collection<TaggedPValue> pValues) {
       // anything that is not a PCollection, is BOUNDED.
       // For PCollections:
       // BOUNDED behaves as the Identity Element, BOUNDED + BOUNDED = BOUNDED
       // while BOUNDED + UNBOUNDED = UNBOUNDED.
       PCollection.IsBounded isBounded = PCollection.IsBounded.BOUNDED;
-      for (TaggedPValue pValue: pValues) {
+      for (TaggedPValue pValue : pValues) {
         if (pValue.getValue() instanceof PCollection) {
           isBounded = isBounded.and(((PCollection) pValue.getValue()).isBounded());
         } else {
@@ -417,4 +422,3 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
   }
 }
-

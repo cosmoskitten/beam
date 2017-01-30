@@ -101,11 +101,6 @@ public interface SparkPipelineOptions
   boolean getUsesProvidedSparkContext();
   void setUsesProvidedSparkContext(boolean value);
 
-  @Description("A special flag that forces streaming in tests.")
-  @Default.Boolean(false)
-  boolean isForceStreaming();
-  void setForceStreaming(boolean forceStreaming);
-
   @Description("A special flag that prints translated Spark native pipeline instead of running it.")
   @Default.Boolean(false)
   boolean isDebugPipeline();
