@@ -109,16 +109,22 @@ public final class TransformTranslator {
         } else {
           JavaRDD<WindowedValue<T>>[] rdds = new JavaRDD[pcs.size()];
           for (int i = 0; i < rdds.length; i++) {
+            TaggedPValue taggedPValue = pcs.get(i);
             checkArgument(
-                pcs.get(i).getValue() instanceof PCollection,
+                taggedPValue.getValue() instanceof PCollection,
                 "Flatten had non-PCollection value in input: %s of type %s",
-                pcs.get(i).getValue(),
-                pcs.get(i).getValue().getClass().getSimpleName());
-            rdds[i] = ((BoundedDataset<T>) context.borrowDataset(pcs.get(i).getValue())).getRDD();
+                taggedPValue.getValue(),
+                taggedPValue.getValue().getClass().getSimpleName());
+            rdds[i] = ((BoundedDataset<T>) context.borrowDataset(taggedPValue.getValue())).getRDD();
           }
           unionRDD = context.getSparkContext().union(rdds);
         }
         context.putDataset(transform, new BoundedDataset<>(unionRDD));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.union(...)";
       }
     };
   }
@@ -161,112 +167,127 @@ public final class TransformTranslator {
 
         context.putDataset(transform, new BoundedDataset<>(groupedAlsoByWindow));
       }
+
+      @Override
+      public String toNativeString() {
+        return "groupByKey()";
+      }
     };
   }
 
   private static <K, InputT, OutputT> TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>
       combineGrouped() {
-          return new TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>() {
-            @Override
-            public void evaluate(
-                Combine.GroupedValues<K, InputT, OutputT> transform,
-                EvaluationContext context) {
-              @SuppressWarnings("unchecked")
-              CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> combineFn =
-                  (CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT>)
-                      CombineFnUtil.toFnWithContext(transform.getFn());
-              final SparkKeyedCombineFn<K, InputT, ?, OutputT> sparkCombineFn =
-                  new SparkKeyedCombineFn<>(combineFn, context.getRuntimeContext(),
-                      TranslationUtils.getSideInputs(transform.getSideInputs(), context),
-                          context.getInput(transform).getWindowingStrategy());
+    return new TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>() {
+      @Override
+      public void evaluate(
+          Combine.GroupedValues<K, InputT, OutputT> transform,
+          EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> combineFn =
+            (CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT>)
+                CombineFnUtil.toFnWithContext(transform.getFn());
+        final SparkKeyedCombineFn<K, InputT, ?, OutputT> sparkCombineFn =
+            new SparkKeyedCombineFn<>(combineFn, context.getRuntimeContext(),
+                TranslationUtils.getSideInputs(transform.getSideInputs(), context),
+                context.getInput(transform).getWindowingStrategy());
 
-              @SuppressWarnings("unchecked")
-              JavaRDD<WindowedValue<KV<K, Iterable<InputT>>>> inRDD =
-                  ((BoundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform))
-                      .getRDD();
+        @SuppressWarnings("unchecked")
+        JavaRDD<WindowedValue<KV<K, Iterable<InputT>>>> inRDD =
+            ((BoundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform))
+                .getRDD();
 
-              JavaRDD<WindowedValue<KV<K, OutputT>>> outRDD = inRDD.map(
-                   new Function<WindowedValue<KV<K, Iterable<InputT>>>,
-                       WindowedValue<KV<K, OutputT>>>() {
-                         @Override
-                         public WindowedValue<KV<K, OutputT>> call(
-                             WindowedValue<KV<K, Iterable<InputT>>> in) throws Exception {
-                               return WindowedValue.of(
-                                   KV.of(in.getValue().getKey(), sparkCombineFn.apply(in)),
-                                   in.getTimestamp(),
-                                   in.getWindows(),
-                                   in.getPane());
-                             }
-                       });
-               context.putDataset(transform, new BoundedDataset<>(outRDD));
-            }
-          };
+        JavaRDD<WindowedValue<KV<K, OutputT>>> outRDD = inRDD.map(
+            new Function<WindowedValue<KV<K, Iterable<InputT>>>,
+                WindowedValue<KV<K, OutputT>>>() {
+              @Override
+              public WindowedValue<KV<K, OutputT>> call(
+                  WindowedValue<KV<K, Iterable<InputT>>> in) throws Exception {
+                return WindowedValue.of(
+                    KV.of(in.getValue().getKey(), sparkCombineFn.apply(in)),
+                    in.getTimestamp(),
+                    in.getWindows(),
+                    in.getPane());
+              }
+            });
+        context.putDataset(transform, new BoundedDataset<>(outRDD));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "map(new <fn>())";
+      }
+    };
   }
 
   private static <InputT, AccumT, OutputT> TransformEvaluator<Combine.Globally<InputT, OutputT>>
       combineGlobally() {
-        return new TransformEvaluator<Combine.Globally<InputT, OutputT>>() {
+    return new TransformEvaluator<Combine.Globally<InputT, OutputT>>() {
 
-          @Override
-          public void evaluate(
-              Combine.Globally<InputT, OutputT> transform,
-              EvaluationContext context) {
-            final PCollection<InputT> input = context.getInput(transform);
-            final Coder<InputT> iCoder = context.getInput(transform).getCoder();
-            final Coder<OutputT> oCoder = context.getOutput(transform).getCoder();
-            final WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-            @SuppressWarnings("unchecked")
-            final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn =
-                (CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT>)
-                    CombineFnUtil.toFnWithContext(transform.getFn());
-            final WindowedValue.FullWindowedValueCoder<OutputT> wvoCoder =
-                WindowedValue.FullWindowedValueCoder.of(oCoder,
-                    windowingStrategy.getWindowFn().windowCoder());
-            final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
-            final boolean hasDefault = transform.isInsertDefault();
+      @Override
+      public void evaluate(
+          Combine.Globally<InputT, OutputT> transform,
+          EvaluationContext context) {
+        final PCollection<InputT> input = context.getInput(transform);
+        final Coder<InputT> iCoder = context.getInput(transform).getCoder();
+        final Coder<OutputT> oCoder = context.getOutput(transform).getCoder();
+        final WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+        @SuppressWarnings("unchecked")
+        final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn =
+            (CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT>)
+                CombineFnUtil.toFnWithContext(transform.getFn());
+        final WindowedValue.FullWindowedValueCoder<OutputT> wvoCoder =
+            WindowedValue.FullWindowedValueCoder.of(oCoder,
+                windowingStrategy.getWindowFn().windowCoder());
+        final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
+        final boolean hasDefault = transform.isInsertDefault();
 
-            final SparkGlobalCombineFn<InputT, AccumT, OutputT> sparkCombineFn =
-                new SparkGlobalCombineFn<>(
-                    combineFn,
-                    runtimeContext,
-                    TranslationUtils.getSideInputs(transform.getSideInputs(), context),
-                    windowingStrategy);
-            final Coder<AccumT> aCoder;
-            try {
-              aCoder = combineFn.getAccumulatorCoder(runtimeContext.getCoderRegistry(), iCoder);
-            } catch (CannotProvideCoderException e) {
-              throw new IllegalStateException("Could not determine coder for accumulator", e);
-            }
+        final SparkGlobalCombineFn<InputT, AccumT, OutputT> sparkCombineFn =
+            new SparkGlobalCombineFn<>(
+                combineFn,
+                runtimeContext,
+                TranslationUtils.getSideInputs(transform.getSideInputs(), context),
+                windowingStrategy);
+        final Coder<AccumT> aCoder;
+        try {
+          aCoder = combineFn.getAccumulatorCoder(runtimeContext.getCoderRegistry(), iCoder);
+        } catch (CannotProvideCoderException e) {
+          throw new IllegalStateException("Could not determine coder for accumulator", e);
+        }
 
-            @SuppressWarnings("unchecked")
-            JavaRDD<WindowedValue<InputT>> inRdd =
-                ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
+        @SuppressWarnings("unchecked")
+        JavaRDD<WindowedValue<InputT>> inRdd =
+            ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
 
-            JavaRDD<WindowedValue<OutputT>> outRdd;
-            // handle empty input RDD, which will naturally skip the entire execution
-            // as Spark will not run on empty RDDs.
-            if (inRdd.isEmpty()) {
-              JavaSparkContext jsc = new JavaSparkContext(inRdd.context());
-              if (hasDefault) {
-                OutputT defaultValue = combineFn.defaultValue();
-                outRdd = jsc
-                    .parallelize(Lists.newArrayList(CoderHelpers.toByteArray(defaultValue, oCoder)))
-                    .map(CoderHelpers.fromByteFunction(oCoder))
-                    .map(WindowingHelpers.<OutputT>windowFunction());
-              } else {
-                outRdd = jsc.emptyRDD();
-              }
-            } else {
-              Iterable<WindowedValue<AccumT>> accumulated = GroupCombineFunctions.combineGlobally(
-                  inRdd, sparkCombineFn, iCoder, aCoder, windowingStrategy);
-              Iterable<WindowedValue<OutputT>> output = sparkCombineFn.extractOutput(accumulated);
-              outRdd = context.getSparkContext()
-                  .parallelize(CoderHelpers.toByteArrays(output, wvoCoder))
-                  .map(CoderHelpers.fromByteFunction(wvoCoder));
-            }
-            context.putDataset(transform, new BoundedDataset<>(outRdd));
+        JavaRDD<WindowedValue<OutputT>> outRdd;
+        // handle empty input RDD, which will naturally skip the entire execution
+        // as Spark will not run on empty RDDs.
+        if (inRdd.isEmpty()) {
+          JavaSparkContext jsc = new JavaSparkContext(inRdd.context());
+          if (hasDefault) {
+            OutputT defaultValue = combineFn.defaultValue();
+            outRdd = jsc
+                .parallelize(Lists.newArrayList(CoderHelpers.toByteArray(defaultValue, oCoder)))
+                .map(CoderHelpers.fromByteFunction(oCoder))
+                .map(WindowingHelpers.<OutputT>windowFunction());
+          } else {
+            outRdd = jsc.emptyRDD();
           }
-        };
+        } else {
+          Iterable<WindowedValue<AccumT>> accumulated = GroupCombineFunctions.combineGlobally(
+              inRdd, sparkCombineFn, iCoder, aCoder, windowingStrategy);
+          Iterable<WindowedValue<OutputT>> output = sparkCombineFn.extractOutput(accumulated);
+          outRdd = context.getSparkContext()
+              .parallelize(CoderHelpers.toByteArrays(output, wvoCoder))
+              .map(CoderHelpers.fromByteFunction(wvoCoder));
+        }
+        context.putDataset(transform, new BoundedDataset<>(outRdd));
+      }
+
+      @Override
+      public String toNativeString () {
+        return "aggregate(..., new <fn>(), ...)";
+      }
+    };
   }
 
   private static <K, InputT, AccumT, OutputT>
@@ -328,6 +349,11 @@ public final class TransformTranslator {
 
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }
+
+      @Override
+      public String toNativeString() {
+        return "combineByKey(..., new <fn>(), ...)";
+      }
     };
   }
 
@@ -354,6 +380,11 @@ public final class TransformTranslator {
         context.putDataset(transform,
             new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(aggAccum, metricsAccum,
                 stepName, doFn, context.getRuntimeContext(), sideInputs, windowingStrategy))));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "mapPartitions(new <fn>())";
       }
     };
   }
@@ -395,6 +426,11 @@ public final class TransformTranslator {
           context.putDataset(e.getValue(), new BoundedDataset<>(values));
         }
       }
+
+      @Override
+      public String toNativeString() {
+        return "mapPartitions(new <fn>())";
+      }
     };
   }
 
@@ -407,6 +443,11 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<String>> rdd = context.getSparkContext().textFile(pattern)
             .map(WindowingHelpers.<String>windowFunction());
         context.putDataset(transform, new BoundedDataset<>(rdd));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.textFile(...)";
       }
     };
   }
@@ -433,6 +474,11 @@ public final class TransformTranslator {
         writeHadoopFile(last, new Configuration(), shardTemplateInfo, Text.class,
             NullWritable.class, TemplatedTextOutputFormat.class);
       }
+
+      @Override
+      public String toNativeString() {
+        return "saveAsNewAPIHadoopFile(...)";
+      }
     };
   }
 
@@ -456,6 +502,11 @@ public final class TransformTranslator {
               }
             }).map(WindowingHelpers.<T>windowFunction());
         context.putDataset(transform, new BoundedDataset<>(rdd));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.newAPIHadoopFile(...)";
       }
     };
   }
@@ -488,6 +539,11 @@ public final class TransformTranslator {
         writeHadoopFile(last, job.getConfiguration(), shardTemplateInfo,
             AvroKey.class, NullWritable.class, TemplatedAvroKeyOutputFormat.class);
       }
+
+      @Override
+      public String toNativeString() {
+        return "mapToPair(<objectToAvroKeyFn>).saveAsNewAPIHadoopFile(...)";
+      }
     };
   }
 
@@ -502,6 +558,11 @@ public final class TransformTranslator {
             jsc.sc(), transform.getSource(), runtimeContext).toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
         context.putDataset(transform, new BoundedDataset<>(input.cache()));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.<readFrom(<source>)>()";
       }
     };
   }
@@ -525,6 +586,11 @@ public final class TransformTranslator {
           }
         }).map(WindowingHelpers.<KV<K, V>>windowFunction());
         context.putDataset(transform, new BoundedDataset<>(rdd));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.newAPIHadoopFile(...)";
       }
     };
   }
@@ -553,6 +619,11 @@ public final class TransformTranslator {
         }
         writeHadoopFile(last, conf, shardTemplateInfo,
             transform.getKeyClass(), transform.getValueClass(), transform.getFormatClass());
+      }
+
+      @Override
+      public String toNativeString() {
+        return "saveAsNewAPIHadoopFile(...)";
       }
     };
   }
@@ -626,6 +697,11 @@ public final class TransformTranslator {
               inRDD.map(new SparkAssignWindowFn<>(transform.getWindowFn()))));
         }
       }
+
+      @Override
+      public String toNativeString() {
+        return "map(new <windowFn>())";
+      }
     };
   }
 
@@ -638,6 +714,11 @@ public final class TransformTranslator {
         // can be transferred over the network.
         Coder<T> coder = context.getOutput(transform).getCoder();
         context.putBoundedDatasetFromValues(transform, elems, coder);
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.parallelize(Arrays.asList(...))";
       }
     };
   }
@@ -656,6 +737,11 @@ public final class TransformTranslator {
 
         context.putPView(output, iterCast, coderInternal);
       }
+
+      @Override
+      public String toNativeString() {
+        return "collect()";
+      }
     };
   }
 
@@ -672,6 +758,11 @@ public final class TransformTranslator {
         Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
 
         context.putPView(output, iterCast, coderInternal);
+      }
+
+      @Override
+      public String toNativeString() {
+        return "collect()";
       }
     };
   }
@@ -691,6 +782,11 @@ public final class TransformTranslator {
         Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
 
         context.putPView(output, iterCast, coderInternal);
+      }
+
+      @Override
+      public String toNativeString() {
+        return "<createPCollectionView>";
       }
     };
   }
@@ -712,6 +808,11 @@ public final class TransformTranslator {
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
         context.putDataset(transform, new BoundedDataset<String>(output));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.parallelize(rdd.getStorageLevel().description())";
       }
     };
   }

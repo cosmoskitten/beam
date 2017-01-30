@@ -26,7 +26,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.spark.SparkNativePipelineVisitor;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -39,12 +41,16 @@ import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The EvaluationContext allows us to define pipeline instructions and translate between
  * {@code PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
  */
 public class EvaluationContext {
+  private static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);
+
   private final JavaSparkContext jsc;
   private JavaStreamingContext jssc;
   private final SparkRuntimeContext runtime;
@@ -155,11 +161,15 @@ public class EvaluationContext {
    * Computes the outputs for all RDDs that are leaves in the DAG and do not have any actions (like
    * saving to a file) registered on them (i.e. they are performed for side effects).
    */
-  public void computeOutputs(boolean debugMode) {
+  public void computeOutputs(SparkRunner.Evaluator evaluator, boolean debugPipelineMode) {
+    if (debugPipelineMode && evaluator instanceof SparkNativePipelineVisitor) {
+      LOG.info("Translated Native Spark pipeline:\n"
+          + ((SparkNativePipelineVisitor) evaluator).getDebugString());
+    }
     for (Dataset dataset : leaves) {
       // cache so that any subsequent get() is cheap.
       dataset.cache(storageLevel());
-      if (!debugMode) {
+      if (!debugPipelineMode) {
         dataset.action(); // force computation.
       } else {
         dataset.printDebugString();
