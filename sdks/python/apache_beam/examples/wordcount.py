@@ -96,6 +96,7 @@ def run(argv=None):
 
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
+  result.wait_until_finish()
 
 
 if __name__ == '__main__':
