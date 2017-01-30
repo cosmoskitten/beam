@@ -20,6 +20,10 @@ import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
+<<<<<<< HEAD
+=======
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
+>>>>>>> Changes for spaces, Constants file name and comments as per Stephens code review comments
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -237,6 +241,7 @@ public class HIFIOCassandraIT implements Serializable {
     conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
     conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
 <<<<<<< HEAD
+<<<<<<< HEAD
     conf.setClass("mapreduce.job.inputformat.class",
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
     conf.setClass("key.class", java.lang.Long.class, Object.class);
@@ -270,9 +275,12 @@ public class HIFIOCassandraIT implements Serializable {
 >>>>>>> Removed throws exception from Cassandra IT
 =======
     conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+=======
+    conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
+>>>>>>> Changes for spaces, Constants file name and comments as per Stephens code review comments
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
-    conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, java.lang.Long.class, Object.class);
-    conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, com.datastax.driver.core.Row.class,
+    conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, java.lang.Long.class, Object.class);
+    conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, com.datastax.driver.core.Row.class,
         Object.class);
     return conf;
   }

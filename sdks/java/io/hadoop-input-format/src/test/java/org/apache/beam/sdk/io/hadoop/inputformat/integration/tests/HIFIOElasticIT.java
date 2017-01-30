@@ -20,6 +20,10 @@ import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
+<<<<<<< HEAD
+=======
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
+>>>>>>> Changes for spaces, Constants file name and comments as per Stephens code review comments
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -170,6 +174,7 @@ public class HIFIOElasticIT implements Serializable {
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
+<<<<<<< HEAD
     conf.setClass("mapreduce.job.inputformat.class",
         org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
 <<<<<<< HEAD
@@ -181,6 +186,12 @@ public class HIFIOElasticIT implements Serializable {
     conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class, Object.class);
     conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, LinkedMapWritable.class, Object.class);
 >>>>>>> Fix of issue extra bytes for LinkedMapWritable while deserializing
+=======
+    conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
+        org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
+    conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, Text.class, Object.class);
+    conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, LinkedMapWritable.class, Object.class);
+>>>>>>> Changes for spaces, Constants file name and comments as per Stephens code review comments
     return conf;
   }
 }
