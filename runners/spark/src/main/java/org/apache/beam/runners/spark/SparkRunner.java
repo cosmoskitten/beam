@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.commons.lang.StringUtils;
 import org.apache.spark.Accumulator;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -194,9 +196,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         @Override
         public void run() {
           registerMetrics(mOptions, jsc);
-          pipeline.traverseTopologically(new Evaluator(new TransformTranslator.Translator(),
-                                                       evaluationContext));
-          evaluationContext.computeOutputs(mOptions.isDebugPipeline());
+          Evaluator evaluator = new Evaluator(new TransformTranslator.Translator(),
+              evaluationContext);
+          pipeline.traverseTopologically(evaluator);
+          evaluationContext.computeOutputs(evaluator, mOptions.isDebugPipeline());
           LOG.info("Batch pipeline execution complete.");
         }
       });
@@ -271,6 +274,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     private final EvaluationContext ctxt;
     private final SparkPipelineTranslator translator;
+    private final List<DebugTransform> transforms = new ArrayList<>();
 
     public Evaluator(SparkPipelineTranslator translator, EvaluationContext ctxt) {
       this.translator = translator;
@@ -340,6 +344,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       LOG.info("Evaluating {}", transform);
       AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
       ctxt.setCurrentTransform(appliedTransform);
+      transforms.add(new DebugTransform(evaluator, transform));
       evaluator.evaluate(transform, ctxt);
       ctxt.setCurrentTransform(null);
     }
@@ -384,6 +389,35 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       }
       return isBounded;
     }
+
+    public String getDebugString() {
+      return StringUtils.join(transforms, "\n.");
+    }
+
+    private static class DebugTransform {
+      private final TransformEvaluator<?> transformEvaluator;
+      private final PTransform<?, ?> transform;
+
+      public DebugTransform(
+          TransformEvaluator<?> transformEvaluator,
+          PTransform<?, ?> transform) {
+        this.transformEvaluator = transformEvaluator;
+        this.transform = transform;
+      }
+
+      @Override
+      public String toString() {
+        try {
+          String transformString = transformEvaluator.toString();
+          if (transformString.contains("<doFn>")) {
+            transformString = transformString.replace("<doFn>",
+                transform.getClass().getMethod("getFn").invoke(transform).getClass().getName());
+          }
+          return transformString;
+        } catch (Exception e) {
+          return "<FailedTranslation>";
+        }
+      }
+    }
   }
 }
-
