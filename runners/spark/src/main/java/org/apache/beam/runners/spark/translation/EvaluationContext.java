@@ -53,7 +53,6 @@ public class EvaluationContext {
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
-  private final Set<PValue> multiReads = new LinkedHashSet<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
@@ -137,18 +136,15 @@ public class EvaluationContext {
     datasets.put(getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
   }
 
-  public Dataset borrowDataset(PTransform<? extends PValue, ?> transform) {
-    return borrowDataset(getInput(transform));
+  public Dataset borrowDataset(PTransform<? extends PValue, ?> transform, boolean cacheHint) {
+    return borrowDataset(getInput(transform), cacheHint);
   }
 
-  public Dataset borrowDataset(PValue pvalue) {
+  public Dataset borrowDataset(PValue pvalue, boolean cacheHint) {
     Dataset dataset = datasets.get(pvalue);
     leaves.remove(dataset);
-    if (multiReads.contains(pvalue)) {
-      // Ensure the RDD is marked as cached
+    if (cacheHint) {
       dataset.cache(storageLevel());
-    } else {
-      multiReads.add(pvalue);
     }
     return dataset;
   }

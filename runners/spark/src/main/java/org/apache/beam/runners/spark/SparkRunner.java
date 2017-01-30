@@ -20,7 +20,9 @@ package org.apache.beam.runners.spark;
 
 import com.google.common.collect.Iterables;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -86,6 +88,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * Options used in this pipeline runner.
    */
   private final SparkPipelineOptions mOptions;
+
+  /**
+   * Map used to store the PCollection (input/output of PTransforms) that should be cached (as
+   * accessed multiple times).
+   */
+  private final Map<PCollection, Long> cacheCandidates = new HashMap();
 
   /**
    * Creates and returns a new SparkRunner with default options. In particular, against a
@@ -155,7 +163,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     if (mOptions.isStreaming()) {
       final SparkRunnerStreamingContextFactory contextFactory =
-          new SparkRunnerStreamingContextFactory(pipeline, mOptions);
+          new SparkRunnerStreamingContextFactory(pipeline, mOptions, cacheCandidates);
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(), contextFactory);
 
@@ -180,7 +188,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         public void run() {
           registerMetrics(mOptions, jsc);
           pipeline.traverseTopologically(new Evaluator(new TransformTranslator.Translator(),
-                                                       evaluationContext));
+                                                       evaluationContext, cacheCandidates));
           evaluationContext.computeOutputs();
           LOG.info("Batch pipeline execution complete.");
         }
@@ -198,7 +206,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * @param pipeline
    */
   private void detectTranslationMode(Pipeline pipeline) {
-    TranslationModeDetector detector = new TranslationModeDetector();
+    DAGPreVisit detector = new DAGPreVisit(cacheCandidates);
     pipeline.traverseTopologically(detector);
     if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {
       // set streaming mode if it's a streaming pipeline
@@ -217,19 +225,22 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   /**
-   * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline.
+   * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline,
+   * and populate the candidates for caching. It's the preparation step of the runner.
    */
-  static class TranslationModeDetector extends Pipeline.PipelineVisitor.Defaults {
-    private static final Logger LOG = LoggerFactory.getLogger(TranslationModeDetector.class);
+  static class DAGPreVisit extends Pipeline.PipelineVisitor.Defaults {
+    private static final Logger LOG = LoggerFactory.getLogger(DAGPreVisit.class);
 
     private TranslationMode translationMode;
+    private Map<PCollection, Long> cacheCandidates;
 
-    TranslationModeDetector(TranslationMode defaultMode) {
+    DAGPreVisit(TranslationMode defaultMode, Map<PCollection, Long> cacheCandidates) {
       this.translationMode = defaultMode;
+      this.cacheCandidates = cacheCandidates;
     }
 
-    TranslationModeDetector() {
-      this(TranslationMode.BATCH);
+    DAGPreVisit(Map<PCollection, Long> cacheCandidates) {
+      this(TranslationMode.BATCH, cacheCandidates);
     }
 
     TranslationMode getTranslationMode() {
@@ -238,6 +249,26 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+      // we populate the cache candidates by updating the map with inputs of each node.
+      // The goal is to detect the PCollection accessed more than one time, and so enable cache
+      // on the underlying RDDs or DStreams.
+      // A PCollection (RDD/DStream) needs to be cached only if it's used as an input to more
+      // than one transformation so it won't be evaluated again all the way throughout its lineage.
+
+      // update cache candidates with node inputs
+      for (TaggedPValue input : node.getInputs()) {
+        PValue value = input.getValue();
+        if (value instanceof PCollection) {
+          long count = 1L;
+          if (cacheCandidates.get(value) != null) {
+            count = cacheCandidates.get(value) + 1;
+          }
+          cacheCandidates.put(((PCollection) value), count);
+        }
+      }
+
+      // determine the translation mode of the pipeline. If the node transform (the source of the
+      // pipeline) is a Read.Unbounded then we are in streaming mode, else, we are in batch mode.
       if (translationMode.equals(TranslationMode.BATCH)) {
         Class<? extends PTransform> transformClass = node.getTransform().getClass();
         if (transformClass == Read.Unbounded.class) {
@@ -256,10 +287,13 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     private final EvaluationContext ctxt;
     private final SparkPipelineTranslator translator;
+    private final Map<PCollection, Long> cacheCandidates;
 
-    public Evaluator(SparkPipelineTranslator translator, EvaluationContext ctxt) {
+    public Evaluator(SparkPipelineTranslator translator, EvaluationContext ctxt,
+                     Map<PCollection, Long> cacheCandidates) {
       this.translator = translator;
       this.ctxt = ctxt;
+      this.cacheCandidates = cacheCandidates;
     }
 
     @Override
@@ -325,7 +359,22 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       LOG.info("Evaluating {}", transform);
       AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
       ctxt.setCurrentTransform(appliedTransform);
-      evaluator.evaluate(transform, ctxt);
+      // by default we don't cache
+      boolean cacheHint = false;
+      // if the output of the node (aka PTransform) is already known in the cache candidates map
+      // (initialized with inputs), and it appears more than one time, then we enable caching
+
+      // considering node output for caching
+      for (TaggedPValue output : node.getOutputs()) {
+        PValue value = output.getValue();
+        if ((value instanceof PCollection)
+            && cacheCandidates.containsKey(value)
+            && cacheCandidates.get(value) > 1) {
+          cacheHint = true;
+          break;
+        }
+      }
+      evaluator.evaluate(transform, ctxt, cacheHint);
       ctxt.setCurrentTransform(null);
     }
 

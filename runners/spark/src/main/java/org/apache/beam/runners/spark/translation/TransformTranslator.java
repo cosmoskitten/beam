@@ -94,7 +94,8 @@ public final class TransformTranslator {
     return new TransformEvaluator<Flatten.FlattenPCollectionList<T>>() {
       @SuppressWarnings("unchecked")
       @Override
-      public void evaluate(Flatten.FlattenPCollectionList<T> transform, EvaluationContext context) {
+      public void evaluate(Flatten.FlattenPCollectionList<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         List<TaggedPValue> pcs = context.getInputs(transform);
         JavaRDD<WindowedValue<T>> unionRDD;
         if (pcs.size() == 0) {
@@ -107,7 +108,8 @@ public final class TransformTranslator {
                 "Flatten had non-PCollection value in input: %s of type %s",
                 pcs.get(i).getValue(),
                 pcs.get(i).getValue().getClass().getSimpleName());
-            rdds[i] = ((BoundedDataset<T>) context.borrowDataset(pcs.get(i).getValue())).getRDD();
+            rdds[i] = ((BoundedDataset<T>) context.borrowDataset(pcs.get(i).getValue(), cacheHint))
+                .getRDD();
           }
           unionRDD = context.getSparkContext().union(rdds);
         }
@@ -119,10 +121,11 @@ public final class TransformTranslator {
   private static <K, V> TransformEvaluator<GroupByKey<K, V>> groupByKey() {
     return new TransformEvaluator<GroupByKey<K, V>>() {
       @Override
-      public void evaluate(GroupByKey<K, V> transform, EvaluationContext context) {
+      public void evaluate(GroupByKey<K, V> transform, EvaluationContext context,
+                           boolean cacheHint) {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<KV<K, V>>> inRDD =
-            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
+            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform, cacheHint)).getRDD();
 
         @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
@@ -148,7 +151,7 @@ public final class TransformTranslator {
     return new TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>() {
       @Override
       public void evaluate(Combine.GroupedValues<K, InputT, OutputT> transform,
-                           EvaluationContext context) {
+                           EvaluationContext context, boolean cacheHint) {
         // get the applied combine function.
         PCollection<? extends KV<K, ? extends Iterable<InputT>>> input =
             context.getInput(transform);
@@ -161,7 +164,7 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<KV<K, Iterable<InputT>>>> inRDD =
             ((BoundedDataset<KV<K, Iterable<InputT>>>)
-                context.borrowDataset(transform)).getRDD();
+                context.borrowDataset(transform, cacheHint)).getRDD();
 
         SparkKeyedCombineFn<K, InputT, ?, OutputT> combineFnWithContext =
             new SparkKeyedCombineFn<>(fn, context.getRuntimeContext(),
@@ -179,7 +182,8 @@ public final class TransformTranslator {
     return new TransformEvaluator<Combine.Globally<InputT, OutputT>>() {
 
       @Override
-      public void evaluate(Combine.Globally<InputT, OutputT> transform, EvaluationContext context) {
+      public void evaluate(Combine.Globally<InputT, OutputT> transform, EvaluationContext context,
+                           boolean cacheHint) {
         final PCollection<InputT> input = context.getInput(transform);
         // serializable arguments to pass.
         final Coder<InputT> iCoder = context.getInput(transform).getCoder();
@@ -196,7 +200,7 @@ public final class TransformTranslator {
 
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRdd =
-            ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
+            ((BoundedDataset<InputT>) context.borrowDataset(transform, cacheHint)).getRDD();
 
         context.putDataset(transform, new BoundedDataset<>(GroupCombineFunctions
             .combineGlobally(inRdd, combineFn,
@@ -210,7 +214,7 @@ public final class TransformTranslator {
     return new TransformEvaluator<Combine.PerKey<K, InputT, OutputT>>() {
       @Override
       public void evaluate(Combine.PerKey<K, InputT, OutputT> transform,
-                           EvaluationContext context) {
+                           EvaluationContext context, boolean cacheHint) {
         final PCollection<KV<K, InputT>> input = context.getInput(transform);
         // serializable arguments to pass.
         @SuppressWarnings("unchecked")
@@ -227,7 +231,7 @@ public final class TransformTranslator {
 
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<KV<K, InputT>>> inRdd =
-            ((BoundedDataset<KV<K, InputT>>) context.borrowDataset(transform)).getRDD();
+            ((BoundedDataset<KV<K, InputT>>) context.borrowDataset(transform, cacheHint)).getRDD();
 
         context.putDataset(transform, new BoundedDataset<>(GroupCombineFunctions
             .combinePerKey(inRdd, combineFn,
@@ -239,12 +243,13 @@ public final class TransformTranslator {
   private static <InputT, OutputT> TransformEvaluator<ParDo.Bound<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.Bound<InputT, OutputT>>() {
       @Override
-      public void evaluate(ParDo.Bound<InputT, OutputT> transform, EvaluationContext context) {
+      public void evaluate(ParDo.Bound<InputT, OutputT> transform, EvaluationContext context,
+                           boolean cacheHint) {
         DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectStateAndTimers(doFn);
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
-            ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
+            ((BoundedDataset<InputT>) context.borrowDataset(transform, cacheHint)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> accum =
@@ -262,12 +267,13 @@ public final class TransformTranslator {
   multiDo() {
     return new TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>() {
       @Override
-      public void evaluate(ParDo.BoundMulti<InputT, OutputT> transform, EvaluationContext context) {
+      public void evaluate(ParDo.BoundMulti<InputT, OutputT> transform, EvaluationContext context,
+                           boolean cacheHint) {
         DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectStateAndTimers(doFn);
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
-            ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
+            ((BoundedDataset<InputT>) context.borrowDataset(transform, cacheHint)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> accum =
@@ -296,7 +302,8 @@ public final class TransformTranslator {
   private static <T> TransformEvaluator<TextIO.Read.Bound<T>> readText() {
     return new TransformEvaluator<TextIO.Read.Bound<T>>() {
       @Override
-      public void evaluate(TextIO.Read.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(TextIO.Read.Bound<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         String pattern = transform.getFilepattern();
         JavaRDD<WindowedValue<String>> rdd = context.getSparkContext().textFile(pattern)
             .map(WindowingHelpers.<String>windowFunction());
@@ -308,10 +315,11 @@ public final class TransformTranslator {
   private static <T> TransformEvaluator<TextIO.Write.Bound<T>> writeText() {
     return new TransformEvaluator<TextIO.Write.Bound<T>>() {
       @Override
-      public void evaluate(TextIO.Write.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(TextIO.Write.Bound<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         @SuppressWarnings("unchecked")
         JavaPairRDD<T, Void> last =
-            ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD()
+            ((BoundedDataset<T>) context.borrowDataset(transform, cacheHint)).getRDD()
             .map(WindowingHelpers.<T>unwindowFunction())
             .mapToPair(new PairFunction<T, T,
                     Void>() {
@@ -333,7 +341,8 @@ public final class TransformTranslator {
   private static <T> TransformEvaluator<AvroIO.Read.Bound<T>> readAvro() {
     return new TransformEvaluator<AvroIO.Read.Bound<T>>() {
       @Override
-      public void evaluate(AvroIO.Read.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(AvroIO.Read.Bound<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         String pattern = transform.getFilepattern();
         JavaSparkContext jsc = context.getSparkContext();
         @SuppressWarnings("unchecked")
@@ -357,7 +366,8 @@ public final class TransformTranslator {
   private static <T> TransformEvaluator<AvroIO.Write.Bound<T>> writeAvro() {
     return new TransformEvaluator<AvroIO.Write.Bound<T>>() {
       @Override
-      public void evaluate(AvroIO.Write.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(AvroIO.Write.Bound<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         Job job;
         try {
           job = Job.getInstance();
@@ -367,7 +377,7 @@ public final class TransformTranslator {
         AvroJob.setOutputKeySchema(job, transform.getSchema());
         @SuppressWarnings("unchecked")
         JavaPairRDD<AvroKey<T>, NullWritable> last =
-            ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD()
+            ((BoundedDataset<T>) context.borrowDataset(transform, cacheHint)).getRDD()
             .map(WindowingHelpers.<T>unwindowFunction())
             .mapToPair(new PairFunction<T, AvroKey<T>, NullWritable>() {
               @Override
@@ -388,7 +398,8 @@ public final class TransformTranslator {
   private static <T> TransformEvaluator<Read.Bounded<T>> readBounded() {
     return new TransformEvaluator<Read.Bounded<T>>() {
       @Override
-      public void evaluate(Read.Bounded<T> transform, EvaluationContext context) {
+      public void evaluate(Read.Bounded<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         final JavaSparkContext jsc = context.getSparkContext();
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
         // create an RDD from a BoundedSource.
@@ -403,7 +414,8 @@ public final class TransformTranslator {
   private static <K, V> TransformEvaluator<HadoopIO.Read.Bound<K, V>> readHadoop() {
     return new TransformEvaluator<HadoopIO.Read.Bound<K, V>>() {
       @Override
-      public void evaluate(HadoopIO.Read.Bound<K, V> transform, EvaluationContext context) {
+      public void evaluate(HadoopIO.Read.Bound<K, V> transform, EvaluationContext context,
+                           boolean cacheHint) {
         String pattern = transform.getFilepattern();
         JavaSparkContext jsc = context.getSparkContext();
         @SuppressWarnings("unchecked")
@@ -426,9 +438,11 @@ public final class TransformTranslator {
   private static <K, V> TransformEvaluator<HadoopIO.Write.Bound<K, V>> writeHadoop() {
     return new TransformEvaluator<HadoopIO.Write.Bound<K, V>>() {
       @Override
-      public void evaluate(HadoopIO.Write.Bound<K, V> transform, EvaluationContext context) {
+      public void evaluate(HadoopIO.Write.Bound<K, V> transform, EvaluationContext context,
+                           boolean cacheHint) {
         @SuppressWarnings("unchecked")
-        JavaPairRDD<K, V> last = ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform))
+        JavaPairRDD<K, V> last =
+            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform, cacheHint))
             .getRDD()
             .map(WindowingHelpers.<KV<K, V>>unwindowFunction())
             .mapToPair(new PairFunction<KV<K, V>, K, V>() {
@@ -508,10 +522,11 @@ public final class TransformTranslator {
   private static <T, W extends BoundedWindow> TransformEvaluator<Window.Bound<T>> window() {
     return new TransformEvaluator<Window.Bound<T>>() {
       @Override
-      public void evaluate(Window.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(Window.Bound<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<T>> inRDD =
-            ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD();
+            ((BoundedDataset<T>) context.borrowDataset(transform, cacheHint)).getRDD();
 
         if (TranslationUtils.skipAssignWindows(transform, context)) {
           context.putDataset(transform, new BoundedDataset<>(inRDD));
@@ -526,7 +541,8 @@ public final class TransformTranslator {
   private static <T> TransformEvaluator<Create.Values<T>> create() {
     return new TransformEvaluator<Create.Values<T>>() {
       @Override
-      public void evaluate(Create.Values<T> transform, EvaluationContext context) {
+      public void evaluate(Create.Values<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         Iterable<T> elems = transform.getElements();
         // Use a coder to convert the objects in the PCollection to byte arrays, so they
         // can be transferred over the network.
@@ -539,7 +555,8 @@ public final class TransformTranslator {
   private static <T> TransformEvaluator<View.AsSingleton<T>> viewAsSingleton() {
     return new TransformEvaluator<View.AsSingleton<T>>() {
       @Override
-      public void evaluate(View.AsSingleton<T> transform, EvaluationContext context) {
+      public void evaluate(View.AsSingleton<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         Iterable<? extends WindowedValue<?>> iter =
         context.getWindowedValues(context.getInput(transform));
         PCollectionView<T> output = context.getOutput(transform);
@@ -556,7 +573,8 @@ public final class TransformTranslator {
   private static <T> TransformEvaluator<View.AsIterable<T>> viewAsIter() {
     return new TransformEvaluator<View.AsIterable<T>>() {
       @Override
-      public void evaluate(View.AsIterable<T> transform, EvaluationContext context) {
+      public void evaluate(View.AsIterable<T> transform, EvaluationContext context,
+                           boolean cacheHint) {
         Iterable<? extends WindowedValue<?>> iter =
             context.getWindowedValues(context.getInput(transform));
         PCollectionView<Iterable<T>> output = context.getOutput(transform);
@@ -575,7 +593,7 @@ public final class TransformTranslator {
     return new TransformEvaluator<View.CreatePCollectionView<ReadT, WriteT>>() {
       @Override
       public void evaluate(View.CreatePCollectionView<ReadT, WriteT> transform,
-                           EvaluationContext context) {
+                           EvaluationContext context, boolean cacheHint) {
         Iterable<? extends WindowedValue<?>> iter =
             context.getWindowedValues(context.getInput(transform));
         PCollectionView<WriteT> output = context.getOutput(transform);
@@ -592,8 +610,9 @@ public final class TransformTranslator {
   private static TransformEvaluator<StorageLevelPTransform> storageLevel() {
     return new TransformEvaluator<StorageLevelPTransform>() {
       @Override
-      public void evaluate(StorageLevelPTransform transform, EvaluationContext context) {
-        JavaRDD rdd = ((BoundedDataset) (context).borrowDataset(transform)).getRDD();
+      public void evaluate(StorageLevelPTransform transform, EvaluationContext context,
+                           boolean cacheHint) {
+        JavaRDD rdd = ((BoundedDataset) (context).borrowDataset(transform, cacheHint)).getRDD();
         JavaSparkContext javaSparkContext = context.getSparkContext();
 
         WindowedValue.ValueOnlyWindowedValueCoder<String> windowCoder =

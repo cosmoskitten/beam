@@ -99,6 +99,12 @@ public class BoundedDataset<T> implements Dataset {
 
   @Override
   public void cache(String storageLevel) {
+    if (rdd == null) {
+      WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
+          WindowedValue.getValueOnlyCoder(coder);
+      rdd = jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
+          .map(CoderHelpers.fromByteFunction(windowCoder));
+    }
     rdd.persist(StorageLevel.fromString(storageLevel));
   }
 
