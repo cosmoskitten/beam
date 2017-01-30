@@ -113,6 +113,12 @@ public final class TransformTranslator {
         }
         context.putDataset(transform, new BoundedDataset<>(unionRDD));
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<flattenPColl>";
+      }
     };
   }
 
@@ -139,6 +145,11 @@ public final class TransformTranslator {
                     coder,
                     context.getRuntimeContext(),
                     context.getInput(transform).getWindowingStrategy())));
+      }
+
+      @Override
+      public String toString() {
+        return "groupByKey()";
       }
     };
   }
@@ -171,6 +182,12 @@ public final class TransformTranslator {
             .CombineGroupedValues<>(
             combineFnWithContext))));
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<combineGrouped>";
+      }
     };
   }
 
@@ -201,6 +218,12 @@ public final class TransformTranslator {
         context.putDataset(transform, new BoundedDataset<>(GroupCombineFunctions
             .combineGlobally(inRdd, combineFn,
                 iCoder, oCoder, runtimeContext, windowingStrategy, sideInputs, hasDefault)));
+      }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<combineGlobally>";
       }
     };
   }
@@ -233,6 +256,12 @@ public final class TransformTranslator {
             .combinePerKey(inRdd, combineFn,
                 inputCoder, runtimeContext, windowingStrategy, sideInputs)));
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<combinePerKey>";
+      }
     };
   }
 
@@ -254,6 +283,11 @@ public final class TransformTranslator {
         context.putDataset(transform,
             new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, doFn,
                 context.getRuntimeContext(), sideInputs, windowingStrategy))));
+      }
+
+      @Override
+      public String toString() {
+        return "mapPartitions(new <doFn>())";
       }
     };
   }
@@ -288,6 +322,11 @@ public final class TransformTranslator {
               (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
           context.putDataset(e.getValue(), new BoundedDataset<>(values));
         }
+      }
+
+      @Override
+      public String toString() {
+        return "mapPartitions(new <doFn>())";
       }
     };
   }
@@ -397,6 +436,11 @@ public final class TransformTranslator {
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
         context.putDataset(transform, new BoundedDataset<>(input.cache()));
       }
+
+      @Override
+      public String toString() {
+        return "<ReadFrom<source>>";
+      }
     };
   }
 
@@ -419,6 +463,12 @@ public final class TransformTranslator {
           }
         }).map(WindowingHelpers.<KV<K, V>>windowFunction());
         context.putDataset(transform, new BoundedDataset<>(rdd));
+      }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<readHadoop>";
       }
     };
   }
@@ -447,6 +497,12 @@ public final class TransformTranslator {
         }
         writeHadoopFile(last, conf, shardTemplateInfo,
             transform.getKeyClass(), transform.getValueClass(), transform.getFormatClass());
+      }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<writeHadoop>";
       }
     };
   }
@@ -520,6 +576,12 @@ public final class TransformTranslator {
               inRDD.map(new SparkAssignWindowFn<>(transform.getWindowFn()))));
         }
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<window>";
+      }
     };
   }
 
@@ -532,6 +594,11 @@ public final class TransformTranslator {
         // can be transferred over the network.
         Coder<T> coder = context.getOutput(transform).getCoder();
         context.putBoundedDatasetFromValues(transform, elems, coder);
+      }
+
+      @Override
+      public String toString() {
+        return "sparkContext.parallelize(Arrays.asList(???))";
       }
     };
   }
@@ -550,6 +617,12 @@ public final class TransformTranslator {
 
         context.putPView(output, iterCast, coderInternal);
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<viewAsSingleton>";
+      }
     };
   }
 
@@ -566,6 +639,12 @@ public final class TransformTranslator {
         Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
 
         context.putPView(output, iterCast, coderInternal);
+      }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<viewAsIter>";
       }
     };
   }
@@ -585,6 +664,12 @@ public final class TransformTranslator {
         Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
 
         context.putPView(output, iterCast, coderInternal);
+      }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<createPCollView>";
       }
     };
   }
@@ -606,6 +691,12 @@ public final class TransformTranslator {
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
         context.putDataset(transform, new BoundedDataset<String>(output));
+      }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<storageLevel>";
       }
     };
   }
