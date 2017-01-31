@@ -238,14 +238,14 @@ class TestAvro(unittest.TestCase):
         (splits[0].source, splits[0].start_position, splits[0].stop_position))
 
   def test_read_without_splitting_multiple_blocks(self):
-    file_name = self._write_data(count=12000)
-    expected_result = self.RECORDS * 2000
+    file_name = self._write_data(count=6000)
+    expected_result = self.RECORDS * 1000
     self._run_avro_test(file_name, None, False, expected_result)
 
   def test_read_with_splitting_multiple_blocks(self):
-    file_name = self._write_data(count=12000)
-    expected_result = self.RECORDS * 2000
-    self._run_avro_test(file_name, 10000, True, expected_result)
+    file_name = self._write_data(count=6000)
+    expected_result = self.RECORDS * 1000
+    self._run_avro_test(file_name, 5000, True, expected_result)
 
   def test_read_without_splitting_compressed_deflate(self):
     file_name = self._write_data(codec='deflate')
@@ -284,8 +284,8 @@ class TestAvro(unittest.TestCase):
     # work rebalancing test that completes within an acceptable amount of time.
     old_sync_interval = avro.datafile.SYNC_INTERVAL
     try:
-      avro.datafile.SYNC_INTERVAL = 5
-      file_name = self._write_data(count=20)
+      avro.datafile.SYNC_INTERVAL = 2
+      file_name = self._write_data(count=5)
       source = AvroSource(file_name)
       splits = [split
                 for split in source.split(desired_bundle_size=float('inf'))]
