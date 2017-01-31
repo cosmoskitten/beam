@@ -56,9 +56,9 @@ from apache_beam.utils.pipeline_options import SetupOptions
 class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""
 
-  # A custom aggregator can track values in your pipeline as it runs. Those
+  # A custom Metric can track values in your pipeline as it runs. Those
   # values will be displayed in the Dataflow Monitoring UI when this pipeline is
-  # run using the Dataflow service. These aggregators below track the number of
+  # run using the Dataflow service. These metrics below track the number of
   # matched and unmatched words. Learn more at
   # https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf about
   # the Dataflow Monitoring UI.

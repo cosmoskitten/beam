@@ -517,8 +517,8 @@ def examples_wordcount_debugging(renames):
   class FilterTextFn(beam.DoFn):
     """A DoFn that filters for a specific key based on a regular expression."""
 
-    # A custom aggregator can track values in your pipeline as it runs. Create
-    # custom aggregators matched_word and unmatched_words.
+    # A custom metric can track values in your pipeline as it runs. Create
+    # custom metrics matched_word and unmatched_words.
 
     def __init__(self, pattern):
       self.pattern = pattern
@@ -533,7 +533,7 @@ def examples_wordcount_debugging(renames):
         # Logging UI.
         logging.info('Matched %s', word)
 
-        # Add 1 to the custom aggregator matched_words
+        # Add 1 to the custom metric counter matched_words
         self.matched_words.inc()
         yield context.element
       else:
@@ -544,7 +544,7 @@ def examples_wordcount_debugging(renames):
         # Logger. This log message will not be visible in the Cloud Logger.
         logging.debug('Did not match %s', word)
 
-        # Add 1 to the custom aggregator umatched_words
+        # Add 1 to the custom metric counter umatched_words
         self.umatched_words.inc()
   # [END example_wordcount_debugging_logging]
   # [END example_wordcount_debugging_aggregators]
