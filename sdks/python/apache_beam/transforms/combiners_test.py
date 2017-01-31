@@ -221,7 +221,7 @@ class CombineTest(unittest.TestCase):
   def test_sample(self):
 
     # First test global samples (lots of them).
-    for ix in xrange(300):
+    for ix in xrange(9):
       pipeline = TestPipeline()
       pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
       result = pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3)
@@ -243,7 +243,7 @@ class CombineTest(unittest.TestCase):
     # Now test per-key samples.
     pipeline = TestPipeline()
     pcoll = pipeline | 'start-perkey' >> Create(
-        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(300)), []))
+        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(9)), []))
     result = pcoll | 'sample' >> combine.Sample.FixedSizePerKey(3)
 
     def matcher():
