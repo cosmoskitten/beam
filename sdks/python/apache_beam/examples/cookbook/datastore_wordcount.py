@@ -247,6 +247,7 @@ def run(argv=None):
   result = read_from_datastore(gcloud_options.project, known_args,
                                pipeline_options)
 
+  result.metrics().query()
   #TODO(pabloem): Fix these once metrics are 100% queriable.
   #logging.info('number of empty lines: %d', sum(empty_line_values.values()))
   #logging.info('average word lengths: %s', word_length_values.values())
