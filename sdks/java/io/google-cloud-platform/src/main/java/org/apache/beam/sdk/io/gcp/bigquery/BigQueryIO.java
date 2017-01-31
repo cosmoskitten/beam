@@ -1984,7 +1984,9 @@ public class BigQueryIO {
               new StreamWithDeDup(getTable(), tableRefFunction,
                   jsonSchema == null ? null : NestedValueProvider.of(
                       jsonSchema, new JsonSchemaToTableSchema()),
-                  createDisposition, bqServices));
+                  createDisposition,
+                  tableDescription,
+                  bqServices));
         }
 
         ValueProvider<TableReference> table = getTableWithDefaultProject(options);
@@ -2685,6 +2687,8 @@ public class BigQueryIO {
     /** TableSchema in JSON. Use String to make the class Serializable. */
     @Nullable private final ValueProvider<String> jsonTableSchema;
 
+    private final String tableDescription;
+
     private final BigQueryServices bqServices;
 
     /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
@@ -2706,12 +2710,14 @@ public class BigQueryIO {
 
     /** Constructor. */
     StreamingWriteFn(@Nullable ValueProvider<TableSchema> schema,
-        Write.CreateDisposition createDisposition,
-        BigQueryServices bqServices) {
+                     Write.CreateDisposition createDisposition,
+                     @Nullable String tableDescription,
+                     BigQueryServices bqServices) {
       this.jsonTableSchema = schema == null ? null :
           NestedValueProvider.of(schema, new TableSchemaToJsonSchema());
       this.createDisposition = createDisposition;
       this.bqServices = checkNotNull(bqServices, "bqServices");
+      this.tableDescription = tableDescription;
     }
 
     /**
@@ -2759,8 +2765,11 @@ public class BigQueryIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.addIfNotNull(DisplayData.item("schema", jsonTableSchema)
-        .withLabel("Table Schema"));
+      builder
+          .addIfNotNull(DisplayData.item("schema", jsonTableSchema)
+            .withLabel("Table Schema"))
+          .addIfNotNull(DisplayData.item("tableDescription", tableDescription)
+            .withLabel("Table Description"));
     }
 
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
@@ -2778,7 +2787,10 @@ public class BigQueryIO {
               TableSchema tableSchema = JSON_FACTORY.fromString(
                   jsonTableSchema.get(), TableSchema.class);
               datasetService.createTable(
-                  new Table().setTableReference(tableReference).setSchema(tableSchema));
+                  new Table()
+                      .setTableReference(tableReference)
+                      .setSchema(tableSchema)
+                      .setDescription(tableDescription));
             }
             createdTables.add(tableSpec);
           }
@@ -3024,18 +3036,21 @@ public class BigQueryIO {
     @Nullable private final transient ValueProvider<TableSchema> tableSchema;
     private final Write.CreateDisposition createDisposition;
     private final BigQueryServices bqServices;
+    private final String tableDescription;
 
     /** Constructor. */
     StreamWithDeDup(ValueProvider<TableReference> tableReference,
-        @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
-        @Nullable ValueProvider<TableSchema> tableSchema,
-        Write.CreateDisposition createDisposition,
-        BigQueryServices bqServices) {
+                    @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+                    @Nullable ValueProvider<TableSchema> tableSchema,
+                    Write.CreateDisposition createDisposition,
+                    @Nullable String tableDescription,
+                    BigQueryServices bqServices) {
       this.tableReference = tableReference;
       this.tableRefFunction = tableRefFunction;
       this.tableSchema = tableSchema;
       this.createDisposition = createDisposition;
       this.bqServices = checkNotNull(bqServices, "bqServices");
+      this.tableDescription = tableDescription;
     }
 
     @Override
@@ -3066,7 +3081,12 @@ public class BigQueryIO {
       tagged
           .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
           .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
-          .apply(ParDo.of(new StreamingWriteFn(tableSchema, createDisposition, bqServices)));
+          .apply(ParDo.of(new StreamingWriteFn(
+              tableSchema,
+              createDisposition,
+              tableDescription,
+              bqServices
+          )));
 
       // Note that the implementation to return PDone here breaks the
       // implicit assumption about the job execution order. If a user
