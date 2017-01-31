@@ -44,6 +44,7 @@ cdef class DoFnRunner(Receiver):
   cdef list side_inputs
   cdef bint has_windowed_side_inputs
   cdef list placeholders
+  cdef bint simple_process
 
   cdef Receiver main_receivers
 
