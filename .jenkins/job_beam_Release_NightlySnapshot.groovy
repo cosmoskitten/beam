@@ -33,9 +33,16 @@ mavenJob('beam_Release_NightlySnapshot') {
   // Set maven paramaters.
   common_job_properties.setMavenConfig(delegate)
 
+<<<<<<< HEAD
   // This is a post-commit job that runs once per day, not for every push.
+=======
+  // Set that this is a PostCommit job.
+  // Cannot be triggered in precommit jobs.
+  // Polls SCM on Feb 31st, i.e. never.
+>>>>>>> Enable oneshots of Jenkins runs in precommit.
   common_job_properties.setPostCommit(
       delegate,
+      '',
       '0 7 * * *',
       false,
       'dev@beam.apache.org')
