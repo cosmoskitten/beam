@@ -26,10 +26,14 @@ import org.apache.beam.sdk.util.ApiSurface;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** API surface verification for {@link org.apache.beam}. */
 @RunWith(JUnit4.class)
 public class SdkCoreApiSurfaceTest {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SdkCoreApiSurfaceTest.class);
 
   @Test
   public void testSdkApiSurface() throws Exception {
@@ -55,6 +59,10 @@ public class SdkCoreApiSurfaceTest {
             // via Avro
             "org.joda.time",
             "org.junit");
+
+    for (Class<?> aClass : ApiSurface.getSdkApiSurface().getExposedClasses()) {
+      LOGGER.info("{} is exposed by the SdkApiSurface", aClass.getSimpleName());
+    }
 
     assertThat(ApiSurface.getSdkApiSurface(), containsOnlyPackages(allowed));
   }
