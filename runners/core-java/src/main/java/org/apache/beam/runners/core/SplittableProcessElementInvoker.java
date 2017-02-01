@@ -17,27 +17,33 @@
  */
 package org.apache.beam.runners.core;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * A runner-specific hook for invoking a {@link DoFn.ProcessElement} method for a splittable
- * {@link DoFn}, in particular, allowing the runner to access the {@link RestrictionTracker}.
+ * A runner-specific hook for invoking a {@link DoFn.ProcessElement} method for a splittable {@link
+ * DoFn}, in particular, allowing the runner to access the {@link RestrictionTracker}.
  */
 public abstract class SplittableProcessElementInvoker<
     InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> {
   /** Specifies how to resume a splittable {@link DoFn.ProcessElement} call. */
   public class Result {
-    private final RestrictionT residualRestriction;
+    @Nullable private final RestrictionT residualRestriction;
     private final DoFn.ProcessContinuation continuation;
 
-    public Result(RestrictionT residualRestriction, DoFn.ProcessContinuation continuation) {
+    public Result(
+        @Nullable RestrictionT residualRestriction, DoFn.ProcessContinuation continuation) {
       this.residualRestriction = residualRestriction;
       this.continuation = continuation;
     }
 
+    /**
+     * Can be {@code null} only if {@link #getContinuation} specifies the call should not resume.
+     */
+    @Nullable
     public RestrictionT getResidualRestriction() {
       return residualRestriction;
     }

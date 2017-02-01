@@ -157,12 +157,18 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
             });
     RestrictionT residual;
     RestrictionT forcedCheckpoint = processContext.extractCheckpoint();
-    if (forcedCheckpoint == null) {
-      // If no checkpoint was forced, the call returned voluntarily - but we still need
-      // to have a checkpoint to potentially resume from.
-      residual = tracker.checkpoint();
+    if (cont.shouldResume()) {
+      if (forcedCheckpoint == null) {
+        // If no checkpoint was forced, the call returned voluntarily (i.e. all tryClaim() calls
+        // succeeded) - but we still need to have a checkpoint to resume from.
+        residual = tracker.checkpoint();
+      } else {
+        // A checkpoint was forced - i.e. the call probably (but not guaranteed) returned because of
+        // a failed tryClaim() call.
+        residual = forcedCheckpoint;
+      }
     } else {
-      residual = forcedCheckpoint;
+      residual = null;
     }
     return new Result(residual, cont);
   }
