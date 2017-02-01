@@ -55,16 +55,13 @@ from apache_beam.utils.pipeline_options import SetupOptions
 
 class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""
-
-  # A custom Metric can track values in your pipeline as it runs. Those
-  # values will be displayed in the Dataflow Monitoring UI when this pipeline is
-  # run using the Dataflow service. These metrics below track the number of
-  # matched and unmatched words. Learn more at
-  # https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf about
-  # the Dataflow Monitoring UI.
   def __init__(self, pattern):
     super(FilterTextFn, self).__init__()
     self.pattern = pattern
+    # A custom metric can track values in your pipeline as it runs. Those
+    # values will be displayed in the Dataflow Monitoring UI when this pipeline
+    # is run using the Dataflow service. These metrics below track the number of
+    # matched and unmatched words.
     self.matched_words = Metrics.counter(self.__class__, 'matched_words')
     self.umatched_words = Metrics.counter(self.__class__, 'umatched_words')
 

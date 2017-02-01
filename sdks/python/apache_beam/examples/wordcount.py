@@ -34,6 +34,12 @@ from apache_beam.utils.pipeline_options import SetupOptions
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
 
+  def __init__(self):
+    super(WordExtractingDoFn, self).__init__()
+    self.words_counter = Metrics.counter(self.__class__, 'words')
+    self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')
+    self.empty_line_counter = Metrics.counter(self.__class__, 'empty_lines')
+
   def process(self, context):
     """Returns an iterator over the words of this element.
 
@@ -47,14 +53,11 @@ class WordExtractingDoFn(beam.DoFn):
     """
     text_line = context.element.strip()
     if not text_line:
-      empty_line_counter = Metrics.counter(self.__class__, 'emptyLines')
-      empty_line_counter.inc(1)
+      self.empty_line_counter.inc(1)
     words = re.findall(r'[A-Za-z\']+', text_line)
     for w in words:
-      words_counter = Metrics.counter(self.__class__, 'words')
-      word_lengths_counter = Metrics.counter(self.__class__, 'wordLengths')
-      words_counter.inc()
-      word_lengths_counter.inc(len(w))
+      self.words_counter.inc()
+      self.word_lengths_counter.inc(len(w))
     return words
 
 
@@ -97,7 +100,7 @@ def run(argv=None):
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   result.wait_until_finish()
-
+  #TODO(pabloem) Add querying of metrics once they are queriable.
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

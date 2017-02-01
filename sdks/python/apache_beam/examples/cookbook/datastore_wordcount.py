@@ -79,9 +79,9 @@ from apache_beam.utils.pipeline_options import GoogleCloudOptions
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
-empty_line_counter = Metrics.counter('main', 'emptyLines')
-word_length_counter = Metrics.counter('main', 'wordLengths')
-word_counter = Metrics.counter('main', 'totalWords')
+empty_line_counter = Metrics.counter('main', 'empty_lines')
+word_length_counter = Metrics.counter('main', 'word_lengths')
+word_counter = Metrics.counter('main', 'total_words')
 
 
 class WordExtractingDoFn(beam.DoFn):
@@ -249,8 +249,7 @@ def run(argv=None):
 
   result.metrics().query()
   #TODO(pabloem): Fix these once metrics are 100% queriable.
-  #logging.info('number of empty lines: %d', sum(empty_line_values.values()))
-  #logging.info('average word lengths: %s', word_length_values.values())
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
