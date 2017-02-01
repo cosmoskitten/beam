@@ -61,7 +61,7 @@ public class SdkCoreApiSurfaceTest {
             "org.junit");
 
     for (Class<?> aClass : ApiSurface.getSdkApiSurface().getExposedClasses()) {
-      LOGGER.info("{} is exposed by the SdkApiSurface", aClass.getSimpleName());
+      LOGGER.info("{} is exposed by the SdkApiSurface", aClass);
     }
 
     assertThat(ApiSurface.getSdkApiSurface(), containsOnlyPackages(allowed));
