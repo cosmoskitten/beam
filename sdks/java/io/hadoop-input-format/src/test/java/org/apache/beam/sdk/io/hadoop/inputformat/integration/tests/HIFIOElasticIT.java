@@ -92,8 +92,9 @@ public class HIFIOElasticIT implements Serializable {
   public void testHifIOWithElastic() {
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
-    PCollection<KV<Text, LinkedMapWritable>> esData =
-        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
+    PCollection<KV<Text, LinkedMapWritable>> esData = pipeline
+                    .apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read()
+                        .withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo(TEST_DATA_ROW_COUNT);
 
@@ -139,8 +140,9 @@ public class HIFIOElasticIT implements Serializable {
             + "  }"
             + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
-    PCollection<KV<Text, LinkedMapWritable>> esData =
-        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
+    PCollection<KV<Text, LinkedMapWritable>> esData = pipeline
+                    .apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read()
+                        .withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo(1L);
     pipeline.run().waitUntilFinish();
