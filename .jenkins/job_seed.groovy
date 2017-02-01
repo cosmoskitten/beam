@@ -31,6 +31,7 @@ job('beam_SeedJob_Main') {
   // Polls SCM on Feb 31st, i.e. never.
   common_job_properties.setPostCommit(
       delegate,
+      'Run Seed Job',
       '0 6 * * *',
       '0 5 31 2 *',
       'dev@beam.apache.org')

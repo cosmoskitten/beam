@@ -34,9 +34,11 @@ mavenJob('beam_Release_NightlySnapshot') {
   common_job_properties.setMavenConfig(delegate)
 
   // Set that this is a PostCommit job.
+  // Cannot be triggered in precommit jobs.
   // Polls SCM on Feb 31st, i.e. never.
   common_job_properties.setPostCommit(
       delegate,
+      '',
       '0 7 * * *',
       '0 5 31 2 *',
       'dev@beam.apache.org')
