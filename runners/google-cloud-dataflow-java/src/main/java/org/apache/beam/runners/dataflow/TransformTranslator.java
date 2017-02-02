@@ -121,6 +121,9 @@ interface TransformTranslator<TransformT extends PTransform> {
      */
     long addOutput(PValue value);
 
+    /** Like {@link #addOutput(PValue)}, but allows to override the PValue's coder. */
+    long addOutput(PValue value, Coder<?> valueCoder);
+
     /**
      * Adds an output to this {@code CollectionToSingleton} Dataflow step, consuming the specified
      * input {@code PValue} and producing the specified output {@code PValue}. This step requires
