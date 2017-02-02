@@ -332,5 +332,9 @@
       <artifactId>datastore-v1-protos</artifactId>
       <scope>test</scope>
     </dependency>
+      <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-core-java</artifactId>
+      </dependency>
   </dependencies>
 </project>
