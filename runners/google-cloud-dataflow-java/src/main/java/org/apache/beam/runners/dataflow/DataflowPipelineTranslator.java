@@ -55,6 +55,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.KeyedWorkItemCoder;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.WindowingStrategies;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.DataflowRunner.CombineGroupedValues;
@@ -68,6 +70,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -82,6 +86,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
@@ -636,7 +641,8 @@ public class DataflowPipelineTranslator {
      * Dataflow step, producing the specified output {@code PValue}
      * with the given {@code Coder} (if not {@code null}).
      */
-    private long addOutput(PValue value, Coder<?> valueCoder) {
+    @Override
+    public long addOutput(PValue value, Coder<?> valueCoder) {
       long id = translator.idGenerator.get();
       translator.registerOutputName(value, Long.toString(id));
 
@@ -916,6 +922,45 @@ public class DataflowPipelineTranslator {
     // IO Translation.
 
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Splittable DoFn translation.
+
+    registerTransformTranslator(
+        SplittableParDo.GBKIntoKeyedWorkItems.class,
+        new TransformTranslator<SplittableParDo.GBKIntoKeyedWorkItems>() {
+          @Override
+          public void translate(
+              SplittableParDo.GBKIntoKeyedWorkItems transform, TranslationContext context) {
+            translateTyped(transform, context);
+          }
+
+          private <InputT> void translateTyped(
+              SplittableParDo.GBKIntoKeyedWorkItems<String, InputT> transform,
+              TranslationContext context) {
+            // Like a regular GBK step, but with an IS_RAW property, and without windowing-related
+            // parameters.
+            StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
+
+            PCollection<KV<String, InputT>> input = context.getInput(transform);
+            stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+
+            // GBKIntoKeyedWorkItems translates into a raw GBK, which directly outputs
+            // KeyedWorkItem's without applying a window fn to their contents.
+            stepContext.addInput(PropertyNames.IS_RAW_GROUP_BY_KEY, true);
+
+            Coder<InputT> valueCoder = ((KvCoder<String, InputT>) input.getCoder()).getValueCoder();
+            Coder<? extends BoundedWindow> windowCoder =
+                input.getWindowingStrategy().getWindowFn().windowCoder();
+            stepContext.addOutput(
+                context.getOutput(transform),
+                WindowedValue.getFullCoder(
+                    KeyedWorkItemCoder.of(StringUtf8Coder.of(), valueCoder, windowCoder),
+                    // Dataflow Worker uses the window coder specified on the GBK output itself
+                    // as the window coder for contents of the KeyedWorkItem.
+                    windowCoder));
+          }
+        });
   }
 
   private static void translateInputs(

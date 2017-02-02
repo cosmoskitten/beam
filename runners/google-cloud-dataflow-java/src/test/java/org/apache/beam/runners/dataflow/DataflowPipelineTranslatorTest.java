@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -56,12 +57,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.core.ElementAndRestriction;
+import org.apache.beam.runners.core.ElementAndRestrictionCoder;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -77,10 +83,17 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.util.Structs;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -92,6 +105,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -928,6 +942,89 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertThat(
         (String) statefulParDoStep.getProperties().get(PropertyNames.USES_KEYED_STATE),
         not(equalTo("true")));
+  }
+
+  /**
+   * Smoke test to fail fast if translation of a splittable ParDo
+   * in streaming breaks.
+   */
+  @Test
+  public void testStreamingSplittableParDoTranslation() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    options.setStreaming(true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    PCollection<String> windowedInput = pipeline
+        .apply(Create.of("a"))
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+    windowedInput
+        .apply(
+            ParDo.of(
+                new DoFn<String, Integer>() {
+                  @ProcessElement
+                  public void process(ProcessContext c, OffsetRangeTracker tracker) {
+                    // noop
+                  }
+
+                  @GetInitialRestriction
+                  public OffsetRange getInitialRange(String element) {
+                    return null;
+                  }
+                }));
+
+    runner.replaceTransforms(pipeline);
+
+    Job job =
+        translator
+            .translate(
+                pipeline,
+                runner,
+                Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    // The job should contain a GBKIntoKeyedWorkItems, translated into a GBK with is_raw=true,
+    // with a proper coder.
+
+    List<Step> steps = job.getSteps();
+    Step gbkStep = null;
+    for (Step step : steps) {
+      if (step.getKind().equals("GroupByKey")) {
+        assertNull(gbkStep);
+        gbkStep = step;
+      }
+    }
+    assertNotNull(gbkStep);
+
+    // Should be a raw GBK.
+    assertTrue(Structs.getBoolean(gbkStep.getProperties(), PropertyNames.IS_RAW_GROUP_BY_KEY));
+
+    // The output coder should be a
+    // FullWindowedValueCoder(KWICoder(..., input window coder), input window coder)
+    Coder<BoundedWindow> expectedWindowCoder =
+        (Coder<BoundedWindow>) windowedInput.getWindowingStrategy().getWindowFn().windowCoder();
+    Coder<WindowedValue<KeyedWorkItem<String, ElementAndRestriction<String, OffsetRange>>>>
+        expectedCoder =
+        WindowedValue.FullWindowedValueCoder.of(
+            KeyedWorkItemCoder.of(
+                StringUtf8Coder.of(),
+                ElementAndRestrictionCoder.of(
+                    StringUtf8Coder.of(), SerializableCoder.of(OffsetRange.class)),
+                expectedWindowCoder),
+            expectedWindowCoder);
+    List<Map<String, Object>> outputInfos =
+        Structs.getListOfMaps(
+            gbkStep.getProperties(),
+            PropertyNames.OUTPUT_INFO,
+            ImmutableList.<Map<String, Object>>of());
+    assertEquals(1, outputInfos.size());
+    Map<String, Object> outputInfo = outputInfos.get(0);
+    Coder actualCoder =
+        Serializer.deserialize(
+            Structs.getDictionary(outputInfo, PropertyNames.ENCODING), Coder.class);
+    assertEquals(expectedCoder, actualCoder);
   }
 
   @Test
