@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -91,6 +92,10 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
@@ -100,6 +105,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -894,6 +900,62 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertThat(
         (String) statefulParDoStep.getProperties().get(PropertyNames.USES_KEYED_STATE),
         not(equalTo("true")));
+  }
+
+  /**
+   * Smoke test to fail fast if translation of a splittable ParDo
+   * in streaming breaks.
+   */
+  @Test
+  public void testStreamingSplittableParDoTranslation() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    options.setStreaming(true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    PCollection<String> windowedInput = pipeline
+        .apply(Create.of("a"))
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+    windowedInput
+        .apply(
+            ParDo.of(
+                new DoFn<String, Integer>() {
+                  @ProcessElement
+                  public void process(ProcessContext c, OffsetRangeTracker tracker) {
+                    // noop
+                  }
+
+                  @GetInitialRestriction
+                  public OffsetRange getInitialRange(String element) {
+                    return null;
+                  }
+                }));
+
+    runner.replaceTransforms(pipeline);
+
+    Job job =
+        translator
+            .translate(
+                pipeline,
+                runner,
+                Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    // The job should contain a GBKIntoKeyedWorkItems, translated into a GBK with is_raw=true,
+    // with a proper coder.
+
+    List<Step> steps = job.getSteps();
+    Step processKeyedStep = null;
+    for (Step step : steps) {
+      if (step.getKind().equals("SplittableProcessKeyed")) {
+        assertNull(processKeyedStep);
+        processKeyedStep = step;
+      }
+    }
+    assertNotNull(processKeyedStep);
+    // TODO more testing here
   }
 
   @Test

@@ -57,6 +57,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
@@ -313,6 +314,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new StreamingPubsubIOWriteOverrideFactory(this)));
       }
       overridesBuilder
+          // Support Splittable DoFn for now only in streaming mode.
+          // The order of the following overrides is important because they are applied in order.
+
+          // Dataflow runner does not expand single-output ParDo into multi-output ParDo
+          // by default. However, we *do* want to do that for both single-output splittable ParDo.
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableParDoSingle(),
+                  new ReflectiveOneToOneOverrideFactory(
+                      SplittableParDoOverrides.ParDoSingleViaMulti.class, this)))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableParDoMulti(),
+                  new SplittableParDoOverrides.SplittableParDoOverrideFactory()))
           .add(
               // Streaming Bounded Read is implemented in terms of Streaming Unbounded Read, and
               // must precede it
@@ -390,11 +405,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       extends SingleInputOutputOverrideFactory<
           PCollection<InputT>, PCollection<OutputT>, TransformT> {
     private final Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement;
+    @Nullable
     private final DataflowRunner runner;
 
     private ReflectiveOneToOneOverrideFactory(
         Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement,
-        DataflowRunner runner) {
+        @Nullable DataflowRunner runner) {
       this.replacement = replacement;
       this.runner = runner;
     }
@@ -402,9 +418,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
         AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, TransformT> transform) {
+      InstanceBuilder<PTransform<PCollection<InputT>, PCollection<OutputT>>> builder =
+          InstanceBuilder.ofType(replacement);
+      if (runner != null) {
+        builder = builder.withArg(DataflowRunner.class, runner);
+      }
       PTransform<PCollection<InputT>, PCollection<OutputT>> rep =
-          InstanceBuilder.ofType(replacement)
-              .withArg(DataflowRunner.class, runner)
+          builder
               .withArg(
                   (Class<TransformT>) transform.getTransform().getClass(), transform.getTransform())
               .build();
@@ -416,10 +436,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       implements PTransformOverrideFactory<
           PBegin, PCollection<T>, PTransform<PInput, PCollection<T>>> {
     private final Class<PTransform<PBegin, PCollection<T>>> replacement;
-    private final DataflowRunner runner;
+    @Nullable private final DataflowRunner runner;
 
     private ReflectiveRootOverrideFactory(
-        Class<PTransform<PBegin, PCollection<T>>> replacement, DataflowRunner runner) {
+        Class<PTransform<PBegin, PCollection<T>>> replacement, @Nullable DataflowRunner runner) {
       this.replacement = replacement;
       this.runner = runner;
     }
@@ -427,11 +447,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, PTransform<PInput, PCollection<T>>> transform) {
+      InstanceBuilder<PTransform<PBegin, PCollection<T>>> builder =
+          InstanceBuilder.ofType(replacement);
+      if (runner != null) {
+        builder = builder.withArg(DataflowRunner.class, runner);
+      }
       PTransform<PInput, PCollection<T>> original = transform.getTransform();
       return PTransformReplacement.of(
           transform.getPipeline().begin(),
-          InstanceBuilder.ofType(replacement)
-              .withArg(DataflowRunner.class, runner)
+          builder
               .withArg(
                   (Class<? super PTransform<PInput, PCollection<T>>>) original.getClass(), original)
               .build());
