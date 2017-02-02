@@ -58,6 +58,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.ElementAndRestriction;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
@@ -108,6 +112,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -124,10 +129,12 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -316,6 +323,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new StreamingPubsubIOWriteOverrideFactory(this)));
       }
       overridesBuilder
+          // Support Splittable DoFn for now only in streaming mode.
+          // The order of the next 3 overrides is important because they are applied in order.
+          .add(
+              PTransformOverride.of(
+              PTransformMatchers.splittableParDoMulti(),
+              new ReflectiveCollectionToTupleOverrideFactory(SplittableParDo.class)))
+          .add(
+              PTransformOverride.of(
+              PTransformMatchers.classEqualTo(SplittableParDo.ProcessElements.class),
+              new ReflectiveCollectionToTupleOverrideFactory(SplittableProcessElements.class)))
           .add(
               // Streaming Bounded Read is implemented in terms of Streaming Unbounded Read, and
               // must precede it
@@ -397,11 +414,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       extends SingleInputOutputOverrideFactory<
           PCollection<InputT>, PCollection<OutputT>, TransformT> {
     private final Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement;
+    @Nullable
     private final DataflowRunner runner;
 
     private ReflectiveOneToOneOverrideFactory(
         Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement,
-        DataflowRunner runner) {
+        @Nullable DataflowRunner runner) {
       this.replacement = replacement;
       this.runner = runner;
     }
@@ -409,9 +427,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
         AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, TransformT> transform) {
+      InstanceBuilder<PTransform<PCollection<InputT>, PCollection<OutputT>>> builder = InstanceBuilder.ofType(replacement);
+      if (runner != null) {
+        builder = builder.withArg(DataflowRunner.class, runner);
+      }
       PTransform<PCollection<InputT>, PCollection<OutputT>> rep =
-          InstanceBuilder.ofType(replacement)
-              .withArg(DataflowRunner.class, runner)
+          builder
               .withArg(
                   (Class<TransformT>) transform.getTransform().getClass(), transform.getTransform())
               .build();
@@ -419,14 +440,50 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  private static class ReflectiveCollectionToTupleOverrideFactory<
+          InputT, TransformT extends PTransform<PCollection<? extends InputT>, PCollectionTuple>>
+      implements PTransformOverrideFactory<
+          PCollection<? extends InputT>, PCollectionTuple, TransformT> {
+    private final Class<PTransform<PCollection<? extends InputT>, PCollectionTuple>> replacement;
+
+    private ReflectiveCollectionToTupleOverrideFactory(
+        Class<PTransform<PCollection<? extends InputT>, PCollectionTuple>> replacement) {
+      this.replacement = replacement;
+    }
+
+    @Override
+    public PTransformReplacement<PCollection<? extends InputT>, PCollectionTuple>
+        getReplacementTransform(
+            AppliedPTransform<PCollection<? extends InputT>, PCollectionTuple, TransformT>
+                appliedTransform) {
+      InstanceBuilder<PTransform<PCollection<? extends InputT>, PCollectionTuple>> builder =
+          InstanceBuilder.ofType(replacement);
+      TransformT transform = appliedTransform.getTransform();
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(appliedTransform),
+          builder
+          .withArg(
+              (Class<PTransform<PCollection<? extends InputT>, PCollectionTuple>>)
+                  transform.getClass(),
+              transform)
+          .build());
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
+      return ReplacementOutputs.tagged(outputs, newOutput);
+    }
+  }
+
   private static class ReflectiveRootOverrideFactory<T>
       implements PTransformOverrideFactory<
           PBegin, PCollection<T>, PTransform<PInput, PCollection<T>>> {
     private final Class<PTransform<PBegin, PCollection<T>>> replacement;
-    private final DataflowRunner runner;
+    @Nullable private final DataflowRunner runner;
 
     private ReflectiveRootOverrideFactory(
-        Class<PTransform<PBegin, PCollection<T>>> replacement, DataflowRunner runner) {
+        Class<PTransform<PBegin, PCollection<T>>> replacement, @Nullable DataflowRunner runner) {
       this.replacement = replacement;
       this.runner = runner;
     }
@@ -434,11 +491,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, PTransform<PInput, PCollection<T>>> transform) {
+      InstanceBuilder<PTransform<PBegin, PCollection<T>>> builder = InstanceBuilder.ofType(replacement);
+      if (runner != null) {
+        builder = builder.withArg(DataflowRunner.class, runner);
+      }
       PTransform<PInput, PCollection<T>> original = transform.getTransform();
       return PTransformReplacement.of(
           transform.getPipeline().begin(),
-          InstanceBuilder.ofType(replacement)
-              .withArg(DataflowRunner.class, runner)
+          builder
               .withArg(
                   (Class<? super PTransform<PInput, PCollection<T>>>) original.getClass(), original)
               .build());
@@ -1354,6 +1414,40 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return workerHarnessContainerImage.replace("IMAGE", "beam-java-streaming");
     } else {
       return workerHarnessContainerImage.replace("IMAGE", "beam-java-batch");
+    }
+  }
+
+  private static class SplittableProcessElements<
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+      extends PTransform<
+          PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
+          PCollectionTuple> {
+    private SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT> underlying;
+
+    private SplittableProcessElements(
+        SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT> underlying) {
+      this.underlying = underlying;
+    }
+
+    @Override
+    public PCollectionTuple expand(
+        PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
+            input) {
+      PCollectionTuple res =
+          input.apply(
+              ParDo.of(underlying.newProcessFn(underlying.getFn()))
+                  .withOutputTags(
+                      underlying.getMainOutputTag(), underlying.getAdditionalOutputTags()));
+
+      // 'input' is the output of a GBKIntoKeyedWorkItems, which is globally windowed.
+      // However, windowing of the output should, like with any other (non-splittable) ParDo,
+      // match windowing of the original input PCollection - it is remembered in
+      // processElements.getWindowingStrategy(). Adjust the windowing here.
+      for (PCollection<?> pc : res.getAll().values()) {
+        pc.setWindowingStrategyInternal(underlying.getWindowingStrategy());
+      }
+
+      return res;
     }
   }
 }

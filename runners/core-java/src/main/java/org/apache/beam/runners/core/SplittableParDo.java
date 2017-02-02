@@ -235,6 +235,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       return fn;
     }
 
+    public WindowingStrategy<?, ?> getWindowingStrategy() {
+      return windowingStrategy;
+    }
+
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
