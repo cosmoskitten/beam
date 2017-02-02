@@ -29,7 +29,7 @@ import org.hamcrest.TypeSafeMatcher;
  */
 public class MetricMatchers {
 
-  static <T> Matcher<MetricUpdate<T>> metricUpdate(final String name, final T update) {
+  public static <T> Matcher<MetricUpdate<T>> metricUpdate(final String name, final T update) {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
       protected boolean matchesSafely(MetricUpdate<T> item) {
@@ -47,7 +47,7 @@ public class MetricMatchers {
     };
   }
 
-  static <T> Matcher<MetricUpdate<T>> metricUpdate(
+  public static <T> Matcher<MetricUpdate<T>> metricUpdate(
       final String namespace, final String name, final String step, final T update) {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
