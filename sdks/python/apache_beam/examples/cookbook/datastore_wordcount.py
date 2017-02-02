@@ -71,6 +71,7 @@ from google.datastore.v1 import query_pb2
 from googledatastore import helper as datastore_helper, PropertyFilter
 
 import apache_beam as beam
+from apache_beam import NewDoFn
 from apache_beam.io import ReadFromText
 from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
@@ -84,18 +85,18 @@ word_length_counter = Metrics.counter('main', 'word_lengths')
 word_counter = Metrics.counter('main', 'total_words')
 
 
-class WordExtractingDoFn(beam.DoFn):
+class WordExtractingDoFn(NewDoFn):
   """Parse each line of input text into words."""
 
-  def process(self, context):
+  def process(self, element):
     """Returns an iterator over words in contents of Cloud Datastore entity.
     The element is a line of text.  If the line is blank, note that, too.
     Args:
-      context: the call-specific context with input data.
+      element: the input element to be processed
     Returns:
       The processed element.
     """
-    content_value = context.element.properties.get('content', None)
+    content_value = element.properties.get('content', None)
     text_line = ''
     if content_value:
       text_line = content_value.string_value
