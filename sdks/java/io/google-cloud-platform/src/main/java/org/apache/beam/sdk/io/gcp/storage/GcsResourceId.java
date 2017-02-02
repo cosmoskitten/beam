@@ -74,7 +74,10 @@ public class GcsResourceId implements ResourceId {
     if (isDirectory()) {
       return this;
     } else {
-      return fromGcsPath(gcsPath.getParent());
+      return fromGcsPath(
+          checkNotNull(
+              gcsPath.getParent(),
+              String.format("GcsPath: [%s] doesn't have the current directory.", gcsPath)));
     }
   }
 
