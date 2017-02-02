@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.dataflow.DataflowRunner.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
@@ -908,6 +909,27 @@ public class DataflowPipelineTranslator {
     // IO Translation.
 
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Splittable DoFn translation.
+
+    registerTransformTranslator(
+        SplittableParDo.GBKIntoKeyedWorkItems.class,
+        new TransformTranslator<SplittableParDo.GBKIntoKeyedWorkItems>() {
+          @Override
+          public void translate(
+              SplittableParDo.GBKIntoKeyedWorkItems transform, TranslationContext context) {
+            // Like a regular GBK step, but with an IS_RAW property, and without windowing-related
+            // parameters.
+            StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
+            stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+            stepContext.addOutput(context.getOutput(transform));
+
+            // GBKIntoKeyedWorkItems translates into a raw GBK, which directly outputs
+            // KeyedWorkItem's without applying a window fn to their contents.
+            stepContext.addInput(PropertyNames.IS_RAW_GROUP_BY_KEY, true);
+          }
+        });
   }
 
   private static void translateInputs(

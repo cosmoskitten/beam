@@ -19,20 +19,18 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.collect.Iterables;
 import java.util.List;
+import org.apache.beam.runners.core.ParDoSingleViaMulti;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TaggedPValue;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 
 /**
- * A {@link PTransformOverrideFactory} that overrides single-output {@link ParDo} to implement
- * it in terms of multi-output {@link ParDo}.
+ * A {@link PTransformOverrideFactory} that overrides single-output {@link ParDo} to implement it in
+ * terms of multi-output {@link ParDo}.
  */
 class ParDoSingleViaMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
@@ -44,36 +42,7 @@ class ParDoSingleViaMultiOverrideFactory<InputT, OutputT>
   }
 
   @Override
-  public PCollection<? extends InputT> getInput(
-      List<TaggedPValue> inputs, Pipeline p) {
+  public PCollection<? extends InputT> getInput(List<TaggedPValue> inputs, Pipeline p) {
     return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs).getValue();
-  }
-
-  static class ParDoSingleViaMulti<InputT, OutputT>
-      extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-    private static final String MAIN_OUTPUT_TAG = "main";
-
-    private final ParDo.Bound<InputT, OutputT> underlyingParDo;
-
-    public ParDoSingleViaMulti(ParDo.Bound<InputT, OutputT> underlyingParDo) {
-      this.underlyingParDo = underlyingParDo;
-    }
-
-    @Override
-    public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
-
-      // Output tags for ParDo need only be unique up to applied transform
-      TupleTag<OutputT> mainOutputTag = new TupleTag<OutputT>(MAIN_OUTPUT_TAG);
-
-      PCollectionTuple outputs =
-          input.apply(
-              ParDo.of(underlyingParDo.getFn())
-                  .withSideInputs(underlyingParDo.getSideInputs())
-                  .withOutputTags(mainOutputTag, TupleTagList.empty()));
-      PCollection<OutputT> output = outputs.get(mainOutputTag);
-
-      output.setTypeDescriptor(underlyingParDo.getFn().getOutputTypeDescriptor());
-      return output;
-    }
   }
 }
