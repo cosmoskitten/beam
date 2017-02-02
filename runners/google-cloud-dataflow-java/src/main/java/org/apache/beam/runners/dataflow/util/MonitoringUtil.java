@@ -57,6 +57,8 @@ public final class MonitoringUtil {
           .put("JOB_STATE_STOPPED", State.STOPPED)
           .put("JOB_STATE_RUNNING", State.RUNNING)
           .put("JOB_STATE_DONE", State.DONE)
+          // "Drained" is a successful terminal state, so it should also map to DONE.
+          .put("JOB_STATE_DRAINED", State.DONE)
           .put("JOB_STATE_FAILED", State.FAILED)
           .put("JOB_STATE_CANCELLED", State.CANCELLED)
           .put("JOB_STATE_UPDATED", State.UPDATED)

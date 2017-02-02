@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
@@ -30,6 +31,8 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -101,8 +104,19 @@ public class SplittableDoFnTest {
     }
   }
 
+  // Using testing options with streaming=true makes it possible to enable UsesSplittableParDo tests
+  // in Dataflow runner, because as of writing, it can run Splittable DoFn only in streaming mode.
+  // This is a no-op for other runners currently (Direct runner doesn't care, and other
+  // runners don't implement SDF at all yet).
+  private static final PipelineOptions STREAMING_TEST_PIPELINE_OPTIONS;
+
+  static {
+    STREAMING_TEST_PIPELINE_OPTIONS = testingPipelineOptions();
+    STREAMING_TEST_PIPELINE_OPTIONS.as(StreamingOptions.class).setStreaming(true);
+  }
+
   @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  public final transient TestPipeline p = TestPipeline.fromOptions(STREAMING_TEST_PIPELINE_OPTIONS);
 
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
@@ -125,7 +139,7 @@ public class SplittableDoFnTest {
                 KV.of("ccccc", 3),
                 KV.of("ccccc", 4)));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   @Test
