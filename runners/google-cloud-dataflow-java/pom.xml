@@ -127,7 +127,6 @@
                 org.apache.beam.sdk.testing.UsesSetState,
                 org.apache.beam.sdk.testing.UsesMapState,
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
-                org.apache.beam.sdk.testing.UsesSplittableParDo,
                 org.apache.beam.sdk.testing.UsesUnboundedPCollections,
                 org.apache.beam.sdk.testing.UsesTestStream,
               </excludedGroups>
@@ -210,6 +209,11 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-core-java</artifactId>
     </dependency>
 
     <dependency>
