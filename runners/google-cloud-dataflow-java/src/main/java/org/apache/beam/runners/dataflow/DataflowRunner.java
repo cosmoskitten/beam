@@ -73,6 +73,8 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.ParDoSingleViaMulti;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
@@ -130,6 +132,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -405,6 +408,36 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } else if (Flatten.FlattenPCollectionList.class.equals(transform.getClass())
         && ((PCollectionList<?>) input).size() == 0) {
       return (OutputT) Pipeline.applyTransform(input.getPipeline().begin(), Create.of());
+    } else if (ParDo.Bound.class.equals(transform.getClass())) {
+      // Keep ParDo.Bound as-is, unless it's splittable - in that case, we'll replace with
+      // a SplittableParDo, but it's easier to do so via the ParDo.BoundMulti code path below.
+      ParDo.Bound parDo = (ParDo.Bound) transform;
+      if (DoFnSignatures.signatureForDoFn(parDo.getFn()).processElement().isSplittable()) {
+        return (OutputT) Pipeline.applyTransform(input, new ParDoSingleViaMulti(parDo));
+      }
+      return super.apply(transform, input);
+    } else if (ParDo.BoundMulti.class.equals(transform.getClass())) {
+      ParDo.BoundMulti parDo = (ParDo.BoundMulti) transform;
+      // Replace a splittable ParDo with SplittableParDo, which will expand into a composite
+      // transform using two primitives: SplittableParDo.ProcessElements and
+      // SplittableParDo.GBKIntoKeyedWorkItems. GBKIntoKeyedWorkItems will be translated directly,
+      // and ProcessElements we handle below.
+      if (DoFnSignatures.signatureForDoFn(parDo.getFn()).processElement().isSplittable()) {
+        if (!options.isStreaming()) {
+          throw new UnsupportedOperationException(
+              "Splittable ParDo currently supported only in streaming mode: "
+                  + transform.getName());
+        }
+        PTransform<InputT, OutputT> splittableParDo = new SplittableParDo(parDo);
+        return Pipeline.applyTransform(input, splittableParDo);
+      }
+      return super.apply(transform, input);
+    } else if (SplittableParDo.ProcessElements.class.equals(transform.getClass())) {
+      // Replace SplittableParDo.ProcessElements with ParDo.of(SplittableParDo.ProcessFn).
+      // The ProcessFn will receive special treatment on the worker.
+      SplittableParDo.ProcessElements processElements = (SplittableParDo.ProcessElements) transform;
+      return (OutputT) Pipeline.applyTransform(
+          input, ParDo.of(processElements.newProcessFn(processElements.getFn())));
     } else if (overrides.containsKey(transform.getClass())) {
       // It is the responsibility of whoever constructs overrides to ensure this is type safe.
       @SuppressWarnings("unchecked")

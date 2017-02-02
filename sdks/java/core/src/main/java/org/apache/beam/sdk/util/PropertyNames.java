@@ -41,6 +41,7 @@ public class PropertyNames {
   public static final String CUSTOM_SOURCE_FORMAT = "custom_source";
   public static final String CONCAT_SOURCE_SOURCES = "sources";
   public static final String CONCAT_SOURCE_BASE_SPECS = "base_specs";
+  public static final String IS_RAW_GROUP_BY_KEY = "is_raw_group_by_key";
   public static final String SOURCE_STEP_INPUT = "custom_source_step_input";
   public static final String SOURCE_SPEC = "spec";
   public static final String SOURCE_METADATA = "metadata";
