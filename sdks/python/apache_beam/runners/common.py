@@ -94,7 +94,7 @@ class DoFnRunner(Receiver):
     self.scoped_metrics_container = (scoped_metrics_container
                                      or ScopedMetricsContainer())
 
-    global_window = window.GlobalWindow()
+    self.global_window = window.GlobalWindow()
 
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
@@ -132,6 +132,7 @@ class DoFnRunner(Receiver):
       self.args = args if args else []
       self.kwargs = kwargs if kwargs else {}
       self.dofn = fn
+      self.dofn_process = fn.process
 
       arguments, _, _, defaults = self.dofn.get_function_arguments('process')
       defaults = defaults if defaults else []
@@ -154,7 +155,7 @@ class DoFnRunner(Receiver):
       # Fill in sideInputs if they are globally windowed
       if not self.has_windowed_side_inputs:
         self.args, self.kwargs = util.insert_values_in_args(
-            args, kwargs, [si[global_window] for si in side_inputs])
+            args, kwargs, [si[self.global_window] for si in side_inputs])
 
       # Create placeholder for element parameter
       if core.NewDoFn.ElementParam not in defaults:
@@ -188,8 +189,7 @@ class DoFnRunner(Receiver):
           try:
             final_args.append(args.next())
           except StopIteration:
-            if a not in self.kwargs:
-              self.kwargs[a] = d
+            pass
       final_args.extend(list(args))
       self.args = final_args
 
@@ -207,7 +207,7 @@ class DoFnRunner(Receiver):
         if side_inputs and all(
             side_input.is_globally_windowed() for side_input in side_inputs):
           args, kwargs = util.insert_values_in_args(
-              args, kwargs, [side_input[global_window]
+              args, kwargs, [side_input[self.global_window]
                              for side_input in side_inputs])
           side_inputs = []
         if side_inputs:
@@ -247,36 +247,36 @@ class DoFnRunner(Receiver):
       self._process_outputs(element, self.dofn_process(self.context))
 
   def new_dofn_simple_process(self, element):
-    self._process_outputs(element, self.dofn.process(element.value))
+    self._process_outputs(element, self.dofn_process(element.value))
+
+  def _new_dofn_window_process(self, element, args, kwargs, w):
+    for i, p in self.placeholders:
+      if p == core.NewDoFn.ElementParam:
+        args[i] = element.value
+      elif p == core.NewDoFn.ContextParam:
+        args[i] = self.context
+      elif p == core.NewDoFn.WindowParam:
+        args[i] = w
+      elif p == core.NewDoFn.TimestampParam:
+        args[i] = element.timestamp
+    if not kwargs:
+      self._process_outputs(element, self.dofn_process(*args))
+    else:
+      self._process_outputs(element, self.dofn_process(*args, **kwargs))
 
   def new_dofn_process(self, element):
     self.context.set_element(element)
-
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
     if self.has_windowed_side_inputs:
-      windows = element.windows
-    else:
-      windows = [window.GlobalWindow()]
-
-    for w in windows:
-      if self.has_windowed_side_inputs:
+      for w in element.windows:
         args, kwargs = util.insert_values_in_args(
             self.args, self.kwargs, [si[w] for si in self.side_inputs])
-      else:
-        args, kwargs = self.args, self.kwargs
-
-      for i, p in self.placeholders:
-        if p == core.NewDoFn.ElementParam:
-          args[i] = element.value
-        elif p == core.NewDoFn.ContextParam:
-          args[i] = self.context
-        elif p == core.NewDoFn.WindowParam:
-          args[i] = w
-        elif p == core.NewDoFn.TimestampParam:
-          args[i] = element.timestamp
-      self._process_outputs(element, self.dofn.process(*args, **kwargs))
+        self._new_dofn_window_process(element, args, kwargs, w)
+    else:
+      self._new_dofn_window_process(
+          element, self.args, self.kwargs, self.global_window)
 
   def _invoke_bundle_method(self, method):
     try:
