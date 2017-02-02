@@ -80,6 +80,7 @@ class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT>
 
     SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, ?> processFn =
         transform.newProcessFn(fnManager.<InputT, OutputT>get());
+    processFn.setup();
 
     String stepName = evaluationContext.getStepName(application);
     final DirectExecutionContext.DirectStepContext stepContext =

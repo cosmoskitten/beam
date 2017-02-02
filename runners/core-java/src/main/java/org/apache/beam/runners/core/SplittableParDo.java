@@ -381,7 +381,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         Coder<RestrictionT> restrictionCoder,
         Coder<? extends BoundedWindow> windowCoder) {
       this.fn = fn;
-      this.invoker = DoFnInvokers.invokerFor(fn);
       this.windowCoder = windowCoder;
       this.elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
@@ -398,6 +397,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     public void setOutputWindowedValue(OutputWindowedValue<OutputT> outputWindowedValue) {
       this.outputWindowedValue = outputWindowedValue;
+    }
+
+    @Setup
+    public void setup() throws Exception {
+      invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @StartBundle
