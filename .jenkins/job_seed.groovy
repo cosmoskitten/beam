@@ -26,7 +26,7 @@ job('beam_SeedJob') {
   previousNames('beam_SeedJob_Main')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Set that this is a PostCommit job.
   // Polls SCM on Feb 31st, i.e. never.
