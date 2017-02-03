@@ -63,6 +63,10 @@ public class GcsResourceId implements ResourceId {
     return GcsFileSystemRegistrar.GCS_SCHEME;
   }
 
+  GcsPath getGcsPath() {
+    return gcsPath;
+  }
+
   @Override
   public String toString() {
     return String.format("GcsResourceId: [%s]", gcsPath);

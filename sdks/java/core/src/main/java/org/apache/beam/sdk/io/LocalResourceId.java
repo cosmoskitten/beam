@@ -91,6 +91,10 @@ class LocalResourceId implements ResourceId {
     return LocalFileSystemRegistrar.LOCAL_FILE_SCHEME;
   }
 
+  Path getPath() {
+    return path;
+  }
+
   @Override
   public String toString() {
     return String.format("LocalResourceId: [%s]", path);
