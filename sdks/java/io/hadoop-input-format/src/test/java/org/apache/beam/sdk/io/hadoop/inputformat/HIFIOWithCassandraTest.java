@@ -68,6 +68,15 @@ public class HIFIOWithCassandraTest implements Serializable {
   private static final String CASSANDRA_KEYSPACE = "beamdb";
   private static final String CASSANDRA_HOST = "127.0.0.1";
   private static final String CASSANDRA_TABLE = "scientists";
+  private static final String CASSANDRA_THRIFT_PORT_PROPERTY="cassandra.input.thrift.port";
+  private static final String CASSANDRA_THRIFT_ADDRESS_PROPERTY="cassandra.input.thrift.address";
+  private static final String CASSANDRA_PARTITIONER_CLASS_PROPERTY="cassandra.input.partitioner.class";
+  private static final String CASSANDRA_PARTITIONER_CLASS_VALUE="Murmur3Partitioner";
+  private static final String CASSANDRA_KEYSPACE_PROPERTY="cassandra.input.keyspace";
+  private static final String CASSANDRA_COLUMNFAMILY_PROPERTY="cassandra.input.columnfamily";
+  private static final String CASSANDRA_PORT="9061";
+  
+ 
   private static transient Cluster cluster;
   private static transient Session session;
 
@@ -282,6 +291,7 @@ public class HIFIOWithCassandraTest implements Serializable {
 >>>>>>> Implemented review comments for ITs and embedded tests
   public Configuration getConfiguration() {
     Configuration conf = new Configuration();
+<<<<<<< HEAD
     conf.set("cassandra.input.thrift.port", "9061");
     conf.set("cassandra.input.thrift.address", CASSANDRA_HOST);
     conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
@@ -447,6 +457,13 @@ public class HIFIOWithCassandraTest implements Serializable {
 	}
 >>>>>>> Elastic, Cassandra embedded code and ITs
 =======
+=======
+    conf.set(CASSANDRA_THRIFT_PORT_PROPERTY, CASSANDRA_PORT );
+    conf.set(CASSANDRA_THRIFT_ADDRESS_PROPERTY, CASSANDRA_HOST);
+    conf.set(CASSANDRA_PARTITIONER_CLASS_PROPERTY, CASSANDRA_PARTITIONER_CLASS_VALUE);
+    conf.set(CASSANDRA_KEYSPACE_PROPERTY, CASSANDRA_KEYSPACE);
+    conf.set(CASSANDRA_COLUMNFAMILY_PROPERTY, CASSANDRA_TABLE);
+>>>>>>> Changes as per Dipti's code review, revisit code
     conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
     conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, java.lang.Long.class, Object.class);

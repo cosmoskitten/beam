@@ -38,8 +38,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.Row;
 
@@ -66,6 +64,7 @@ import com.datastax.driver.core.Row;
 @RunWith(JUnit4.class)
 public class HIFIOCassandraIT implements Serializable {
 
+<<<<<<< HEAD
   private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOCassandraIT.class);
 <<<<<<< HEAD
   private static final String CASSANDRA_KEYSPACE = "ycsb";
@@ -75,9 +74,19 @@ public class HIFIOCassandraIT implements Serializable {
   private static final String CASSANDRA_KEYSPACE = "beamdb";
   private static final String CASSANDRA_TABLE = "scientists";
 >>>>>>> Elastic, Cassandra embedded code and ITs
+=======
+  private static final String CASSANDRA_KEYSPACE = "beamdb";
+  private static final String CASSANDRA_TABLE = "scientists";
+  private static final String CASSANDRA_THRIFT_PORT_PROPERTY="cassandra.input.thrift.port";
+  private static final String CASSANDRA_THRIFT_ADDRESS_PROPERTY="cassandra.input.thrift.address";
+  private static final String CASSANDRA_PARTITIONER_CLASS_PROPERTY="cassandra.input.partitioner.class";
+  private static final String CASSANDRA_KEYSPACE_PROPERTY="cassandra.input.keyspace";
+  private static final String CASSANDRA_COLUMNFAMILY_PROPERTY="cassandra.input.columnfamily";
+  private static final String CASSANDRA_PARTITIONER_CLASS_VALUE="Murmur3Partitioner";
+>>>>>>> Changes as per Dipti's code review, revisit code
   private static HIFTestOptions options;
 
-  //@BeforeClass
+  @BeforeClass
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
@@ -236,6 +245,7 @@ public class HIFIOCassandraIT implements Serializable {
 >>>>>>> Elastic, Cassandra embedded code and ITs
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
+<<<<<<< HEAD
     conf.set("cassandra.input.thrift.port", options.getServerPort().toString());
     conf.set("cassandra.input.thrift.address", options.getServerIp());
     conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
@@ -277,6 +287,13 @@ public class HIFIOCassandraIT implements Serializable {
 =======
     conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
 =======
+=======
+    conf.set(CASSANDRA_THRIFT_PORT_PROPERTY, options.getServerPort().toString());
+    conf.set(CASSANDRA_THRIFT_ADDRESS_PROPERTY, options.getServerIp());
+    conf.set(CASSANDRA_PARTITIONER_CLASS_PROPERTY, CASSANDRA_PARTITIONER_CLASS_VALUE);
+    conf.set(CASSANDRA_KEYSPACE_PROPERTY, CASSANDRA_KEYSPACE);
+    conf.set(CASSANDRA_COLUMNFAMILY_PROPERTY, CASSANDRA_TABLE);
+>>>>>>> Changes as per Dipti's code review, revisit code
     conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
 >>>>>>> Changes for spaces, Constants file name and comments as per Stephens code review comments
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
