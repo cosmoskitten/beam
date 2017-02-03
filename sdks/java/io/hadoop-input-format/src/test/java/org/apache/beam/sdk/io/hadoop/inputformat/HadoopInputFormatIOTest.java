@@ -543,7 +543,7 @@ public class HadoopInputFormatIOTest {
        NewObjectsEmployeeInputFormat.class,
        Text.class,
        MapWritable.class); // Actual value class is Employee.class.
-    HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
+    HadoopInputFormatIO.Read<Text, MapWritable> read = HadoopInputFormatIO.<Text, MapWritable>read()
         .withConfiguration(wrongConf.getHadoopConfiguration());
     String expectedMessage = String.format(
         "java.lang.IllegalArgumentException: "
@@ -573,12 +573,13 @@ public class HadoopInputFormatIOTest {
   public void testReadIfCreateRecordReaderFails() throws Exception {
     thrown.expect(Exception.class);
     thrown.expectMessage("Exception in creating RecordReader in BadCreateRecordReaderInputFormat");
-    getBoundedSourceList(
+    List<BoundedSource<KV<Text, Employee>>>  hifSourceList = getBoundedSourceList(
         BadCreateReaderInputFormat.class,
         Text.class,
         Employee.class,
         WritableCoder.of(Text.class),
         AvroCoder.of(Employee.class));
+    SourceTestUtils.readFromSource(hifSourceList.get(0), p.getOptions());
   }
 
   /**
@@ -591,12 +592,13 @@ public class HadoopInputFormatIOTest {
     thrown
         .expectMessage(String.format(HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
             new BadNullCreateReaderInputFormat().getClass()));
-    getBoundedSourceList(
+    List<BoundedSource<KV<Text, Employee>>>  hifSourceList= getBoundedSourceList(
         BadNullCreateReaderInputFormat.class,
         Text.class,
         Employee.class,
         WritableCoder.of(Text.class),
         AvroCoder.of(Employee.class));
+    SourceTestUtils.readFromSource(hifSourceList.get(0), p.getOptions());
   }
 
   /**
