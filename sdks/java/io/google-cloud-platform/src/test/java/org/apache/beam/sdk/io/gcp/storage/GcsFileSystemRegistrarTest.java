@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import java.util.ServiceLoader;
 
 import org.apache.beam.sdk.io.FileSystemRegistrar;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,5 +48,12 @@ public class GcsFileSystemRegistrarTest {
       }
     }
     fail("Expected to find " + GcsFileSystemRegistrar.class);
+  }
+
+  @Test
+  public void testFileSystemCaching() {
+    FileSystemRegistrar registrar = new GcsFileSystemRegistrar();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    assertTrue(registrar.fromOptions(options) == registrar.fromOptions(options));
   }
 }
