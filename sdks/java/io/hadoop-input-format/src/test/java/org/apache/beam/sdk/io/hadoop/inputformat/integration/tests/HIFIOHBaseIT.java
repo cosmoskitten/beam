@@ -38,7 +38,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+<<<<<<< HEAD
 
+=======
+import org.junit.runners.MethodSorters;
+>>>>>>> Added javadodc in HIFIOHBaseIT.
 
 /**
  * Runs test to validate HadoopInputFromatIO for a HBase instance on GCP.
@@ -64,7 +68,10 @@ public class HIFIOHBaseIT implements Serializable {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
   }
-
+  
+  /**
+   * This test reads data from the HBase and verifies if data is read successfully.
+   */
   @Test
   public void testHifReadWithHBase() throws Throwable {
     TestPipeline p = TestPipeline.create();
@@ -72,7 +79,7 @@ public class HIFIOHBaseIT implements Serializable {
     SimpleFunction<Result, String> myValueTranslate = new SimpleFunction<Result, String>() {
       @Override
       public String apply(Result input) {
-        return Bytes.toString(input.getValue(Bytes.toBytes("account"), Bytes.toBytes("name")));
+        return Bytes.toString(input.getValue(Bytes.toBytes("info"), Bytes.toBytes("scientist")));
       }
     };
     PCollection<KV<ImmutableBytesWritable, String>> hbaseData =
@@ -82,7 +89,11 @@ public class HIFIOHBaseIT implements Serializable {
     PAssert
         .thatSingleton(
             hbaseData.apply("Count", Count.<KV<ImmutableBytesWritable, String>>globally()))
+<<<<<<< HEAD
         .isEqualTo(COUNT_RECORDS);
+=======
+        .isEqualTo(50L);
+>>>>>>> Added javadodc in HIFIOHBaseIT.
     PCollection<String> values = hbaseData.apply(Values.<String>create());
     List<String> expectedValues = Arrays.asList("Einstein", "Darwin", "Copernicus", "Pasteur",
         "Curie", "Faraday", "Newton", "Bohr", "Galilei", "Maxwell");
