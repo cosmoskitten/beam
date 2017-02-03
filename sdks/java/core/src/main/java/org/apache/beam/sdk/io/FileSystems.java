@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -29,15 +29,20 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
-import java.net.URI;
+import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
@@ -48,19 +53,105 @@ public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "default";
 
-  private static final Pattern URI_SCHEME_PATTERN = Pattern.compile("^[a-zA-Z][-a-zA-Z0-9+.]*$");
-
   private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR =
       new ConcurrentHashMap<>();
 
   private static PipelineOptions defaultConfig;
 
-  private static final Map<String, PipelineOptions> SCHEME_TO_DEFAULT_CONFIG =
-      new ConcurrentHashMap<>();
-
   static {
     loadFileSystemRegistrars();
   }
+
+  /********************************** METHODS FOR CLIENT **********************************/
+
+  /**
+   * Creates a write channel for the given filename.
+   */
+  public static WritableByteChannel create(ResourceId resourceId, String mimeType)
+      throws IOException {
+    return create(resourceId, StandardCreateOptions.builder().setMimeType(mimeType).build());
+  }
+
+  /**
+   * Creates a write channel for the given filename with {@link CreateOptions}.
+   */
+  public static WritableByteChannel create(ResourceId resourceId, CreateOptions options)
+      throws IOException {
+    return getFileSystemInternal(resourceId).create(resourceId, options);
+  }
+
+  /**
+   * Returns a read channel for the given file.
+   *
+   * <p>The file is not expanded; it is used verbatim.
+   *
+   * <p>If seeking is supported, then this returns a
+   * {@link java.nio.channels.SeekableByteChannel}.
+   */
+  public static ReadableByteChannel open(ResourceId resourceId) throws IOException {
+    return getFileSystemInternal(resourceId).open(resourceId);
+  }
+
+  /**
+   * Copies a {@link List} of files from one location to another.
+   *
+   * <p>The number of source files must equal the number of destination files.
+   * Destination files will be created recursively.
+   *
+   * @param srcResourceIds the source files.
+   * @param destResourceIds the destination files.
+   */
+  public static void copy(
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds) throws IOException {
+    checkArgument(
+        srcResourceIds.size() == destResourceIds.size(),
+        "Number of source files %s must equal number of destination files %s",
+        srcResourceIds.size(),
+        destResourceIds.size());
+    if (srcResourceIds.isEmpty() && destResourceIds.isEmpty()) {
+      return;
+    }
+    getFileSystemInternal(srcResourceIds.get(0)).copy(srcResourceIds, destResourceIds);
+  }
+
+  /**
+   * Renames a {@link List} of files from one location to another.
+   *
+   * <p>The number of source files must equal the number of destination files.
+   * Destination files will be created recursively.
+   *
+   * @param srcResourceIds the source files.
+   * @param destResourceIds the destination files.
+   */
+  public static void rename(
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds) throws IOException {
+    checkArgument(
+        srcResourceIds.size() == destResourceIds.size(),
+        "Number of source files %s must equal number of destination files %s",
+        srcResourceIds.size(),
+        destResourceIds.size());
+    if (srcResourceIds.isEmpty() && destResourceIds.isEmpty()) {
+      return;
+    }
+    getFileSystemInternal(srcResourceIds.get(0)).rename(srcResourceIds, destResourceIds);
+  }
+
+  /**
+   * Deletes a collection of files (including directories).
+   *
+   * @param resourceIds the files to delete.
+   */
+  public static void delete(Collection<ResourceId> resourceIds) throws IOException {
+    checkNotNull(resourceIds, "files");
+    if (resourceIds.isEmpty()) {
+      return;
+    }
+    getFileSystemInternal(resourceIds.iterator().next()).delete(resourceIds);
+  }
+
+  /********************************** METHODS FOR REGISTRATION **********************************/
 
   /**
    * Loads available {@link FileSystemRegistrar} services.
@@ -92,12 +183,8 @@ public class FileSystems {
    * Internal method to get {@link FileSystem} for {@code spec}.
    */
   @VisibleForTesting
-  static FileSystem getFileSystemInternal(URI uri) {
-    checkState(
-        defaultConfig != null,
-        "Expect the runner have called setDefaultConfigInWorkers().");
-    String lowerCaseScheme = (uri.getScheme() != null
-        ? uri.getScheme().toLowerCase() : LocalFileSystemRegistrar.LOCAL_FILE_SCHEME);
+  static FileSystem getFileSystemInternal(ResourceId resourceId) {
+    String lowerCaseScheme = resourceId.getScheme().toLowerCase();
     return getRegistrarInternal(lowerCaseScheme).fromOptions(defaultConfig);
   }
 
@@ -141,5 +228,15 @@ public class FileSystems {
             conflictingRegistrars));
       }
     }
+  }
+
+  /********************************** METHODS FOR TESTING **********************************/
+
+  /**
+   * Sets the {@link FileSystemRegistrar} and overrides its scheme.
+   */
+  @VisibleForTesting
+  public static void overrideFileSystemRegistrarsForTests(FileSystemRegistrar registrar) {
+    SCHEME_TO_REGISTRAR.put(registrar.getScheme(), registrar);
   }
 }
