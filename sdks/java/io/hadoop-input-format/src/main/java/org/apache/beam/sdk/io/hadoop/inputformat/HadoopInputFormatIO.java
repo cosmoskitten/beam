@@ -231,14 +231,14 @@ import com.google.common.collect.Lists;
  * <pre>
  * {@code
  * Configuration cassandraConf = new Configuration();
- *   cassandraConf.set("cassandra.input.thrift.port" , "9160");
- *   cassandraConf.set("cassandra.input.thrift.address" , CassandraHostIp);
- *   cassandraConf.set("cassandra.input.partitioner.class" , "Murmur3Partitioner");
- *   cassandraConf.set("cassandra.input.keyspace" , "myKeySpace");
- *   cassandraConf.set("cassandra.input.columnfamily" , "myColumnFamily");
- *   cassandraConf.setClass("key.class" ,{@link java.lang.Long Long.class} , Object.class);
- *   cassandraConf.setClass("value.class" ,{@link com.datastax.driver.core.Row Row.class} , Object.class);
- *   cassandraConf.setClass("mapreduce.job.inputformat.class" ,{@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class} , InputFormat.class);
+ *   cassandraConf.set("cassandra.input.thrift.port", "9160");
+ *   cassandraConf.set("cassandra.input.thrift.address", CassandraHostIp);
+ *   cassandraConf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
+ *   cassandraConf.set("cassandra.input.keyspace", "myKeySpace");
+ *   cassandraConf.set("cassandra.input.columnfamily", "myColumnFamily");
+ *   cassandraConf.setClass("key.class", {@link java.lang.Long Long.class}, Object.class);
+ *   cassandraConf.setClass("value.class", {@link com.datastax.driver.core.Row Row.class}, Object.class);
+ *   cassandraConf.setClass("mapreduce.job.inputformat.class", {@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class}, InputFormat.class);
  *   }
  * </pre>
  * <p>
@@ -246,11 +246,11 @@ import com.google.common.collect.Lists;
  *
  * <pre>
  * {@code
- * PCollection<KV<Long,String>> cassandraData =
+ * PCollection<KV<Long, String>> cassandraData =
  *          p.apply("read",
  *                  HadoopInputFormatIO.<Long, String>read()
- *                      .withConfiguration( cassandraConf )
- *                      .withValueTranslation( cassandraOutputValueType );
+ *                      .withConfiguration(cassandraConf)
+ *                      .withValueTranslation(cassandraOutputValueType);
  * }
  * </pre>
  * <p>
@@ -273,11 +273,15 @@ import com.google.common.collect.Lists;
 =======
  * The CqlInputFormat key class is {@link java.lang.Long Long}, which has a Beam Coder. The
  * CqlInputFormat value class is {@link com.datastax.driver.core.Row Row}, which does not have a
+<<<<<<< HEAD
  * Beam Coder. Rather than write a coder, we will provide our own translation method as follows:
 <<<<<<< HEAD
  * 
 >>>>>>> Modified Javadoc for HadoopInputFormatIO.
 =======
+=======
+ * Beam Coder. Rather than write a new coder, you can provide your own translation method as follows:
+>>>>>>> Changes as per code review by Dipti, revisited code
  *
 >>>>>>> Temporarily removed validate class check
  * <pre>
@@ -306,7 +310,7 @@ import com.google.common.collect.Lists;
  *   elasticSearchConf.set("es.port", "9200");
  *   elasticSearchConf.set("es.resource", "ElasticIndexName/ElasticTypeName");
  *   elasticSearchConf.setClass("key.class", {@link org.apache.hadoop.io.Text Text.class}, Object.class);
- *   elasticSearchConf.setClass("value.class", {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class} , Object.class);
+ *   elasticSearchConf.setClass("value.class", {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class}, Object.class);
  *   elasticSearchConf.setClass("mapreduce.job.inputformat.class", {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat.class}, InputFormat.class);
  * }
  * </pre>
@@ -362,6 +366,7 @@ public class HadoopInputFormatIO {
   }
 
   /**
+<<<<<<< HEAD
    * A {@link PTransform} that reads from for any data source which implements Hadoop InputFormat.
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -370,6 +375,9 @@ public class HadoopInputFormatIO {
    * For e.g. Cassandra, Elasticsearch, HBase, Redis, Postgres etc. See the class-level Javadoc on
 >>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
 =======
+=======
+   * A {@link PTransform} that reads from any data source which implements Hadoop InputFormat.
+>>>>>>> Changes as per code review by Dipti, revisited code
    * For e.g. Cassandra, Elasticsearch, HBase, Redis, Postgres, etc. See the class-level Javadoc on
 >>>>>>> Resolved most of the code review comments.
    * {@link HadoopInputFormatIO} for more information.
@@ -385,6 +393,7 @@ public class HadoopInputFormatIO {
     public static TypeDescriptor<?> inputFormatKeyClass;
     public static TypeDescriptor<?> inputFormatValueClass;
 
+<<<<<<< HEAD
     /**
      * Returns the Hadoop Configuration which contains specification of source.
      */
@@ -405,6 +414,12 @@ public class HadoopInputFormatIO {
     public abstract TypeDescriptor<V> getValueClass();
 =======
     @Nullable public abstract SerializableConfiguration getConfiguration();
+=======
+    // Returns the Hadoop Configuration which contains specification of source.
+    @Nullable
+    public abstract SerializableConfiguration getConfiguration();
+
+>>>>>>> Changes as per code review by Dipti, revisited code
     @Nullable public abstract SimpleFunction<?, K> getKeyTranslationFunction();
     @Nullable public abstract SimpleFunction<?, V> getValueTranslationFunction();
     @Nullable public abstract TypeDescriptor<K> getKeyClass();
@@ -440,8 +455,12 @@ public class HadoopInputFormatIO {
      * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source along with
 =======
      * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source using the
+<<<<<<< HEAD
 >>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
      * options indicated by the given configuration.
+=======
+     * options provided by the given configuration.
+>>>>>>> Changes as per code review by Dipti, revisited code
      *
      * <p>
      * Does not modify this object.
@@ -470,7 +489,6 @@ public class HadoopInputFormatIO {
           .of(configuration.getClass(HadoopInputFormatIOConstants.KEY_CLASS, null));
       inputFormatValueClass = TypeDescriptor
           .of(configuration.getClass(HadoopInputFormatIOConstants.VALUE_CLASS, null));
-      // Sets the configuration.
       Builder<K, V> builder = toBuilder()
           .setConfiguration(new SerializableConfiguration(configuration));
       /*
@@ -506,6 +524,7 @@ public class HadoopInputFormatIO {
     
 =======
 
+<<<<<<< HEAD
 >>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
     /**
      * Validates that the mandatory configuration properties such as InputFormat class, InputFormat
@@ -532,6 +551,9 @@ public class HadoopInputFormatIO {
     }
 
     /**
+=======
+     /**
+>>>>>>> Changes as per code review by Dipti, revisited code
      * Returns a new {@link HadoopInputFormatIO.Read} that will transform the keys read from the
      * source using the given key translation function.
      *
@@ -558,7 +580,7 @@ public class HadoopInputFormatIO {
       return toBuilder().setValueTranslationFunction(function)
           .setValueClass((TypeDescriptor<V>) function.getOutputTypeDescriptor()).build();
     }
-
+    
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
       // Get the key and value coders based on the key and value classes.      
@@ -594,6 +616,20 @@ public class HadoopInputFormatIO {
     }
 
     /**
+     * Validates that the mandatory configuration properties such as InputFormat class, InputFormat
+     * key and value classes are provided in the Hadoop configuration.
+     */
+    private void validateConfiguration(Configuration configuration) {
+      checkNotNull(configuration, HadoopInputFormatIOConstants.NULL_CONFIGURATION_ERROR_MSG);
+      checkNotNull(configuration.get("mapreduce.job.inputformat.class"),
+          HadoopInputFormatIOConstants.MISSING_INPUTFORMAT_ERROR_MSG);
+      checkNotNull(configuration.get("key.class"),
+          HadoopInputFormatIOConstants.MISSING_INPUTFORMAT_KEY_CLASS_ERROR_MSG);
+      checkNotNull(configuration.get("value.class"),
+          HadoopInputFormatIOConstants.MISSING_INPUTFORMAT_VALUE_CLASS_ERROR_MSG);
+    }
+    
+    /**
      * Validates inputs provided by the pipeline user before reading the data.
      */
     @Override
@@ -623,9 +659,9 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Returns the default coder for a given type descriptor. If type descriptor class is of type
-     * Writable, then WritableCoder is returned, else CoderRegistry is queried for the correct
-     * coder.
+     * Returns the default coder for a given type descriptor. Coder Registry is queried for correct
+     * coder, if not found in Coder Registry then check if the type desciptor provided is of
+     * Writable, then WritableCoder is returned, else exception is thrown "Cannot find coder".
      */
     @VisibleForTesting
     public <T> Coder<T> getDefaultCoder(TypeDescriptor<?> typeDesc, CoderRegistry coderRegistry) {
@@ -843,9 +879,10 @@ public class HadoopInputFormatIO {
 
 
     /**
-     * This is helper function to compute splits. This method will also calculate size of the data
+     * This is a helper function to compute splits. This method will also calculate size of the data
      * being read. Note: This method is called exactly once, the splits are retrieved and cached
      * for further use by splitIntoBundles() and getEstimatesSizeBytes().
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
      */
@@ -858,6 +895,9 @@ public class HadoopInputFormatIO {
 =======
      * @throws InterruptedException 
 =======
+=======
+     * @throws IOException
+>>>>>>> Changes as per code review by Dipti, revisited code
      * @throws InterruptedException
 >>>>>>> Added synchronization for RecordReader in HadoopInputFormatIO
      */
@@ -897,7 +937,7 @@ public class HadoopInputFormatIO {
 =======
     void computeSplitsIfNecessary() throws IOException, InterruptedException {
       if (inputSplits == null) {
-        createInputFormat();
+        createInputFormatInstance();
         List<InputSplit> splits =
             inputFormatObj.getSplits(Job.getInstance(conf.getHadoopConfiguration()));
         if (splits == null) {
@@ -922,32 +962,35 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Sets instance of InputFormat class provided in class.
+     * Creates instance of InputFormat class provided in class.
      */
-    private void createInputFormat() throws IOException, InterruptedException {
+    private void createInputFormatInstance() throws IOException, InterruptedException {
       if (inputFormatObj == null) {
         try {
           taskAttemptContext =
               new TaskAttemptContextImpl(conf.getHadoopConfiguration(), new TaskAttemptID());
-          inputFormatObj = (InputFormat<?, ?>) conf.getHadoopConfiguration().getClassByName(
-              conf.getHadoopConfiguration().get(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME))
-              .newInstance();
-          /**
+          inputFormatObj =
+              (InputFormat<?, ?>) conf
+                  .getHadoopConfiguration()
+                  .getClassByName(
+                      conf.getHadoopConfiguration().get(
+                          HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME)).newInstance();
+          /*
            * If InputFormat explicitly implements interface {@link Configurable}, then setConf()
            * method of {@link Configurable} needs to be explicitly called to set all the
-           * configuration parameters. Example InputFormat classes which implement Configurable are
-           * {@link org.apache.hadoop.mapreduce.lib.db.DBInputFormat DBInputFormat},
-           * {@link org.apache.hadoop.hbase.mapreduce.TableInputFormat TableInputFormat}, etc.
+           * configuration parameters. For example: InputFormat classes which implement Configurable
+           * are {@link org.apache.hadoop.mapreduce.lib.db.DBInputFormat DBInputFormat}, {@link
+           * org.apache.hadoop.hbase.mapreduce.TableInputFormat TableInputFormat}, etc.
            */
           if (Configurable.class.isAssignableFrom(inputFormatObj.getClass())) {
             ((Configurable) inputFormatObj).setConf(conf.getHadoopConfiguration());
           }
-          } catch (InstantiationException e) {
-          throw new IOException("Unable to create InputFormat: ", e);
+        } catch (InstantiationException e) {
+          throw new IOException("Unable to create InputFormat object: ", e);
         } catch (IllegalAccessException e) {
-          throw new IOException("Unable to create InputFormat: ", e);
+          throw new IOException("Unable to create InputFormat object: ", e);
         } catch (ClassNotFoundException e) {
-          throw new IOException("Unable to create InputFormat: ", e);
+          throw new IOException("Unable to create InputFormat object: ", e);
         }
       }
     }
@@ -990,10 +1033,7 @@ public class HadoopInputFormatIO {
             String.format(errorMessage,expectedClass.getName(),actualClass.getName()));
       }
     }
-
-    /**
-     * Returns InputFormat object.
-     */
+  
     @VisibleForTesting
     InputFormat<?, ?> getInputFormat(){
       return inputFormatObj;
@@ -1046,7 +1086,7 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * BoundedReader for HadoopInputFormatSource.
+     * BoundedReader for Hadoop InputFormat source.
      * 
      * @param <K> Type of keys RecordReader emits.
      * @param <V> Type of values RecordReader emits.
@@ -1126,11 +1166,11 @@ public class HadoopInputFormatIO {
 >>>>>>> Resolved most of the code review comments.
           currentReader =
               (RecordReader<K1, V1>) inputFormatObj.createRecordReader(split, taskAttemptContext);
-            currentReader.initialize(split, taskAttemptContext);
-            if (currentReader.nextKeyValue()) {
-              recordsReturned++;
-              return true;
-            }
+          currentReader.initialize(split, taskAttemptContext);
+          if (currentReader.nextKeyValue()) {
+            recordsReturned++;
+            return true;
+          }
         } catch (InterruptedException e) {
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -1199,12 +1239,14 @@ public class HadoopInputFormatIO {
         K key = null;
         V value = null;
         try {
-          // Transform key if required.
+          // Transform key if translation function is provided.
           key =
-              transformKeyOrValue((K1)currentReader.getCurrentKey(), keyTranslationFunction, keyCoder);
-          // Transform value if required.
-          value = transformKeyOrValue((V1)currentReader.getCurrentValue(), valueTranslationFunction,
-              valueCoder);
+              transformKeyOrValue((K1) currentReader.getCurrentKey(), keyTranslationFunction,
+                  keyCoder);
+          // Transform value if if translation function is provided.
+          value =
+              transformKeyOrValue((V1) currentReader.getCurrentValue(), valueTranslationFunction,
+                  valueCoder);
         } catch (IOException | InterruptedException e) {
           LOG.error(HadoopInputFormatIOConstants.GET_CURRENT_ERROR_MSG + e);
           return null;
@@ -1217,26 +1259,27 @@ public class HadoopInputFormatIO {
       }
       
       /**
-       * Returns the serialized output of key or value. 
-       * RecordReader can return mutable key/value objects, these are cloned to make them immutable. 
+       * Returns the serialized output of transformed key or value object. 
        * @throws ClassCastException 
        * @throws CoderException 
        */
       private <T, T1> T1 transformKeyOrValue(T input,
-          @Nullable SimpleFunction<T, T1> simpleFunction, Coder<T1> coder) throws CoderException, ClassCastException{
+          @Nullable SimpleFunction<T, T1> simpleFunction, Coder<T1> coder) throws CoderException,
+          ClassCastException {
         T1 output;
         if (null != simpleFunction) {
           output = simpleFunction.apply(input);
         } else {
           output = (T1) input;
         }
-        return cloneIfPossiblyMutable((T1)output, coder);
+        return cloneIfPossiblyMutable((T1) output, coder);
       }
 
       /**
-       * Many objects used by beam are mutable, but the Hadoop InputFormats tend to re-use the same
+       * Many objects used by Beam are mutable, but the Hadoop InputFormats tend to re-use the same
        * object when returning them. Hence mutable objects are cloned.
        */
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       private <T1 extends Object> T1 clone(T1 input, Coder<T1> coder)
@@ -1268,6 +1311,10 @@ public class HadoopInputFormatIO {
 >>>>>>> Added data validation in HIFIOWithPostgresIT.java
           throws CoderException, ClassCastException {
 >>>>>>> Resolved most of the code review comments.
+=======
+      private <T> T cloneIfPossiblyMutable(T input, Coder<T> coder) throws CoderException,
+          ClassCastException {
+>>>>>>> Changes as per code review by Dipti, revisited code
         // If the input object is not of known immutable type, clone the object.
         if (!isKnownImmutable(input)) {
           input = CoderUtils.clone(coder, input);
@@ -1281,8 +1328,17 @@ public class HadoopInputFormatIO {
        */
       private boolean isKnownImmutable(Object o) {
         Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
-            Arrays.asList(String.class, Byte.class, Short.class, Integer.class, Long.class,
-                Float.class, Double.class, Boolean.class, BigInteger.class, BigDecimal.class));
+            Arrays.asList(
+                String.class, 
+                Byte.class, 
+                Short.class, 
+                Integer.class, 
+                Long.class,
+                Float.class, 
+                Double.class, 
+                Boolean.class, 
+                BigInteger.class, 
+                BigDecimal.class));
         return immutableTypes.contains(o.getClass());
       }
 
@@ -1300,14 +1356,14 @@ public class HadoopInputFormatIO {
         if (doneReading) {
           return 1.0;
         }
-          if (currentReader == null || recordsReturned == 0) {
-            return 0.0;
-          }
-             return getProgress();
+        if (currentReader == null || recordsReturned == 0) {
+          return 0.0;
+        }
+        return getProgress();
       }
 
       /**
-       * Returns RecordReader's Progress.
+       * Returns RecordReader's progress.
        */
       private Double getProgress() {
         try {
@@ -1315,8 +1371,7 @@ public class HadoopInputFormatIO {
             return (double) currentReader.getProgress();
           }
         } catch (IOException | InterruptedException e) {
-          LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG + e.getMessage(),
-              e);
+          LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG + e.getMessage(), e);
           return null;
         }
       }
@@ -1335,9 +1390,8 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * A wrapper to allow Hadoop {@link org.apache.hadoop.mapreduce.InputSplit}s to be serialized
-     * using Java's standard serialization mechanisms. Note that the InputSplit has to be Writable
-     * (which mostly are).
+     * A wrapper to allow Hadoop {@link org.apache.hadoop.mapreduce.InputSplit} to be serialized
+     * using Java's standard serialization mechanisms. Note that the InputSplit has to be Writable.
      */
     public static class SerializableSplit implements Externalizable {
 
