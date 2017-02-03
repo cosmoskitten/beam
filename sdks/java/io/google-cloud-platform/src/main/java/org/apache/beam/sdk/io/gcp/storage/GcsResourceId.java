@@ -38,7 +38,7 @@ public class GcsResourceId implements ResourceId {
   }
 
   @Override
-  public ResourceId resolve(String other) {
+  public GcsResourceId resolve(String other) {
     checkState(
         isDirectory(),
         String.format("Expected the gcsPath is a directory, but had [%s].", gcsPath));
@@ -46,7 +46,7 @@ public class GcsResourceId implements ResourceId {
   }
 
   @Override
-  public ResourceId getCurrentDirectory() {
+  public GcsResourceId getCurrentDirectory() {
     if (isDirectory()) {
       return this;
     } else {
@@ -61,6 +61,10 @@ public class GcsResourceId implements ResourceId {
   @Override
   public String getScheme() {
     return GcsFileSystemRegistrar.GCS_SCHEME;
+  }
+
+  GcsPath getGcsPath() {
+    return gcsPath;
   }
 
   @Override
