@@ -77,7 +77,7 @@ public class HIFIOCassandraIT implements Serializable {
 >>>>>>> Elastic, Cassandra embedded code and ITs
   private static HIFTestOptions options;
 
-  @BeforeClass
+  //@BeforeClass
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
