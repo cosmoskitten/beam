@@ -19,8 +19,11 @@
 package org.apache.beam.runners.spark.translation;
 
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.runners.core.GroupAlsoByWindowsDoFn;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
@@ -85,7 +88,16 @@ public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
   public Iterable<WindowedValue<KV<K, Iterable<InputT>>>> call(
       WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>> windowedValue) throws Exception {
     K key = windowedValue.getValue().getKey();
-    Iterable<WindowedValue<InputT>> inputs = windowedValue.getValue().getValue();
+    // sort by timestamp.
+    List<WindowedValue<InputT>> sortedByTimestamp =
+        Lists.newArrayList(windowedValue.getValue().getValue());
+    Collections.sort(sortedByTimestamp, new Comparator<WindowedValue<InputT>>() {
+      @Override
+      public int compare(WindowedValue<InputT> o1, WindowedValue<InputT> o2) {
+        return Iterables.getOnlyElement(o1.getWindows()).maxTimestamp().compareTo(
+            Iterables.getOnlyElement(o2.getWindows()).maxTimestamp());
+      }
+    });
 
     //------ based on GroupAlsoByWindowsViaOutputBufferDoFn ------//
 
@@ -130,7 +142,7 @@ public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
             reduceFn,
             runtimeContext.getPipelineOptions());
 
-    Iterable<List<WindowedValue<InputT>>> chunks = Iterables.partition(inputs, 1000);
+    Iterable<List<WindowedValue<InputT>>> chunks = Iterables.partition(sortedByTimestamp, 1000);
     for (Iterable<WindowedValue<InputT>> chunk : chunks) {
       // Process the chunk of elements.
       reduceFnRunner.processElements(chunk);
