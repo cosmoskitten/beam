@@ -17,18 +17,14 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -65,11 +61,11 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.KvStateSnapshot;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -77,7 +73,6 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 /**
  * Flink operator for executing {@link DoFn DoFns}.
@@ -120,17 +115,15 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected transient long currentOutputWatermark;
 
-  private transient AbstractStateBackend sideInputStateBackend;
-
   private final ReducingStateDescriptor<Long> pushedBackWatermarkDescriptor;
 
   private final ListStateDescriptor<WindowedValue<InputT>> pushedBackDescriptor;
 
-  private transient Map<String, KvStateSnapshot<?, ?, ?, ?, ?>> restoredSideInputState;
-
   protected transient FlinkStateInternals<?> stateInternals;
 
   private final Coder<?> keyCoder;
+
+  protected transient KeyedStateBackend<ByteBuffer> sideInputStateBackend;
 
   public DoFnOperator(
       DoFn<InputT, FnOutputT> doFn,
@@ -181,7 +174,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     super.open();
 
     currentInputWatermark = Long.MIN_VALUE;
-    currentOutputWatermark = currentInputWatermark;
+    currentOutputWatermark = Long.MIN_VALUE;
 
     AggregatorFactory aggregatorFactory = new AggregatorFactory() {
       @Override
@@ -207,23 +200,13 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     sideInputReader = NullSideInputReader.of(sideInputs);
 
     if (!sideInputs.isEmpty()) {
-      String operatorIdentifier =
-          this.getClass().getSimpleName() + "_"
-              + getRuntimeContext().getIndexOfThisSubtask() + "_sideInput";
-
-      sideInputStateBackend = this
-          .getContainingTask()
-          .createStateBackend(operatorIdentifier,
-              new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()));
-
-      checkState(sideInputStateBackend != null, "Side input state backend cannot be null");
-
-      if (restoredSideInputState != null) {
-        @SuppressWarnings("unchecked,rawtypes")
-        HashMap<String, KvStateSnapshot> castRestored = (HashMap) restoredSideInputState;
-        sideInputStateBackend.injectKeyValueStateSnapshots(castRestored);
-        restoredSideInputState = null;
-      }
+      // TODO now ignore checkpoint of sideInput state
+      sideInputStateBackend =
+          new HeapKeyedStateBackend<>(
+              null,
+              new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()),
+              DoFnOperator.class.getClassLoader(),
+              1, new KeyGroupRange(0, 0));
 
       sideInputStateBackend.setCurrentKey(
           ByteBuffer.wrap(CoderUtils.encodeToByteArray(VoidCoder.of(), null)));
@@ -238,7 +221,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     outputManager = outputManagerFactory.create(output);
 
     if (keyCoder != null) {
-      stateInternals = new FlinkStateInternals<>(getStateBackend(), keyCoder);
+      stateInternals = new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(),
+          keyCoder);
     }
 
     this.doFn = getDoFn();
@@ -291,8 +275,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     try {
       Long result = sideInputStateBackend.getPartitionedState(
-          null,
-          VoidSerializer.INSTANCE,
+          "namespace",
+          StringSerializer.INSTANCE,
           pushedBackWatermarkDescriptor).get();
       return result != null ? result : Long.MAX_VALUE;
     } catch (Exception e) {
@@ -317,14 +301,14 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     ListState<WindowedValue<InputT>> pushedBack =
         sideInputStateBackend.getPartitionedState(
-            null,
-            VoidSerializer.INSTANCE,
+            "namespace",
+            StringSerializer.INSTANCE,
             pushedBackDescriptor);
 
     ReducingState<Long> pushedBackWatermark =
         sideInputStateBackend.getPartitionedState(
-            null,
-            VoidSerializer.INSTANCE,
+            "namespace",
+            StringSerializer.INSTANCE,
             pushedBackWatermarkDescriptor);
 
     for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
@@ -348,8 +332,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     ListState<WindowedValue<InputT>> pushedBack =
         sideInputStateBackend.getPartitionedState(
-            null,
-            VoidSerializer.INSTANCE,
+            "namespace",
+            StringSerializer.INSTANCE,
             pushedBackDescriptor);
 
     List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
@@ -368,11 +352,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       }
     }
 
-
     ReducingState<Long> pushedBackWatermark =
         sideInputStateBackend.getPartitionedState(
-            null,
-            VoidSerializer.INSTANCE,
+            "namespace",
+            StringSerializer.INSTANCE,
             pushedBackWatermarkDescriptor);
 
     pushedBack.clear();
@@ -407,45 +390,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   @Override
   public void processWatermark2(Watermark mark) throws Exception {
     // ignore watermarks from the side-input input
-  }
-
-  @Override
-  public StreamTaskState snapshotOperatorState(
-      long checkpointId,
-      long timestamp) throws Exception {
-
-    StreamTaskState streamTaskState = super.snapshotOperatorState(checkpointId, timestamp);
-
-    if (sideInputStateBackend != null) {
-      // we have to manually checkpoint the side-input state backend and store
-      // the handle in the "user state" of the task state
-      HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> sideInputSnapshot =
-          sideInputStateBackend.snapshotPartitionedState(checkpointId, timestamp);
-
-      if (sideInputSnapshot != null) {
-        @SuppressWarnings("unchecked,rawtypes")
-        StateHandle<Serializable> sideInputStateHandle =
-            (StateHandle) sideInputStateBackend.checkpointStateSerializable(
-                sideInputSnapshot, checkpointId, timestamp);
-
-        streamTaskState.setFunctionState(sideInputStateHandle);
-      }
-    }
-
-    return streamTaskState;
-  }
-
-  @Override
-  public void restoreState(StreamTaskState state) throws Exception {
-    super.restoreState(state);
-
-    @SuppressWarnings("unchecked,rawtypes")
-    StateHandle<HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>>> sideInputStateHandle =
-        (StateHandle) state.getFunctionState();
-
-    if (sideInputStateHandle != null) {
-      restoredSideInputState = sideInputStateHandle.getState(getUserCodeClassloader());
-    }
   }
 
   /**
