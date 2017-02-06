@@ -39,10 +39,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 import org.junit.runners.MethodSorters;
 >>>>>>> Added javadodc in HIFIOHBaseIT.
+=======
+>>>>>>> Added javadoc in DBInputWritable.java.
 
 /**
  * Runs test to validate HadoopInputFromatIO for a HBase instance on GCP.
