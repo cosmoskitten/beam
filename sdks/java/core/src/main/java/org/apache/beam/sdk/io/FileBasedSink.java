@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.annotation.JsonFormat.Value;
@@ -38,8 +37,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
 import javax.annotation.Nullable;
@@ -152,7 +151,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * A naming policy for output files.
    */
   public abstract static class FilenamePolicy
-      implements SerializableFunction<FilenamePolicy.Context, String> {
+      implements org.apache.beam.sdk.transforms.SerializableFunction<
+       FilenamePolicy.Context, String> {
     /**
      * Context used for generating a name based on window, pane, shard numer, and num shards.
      * Window and pane will only be provided if windowed writes have been requested using
@@ -182,7 +182,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * A default filename policy.
    */
-  protected  class DefaultFilenamePolicy extends FilenamePolicy {
+  protected class DefaultFilenamePolicy extends FilenamePolicy {
     ValueProvider<String> baseOutputFilename;
     String extension;
     String fileNamingTemplate;
