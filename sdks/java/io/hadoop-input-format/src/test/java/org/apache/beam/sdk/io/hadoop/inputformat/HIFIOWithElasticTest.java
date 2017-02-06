@@ -298,8 +298,12 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final int TEST_DATA_ROW_COUNT = 10;
   private static final String ELASTIC_TYPE_ID_PREFIX = "s";
   private static List<String> expectedList = new ArrayList<>();
+<<<<<<< HEAD
   private static final String OUTPUT_WRITE_FILE_PATH = "D:\\op";
 >>>>>>> Added checksum approach in elastic IT
+=======
+  private static final String OUTPUT_WRITE_FILE_PATH = "output";
+>>>>>>> Null check in HIOFIOTextMatcher class
 
   @ClassRule
   public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
