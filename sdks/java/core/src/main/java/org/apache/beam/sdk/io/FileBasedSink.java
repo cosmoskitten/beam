@@ -18,13 +18,11 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
-import com.fasterxml.jackson.annotation.JsonFormat.Value;
-import com.google.common.collect.ImmutableList;
-import autovalue.shaded.com.google.common.common.collect.Lists;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 
 import java.io.IOException;
@@ -35,17 +33,15 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
 import javax.annotation.Nullable;
 
-import javafx.scene.layout.Pane;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -57,13 +53,8 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.FileIOChannelFactory;
-import org.apache.beam.sdk.util.GcsIOChannelFactory;
-import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -158,8 +149,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * A naming policy for output files.
    */
-  public static abstract class FilenamePolicy
-      implements org.apache.beam.sdk.transforms.SerializableFunction<Context, String> {
+  public abstract static class FilenamePolicy
+      implements org.apache.beam.sdk.transforms.SerializableFunction<
+       FilenamePolicy.Context, String> {
     /**
      * Context used for generating a name based on window, pane, shard numer, and num shards.
      * Window and pane will only be provided if windowed writes have been requested using
@@ -170,7 +162,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       public Context(BoundedWindow window, PaneInfo paneInfo, int shardNumber, int numShards) {
         this.window = window;
         this.paneInfo = paneInfo;
-        this. shardNumber = shardNumber;
+        this.shardNumber = shardNumber;
         this.numShards = numShards;
       }
 
@@ -189,7 +181,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * A default filename policy.
    */
-  protected  class DefaultFilenamePolicy extends FilenamePolicy {
+  protected class DefaultFilenamePolicy extends FilenamePolicy {
     ValueProvider<String> baseOutputFilename;
     String extension;
     String fileNamingTemplate;
