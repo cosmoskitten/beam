@@ -35,18 +35,18 @@ class ValueProvider(object):
 class StaticValueProvider(ValueProvider):
   def __init__(self, value_type, value):
     self.value_type = value_type
-    self.data = value_type(value)
+    self.value = value_type(value)
 
   def is_accessible(self):
     return True
 
   def get(self):
-    return self.data
+    return self.value
 
   def __str__(self):
     return '%s(type=%s, value=%s)' % (self.__class__.__name__,
                                       self.value_type.__name__,
-                                      repr(self.data))
+                                      repr(self.value))
 
 
 class RuntimeValueProvider(ValueProvider):
