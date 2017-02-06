@@ -237,13 +237,18 @@ public class HIFIOCassandraIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  /**
-   * Returns configuration of CqlInutFormat. Mandatory parameters required apart from inputformat
-   * class name, key class, value class are thrift port, thrift address, partitioner class, keyspace
-   * and columnfamily name.
+  /*
+   * Returns Hadoop configuration for reading data from Cassandra. To read data from Cassandra using
+   * HadoopInputFormatIO, following properties must be set: InputFormat class, InputFormat key
+   * class, InputFormat value class, Thrift address, Thrift port, partitioner class, keyspace and
+   * columnfamily name.
    */
+<<<<<<< HEAD
 >>>>>>> Elastic, Cassandra embedded code and ITs
   public static Configuration getConfiguration(HIFTestOptions options) {
+=======
+  private static Configuration getConfiguration(HIFTestOptions options) {
+>>>>>>> Minor modifications.
     Configuration conf = new Configuration();
 <<<<<<< HEAD
     conf.set("cassandra.input.thrift.port", options.getServerPort().toString());
