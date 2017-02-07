@@ -163,6 +163,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * Context objects.
      */
     public static class Context {
+      private BoundedWindow window;
+      private PaneInfo paneInfo;
+      private int shardNumber;
+      private int numShards;
+
       public Context(BoundedWindow window, PaneInfo paneInfo, int shardNumber, int numShards) {
         this.window = window;
         this.paneInfo = paneInfo;
@@ -170,10 +175,21 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         this.numShards = numShards;
       }
 
-      public BoundedWindow window;
-      public PaneInfo paneInfo;
-      public int shardNumber;
-      public int numShards;
+      public BoundedWindow getWindow() {
+        return window;
+      }
+
+      public PaneInfo getPaneInfo() {
+        return paneInfo;
+      }
+
+      public int getShardNumber() {
+        return shardNumber;
+      }
+
+      public int getNumShards() {
+        return numShards;
+      }
     }
 
     /**
@@ -216,8 +232,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
       String suffix = getFileExtension(extension);
       return IOChannelUtils.constructName(
-            baseOutputFilename.get(), fileNamingTemplate, suffix, context.shardNumber,
-          context.numShards);
+            baseOutputFilename.get(), fileNamingTemplate, suffix, context.getShardNumber(),
+          context.getNumShards());
     }
 
     @Override
