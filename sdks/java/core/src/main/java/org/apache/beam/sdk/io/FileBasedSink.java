@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.annotation.JsonFormat.Value;
@@ -46,6 +48,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -177,6 +180,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @return The base filename for all output files.
      */
     public abstract ValueProvider<String> getBaseOutputFilenameProvider();
+
+    /**
+     * Populates the display data.
+     */
+    public void populateDisplayData(DisplayData.Builder builder) {
+    }
   }
 
   /**
@@ -201,6 +210,10 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     @Override
     public String apply(FilenamePolicy.Context context) {
+      if (context.numShards <= 0) {
+        return null;
+      }
+
       String suffix = getFileExtension(extension);
       return IOChannelUtils.constructName(
             baseOutputFilename.get(), fileNamingTemplate, suffix, context.shardNumber,
@@ -210,6 +223,16 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     @Override
     public ValueProvider<String> getBaseOutputFilenameProvider() {
       return baseOutputFilename;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+    String fileNamePattern = String.format("%s%s%s",
+        baseOutputFilename.isAccessible()
+        ? baseOutputFilename.get() : baseOutputFilename.toString(),
+        fileNamingTemplate, getFileExtension(extension));
+    builder.add(DisplayData.item("fileNamePattern", fileNamePattern)
+      .withLabel("File Name Pattern"));
     }
   }
 
@@ -279,6 +302,10 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     return fileNamePolicy.getBaseOutputFilenameProvider();
   }
 
+  public FilenamePolicy getFileNamePolicy() {
+    return fileNamePolicy;
+  }
+
   @Override
   public void validate(PipelineOptions options) {}
 
@@ -292,15 +319,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-/*
-    String fileNamePattern = String.format("%s%s%s",
-        baseOutputFilename.isAccessible()
-        ? baseOutputFilename.get() : baseOutputFilename.toString(),
-        fileNamingTemplate, getFileExtension(extension));
-    builder.add(DisplayData.item("fileNamePattern", fileNamePattern)
-      .withLabel("File Name Pattern"));
-
-*/
+    getFileNamePolicy().populateDisplayData(builder);
   }
 
   /**
@@ -368,6 +387,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /** Directory for temporary output files. */
     protected final ValueProvider<String> tempDirectory;
 
+    /** Whether to delete the entire temp directory in finalize. */
+    protected  boolean windowedWrites;
+
     /** Constructs a temporary file path given the temporary directory and a filename. */
     protected static String buildTemporaryFilename(String tempDirectory, String filename)
         throws IOException {
@@ -425,6 +447,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     private FileBasedWriteOperation(FileBasedSink<T> sink, ValueProvider<String> tempDirectory) {
       this.sink = sink;
       this.tempDirectory = tempDirectory;
+      this.windowedWrites = false;
     }
 
     /**
@@ -434,6 +457,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
     @Override
     public abstract FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception;
+
+    @Override
+    public void setWindowedWrites(boolean windowedWrites) {
+      this.windowedWrites = windowedWrites;
+    }
 
     /**
      * Initialization of the sink. Default implementation is a no-op. May be overridden by subclass
@@ -459,20 +487,23 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param writerResults the results of writes (FileResult).
      */
     @Override
-    public void finalize(Iterable<FileResult> writerResults, PipelineOptions options)
+    public void finalize(Iterable<FileResult> writerResults,
+                         PipelineOptions options)
         throws Exception {
       // Collect names of temporary files and rename them.
       Map<String, String> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames, options);
 
-      // THIS LOGIC IS BROKEN IN STREAMING. IT WILL REMOVE IN-PROGRESS FILES.
       // Optionally remove temporary files.
       // We remove the entire temporary directory, rather than specifically removing the files
       // from writerResults, because writerResults includes only successfully completed bundles,
       // and we'd like to clean up the failed ones too.
       // Note that due to GCS eventual consistency, matching files in the temp directory is also
       // currently non-perfect and may fail to delete some files.
-     // removeTemporaryFiles(files, options);
+      //
+      // When windows or triggers are specified, files are generated incrementally so deleting
+      // the entire directory in finalize is incorrect.
+      removeTemporaryFiles(outputFilenames.keySet(), !windowedWrites, options);
     }
 
     protected final Map<String, String> buildOutputFilenames(Iterable<FileResult> writerResults) {
@@ -486,8 +517,10 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         }
       }
 
-      // Handle the case
+      // If the user does not specify numShards() (not supported with windowing). Then the
+      // writerResults won't contain destination filenames, so we dynamically generate them here.
       if (files.size() > 0) {
+        checkArgument(outputFilenames.isEmpty());
         // Sort files for idempotence.
         files = Ordering.natural().sortedCopy(files);
         FilenamePolicy filenamePolicy = getSink().fileNamePolicy;
@@ -496,6 +529,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
               filenamePolicy.apply(new Context(null, null, i, files.size())));
         }
       }
+
+      int numDistinctShards = new HashSet<String>(outputFilenames.values()).size();
+      checkState(numDistinctShards == outputFilenames.size(),
+         "Only generated %s distinct file names for %s files.",
+         numDistinctShards, outputFilenames.size());
+
       return outputFilenames;
     }
 
@@ -511,42 +550,19 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * file-000-of-003.txt, the contents of B will be copied to file-001-of-003.txt, etc.
      *
      * @param filenames the filenames of temporary files.
-     * @return a list containing the names of final output files.
      */
-    protected final void copyToOutputFiles(Map<String, String> filenames, PipelineOptions
-        options)
+    protected final void copyToOutputFiles(Map<String, String> filenames,
+                                           PipelineOptions options)
         throws IOException {
       int numFiles = filenames.size();
       if (numFiles > 0) {
         LOG.debug("Copying {} files.", numFiles);
         IOChannelFactory channelFactory =
-        IOChannelUtils.getFactory(filenames.values().iterator().next());
+            IOChannelUtils.getFactory(filenames.values().iterator().next());
         channelFactory.copy(filenames.keySet(), filenames.values());
-        channelFactory.remove(filenames.keySet());
       } else {
         LOG.info("No output files to write.");
       }
-    }
-
-    /**
-     * Generate output bundle filenames.
-     */
-    protected final List<String> generateDestinationFilenames(int numFiles) {
-      List<String> destFilenames = new ArrayList<>();
-      FilenamePolicy filenamePolicy = getSink().fileNamePolicy;
-      for (int i = 0; i < numFiles; i++) {
-        String filename = filenamePolicy.apply(
-            new FilenamePolicy.Context(null, null, i, numFiles));
-        System.out.println("Generated filename " + filename);
-        destFilenames.add(filename);
-      }
-
-      int numDistinctShards = new HashSet<String>(destFilenames).size();
-     // checkState(numDistinctShards == numFiles,
-       //   "Shard name template '%s' only generated %s distinct file names for %s files.",
-       //   fileNamingTemplate, numDistinctShards, numFiles);
-
-      return destFilenames;
     }
 
     /**
@@ -556,7 +572,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * <b>Note:</b>If finalize is overridden and does <b>not</b> rename or otherwise finalize
      * temporary files, this method will remove them.
      */
-    protected final void removeTemporaryFiles(List<String> knownFiles, PipelineOptions options)
+    protected final void removeTemporaryFiles(Set<String> knownFiles,
+                                              boolean shouldRemoveTemporaryDirectory,
+                                              PipelineOptions options)
         throws IOException {
       String tempDir = tempDirectory.get();
       LOG.debug("Removing temporary bundle output files in {}.", tempDir);
@@ -566,15 +584,18 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // directory matching APIs, we remove not only files that the filesystem says exist
       // in the directory (which may be incomplete), but also files that are known to exist
       // (produced by successfully completed bundles).
+
       // This may still fail to remove temporary outputs of some failed bundles, but at least
       // the common case (where all bundles succeed) is guaranteed to be fully addressed.
       Set<String> matches = new HashSet<>();
       // TODO: Windows OS cannot resolves and matches '*' in the path,
       // ignore the exception for now to avoid failing the pipeline.
-      try {
-        matches.addAll(factory.match(factory.resolve(tempDir, "*")));
-      } catch (Exception e) {
-        LOG.warn("Failed to match temporary files under: [{}].", tempDir);
+      if (shouldRemoveTemporaryDirectory) {
+        try {
+          matches.addAll(factory.match(factory.resolve(tempDir, "*")));
+        } catch (Exception e) {
+          LOG.warn("Failed to match temporary files under: [{}].", tempDir);
+        }
       }
       Set<String> allMatches = new HashSet<>(matches);
       allMatches.addAll(knownFiles);
@@ -749,12 +770,10 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       }
 
       FilenamePolicy filenamePolicy = getWriteOperation().getSink().fileNamePolicy;
-      String destinationFile = null;
-      if (filenamePolicy != null) {
-        destinationFile = filenamePolicy.apply(new Context(window, paneInfo, shard, numShards));
-      }
+      String destinationFile = filenamePolicy.apply(new Context(
+          window, paneInfo, shard, numShards));
       FileResult result = new FileResult(filename, destinationFile);
-      LOG.debug("Result for bundle {}: {}", this.id, filename);
+      LOG.debug("Result for bundle {}: {} {}", this.id, filename, destinationFile);
       return result;
     }
 
@@ -786,6 +805,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     public String getDestinationFilename() {
       return destinationFilename;
     }
+
   }
 
   /**
@@ -793,7 +813,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    */
   public static final class FileResultCoder extends AtomicCoder<FileResult> {
     private static final FileResultCoder INSTANCE = new FileResultCoder();
-    private final StringUtf8Coder stringCoder = StringUtf8Coder.of();
+    private final Coder<String> stringCoder = NullableCoder.of(StringUtf8Coder.of());
 
     @JsonCreator
     public static FileResultCoder of() {

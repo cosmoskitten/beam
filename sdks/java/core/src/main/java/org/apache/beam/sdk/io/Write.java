@@ -111,7 +111,7 @@ public class Write {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkArgument(IsBounded.BOUNDED == input.isBounded() || windowedWrites == true,
+      checkArgument(IsBounded.BOUNDED == input.isBounded() || windowedWrites,
           "%s can only be applied to an unbounded PCollection if doing windowed writes",
           Write.class.getSimpleName());
       PipelineOptions options = input.getPipeline().getOptions();
@@ -251,6 +251,7 @@ public class Write {
     private class WriteShardedBundles<WriteT> extends DoFn<KV<Integer, Iterable<T>>, WriteT> {
       private final PCollectionView<WriteOperation<T, WriteT>> writeOperationView;
 
+
       WriteShardedBundles(PCollectionView<WriteOperation<T, WriteT>> writeOperationView) {
         this.writeOperationView = writeOperationView;
       }
@@ -263,9 +264,9 @@ public class Write {
         LOG.info("Opening writer for write operation {}", writeOperation);
         Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
         writer.open(UUID.randomUUID().toString());
-        writer.setShard(c.element().getKey(), getNumShards());
         if (windowedWrites) {
           writer.setWindowAndPane(window, c.pane());
+          writer.setShard(c.element().getKey(), getNumShards());
         }
         LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
 
@@ -320,7 +321,7 @@ public class Write {
           // ApplyShardingKey, so records in a small PCollection will be statistically balanced.
           shardNumber = ThreadLocalRandom.current().nextInt(numShards);
         } else {
-          shardNumber = (shardNumber + 1) % numShards;
+         shardNumber = (shardNumber + 1) % numShards;
         }
         return shardNumber;
       }
@@ -361,8 +362,10 @@ public class Write {
     private <WriteT> PDone createWrite(
         PCollection<T> input, WriteOperation<T, WriteT> writeOperation) {
       Pipeline p = input.getPipeline();
+      writeOperation.setWindowedWrites(windowedWrites);
 
       // A coder to use for the WriteOperation.
+      // THIS DOESN'T PLAY NICE IN STREAMING!
       @SuppressWarnings("unchecked")
       Coder<WriteOperation<T, WriteT>> operationCoder =
           (Coder<WriteOperation<T, WriteT>>) SerializableCoder.of(writeOperation.getClass());
@@ -370,7 +373,7 @@ public class Write {
       // A singleton collection of the WriteOperation, to be used as input to a ParDo to initialize
       // the sink.
       PCollection<WriteOperation<T, WriteT>> operationCollection =
-          p.apply(Create.of(writeOperation).withCoder(operationCoder));
+          p.apply("CreateOperationCollection", Create.of(writeOperation).withCoder(operationCoder));
 
       // Initialize the resource in a do-once ParDo on the WriteOperation.
       operationCollection = operationCollection
@@ -381,6 +384,7 @@ public class Write {
               WriteOperation<T, WriteT> writeOperation = c.element();
               LOG.info("Initializing write operation {}", writeOperation);
               writeOperation.initialize(c.getPipelineOptions());
+              writeOperation.setWindowedWrites(windowedWrites);
               LOG.debug("Done initializing write operation {}", writeOperation);
               // The WriteOperation is also the output of this ParDo, so it can have mutable
               // state.
@@ -410,8 +414,8 @@ public class Write {
       PCollection<WriteT> results;
       if (getNumShards() <= 0) {
         if (windowedWrites) {
-          throw new IllegalStateException("When doing windowed writes, numShards must be set" +
-              "explicitly to a positive value");
+          throw new IllegalStateException("When doing windowed writes, numShards must be set"
+              + "explicitly to a positive value");
         }
         results = input
             .apply("WriteBundles",
@@ -438,15 +442,7 @@ public class Write {
         keyedResults.setCoder(KvCoder.<Void, WriteT>of(VoidCoder.of(), writeOperation
             .getWriterResultCoder()));
 
-        // TODO We need a way to specify faster finalization. Today if an hour window is set with
-        // a rollover trigger of 100K elements, this GBK will inherit that windowing and only
-        // trigger at the end of the hour (since it's unlikely that 100k files will be generated
-        // before). The user can speed up this finalization by specifying a short processing-time
-        // trigger, however that will also affect the WriteShardedBundles transform, causing too
-        // many files to be generated. We should allow for a faster trigger to be specified just
-        // on this finalization step.
-        //
-        // Actually, maybe the continuation trigger will just do the right thing :)
+        // Is the continuation trigger sufficient?
         keyedResults
             .apply("FinalizeGroupByKey", GroupByKey.<Void, WriteT>create())
             .apply("Finalize", ParDo.of(new DoFn<KV<Void, Iterable<WriteT>>, Integer>() {
@@ -466,8 +462,11 @@ public class Write {
         // Finalize the write in another do-once ParDo on the singleton collection containing the
         // Writer. The results from the per-bundle writes are given as an Iterable side input.
         // The WriteOperation's state is the same as after its initialization in the first do-once
-        // ParDo. There is a dependency between this ParDo and the parallel write (the writer results
-        // collection as a side input), so it will happen after the parallel write.
+        // ParDo. There is a dependency between this ParDo and the parallel write (the writer
+        // results collection as a side input), so it will happen after the parallel write.
+        // For the non-windowed case, we guarantee that  if no data is written but the user has
+        // set numShards, then all shards will be written out as empty files. For this reason we
+        // use a side input here.
         operationCollection
             .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
               @ProcessElement
@@ -477,13 +476,14 @@ public class Write {
                 List<WriteT> results = Lists.newArrayList(c.sideInput(resultsView));
                 LOG.debug("Side input initialized to finalize write operation {}.", writeOperation);
 
-                // We must always output at least 1 shard, and honor user-specified numShards if set.
+                // We must always output at least 1 shard, and honor user-specified numShards if
+                // set.
                 int minShardsNeeded = Math.max(1, getNumShards());
                 int extraShardsNeeded = minShardsNeeded - results.size();
                 if (extraShardsNeeded > 0) {
                   LOG.info(
-                      "Creating {} empty output shards in addition to {} written for a total of {}.",
-                      extraShardsNeeded, results.size(), minShardsNeeded);
+                      "Creating {} empty output shards in addition to {} written for a total of "
+                          + " {}.", extraShardsNeeded, results.size(), minShardsNeeded);
                   for (int i = 0; i < extraShardsNeeded; ++i) {
                     Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
                     writer.open(UUID.randomUUID().toString());

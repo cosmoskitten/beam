@@ -30,6 +30,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -133,6 +135,10 @@ public class HDFSFileSink<K, V> extends Sink<KV<K, V>> {
     public void initialize(PipelineOptions options) throws Exception {
       Job job = ((HDFSFileSink<K, V>) getSink()).jobInstance();
       FileOutputFormat.setOutputPath(job, new Path(path));
+    }
+
+    @Override
+    public void setWindowedWrites(boolean windowedWrites) {
     }
 
     @Override
@@ -247,6 +253,24 @@ public class HDFSFileSink<K, V> extends Sink<KV<K, V>> {
       FileOutputFormat<K, V> outputFormat = formatClass.newInstance();
       recordWriter = outputFormat.getRecordWriter(context);
       outputCommitter = (FileOutputCommitter) outputFormat.getOutputCommitter(context);
+    }
+
+    @Override
+    public void setWindowAndPane(BoundedWindow window, PaneInfo paneInfo) throws Exception {
+      if (window != null) {
+        throw new UnsupportedOperationException("Windowing support not implemented yet for"
+            + "HDFS.");
+      }
+    }
+
+    @Override
+    public void setShard(int shard, int numShards) {
+
+    }
+
+    @Override
+    public void cleanup() throws Exception {
+
     }
 
     @Override
