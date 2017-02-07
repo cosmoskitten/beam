@@ -308,9 +308,10 @@ public class AvroIOTest {
 
     @Override
     public String apply(Context input) {
-      String filename = outputFilePrefix + "-" + input.window.toString() +  "-" + input.shardNumber
-          + "-of-" + (input.numShards - 1) + "-pane-" + input.paneInfo.getIndex();
-      if (input.paneInfo.isLast()) {
+      String filename = outputFilePrefix + "-" + input.getWindow().toString() +  "-"
+          + input.getShardNumber() + "-of-" + (input.getNumShards() - 1) + "-pane-"
+          + input.getPaneInfo().getIndex();
+      if (input.getPaneInfo().isLast()) {
         filename += "-final";
       }
       return filename;
