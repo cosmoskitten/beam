@@ -49,7 +49,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
-import org.apache.beam.sdk.io.Write.ConstantShards;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
@@ -313,9 +312,8 @@ public class WriteTest {
     assertThat(write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
         write.getSharding();
-    assertThat(write.getSharding(), instanceOf(ConstantShards.class));
-    assertThat(((ConstantShards<String>) write.getSharding()).getNumShards().get(), equalTo(3));
-    assertThat(write.getSharding(), equalTo(originalSharding));
+    assertThat(write.getNumShards().get(), is(3));
+    assertThat(write.getSharding(), is(nullValue()));
 
     Write.Bound<String> write2 = write.withSharding(SHARDING_TRANSFORM);
     assertThat(write2.getSink(), is(sink));
@@ -354,7 +352,7 @@ public class WriteTest {
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
-    assertThat(displayData, hasDisplayItem("Fixed Number of Shards", 1));
+    assertThat(displayData, hasDisplayItem("numShards", 1));
   }
 
   @Test
@@ -383,17 +381,6 @@ public class WriteTest {
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
     assertThat(displayData, hasDisplayItem("spam", "ham"));
-  }
-
-  @Test
-  public void testWriteUnbounded() {
-    PCollection<String> unbounded = p.apply(CountingInput.unbounded())
-        .apply(ToString.elements());
-
-    TestSink sink = new TestSink();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Write can only be applied to a Bounded PCollection");
-    unbounded.apply(Write.to(sink));
   }
 
   /**
@@ -534,6 +521,10 @@ public class WriteTest {
       assertEquals("test_value", options.as(WriteOptions.class).getTestFlag());
       assertThat(state, anyOf(equalTo(State.INITIAL), equalTo(State.INITIALIZED)));
       state = State.INITIALIZED;
+    }
+
+    @Override
+    public void setWindowedWrites(boolean windowedWrites) {
     }
 
     @Override

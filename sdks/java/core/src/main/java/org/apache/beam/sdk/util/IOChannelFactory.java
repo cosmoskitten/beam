@@ -23,7 +23,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.List;
 
 /**
  * Defines a factory for working with read and write channels.
