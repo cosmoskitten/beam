@@ -63,13 +63,17 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -200,12 +204,14 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     sideInputReader = NullSideInputReader.of(sideInputs);
 
     if (!sideInputs.isEmpty()) {
+      // TODO now ignore checkpoint of sideInput state
       sideInputStateBackend =
           new HeapKeyedStateBackend<>(
               null,
               new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()),
-              ClassLoader.getSystemClassLoader(),
+              DoFnOperator.class.getClassLoader(),
               1, new KeyGroupRange(0, 0));
+
       sideInputStateBackend.setCurrentKey(
           ByteBuffer.wrap(CoderUtils.encodeToByteArray(VoidCoder.of(), null)));
 

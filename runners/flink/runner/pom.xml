@@ -43,39 +43,39 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <executions>
 
-              <!--&lt;!&ndash; This configures the inherited runnable-on-service-tests-->
-                   <!--execution to execute with a local Flink instance. &ndash;&gt;-->
-              <!--<execution>-->
-                <!--<id>runnable-on-service-tests</id>-->
-                <!--<phase>integration-test</phase>-->
-                <!--<goals>-->
-                  <!--<goal>test</goal>-->
-                <!--</goals>-->
-                <!--<configuration>-->
-                  <!--<groups>org.apache.beam.sdk.testing.RunnableOnService</groups>-->
-                  <!--<excludedGroups>-->
-                    <!--org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders,-->
-                    <!--org.apache.beam.sdk.testing.UsesStatefulParDo,-->
-                    <!--org.apache.beam.sdk.testing.UsesTimersInParDo,-->
-                    <!--org.apache.beam.sdk.testing.UsesSplittableParDo,-->
-                    <!--org.apache.beam.sdk.testing.UsesAttemptedMetrics,-->
-                    <!--org.apache.beam.sdk.testing.UsesCommittedMetrics-->
-                  <!--</excludedGroups>-->
-                  <!--<parallel>none</parallel>-->
-                  <!--<failIfNoTests>true</failIfNoTests>-->
-                  <!--<dependenciesToScan>-->
-                    <!--<dependency>org.apache.beam:beam-sdks-java-core</dependency>-->
-                  <!--</dependenciesToScan>-->
-                  <!--<systemPropertyVariables>-->
-                    <!--<beamTestPipelineOptions>-->
-                      <!--[-->
-                      <!--"&#45;&#45;runner=TestFlinkRunner",-->
-                      <!--"&#45;&#45;streaming=false"-->
-                      <!--]-->
-                    <!--</beamTestPipelineOptions>-->
-                  <!--</systemPropertyVariables>-->
-                <!--</configuration>-->
-              <!--</execution>-->
+              <!-- This configures the inherited runnable-on-service-tests
+                   execution to execute with a local Flink instance. -->
+              <execution>
+                <id>runnable-on-service-tests</id>
+                <phase>integration-test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <excludedGroups>
+                    org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders,
+                    org.apache.beam.sdk.testing.UsesStatefulParDo,
+                    org.apache.beam.sdk.testing.UsesTimersInParDo,
+                    org.apache.beam.sdk.testing.UsesSplittableParDo,
+                    org.apache.beam.sdk.testing.UsesAttemptedMetrics,
+                    org.apache.beam.sdk.testing.UsesCommittedMetrics
+                  </excludedGroups>
+                  <parallel>none</parallel>
+                  <failIfNoTests>true</failIfNoTests>
+                  <dependenciesToScan>
+                    <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                  </dependenciesToScan>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--runner=TestFlinkRunner",
+                      "--streaming=false"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
 
               <!-- This second execution runs the tests in streaming mode -->
               <execution>
