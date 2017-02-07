@@ -39,23 +39,6 @@ import org.junit.Test;
  * Provided Spark Context tests.
  */
 public class ProvidedSparkContextTest {
-    private static final String[] WORDS_ARRAY = {
-            "hi there", "hi", "hi sue bob",
-            "hi sue", "", "bob hi"};
-    private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
-    private static final Set<String> EXPECTED_COUNT_SET =
-            ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
-    private static final String PROVIDED_CONTEXT_EXCEPTION =
-            "The provided Spark context was not created or was stopped";
-
-    private SparkContextOptions getSparkContextOptions(JavaSparkContext jsc) {
-        final SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
-        options.setRunner(SparkRunner.class);
-        options.setUsesProvidedSparkContext(true);
-        options.setProvidedSparkContext(jsc);
-        options.setEnableSparkMetricSinks(false);
-        return options;
-    }
 
     /**
      * Provide a context and call pipeline run.
@@ -64,7 +47,34 @@ public class ProvidedSparkContextTest {
     @Test
     public void testWithProvidedContext() throws Exception {
         JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
+        testWithValidProvidedContext(jsc);
+        if (!jsc.sc().isStopped()) {
+            jsc.stop();
+        }
+    }
 
+    /**
+     * Provide a context and call pipeline run.
+     * @throws Exception
+     */
+    @Test
+    public void testWithNullContext() throws Exception {
+        testWithInvalidContext(null);
+    }
+
+    /**
+     * A SparkRunner with a stopped provided Spark context cannot run pipelines.
+     * @throws Exception
+     */
+    @Test
+    public void testWithStoppedProvidedContext() throws Exception {
+        JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
+        // Stop the provided Spark context directly
+        jsc.stop();
+        testWithInvalidContext(jsc);
+    }
+
+    private void testWithValidProvidedContext(JavaSparkContext jsc) throws Exception {
         SparkContextOptions options = getSparkContextOptions(jsc);
 
         Pipeline p = Pipeline.create(options);
@@ -77,18 +87,9 @@ public class ProvidedSparkContextTest {
 
         // Run test from pipeline
         p.run().waitUntilFinish();
-
-        jsc.stop();
     }
 
-    /**
-     * Provide a context and call pipeline run.
-     * @throws Exception
-     */
-    @Test
-    public void testWithNullContext() throws Exception {
-        JavaSparkContext jsc = null;
-
+    private void testWithInvalidContext(JavaSparkContext jsc) {
         SparkContextOptions options = getSparkContextOptions(jsc);
 
         Pipeline p = Pipeline.create(options);
@@ -107,32 +108,22 @@ public class ProvidedSparkContextTest {
         }
     }
 
-    /**
-     * A SparkRunner with a stopped provided Spark context cannot run pipelines.
-     * @throws Exception
-     */
-    @Test
-    public void testWithStoppedProvidedContext() throws Exception {
-        JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
-        // Stop the provided Spark context directly
-        jsc.stop();
-
-        SparkContextOptions options = getSparkContextOptions(jsc);
-
-        Pipeline p = Pipeline.create(options);
-        PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
-                .of()));
-        PCollection<String> output = inputWords.apply(new WordCount.CountWords())
-                .apply(MapElements.via(new WordCount.FormatAsTextFn()));
-
-        PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
-
-        try {
-            p.run().waitUntilFinish();
-            fail("Should throw an exception when The provided Spark context is stopped");
-        } catch (RuntimeException e){
-            assert(e.getMessage().contains(PROVIDED_CONTEXT_EXCEPTION));
-        }
+    private static SparkContextOptions getSparkContextOptions(JavaSparkContext jsc) {
+        final SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
+        options.setRunner(SparkRunner.class);
+        options.setUsesProvidedSparkContext(true);
+        options.setProvidedSparkContext(jsc);
+        options.setEnableSparkMetricSinks(false);
+        return options;
     }
+
+    private static final String[] WORDS_ARRAY = {
+            "hi there", "hi", "hi sue bob",
+            "hi sue", "", "bob hi"};
+    private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
+    private static final Set<String> EXPECTED_COUNT_SET =
+            ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
+    private static final String PROVIDED_CONTEXT_EXCEPTION =
+            "The provided Spark context was not created or was stopped";
 
 }
