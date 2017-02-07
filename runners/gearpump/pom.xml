@@ -95,7 +95,6 @@
                     </exclude>
                     <!-- merging windows is not supported in Gearpump -->
                     <exclude>
-                      org.apache.beam.sdk.transforms.windowing.WindowingTest,
                       org.apache.beam.sdk.util.ReshuffleTest
                     </exclude>
                   </excludes>
