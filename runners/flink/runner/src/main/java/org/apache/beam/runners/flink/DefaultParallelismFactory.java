@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 
 /**
@@ -33,6 +34,13 @@ import org.apache.flink.configuration.GlobalConfiguration;
 public class DefaultParallelismFactory implements DefaultValueFactory<Integer> {
   @Override
   public Integer create(PipelineOptions options) {
-    return GlobalConfiguration.getInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, 1);
+    Configuration dynamicProperties = GlobalConfiguration.getDynamicProperties();
+    int defaultValue = 1;
+    if (dynamicProperties != null) {
+      return GlobalConfiguration.getDynamicProperties()
+          .getInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, defaultValue);
+    } else {
+      return defaultValue;
+    }
   }
 }

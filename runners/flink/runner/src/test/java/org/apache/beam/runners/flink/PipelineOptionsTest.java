@@ -130,9 +130,11 @@ public class PipelineOptionsTest {
   @Test
   public void parDoBaseClassPipelineOptionsSerializationTest() throws Exception {
 
+    TypeInformation<WindowedValue<Object>> typeInformation = TypeInformation.of(
+        new TypeHint<WindowedValue<Object>>() {});
     DoFnOperator<Object, Object, Object> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
-        TypeInformation.of(new TypeHint<WindowedValue<Object>>() {}),
+        typeInformation,
         new TupleTag<>("main-output"),
         Collections.<TupleTag<?>>emptyList(),
         new DoFnOperator.DefaultOutputManagerFactory<>(),
@@ -149,7 +151,8 @@ public class PipelineOptionsTest {
         (DoFnOperator<Object, Object, Object>) SerializationUtils.deserialize(serialized);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Object>, Object> testHarness =
-        new OneInputStreamOperatorTestHarness<>(deserialized, new ExecutionConfig());
+        new OneInputStreamOperatorTestHarness<>(deserialized,
+            typeInformation.createSerializer(new ExecutionConfig()));
 
     testHarness.open();
 
