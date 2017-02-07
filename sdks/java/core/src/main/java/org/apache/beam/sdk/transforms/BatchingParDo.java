@@ -140,7 +140,7 @@ public class BatchingParDo<K, InputT, OutputT>
         BoundedWindow window) {
       Instant firingInstant = window.maxTimestamp().plus(allowedLateness);
       Duration delay = new Duration(Instant.now(), firingInstant);
-      //TODO LOGGER.debug or remove
+      // TODO setting log level to debug does not work, so info, remove it afterwards
       LOGGER.info(
           String.format(
               "***** DELAY ***** of %d ms in timer set for window %s",
@@ -162,7 +162,7 @@ public class BatchingParDo<K, InputT, OutputT>
         batch.readLater();
       }
       if (num >= batchSize) {
-        //TODO LOGGER.debug or remove
+        // TODO setting log level to debug does not work, so info, remove it afterwards
         LOGGER.info(
             String.format(
                 "***** FLUSH ***** due to batch size in window %s",
@@ -176,7 +176,7 @@ public class BatchingParDo<K, InputT, OutputT>
         OnTimerContext context,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID) ValueState<Long> numElementsInBatch) {
-      //TODO LOGGER.debug or remove
+      // TODO setting log level to debug does not work, so info, remove it afterwards
       LOGGER.info(
           String.format(
               "***** TIMER FIRES ***** for window %s",
