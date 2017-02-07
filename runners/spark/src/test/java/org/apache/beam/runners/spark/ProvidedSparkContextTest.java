@@ -54,6 +54,21 @@ public class ProvidedSparkContextTest {
     }
 
     /**
+     * Run two pipelines reusing the context.
+     * @throws Exception
+     */
+    @Test
+    public void testReuseProvidedContext() throws Exception {
+        JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
+        // Stop the provided Spark context directly
+        testWithValidProvidedContext(jsc);
+        testWithValidProvidedContext(jsc);
+        if (!jsc.sc().isStopped()) {
+            jsc.stop();
+        }
+    }
+
+    /**
      * Provide a context and call pipeline run.
      * @throws Exception
      */
