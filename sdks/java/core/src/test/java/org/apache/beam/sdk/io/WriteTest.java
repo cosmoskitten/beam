@@ -447,6 +447,10 @@ public class WriteTest {
     }
 
     @Override
+    public void setWindowedWrites(boolean windowedWrites) {
+    }
+
+    @Override
     public void finalize(Iterable<TestWriterResult> bundleResults, PipelineOptions options)
         throws Exception {
       assertEquals("test_value", options.as(WriteOptions.class).getTestFlag());

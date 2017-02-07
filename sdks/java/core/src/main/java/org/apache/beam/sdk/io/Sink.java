@@ -176,6 +176,11 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
     public abstract void initialize(PipelineOptions options) throws Exception;
 
     /**
+     * Indicates that the operation will be performing windowed writes.
+     */
+    public abstract void setWindowedWrites(boolean windowedWrites);
+
+    /**
      * Given an Iterable of results from bundle writes, performs finalization after writing and
      * closes the sink. Called after all bundle writes are complete.
      *
@@ -270,5 +275,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
      * Returns the write operation this writer belongs to.
      */
     public abstract WriteOperation<T, WriteT> getWriteOperation();
+
+
   }
 }
