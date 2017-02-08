@@ -294,7 +294,7 @@ message WindowingStrategy {
   // (Required) Whether or not the window fn is merging.
   //
   // This knowledge is required for many optimizations.
-  bool is_merging_window_fn = 3;
+  MergeStatus merge_status = 3;
 
   // (Required) The coder for the windows of this PCollection.
   int64 window_coder_reference = 4;
@@ -322,6 +322,12 @@ message WindowingStrategy {
 
   // (Required) The duration beyond the end of a window at which the window becomes droppable.
   int64 allowed_lateness = 8;
+}
+
+enum MergeStatus {
+  NON_MERGING = 0;
+  NEEDS_MERGE = 1;
+  ALREADY_MERGED = 2;
 }
 
 enum AccumulationMode {
