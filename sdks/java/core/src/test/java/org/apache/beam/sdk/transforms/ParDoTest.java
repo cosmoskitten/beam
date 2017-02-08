@@ -63,7 +63,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.UsesAdditionalStateParDo;
+import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
@@ -1692,7 +1693,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesAdditionalStateParDo.class})
+  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesSetState.class})
   public void testSetState() {
     final String stateId = "foo";
     final String countStateId = "count";
@@ -1734,7 +1735,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesAdditionalStateParDo.class})
+  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesMapState.class})
   public void testMapState() {
     final String stateId = "foo";
     final String countStateId = "count";

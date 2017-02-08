@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.testing;
 
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.state.SetState;
 
 /**
- * Category tag for validation tests which utilize stateful {@link ParDo}
- * with {@link org.apache.beam.sdk.util.state.SetState} or
- * {@link org.apache.beam.sdk.util.state.MapState}.
+ * Category tag for validation tests which utilize {@link SetState}.
  */
-public interface UsesAdditionalStateParDo {}
+public interface UsesSetState {}
