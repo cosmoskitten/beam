@@ -176,7 +176,9 @@ public class PubsubIO {
     /**
      * Returns the given attribute value. If not such attribute exists, returns null.
      */
+    @Nullable
     public String getAttribute(String attribute) {
+      checkNotNull(attribute, "attribute");
       return attributes.get(attribute);
     }
 
