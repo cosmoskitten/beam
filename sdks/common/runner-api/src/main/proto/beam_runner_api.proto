@@ -55,7 +55,7 @@ message Pipeline {
   // (Required) A map from pipeline-scoped id to Environment.
   map<int64, Environment> environments = 5;
 
-  // (Optional) Static display data for the pipeline.
+  // (Required) Static display data for the pipeline.
   DisplayData display_data = 7;
 }
 
@@ -131,7 +131,7 @@ message PCollection {
   // (Required) The id of the windowing strategy for this PCollection.
   int64 windowing_strategy_ref = 5;
 
-  // (Optional) Static display data for this PCollection.
+  // (Required) Static display data for this PCollection.
   DisplayData display_data = 6;
 }
 
@@ -177,7 +177,7 @@ message PTransform {
   // TODO: duplicate PTransform's fields into each Payload to save indirection?
   google.protobuf.Any payload = 4;
 
-  // (Optional) Static display data for this PTransform application.
+  // (Required) Static display data for this PTransform application.
   DisplayData display_data = 6;
 }
 
@@ -187,10 +187,9 @@ message ParDoPayload {
   // (Required) The DoFn for this ParDo.
   FunctionSpec do_fn = 1;
 
-  // (Required) Whether the DoFn requires access to the current window (this
-  // may force runners to perform additional work prior to executing this ParDo)
-  //
-  // TODO: consider a DoFnPayload that holds these facts common to all DoFns
+  // (Required) Additional pieces of context the DoFn may require that
+  // are not otherwise represented in the payload.
+  // (may force runners to execute the ParDo differently)
   repeated DoFnContext required_context = 2;
 
   // (Optional) A map from local input name to the specification for how to
@@ -491,17 +490,33 @@ message DisplayData {
   map<string, Item> items = 1;
 
   message Identifier {
-    repeated string path = 1;
-    string namespace = 2;
+
+    // (Required)
+    int64 transform_ref = 1;
+
+    // (Optional) the URN indicating the type of the originating transform, if there is one.
+    string transform_urn = 2;
+
     string key = 3;
   }
 
   message Item {
+    // (Required)
     Identifier id = 1;
+
+    // (Required)
     Type type = 2;
+
+    // (Required)
     google.protobuf.Any value = 3;
+
+    // (Optional)
     google.protobuf.Any short_value = 4;
+
+    // (Optional)
     string label = 5;
+
+    // (Optional)
     string link_url = 6;
   }
 
