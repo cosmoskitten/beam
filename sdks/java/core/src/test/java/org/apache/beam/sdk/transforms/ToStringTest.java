@@ -48,7 +48,7 @@ public class ToStringTest {
     Integer[] ints = {1, 2, 3, 4, 5};
     String[] strings = {"1", "2", "3", "4", "5"};
     PCollection<Integer> input = p.apply(Create.of(Arrays.asList(ints)));
-    PCollection<String> output = input.apply(ToString.of());
+    PCollection<String> output = input.apply(ToString.elements());
     PAssert.that(output).containsInAnyOrder(strings);
     p.run();
   }
@@ -65,7 +65,7 @@ public class ToStringTest {
     expected.add("two,2");
 
     PCollection<KV<String, Integer>> input = p.apply(Create.of(kvs));
-    PCollection<String> output = input.apply(ToString.kv());
+    PCollection<String> output = input.apply(ToString.kvs());
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
@@ -82,7 +82,7 @@ public class ToStringTest {
     expected.add("two\t2");
 
     PCollection<KV<String, Integer>> input = p.apply(Create.of(kvs));
-    PCollection<String> output = input.apply(ToString.kv("\t"));
+    PCollection<String> output = input.apply(ToString.kvs("\t"));
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
@@ -100,7 +100,7 @@ public class ToStringTest {
 
     PCollection<Iterable<String>> input = p.apply(Create.of(iterables)
             .withCoder(IterableCoder.of(StringUtf8Coder.of())));
-    PCollection<String> output = input.apply(ToString.iterable());
+    PCollection<String> output = input.apply(ToString.iterables());
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
@@ -118,7 +118,7 @@ public class ToStringTest {
 
     PCollection<Iterable<String>> input = p.apply(Create.of(iterables)
             .withCoder(IterableCoder.of(StringUtf8Coder.of())));
-    PCollection<String> output = input.apply(ToString.iterable("\t"));
+    PCollection<String> output = input.apply(ToString.iterables("\t"));
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
