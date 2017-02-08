@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
@@ -303,7 +304,8 @@ public class WriteTest {
 
     TestSink sink = new TestSink();
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Write can only be applied to a Bounded PCollection");
+    thrown.expectMessage(containsString("can only be applied to an unbounded PCollection if doing "
+        + "windowed writes"));
     unbounded.apply(Write.to(sink));
   }
 
