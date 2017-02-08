@@ -41,12 +41,17 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;
 <<<<<<< HEAD
+<<<<<<< HEAD
 import org.apache.beam.sdk.io.hadoop.inputformat.testing.HIFIOTextMatcher;
 >>>>>>> Added checksum approach in elastic IT
 =======
 >>>>>>> Removed reference of Checksum matcher
+=======
+import org.apache.beam.sdk.io.hadoop.inputformat.testing.HashingFn;
+>>>>>>> Check in with changes for value checksum comparison
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -298,11 +303,14 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final String ELASTIC_TYPE_ID_PREFIX = "s";
   private static List<String> expectedList = new ArrayList<>();
 <<<<<<< HEAD
+<<<<<<< HEAD
   private static final String OUTPUT_WRITE_FILE_PATH = "D:\\op";
 >>>>>>> Added checksum approach in elastic IT
 =======
   private static final String OUTPUT_WRITE_FILE_PATH = "output";
 >>>>>>> Null check in HIOFIOTextMatcher class
+=======
+>>>>>>> Check in with changes for value checksum comparison
 
   @ClassRule
   public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
@@ -322,11 +330,13 @@ public class HIFIOWithElasticTest implements Serializable {
    */
   @Test
   public void testHifIOWithElastic() {
+    // Expected hashcode is evaluated during insertion time one time and hardcoded here.
+    String expectedHashCode = "e2098f431f90193aa4545e033e6fd2217aafe7b6";
     Configuration conf = getConfiguration();
-
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PAssert.thatSingleton(count).isEqualTo((long) TEST_DATA_ROW_COUNT);
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
     MapElements<LinkedMapWritable, String> transformFunc =
@@ -336,14 +346,12 @@ public class HIFIOWithElasticTest implements Serializable {
             return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
           }
         });
-
     PCollection<String> textValues = values.apply(transformFunc);
-
-    // Write Pcollection of Strings to a file using TextIO Write transform.
-    textValues.apply(TextIO.Write.to(OUTPUT_WRITE_FILE_PATH).withNumShards(1).withSuffix("txt"));
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
-
+    // Verify the output values using checksum comparison.
+    PCollection<String> consolidatedHashcode =
+        textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
+    pipeline.run().waitUntilFinish();
   }
 
   /**
@@ -352,6 +360,8 @@ public class HIFIOWithElasticTest implements Serializable {
    */
   @Test
   public void testHifIOWithElasticQuery() {
+    long expectedRowCount = 1L;
+    String expectedHashCode = "caa37dbd8258e3a7f98932958c819a57aab044ec";
     Configuration conf = getConfiguration();
     String fieldValue = ELASTIC_TYPE_ID_PREFIX + "2";
     String query =
@@ -362,8 +372,21 @@ public class HIFIOWithElasticTest implements Serializable {
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
-    PAssert.thatSingleton(count).isEqualTo((long) 1);
-
+    // Verify that the count of objects fetched using HIFInputFormat IO is correct.
+    PAssert.thatSingleton(count).isEqualTo(expectedRowCount);
+    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    MapElements<LinkedMapWritable, String> transformFunc =
+        MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
+          @Override
+          public String apply(LinkedMapWritable mapw) {
+            return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
+          }
+        });
+    PCollection<String> textValues = values.apply(transformFunc);
+    // Verify the output values using checksum comparison.
+    PCollection<String> consolidatedHashcode =
+        textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
     pipeline.run().waitUntilFinish();
   }
 
