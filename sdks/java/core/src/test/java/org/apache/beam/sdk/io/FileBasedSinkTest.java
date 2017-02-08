@@ -302,7 +302,6 @@ public class FileBasedSinkTest {
 
     // Assert that the contents were copied.
     for (int i = 0; i < expectedOutputPaths.size(); i++) {
-      assertTrue(new File(expectedOutputFilenames.get(i)).exists());
       assertFileContains(Arrays.asList(inputContents.get(i)), expectedOutputPaths.get(i));
     }
   }

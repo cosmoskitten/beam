@@ -55,7 +55,7 @@ import org.joda.time.Duration;
  */
 class WriteWithShardingFactory<InputT>
     implements org.apache.beam.sdk.runners.PTransformOverrideFactory<
-        PCollection<InputT>, PDone, Write.Bound<InputT>> {
+    PCollection<InputT>, PDone, Write.Bound<InputT>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
 
   @Override
