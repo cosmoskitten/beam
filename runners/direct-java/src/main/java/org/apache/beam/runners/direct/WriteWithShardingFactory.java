@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.ThreadLocalRandom;
+
+import com.sun.javafx.css.CalculatedValue;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.io.Write.Bound;
 import org.apache.beam.sdk.transforms.Count;
@@ -31,6 +33,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -76,52 +79,32 @@ class WriteWithShardingFactory<InputT>
           Window.<T>into(new GlobalWindows()).triggering(DefaultTrigger.of())
               .withAllowedLateness(Duration.ZERO)
               .discardingFiredPanes());
-      final PCollectionView<Long> numRecords = records
-          .apply("CountRecords", Count.<T>globally().asSingletonView());
-      PCollection<T> resharded =
-          records
-              .apply(
-                  "ApplySharding",
-                  ParDo.withSideInputs(numRecords)
-                      .of(
-                          new KeyBasedOnCountFn<T>(
-                              numRecords,
-                              ThreadLocalRandom.current().nextInt(MAX_RANDOM_EXTRA_SHARDS))))
-              .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
-              .apply("DropShardingKeys", Values.<Iterable<T>>create())
-              .apply("FlattenShardIterables", Flatten.<T>iterables());
-      // This is an inverted application to apply the expansion of the original Write PTransform
-      // without adding a new Write Transform Node, which would be overwritten the same way, leading
-      // to an infinite recursion. We cannot modify the number of shards, because that is determined
-      // at runtime.
-      return original.expand(resharded);
+
+      PCollectionView<Integer> numShardsView = records
+          .apply("CountRecords", Count.<T>globally())
+          .apply("CalculateNumShards", ParDo.of(new CalculateNumShards(
+              ThreadLocalRandom.current().nextInt(MAX_RANDOM_EXTRA_SHARDS))))
+          .apply(View.<Integer>asSingleton());
+
+      original.setNumShardsView(numShardsView);
+      return original.expand(input);
     }
   }
 
   @VisibleForTesting
-  static class KeyBasedOnCountFn<T> extends DoFn<T, KV<Integer, T>> {
+  static class CalculateNumShards extends DoFn<Long, Integer> {
     @VisibleForTesting
     static final int MIN_SHARDS_FOR_LOG = 3;
 
-    private final PCollectionView<Long> numRecords;
     private final int randomExtraShards;
-    private int currentShard;
-    private int maxShards = 0;
 
-    KeyBasedOnCountFn(PCollectionView<Long> numRecords, int extraShards) {
-      this.numRecords = numRecords;
+    CalculateNumShards(int extraShards) {
       this.randomExtraShards = extraShards;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      if (maxShards == 0) {
-        maxShards = calculateShards(c.sideInput(numRecords));
-        currentShard = ThreadLocalRandom.current().nextInt(maxShards);
-      }
-      int shard = currentShard;
-      currentShard = (currentShard + 1) % maxShards;
-      c.output(KV.of(shard, c.element()));
+      c.output(calculateShards((c.element())));
     }
 
     private int calculateShards(long totalRecords) {
