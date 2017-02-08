@@ -105,7 +105,7 @@ class FileBasedSource(iobase.BoundedSource):
       self._validate()
 
   def display_data(self):
-    return {'file_pattern': DisplayDataItem(self._pattern,
+    return {'file_pattern': DisplayDataItem(str(self._pattern),
                                             label="File Pattern"),
             'compression': DisplayDataItem(str(self._compression_type),
                                            label='Compression Type')}
@@ -114,11 +114,12 @@ class FileBasedSource(iobase.BoundedSource):
     if self._concat_source is None:
       if not self._pattern.is_accessible():
         raise RuntimeError('%s not accessible' % self._pattern)
+      pattern = self._pattern.get()
 
       single_file_sources = []
-      file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
+      file_names = [f for f in fileio.ChannelFactory.glob(pattern)]
       sizes = FileBasedSource._estimate_sizes_of_files(file_names,
-                                                       self._pattern)
+                                                       pattern)
 
       # We create a reference for FileBasedSource that will be serialized along
       # with each _SingleFileSource. To prevent this FileBasedSource from having
@@ -183,9 +184,9 @@ class FileBasedSource(iobase.BoundedSource):
     pattern = self._pattern.get()
 
     # Limit the responses as we only want to check if something exists
-    if len(fileio.ChannelFactory.glob(self._pattern, limit=1)) <= 0:
+    if len(fileio.ChannelFactory.glob(pattern, limit=1)) <= 0:
       raise IOError(
-          'No files found based on the file pattern %s' % self._pattern)
+          'No files found based on the file pattern %s' % pattern)
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):
