@@ -153,7 +153,7 @@ public class PubsubIO {
           .withLabel("Pubsub Topic"));
     }
   }
-  
+
   /**
    * Class representing a Pub/Sub message. Each message contains a single message payload and
    * a map of attached attributes.
