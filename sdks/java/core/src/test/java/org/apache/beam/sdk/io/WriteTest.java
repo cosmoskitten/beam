@@ -253,11 +253,11 @@ public class WriteTest {
   @Test
   public void testBuildWrite() {
     Sink<String> sink = new TestSink() {};
-    Write.Bound<String> write = Write.to(sink).withNumShards(3);
+    Write<String> write = Write.to(sink).withNumShards(3);
     assertEquals(3, write.getNumShards());
     assertThat(write.getSink(), is(sink));
 
-    Write.Bound<String> write2 = write.withNumShards(7);
+    Write<String> write2 = write.withNumShards(7);
     assertEquals(7, write2.getNumShards());
     assertThat(write2.getSink(), is(sink));
     // original unchanged
@@ -272,7 +272,7 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write.Bound<String> write = Write.to(sink);
+    Write<String> write = Write.to(sink);
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
@@ -287,7 +287,7 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write.Bound<String> write = Write.to(sink).withNumShards(1);
+    Write<String> write = Write.to(sink).withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
@@ -343,7 +343,7 @@ public class WriteTest {
     }
 
     TestSink sink = new TestSink();
-    Write.Bound<String> write = Write.to(sink);
+    Write<String> write = Write.to(sink);
     if (numConfiguredShards.isPresent()) {
       write = write.withNumShards(numConfiguredShards.get());
     }

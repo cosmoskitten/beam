@@ -352,7 +352,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } else {
       builder.put(Read.Unbounded.class, UnsupportedIO.class);
       builder.put(Window.Bound.class, AssignWindows.class);
-      builder.put(Write.Bound.class, BatchWrite.class);
+      builder.put(Write.class, BatchWrite.class);
       // In batch mode must use the custom Pubsub bounded source/sink.
       builder.put(PubsubUnboundedSource.class, UnsupportedIO.class);
       builder.put(PubsubUnboundedSink.class, UnsupportedIO.class);
@@ -2043,17 +2043,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /**
    * Specialized implementation which overrides
-   * {@link org.apache.beam.sdk.io.Write.Bound Write.Bound} to provide Google
+   * {@link org.apache.beam.sdk.io.Write Write} to provide Google
    * Cloud Dataflow specific path validation of {@link FileBasedSink}s.
    */
   private static class BatchWrite<T> extends PTransform<PCollection<T>, PDone> {
     private final DataflowRunner runner;
-    private final Write.Bound<T> transform;
+    private final Write<T> transform;
     /**
      * Builds an instance of this class from the overridden transform.
      */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public BatchWrite(DataflowRunner runner, Write.Bound<T> transform) {
+    public BatchWrite(DataflowRunner runner, Write<T> transform) {
       this.runner = runner;
       this.transform = transform;
     }
