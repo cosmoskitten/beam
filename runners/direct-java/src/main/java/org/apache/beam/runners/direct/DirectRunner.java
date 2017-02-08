@@ -82,7 +82,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
               .put(CreatePCollectionView.class, new ViewOverrideFactory())
               .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
               .put(TestStream.class, new DirectTestStreamFactory())
-              .put(Write.Bound.class, new WriteWithShardingFactory())
+              .put(Write.class, new WriteWithShardingFactory())
               .put(ParDo.Bound.class, new ParDoSingleViaMultiOverrideFactory())
               .put(ParDo.BoundMulti.class, new ParDoMultiOverrideFactory())
               .put(
