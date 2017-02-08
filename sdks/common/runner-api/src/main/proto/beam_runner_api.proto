@@ -125,8 +125,8 @@ message PCollection {
   // (Required) The id of the Coder for this PCollection.
   int64 coder_ref = 3;
 
-  // (Required) Whether this PCollection is bounded or not
-  bool is_bounded = 4;
+  // (Required) Whether this PCollection is bounded or unbounded
+  IsBounded is_bounded = 4;
 
   // (Required) The id of the windowing strategy for this PCollection.
   int64 windowing_strategy_ref = 5;
@@ -191,7 +191,7 @@ message ParDoPayload {
   // may force runners to perform additional work prior to executing this ParDo)
   //
   // TODO: consider a DoFnPayload that holds these facts common to all DoFns
-  bool requires_window_access = 2;
+  repeated DoFnContext required_context = 2;
 
   // (Optional) A map from local input name to the specification for how to
   // materialize and read it as a side input
@@ -204,7 +204,14 @@ message ParDoPayload {
   // (Optional) if the DoFn uses timers, a map from id to the spec for the
   // timer.
   map<string, TimerSpec> timer_specs = 5;
+
+  // Requirements on the context a DoFn might require that are not otherwise
+  // represented in the signature here.
+  enum DoFnContext {
+    WINDOW_ACCESS = 0;
+  }
 }
+
 
 message StateSpec {
   // TODO: AST for state spec
@@ -212,6 +219,11 @@ message StateSpec {
 
 message TimerSpec {
   // TODO: AST for timer spec
+}
+
+enum IsBounded {
+  BOUNDED = 0;
+  UNBOUNDED = 1;
 }
 
 // The payload for the primitive Read transform.
@@ -223,15 +235,10 @@ message ReadPayload {
   FunctionSpec source = 1;
 
   // (Required) Whether the source is bounded or unbounded
-  bool is_bounded = 2;
+  IsBounded is_bounded = 2;
 
-  // (Required) ...
-  bool does_not_require_splitting = 3;
-
-  // (Required) ...
-  bool produces_sorted_keys = 4;
-
-  // TODO: what else?
+  // TODO: consider other methods such as doesNotRequireSplitting() and producesSortedKeys()
+  // what else?
 }
 
 // The payload for the Window transform.
