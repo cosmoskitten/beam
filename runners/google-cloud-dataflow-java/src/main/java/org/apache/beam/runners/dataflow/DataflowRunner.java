@@ -402,7 +402,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       @SuppressWarnings("unchecked")
       OutputT windowed = (OutputT) applyWindow((Window.Bound<?>) transform, (PCollection<?>) input);
       return windowed;
-    } else if (Flatten.FlattenPCollectionList.class.equals(transform.getClass())
+    } else if (Flatten.PCollections.class.equals(transform.getClass())
         && ((PCollectionList<?>) input).size() == 0) {
       return (OutputT) Pipeline.applyTransform(input.getPipeline().begin(), Create.of());
     } else if (overrides.containsKey(transform.getClass())) {

@@ -366,8 +366,8 @@ public class FlattenTest implements Serializable {
 
   @Test
   public void testFlattenGetName() {
-    Assert.assertEquals("Flatten.FlattenIterables", Flatten.<String>iterables().getName());
-    Assert.assertEquals("Flatten.FlattenPCollectionList", Flatten.<String>pCollections().getName());
+    Assert.assertEquals("Flatten.Iterables", Flatten.<String>iterables().getName());
+    Assert.assertEquals("Flatten.PCollections", Flatten.<String>pCollections().getName());
   }
 
   /////////////////////////////////////////////////////////////////////////////
