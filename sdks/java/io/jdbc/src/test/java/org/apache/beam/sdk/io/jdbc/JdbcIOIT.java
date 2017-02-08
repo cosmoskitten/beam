@@ -140,7 +140,7 @@ public class JdbcIOIT {
   }
 
   /**
-   * Tests writes to a real live postgres database.
+   * Tests writes to a postgres database.
    *
    * <p>Write Tests must clean up their data - in this case, it uses a new table every test run so
    * that it won't interfere with read tests/other write tests. It uses finally to attempt to
