@@ -38,6 +38,7 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
@@ -55,6 +56,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -117,6 +119,15 @@ public class SplittableDoFnTest {
 
   @Rule
   public final transient TestPipeline p = TestPipeline.fromOptions(STREAMING_TEST_PIPELINE_OPTIONS);
+
+  @Before
+  public void setup() {
+    // This makes it possible to enable UsesSplittableParDo tests in Dataflow runner,
+    // because as of writing, it can run Splittable DoFn only in streaming mode.
+    // This is a no-op for other runners currently (Direct runner doesn't care, and other
+    // runners don't implement SDF at all yet).
+    p.getOptions().as(StreamingOptions.class).setStreaming(true);
+  }
 
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
@@ -306,7 +317,7 @@ public class SplittableDoFnTest {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({RunnableOnService.class, UsesSplittableParDo.class, UsesTestStream.class})
   public void testLateData() throws Exception {
 
     Instant base = Instant.now();
