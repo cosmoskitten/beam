@@ -19,9 +19,14 @@ package org.apache.beam.runners.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Sum;
@@ -31,12 +36,15 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.ReadableState;
+import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.StateMerging;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.values.KV;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -60,6 +68,10 @@ public class InMemoryStateInternalsTest {
           "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
   private static final StateTag<Object, BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
+  private static final StateTag<Object, SetState<String>> STRING_SET_ADDR =
+      StateTags.set("stringSet", StringUtf8Coder.of());
+  private static final StateTag<Object, MapState<String, String>> STRING_MAP_ADDR =
+      StateTags.map("stringMap", StringUtf8Coder.of(), StringUtf8Coder.of());
   private static final StateTag<Object, WatermarkHoldState<BoundedWindow>>
       WATERMARK_EARLIEST_ADDR =
       StateTags.watermarkStateInternal("watermark", OutputTimeFns.outputAtEarliestInputTimestamp());
@@ -157,6 +169,70 @@ public class InMemoryStateInternalsTest {
     assertThat(bag3.read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
     assertThat(bag1.read(), Matchers.emptyIterable());
     assertThat(bag2.read(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testSet() throws Exception {
+    SetState<String> value = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
+
+    // State instances are cached, but depend on the namespace.
+    assertEquals(value, underTest.state(NAMESPACE_1, STRING_SET_ADDR));
+    assertFalse(value.equals(underTest.state(NAMESPACE_2, STRING_SET_ADDR)));
+
+    assertThat(value.read(), Matchers.emptyIterable());
+    assertFalse(value.contains("hello"));
+    assertFalse(value.containsAny(Arrays.asList("hello")));
+    value.add("hello");
+    assertThat(value.read(), Matchers.containsInAnyOrder("hello"));
+    assertTrue(value.contains("hello"));
+    assertTrue(value.containsAny(Arrays.asList("hello", "world")));
+    assertFalse(value.containsAll(Arrays.asList("hello", "world")));
+
+    assertFalse(value.addIfAbsent("hello"));
+
+    value.add("world");
+    assertThat(value.read(), Matchers.containsInAnyOrder("hello", "world"));
+    assertTrue(value.containsAll(Arrays.asList("hello", "world")));
+
+    value.clear();
+    assertThat(value.read(), Matchers.emptyIterable());
+    assertThat(underTest.state(NAMESPACE_1, STRING_SET_ADDR), Matchers.sameInstance(value));
+  }
+
+  @Test
+  public void testMap() throws Exception {
+    MapState<String, String> value = underTest.state(NAMESPACE_1, STRING_MAP_ADDR);
+
+    // State instances are cached, but depend on the namespace.
+    assertEquals(value, underTest.state(NAMESPACE_1, STRING_MAP_ADDR));
+    assertFalse(value.equals(underTest.state(NAMESPACE_2, STRING_MAP_ADDR)));
+
+    assertThat(value.iterate(), Matchers.emptyIterable());
+    assertNull(value.get("hello"));
+    value.put("hello", "hello-1");
+    assertEquals(value.get("hello"), "hello-1");
+
+    assertEquals(value.putIfAbsent("hello", "hello-2"), "hello-1");
+    assertEquals(value.get("hello"), "hello-1");
+
+    value.put("hello", "hello-2");
+    assertEquals(value.get("hello"), "hello-2");
+
+    value.put("world", "world-1");
+    assertThat(value.get(Arrays.asList("hello", "world")),
+        Matchers.contains("hello-2", "world-1"));
+    assertThat(value.keys(), Matchers.containsInAnyOrder("hello", "world"));
+    assertThat(value.values(), Matchers.containsInAnyOrder("hello-2", "world-1"));
+    List<KV<String, String>> all = new ArrayList<>();
+    for (Map.Entry<String, String> entry : value.iterate()){
+      all.add(KV.of(entry.getKey(), entry.getValue()));
+    }
+    assertThat(all, Matchers.containsInAnyOrder(KV.of("hello", "hello-2"),
+        KV.of("world", "world-1")));
+
+    value.clear();
+    assertThat(value.iterate(), Matchers.emptyIterable());
+    assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), Matchers.sameInstance(value));
   }
 
   @Test

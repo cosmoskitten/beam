@@ -23,6 +23,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.theInstance;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -45,6 +47,8 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.MapState;
+import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
@@ -161,6 +165,61 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
     BagState<Integer> reReadUnderlyingValue = underlying.state(namespace, valueTag);
     assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
+  }
+
+  @Test
+  public void testSetStateWithUnderlying() {
+    CopyOnAccessInMemoryStateInternals<String> underlying =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
+
+    StateNamespace namespace = new StateNamespaceForTest("foo");
+    StateTag<Object, SetState<Integer>> valueTag = StateTags.set("foo", VarIntCoder.of());
+    SetState<Integer> underlyingValue = underlying.state(namespace, valueTag);
+    assertThat(underlyingValue.read(), emptyIterable());
+
+    underlyingValue.add(1);
+    assertThat(underlyingValue.read(), containsInAnyOrder(1));
+
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
+    SetState<Integer> copyOnAccessState = internals.state(namespace, valueTag);
+    assertThat(copyOnAccessState.read(), containsInAnyOrder(1));
+
+    copyOnAccessState.add(4);
+    assertThat(copyOnAccessState.read(), containsInAnyOrder(4, 1));
+    assertThat(underlyingValue.read(), containsInAnyOrder(1));
+
+    SetState<Integer> reReadUnderlyingValue = underlying.state(namespace, valueTag);
+    assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
+  }
+
+  @Test
+  public void testMapStateWithUnderlying() {
+    CopyOnAccessInMemoryStateInternals<String> underlying =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
+
+    StateNamespace namespace = new StateNamespaceForTest("foo");
+    StateTag<Object, MapState<String, Integer>> valueTag =
+        StateTags.map("foo", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> underlyingValue = underlying.state(namespace, valueTag);
+    assertThat(underlyingValue.iterate(), emptyIterable());
+
+    underlyingValue.put("hello", 1);
+    assertEquals(underlyingValue.get("hello"), new Integer(1));
+
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
+    MapState<String, Integer> copyOnAccessState = internals.state(namespace, valueTag);
+    assertEquals(copyOnAccessState.get("hello"), new Integer(1));
+
+    copyOnAccessState.put("world", 4);
+    assertEquals(copyOnAccessState.get("hello"), new Integer(1));
+    assertEquals(copyOnAccessState.get("world"), new Integer(4));
+    assertEquals(underlyingValue.get("hello"), new Integer(1));
+    assertNull(underlyingValue.get("world"));
+
+    MapState<String, Integer> reReadUnderlyingValue = underlying.state(namespace, valueTag);
+    assertThat(underlyingValue.iterate(), equalTo(reReadUnderlyingValue.iterate()));
   }
 
   @Test
