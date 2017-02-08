@@ -119,14 +119,14 @@ public class WriteWithShardingFactoryTest {
 
   @Test
   public void withShardingSpecifiesOriginalTransform() {
-    Write.Bound<Object> original = Write.to(new TestSink()).withNumShards(3);
+    Write<Object> original = Write.to(new TestSink()).withNumShards(3);
 
     assertThat(factory.getReplacementTransform(original), equalTo((Object) original));
   }
 
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
-    Write.Bound<Object> original = Write.to(new TestSink());
+    Write<Object> original = Write.to(new TestSink());
     assertThat(factory.getReplacementTransform(original), not(equalTo((Object) original)));
   }
 

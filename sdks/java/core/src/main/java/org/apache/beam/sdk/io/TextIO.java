@@ -747,7 +747,7 @@ public class TextIO {
           throw new IllegalStateException(
               "need to set the filename prefix of a TextIO.Write transform");
         }
-        org.apache.beam.sdk.io.Write.Bound<T> write =
+        org.apache.beam.sdk.io.Write<T> write =
             org.apache.beam.sdk.io.Write.to(
                 new TextSink<>(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
                     coder, writableByteChannelFactory));
