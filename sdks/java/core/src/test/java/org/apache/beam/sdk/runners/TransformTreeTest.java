@@ -132,7 +132,7 @@ public class TransformTreeTest {
       @Override
       public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
         PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof Sample.SampleAny) {
+        if (transform instanceof Sample.Any) {
           assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
           assertNotNull(node.getEnclosingNode());
           assertTrue(node.isCompositeNode());
@@ -148,7 +148,7 @@ public class TransformTreeTest {
       @Override
       public void leaveCompositeTransform(TransformHierarchy.Node node) {
         PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof Sample.SampleAny) {
+        if (transform instanceof Sample.Any) {
           assertTrue(left.add(TransformsSeen.SAMPLE_ANY));
         }
       }
@@ -157,7 +157,7 @@ public class TransformTreeTest {
       public void visitPrimitiveTransform(TransformHierarchy.Node node) {
         PTransform<?, ?> transform = node.getTransform();
         // Pick is a composite, should not be visited here.
-        assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
+        assertThat(transform, not(instanceOf(Sample.Any.class)));
         assertThat(transform, not(instanceOf(Write.Bound.class)));
         if (transform instanceof Read.Bounded
             && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
