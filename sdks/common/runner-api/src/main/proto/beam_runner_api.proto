@@ -55,21 +55,8 @@ message Pipeline {
   // (Required) A map from pipeline-scoped id to Environment.
   map<int64, Environment> environments = 5;
 
-  // (Optional) Map from option name to arbitrary serialization of its value.
-  //
-  // Some options may be user-specific or SDK-specific, in which case the
-  // payload is expected to be unintelligible.
-  //
-  // Some options may be standardized across SDKs, in which case the universe
-  // of possible values is determined by the name of the pipeline option.
-  //
-  // TODO: document what is standardized
-  map<string, google.protobuf.Any> pipeline_options = 6;
-
   // (Optional) Static display data for the pipeline.
-  map<string, string> display_data = 7;
-
-  // TODO: consider identifying the SDK + runner shim submitting the pipeline
+  DisplayData display_data = 7;
 }
 
 // A generic node in a bipartite directed hierarchical graph.
@@ -105,7 +92,7 @@ message GraphNode {
   // All inputs are recorded here so that the topological ordering of
   // the graph is consistent whether or not the payload is understood.
   //
-  // TODO: fix this to be int64 as they will always be refs?
+  // TODO: fix the value to be int64 as they will always be refs?
   map<string, google.protobuf.Any> inputs = 4;
 
   // (Required) A map from local output name to PCollection definitions.
@@ -118,7 +105,7 @@ message GraphNode {
   //  - in the Runner API the targets are PCollections
   //  - in the Fn API the targets may be Grpc ports
   //
-  // TODO: fix this to be int64 as they will always be refs?
+  // TODO: fix the value to be int64 as they will always be refs?
   map<string, google.protobuf.Any> outputs = 5;
 
   // (Required) A payload determined by the URN, fully specifying this node.
@@ -138,12 +125,14 @@ message PCollection {
   // (Required) The id of the Coder for this PCollection.
   int64 coder_ref = 3;
 
-  // (Required) The id of the windowing strategy for this PCollection.
-  int64 windowing_strategy_ref = 4;
+  // (Required) Whether this PCollection is bounded or not
+  bool is_bounded = 4;
 
-  // (Optional) A map from field to value of static display data for this
-  // PCollection.
-  map<string, string> display_data = 5;
+  // (Required) The id of the windowing strategy for this PCollection.
+  int64 windowing_strategy_ref = 5;
+
+  // (Optional) Static display data for this PCollection.
+  DisplayData display_data = 6;
 }
 
 // An applied PTransform! This does not contain the graph data, but only the
@@ -154,7 +143,7 @@ message PTransform {
   // (Required) A pipeline-scoped unique id for this node.
   int64 id = 1;
 
-  // (Required) A unique program-readable name for the application node.
+  // (Required) A unique name for the application node.
   //
   // This should be stable over multiple runs of a driver program for the
   // purposes of logging and associating pipeline state with a node.
@@ -188,8 +177,8 @@ message PTransform {
   // TODO: duplicate PTransform's fields into each Payload to save indirection?
   google.protobuf.Any payload = 4;
 
-  // (Optional) Static display data.
-  map<string, string> display_data = 6;
+  // (Optional) Static display data for this PTransform application.
+  DisplayData display_data = 6;
 }
 
 // The payload for the primitive ParDo transform.
@@ -434,3 +423,28 @@ message FunctionSpec {
   google.protobuf.Any data = 5;
 }
 
+// TODO: transfer javadoc here
+message DisplayData {
+
+  // Map keys cannot be messages, so the Identifier needs to be flattened to a string
+  map<string, Item> items = 1;
+
+  message Identifier {
+    repeated string path = 1;
+    string namespace = 2;
+    string key = 3;
+  }
+
+  message Item {
+    Identifier id = 1;
+    Type type = 2;
+    google.protobuf.Any value = 3;
+    google.protobuf.Any short_value = 4;
+    string label = 5;
+    string link_url = 6;
+  }
+
+  enum Type {
+    STRING = 0; INTEGER = 1; FLOAT = 2; BOOLEAN = 3; TIMESTAMP = 4; DURATION = 5; JAVA_CLASS = 6;
+  }
+}
