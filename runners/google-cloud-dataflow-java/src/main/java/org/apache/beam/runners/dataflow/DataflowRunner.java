@@ -337,6 +337,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       builder.put(Read.Unbounded.class, StreamingUnboundedRead.class);
       builder.put(Read.Bounded.class, StreamingBoundedRead.class);
       builder.put(Window.Bound.class, AssignWindows.class);
+      builder.put(Write.Bound.class, StreamingShardedWrite.class);
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
       // defer to Windmill's built-in implementation.
       builder.put(PubsubIO.Read.PubsubBoundedReader.class, UnsupportedIO.class);
@@ -2466,6 +2467,27 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     protected String getKindString() {
       return "StreamingViewAsMap";
+    }
+  }
+
+  private static class StreamingShardedWrite<T> extends PTransform<PCollection<T>, PDone> {
+    private final DataflowRunner runner;
+    private Write.Bound<T> originalTransform;
+
+    public StreamingShardedWrite(DataflowRunner runner, Write.Bound<T> originalTransform) {
+      this.runner = runner;
+      this.originalTransform = originalTransform;
+    }
+
+    @Override
+    public PDone expand(PCollection<T> input) {
+      // The streaming runner does not currently support dynamic sharding. If the user requested
+      // runner-specified sharding on a Write, then default to 2 * maxNumWorkers.
+      if (originalTransform.getNumShards() == 0) {
+        originalTransform.withNumShards(2 * input.getPipeline().getOptions().as(
+            DataflowPipelineWorkerPoolOptions.class).getMaxNumWorkers());
+      }
+      return originalTransform.expand(input);
     }
   }
 
