@@ -436,8 +436,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // Replace SplittableParDo.ProcessElements with ParDo.of(SplittableParDo.ProcessFn).
       // The ProcessFn will receive special treatment on the worker.
       SplittableParDo.ProcessElements processElements = (SplittableParDo.ProcessElements) transform;
-      return (OutputT) Pipeline.applyTransform(
-          input, ParDo.of(processElements.newProcessFn(processElements.getFn())));
+      PCollectionTuple res =
+          (PCollectionTuple)
+              Pipeline.applyTransform(
+                  input,
+                  ParDo.of(processElements.newProcessFn(processElements.getFn()))
+                      .withOutputTags(
+                          processElements.getMainOutputTag(), processElements.getSideOutputTags()));
+      // 'input' is the output of a GBKIntoKeyedWorkItems, which is globally windowed.
+      // However, windowing of the output should, like with any other (non-splittable) ParDo,
+      // match windowing of the original input PCollection - it is remembered in
+      // processElements.getWindowingStrategy(). Adjust the windowing here.
+      for (PCollection<?> pc : res.getAll().values()) {
+        pc.setWindowingStrategyInternal(processElements.getWindowingStrategy());
+      }
+      return (OutputT) res;
     } else if (overrides.containsKey(transform.getClass())) {
       // It is the responsibility of whoever constructs overrides to ensure this is type safe.
       @SuppressWarnings("unchecked")
