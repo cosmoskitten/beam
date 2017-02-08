@@ -63,8 +63,8 @@ public class Sample {
    * {@code PCollection}s
    * @param limit the number of elements to take from the input
    */
-  public static <T> PTransform<PCollection<T>, PCollection<T>> any(long limit) {
-    return new SampleAny<>(limit);
+  public static <T> Any<T> any(long limit) {
+    return new Any<>(limit);
   }
 
   /**
@@ -85,9 +85,8 @@ public class Sample {
    * @param sampleSize the number of elements to select; must be {@code >= 0}
    * @param <T> the type of the elements
    */
-  public static <T> PTransform<PCollection<T>, PCollection<Iterable<T>>>
-      fixedSizeGlobally(int sampleSize) {
-    return Combine.globally(new FixedSizedSampleFn<T>(sampleSize));
+  public static <T> FixedSizeGlobally<T> fixedSizeGlobally(int sampleSize) {
+    return new FixedSizeGlobally<>(sampleSize);
   }
 
   /**
@@ -115,21 +114,15 @@ public class Sample {
    * @param <K> the type of the keys
    * @param <V> the type of the values
    */
-  public static <K, V> PTransform<PCollection<KV<K, V>>,
-                                  PCollection<KV<K, Iterable<V>>>>
-      fixedSizePerKey(int sampleSize) {
-    return Combine.perKey(new FixedSizedSampleFn<V>(sampleSize));
+  public static <K, V> FixedSizePerKey<K, V> fixedSizePerKey(int sampleSize) {
+    return new FixedSizePerKey<>(sampleSize);
   }
 
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A {@link PTransform} that takes a {@code PCollection<T>} and a limit, and
-   * produces a new {@code PCollection<T>} containing up to limit
-   * elements of the input {@code PCollection}.
-   */
-  public static class SampleAny<T> extends PTransform<PCollection<T>, PCollection<T>> {
+  /** Implementation of {@link #any(long)}. */
+  public static class Any<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private final long limit;
 
     /**
@@ -137,7 +130,7 @@ public class Sample {
      * produces a new PCollection containing up to {@code limit}
      * elements of its input {@code PCollection}.
      */
-    private SampleAny(long limit) {
+    private Any(long limit) {
       checkArgument(limit >= 0, "Expected non-negative limit, received %s.", limit);
       this.limit = limit;
     }
@@ -159,6 +152,50 @@ public class Sample {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("sampleSize", limit)
         .withLabel("Sample Size"));
+    }
+  }
+
+  /** Implementation of {@link #fixedSizeGlobally(int)}. */
+  public static class FixedSizeGlobally<T>
+      extends PTransform<PCollection<T>, PCollection<Iterable<T>>> {
+    private final int sampleSize;
+
+    private FixedSizeGlobally(int sampleSize) {
+      this.sampleSize = sampleSize;
+    }
+
+    @Override
+    public PCollection<Iterable<T>> expand(PCollection<T> input) {
+      return input.apply(Combine.globally(new FixedSizedSampleFn<T>(sampleSize)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("sampleSize", sampleSize)
+          .withLabel("Sample Size"));
+    }
+  }
+
+  /** Implementation of {@link #fixedSizeGlobally(int)}. */
+  public static class FixedSizePerKey<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
+    private final int sampleSize;
+
+    private FixedSizePerKey(int sampleSize) {
+      this.sampleSize = sampleSize;
+    }
+
+    @Override
+    public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+      return input.apply(Combine.<K, V, Iterable<V>>perKey(new FixedSizedSampleFn<V>(sampleSize)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("sampleSize", sampleSize)
+          .withLabel("Sample Size"));
     }
   }
 
