@@ -744,17 +744,17 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        Flatten.FlattenPCollectionList.class,
-        new TransformTranslator<Flatten.FlattenPCollectionList>() {
+        Flatten.PCollections.class,
+        new TransformTranslator<Flatten.PCollections>() {
           @Override
           public void translate(
-              Flatten.FlattenPCollectionList transform,
+              Flatten.PCollections transform,
               TranslationContext context) {
             flattenHelper(transform, context);
           }
 
           private <T> void flattenHelper(
-              Flatten.FlattenPCollectionList<T> transform,
+              Flatten.PCollections<T> transform,
               TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "Flatten");
 
