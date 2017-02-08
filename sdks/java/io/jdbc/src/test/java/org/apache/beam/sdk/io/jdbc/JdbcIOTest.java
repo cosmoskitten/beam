@@ -46,7 +46,6 @@ import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -223,7 +222,8 @@ public class JdbcIOTest implements Serializable {
      PCollection<KV<String, Integer>> output = pipeline.apply(
              JdbcIO.<KV<String, Integer>>read()
                      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-                     .withQuery(String.format("select name,id from %s where name = ?", JdbcTestDataSet.READ_TABLE_NAME))
+                     .withQuery(String.format("select name,id from %s where name = ?",
+                         JdbcTestDataSet.READ_TABLE_NAME))
                      .withStatementPrepator(new JdbcIO.StatementPreparator() {
                        @Override
                        public void setParameters(PreparedStatement preparedStatement)
@@ -265,9 +265,10 @@ public class JdbcIOTest implements Serializable {
                   "org.apache.derby.jdbc.ClientDriver",
                   "jdbc:derby://localhost:" + port + "/target/beam"))
               .withStatement(String.format("insert into %s values(?, ?)", tableName))
-              .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
-                public void setParameters(KV<Integer, String> element, PreparedStatement statement)
-                    throws Exception {
+              .withPreparedStatementSetter(
+                  new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
+                public void setParameters(
+                    KV<Integer, String> element, PreparedStatement statement) throws Exception {
                   statement.setInt(1, element.getKey());
                   statement.setString(2, element.getValue());
                 }
@@ -277,8 +278,8 @@ public class JdbcIOTest implements Serializable {
 
       try (Connection connection = dataSource.getConnection()) {
         try (Statement statement = connection.createStatement()) {
-          try (ResultSet resultSet = statement.executeQuery("select count(*) from " +
-                tableName)) {
+          try (ResultSet resultSet = statement.executeQuery("select count(*) from "
+                + tableName)) {
             resultSet.next();
             int count = resultSet.getInt(1);
 

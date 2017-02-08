@@ -30,7 +30,6 @@ import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -49,8 +48,8 @@ import org.postgresql.ds.PGSimpleDataSource;
 /**
  * A test of JdbcIO on an independent Postgres instance.
  *
- * <p>This test requires a running instance of Postgres, and the test dataset must exist in the database.
- * `JdbcTestDataSet` will create the read table.
+ * <p>This test requires a running instance of Postgres, and the test dataset must exist in the
+ * databaase. `JdbcTestDataSet` will create the read table.
  *
  * <p>You can run just this test by doing the following:
  * mvn test-compile compile failsafe:integration-test -D beamTestPipelineOptions='[
@@ -79,7 +78,8 @@ public class JdbcIOIT {
     }
   }
 
-  private static class AssertCountFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
+  private static class AssertCountFn implements
+      SerializableFunction<Iterable<KV<String, Long>>, Void> {
     public AssertCountFn(long expectedCount) {
      this.expectedCount = expectedCount;
     }
@@ -89,13 +89,15 @@ public class JdbcIOIT {
     @Override
     public Void apply(Iterable<KV<String, Long>> input) {
       for (KV<String, Long> element : input) {
-        assertEquals(element.getKey(), expectedCount, element.getValue().longValue());
+        assertEquals(
+            element.getKey(), expectedCount, element.getValue().longValue());
       }
       return null;
     }
   }
 
-  private static class PutKeyInColumnOnePutValueInColumnTwo implements JdbcIO.PreparedStatementSetter<KV<Integer, String>> {
+  private static class PutKeyInColumnOnePutValueInColumnTwo
+      implements JdbcIO.PreparedStatementSetter<KV<Integer, String>> {
     @Override
     public void setParameters(KV<Integer, String> element, PreparedStatement statement)
                     throws SQLException {
@@ -117,6 +119,7 @@ public class JdbcIOIT {
     String tableName = JdbcTestDataSet.READ_TABLE_NAME;
 
     TestPipeline pipeline = TestPipeline.create();
+    //Pipeline pipeline = Pipeline.create(TestPipeline.testingPipelineOptions());
 
     PCollection<KV<String, Integer>> output = pipeline.apply(JdbcIO.<KV<String, Integer>>read()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
@@ -139,9 +142,9 @@ public class JdbcIOIT {
   /**
    * Tests writes to a real live postgres database.
    *
-   * Write Tests must clean up their data - in this case, it uses a new table every test run so
-   * that it won't interfere with read tests/other write tests. It uses finally to attempt to clean up data at the end
-   * of the test run.
+   * <p>Write Tests must clean up their data - in this case, it uses a new table every test run so
+   * that it won't interfere with read tests/other write tests. It uses finally to attempt to
+   * clean up data at the end of the test run.
    * @throws SQLException
    */
   @Test
@@ -170,8 +173,8 @@ public class JdbcIOIT {
 
       try (Connection connection = dataSource.getConnection()) {
         try (Statement statement = connection.createStatement()) {
-          try (ResultSet resultSet = statement.executeQuery("select count(*) from " +
-              tableName)) {
+          try (ResultSet resultSet = statement.executeQuery("select count(*) from "
+              + tableName)) {
             resultSet.next();
             int count = resultSet.getInt(1);
 

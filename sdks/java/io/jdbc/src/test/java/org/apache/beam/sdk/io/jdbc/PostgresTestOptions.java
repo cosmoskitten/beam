@@ -22,7 +22,8 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 /**
- * These options can be used by a test connecting to a postgres database to configure their connection.
+ * These options can be used by a test connecting to a postgres database to configure their
+ * connection.
  */
 public interface PostgresTestOptions extends TestPipelineOptions {
     @Description("Server name for postgres server (host name/ip address)")
