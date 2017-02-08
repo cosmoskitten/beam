@@ -126,7 +126,7 @@ public class FlinkStreamingTransformTranslators {
     TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiStreamingTranslator());
 
     TRANSLATORS.put(Window.Bound.class, new WindowBoundTranslator());
-    TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
+    TRANSLATORS.put(Flatten.PCollections.class, new FlattenPCollectionTranslator());
     TRANSLATORS.put(
         FlinkRunner.CreateFlinkPCollectionView.class, new CreateViewStreamingTranslator());
 
@@ -1003,11 +1003,11 @@ public class FlinkStreamingTransformTranslators {
 
   private static class FlattenPCollectionTranslator<T>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-        Flatten.FlattenPCollectionList<T>> {
+      Flatten.PCollections<T>> {
 
     @Override
     public void translateNode(
-        Flatten.FlattenPCollectionList<T> transform,
+        Flatten.PCollections<T> transform,
         FlinkStreamingTranslationContext context) {
       List<TaggedPValue> allInputs = context.getInputs(transform);
 
