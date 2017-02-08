@@ -20,20 +20,16 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 /**
  * Properties needed when using HadoopInputFormatIO with the Beam SDK.
- *
  */
 public interface HIFTestOptions extends TestPipelineOptions {
-
   @Description("Server IP")
   @Default.String("serverIp")
   String getServerIp();
-
   void setServerIp(String serverIp);
 
   @Description("Server port")
   @Default.Integer(0)
   Integer getServerPort();
-
   void setServerPort(Integer serverPort);
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -47,19 +43,20 @@ public interface HIFTestOptions extends TestPipelineOptions {
   @Description("User name")
   @Default.String("userName")
   String getUserName();
-
   void setUserName(String userName);
 
   @Description("Password")
   @Default.String("password")
   String getPassword();
-
   void setPassword(String password);
+<<<<<<< HEAD
 <<<<<<< HEAD
   
   }
 >>>>>>> Working postgresIT, do not need DBnputWritable, using NullDbWritable instead
 =======
 
+=======
+>>>>>>> Changes suggested by Stephen- spacings, extra lines removed
 }
 >>>>>>> Minor changes
