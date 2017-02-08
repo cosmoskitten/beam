@@ -141,7 +141,7 @@ public class Latest {
    *
    * @param <T> The type of the elements being combined.
    */
-  public static <T> PTransform<PCollection<T>, PCollection<T>> globally() {
+  public static <T> Globally<T> globally() {
     return new Globally<>();
   }
 
@@ -153,11 +153,12 @@ public class Latest {
    * @param <K> The key type of the elements being combined.
    * @param <V> The value type of the elements being combined.
    */
-  public static <K, V> PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> perKey() {
+  public static <K, V> PerKey<K, V> perKey() {
     return new PerKey<>();
   }
 
-  private static class Globally<T> extends PTransform<PCollection<T>, PCollection<T>> {
+  /** Implementation of {@link #globally()}. */
+  public static class Globally<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       Coder<T> inputCoder = input.getCoder();
@@ -175,7 +176,8 @@ public class Latest {
     }
   }
 
-  private static class PerKey<K, V>
+  /** Implementation of {@link #perKey()}. */
+  public static class PerKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
     @Override
     public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
