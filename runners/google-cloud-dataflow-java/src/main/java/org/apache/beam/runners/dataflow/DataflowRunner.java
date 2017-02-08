@@ -70,6 +70,7 @@ import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecificat
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -323,6 +324,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Unbounded.class),
                   new ReflectiveRootOverrideFactory(StreamingUnboundedRead.class, this)))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Write.class),
+                  new StreamingShardedWriteFactory(options)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
@@ -1292,6 +1297,35 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public Map<PValue, ReplacementOutput> mapOutputs(
         Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
       return Collections.emptyMap();
+    }
+  }
+
+  private class StreamingShardedWriteFactory<T>
+      implements PTransformOverrideFactory<PCollection<T>, PDone, Write<T>> {
+    DataflowPipelineWorkerPoolOptions options;
+
+    StreamingShardedWriteFactory(PipelineOptions options) {
+      this.options = options.as(DataflowPipelineWorkerPoolOptions.class);
+    }
+
+    @Override
+    public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
+        AppliedPTransform<PCollection<T>, PDone, Write<T>> transform) {
+      Write<T> innerTransform = transform.getTransform();
+      if (innerTransform.getNumShards() == null && innerTransform.getSharding() == null) {
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            innerTransform.withNumShards(options.getMaxNumWorkers() * 2));
+      } else {
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            transform.getTransform());
+      }
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
+      return null;
     }
   }
 
