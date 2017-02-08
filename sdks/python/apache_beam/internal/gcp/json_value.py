@@ -108,7 +108,8 @@ def to_json_value(obj, with_type=False):
     return extra_types.JsonValue(double_value=obj)
   elif isinstance(obj, StaticValueProvider):
     return to_json_value(obj.get())
-
+  elif isinstance(obj, RuntimeValueProvider):
+    return to_json_value('')
   else:
     raise TypeError('Cannot convert %s to a JSON value.' % repr(obj))
 
