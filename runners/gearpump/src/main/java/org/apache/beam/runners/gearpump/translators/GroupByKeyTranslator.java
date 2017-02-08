@@ -56,6 +56,7 @@ import org.apache.gearpump.streaming.dsl.window.impl.Window;
 /**
  * {@link GroupByKey} is translated to Gearpump groupBy function.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKey<K, V>> {
   @Override
   public void translate(GroupByKey<K, V> transform, TranslationContext context) {
