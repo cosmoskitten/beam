@@ -336,7 +336,59 @@ enum OutputTime {
 }
 
 message Trigger {
-  // TODO: flesh out simple AST
+  message AfterAll {
+    repeated Trigger sub_trigger = 1;
+  }
+
+  message AfterAny {
+    repeated Trigger sub_trigger = 1;
+  }
+
+  message AfterEach {
+    repeated Trigger sub_trigger = 1;
+  }
+
+  message AfterEndOfWindow {
+    // Optional
+    Trigger early_firings = 1;
+
+    // Optional
+    Trigger late_firings = 2;
+  }
+
+  message AfterProcessingTimeDelay {
+    int64 delay_millis = 1;
+  }
+
+  message AfterSynchronizedProcessingTimeDelay {
+    int64 delay_millis = 1;
+  }
+
+  message Never { }
+
+  message Repeat {
+    Trigger sub_trigger = 1;
+  }
+
+  message OrFinally {
+    Trigger main = 1;
+    Trigger finally = 2;
+  }
+
+  message Default { }
+
+  oneof trigger {
+    AfterAll after_all = 1;
+    AfterAny after_any = 2;
+    AfterEach after_each = 3;
+    AfterEndOfWindow after_end_of_widow = 4;
+    AfterProcessingTimeDelay after_processing_time_delay = 5;
+    AfterSynchronizedProcessingTimeDelay after_synchronized_processing_time_delay = 6;
+    Never never = 7;
+    Repeat repeat = 8;
+    OrFinally or_finally = 9;
+    Default default = 10;
+  }
 }
 
 // A specification for how to "side input" a PCollection.
