@@ -138,6 +138,21 @@ public class StateTags {
   }
 
   /**
+   * Create a state spec that supporting for {@link java.util.Set} like access patterns.
+   */
+  public static <T> StateTag<Object, SetState<T>> set(String id, Coder<T> elemCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.set(elemCoder));
+  }
+
+  /**
+   * Create a state spec that supporting for {@link java.util.Map} like access patterns.
+   */
+  public static <K, V> StateTag<Object, MapState<K, V>> map(
+      String id, Coder<K> keyCoder, Coder<V> valueCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.map(keyCoder, valueCoder));
+  }
+
+  /**
    * Create a state tag for holding the watermark.
    */
   public static <W extends BoundedWindow> StateTag<Object, WatermarkHoldState<W>>

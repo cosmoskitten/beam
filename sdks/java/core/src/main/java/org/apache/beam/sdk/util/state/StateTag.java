@@ -80,6 +80,11 @@ public interface StateTag<K, StateT extends State> extends Serializable {
 
     <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> spec, Coder<T> elemCoder);
 
+    <T> SetState<T> bindSet(StateTag<? super K, SetState<T>> spec, Coder<T> elemCoder);
+
+    <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(StateTag<? super K, MapState<KeyT, ValueT>> spec,
+                                            Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder);
+
     <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
         StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
