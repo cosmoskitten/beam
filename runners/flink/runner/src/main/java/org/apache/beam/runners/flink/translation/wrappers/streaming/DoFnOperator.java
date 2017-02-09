@@ -287,6 +287,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     }
 
     try {
+
       Long result = sideInputStateInternals.state(StateNamespaces.global(),
           pushedBackWatermarkTag).read();
 
