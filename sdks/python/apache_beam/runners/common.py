@@ -285,7 +285,6 @@ class DoFnRunner(Receiver):
       return
     for result in results:
       tag = None
-      multiplicity = 1
       if isinstance(result, SideOutputValue):
         tag = result.tag
         if not isinstance(tag, basestring):
@@ -293,8 +292,9 @@ class DoFnRunner(Receiver):
         result = result.value
       if isinstance(result, WindowedValue):
         windowed_value = result
-        multiplicity = (1 if windowed_input_element is None
-                        else len(windowed_input_element.windows))
+        if (windowed_input_element is not None
+            and len(windowed_input_element.windows) != 1):
+          windowed_value.windows *= len(windowed_input_element.windows)
       elif windowed_input_element is None:
         # Start and finish have no element from which to grab context,
         # but may emit elements.
@@ -313,14 +313,14 @@ class DoFnRunner(Receiver):
         windowed_value = WindowedValue(
             result.value, result.timestamp,
             self.window_fn.assign(assign_context))
-        multiplicity = len(windowed_input_element.windows)
+        if len(windowed_input_element.windows) != 1:
+          windowed_value.windows *= len(windowed_input_element.windows)
       else:
         windowed_value = windowed_input_element.with_value(result)
-      for _ in range(multiplicity):
-        if tag is None:
-          self.main_receivers.receive(windowed_value)
-        else:
-          self.tagged_receivers[tag].output(windowed_value)
+      if tag is None:
+        self.main_receivers.receive(windowed_value)
+      else:
+        self.tagged_receivers[tag].output(windowed_value)
 
 
 class NoContext(WindowFn.AssignContext):

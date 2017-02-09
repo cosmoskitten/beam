@@ -186,6 +186,7 @@ class WindowTest(unittest.TestCase):
               # Per the model, each element is now duplicated across
               # three windows. Rewindowing must preserve this duplication.
               | 'rewindow' >> WindowInto(FixedWindows(5))
+              | 'rewindow2' >> WindowInto(FixedWindows(5))
               | Map(lambda v: ('key', v))
               | GroupByKey())
     assert_that(result, equal_to([('key', sorted([0, 1, 2, 3, 4] * 3)),
