@@ -34,11 +34,11 @@ import "google/protobuf/timestamp.proto";
 // A Pipeline contains the entire hierarchical graph of transforms as well
 // as descriptors for all PCollections.
 //
-// The hierarchical graph itself is an independent layer from the payloads
-// specific to the Runner API, for ease of reuse by e.g. the Fn API.
+// The hierarchical graph itself is an independent layer from the types
+// specific to the Runner API, for ease of reuse (e.g. by the Fn API)
 message Pipeline {
 
-  // (Required) A map from pipeline-scoped id to graph node.
+  // (Required) A map from pipeline-scoped id to GraphNode<PTransform, PCollection>
   //
   // Each node is required to contain a PTransform specification.
   map<int64, GraphNode> transform_nodes = 1;
@@ -55,11 +55,25 @@ message Pipeline {
   // (Required) A map from pipeline-scoped id to Environment.
   map<int64, Environment> environments = 5;
 
+  // (Required) A map from pipeline-scoped id to FunctionSpec,
+  // a record for a particular user-defined function.
+  map<int64, FunctionSpec> function_specs = 6;
+
   // (Required) Static display data for the pipeline.
   DisplayData display_data = 7;
 }
 
 // A generic node in a bipartite directed hierarchical graph.
+//
+// You can think of this as a GraphNode<NodeT, ConnectionT> where
+// NodeT and ConnectionT are the two types of nodes in the bipartite
+// graph.
+//
+// There is one NodeT on each GraphNode, while the ConnectionT values
+// are named and ordered in the `inputs` and `outputs` fields. For
+// arbitrary graph structures, they are expected to be by-reference.
+//
+// For the Runner API, the type is GraphNode<Transform, PCollection>
 message GraphNode {
 
   // (Required) A pipeline-scoped unique id for this node.
@@ -75,7 +89,7 @@ message GraphNode {
   // parent.
   int64 parent_ref = 3;
 
-  // (Required) A map of local input names to target definitions.
+  // (Required) A list of ordered, named inputs to this node.
   //
   // The URN for the graph node may clarify the type of the inputs
   // (resp. outputs). For example:
@@ -92,10 +106,9 @@ message GraphNode {
   // All inputs are recorded here so that the topological ordering of
   // the graph is consistent whether or not the payload is understood.
   //
-  // TODO: fix the value to be int64 as they will always be refs?
-  map<string, google.protobuf.Any> inputs = 4;
+  repeated Connection inputs = 4;
 
-  // (Required) A map from local output name to PCollection definitions.
+  // (Required) A list of ordered, named outputs from this node.
   //
   // The URN or payload for the graph node may clarify the type and
   // relationship of these. For example:
@@ -105,11 +118,16 @@ message GraphNode {
   //  - in the Runner API the targets are PCollections
   //  - in the Fn API the targets may be Grpc ports
   //
-  // TODO: fix the value to be int64 as they will always be refs?
-  map<string, google.protobuf.Any> outputs = 5;
+  repeated Connection outputs = 5;
 
-  // (Required) A payload determined by the URN, fully specifying this node.
+  // (Required) A payload fully specifying this node.
+  // Schema is determined by the URN.
   google.protobuf.Any payload = 6;
+
+  message Connection {
+    string name = 1;
+    google.protobuf.Any target = 2;
+  }
 }
 
 // A PCollection!
@@ -118,8 +136,11 @@ message PCollection {
   // (Required) A pipeline-scoped unique id for this node.
   int64 id = 1;
 
-  // (Required) A unique program-readable name for the value, such as
+  // (Required) A stable and unique name for the value, such as
   // "foo/baz/bar.out"
+  //
+  // This may be used, for example, as an identifier for data
+  // stored in a snapshot, for associating it with a revised pipeline.
   string label = 2;
 
   // (Required) The id of the Coder for this PCollection.
@@ -173,8 +194,6 @@ message PTransform {
   //  - when the URN is "urn:beam:transforms:combine" it is a CombinePayload
   //
   // For other composites, the payload will often be absent.
-  //
-  // TODO: duplicate PTransform's fields into each Payload to save indirection?
   google.protobuf.Any payload = 4;
 
   // (Required) Static display data for this PTransform application.
@@ -184,17 +203,18 @@ message PTransform {
 // The payload for the primitive ParDo transform.
 message ParDoPayload {
 
-  // (Required) The DoFn for this ParDo.
-  FunctionSpec do_fn = 1;
+  // (Required) The pipeline-scoped id of the FunctionSpec for the DoFn.
+  int64 do_fn_ref = 1;
 
   // (Required) Additional pieces of context the DoFn may require that
   // are not otherwise represented in the payload.
   // (may force runners to execute the ParDo differently)
   repeated DoFnContext required_context = 2;
 
-  // (Optional) A map from local input name to the specification for how to
-  // materialize and read it as a side input
-  map<string, SideInput> side_inputs = 3;
+  // (Optional) An ordered list of side inputs, describing for each local name
+  // to the data to be provided and the expected access pattern.
+  // (the SDK may not be order-sensitive)
+  repeated SideInput side_inputs = 3;
 
   // (Optional) if the DoFn uses state, a map from id to the spec for the
   // state cell.
@@ -211,7 +231,6 @@ message ParDoPayload {
   }
 }
 
-
 message StateSpec {
   // TODO: AST for state spec
 }
@@ -226,40 +245,36 @@ enum IsBounded {
 }
 
 // The payload for the primitive Read transform.
-//
-// TODO: audit what needs to be in this payload
 message ReadPayload {
 
-  // (Required) The source for this Read
-  FunctionSpec source = 1;
+  // (Required) The pipeline-scoped id of the source for this Read
+  int64 source_ref = 1;
 
   // (Required) Whether the source is bounded or unbounded
   IsBounded is_bounded = 2;
 
-  // TODO: consider other methods such as doesNotRequireSplitting() and producesSortedKeys()
-  // what else?
+  // TODO: full audit of fields required by runners as opposed to SDK harness
 }
 
-// The payload for the Window transform.
-//
-// TODO: consider making this non-primitive according to BEAM-<issue #>
+// The payload for the WindowInto transform.
 message WindowIntoPayload {
-  // (Required) the window fn for assigning windows
-  FunctionSpec window_fn = 1;
+  // (Required) The pipeline-scoped id for the FunctionSpec of the WindowFn.
+  int64 window_fn_ref = 1;
 }
 
-// The payload for the non-primitive Combine transform.
+// The payload for the special-but-not-primitive Combine transform.
 message CombinePayload {
 
-  // (Required) The CombineFn for this Combine
-  FunctionSpec combine_fn = 1;
+  // (Required) The pipeline-scoped id of the FunctionSpec for the CombineFn.
+  int64 combine_fn_ref = 1;
 
   // (Required) A reference to the Coder to use for accumulators of the CombineFn
   int64 accumulator_coder_ref = 2;
 
-  // (Optional) if the CombineFn uses side inputs, a map from the id to the spec
-  // for how to materialize and read the PCollection as a side input
-  map<string, SideInput> side_inputs = 3;
+  // (Optional) An ordered list of side inputs, describing for each local name
+  // to the data to be provided and the expected access pattern.
+  // (the SDK may not be order-sensitive)
+  repeated SideInput side_inputs = 3;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -276,12 +291,11 @@ message Coder {
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,
   // the URN and all components must be identical, recursively.
-  repeated int64 component_coder_reference = 3;
+  repeated int64 component_coder_ref = 3;
 
-  // (Optional) An SDK-specific UDF implementing the coder.
-  //
-  // TODO: reconsider how to do this, aka CustomCoder
-  FunctionSpec custom_coder_fn = 4;
+  // (Optional) The pipeline-scoped id for the FunctionSpec of an SDK-specific
+  // UDF implementing the encoding.
+  int64 custom_coder_fn_ref = 4;
 }
 
 // A windowing strategy describes the window function, triggering, allowed
@@ -293,9 +307,10 @@ message WindowingStrategy {
   // (Required) A pipeline-scoped unique id for this node.
   int64 id = 1;
 
-  // (Required) The UDF assigns windows, merges windows, and shifts timestamps
-  // before they are combined according to the OutputTime.
-  FunctionSpec window_fn = 2;
+  // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
+  // assigns windows, merges windows, and shifts timestamps before they are
+  // combined according to the OutputTime.
+  int64 window_fn_ref = 2;
 
   // (Required) Whether or not the window fn is merging.
   //
@@ -305,9 +320,7 @@ message WindowingStrategy {
   // (Required) The coder for the windows of this PCollection.
   int64 window_coder_reference = 4;
 
-  // (Required) The trigger, serialized as a simple syntax tree.
-  //
-  // TODO: say more
+  // (Required) The trigger to use when grouping this PCollection.
   Trigger trigger = 5;
 
   // (Required) The accumulation mode indicates whether new panes are a full
@@ -406,6 +419,12 @@ message Trigger {
 // A specification for how to "side input" a PCollection.
 message SideInput {
 
+  // (Required) A local name for this side input, as embedded in a serialized UDF.
+  string name = 1;
+
+  // (Required) The pipeline-scoped unique id of the PCollection to be side input.
+  int64 pcollection_ref = 2;
+
   // (Required) URN of the access pattern required by the `view_fn` to present
   // the desired SDK-specific interface to a UDF.
   //
@@ -415,23 +434,22 @@ message SideInput {
   // The only access pattern intended for Beam, because of its superior
   // performance possibilities, is "urn:beam:sideinput:multimap" (or some such
   // URN)
-  string access_pattern = 1;
+  string access_pattern = 3;
 
-  // (Required) A UDF that adapts a particular access_pattern to a user-facing
-  // view type.
+  // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
+  // adapts a particular access_pattern to a user-facing view type.
   //
   // For example, View.asSingleton() may include a `view_fn` that adapts a
   // specially-designed multimap to a single value per window.
-  //
-  // TODO: this will actually be reused a lot; consider making it by reference
-  FunctionSpec view_fn = 2;
+  int64 view_fn_ref = 4;
 
-  // (Required) A UDF that maps a main input window to a side input window.
+  // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
+  // maps a main input window to a side input window.
   //
   // For example, when the main input is in fixed windows of one hour, this
   // can specify that the side input should be accessed according to the day
   // in which that hour falls.
-  FunctionSpec window_mapping_fn = 3;
+  int64 window_mapping_fn_ref = 5;
 }
 
 // An environment for executing UDFs. Generally an SDK container URL, but
@@ -477,9 +495,12 @@ message FunctionSpec {
   // this function.
   google.protobuf.Any payload = 4;
 
-  // (Required) The raw data of the function that the SDK knows how to
+  // (Optional) The raw data of the function that the SDK knows how to
   // deserialize, but need not be comprehensible to any other runner, SDK, or
   // other entity.
+  //
+  // If the SDK is just going to create this from the payload, then it can be
+  // omitted.
   google.protobuf.Any data = 5;
 }
 
