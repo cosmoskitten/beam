@@ -70,6 +70,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.AtomicDouble;
 
 /**
 <<<<<<< HEAD
@@ -1247,6 +1248,7 @@ public class HadoopInputFormatIO {
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 
       public HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
@@ -1267,6 +1269,10 @@ public class HadoopInputFormatIO {
 >>>>>>> Changes for spaces, Constants file name and comments as per Stephens code review comments
 =======
 >>>>>>> Resolved most of the code review comments.
+=======
+      // Variable added to track the progress of the RecordReader.
+      private AtomicDouble progressValue = new AtomicDouble();
+>>>>>>> Added AtomicDouble to track the progress of the RecordReader
 
       private HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
@@ -1308,20 +1314,24 @@ public class HadoopInputFormatIO {
 >>>>>>> Resolved most of the code review comments.
           currentReader =
               (RecordReader<K1, V1>) inputFormatObj.createRecordReader(split, taskAttemptContext);
-          // currentReader object could be accessed concurrently by multiple sources. Hence to be on
-          // safer side, it has been added in synchronized block
-          synchronized (currentReader) {
-            if (currentReader != null) {
+          if (currentReader != null) {
+            /*
+             * CurrentReader object could be accessed concurrently by multiple sources. Hence, to be
+             * on safer side, it has been added in synchronized block.
+             */
+            synchronized (currentReader) {
               currentReader.initialize(split, taskAttemptContext);
               if (currentReader.nextKeyValue()) {
                 recordsReturned++;
                 return true;
               }
-            } else {
-              throw new IOException(String.format(
-                  HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
-                  inputFormatObj.getClass()));
             }
+          } else {
+            throw new IOException(String.format(
+                HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
+                inputFormatObj.getClass()));
+          }
+          synchronized (currentReader) {
             currentReader = null;
           }
         } catch (InterruptedException e) {
@@ -1349,6 +1359,7 @@ public class HadoopInputFormatIO {
       public boolean advance() throws IOException {
         try {
           synchronized (currentReader) {
+            progressValue = new AtomicDouble(getProgress());
             if (currentReader != null && currentReader.nextKeyValue()) {
               recordsReturned++;
               return true;
@@ -1511,7 +1522,7 @@ public class HadoopInputFormatIO {
         if (currentReader == null || recordsReturned == 0) {
           return 0.0;
         }
-        return getProgress();
+        return progressValue.doubleValue();
       }
 
       /**
@@ -1524,7 +1535,7 @@ public class HadoopInputFormatIO {
           }
         } catch (IOException | InterruptedException e) {
           LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG + e.getMessage(), e);
-          return null;
+          return 0.0;
         }
       }
 
