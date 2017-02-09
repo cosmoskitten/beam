@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -33,10 +34,12 @@ import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -51,17 +54,15 @@ import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
+import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.StateTag;
+import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -115,19 +116,24 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected transient long currentOutputWatermark;
 
-  private final ReducingStateDescriptor<Long> pushedBackWatermarkDescriptor;
+  private transient StateTag<Object, AccumulatorCombiningState<Long, Long, Long>>
+      pushedBackWatermarkTag;
 
-  private final ListStateDescriptor<WindowedValue<InputT>> pushedBackDescriptor;
+  private transient StateTag<Object, BagState<WindowedValue<InputT>>> pushedBackTag;
 
   protected transient FlinkStateInternals<?> stateInternals;
+
+  private Coder<WindowedValue<InputT>> inputCoder;
 
   private final Coder<?> keyCoder;
 
   protected transient KeyedStateBackend<ByteBuffer> sideInputStateBackend;
 
+  private transient FlinkStateInternals<Void> sideInputStateInternals;
+
   public DoFnOperator(
       DoFn<InputT, FnOutputT> doFn,
-      TypeInformation<WindowedValue<InputT>> inputType,
+      Coder<WindowedValue<InputT>> inputCoder,
       TupleTag<FnOutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
@@ -137,6 +143,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       PipelineOptions options,
       Coder<?> keyCoder) {
     this.doFn = doFn;
+    this.inputCoder = inputCoder;
     this.mainOutputTag = mainOutputTag;
     this.sideOutputTags = sideOutputTags;
     this.sideInputTagMapping = sideInputTagMapping;
@@ -144,15 +151,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     this.serializedOptions = new SerializedPipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
-
-    this.pushedBackWatermarkDescriptor =
-        new ReducingStateDescriptor<>(
-            "pushed-back-elements-watermark-hold",
-            new LongMinReducer(),
-            LongSerializer.INSTANCE);
-
-    this.pushedBackDescriptor =
-        new ListStateDescriptor<>("pushed-back-values", inputType);
 
     setChainingStrategy(ChainingStrategy.ALWAYS);
 
@@ -200,6 +198,40 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     sideInputReader = NullSideInputReader.of(sideInputs);
 
     if (!sideInputs.isEmpty()) {
+
+      pushedBackWatermarkTag = StateTags.combiningValue("pushed-back-elements-watermark-hold",
+          VarLongCoder.of(),
+          new Combine.CombineFn<Long, Long, Long>() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Long createAccumulator() {
+              return TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE);
+            }
+
+            @Override
+            public Long addInput(Long accumulator, Long input) {
+              return Math.min(accumulator, input);
+            }
+
+            @Override
+            public Long mergeAccumulators(Iterable<Long> accumulators) {
+              Long ret = TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE);
+              for (Long l : accumulators) {
+                if (l < ret) {
+                  ret = l;
+                }
+              }
+              return ret;
+            }
+
+            @Override
+            public Long extractOutput(Long accumulator) {
+              return accumulator;
+            }
+          });
+
+      pushedBackTag = StateTags.bag("pushed-back-values", inputCoder);
       // TODO now ignore checkpoint of sideInput state
       sideInputStateBackend =
           new HeapKeyedStateBackend<>(
@@ -211,7 +243,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       sideInputStateBackend.setCurrentKey(
           ByteBuffer.wrap(CoderUtils.encodeToByteArray(VoidCoder.of(), null)));
 
-      StateInternals<Void> sideInputStateInternals =
+      sideInputStateInternals =
           new FlinkStateInternals<>(sideInputStateBackend, VoidCoder.of());
 
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
@@ -274,10 +306,9 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     }
 
     try {
-      Long result = sideInputStateBackend.getPartitionedState(
-          "namespace",
-          StringSerializer.INSTANCE,
-          pushedBackWatermarkDescriptor).get();
+      Long result = sideInputStateInternals.state(StateNamespaces.global(),
+          pushedBackWatermarkTag).read();
+
       return result != null ? result : Long.MAX_VALUE;
     } catch (Exception e) {
       throw new RuntimeException("Error retrieving pushed back watermark state.", e);
@@ -299,17 +330,11 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     Iterable<WindowedValue<InputT>> justPushedBack =
         pushbackDoFnRunner.processElementInReadyWindows(streamRecord.getValue());
 
-    ListState<WindowedValue<InputT>> pushedBack =
-        sideInputStateBackend.getPartitionedState(
-            "namespace",
-            StringSerializer.INSTANCE,
-            pushedBackDescriptor);
+    BagState<WindowedValue<InputT>> pushedBack =
+        sideInputStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
-    ReducingState<Long> pushedBackWatermark =
-        sideInputStateBackend.getPartitionedState(
-            "namespace",
-            StringSerializer.INSTANCE,
-            pushedBackWatermarkDescriptor);
+    AccumulatorCombiningState<Long, Long, Long> pushedBackWatermark =
+        sideInputStateInternals.state(StateNamespaces.global(), pushedBackWatermarkTag);
 
     for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
       pushedBackWatermark.add(pushedBackValue.getTimestamp().getMillis());
@@ -330,15 +355,12 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
     sideInputHandler.addSideInputValue(sideInput, value);
 
-    ListState<WindowedValue<InputT>> pushedBack =
-        sideInputStateBackend.getPartitionedState(
-            "namespace",
-            StringSerializer.INSTANCE,
-            pushedBackDescriptor);
+    BagState<WindowedValue<InputT>> pushedBack =
+        sideInputStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
     List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
 
-    Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.get();
+    Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
     if (pushedBackContents != null) {
       for (WindowedValue<InputT> elem : pushedBackContents) {
 
@@ -352,11 +374,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       }
     }
 
-    ReducingState<Long> pushedBackWatermark =
-        sideInputStateBackend.getPartitionedState(
-            "namespace",
-            StringSerializer.INSTANCE,
-            pushedBackWatermarkDescriptor);
+    AccumulatorCombiningState<Long, Long, Long> pushedBackWatermark =
+        sideInputStateInternals.state(StateNamespaces.global(), pushedBackWatermarkTag);
 
     pushedBack.clear();
     pushedBackWatermark.clear();

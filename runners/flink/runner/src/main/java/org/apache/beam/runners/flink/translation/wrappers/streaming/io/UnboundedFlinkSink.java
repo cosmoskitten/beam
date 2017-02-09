@@ -18,19 +18,11 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Collection;
-import java.util.List;
+import org.apache.beam.runners.flink.translation.types.ObjectCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 /**
@@ -70,71 +62,7 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
 
       @Override
       public Coder<Object> getWriterResultCoder() {
-        return new Coder<Object>() {
-          @Override
-          public void encode(Object value, OutputStream outStream, Context context)
-              throws CoderException, IOException {
-
-          }
-
-          @Override
-          public Object decode(InputStream inStream, Context context)
-              throws CoderException, IOException {
-            return null;
-          }
-
-          @Override
-          public List<? extends Coder<?>> getCoderArguments() {
-            return null;
-          }
-
-          @Override
-          public CloudObject asCloudObject() {
-            return null;
-          }
-
-          @Override
-          public void verifyDeterministic() throws NonDeterministicException {
-
-          }
-
-          @Override
-          public boolean consistentWithEquals() {
-            return false;
-          }
-
-          @Override
-          public Object structuralValue(Object value) throws Exception {
-            return null;
-          }
-
-          @Override
-          public boolean isRegisterByteSizeObserverCheap(Object value, Context context) {
-            return false;
-          }
-
-          @Override
-          public void registerByteSizeObserver(Object value,
-                                               ElementByteSizeObserver observer,
-                                               Context context) throws Exception {
-
-          }
-
-          @Override
-          public String getEncodingId() {
-            return null;
-          }
-
-          @Override
-          public Collection<String> getAllowedEncodings() {
-            return null;
-          }
-
-          @Override
-          public TypeDescriptor<Object> getEncodedTypeDescriptor() {
-            return TypeDescriptor.of(Object.class);
-          }
-        };
+        return new ObjectCoder();
       }
 
       @Override

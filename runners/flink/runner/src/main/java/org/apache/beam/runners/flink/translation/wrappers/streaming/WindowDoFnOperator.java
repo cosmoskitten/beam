@@ -45,7 +45,6 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.HeapInternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -72,7 +71,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
   public WindowDoFnOperator(
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn,
-      TypeInformation<WindowedValue<KeyedWorkItem<K, InputT>>> inputType,
+      Coder<WindowedValue<KeyedWorkItem<K, InputT>>> inputCoder,
       TupleTag<KV<K, OutputT>> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       OutputManagerFactory<WindowedValue<KV<K, OutputT>>> outputManagerFactory,
@@ -83,7 +82,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       Coder<K> keyCoder) {
     super(
         null,
-        inputType,
+        inputCoder,
         mainOutputTag,
         sideOutputTags,
         outputManagerFactory,

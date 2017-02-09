@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
 import java.util.HashMap;
+import org.apache.beam.runners.flink.translation.types.ObjectCoder;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.sdk.options.Default;
@@ -112,7 +113,7 @@ public class PipelineOptionsTest {
   public void parDoBaseClassPipelineOptionsNullTest() {
     DoFnOperator<Object, Object, Object> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
-        TypeInformation.of(new TypeHint<WindowedValue<Object>>() {}),
+        WindowedValue.getValueOnlyCoder(ObjectCoder.of()),
         new TupleTag<>("main-output"),
         Collections.<TupleTag<?>>emptyList(),
         new DoFnOperator.DefaultOutputManagerFactory<>(),
@@ -134,7 +135,7 @@ public class PipelineOptionsTest {
         new TypeHint<WindowedValue<Object>>() {});
     DoFnOperator<Object, Object, Object> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
-        typeInformation,
+        WindowedValue.getValueOnlyCoder(ObjectCoder.of()),
         new TupleTag<>("main-output"),
         Collections.<TupleTag<?>>emptyList(),
         new DoFnOperator.DefaultOutputManagerFactory<>(),
