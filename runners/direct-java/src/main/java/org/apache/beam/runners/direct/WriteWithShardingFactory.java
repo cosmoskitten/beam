@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -76,7 +77,7 @@ class WriteWithShardingFactory<InputT>
               .withAllowedLateness(Duration.ZERO)
               .discardingFiredPanes());
       final PCollectionView<Long> numRecords = records
-          .apply("CountRecords", Count.<T>globally().asSingletonView());
+          .apply("CountRecords", Combine.globally(Count.<T>combineFn()).asSingletonView());
       PCollection<T> resharded =
           records
               .apply(
