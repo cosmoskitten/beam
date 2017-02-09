@@ -16,10 +16,6 @@ package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
@@ -69,7 +65,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HIFIOElasticIT implements Serializable {
 
-  static Logger logger = Logger.getLogger("HIFChecksumEvaluator");
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
   private static final String TRUE = "true";
   private static final String ELASTIC_INDEX_NAME = "test_data";
@@ -99,8 +94,6 @@ public class HIFIOElasticIT implements Serializable {
    */
   @Test
   public void testHifIOWithElastic() throws SecurityException, IOException {
-    FileHandler fh = new FileHandler("ElasticIT.log");
-    logger.addHandler(fh);
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     String expectedHashCode = "7373697a12faa08be32104f67cf7ec2be2e20a1f";
     Pipeline pipeline = TestPipeline.create(options);
@@ -110,31 +103,16 @@ public class HIFIOElasticIT implements Serializable {
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo(TEST_DATA_ROW_COUNT);
-
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
     MapElements<LinkedMapWritable, String> transformFunc =
         MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
           @Override
           public String apply(LinkedMapWritable mapw) {
             String rowValue = "";
-            rowValue = addFieldValuesToRow(rowValue, mapw, "User_Name");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Code");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Txn_ID");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_ID");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "last_updated");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Price");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Title");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Description");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Age");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Name");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Price");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Availability");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Batch_Num");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Last_Ordered");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "City");
-            logger.info("Row Value: " + rowValue);
+            rowValue = convertMapWRowToString(mapw, rowValue);
             return rowValue;
           }
+          
         });
 
     PCollection<String> textValues = values.apply(transformFunc);
@@ -143,13 +121,38 @@ public class HIFIOElasticIT implements Serializable {
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
     PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
     pipeline.run().waitUntilFinish();
-
   }
-
+  
+  /*
+   * Function to create a toString implementation of a MapWritable row by writing all field values
+   * in a string row.
+   */
+  private String convertMapWRowToString(LinkedMapWritable mapw, String rowValue) {
+    rowValue = addFieldValuesToRow(rowValue, mapw, "User_Name");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Code");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Txn_ID");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Item_ID");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "last_updated");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Price");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Title");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Description");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Age");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Name");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Price");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Availability");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Batch_Num");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "Last_Ordered");
+    rowValue = addFieldValuesToRow(rowValue, mapw, "City");
+    return rowValue;
+  }
+  
+  /*
+   * Convert a MapWritable row field into a string, and append it to the row string with a
+   * separator.
+   */
   private String addFieldValuesToRow(String row, MapWritable mapw, String columnName) {
     Object valueObj = (Object) mapw.get(new Text(columnName));
     row += valueObj.toString() + "|";
-
     return row;
   }
 
@@ -164,14 +167,20 @@ public class HIFIOElasticIT implements Serializable {
    */
   @Test
   public void testHifIOWithElasticQuery() {
-    String expectedHashCode = "bbec8c2a39655de29b96d6069cef016db53d36a7";
+    String expectedHashCode = "abfc29069634f6e9d02a10129ae476e114f15448";
     Long expectedRecords=1L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     String query =
-        "{" + "  \"query\": {" + "  \"match\" : {" + "    \"Title\" : {"
-            + "      \"query\" : \"M9u5xcAR\"," + "      \"type\" : \"boolean\"" + "    }" + "  }"
-            + "  }" + "}";
+        "{" + "  \"query\": {" 
+            + "  \"match\" : {" 
+            + "    \"Title\" : {"
+            + "      \"query\" : \"M9u5xcAR\"," 
+            + "      \"type\" : \"boolean\"" 
+            + "    }" 
+            + "  }"
+            + "  }" 
+            + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
@@ -184,26 +193,10 @@ public class HIFIOElasticIT implements Serializable {
           @Override
           public String apply(LinkedMapWritable mapw) {
             String rowValue = "";
-            rowValue = addFieldValuesToRow(rowValue, mapw, "User_Name");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Code");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Txn_ID");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_ID");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "last_updated");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Price");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Title");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Description");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Age");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Name");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Price");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Availability");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "last_updated");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Last_Ordered");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "City");
-            rowValue = addFieldValuesToRow(rowValue, mapw, "Country");
+            rowValue = convertMapWRowToString(mapw, rowValue);
             return rowValue;
           }
         });
-
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
@@ -212,6 +205,7 @@ public class HIFIOElasticIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -236,6 +230,9 @@ public class HIFIOElasticIT implements Serializable {
   public static Configuration getConfiguration(HIFTestOptions options) {
 =======
   /*
+=======
+  /**
+>>>>>>> Changes for Hashing Fn, Clean up, add comments
    * Returns Hadoop configuration for reading data from Elasticsearch. Configuration object should
    * have InputFormat class, key class and value class to be set. Mandatory fields for ESInputFormat
    * to be set are es.resource, es.nodes, es.port, es.internal.es.version, es.nodes.wan.only. Please
