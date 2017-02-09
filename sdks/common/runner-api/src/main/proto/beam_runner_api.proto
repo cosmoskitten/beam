@@ -88,7 +88,7 @@ message GraphNode {
 
   // (Optional) if this node is contained within a composite, a pointer to the
   // parent.
-  string parent_ref = 2;
+  string parent_id = 2;
 
   // (Required) A list of ordered, named inputs to this node.
   //
@@ -145,13 +145,13 @@ message PCollection {
   string unique_name = 1;
 
   // (Required) The id of the Coder for this PCollection.
-  string coder_ref = 2;
+  string coder_id = 2;
 
   // (Required) Whether this PCollection is bounded or unbounded
   IsBounded is_bounded = 3;
 
   // (Required) The id of the windowing strategy for this PCollection.
-  string windowing_strategy_ref = 4;
+  string windowing_strategy_id = 4;
 
   // (Required) Static display data for this PCollection.
   DisplayData display_data = 5;
@@ -206,7 +206,7 @@ message PTransform {
 message ParDoPayload {
 
   // (Required) The pipeline-scoped id of the FunctionSpec for the DoFn.
-  string do_fn_ref = 1;
+  string fn_id = 1;
 
   // (Required) Additional pieces of context the DoFn may require that
   // are not otherwise represented in the payload.
@@ -265,8 +265,9 @@ enum IsBounded {
 // The payload for the primitive Read transform.
 message ReadPayload {
 
-  // (Required) The pipeline-scoped id of the source for this Read
-  string source_ref = 1;
+  // (Required) The pipeline-scoped id of the FunctionSpec of the source for
+  // this Read.
+  string source_id = 1;
 
   // (Required) Whether the source is bounded or unbounded
   IsBounded is_bounded = 2;
@@ -277,17 +278,17 @@ message ReadPayload {
 // The payload for the WindowInto transform.
 message WindowIntoPayload {
   // (Required) The pipeline-scoped id for the FunctionSpec of the WindowFn.
-  string window_fn_ref = 1;
+  string fn_id = 1;
 }
 
 // The payload for the special-but-not-primitive Combine transform.
 message CombinePayload {
 
   // (Required) The pipeline-scoped id of the FunctionSpec for the CombineFn.
-  string combine_fn_ref = 1;
+  string fn_id = 1;
 
   // (Required) A reference to the Coder to use for accumulators of the CombineFn
-  string accumulator_coder_ref = 2;
+  string accumulator_coder_id = 2;
 
   // (Required) Additional pieces of context the DoFn may require that
   // are not otherwise represented in the payload.
@@ -311,11 +312,11 @@ message Coder {
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,
   // the URN and all components must be identical, recursively.
-  repeated string component_coder_ref = 2;
+  repeated string component_coder_id = 2;
 
   // (Optional) The pipeline-scoped id for the FunctionSpec of an SDK-specific
   // UDF implementing the encoding.
-  string custom_coder_fn_ref = 3;
+  string custom_coder_fn_id = 3;
 }
 
 // A windowing strategy describes the window function, triggering, allowed
@@ -327,7 +328,7 @@ message WindowingStrategy {
   // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
   // assigns windows, merges windows, and shifts timestamps before they are
   // combined according to the OutputTime.
-  string window_fn_ref = 1;
+  string fn_id = 1;
 
   // (Required) Whether or not the window fn is merging.
   //
@@ -335,7 +336,7 @@ message WindowingStrategy {
   MergeStatus merge_status = 2;
 
   // (Required) The coder for the windows of this PCollection.
-  string window_coder_ref = 3;
+  string window_coder_id = 3;
 
   // (Required) The trigger to use when grouping this PCollection.
   Trigger trigger = 4;
@@ -504,7 +505,7 @@ message SideInput {
   string name = 1;
 
   // (Required) The pipeline-scoped unique id of the PCollection to be side input.
-  string pcollection_ref = 2;
+  string pcollection_id = 2;
 
   // (Required) URN of the access pattern required by the `view_fn` to present
   // the desired SDK-specific interface to a UDF.
@@ -522,7 +523,7 @@ message SideInput {
   //
   // For example, View.asSingleton() may include a `view_fn` that adapts a
   // specially-designed multimap to a single value per window.
-  string view_fn_ref = 4;
+  string view_fn_id = 4;
 
   // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
   // maps a main input window to a side input window.
@@ -530,7 +531,7 @@ message SideInput {
   // For example, when the main input is in fixed windows of one hour, this
   // can specify that the side input should be accessed according to the day
   // in which that hour falls.
-  string window_mapping_fn_ref = 5;
+  string window_mapping_fn_id = 5;
 }
 
 // An environment for executing UDFs. Generally an SDK container URL, but
@@ -564,7 +565,7 @@ message FunctionSpec {
 
   // (Required) Reference to the specification of the execution environment
   // required to invoke this function.
-  string environment_ref = 2;
+  string environment_id = 2;
 
   // (Optional) If present, a payload whose schema is determined by the URN of
   // this function.
@@ -589,7 +590,7 @@ message DisplayData {
   message Identifier {
 
     // (Required) The transform originating this display data.
-    string transform_ref = 1;
+    string transform_id = 1;
 
     // (Optional) The URN indicating the type of the originating transform,
     // if there is one.
