@@ -128,16 +128,20 @@ public class Latest {
     }
 
     @Override
-    public Coder<TimestampedValue<T>> getAccumulatorCoder(CoderRegistry registry,
-                                                          Coder<TimestampedValue<T>> inputCoder) throws CannotProvideCoderException {
+    public Coder<TimestampedValue<T>> getAccumulatorCoder(
+        CoderRegistry registry, Coder<TimestampedValue<T>> inputCoder)
+        throws CannotProvideCoderException {
       return NullableCoder.of(inputCoder);
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder(CoderRegistry registry,
-                                          Coder<TimestampedValue<T>> inputCoder) throws CannotProvideCoderException {
-      checkState(inputCoder instanceof TimestampedValue.TimestampedValueCoder,
-          "inputCoder must be a TimestampedValueCoder, but was %s", inputCoder);
+    public Coder<T> getDefaultOutputCoder(
+        CoderRegistry registry, Coder<TimestampedValue<T>> inputCoder)
+        throws CannotProvideCoderException {
+      checkState(
+          inputCoder instanceof TimestampedValue.TimestampedValueCoder,
+          "inputCoder must be a TimestampedValueCoder, but was %s",
+          inputCoder);
 
       TimestampedValue.TimestampedValueCoder<T> inputTVCoder =
           (TimestampedValue.TimestampedValueCoder<T>) inputCoder;
