@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.ReplacementOutputs;
@@ -26,6 +27,7 @@ import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -34,12 +36,16 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
@@ -159,15 +165,73 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
    */
   public static final class WriteView<ElemT, ViewT>
       extends PTransform<PCollection<Iterable<ElemT>>, PCollectionView<ViewT>> {
-    private final CreatePCollectionView<ElemT, ViewT> og;
+    private final PCollectionView<ViewT> view;
 
     WriteView(CreatePCollectionView<ElemT, ViewT> og) {
-      this.og = og;
+      this.view = new ForwardingView<>(og.getView());
     }
 
     @Override
     public PCollectionView<ViewT> expand(PCollection<Iterable<ElemT>> input) {
-      return og.getView();
+      return view;
+    }
+
+    private static class ForwardingView<ViewT> implements PCollectionView<ViewT> {
+      private final PCollectionView<ViewT> original;
+
+      private ForwardingView(PCollectionView<ViewT> original) {
+        this.original = original;
+      }
+
+      @Override
+      public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {
+        return original.getTagInternal();
+      }
+
+      @Override
+      public ViewFn<Iterable<WindowedValue<?>>, ViewT> getViewFn() {
+        return original.getViewFn();
+      }
+
+      @Override
+      public WindowingStrategy<?, ?> getWindowingStrategyInternal() {
+        return original.getWindowingStrategyInternal();
+      }
+
+      @Override
+      public Coder<Iterable<WindowedValue<?>>> getCoderInternal() {
+        return original.getCoderInternal();
+      }
+
+      @Override
+      public String getName() {
+        return original.getName();
+      }
+
+      @Override
+      public AppliedPTransform<?, ?, ?> getProducingTransformInternal() {
+        return null;
+      }
+
+      @Override
+      public Pipeline getPipeline() {
+        return original.getPipeline();
+      }
+
+      @Override
+      public List<TaggedPValue> expand() {
+        return Collections.singletonList(
+            TaggedPValue.of(Iterables.getOnlyElement(original.expand()).getTag(), this));
+      }
+
+      @Override
+      public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {}
+
+      @Override
+      public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) {}
+
+      @Override
+      public void finishSpecifying(PInput upstreamInput, PTransform<?, ?> upstreamTransform) {}
     }
   }
 }
