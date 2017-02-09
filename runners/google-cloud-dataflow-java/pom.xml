@@ -80,6 +80,7 @@
               <excludedGroups>
                 org.apache.beam.sdk.testing.UsesAttemptedMetrics,
                 org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                org.apache.beam.sdk.testing.UsesTestStream,
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
                 org.apache.beam.sdk.testing.UsesUnboundedPCollections,
               </excludedGroups>
