@@ -347,9 +347,6 @@ public class FlinkStreamingTransformTranslators {
 
       Coder<WindowedValue<InputT>> inputCoder = context.getCoder(inputPCollection);
 
-      TypeInformation<WindowedValue<InputT>> inputTypeInfo =
-          context.getTypeInfo(inputPCollection);
-
       DataStream<WindowedValue<InputT>> inputDataStream =
           context.getInputDataStream(context.getInput(transform));
       Coder keyCoder = null;
@@ -539,9 +536,6 @@ public class FlinkStreamingTransformTranslators {
       PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getInput(transform);
 
       Coder<WindowedValue<InputT>> inputCoder = context.getCoder(inputPCollection);
-
-      TypeInformation<WindowedValue<InputT>> inputTypeInfo =
-          context.getTypeInfo(inputPCollection);
 
       DataStream<WindowedValue<InputT>> inputDataStream =
           context.getInputDataStream(context.getInput(transform));
