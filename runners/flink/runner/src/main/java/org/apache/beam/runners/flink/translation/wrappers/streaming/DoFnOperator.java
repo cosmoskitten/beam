@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -35,12 +34,13 @@ import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
@@ -49,24 +49,17 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -127,9 +120,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   private final Coder<?> keyCoder;
 
-  protected transient KeyedStateBackend<ByteBuffer> sideInputStateBackend;
-
-  private transient FlinkStateInternals<Void> sideInputStateInternals;
+  private transient FlinkBroadcastStateInternals<Void> sideInputStateInternals;
 
   public DoFnOperator(
       DoFn<InputT, FnOutputT> doFn,
@@ -232,19 +223,9 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           });
 
       pushedBackTag = StateTags.bag("pushed-back-values", inputCoder);
-      // TODO now ignore checkpoint of sideInput state
-      sideInputStateBackend =
-          new HeapKeyedStateBackend<>(
-              null,
-              new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()),
-              DoFnOperator.class.getClassLoader(),
-              1, new KeyGroupRange(0, 0));
-
-      sideInputStateBackend.setCurrentKey(
-          ByteBuffer.wrap(CoderUtils.encodeToByteArray(VoidCoder.of(), null)));
 
       sideInputStateInternals =
-          new FlinkStateInternals<>(sideInputStateBackend, VoidCoder.of());
+          new FlinkBroadcastStateInternals<>(getOperatorStateBackend());
 
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
       sideInputReader = sideInputHandler;
