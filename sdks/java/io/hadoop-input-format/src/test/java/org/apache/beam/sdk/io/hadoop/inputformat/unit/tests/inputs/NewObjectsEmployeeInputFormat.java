@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- *
+ * 
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -31,6 +31,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
+<<<<<<< HEAD
  * <p>
 <<<<<<< HEAD
  * This is a valid InputFormat for reading employee data which is available in the form of
@@ -54,11 +55,22 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * <p>
  * {@linkplain NewObjectsEmployeeInputFormat} is also given as input to test whether
  * {@linkplain HadoopInputFormatIO } source returns immutable records for a scenario when
+=======
+ * This is a valid InputFormat for reading employee data, available in the form of {@code List<KV>}
+ * as {@linkplain NewObjectsEmployeeRecordReader#employeeDataList employeeDataList} .
+ * {@linkplain NewObjectsEmployeeRecordReader#employeeDataList employeeDataList} is populated using
+ * {@linkplain TestEmployeeDataSet#populateEmployeeData()}.
+ * {@linkplain NewObjectsEmployeeInputFormat} is used to test whether the
+ * {@linkplain HadoopInputFormatIO } source returns immutable records in the scenario when
+>>>>>>> Stephens comments addressed
  * RecordReader creates new key and value objects every time it reads data.
  */
 public class NewObjectsEmployeeInputFormat extends InputFormat<Text, Employee> {
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Stephens comments addressed
   public NewObjectsEmployeeInputFormat() {}
 
   @Override
@@ -70,16 +82,28 @@ public class NewObjectsEmployeeInputFormat extends InputFormat<Text, Employee> {
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
+<<<<<<< HEAD
     for (int i = 1; i <= UnitTestUtils.NUMBER_OF_SPLITS; i++) {
       InputSplit inputSplitObj = new NewObjectsEmployeeInputSplit(
           ((i - 1) * UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
           (i * UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
+=======
+    for (int i = 1; i <= TestEmployeeDataSet.NUMBER_OF_SPLITS; i++) {
+      InputSplit inputSplitObj =
+          new NewObjectsEmployeeInputSplit(
+              ((i - 1) * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT), (i
+                  * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
+>>>>>>> Stephens comments addressed
       inputSplitList.add(inputSplitObj);
     }
     return inputSplitList;
   }
 
+<<<<<<< HEAD
   public class NewObjectsEmployeeInputSplit extends InputSplit implements Writable {
+=======
+  public static class NewObjectsEmployeeInputSplit extends InputSplit implements Writable {
+>>>>>>> Stephens comments addressed
     // Start and end map index of each split of employeeData.
     private long startIndex;
     private long endIndex;
@@ -155,12 +179,21 @@ public class NewObjectsEmployeeInputFormat extends InputFormat<Text, Employee> {
     }
 
     @Override
+<<<<<<< HEAD
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
       this.split = (NewObjectsEmployeeInputSplit) split;
       employeeListIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
       employeeDataList = UnitTestUtils.populateEmployeeData();
+=======
+    public void initialize(InputSplit split, TaskAttemptContext arg1) throws IOException,
+        InterruptedException {
+      this.split = (NewObjectsEmployeeInputSplit) split;
+      employeeListIndex = this.split.getStartIndex() - 1;
+      recordsRead = 0;
+      employeeDataList = TestEmployeeDataSet.populateEmployeeData();
+>>>>>>> Stephens comments addressed
       currentValue = new Employee(null, null);
     }
 
@@ -173,14 +206,20 @@ public class NewObjectsEmployeeInputFormat extends InputFormat<Text, Employee> {
       KV<String, String> employeeDetails = employeeDataList.get((int) employeeListIndex);
       String empData[] = employeeDetails.getValue().split("_");
       /*
+<<<<<<< HEAD
        * New objects returned every time for key and value to signify the same object's state is not
        * changed and returned.
+=======
+       * New objects must be returned every time for key and value in order to test the scenario as
+       * discussed the in the class' javadoc.
+>>>>>>> Stephens comments addressed
        */
       currentKey = new Text(employeeDetails.getKey());
       currentValue = new Employee(empData[0], empData[1]);
       return true;
     }
   }
+<<<<<<< HEAD
 =======
 	public NewObjectsEmployeeInputFormat() {
 	}
@@ -315,4 +354,6 @@ public class NewObjectsEmployeeInputFormat extends InputFormat<Text, Employee> {
 		}
 	}
 >>>>>>> Modifications according to code review comments.
+=======
+>>>>>>> Stephens comments addressed
 }
