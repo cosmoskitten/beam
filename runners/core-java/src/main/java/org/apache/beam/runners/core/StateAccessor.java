@@ -15,30 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.storage;
+package org.apache.beam.runners.core;
 
-import com.google.auto.service.AutoService;
-import javax.annotation.Nonnull;
-import org.apache.beam.sdk.io.FileSystem;
-import org.apache.beam.sdk.io.FileSystemRegistrar;
-import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.util.state.State;
 
 /**
- * {@link AutoService} registrar for the {@link GcsFileSystem}.
+ * Interface for accessing a {@link StateTag} in the current context.
+ *
+ * <p>For internal use only.
  */
-@AutoService(FileSystemRegistrar.class)
-public class GcsFileSystemRegistrar implements FileSystemRegistrar {
-
-  static final String GCS_SCHEME = "gs";
-
-  @Override
-  public FileSystem fromOptions(@Nonnull PipelineOptions options) {
-    return new GcsFileSystem(options.as(GcsOptions.class));
-  }
-
-  @Override
-  public String getScheme() {
-    return GCS_SCHEME;
-  }
+@Experimental(Kind.STATE)
+public interface StateAccessor<K> {
+  /**
+   * Access the storage for the given {@code address} in the current window.
+   *
+   * <p>Never accounts for merged windows. When windows are merged, any state accessed via
+   * this method must be eagerly combined and written into the result window.
+   */
+  <StateT extends State> StateT access(StateTag<? super K, StateT> address);
 }
