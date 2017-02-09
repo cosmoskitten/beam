@@ -542,7 +542,7 @@ message Environment {
 
 // Description of a function in a Beam pipeline.
 //
-// Contains one of _or both of_ a UrnAndPayload specifying the function
+// Contains one of _or both of_ a UrnWithParameter specifying the function
 // and the specification for how to execute it against a particular
 // SDK's harness.
 message FunctionSpec {
@@ -554,7 +554,7 @@ message FunctionSpec {
   // payload `{ duration: n }` fully specifies a windowing function which can
   // be implemented by the SDK constructing the pipeline, by another SDK (for
   // language-to-language fusion compatibility) or by the runner directly.
-  UrnAndPayload spec = 1;
+  UrnWithParameter spec = 1;
 
   // (Optional) An SDK-specific specification for how to execute this function,
   // including a specification of the environment in which the function
