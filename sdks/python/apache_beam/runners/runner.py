@@ -47,14 +47,6 @@ def create_runner(runner_name):
     RuntimeError: if an invalid runner name is used.
   """
 
-  # TODO(BEAM-1185): Remove when all references to PipelineRunners are gone.
-  if 'PipelineRunner' in runner_name:
-    new_runner_name = runner_name.replace('PipelineRunner', 'Runner')
-    if new_runner_name in _ALL_KNOWN_RUNNERS:
-      logging.warning(
-          '%s is deprecated, use %s instead.', runner_name, new_runner_name)
-      runner_name = new_runner_name
-
   # TODO(BEAM-759): Remove when all BlockingDataflowRunner references are gone.
   if runner_name == 'BlockingDataflowRunner':
     logging.warning(
