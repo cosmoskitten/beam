@@ -166,20 +166,22 @@ public class EvaluationContext {
    * Computes the outputs for all RDDs that are leaves in the DAG and do not have any actions (like
    * saving to a file) registered on them (i.e. they are performed for side effects).
    */
-  public void computeOutputs(SparkRunner.Evaluator evaluator, boolean debugMode) {
+  public void computeOutputs(SparkRunner.Evaluator evaluator, boolean debugPipelineMode) {
+    if (debugPipelineMode) {
+      LOG.info("Translated Native Spark pipeline:\n"
+          + ((SparkRunner.SparkNativePipelineVisitor) evaluator).getDebugString());
+    }
     for (Dataset dataset : leaves) {
       // cache so that any subsequent get() is cheap.
       dataset.cache(storageLevel());
-      if (!debugMode) {
+      if (!debugPipelineMode) {
         dataset.action(); // force computation.
       } else {
         dataset.printDebugString();
       }
     }
-    if (debugMode) {
-      LOG.info("Translated Native Spark pipeline:\n" + evaluator.getDebugString());
-    }
   }
+
 
   /**
    * Retrieve an object of Type T associated with the PValue passed in.
