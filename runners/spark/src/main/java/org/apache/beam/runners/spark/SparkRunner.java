@@ -19,13 +19,17 @@
 package org.apache.beam.runners.spark;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
@@ -46,6 +50,7 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -196,8 +201,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         @Override
         public void run() {
           registerMetrics(mOptions, jsc);
-          Evaluator evaluator = new Evaluator(new TransformTranslator.Translator(),
-              evaluationContext);
+          TransformTranslator.Translator translator = new TransformTranslator.Translator();
+          Evaluator evaluator = mOptions.isDebugPipeline()
+              ? new SparkNativePipelineVisitor(translator, evaluationContext)
+              : new Evaluator(translator, evaluationContext);
           pipeline.traverseTopologically(evaluator);
           evaluationContext.computeOutputs(evaluator, mOptions.isDebugPipeline());
           LOG.info("Batch pipeline execution complete.");
@@ -270,11 +277,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * Evaluator on the pipeline.
    */
   public static class Evaluator extends Pipeline.PipelineVisitor.Defaults {
+
     private static final Logger LOG = LoggerFactory.getLogger(Evaluator.class);
 
-    private final EvaluationContext ctxt;
-    private final SparkPipelineTranslator translator;
-    private final List<DebugTransform> transforms = new ArrayList<>();
+    final EvaluationContext ctxt;
+    final SparkPipelineTranslator translator;
 
     public Evaluator(SparkPipelineTranslator translator, EvaluationContext ctxt) {
       this.translator = translator;
@@ -289,6 +296,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
             (Class<PTransform<?, ?>>) node.getTransform().getClass();
         if (translator.hasTranslation(transformClass) && !shouldDefer(node)) {
           LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
+
           LOG.debug("Composite transform class: '{}'", transformClass);
           doVisitTransform(node);
           return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
@@ -297,7 +305,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
-    private boolean shouldDefer(TransformHierarchy.Node node) {
+    boolean shouldDefer(TransformHierarchy.Node node) {
       // if the input is not a PCollection, or it is but with non merging windows, don't defer.
       if (node.getInputs().size() != 1) {
         return false;
@@ -344,7 +352,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       LOG.info("Evaluating {}", transform);
       AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
       ctxt.setCurrentTransform(appliedTransform);
-      transforms.add(new DebugTransform(evaluator, transform));
       evaluator.evaluate(transform, ctxt);
       ctxt.setCurrentTransform(null);
     }
@@ -353,9 +360,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
      * Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded, and
      * translate with the proper translator.
      */
-    private <TransformT extends PTransform<? super PInput, POutput>>
-        TransformEvaluator<TransformT> translate(
-            TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
+    <TransformT extends PTransform<? super PInput, POutput>>
+    TransformEvaluator<TransformT> translate(
+        TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
       //--- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
       // is BOUNDED or UNBOUNDED, meaning RDD/DStream.
@@ -371,16 +378,16 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       LOG.debug("Translating {} as {}", transform, isNodeBounded);
       return isNodeBounded.equals(PCollection.IsBounded.BOUNDED)
           ? translator.translateBounded(transformClass)
-              : translator.translateUnbounded(transformClass);
+          : translator.translateUnbounded(transformClass);
     }
 
-    private PCollection.IsBounded isBoundedCollection(Collection<TaggedPValue> pValues) {
+    PCollection.IsBounded isBoundedCollection(Collection<TaggedPValue> pValues) {
       // anything that is not a PCollection, is BOUNDED.
       // For PCollections:
       // BOUNDED behaves as the Identity Element, BOUNDED + BOUNDED = BOUNDED
       // while BOUNDED + UNBOUNDED = UNBOUNDED.
       PCollection.IsBounded isBounded = PCollection.IsBounded.BOUNDED;
-      for (TaggedPValue pValue: pValues) {
+      for (TaggedPValue pValue : pValues) {
         if (pValue.getValue() instanceof PCollection) {
           isBounded = isBounded.and(((PCollection) pValue.getValue()).isBounded());
         } else {
@@ -389,29 +396,135 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       }
       return isBounded;
     }
+  }
+
+  /**
+   * Spark-native pipeline.
+   * Translates pipeline to a Spark native pipeline.
+   * Used for debugging purposes.
+   */
+  public static class SparkNativePipelineVisitor extends Evaluator {
+    private final List<DebugTransform> transforms;
+    private final List<String> knownComposites =
+        Lists.newArrayList(
+            "org.apache.beam.sdk.transforms",
+            "org.apache.beam.runners.spark.examples");
+
+    SparkNativePipelineVisitor(SparkPipelineTranslator translator, EvaluationContext ctxt) {
+      super(translator, ctxt);
+      this.transforms = new ArrayList<>();
+    }
+
+    @Override
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+      PTransform<?, ?> transform = node.getTransform();
+      if (transform != null) {
+        @SuppressWarnings("unchecked") final
+        Class<PTransform<?, ?>> transformClass =
+            (Class<PTransform<?, ?>>) transform.getClass();
+        if (translator.hasTranslation(transformClass) && !shouldDefer(node)) {
+          LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
+          LOG.debug("Composite transform class: '{}'", transformClass);
+          doVisitTransform(node, shouldDebug(node));
+          return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+        } else if (!knownComposites.contains(transformClass.getPackage().getName())) {
+          if (shouldDebug(node)) {
+            transforms.add(new DebugTransform(node, null, transform, true));
+          }
+        }
+      }
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
+
+    @Override
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+      doVisitTransform(node, shouldDebug(node));
+    }
+
+    private boolean shouldDebug(final TransformHierarchy.Node node) {
+      if (node == null) {
+        return true;
+      }
+      if (Iterables.any(transforms, new Predicate<DebugTransform>() {
+        @Override
+        public boolean apply(@Nullable DebugTransform debugTransform) {
+          return debugTransform.node.equals(node) && debugTransform.isComposite();
+        }
+      })) {
+        return false;
+      }
+      return shouldDebug(node.getEnclosingNode());
+    }
+
+    <TransformT extends PTransform<? super PInput, POutput>> void
+    doVisitTransform(TransformHierarchy.Node node, boolean debugTransform) {
+      @SuppressWarnings("unchecked")
+      TransformT transform = (TransformT) node.getTransform();
+      @SuppressWarnings("unchecked")
+      Class<TransformT> transformClass = (Class<TransformT>) (Class<?>) transform.getClass();
+      @SuppressWarnings("unchecked") TransformEvaluator<TransformT> evaluator =
+          translate(node, transform, transformClass);
+      LOG.info("Evaluating {}", transform);
+      AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
+      ctxt.setCurrentTransform(appliedTransform);
+      evaluator.evaluate(transform, ctxt);
+      ctxt.setCurrentTransform(null);
+      if (debugTransform) {
+        transforms.add(new DebugTransform(node, evaluator, transform, false));
+      }
+    }
 
     public String getDebugString() {
       return StringUtils.join(transforms, "\n.");
     }
 
     private static class DebugTransform {
+      private final TransformHierarchy.Node node;
       private final TransformEvaluator<?> transformEvaluator;
       private final PTransform<?, ?> transform;
+      private final boolean composite;
 
-      public DebugTransform(
+      DebugTransform(
+          TransformHierarchy.Node node,
           TransformEvaluator<?> transformEvaluator,
-          PTransform<?, ?> transform) {
+          PTransform<?, ?> transform,
+          boolean composite) {
+        this.node = node;
         this.transformEvaluator = transformEvaluator;
         this.transform = transform;
+        this.composite = composite;
+      }
+
+      public TransformHierarchy.Node getNode() {
+        return node;
+      }
+
+      boolean isComposite() {
+        return composite;
       }
 
       @Override
       public String toString() {
         try {
+          Class<? extends PTransform> transformClass = transform.getClass();
+          if (composite) {
+            return "<" + transformClass.getName() + ">";
+          }
           String transformString = transformEvaluator.toString();
           if (transformString.contains("<doFn>")) {
-            transformString = transformString.replace("<doFn>",
-                transform.getClass().getMethod("getFn").invoke(transform).getClass().getName());
+            Object fn = transformClass.getMethod("getFn").invoke(transform);
+            Class<?> fnClass = fn.getClass();
+            String doFnName;
+            if (fnClass.getEnclosingClass().equals(MapElements.class)) {
+              Field parent = fnClass.getDeclaredField("this$0");
+              parent.setAccessible(true);
+              Field fnField = fnClass.getEnclosingClass().getDeclaredField("fn");
+              fnField.setAccessible(true);
+              doFnName = fnField.get(parent.get(fn)).getClass().getName();
+            } else {
+              doFnName = fnClass.getName();
+            }
+            transformString = transformString.replace("<doFn>", doFnName);
           }
           return transformString;
         } catch (Exception e) {
