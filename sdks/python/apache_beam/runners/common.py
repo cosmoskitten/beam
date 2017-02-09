@@ -275,7 +275,7 @@ class DoFnRunner(Receiver):
     else:
       raise
 
-  def _process_outputs(self, element, results):
+  def _process_outputs(self, windowed_input_element, results):
     """Dispatch the result of computation to the appropriate receivers.
 
     A value wrapped in a SideOutputValue object will be unwrapped and
@@ -285,6 +285,7 @@ class DoFnRunner(Receiver):
       return
     for result in results:
       tag = None
+      multiplicity = 1
       if isinstance(result, SideOutputValue):
         tag = result.tag
         if not isinstance(tag, basestring):
@@ -292,7 +293,9 @@ class DoFnRunner(Receiver):
         result = result.value
       if isinstance(result, WindowedValue):
         windowed_value = result
-      elif element is None:
+        multiplicity = (1 if windowed_input_element is None
+                        else len(windowed_input_element.windows))
+      elif windowed_input_element is None:
         # Start and finish have no element from which to grab context,
         # but may emit elements.
         if isinstance(result, TimestampedValue):
@@ -310,12 +313,14 @@ class DoFnRunner(Receiver):
         windowed_value = WindowedValue(
             result.value, result.timestamp,
             self.window_fn.assign(assign_context))
+        multiplicity = len(windowed_input_element.windows)
       else:
-        windowed_value = element.with_value(result)
-      if tag is None:
-        self.main_receivers.receive(windowed_value)
-      else:
-        self.tagged_receivers[tag].output(windowed_value)
+        windowed_value = windowed_input_element.with_value(result)
+      for _ in range(multiplicity):
+        if tag is None:
+          self.main_receivers.receive(windowed_value)
+        else:
+          self.tagged_receivers[tag].output(windowed_value)
 
 
 class NoContext(WindowFn.AssignContext):
