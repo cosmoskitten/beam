@@ -25,13 +25,24 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.google.protobuf.ByteString;
+<<<<<<< HEAD
 import java.util.ArrayList;
 import java.util.List;
+=======
+
+import java.util.ArrayList;
+import java.util.List;
+
+>>>>>>> [BEAM-1157] Add HBaseIO
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+<<<<<<< HEAD
+=======
+import org.apache.beam.sdk.testing.NeedsRunner;
+>>>>>>> [BEAM-1157] Add HBaseIO
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -39,7 +50,11 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+<<<<<<< HEAD
 import org.apache.commons.lang3.StringUtils;
+=======
+import org.apache.commons.lang.StringUtils;
+>>>>>>> [BEAM-1157] Add HBaseIO
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -67,6 +82,10 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+<<<<<<< HEAD
+=======
+import org.junit.experimental.categories.Category;
+>>>>>>> [BEAM-1157] Add HBaseIO
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -155,6 +174,10 @@ public class HBaseIOTest {
 
     /** Tests that when reading from a non-existent table, the read fails. */
     @Test
+<<<<<<< HEAD
+=======
+    @Category(NeedsRunner.class)
+>>>>>>> [BEAM-1157] Add HBaseIO
     public void testReadingFailsTableDoesNotExist() throws Exception {
         final String table = "TEST-TABLE-INVALID";
         // Exception will be thrown by read.validate() when read is applied.
@@ -166,6 +189,10 @@ public class HBaseIOTest {
 
     /** Tests that when reading from an empty table, the read succeeds. */
     @Test
+<<<<<<< HEAD
+=======
+    @Category(NeedsRunner.class)
+>>>>>>> [BEAM-1157] Add HBaseIO
     public void testReadingEmptyTable() throws Exception {
         final String table = "TEST-EMPTY-TABLE";
         createTable(table);
@@ -174,6 +201,10 @@ public class HBaseIOTest {
     }
 
     @Test
+<<<<<<< HEAD
+=======
+    @Category(NeedsRunner.class)
+>>>>>>> [BEAM-1157] Add HBaseIO
     public void testReading() throws Exception {
         final String table = "TEST-MANY-ROWS-TABLE";
         final int numRows = 1001;
@@ -208,6 +239,10 @@ public class HBaseIOTest {
 
     /** Tests reading all rows using a filter. */
     @Test
+<<<<<<< HEAD
+=======
+    @Category(NeedsRunner.class)
+>>>>>>> [BEAM-1157] Add HBaseIO
     public void testReadingWithFilter() throws Exception {
         final String table = "TEST-FILTER-TABLE";
         final int numRows = 1001;
@@ -228,6 +263,10 @@ public class HBaseIOTest {
      * range [] and that some properties hold across them.
      */
     @Test
+<<<<<<< HEAD
+=======
+    @Category(NeedsRunner.class)
+>>>>>>> [BEAM-1157] Add HBaseIO
     public void testReadingWithKeyRange() throws Exception {
         final String table = "TEST-KEY-RANGE-TABLE";
         final int numRows = 1001;
@@ -264,6 +303,10 @@ public class HBaseIOTest {
 
     /** Tests that a record gets written to the service and messages are logged. */
     @Test
+<<<<<<< HEAD
+=======
+    @Category(NeedsRunner.class)
+>>>>>>> [BEAM-1157] Add HBaseIO
     public void testWriting() throws Exception {
         final String table = "table";
         final String key = "key";
@@ -296,6 +339,10 @@ public class HBaseIOTest {
 
     /** Tests that when writing an element fails, the write fails. */
     @Test
+<<<<<<< HEAD
+=======
+    @Category(NeedsRunner.class)
+>>>>>>> [BEAM-1157] Add HBaseIO
     public void testWritingFailsBadElement() throws Exception {
         final String table = "TEST-TABLE";
         final String key = "KEY";

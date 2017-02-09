@@ -39,7 +39,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
+<<<<<<< HEAD
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
+=======
+import org.apache.beam.sdk.io.hbase.coders.HBaseMutationCoder;
+import org.apache.beam.sdk.io.hbase.coders.HBaseResultCoder;
+import org.apache.beam.sdk.io.hbase.coders.SerializableConfiguration;
+import org.apache.beam.sdk.io.hbase.coders.SerializableScan;
+>>>>>>> [BEAM-1157] Add HBaseIO
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -217,7 +224,11 @@ public class HBaseIO {
          */
         public Read withFilter(Filter filter) {
             checkNotNull(filter, "filter");
+<<<<<<< HEAD
             return withScan(serializableScan.get().setFilter(filter));
+=======
+            return withScan(serializableScan.getScan().setFilter(filter));
+>>>>>>> [BEAM-1157] Add HBaseIO
         }
 
         /**
@@ -229,7 +240,11 @@ public class HBaseIO {
             checkNotNull(keyRange, "keyRange");
             byte[] startRow = keyRange.getStartKey().getBytes();
             byte[] stopRow = keyRange.getEndKey().getBytes();
+<<<<<<< HEAD
             return withScan(serializableScan.get().setStartRow(startRow).setStopRow(stopRow));
+=======
+            return withScan(serializableScan.getScan().setStartRow(startRow).setStopRow(stopRow));
+>>>>>>> [BEAM-1157] Add HBaseIO
         }
 
         /**
@@ -264,7 +279,11 @@ public class HBaseIO {
                     "Configuration not provided");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(
+<<<<<<< HEAD
                     serializableConfiguration.get())) {
+=======
+                    serializableConfiguration.getConfiguration())) {
+>>>>>>> [BEAM-1157] Add HBaseIO
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
@@ -277,9 +296,15 @@ public class HBaseIO {
         public void populateDisplayData(DisplayData.Builder builder) {
             super.populateDisplayData(builder);
             builder.add(DisplayData.item("configuration",
+<<<<<<< HEAD
                     serializableConfiguration.get().toString()));
             builder.add(DisplayData.item("tableId", tableId));
             builder.addIfNotNull(DisplayData.item("scan", serializableScan.get().toString()));
+=======
+                    serializableConfiguration.getConfiguration().toString()));
+            builder.add(DisplayData.item("tableId", tableId));
+            builder.addIfNotNull(DisplayData.item("scan", serializableScan.getScan().toString()));
+>>>>>>> [BEAM-1157] Add HBaseIO
         }
 
         public String getTableId() {
@@ -287,13 +312,18 @@ public class HBaseIO {
         }
 
         public Configuration getConfiguration() {
+<<<<<<< HEAD
             return serializableConfiguration.get();
+=======
+            return serializableConfiguration.getConfiguration();
+>>>>>>> [BEAM-1157] Add HBaseIO
         }
 
         /**
          * Returns the range of keys that will be read from the table.
          */
         public ByteKeyRange getKeyRange() {
+<<<<<<< HEAD
             byte[] startRow = serializableScan.get().getStartRow();
             byte[] stopRow = serializableScan.get().getStopRow();
             return ByteKeyRange.of(ByteKey.copyFrom(startRow), ByteKey.copyFrom(stopRow));
@@ -306,6 +336,20 @@ public class HBaseIO {
 
     static class HBaseSource extends BoundedSource<Result> {
         private final Read read;
+=======
+            byte[] startRow = serializableScan.getScan().getStartRow();
+            byte[] stopRow = serializableScan.getScan().getStopRow();
+            return ByteKeyRange.of(ByteKey.copyFrom(startRow), ByteKey.copyFrom(stopRow));
+        }
+
+        private SerializableConfiguration serializableConfiguration;
+        private String tableId;
+        private SerializableScan serializableScan;
+    }
+
+    static class HBaseSource extends BoundedSource<Result> {
+        private Read read;
+>>>>>>> [BEAM-1157] Add HBaseIO
         @Nullable private Long estimatedSizeBytes;
 
         HBaseSource(Read read, @Nullable Long estimatedSizeBytes) {
@@ -318,7 +362,11 @@ public class HBaseIO {
             if (estimatedSizeBytes == null) {
                 estimatedSizeBytes = estimateSizeBytes();
                 LOG.debug("Estimated size {} bytes for table {} and scan {}", estimatedSizeBytes,
+<<<<<<< HEAD
                         read.tableId, read.serializableScan.get());
+=======
+                        read.tableId, read.serializableScan.getScan());
+>>>>>>> [BEAM-1157] Add HBaseIO
             }
             return estimatedSizeBytes;
         }
@@ -330,7 +378,11 @@ public class HBaseIO {
         private long estimateSizeBytes() throws Exception {
             // This code is based on RegionSizeCalculator in hbase-server
             long estimatedSizeBytes = 0L;
+<<<<<<< HEAD
             Configuration configuration = this.read.serializableConfiguration.get();
+=======
+            Configuration configuration = this.read.serializableConfiguration.getConfiguration();
+>>>>>>> [BEAM-1157] Add HBaseIO
             try (Connection connection = ConnectionFactory.createConnection(configuration)) {
                 // filter regions for the given table/scan
                 List<HRegionLocation> regionLocations = getRegionLocations(connection);
@@ -360,7 +412,11 @@ public class HBaseIO {
         }
 
         private List<HRegionLocation> getRegionLocations(Connection connection) throws Exception {
+<<<<<<< HEAD
             final Scan scan = read.serializableScan.get();
+=======
+            final Scan scan = read.serializableScan.getScan();
+>>>>>>> [BEAM-1157] Add HBaseIO
             byte[] startRow = scan.getStartRow();
             byte[] stopRow = scan.getStopRow();
 
@@ -390,7 +446,11 @@ public class HBaseIO {
         private List<HBaseSource>
             splitBasedOnRegions(List<HRegionLocation> regionLocations, int numSplits)
                 throws Exception {
+<<<<<<< HEAD
             final Scan scan = read.serializableScan.get();
+=======
+            final Scan scan = read.serializableScan.getScan();
+>>>>>>> [BEAM-1157] Add HBaseIO
             byte[] startRow = scan.getStartRow();
             byte[] stopRow = scan.getStopRow();
 
@@ -478,7 +538,11 @@ public class HBaseIO {
         private Connection connection;
         private ResultScanner scanner;
         private Iterator<Result> iter;
+<<<<<<< HEAD
         private Result current;
+=======
+        private Result result;
+>>>>>>> [BEAM-1157] Add HBaseIO
         private long recordsReturned;
 
         HBaseReader(HBaseSource source) {
@@ -487,12 +551,20 @@ public class HBaseIO {
 
         @Override
         public boolean start() throws IOException {
+<<<<<<< HEAD
             Configuration configuration = source.read.serializableConfiguration.get();
+=======
+            Configuration configuration = source.read.serializableConfiguration.getConfiguration();
+>>>>>>> [BEAM-1157] Add HBaseIO
             String tableId = source.read.tableId;
             connection = ConnectionFactory.createConnection(configuration);
             TableName tableName = TableName.valueOf(tableId);
             Table table = connection.getTable(tableName);
+<<<<<<< HEAD
             Scan scan = source.read.serializableScan.get();
+=======
+            Scan scan = source.read.serializableScan.getScan();
+>>>>>>> [BEAM-1157] Add HBaseIO
             scanner = table.getScanner(scan);
             iter = scanner.iterator();
             return advance();
@@ -500,14 +572,22 @@ public class HBaseIO {
 
         @Override
         public Result getCurrent() throws NoSuchElementException {
+<<<<<<< HEAD
             return current;
+=======
+            return result;
+>>>>>>> [BEAM-1157] Add HBaseIO
         }
 
         @Override
         public boolean advance() throws IOException {
             boolean hasRecord = iter.hasNext();
             if (hasRecord) {
+<<<<<<< HEAD
                 current = iter.next();
+=======
+                result = iter.next();
+>>>>>>> [BEAM-1157] Add HBaseIO
                 ++recordsReturned;
             }
             return hasRecord;
@@ -589,7 +669,11 @@ public class HBaseIO {
             checkArgument(serializableConfiguration != null, "Configuration not specified");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(
+<<<<<<< HEAD
                     serializableConfiguration.get())) {
+=======
+                    serializableConfiguration.getConfiguration())) {
+>>>>>>> [BEAM-1157] Add HBaseIO
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
@@ -602,7 +686,11 @@ public class HBaseIO {
         public void populateDisplayData(DisplayData.Builder builder) {
             super.populateDisplayData(builder);
             builder.add(DisplayData.item("configuration",
+<<<<<<< HEAD
                     serializableConfiguration.get().toString()));
+=======
+                    serializableConfiguration.getConfiguration().toString()));
+>>>>>>> [BEAM-1157] Add HBaseIO
             builder.add(DisplayData.item("tableId", tableId));
         }
 
@@ -611,7 +699,11 @@ public class HBaseIO {
         }
 
         public Configuration getConfiguration() {
+<<<<<<< HEAD
             return serializableConfiguration.get();
+=======
+            return serializableConfiguration.getConfiguration();
+>>>>>>> [BEAM-1157] Add HBaseIO
         }
 
         private final String tableId;
@@ -628,7 +720,11 @@ public class HBaseIO {
 
             @Setup
             public void setup() throws Exception {
+<<<<<<< HEAD
                 Configuration configuration = this.serializableConfiguration.get();
+=======
+                Configuration configuration = this.serializableConfiguration.getConfiguration();
+>>>>>>> [BEAM-1157] Add HBaseIO
                 connection = ConnectionFactory.createConnection(configuration);
 
                 TableName tableName = TableName.valueOf(tableId);

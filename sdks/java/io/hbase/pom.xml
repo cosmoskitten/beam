@@ -22,7 +22,11 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-parent</artifactId>
+<<<<<<< HEAD
     <version>0.7.0-SNAPSHOT</version>
+=======
+    <version>0.6.0-SNAPSHOT</version>
+>>>>>>> [BEAM-1157] Add HBaseIO
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -32,7 +36,13 @@
 
   <properties>
     <hbase.version>1.3.0</hbase.version>
+<<<<<<< HEAD
     <hbase.hadoop.version>2.5.1</hbase.hadoop.version>
+=======
+    <hbase.guava.version>12.0.1</hbase.guava.version>
+    <hbase.protobuf.version>2.5.0</hbase.protobuf.version>
+    <hadoop.version>2.5.1</hadoop.version>
+>>>>>>> [BEAM-1157] Add HBaseIO
   </properties>
 
   <build>
@@ -40,6 +50,7 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+<<<<<<< HEAD
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
             <parallel>all</parallel>
@@ -50,6 +61,8 @@
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+=======
+>>>>>>> [BEAM-1157] Add HBaseIO
           <artifactId>maven-shade-plugin</artifactId>
           <executions>
             <execution>
@@ -59,9 +72,33 @@
                 <goal>shade</goal>
               </goals>
               <configuration>
+<<<<<<< HEAD
               <!-- Disable the creation of the reduced pom to avoid an issue with the shade
                    plugin. Ref. https://issues.apache.org/jira/browse/MSHADE-148 -->
                 <createDependencyReducedPom>false</createDependencyReducedPom>
+=======
+                <createDependencyReducedPom>false</createDependencyReducedPom>
+                <artifactSet>
+                  <includes>
+                    <include>com.google.guava:guava</include>
+                    <include>com.google.protobuf:protobuf-java</include>
+                  </includes>
+                </artifactSet>
+                <relocations>
+                  <relocation>
+                    <pattern>com.google.common</pattern>
+                    <shadedPattern>org.apache.beam.sdk.io.hbase.repackaged.com.google.common</shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.thirdparty</pattern>
+                    <shadedPattern>org.apache.beam.sdk.io.hbase.repackaged.com.google.thirdparty</shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.protobuf</pattern>
+                    <shadedPattern>org.apache.beam.sdk.io.hbase.repackaged.com.google.protobuf</shadedPattern>
+                  </relocation>
+                </relocations>
+>>>>>>> [BEAM-1157] Add HBaseIO
               </configuration>
             </execution>
           </executions>
@@ -72,6 +109,21 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+<<<<<<< HEAD
+=======
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+>>>>>>> [BEAM-1157] Add HBaseIO
         <artifactId>maven-shade-plugin</artifactId>
       </plugin>
     </plugins>
@@ -81,20 +133,57 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+<<<<<<< HEAD
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-hadoop-common</artifactId>
+=======
+      <exclusions>
+        <!-- exclude beam version of protobuf -->
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-lite</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${hbase.guava.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <scope>provided</scope>
+      <version>${hbase.protobuf.version}</version>
+>>>>>>> [BEAM-1157] Add HBaseIO
     </dependency>
 
     <dependency>
       <groupId>org.apache.hbase</groupId>
+<<<<<<< HEAD
       <artifactId>hbase-shaded-client</artifactId>
+=======
+      <artifactId>hbase-client</artifactId>
+>>>>>>> [BEAM-1157] Add HBaseIO
       <version>${hbase.version}</version>
     </dependency>
 
     <dependency>
+<<<<<<< HEAD
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
@@ -102,6 +191,17 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
+=======
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-protocol</artifactId>
+      <version>${hbase.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-common</artifactId>
+      <version>${hbase.version}</version>
+>>>>>>> [BEAM-1157] Add HBaseIO
     </dependency>
 
     <dependency>
@@ -110,14 +210,24 @@
     </dependency>
 
     <dependency>
+<<<<<<< HEAD
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+=======
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.version}</version>
+>>>>>>> [BEAM-1157] Add HBaseIO
     </dependency>
 
     <!-- test dependencies -->
     <dependency>
       <groupId>org.apache.hbase</groupId>
+<<<<<<< HEAD
       <artifactId>hbase-shaded-server</artifactId>
+=======
+      <artifactId>hbase-server</artifactId>
+>>>>>>> [BEAM-1157] Add HBaseIO
       <version>${hbase.version}</version>
       <scope>test</scope>
     </dependency>
@@ -133,6 +243,7 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-minicluster</artifactId>
+<<<<<<< HEAD
       <version>${hbase.hadoop.version}</version>
       <scope>test</scope>
     </dependency>
@@ -141,6 +252,9 @@
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
       <version>${hbase.hadoop.version}</version>
+=======
+      <version>${hadoop.version}</version>
+>>>>>>> [BEAM-1157] Add HBaseIO
       <scope>test</scope>
     </dependency>
 
@@ -161,8 +275,14 @@
     </dependency>
 
     <dependency>
+<<<<<<< HEAD
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
+=======
+      <groupId>commons-lang</groupId>
+      <artifactId>commons-lang</artifactId>
+      <version>2.6</version>
+>>>>>>> [BEAM-1157] Add HBaseIO
       <scope>test</scope>
     </dependency>
 

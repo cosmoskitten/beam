@@ -64,6 +64,7 @@
   </dependencyManagement>
 
   <modules>
+<<<<<<< HEAD
     <module>common</module>
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
@@ -78,6 +79,15 @@
 =======
 	<module>hadoop-input-format</module>
 >>>>>>> Added Hadoop Input Format module in io pom file and minor changes in pom file.
+=======
+    <module>elasticsearch</module>
+    <module>google-cloud-platform</module>
+<<<<<<< HEAD
+	<module>hadoop-input-format</module>
+=======
+    <module>hbase</module>
+>>>>>>> [BEAM-1157] Add HBaseIO
+>>>>>>> [BEAM-1157] Add HBaseIO
     <module>hdfs</module>
     <module>jdbc</module>
     <module>jms</module>
