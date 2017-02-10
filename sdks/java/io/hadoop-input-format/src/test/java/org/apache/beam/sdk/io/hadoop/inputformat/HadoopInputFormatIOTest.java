@@ -42,6 +42,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ConfigurableE
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.Employee;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.EmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.EmployeeInputFormat.EmployeeRecordReader;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.EmployeeInputFormat.NewObjectsEmployeeInputSplit;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ReuseObjectsEmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.TestEmployeeDataSet;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -582,8 +583,7 @@ public class HadoopInputFormatIOTest {
     thrown.expect(Exception.class);
     thrown.expectMessage("Exception in creating RecordReader");
     InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
-    SerializableSplit mockInputSplit = Mockito.mock(SerializableSplit.class);
-    TaskAttemptContext mockContext = Mockito.mock(TaskAttemptContext.class);
+    InputSplit mockInputSplit = Mockito.mock(NewObjectsEmployeeInputSplit.class);
     Mockito.when(
         mockInputFormat.createRecordReader(Mockito.any(InputSplit.class),
             Mockito.any(TaskAttemptContext.class))).thenThrow(
@@ -595,9 +595,8 @@ public class HadoopInputFormatIOTest {
             AvroCoder.of(Employee.class),
             null, // No key translation required.
             null, // No value translation required.
-            mockInputFormat,
-            mockInputSplit,
-            mockContext);
+            new SerializableSplit(mockInputSplit));
+    boundedSource.setInputFormatObj(mockInputFormat);
     SourceTestUtils.readFromSource(boundedSource, p.getOptions());
   }
 
@@ -613,8 +612,7 @@ public class HadoopInputFormatIOTest {
         .expectMessage(String.format(
             HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
             mockInputFormat.getClass()));
-    SerializableSplit mockInputSplit = Mockito.mock(SerializableSplit.class);
-    TaskAttemptContext mockContext = Mockito.mock(TaskAttemptContext.class);
+    InputSplit mockInputSplit = Mockito.mock(NewObjectsEmployeeInputSplit.class);
     Mockito.when(
         mockInputFormat.createRecordReader(Mockito.any(InputSplit.class),
             Mockito.any(TaskAttemptContext.class))).thenReturn(null);
@@ -625,9 +623,8 @@ public class HadoopInputFormatIOTest {
             AvroCoder.of(Employee.class),
             null, // No key translation required.
             null, // No value translation required.
-            mockInputFormat,
-            mockInputSplit,
-            mockContext);
+            new SerializableSplit(mockInputSplit));
+    boundedSource.setInputFormatObj(mockInputFormat);
     SourceTestUtils.readFromSource(boundedSource, p.getOptions());
   }
 
@@ -644,8 +641,7 @@ public class HadoopInputFormatIOTest {
         mockInputFormat.createRecordReader(Mockito.any(InputSplit.class),
             Mockito.any(TaskAttemptContext.class))).thenReturn(mockReader);
     Mockito.when(mockReader.nextKeyValue()).thenReturn(false);
-    SerializableSplit mockInputSplit = Mockito.mock(SerializableSplit.class);
-    TaskAttemptContext mockContext = Mockito.mock(TaskAttemptContext.class);
+    InputSplit mockInputSplit = Mockito.mock(NewObjectsEmployeeInputSplit.class);
     HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
         new HadoopInputFormatBoundedSource<Text, Employee>(
             serConf,
@@ -653,9 +649,7 @@ public class HadoopInputFormatIOTest {
             AvroCoder.of(Employee.class),
             null, // No key translation required.
             null, // No value translation required.
-            mockInputFormat,
-            mockInputSplit,
-            mockContext);
+            new SerializableSplit(mockInputSplit));
     BoundedReader<KV<Text, Employee>> boundedReader = boundedSource.createReader(p.getOptions());
     assertEquals(false, boundedReader.start());
     assertEquals(Double.valueOf(1), boundedReader.getFractionConsumed());
@@ -742,8 +736,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReaderAndParentSourceReadsSameData() throws Exception {
     InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
-    SerializableSplit mockInputSplit = Mockito.mock(SerializableSplit.class);
-    TaskAttemptContext mockContext = Mockito.mock(TaskAttemptContext.class);
+    InputSplit mockInputSplit = Mockito.mock(NewObjectsEmployeeInputSplit.class);
     EmployeeRecordReader mockReader = Mockito.mock(EmployeeRecordReader.class);
     Mockito.when(
         mockInputFormat.createRecordReader(Mockito.any(InputSplit.class),
@@ -755,9 +748,7 @@ public class HadoopInputFormatIOTest {
             AvroCoder.of(Employee.class),
             null, // No key translation required.
             null, // No value translation required.
-            mockInputFormat,
-            mockInputSplit,
-            mockContext);
+            new SerializableSplit(mockInputSplit));
     BoundedReader<KV<Text, Employee>> reader = boundedSource
         .createReader(p.getOptions());
     SourceTestUtils.assertUnstartedReaderReadsSameAsItsSource(reader, p.getOptions());
@@ -770,9 +761,7 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testGetCurrentSourceFunction() throws Exception {
-    InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     SerializableSplit mockInputSplit = Mockito.mock(SerializableSplit.class);
-    TaskAttemptContext mockContext = Mockito.mock(TaskAttemptContext.class);
     BoundedSource<KV<Text, Employee>> source =
         new HadoopInputFormatBoundedSource<Text, Employee>(
             serConf,
@@ -780,9 +769,7 @@ public class HadoopInputFormatIOTest {
             AvroCoder.of(Employee.class),
             null, // No key translation required.
             null, // No value translation required.
-            mockInputFormat,
-            mockInputSplit,
-            mockContext);
+            mockInputSplit);
     BoundedReader<KV<Text, Employee>> HIFReader = source.createReader(p.getOptions());
     BoundedSource<KV<Text, Employee>> HIFSource = HIFReader.getCurrentSource();
     assertEquals(HIFSource, source);
@@ -815,7 +802,6 @@ public class HadoopInputFormatIOTest {
   public void testComputeSplitsIfGetSplitsReturnsEmptyList() throws Exception {
     InputFormat<?, ?> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     SerializableSplit mockInputSplit = Mockito.mock(SerializableSplit.class);
-    TaskAttemptContext mockContext = Mockito.mock(TaskAttemptContext.class);
     Mockito.when(mockInputFormat.getSplits(Mockito.any(JobContext.class))).thenReturn(
         new ArrayList<InputSplit>());
     HadoopInputFormatBoundedSource<Text, Employee> hifSource =
@@ -825,9 +811,7 @@ public class HadoopInputFormatIOTest {
             AvroCoder.of(Employee.class),
             null, // No key translation required.
             null, // No value translation required.
-            mockInputFormat,
-            mockInputSplit,
-            mockContext);
+            mockInputSplit);
     thrown.expect(IOException.class);
     thrown.expectMessage(HadoopInputFormatIOConstants.COMPUTESPLITS_EMPTY_SPLITS_ERROR_MSG);
     hifSource.setInputFormatObj(mockInputFormat);
@@ -843,7 +827,6 @@ public class HadoopInputFormatIOTest {
   public void testComputeSplitsIfGetSplitsReturnsNullValue() throws Exception {
     InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     SerializableSplit mockInputSplit = Mockito.mock(SerializableSplit.class);
-    TaskAttemptContext mockContext = Mockito.mock(TaskAttemptContext.class);
     Mockito.when(mockInputFormat.getSplits(Mockito.any(JobContext.class))).thenReturn(null);
     HadoopInputFormatBoundedSource<Text, Employee> hifSource =
         new HadoopInputFormatBoundedSource<Text, Employee>(
@@ -852,9 +835,7 @@ public class HadoopInputFormatIOTest {
             AvroCoder.of(Employee.class),
             null, // No key translation required.
             null, // No value translation required.
-            mockInputFormat,
-            mockInputSplit,
-            mockContext);
+            mockInputSplit);
     thrown.expect(IOException.class);
     thrown.expectMessage(HadoopInputFormatIOConstants.COMPUTESPLITS_NULL_GETSPLITS_ERROR_MSG);
     hifSource.setInputFormatObj(mockInputFormat);
@@ -875,7 +856,6 @@ public class HadoopInputFormatIOTest {
     inputSplitList.add(mockInputSplit);
     inputSplitList.add(null);
     InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
-    TaskAttemptContext mockContext = Mockito.mock(TaskAttemptContext.class);
     Mockito.when(mockInputFormat.getSplits(Mockito.any(JobContext.class))).thenReturn(
         inputSplitList);
     HadoopInputFormatBoundedSource<Text, Employee> hifSource =
@@ -885,9 +865,7 @@ public class HadoopInputFormatIOTest {
             AvroCoder.of(Employee.class),
             null, // No key translation required.
             null, // No value translation required.
-            mockInputFormat,
-            new SerializableSplit(mockInputSplit),
-            mockContext);
+            new SerializableSplit(mockInputSplit));
     thrown.expect(IOException.class);
     thrown.expectMessage(HadoopInputFormatIOConstants.COMPUTESPLITS_NULL_SPLIT_ERROR_MSG);
     hifSource.setInputFormatObj(mockInputFormat);
@@ -964,10 +942,10 @@ public class HadoopInputFormatIOTest {
       @SuppressWarnings("unchecked")
       HadoopInputFormatBoundedSource<Text, Employee> hifSource =
           (HadoopInputFormatBoundedSource<Text, Employee>) source;
+      List<KV<Text, Employee>> elems = SourceTestUtils.readFromSource(source, p.getOptions());
       ConfigurableEmployeeInputFormat inputFormatObj =
           (ConfigurableEmployeeInputFormat) hifSource.getInputFormat();
       assertEquals(true, inputFormatObj.isConfSet);
-      List<KV<Text, Employee>> elems = SourceTestUtils.readFromSource(source, p.getOptions());
       bundleRecords.addAll(elems);
     }
     List<KV<Text, Employee>> referenceRecords = TestEmployeeDataSet.getEmployeeData();
