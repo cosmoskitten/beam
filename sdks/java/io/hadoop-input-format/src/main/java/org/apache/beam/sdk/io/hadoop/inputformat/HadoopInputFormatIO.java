@@ -992,7 +992,7 @@ public class HadoopInputFormatIO {
     /**
      * Creates instance of InputFormat class provided in class.
      */
-    private void createInputFormatInstance() throws IOException {
+    protected void createInputFormatInstance() throws IOException {
       if (inputFormatObj == null) {
         try {
           taskAttemptContext =
