@@ -19,6 +19,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 <<<<<<< HEAD:sdks/java/io/hadoop-input-format/src/test/java/org/apache/beam/sdk/io/hadoop/inputformat/unit/tests/HIFIOWithCassandraTest.java
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 =======
@@ -31,6 +32,9 @@ import org.apache.beam.sdk.io.hadoop.inputformat.testing.HIFIOTextMatcher;
 =======
 import org.apache.beam.sdk.io.hadoop.inputformat.testing.HashingFn;
 >>>>>>> Use the new HashingFn to validate value checksums
+=======
+import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
+>>>>>>> Changes in Hashing Fn
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;

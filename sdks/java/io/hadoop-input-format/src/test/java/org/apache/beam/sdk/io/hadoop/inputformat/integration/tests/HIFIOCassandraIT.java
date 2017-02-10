@@ -23,7 +23,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 >>>>>>> Changes for spaces, Constants file name and comments as per Stephens code review comments
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
-import org.apache.beam.sdk.io.hadoop.inputformat.testing.HashingFn;
+import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -35,7 +35,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;

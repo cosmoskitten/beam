@@ -42,6 +42,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 import org.apache.beam.sdk.io.hadoop.inputformat.testing.HIFIOTextMatcher;
 >>>>>>> Added checksum approach in elastic IT
 =======
@@ -49,6 +50,9 @@ import org.apache.beam.sdk.io.hadoop.inputformat.testing.HIFIOTextMatcher;
 =======
 import org.apache.beam.sdk.io.hadoop.inputformat.testing.HashingFn;
 >>>>>>> Check in with changes for value checksum comparison
+=======
+import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
+>>>>>>> Changes in Hashing Fn
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
