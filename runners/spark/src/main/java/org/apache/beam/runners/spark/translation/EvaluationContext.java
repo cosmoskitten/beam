@@ -164,7 +164,7 @@ public class EvaluationContext {
    * saving to a file) registered on them (i.e. they are performed for side effects).
    */
   public void computeOutputs(SparkRunner.Evaluator evaluator, boolean debugPipelineMode) {
-    if (debugPipelineMode) {
+    if (debugPipelineMode && evaluator instanceof SparkNativePipelineVisitor) {
       LOG.info("Translated Native Spark pipeline:\n"
           + ((SparkNativePipelineVisitor) evaluator).getDebugString());
     }
