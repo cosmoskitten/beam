@@ -143,6 +143,9 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
     public String toString() {
       try {
         Class<? extends PTransform> transformClass = transform.getClass();
+        if (node.getFullName().equals("KafkaIO.Read")) {
+          return "KafkaUtils.createDirectStream(...)";
+        }
         if (composite) {
           return "<" + transformClass.getName() + ">";
         }
