@@ -60,6 +60,7 @@ import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.slf4j.Logger;
@@ -758,7 +759,7 @@ public class HadoopInputFormatIO {
         SimpleFunction<?, V> valueTranslationFunction, SerializableSplit inputSplit) {
 =======
     private InputFormat<?, ?> inputFormatObj;
-    private TaskAttemptContextImpl taskAttemptContext;
+    private TaskAttemptContext taskAttemptContext;
     private transient Class<?> expectedKeyClass;
     private transient Class<?> expectedValueClass;
 
@@ -778,7 +779,7 @@ public class HadoopInputFormatIO {
           null);
     }
 
-    private HadoopInputFormatBoundedSource(
+    protected HadoopInputFormatBoundedSource(
         SerializableConfiguration conf,
         Coder<K> keyCoder,
         Coder<V> valueCoder,
@@ -790,8 +791,12 @@ public class HadoopInputFormatIO {
 >>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
 =======
         SerializableSplit inputSplit,
+<<<<<<< HEAD
         TaskAttemptContextImpl taskAttemptContext) {
 >>>>>>> Resolved most of the code review comments.
+=======
+        TaskAttemptContext taskAttemptContext) {
+>>>>>>> Mockito commit continued
       this.conf = conf;
       this.inputSplit = inputSplit;
       this.keyCoder = keyCoder;
@@ -1170,7 +1175,15 @@ public class HadoopInputFormatIO {
 >>>>>>> Added getInputFormat() in HadoopInputFormatBoundedSource and modified test testReadingWithConfigurableInputFormat.
 =======
 
+<<<<<<< HEAD
 >>>>>>> Added synchronization for RecordReader in HadoopInputFormatIO
+=======
+    @VisibleForTesting
+    void setInputFormatObj(InputFormat<?, ?> inputFormatObj) {
+      this.inputFormatObj = inputFormatObj;
+    }
+
+>>>>>>> Mockito commit continued
     @Override
     public Coder<KV<K, V>> getDefaultOutputCoder() {
       return KvCoder.of(keyCoder, valueCoder);
@@ -1241,7 +1254,7 @@ public class HadoopInputFormatIO {
       @Nullable private final SimpleFunction<V1, V> valueTranslationFunction;
       private final InputFormat<?, ?> inputFormatObj;
       private final InputSplit split;
-      private final TaskAttemptContextImpl taskAttemptContext;
+      private final TaskAttemptContext taskAttemptContext;
       private RecordReader<K1, V1> currentReader;
       private volatile boolean doneReading = false;
       private long recordsReturned = 0L;
@@ -1279,7 +1292,7 @@ public class HadoopInputFormatIO {
           @Nullable SimpleFunction valueTranslationFunction,
           InputFormat<?,?> inputFormatObj,
           InputSplit split,
-          TaskAttemptContextImpl taskAttemptContext) {
+          TaskAttemptContext taskAttemptContext) {
         this.source = source;
         this.keyTranslationFunction = keyTranslationFunction;
         this.valueTranslationFunction = valueTranslationFunction;

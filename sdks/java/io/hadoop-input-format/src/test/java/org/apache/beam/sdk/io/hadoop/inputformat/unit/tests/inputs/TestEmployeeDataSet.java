@@ -25,7 +25,11 @@ import com.google.common.collect.Lists;
 
 public class TestEmployeeDataSet {
   /**
+<<<<<<< HEAD
    * Used in {@link NewObjectsEmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}
+=======
+   * Test Utils used in {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}
+>>>>>>> Mockito commit continued
    * for computing splits.
    */
   public static final long NUMBER_OF_RECORDS_IN_EACH_SPLIT = 5L;
@@ -34,9 +38,15 @@ public class TestEmployeeDataSet {
   private static final List<KV<String, String>> data = new ArrayList<KV<String, String>>();
 
   /**
+<<<<<<< HEAD
    * Returns List of employee details.Employee details are available in the form of {@link KV} in
    * which key indicates employee id and value indicates employee details such as name and address
    * separated by '_'. This is data input to {@link NewObjectsEmployeeInputFormat} and
+=======
+   * Returns List of employee details. Employee details are available in the form of {@link KV} in
+   * which, key indicates employee id and value indicates employee details such as name and address
+   * separated by '_'. This is data input to {@link EmployeeInputFormat} and
+>>>>>>> Mockito commit continued
    * {@link ReuseObjectsEmployeeInputFormat}.
    */
   public static List<KV<String, String>> populateEmployeeData() {
@@ -62,8 +72,13 @@ public class TestEmployeeDataSet {
   }
 
   /**
+<<<<<<< HEAD
    * This is helper function used in unit tests for validating data against data read using
    * {@link NewObjectsEmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}.
+=======
+   * This is a helper function used in unit tests for validating data against data read using
+   * {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}.
+>>>>>>> Mockito commit continued
    */
   public static List<KV<Text, Employee>> getEmployeeData() {
     return Lists.transform((data.isEmpty() ? populateEmployeeData() : data),
