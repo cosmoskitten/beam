@@ -72,11 +72,15 @@ public class JdbcIOIT {
     PostgresTestOptions options = TestPipeline.testingPipelineOptions()
         .as(PostgresTestOptions.class);
 
+    // We do dataSource set up in BeforeClass rather than Before since we don't need to create a new
+    // dataSource for each test.
     dataSource = JdbcTestDataSet.getDataSource(options);
   }
 
   @AfterClass
   public static void tearDown() throws SQLException {
+    // Only do write table clean up once for the class since we don't want to clean up after both
+    // read and write tests, only want to do it once after all the tests are done.
     JdbcTestDataSet.cleanUpDataTable(dataSource, writeTableName);
   }
 
@@ -142,9 +146,6 @@ public class JdbcIOIT {
    */
   @Test
   public void testWrite() throws SQLException {
-
-    String tableName = null;
-
     writeTableName = JdbcTestDataSet.createWriteDataTable(dataSource);
 
     TestPipeline pipeline = TestPipeline.create();
