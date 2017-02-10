@@ -54,13 +54,22 @@ import com.datastax.driver.core.Row;
 =======
  * You can run just this test by doing the following: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
+<<<<<<< HEAD
  * "--serverPort=<port>" ]' -Dit.test=HIFIOCassandraIT -DskipITs=false
 <<<<<<< HEAD
 >>>>>>> Added tests with scientist data
  *
 =======
 >>>>>>> Review comments followed in Cassandra IT
+=======
+ * "--serverPort=<port>" ,"--userName=<user_name>" ,"--password=<password>"]' 
+ * -Dit.test=HIFIOCassandraIT -DskipITs=false
+ * Setting username and password is optional, set these only if security is 
+ * configured on Cassandra server. 
+ * </p>
+>>>>>>> Added username and password in configuration for Cassandra
  */
+
 @RunWith(JUnit4.class)
 public class HIFIOCassandraIT implements Serializable {
 
@@ -101,11 +110,18 @@ public class HIFIOCassandraIT implements Serializable {
   private static final String CASSANDRA_COLUMNFAMILY_PROPERTY = "cassandra.input.columnfamily";
   private static final String CASSANDRA_PARTITIONER_CLASS_VALUE = "Murmur3Partitioner";
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Added checksum comparison using Hashing Fn
   private static final String OUTPUT_WRITE_FILE_PATH = "output-cassandra";
 >>>>>>> Added checksum validation for cassandra IT for one test
 =======
 >>>>>>> Changes for Hashing Fn, Clean up, add comments
+=======
+  private static final String USERNAME = "cassandra.username";
+  private static final String PASSWORD  = "cassandra.password";
+  private static final String INPUT_KEYSPACE_USERNAME_CONFIG = "cassandra.input.keyspace.username";
+  private static final String INPUT_KEYSPACE_PASSWD_CONFIG = "cassandra.input.keyspace.passwd";
+>>>>>>> Added username and password in configuration for Cassandra
   private static HIFTestOptions options;
 
   @BeforeClass
@@ -348,7 +364,15 @@ public class HIFIOCassandraIT implements Serializable {
     conf.set(CASSANDRA_PARTITIONER_CLASS_PROPERTY, CASSANDRA_PARTITIONER_CLASS_VALUE);
     conf.set(CASSANDRA_KEYSPACE_PROPERTY, CASSANDRA_KEYSPACE);
     conf.set(CASSANDRA_COLUMNFAMILY_PROPERTY, CASSANDRA_TABLE);
+<<<<<<< HEAD
 >>>>>>> Changes as per Dipti's code review, revisit code
+=======
+    // Set username and password if Cassandra instance has security configured.
+    conf.set(USERNAME, options.getUserName());
+    conf.set(PASSWORD, options.getPassword());
+    conf.set(INPUT_KEYSPACE_USERNAME_CONFIG, options.getUserName());
+    conf.set(INPUT_KEYSPACE_PASSWD_CONFIG, options.getPassword()); 
+>>>>>>> Added username and password in configuration for Cassandra
     conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
 >>>>>>> Changes for spaces, Constants file name and comments as per Stephens code review comments
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
