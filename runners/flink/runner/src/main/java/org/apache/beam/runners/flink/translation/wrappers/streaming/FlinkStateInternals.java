@@ -130,14 +130,16 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       public <T> SetState<T> bindSet(
           StateTag<? super K, SetState<T>> address,
           Coder<T> elemCoder) {
-        throw new UnsupportedOperationException("SetState is not supported.");
+        throw new UnsupportedOperationException(
+            String.format("%s is not supported", SetState.class.getSimpleName()));
       }
 
       @Override
       public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
           StateTag<? super K, MapState<KeyT, ValueT>> spec,
           Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
-        throw new UnsupportedOperationException("MapState is not supported.");
+        throw new UnsupportedOperationException(
+            String.format("%s is not supported", MapState.class.getSimpleName()));
       }
 
       @Override

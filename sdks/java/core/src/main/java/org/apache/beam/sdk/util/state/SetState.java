@@ -37,6 +37,11 @@ public interface SetState<T> extends CombiningState<T, Iterable<T>> {
   boolean addIfAbsent(T t);
 
   /**
+   * Removes the specified element from this set if it is present.
+   */
+  void remove(T t);
+
+  /**
    * Indicate that elements will be read later.
    * @param elements to be read later
    * @return this for convenient chaining

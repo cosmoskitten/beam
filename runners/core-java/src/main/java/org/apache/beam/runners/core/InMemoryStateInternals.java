@@ -478,6 +478,11 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
+    public void remove(T t) {
+      contents.remove(t);
+    }
+
+    @Override
     public SetState<T> readLater(Iterable<T> elements) {
       return this;
     }

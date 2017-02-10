@@ -17,16 +17,18 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Sum;
@@ -41,7 +43,6 @@ import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
-import org.apache.beam.sdk.values.KV;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -67,8 +68,8 @@ public class InMemoryStateInternalsTest {
       StateTags.bag("stringBag", StringUtf8Coder.of());
   private static final StateTag<Object, SetState<String>> STRING_SET_ADDR =
       StateTags.set("stringSet", StringUtf8Coder.of());
-  private static final StateTag<Object, MapState<String, String>> STRING_MAP_ADDR =
-      StateTags.map("stringMap", StringUtf8Coder.of(), StringUtf8Coder.of());
+  private static final StateTag<Object, MapState<String, Integer>> STRING_MAP_ADDR =
+      StateTags.map("stringMap", StringUtf8Coder.of(), VarIntCoder.of());
   private static final StateTag<Object, WatermarkHoldState<BoundedWindow>>
       WATERMARK_EARLIEST_ADDR =
       StateTags.watermarkStateInternal("watermark", OutputTimeFns.outputAtEarliestInputTimestamp());
@@ -92,9 +93,9 @@ public class InMemoryStateInternalsTest {
 
     assertThat(value.read(), Matchers.nullValue());
     value.write("hello");
-    assertThat(value.read(), Matchers.equalTo("hello"));
+    assertThat(value.read(), equalTo("hello"));
     value.write("world");
-    assertThat(value.read(), Matchers.equalTo("world"));
+    assertThat(value.read(), equalTo("world"));
 
     value.clear();
     assertThat(value.read(), Matchers.nullValue());
@@ -106,8 +107,8 @@ public class InMemoryStateInternalsTest {
     BagState<String> value = underTest.state(NAMESPACE_1, STRING_BAG_ADDR);
 
     // State instances are cached, but depend on the namespace.
-    assertEquals(value, underTest.state(NAMESPACE_1, STRING_BAG_ADDR));
-    assertFalse(value.equals(underTest.state(NAMESPACE_2, STRING_BAG_ADDR)));
+    assertThat(value, equalTo(underTest.state(NAMESPACE_1, STRING_BAG_ADDR)));
+    assertThat(value, not(equalTo(underTest.state(NAMESPACE_2, STRING_BAG_ADDR))));
 
     assertThat(value.read(), Matchers.emptyIterable());
     value.add("hello");
@@ -173,60 +174,203 @@ public class InMemoryStateInternalsTest {
     SetState<String> value = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
 
     // State instances are cached, but depend on the namespace.
-    assertEquals(value, underTest.state(NAMESPACE_1, STRING_SET_ADDR));
-    assertFalse(value.equals(underTest.state(NAMESPACE_2, STRING_SET_ADDR)));
+    assertThat(value, equalTo(underTest.state(NAMESPACE_1, STRING_SET_ADDR)));
+    assertThat(value, not(equalTo(underTest.state(NAMESPACE_2, STRING_SET_ADDR))));
 
+    // empty
     assertThat(value.read(), Matchers.emptyIterable());
-    assertFalse(value.contains("hello"));
-    assertFalse(value.containsAny(Arrays.asList("hello")));
-    value.add("hello");
-    assertThat(value.read(), Matchers.containsInAnyOrder("hello"));
-    assertTrue(value.contains("hello"));
-    assertTrue(value.containsAny(Arrays.asList("hello", "world")));
-    assertFalse(value.containsAll(Arrays.asList("hello", "world")));
+    assertFalse(value.contains("A"));
+    assertFalse(value.containsAny(Collections.singletonList("A")));
 
-    assertFalse(value.addIfAbsent("hello"));
+    // add
+    value.add("A");
+    value.add("B");
+    value.add("A");
+    assertFalse(value.addIfAbsent("B"));
+    assertThat(value.read(), Matchers.containsInAnyOrder("A", "B"));
 
-    value.add("world");
-    assertThat(value.read(), Matchers.containsInAnyOrder("hello", "world"));
-    assertTrue(value.containsAll(Arrays.asList("hello", "world")));
+    // remove
+    value.remove("A");
+    assertThat(value.read(), Matchers.containsInAnyOrder("B"));
+    value.remove("C");
+    assertThat(value.read(), Matchers.containsInAnyOrder("B"));
 
+    // contains
+    assertFalse(value.contains("A"));
+    assertTrue(value.contains("B"));
+    value.add("C");
+    value.add("D");
+
+    // containsAny
+    assertTrue(value.containsAny(Arrays.asList("A", "C")));
+    assertFalse(value.containsAny(Arrays.asList("A", "E")));
+
+    // containsAll
+    assertTrue(value.containsAll(Arrays.asList("B", "C")));
+    assertFalse(value.containsAll(Arrays.asList("A", "B")));
+
+    // readLater
+    assertThat(value.readLater().read(), Matchers.containsInAnyOrder("B", "C", "D"));
+    SetState<String> later = value.readLater(Arrays.asList("A", "C", "D"));
+    assertTrue(later.containsAll(Arrays.asList("C", "D")));
+    assertFalse(later.contains("A"));
+
+    // clear
     value.clear();
     assertThat(value.read(), Matchers.emptyIterable());
     assertThat(underTest.state(NAMESPACE_1, STRING_SET_ADDR), Matchers.sameInstance(value));
+
+  }
+
+  @Test
+  public void testSetIsEmpty() throws Exception {
+    SetState<String> value = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
+
+    assertThat(value.isEmpty().read(), Matchers.is(true));
+    ReadableState<Boolean> readFuture = value.isEmpty();
+    value.add("hello");
+    assertThat(readFuture.read(), Matchers.is(false));
+
+    value.clear();
+    assertThat(readFuture.read(), Matchers.is(true));
+  }
+
+  @Test
+  public void testMergeSetIntoSource() throws Exception {
+    SetState<String> set1 = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
+    SetState<String> set2 = underTest.state(NAMESPACE_2, STRING_SET_ADDR);
+
+    set1.add("Hello");
+    set2.add("Hello");
+    set2.add("World");
+    set1.add("!");
+
+    StateMerging.mergeSets(Arrays.asList(set1, set2), set1);
+
+    // Reading the merged set gets both the contents
+    assertThat(set1.read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
+    assertThat(set2.read(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testMergeSetIntoNewNamespace() throws Exception {
+    SetState<String> set1 = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
+    SetState<String> set2 = underTest.state(NAMESPACE_2, STRING_SET_ADDR);
+    SetState<String> set3 = underTest.state(NAMESPACE_3, STRING_SET_ADDR);
+
+    set1.add("Hello");
+    set2.add("Hello");
+    set2.add("World");
+    set1.add("!");
+
+    StateMerging.mergeSets(Arrays.asList(set1, set2, set3), set3);
+
+    // Reading the merged set gets both the contents
+    assertThat(set3.read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
+    assertThat(set1.read(), Matchers.emptyIterable());
+    assertThat(set2.read(), Matchers.emptyIterable());
+  }
+
+  // for testMap
+  private static class MapEntry<K, V> implements Map.Entry<K, V> {
+    private K key;
+    private V value;
+
+    private MapEntry(K key, V value) {
+      this.key = key;
+      this.value = value;
+    }
+
+    static <K, V> Map.Entry<K, V> of(K k, V v) {
+      return new MapEntry<>(k, v);
+    }
+
+    public final K getKey() {
+      return key;
+    }
+    public final V getValue() {
+      return value;
+    }
+
+    public final String toString() {
+      return key + "=" + value;
+    }
+
+    public final int hashCode() {
+      return Objects.hashCode(key) ^ Objects.hashCode(value);
+    }
+
+    public final V setValue(V newValue) {
+      V oldValue = value;
+      value = newValue;
+      return oldValue;
+    }
+
+    public final boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      }
+      if (o instanceof Map.Entry) {
+        Map.Entry<?, ?> e = (Map.Entry<?, ?>) o;
+        if (Objects.equals(key, e.getKey())
+            && Objects.equals(value, e.getValue())) {
+          return true;
+        }
+      }
+      return false;
+    }
   }
 
   @Test
   public void testMap() throws Exception {
-    MapState<String, String> value = underTest.state(NAMESPACE_1, STRING_MAP_ADDR);
+    MapState<String, Integer> value = underTest.state(NAMESPACE_1, STRING_MAP_ADDR);
 
     // State instances are cached, but depend on the namespace.
-    assertEquals(value, underTest.state(NAMESPACE_1, STRING_MAP_ADDR));
-    assertFalse(value.equals(underTest.state(NAMESPACE_2, STRING_MAP_ADDR)));
+    assertThat(value, equalTo(underTest.state(NAMESPACE_1, STRING_MAP_ADDR)));
+    assertThat(value, not(equalTo(underTest.state(NAMESPACE_2, STRING_MAP_ADDR))));
 
+    // put
     assertThat(value.iterate(), Matchers.emptyIterable());
-    assertNull(value.get("hello"));
-    value.put("hello", "hello-1");
-    assertEquals(value.get("hello"), "hello-1");
+    value.put("A", 1);
+    value.put("B", 2);
+    value.put("A", 11);
+    assertThat(value.putIfAbsent("B", 22), equalTo(2));
+    assertThat(value.iterate(), Matchers.containsInAnyOrder(MapEntry.of("A", 11),
+        MapEntry.of("B", 2)));
 
-    assertEquals(value.putIfAbsent("hello", "hello-2"), "hello-1");
-    assertEquals(value.get("hello"), "hello-1");
+    // remove
+    value.remove("A");
+    assertThat(value.iterate(), Matchers.containsInAnyOrder(MapEntry.of("B", 2)));
+    value.remove("C");
+    assertThat(value.iterate(), Matchers.containsInAnyOrder(MapEntry.of("B", 2)));
 
-    value.put("hello", "hello-2");
-    assertEquals(value.get("hello"), "hello-2");
+    // get
+    assertNull(value.get("A"));
+    assertThat(value.get("B"), equalTo(2));
+    value.put("C", 3);
+    value.put("D", 4);
+    assertThat(value.get("C"), equalTo(3));
+    assertThat(value.get(Collections.singletonList("D")), Matchers.containsInAnyOrder(4));
+    assertThat(value.get(Arrays.asList("B", "C")), Matchers.containsInAnyOrder(2, 3));
 
-    value.put("world", "world-1");
-    assertThat(value.get(Arrays.asList("hello", "world")),
-        Matchers.contains("hello-2", "world-1"));
-    assertThat(value.keys(), Matchers.containsInAnyOrder("hello", "world"));
-    assertThat(value.values(), Matchers.containsInAnyOrder("hello-2", "world-1"));
-    List<KV<String, String>> all = new ArrayList<>();
-    for (Map.Entry<String, String> entry : value.iterate()){
-      all.add(KV.of(entry.getKey(), entry.getValue()));
-    }
-    assertThat(all, Matchers.containsInAnyOrder(KV.of("hello", "hello-2"),
-        KV.of("world", "world-1")));
+    // iterate
+    value.put("E", 5);
+    value.remove("C");
+    assertThat(value.keys(), Matchers.containsInAnyOrder("B", "D", "E"));
+    assertThat(value.values(), Matchers.containsInAnyOrder(2, 4, 5));
+    assertThat(value.iterate(), Matchers.containsInAnyOrder(
+        MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
 
+    // readLater
+    assertThat(value.getLater("B").get("B"), equalTo(2));
+    assertNull(value.getLater("A").get("A"));
+    MapState<String, Integer> later = value.getLater(Arrays.asList("C", "D"));
+    assertNull(later.get("C"));
+    assertThat(later.get("D"), equalTo(4));
+    assertThat(value.iterateLater().iterate(), Matchers.containsInAnyOrder(
+        MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
+
+    // clear
     value.clear();
     assertThat(value.iterate(), Matchers.emptyIterable());
     assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), Matchers.sameInstance(value));
@@ -240,15 +384,15 @@ public class InMemoryStateInternalsTest {
     assertEquals(value, underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR));
     assertFalse(value.equals(underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR)));
 
-    assertThat(value.read(), Matchers.equalTo(0));
+    assertThat(value.read(), equalTo(0));
     value.add(2);
-    assertThat(value.read(), Matchers.equalTo(2));
+    assertThat(value.read(), equalTo(2));
 
     value.add(3);
-    assertThat(value.read(), Matchers.equalTo(5));
+    assertThat(value.read(), equalTo(5));
 
     value.clear();
-    assertThat(value.read(), Matchers.equalTo(0));
+    assertThat(value.read(), equalTo(0));
     assertThat(underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR), Matchers.sameInstance(value));
   }
 
@@ -276,14 +420,14 @@ public class InMemoryStateInternalsTest {
     value2.add(10);
     value1.add(6);
 
-    assertThat(value1.read(), Matchers.equalTo(11));
-    assertThat(value2.read(), Matchers.equalTo(10));
+    assertThat(value1.read(), equalTo(11));
+    assertThat(value2.read(), equalTo(10));
 
     // Merging clears the old values and updates the result value.
     StateMerging.mergeCombiningValues(Arrays.asList(value1, value2), value1);
 
-    assertThat(value1.read(), Matchers.equalTo(21));
-    assertThat(value2.read(), Matchers.equalTo(0));
+    assertThat(value1.read(), equalTo(21));
+    assertThat(value2.read(), equalTo(0));
   }
 
   @Test
@@ -302,9 +446,9 @@ public class InMemoryStateInternalsTest {
     StateMerging.mergeCombiningValues(Arrays.asList(value1, value2), value3);
 
     // Merging clears the old values and updates the result value.
-    assertThat(value1.read(), Matchers.equalTo(0));
-    assertThat(value2.read(), Matchers.equalTo(0));
-    assertThat(value3.read(), Matchers.equalTo(21));
+    assertThat(value1.read(), equalTo(0));
+    assertThat(value2.read(), equalTo(0));
+    assertThat(value3.read(), equalTo(21));
   }
 
   @Test
@@ -318,16 +462,16 @@ public class InMemoryStateInternalsTest {
 
     assertThat(value.read(), Matchers.nullValue());
     value.add(new Instant(2000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.read(), equalTo(new Instant(2000)));
 
     value.add(new Instant(3000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.read(), equalTo(new Instant(2000)));
 
     value.add(new Instant(1000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(1000)));
+    assertThat(value.read(), equalTo(new Instant(1000)));
 
     value.clear();
-    assertThat(value.read(), Matchers.equalTo(null));
+    assertThat(value.read(), equalTo(null));
     assertThat(underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR), Matchers.sameInstance(value));
   }
 
@@ -342,16 +486,16 @@ public class InMemoryStateInternalsTest {
 
     assertThat(value.read(), Matchers.nullValue());
     value.add(new Instant(2000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.read(), equalTo(new Instant(2000)));
 
     value.add(new Instant(3000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(3000)));
+    assertThat(value.read(), equalTo(new Instant(3000)));
 
     value.add(new Instant(1000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(3000)));
+    assertThat(value.read(), equalTo(new Instant(3000)));
 
     value.clear();
-    assertThat(value.read(), Matchers.equalTo(null));
+    assertThat(value.read(), equalTo(null));
     assertThat(underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR), Matchers.sameInstance(value));
   }
 
@@ -365,10 +509,10 @@ public class InMemoryStateInternalsTest {
 
     assertThat(value.read(), Matchers.nullValue());
     value.add(new Instant(2000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.read(), equalTo(new Instant(2000)));
 
     value.clear();
-    assertThat(value.read(), Matchers.equalTo(null));
+    assertThat(value.read(), equalTo(null));
     assertThat(underTest.state(NAMESPACE_1, WATERMARK_EOW_ADDR), Matchers.sameInstance(value));
   }
 
@@ -401,8 +545,8 @@ public class InMemoryStateInternalsTest {
     // Merging clears the old values and updates the merged value.
     StateMerging.mergeWatermarks(Arrays.asList(value1, value2), value1, WINDOW_1);
 
-    assertThat(value1.read(), Matchers.equalTo(new Instant(2000)));
-    assertThat(value2.read(), Matchers.equalTo(null));
+    assertThat(value1.read(), equalTo(new Instant(2000)));
+    assertThat(value2.read(), equalTo(null));
   }
 
   @Test
@@ -423,8 +567,8 @@ public class InMemoryStateInternalsTest {
     StateMerging.mergeWatermarks(Arrays.asList(value1, value2), value3, WINDOW_1);
 
     // Merging clears the old values and updates the result value.
-    assertThat(value3.read(), Matchers.equalTo(new Instant(5000)));
-    assertThat(value1.read(), Matchers.equalTo(null));
-    assertThat(value2.read(), Matchers.equalTo(null));
+    assertThat(value3.read(), equalTo(new Instant(5000)));
+    assertThat(value1.read(), equalTo(null));
+    assertThat(value2.read(), equalTo(null));
   }
 }

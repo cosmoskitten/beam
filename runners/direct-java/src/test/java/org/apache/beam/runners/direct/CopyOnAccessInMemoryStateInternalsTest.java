@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.theInstance;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.never;
@@ -205,17 +204,17 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     assertThat(underlyingValue.iterate(), emptyIterable());
 
     underlyingValue.put("hello", 1);
-    assertEquals(underlyingValue.get("hello"), new Integer(1));
+    assertThat(underlyingValue.get("hello"), equalTo(1));
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
     MapState<String, Integer> copyOnAccessState = internals.state(namespace, valueTag);
-    assertEquals(copyOnAccessState.get("hello"), new Integer(1));
+    assertThat(copyOnAccessState.get("hello"), equalTo(1));
 
     copyOnAccessState.put("world", 4);
-    assertEquals(copyOnAccessState.get("hello"), new Integer(1));
-    assertEquals(copyOnAccessState.get("world"), new Integer(4));
-    assertEquals(underlyingValue.get("hello"), new Integer(1));
+    assertThat(copyOnAccessState.get("hello"), equalTo(1));
+    assertThat(copyOnAccessState.get("world"), equalTo(4));
+    assertThat(underlyingValue.get("hello"), equalTo(1));
     assertNull(underlyingValue.get("world"));
 
     MapState<String, Integer> reReadUnderlyingValue = underlying.state(namespace, valueTag);
