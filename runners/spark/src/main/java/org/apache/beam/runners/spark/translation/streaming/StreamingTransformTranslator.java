@@ -84,7 +84,7 @@ import org.apache.spark.streaming.api.java.JavaPairDStream;
 /**
  * Supports translation between a Beam transform, and Spark's operations on DStreams.
  */
-final class StreamingTransformTranslator {
+public final class StreamingTransformTranslator {
 
   private StreamingTransformTranslator() {
   }
@@ -97,6 +97,12 @@ final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<T>> dstream =
             ((UnboundedDataset<T>) (context).borrowDataset(transform)).getDStream();
         dstream.map(WindowingHelpers.<T>unwindowFunction()).print(transform.getNum());
+      }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<print>";
       }
     };
   }
@@ -112,6 +118,12 @@ final class StreamingTransformTranslator {
                 context.getRuntimeContext(),
                 transform.getSource()));
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<readUnbounded>";
+      }
     };
   }
 
@@ -122,6 +134,11 @@ final class StreamingTransformTranslator {
         Iterable<Iterable<T>> values = transform.getQueuedValues();
         Coder<T> coder = context.getOutput(transform).getCoder();
         context.putUnboundedDatasetFromQueue(transform, values, coder);
+      }
+
+      @Override
+      public String toString() {
+        return "streamingContext.queueStream(...)";
       }
     };
   }
@@ -173,6 +190,12 @@ final class StreamingTransformTranslator {
           context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
         }
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<flattenPColl>";
+      }
     };
   }
 
@@ -218,6 +241,12 @@ final class StreamingTransformTranslator {
               new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
         }
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<window>";
+      }
     };
   }
 
@@ -251,6 +280,11 @@ final class StreamingTransformTranslator {
         });
         context.putDataset(transform,
             new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
+      }
+
+      @Override
+      public String toString() {
+        return "groupByKey()";
       }
     };
   }
@@ -298,6 +332,12 @@ final class StreamingTransformTranslator {
         context.putDataset(transform,
             new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<combineGrouped>";
+      }
     };
   }
 
@@ -344,6 +384,12 @@ final class StreamingTransformTranslator {
         context.putDataset(transform,
             new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<combineGlobally>";
+      }
     };
   }
 
@@ -386,6 +432,12 @@ final class StreamingTransformTranslator {
         });
         context.putDataset(transform,
             new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
+      }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "<combinePerKey>";
       }
     };
   }
@@ -432,6 +484,11 @@ final class StreamingTransformTranslator {
 
         context.putDataset(transform,
             new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
+      }
+
+      @Override
+      public String toString() {
+        return "mapPartitions(new <doFn>())";
       }
     };
   }
@@ -489,6 +546,12 @@ final class StreamingTransformTranslator {
               new UnboundedDataset<>(values, unboundedDataset.getStreamingSources()));
         }
       }
+
+      @Override
+      public String toString() {
+        // TODO: return meaningful Spark native operation
+        return "mapPartitions(new <doFn>())";
+      }
     };
   }
 
@@ -516,7 +579,7 @@ final class StreamingTransformTranslator {
 
     private final SparkPipelineTranslator batchTranslator;
 
-    Translator(SparkPipelineTranslator batchTranslator) {
+    public Translator(SparkPipelineTranslator batchTranslator) {
       this.batchTranslator = batchTranslator;
     }
 

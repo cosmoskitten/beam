@@ -612,7 +612,7 @@ public final class TransformTranslator {
 
       @Override
       public String toString() {
-        return "sparkContext.parallelize(Arrays.asList(???))";
+        return "sparkContext.parallelize(Arrays.asList(...))";
       }
     };
   }
