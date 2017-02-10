@@ -26,6 +26,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.spark.SparkNativePipelineVisitor;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
@@ -165,7 +166,7 @@ public class EvaluationContext {
   public void computeOutputs(SparkRunner.Evaluator evaluator, boolean debugPipelineMode) {
     if (debugPipelineMode) {
       LOG.info("Translated Native Spark pipeline:\n"
-          + ((SparkRunner.SparkNativePipelineVisitor) evaluator).getDebugString());
+          + ((SparkNativePipelineVisitor) evaluator).getDebugString());
     }
     for (Dataset dataset : leaves) {
       // cache so that any subsequent get() is cheap.

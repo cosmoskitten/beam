@@ -19,17 +19,12 @@
 package org.apache.beam.runners.spark;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
@@ -50,7 +45,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -58,7 +52,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
-import org.apache.commons.lang.StringUtils;
 import org.apache.spark.Accumulator;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -395,142 +388,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         }
       }
       return isBounded;
-    }
-  }
-
-  /**
-   * Spark-native pipeline.
-   * Translates pipeline to a Spark native pipeline.
-   * Used for debugging purposes.
-   */
-  public static class SparkNativePipelineVisitor extends Evaluator {
-    private final List<DebugTransform> transforms;
-    private final List<String> knownComposites =
-        Lists.newArrayList(
-            "org.apache.beam.sdk.transforms",
-            "org.apache.beam.runners.spark.examples");
-
-    SparkNativePipelineVisitor(SparkPipelineTranslator translator, EvaluationContext ctxt) {
-      super(translator, ctxt);
-      this.transforms = new ArrayList<>();
-    }
-
-    @Override
-    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-      PTransform<?, ?> transform = node.getTransform();
-      if (transform != null) {
-        @SuppressWarnings("unchecked") final
-        Class<PTransform<?, ?>> transformClass =
-            (Class<PTransform<?, ?>>) transform.getClass();
-        if (translator.hasTranslation(transformClass) && !shouldDefer(node)) {
-          LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
-          LOG.debug("Composite transform class: '{}'", transformClass);
-          doVisitTransform(node, shouldDebug(node));
-          return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
-        } else if (!knownComposites.contains(transformClass.getPackage().getName())) {
-          if (shouldDebug(node)) {
-            transforms.add(new DebugTransform(node, null, transform, true));
-          }
-        }
-      }
-      return CompositeBehavior.ENTER_TRANSFORM;
-    }
-
-    @Override
-    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-      doVisitTransform(node, shouldDebug(node));
-    }
-
-    private boolean shouldDebug(final TransformHierarchy.Node node) {
-      if (node == null) {
-        return true;
-      }
-      if (Iterables.any(transforms, new Predicate<DebugTransform>() {
-        @Override
-        public boolean apply(@Nullable DebugTransform debugTransform) {
-          return debugTransform.node.equals(node) && debugTransform.isComposite();
-        }
-      })) {
-        return false;
-      }
-      return shouldDebug(node.getEnclosingNode());
-    }
-
-    <TransformT extends PTransform<? super PInput, POutput>> void
-    doVisitTransform(TransformHierarchy.Node node, boolean debugTransform) {
-      @SuppressWarnings("unchecked")
-      TransformT transform = (TransformT) node.getTransform();
-      @SuppressWarnings("unchecked")
-      Class<TransformT> transformClass = (Class<TransformT>) (Class<?>) transform.getClass();
-      @SuppressWarnings("unchecked") TransformEvaluator<TransformT> evaluator =
-          translate(node, transform, transformClass);
-      LOG.info("Evaluating {}", transform);
-      AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
-      ctxt.setCurrentTransform(appliedTransform);
-      evaluator.evaluate(transform, ctxt);
-      ctxt.setCurrentTransform(null);
-      if (debugTransform) {
-        transforms.add(new DebugTransform(node, evaluator, transform, false));
-      }
-    }
-
-    public String getDebugString() {
-      return StringUtils.join(transforms, "\n.");
-    }
-
-    private static class DebugTransform {
-      private final TransformHierarchy.Node node;
-      private final TransformEvaluator<?> transformEvaluator;
-      private final PTransform<?, ?> transform;
-      private final boolean composite;
-
-      DebugTransform(
-          TransformHierarchy.Node node,
-          TransformEvaluator<?> transformEvaluator,
-          PTransform<?, ?> transform,
-          boolean composite) {
-        this.node = node;
-        this.transformEvaluator = transformEvaluator;
-        this.transform = transform;
-        this.composite = composite;
-      }
-
-      public TransformHierarchy.Node getNode() {
-        return node;
-      }
-
-      boolean isComposite() {
-        return composite;
-      }
-
-      @Override
-      public String toString() {
-        try {
-          Class<? extends PTransform> transformClass = transform.getClass();
-          if (composite) {
-            return "<" + transformClass.getName() + ">";
-          }
-          String transformString = transformEvaluator.toString();
-          if (transformString.contains("<doFn>")) {
-            Object fn = transformClass.getMethod("getFn").invoke(transform);
-            Class<?> fnClass = fn.getClass();
-            String doFnName;
-            if (fnClass.getEnclosingClass().equals(MapElements.class)) {
-              Field parent = fnClass.getDeclaredField("this$0");
-              parent.setAccessible(true);
-              Field fnField = fnClass.getEnclosingClass().getDeclaredField("fn");
-              fnField.setAccessible(true);
-              doFnName = fnField.get(parent.get(fn)).getClass().getName();
-            } else {
-              doFnName = fnClass.getName();
-            }
-            transformString = transformString.replace("<doFn>", doFnName);
-          }
-          return transformString;
-        } catch (Exception e) {
-          return "<FailedTranslation>";
-        }
-      }
     }
   }
 }
