@@ -454,21 +454,22 @@ message Trigger {
   }
 
   // After input arrives, ready when the specified delay has passed.
-  message AfterProcessingTimeDelay {
-    // (Required) The delay, in milliseconds.
-    int64 delay_millis = 1;
+  message AfterProcessingTime {
+
+    // (Required) The transforms to apply to an arriving element's timestamp,
+    // in order
+    repeated TimestampTransform timestamp_transforms = 1;
   }
 
-  // After input arrives, ready when the synchronized processing time
-  // progresses as far as the given delay.
-  message AfterSynchronizedProcessingTimeDelay {
-    // (Required) The delay, in milliseconds.
-    int64 delay_millis = 1;
+  // Ready whenever upstream processing time has all caught up with
+  // the arrival time of an input element
+  message AfterSynchronizedProcessingTime {
   }
 
   // Never ready. There will only be an ON_TIME output and a final
   // output at window expiration.
-  message Never { }
+  message Never {
+  }
 
   // Ready whenever the subtrigger is ready; resets state when the subtrigger
   // completes.
@@ -490,7 +491,8 @@ message Trigger {
 
   // The default trigger. Equivalent to Repeat { AfterEndOfWindow } but
   // specially denoted to indicate the user did not alter the triggering.
-  message Default { }
+  message Default {
+  }
 
   // Ready whenever the requisite number of input elements have arrived
   message ElementCount {
@@ -503,13 +505,39 @@ message Trigger {
     AfterAny after_any = 2;
     AfterEach after_each = 3;
     AfterEndOfWindow after_end_of_widow = 4;
-    AfterProcessingTimeDelay after_processing_time_delay = 5;
-    AfterSynchronizedProcessingTimeDelay after_synchronized_processing_time_delay = 6;
+    AfterProcessingTime after_processing_time = 5;
     Never never = 7;
     Repeat repeat = 8;
     OrFinally or_finally = 9;
     Default default = 10;
     ElementCount element_count = 11;
+    AfterSynchronizedProcessingTime after_synchronized_processing_time = 12;
+  }
+}
+
+// A specification for a transformation on a timestamp.
+//
+// Primarily used by AfterProcessingTime triggers to transform
+// the arrival time of input to a target time for firing.
+message TimestampTransform {
+  oneof timestamp_transform {
+    Delay delay = 1;
+    AlignTo alignTo = 2;
+  }
+
+  message Delay {
+    // (Required) The delay, in milliseconds.
+    int64 delay_millis = 1;
+  }
+
+  message AlignTo {
+    // (Required) A duration to which delays should be quantized
+    // in milliseconds.
+    int64 period = 3;
+
+    // (Required) An offset from 0 for the quantization specified by
+    // alignment_size, in milliseconds
+    int64 offset = 4;
   }
 }
 
@@ -654,6 +682,12 @@ message DisplayData {
   }
 
   enum Type {
-    STRING = 0; INTEGER = 1; FLOAT = 2; BOOLEAN = 3; TIMESTAMP = 4; DURATION = 5; JAVA_CLASS = 6;
+    STRING = 0;
+    INTEGER = 1;
+    FLOAT = 2;
+    BOOLEAN = 3;
+    TIMESTAMP = 4;
+    DURATION = 5;
+    JAVA_CLASS = 6;
   }
 }
