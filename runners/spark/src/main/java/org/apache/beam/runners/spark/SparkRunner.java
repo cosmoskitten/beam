@@ -36,6 +36,7 @@ import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.CheckpointDir;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
+import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarksListener;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -175,11 +176,14 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
           new JavaStreamingListenerWrapper(
               new AccumulatorSingleton.AccumulatorCheckpointingSparkListener()));
 
-      // register listeners.
+      // register user-defined listeners.
       for (JavaStreamingListener listener: mOptions.as(SparkContextOptions.class).getListeners()) {
         LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
         jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
       }
+
+      // register Watermarks listener to broadcast the advanced WMs.
+      jssc.addStreamingListener(new JavaStreamingListenerWrapper(new WatermarksListener(jssc)));
 
       startPipeline = executorService.submit(new Runnable() {
 
