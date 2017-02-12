@@ -250,7 +250,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends OnceTrigger
   /**
    * A {@link SerializableFunction} to delay the timestamp at which this triggers fires.
    */
-  private static final class DelayFn implements SerializableFunction<Instant, Instant> {
+  static final class DelayFn implements SerializableFunction<Instant, Instant> {
     private final Duration delay;
 
     public DelayFn(Duration delay) {
