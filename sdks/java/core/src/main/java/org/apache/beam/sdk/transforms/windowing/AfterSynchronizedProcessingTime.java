@@ -32,7 +32,11 @@ import org.joda.time.Instant;
  */
 public class AfterSynchronizedProcessingTime extends OnceTrigger {
 
-  public AfterSynchronizedProcessingTime() {
+  public static AfterSynchronizedProcessingTime ofFirstElement() {
+    return new AfterSynchronizedProcessingTime();
+  }
+
+  private AfterSynchronizedProcessingTime() {
     super(null);
   }
 
