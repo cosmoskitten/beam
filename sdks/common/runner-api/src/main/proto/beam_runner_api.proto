@@ -402,6 +402,21 @@ enum OutputTime {
   EARLIEST_IN_PANE = 2;
 }
 
+// The different time domains in the Beam model.
+enum TimeDomain {
+
+  // Event time is time from the perspective of the data
+  EVENT_TIME = 0;
+
+  // Processing time is time from the perspective of the
+  // execution of your pipeline
+  PROCESSING_TIME = 1;
+
+  // Synchronized processing time is the minimum of the
+  // processing time of all upstream dependencies
+  SYNCHRONIZED_PROCESSING_TIME = 2;
+}
+
 // A small DSL for expressing when to emit new aggregations
 // from a GroupByKey or CombinePerKey
 //
