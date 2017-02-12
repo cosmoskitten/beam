@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.wrappers.streaming;
+package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;

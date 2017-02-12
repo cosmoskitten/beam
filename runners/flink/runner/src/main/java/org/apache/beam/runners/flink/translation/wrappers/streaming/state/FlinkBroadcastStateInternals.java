@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.wrappers.streaming;
+package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,8 +53,11 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 
 /**
  * {@link StateInternals} that uses a Flink {@link DefaultOperatorStateBackend}
- * to manage state.
- * Ignore key. Mainly for SideInputs.
+ * to manage the broadcast state.
+ * The state is the same on all parallel instances of the operator.
+ *
+ * <p>Note: Ignore index of key.
+ * Mainly for SideInputs.
  */
 public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
 
@@ -91,7 +94,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
           StateTag<? super K, ValueState<T>> address,
           Coder<T> coder) {
 
-        return new FlinkValueState<>(stateBackend, address, namespace, coder);
+        return new FlinkBroadcastValueState<>(stateBackend, address, namespace, coder);
       }
 
       @Override
@@ -99,7 +102,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
           StateTag<? super K, BagState<T>> address,
           Coder<T> elemCoder) {
 
-        return new FlinkBagState<>(stateBackend, address, namespace, elemCoder);
+        return new FlinkBroadcastBagState<>(stateBackend, address, namespace, elemCoder);
       }
 
       @Override
@@ -150,18 +153,26 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
       public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
           StateTag<? super K, WatermarkHoldState<W>> address,
           OutputTimeFn<? super W> outputTimeFn) {
-         throw new UnsupportedOperationException("bindWatermark is not supported.");
+         throw new UnsupportedOperationException(
+             String.format("%s is not supported", WatermarkHoldState.class.getSimpleName()));
       }
     });
   }
 
-  private static class BroadcastValue<T> {
+  /**
+   * 1. The way we would use it is to only checkpoint anything from the operator
+   * with subtask index 0 because we assume that the state is the same on all
+   * parallel instances of the operator.
+   *
+   * <p>2. Use map to support namespace.
+   */
+  private abstract static class AbstractBroadcastState<T> {
 
     private final StateNamespace namespace;
     private final ListStateDescriptor<Map<String, T>> flinkStateDescriptor;
     private final DefaultOperatorStateBackend flinkStateBackend;
 
-    BroadcastValue(
+    AbstractBroadcastState(
         DefaultOperatorStateBackend flinkStateBackend,
         String name,
         StateNamespace namespace,
@@ -177,12 +188,16 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
           typeInfo.createSerializer(new ExecutionConfig()));
     }
 
+    /**
+     * Get map(namespce->T) from index 0.
+     */
     Map<String, T> getMap() throws Exception {
       ListState<Map<String, T>> state = flinkStateBackend.getBroadcastOperatorState(
           flinkStateDescriptor);
       Iterable<Map<String, T>> iterable = state.get();
       Map<String, T> ret = null;
       if (iterable != null) {
+        // just use index 0
         Iterator<Map<String, T>> iterator = iterable.iterator();
         if (iterator.hasNext()) {
           ret = iterator.next();
@@ -191,7 +206,10 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
       return ret;
     }
 
-    void putMap(Map<String, T> map) throws Exception {
+    /**
+     * Update map(namespce->T) from index 0.
+     */
+    void updateMap(Map<String, T> map) throws Exception {
       ListState<Map<String, T>> state = flinkStateBackend.getBroadcastOperatorState(
           flinkStateDescriptor);
       state.clear();
@@ -207,7 +225,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
           map = new HashMap<>();
         }
         map.put(namespace.stringKey(), input);
-        putMap(map);
+        updateMap(map);
       } catch (Exception e) {
         throw new RuntimeException("Error updating state.", e);
       }
@@ -231,7 +249,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
         Map<String, T> map = getMap();
         if (map != null) {
           map.remove(namespace.stringKey());
-          putMap(map);
+          updateMap(map);
         }
       } catch (Exception e) {
         throw new RuntimeException("Error clearing state.", e);
@@ -240,12 +258,13 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
 
   }
 
-  private static class FlinkValueState<K, T> extends BroadcastValue<T> implements ValueState<T> {
+  private static class FlinkBroadcastValueState<K, T>
+      extends AbstractBroadcastState<T> implements ValueState<T> {
 
     private final StateNamespace namespace;
     private final StateTag<? super K, ValueState<T>> address;
 
-    FlinkValueState(
+    FlinkBroadcastValueState(
         DefaultOperatorStateBackend flinkStateBackend,
         StateTag<? super K, ValueState<T>> address,
         StateNamespace namespace,
@@ -281,7 +300,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
         return false;
       }
 
-      FlinkValueState<?, ?> that = (FlinkValueState<?, ?>) o;
+      FlinkBroadcastValueState<?, ?> that = (FlinkBroadcastValueState<?, ?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
 
@@ -300,12 +319,13 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private static class FlinkBagState<K, T> extends BroadcastValue<List<T>> implements BagState<T> {
+  private static class FlinkBroadcastBagState<K, T> extends AbstractBroadcastState<List<T>>
+      implements BagState<T> {
 
     private final StateNamespace namespace;
     private final StateTag<? super K, BagState<T>> address;
 
-    FlinkBagState(
+    FlinkBroadcastBagState(
         DefaultOperatorStateBackend flinkStateBackend,
         StateTag<? super K, BagState<T>> address,
         StateNamespace namespace,
@@ -372,7 +392,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
         return false;
       }
 
-      FlinkBagState<?, ?> that = (FlinkBagState<?, ?>) o;
+      FlinkBroadcastBagState<?, ?> that = (FlinkBroadcastBagState<?, ?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
 
@@ -387,7 +407,8 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
   }
 
   private static class FlinkAccumulatorCombiningState<K, InputT, AccumT, OutputT>
-      extends BroadcastValue<AccumT> implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
+      extends AbstractBroadcastState<AccumT>
+      implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
     private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
@@ -503,7 +524,8 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
   }
 
   private static class FlinkKeyedAccumulatorCombiningState<K, InputT, AccumT, OutputT>
-      extends BroadcastValue<AccumT> implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
+      extends AbstractBroadcastState<AccumT>
+      implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
     private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
@@ -642,7 +664,8 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
   }
 
   private static class FlinkAccumulatorCombiningStateWithContext<K, InputT, AccumT, OutputT>
-      extends BroadcastValue<AccumT> implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
+      extends AbstractBroadcastState<AccumT>
+      implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
     private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;

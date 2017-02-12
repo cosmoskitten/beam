@@ -23,31 +23,25 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
-import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
-import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.flink.streaming.api.operators.HeapInternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimer;
-import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.joda.time.Instant;
 
@@ -58,16 +52,9 @@ import org.joda.time.Instant;
  * @param <OutputT>
  */
 public class WindowDoFnOperator<K, InputT, OutputT>
-    extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>>
-    implements Triggerable<K, TimerData> {
-
-  private final TimerInternals.TimerDataCoder timerCoder;
-
-  private transient FlinkTimerInternals timerInternals;
+    extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>> {
 
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
-
-  private transient HeapInternalTimerService<K, TimerData> timerService;
 
   public WindowDoFnOperator(
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn,
@@ -94,8 +81,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
     this.systemReduceFn = systemReduceFn;
 
-    this.timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+
   }
 
   @Override
@@ -127,36 +113,13 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     return doFn;
   }
 
-
-  @Override
-  public void open() throws Exception {
-
-    timerService = (HeapInternalTimerService<K, TimerData>) getInternalTimerService("beam-timer",
-        new CoderTypeSerializer<>(timerCoder), this);
-
-    timerInternals = new FlinkTimerInternals();
-
-    // call super at the end because this will call getDoFn() which requires stateInternals
-    // to be set
-    super.open();
-  }
-
   @Override
   protected ExecutionContext.StepContext createStepContext() {
     return new WindowDoFnOperator.StepContext();
   }
 
   @Override
-  public void onEventTime(InternalTimer<K, TimerData> timer) throws Exception {
-    fireTimer(timer);
-  }
-
-  @Override
-  public void onProcessingTime(InternalTimer<K, TimerData> timer) throws Exception {
-    fireTimer(timer);
-  }
-
-  public void fireTimer(InternalTimer<K, TimerData> timer) {
+  public void fireTimer(InternalTimer<?, TimerData> timer) {
     pushbackDoFnRunner.processElement(WindowedValue.valueInGlobalWindow(
         KeyedWorkItems.<K, InputT>timersWorkItem(
             (K) stateInternals.getKey(),
@@ -200,77 +163,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     }
   }
 
-  private class FlinkTimerInternals implements TimerInternals {
 
-    @Override
-    public void setTimer(
-            StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-      setTimer(TimerData.of(timerId, namespace, target, timeDomain));
-    }
-
-    @Deprecated
-    @Override
-    public void setTimer(TimerData timerKey) {
-      long time = timerKey.getTimestamp().getMillis();
-      if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
-        timerService.registerEventTimeTimer(timerKey, time);
-      } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
-        timerService.registerProcessingTimeTimer(timerKey, time);
-      } else {
-        throw new UnsupportedOperationException(
-                "Unsupported time domain: " + timerKey.getDomain());
-      }
-    }
-
-    @Deprecated
-    @Override
-    public void deleteTimer(StateNamespace namespace, String timerId) {
-      throw new UnsupportedOperationException(
-              "Canceling of a timer by ID is not yet supported.");
-    }
-
-    @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-      throw new UnsupportedOperationException(
-          "Canceling of a timer by ID is not yet supported.");
-    }
-
-    @Deprecated
-    @Override
-    public void deleteTimer(TimerData timerKey) {
-      long time = timerKey.getTimestamp().getMillis();
-      if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
-        timerService.deleteEventTimeTimer(timerKey, time);
-      } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
-        timerService.deleteProcessingTimeTimer(timerKey, time);
-      } else {
-        throw new UnsupportedOperationException(
-                "Unsupported time domain: " + timerKey.getDomain());
-      }
-    }
-
-    @Override
-    public Instant currentProcessingTime() {
-      return new Instant(timerService.currentProcessingTime());
-    }
-
-    @Nullable
-    @Override
-    public Instant currentSynchronizedProcessingTime() {
-      return new Instant(timerService.currentProcessingTime());
-    }
-
-    @Override
-    public Instant currentInputWatermarkTime() {
-      return new Instant(Math.min(currentInputWatermark, getPushbackWatermarkHold()));
-    }
-
-    @Nullable
-    @Override
-    public Instant currentOutputWatermarkTime() {
-      return new Instant(currentOutputWatermark);
-    }
-
-  }
 
 }
