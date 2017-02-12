@@ -29,9 +29,9 @@ import org.joda.time.Instant;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane extends OnceTrigger {
 
-  private final int countElems;
+  private final long countElems;
 
-  private AfterPane(int countElems) {
+  private AfterPane(long countElems) {
     super(null);
     this.countElems = countElems;
   }
@@ -39,14 +39,14 @@ public class AfterPane extends OnceTrigger {
   /**
    * The number of elements after which this trigger may fire.
    */
-  public int getElementCount() {
+  public long getElementCount() {
     return countElems;
   }
 
   /**
    * Creates a trigger that fires when the pane contains at least {@code countElems} elements.
    */
-  public static AfterPane elementCountAtLeast(int countElems) {
+  public static AfterPane elementCountAtLeast(long countElems) {
     return new AfterPane(countElems);
   }
 

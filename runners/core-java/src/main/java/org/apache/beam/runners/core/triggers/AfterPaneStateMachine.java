@@ -40,9 +40,9 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "count", VarLongCoder.of(), Sum.ofLongs()));
 
-  private final int countElems;
+  private final long countElems;
 
-  private AfterPaneStateMachine(int countElems) {
+  private AfterPaneStateMachine(long countElems) {
     super(null);
     this.countElems = countElems;
   }
@@ -50,14 +50,14 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   /**
    * The number of elements after which this trigger may fire.
    */
-  public int getElementCount() {
+  public long getElementCount() {
     return countElems;
   }
 
   /**
    * Creates a trigger that fires when the pane contains at least {@code countElems} elements.
    */
-  public static AfterPaneStateMachine elementCountAtLeast(int countElems) {
+  public static AfterPaneStateMachine elementCountAtLeast(long countElems) {
     return new AfterPaneStateMachine(countElems);
   }
 
