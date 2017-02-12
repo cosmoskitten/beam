@@ -511,7 +511,6 @@ public final class StreamingTransformTranslator {
 
       @Override
       public String toString() {
-        // TODO: return meaningful Spark native operation
         return "mapPartitions(new <doFn>())";
       }
     };

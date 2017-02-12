@@ -111,7 +111,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   }
 
   public String getDebugString() {
-    return StringUtils.join(transforms, "\n.");
+    return StringUtils.join(transforms, "\n");
   }
 
   private static class DebugTransform {
@@ -147,7 +147,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
           return "KafkaUtils.createDirectStream(...)";
         }
         if (composite) {
-          return "<" + transformClass.getName() + ">";
+          return ".<" + transformClass.getName() + ">";
         }
         String transformString = transformEvaluator.toString();
         if (transformString.contains("<doFn>")) {
@@ -165,7 +165,11 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
           }
           transformString = transformString.replace("<doFn>", doFnName);
         }
-        return transformString;
+        if (transformString.startsWith("sparkContext") ||
+            transformString.startsWith("streamingContext")) {
+          return transformString;
+        }
+        return "." + transformString;
       } catch (
           NoSuchMethodException
               | InvocationTargetException

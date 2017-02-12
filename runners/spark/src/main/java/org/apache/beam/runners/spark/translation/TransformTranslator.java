@@ -467,8 +467,7 @@ public final class TransformTranslator {
 
       @Override
       public String toString() {
-        // TODO: return meaningful Spark native operation
-        return "<readHadoop>";
+        return "sparkContext.newAPIHadoopFile(...)";
       }
     };
   }
@@ -501,8 +500,7 @@ public final class TransformTranslator {
 
       @Override
       public String toString() {
-        // TODO: return meaningful Spark native operation
-        return "<writeHadoop>";
+        return "saveAsNewAPIHadoopFile(...)";
       }
     };
   }
@@ -620,8 +618,7 @@ public final class TransformTranslator {
 
       @Override
       public String toString() {
-        // TODO: return meaningful Spark native operation
-        return "<viewAsSingleton>";
+        return "collect()";
       }
     };
   }
@@ -643,8 +640,7 @@ public final class TransformTranslator {
 
       @Override
       public String toString() {
-        // TODO: return meaningful Spark native operation
-        return "<viewAsIter>";
+        return "collect()";
       }
     };
   }
