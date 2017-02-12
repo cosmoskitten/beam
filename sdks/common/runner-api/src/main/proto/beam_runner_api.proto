@@ -477,6 +477,11 @@ message Trigger {
   // specially denoted to indicate the user did not alter the triggering.
   message Default { }
 
+  // Ready whenever the requisite number of input elements have arrived
+  message ElementCount {
+    int64 element_count = 1;
+  }
+
   // The full disjoint union of possible triggers.
   oneof trigger {
     AfterAll after_all = 1;
@@ -489,6 +494,7 @@ message Trigger {
     Repeat repeat = 8;
     OrFinally or_finally = 9;
     Default default = 10;
+    ElementCount element_count = 11;
   }
 }
 
