@@ -241,6 +241,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
               new FlinkSplitStateInternals<Object>(getOperatorStateBackend());
         }
       }
+
+      pushedBackWatermark = null;
     }
 
     outputManager = outputManagerFactory.create(output);
