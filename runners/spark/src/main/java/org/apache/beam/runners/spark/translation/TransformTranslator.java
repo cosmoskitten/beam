@@ -705,8 +705,7 @@ public final class TransformTranslator {
 
       @Override
       public String toString() {
-        // TODO: return meaningful Spark native operation
-        return "<storageLevel>";
+        return "sparkContext.parallelize(rdd.getStorageLevel().description())";
       }
     };
   }
