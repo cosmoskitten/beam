@@ -172,7 +172,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
           } else if (transform instanceof Read.Unbounded) {
             sourceName = ((Read.Unbounded<?>) transform).getSource().getClass().getName();
           }
-          transformString = transformString.replace("<doFn>", sourceName);
+          transformString = transformString.replace("<source>", sourceName);
         }
         if (transformString.startsWith("sparkContext")
             || transformString.startsWith("streamingContext")) {
