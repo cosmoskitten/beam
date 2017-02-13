@@ -460,10 +460,14 @@ public class HadoopInputFormatIO {
      * options indicated by the given configuration.
 =======
      * options provided by the given configuration.
+<<<<<<< HEAD
 >>>>>>> Changes as per code review by Dipti, revisited code
      *
      * <p>
      * Does not modify this object.
+=======
+     * <p>Does not modify this object.
+>>>>>>> Changes suugested by Stephen in code review
      */
     public Read<K, V> withConfiguration(Configuration configuration) {
       validateConfiguration(configuration);
@@ -556,9 +560,7 @@ public class HadoopInputFormatIO {
 >>>>>>> Changes as per code review by Dipti, revisited code
      * Returns a new {@link HadoopInputFormatIO.Read} that will transform the keys read from the
      * source using the given key translation function.
-     *
-     * <p>
-     * Does not modify this object.
+     * <p>Does not modify this object.
      */
     public Read<K, V> withKeyTranslation(SimpleFunction<?, K> function) {
       checkNotNull(function, HadoopInputFormatIOConstants.NULL_KEY_TRANSLATIONFUNC_ERROR_MSG);
@@ -570,9 +572,7 @@ public class HadoopInputFormatIO {
     /**
      * Returns a new {@link HadoopInputFormatIO.Read} that will transform the values read from the
      * source using the given value translation function.
-     *
-     * <p>
-     * Does not modify this object.
+     * <p>Does not modify this object.
      */
     public Read<K, V> withValueTranslation(SimpleFunction<?, V> function) {
       checkNotNull(function, HadoopInputFormatIOConstants.NULL_VALUE_TRANSLATIONFUNC_ERROR_MSG);
@@ -660,7 +660,7 @@ public class HadoopInputFormatIO {
 
     /**
      * Returns the default coder for a given type descriptor. Coder Registry is queried for correct
-     * coder, if not found in Coder Registry then check if the type desciptor provided is of
+     * coder, if not found in Coder Registry, then check if the type desciptor provided is of type
      * Writable, then WritableCoder is returned, else exception is thrown "Cannot find coder".
      */
     @VisibleForTesting
@@ -729,7 +729,6 @@ public class HadoopInputFormatIO {
 
   /**
    * Bounded source implementation for HadoopInputFormatIO.
-   *
    * @param <K> Type of keys to be read.
    * @param <V> Type of values to be read.
    */
@@ -849,7 +848,7 @@ public class HadoopInputFormatIO {
         PipelineOptions options) throws Exception {
       if (inputSplit == null) {
         computeSplitsIfNecessary();
-        LOG.info("Generated {} splits each of size {} ", inputSplits.size(),
+        LOG.info("Generated {} splits. Size of first split is {} ", inputSplits.size(),
             inputSplits.get(0).getSplit().getLength());
 <<<<<<< HEAD
         setSourceSplit(true);
