@@ -40,12 +40,15 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 import org.junit.runners.MethodSorters;
 >>>>>>> Added javadodc in HIFIOHBaseIT.
 =======
 >>>>>>> Added javadoc in DBInputWritable.java.
+=======
+>>>>>>> Revert "Removing the other ITS from the actual pull request"
 
 /**
  * Runs test to validate HadoopInputFromatIO for a HBase instance on GCP.
@@ -64,7 +67,11 @@ import org.junit.runners.MethodSorters;
 public class HIFIOHBaseIT implements Serializable {
   private static HIFTestOptions options;
   private static final String TABLE_NAME = "scientists";
+<<<<<<< HEAD
   private static final long COUNT_RECORDS = 4L;
+=======
+  private static final long COUNT_RECORDS = 50L;
+>>>>>>> Revert "Removing the other ITS from the actual pull request"
 
   @BeforeClass
   public static void setUp() {
@@ -93,10 +100,14 @@ public class HIFIOHBaseIT implements Serializable {
         .thatSingleton(
             hbaseData.apply("Count", Count.<KV<ImmutableBytesWritable, String>>globally()))
 <<<<<<< HEAD
+<<<<<<< HEAD
         .isEqualTo(COUNT_RECORDS);
 =======
         .isEqualTo(50L);
 >>>>>>> Added javadodc in HIFIOHBaseIT.
+=======
+        .isEqualTo(COUNT_RECORDS);
+>>>>>>> Revert "Removing the other ITS from the actual pull request"
     PCollection<String> values = hbaseData.apply(Values.<String>create());
     List<String> expectedValues = Arrays.asList("Einstein", "Darwin", "Copernicus", "Pasteur",
         "Curie", "Faraday", "Newton", "Bohr", "Galilei", "Maxwell");
