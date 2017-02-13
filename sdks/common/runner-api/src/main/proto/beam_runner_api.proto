@@ -413,7 +413,10 @@ enum TimeDomain {
   PROCESSING_TIME = 1;
 
   // Synchronized processing time is the minimum of the
-  // processing time of all upstream dependencies
+  // processing time of all pending elements.
+  //
+  // The "processing time" of an element refers to
+  // the local processing time at which it was emitted
   SYNCHRONIZED_PROCESSING_TIME = 2;
 }
 
