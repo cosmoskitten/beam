@@ -244,6 +244,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       }
 
       pushedBackWatermark = Optional.absent();
+
     }
 
     outputManager = outputManagerFactory.create(output);
@@ -322,17 +323,15 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     // init and restore from pushedBack state.
     // Not done in initializeState, because OperatorState is not ready.
     if (!pushedBackWatermark.isPresent()) {
-      pushedBackWatermark = Optional.fromNullable(
-          TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
       BagState<WindowedValue<InputT>> pushedBack =
           pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
-      long min = pushedBackWatermark.get();
+      long min = TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE);
       for (WindowedValue<InputT> value : pushedBack.read()) {
         min = Math.min(min, value.getTimestamp().getMillis());
       }
-      pushedBackWatermark = Optional.fromNullable(min);
+      setPushedBackWatermark(min);
     }
   }
 
@@ -342,6 +341,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     pushbackDoFnRunner.startBundle();
     pushbackDoFnRunner.processElement(streamRecord.getValue());
     pushbackDoFnRunner.finishBundle();
+  }
+
+  private void setPushedBackWatermark(long watermark) {
+    pushedBackWatermark = Optional.fromNullable(watermark);
   }
 
   @Override
@@ -361,7 +364,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       min = Math.min(min, pushedBackValue.getTimestamp().getMillis());
       pushedBack.add(pushedBackValue);
     }
-    pushedBackWatermark = Optional.fromNullable(min);
+    setPushedBackWatermark(min);
     pushbackDoFnRunner.finishBundle();
   }
 
@@ -402,7 +405,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       min = Math.min(min, pushedBackValue.getTimestamp().getMillis());
       pushedBack.add(pushedBackValue);
     }
-    pushedBackWatermark = Optional.fromNullable(min);
+    setPushedBackWatermark(min);
 
     pushbackDoFnRunner.finishBundle();
 
