@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdks.common.runner_api.v1.RunnerApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,26 +60,37 @@ public class BeamFnDataReadRunner<OutputT> {
   private CompletableFuture<Void> readFuture;
 
   public BeamFnDataReadRunner(
-      BeamFnApi.FunctionSpec functionSpec,
+      RunnerApi.FunctionSpec functionSpec,
       Supplier<Long> processBundleInstructionIdSupplier,
       BeamFnApi.Target inputTarget,
       BeamFnApi.Coder coderSpec,
       BeamFnDataClient beamFnDataClientFactory,
       Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap)
           throws IOException {
-    this.apiServiceDescriptor = functionSpec.getData().unpack(BeamFnApi.RemoteGrpcPort.class)
-        .getApiServiceDescriptor();
+    this.apiServiceDescriptor =
+        functionSpec
+            .getSdkFnSpec()
+            .getData()
+            .unpack(BeamFnApi.RemoteGrpcPort.class)
+            .getApiServiceDescriptor();
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.consumers = ImmutableList.copyOf(FluentIterable.concat(outputMap.values()));
 
     @SuppressWarnings("unchecked")
-    Coder<WindowedValue<OutputT>> coder = Serializer.deserialize(
-        OBJECT_MAPPER.readValue(
-            coderSpec.getFunctionSpec().getData().unpack(BytesValue.class).getValue().newInput(),
-            Map.class),
-        Coder.class);
+    Coder<WindowedValue<OutputT>> coder =
+        Serializer.deserialize(
+            OBJECT_MAPPER.readValue(
+                coderSpec
+                    .getFunctionSpec()
+                    .getSdkFnSpec()
+                    .getData()
+                    .unpack(BytesValue.class)
+                    .getValue()
+                    .newInput(),
+                Map.class),
+            Coder.class);
     this.coder = coder;
   }
 

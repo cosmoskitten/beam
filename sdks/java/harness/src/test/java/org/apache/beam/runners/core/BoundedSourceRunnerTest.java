@@ -33,12 +33,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
-import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdks.common.runner_api.v1.RunnerApi;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -58,7 +58,7 @@ public class BoundedSourceRunnerTest {
     BoundedSourceRunner<BoundedSource<Long>, Long> runner =
         new BoundedSourceRunner<>(
         PipelineOptionsFactory.create(),
-        BeamFnApi.FunctionSpec.getDefaultInstance(),
+        RunnerApi.FunctionSpec.getDefaultInstance(),
         outputMap);
 
     runner.runReadLoop(valueInGlobalWindow(CountingSource.upTo(2)));
@@ -81,7 +81,7 @@ public class BoundedSourceRunnerTest {
     BoundedSourceRunner<BoundedSource<Long>, Long> runner =
         new BoundedSourceRunner<>(
         PipelineOptionsFactory.create(),
-        BeamFnApi.FunctionSpec.getDefaultInstance(),
+        RunnerApi.FunctionSpec.getDefaultInstance(),
         outputMap);
 
     runner.runReadLoop(valueInGlobalWindow(CountingSource.upTo(0)));
@@ -101,8 +101,9 @@ public class BoundedSourceRunnerTest {
     BoundedSourceRunner<BoundedSource<Long>, Long> runner =
         new BoundedSourceRunner<>(
         PipelineOptionsFactory.create(),
-        BeamFnApi.FunctionSpec.newBuilder().setData(
-            Any.pack(BytesValue.newBuilder().setValue(encodedSource).build())).build(),
+        RunnerApi.FunctionSpec.newBuilder().setSdkFnSpec(
+            RunnerApi.SdkFunctionSpec.newBuilder().setData(
+            Any.pack(BytesValue.newBuilder().setValue(encodedSource).build()))).build(),
         outputMap);
 
     runner.start();

@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdks.common.runner_api.v1.RunnerApi;
 
 /**
  * Registers as a consumer with the Beam Fn Data API. Propagates and elements consumed to
@@ -49,24 +50,35 @@ public class BeamFnDataWriteRunner<InputT> {
   private CloseableThrowingConsumer<WindowedValue<InputT>> consumer;
 
   public BeamFnDataWriteRunner(
-      BeamFnApi.FunctionSpec functionSpec,
+      RunnerApi.FunctionSpec functionSpec,
       Supplier<Long> processBundleInstructionIdSupplier,
       BeamFnApi.Target outputTarget,
       BeamFnApi.Coder coderSpec,
       BeamFnDataClient beamFnDataClientFactory)
           throws IOException {
-    this.apiServiceDescriptor = functionSpec.getData().unpack(BeamFnApi.RemoteGrpcPort.class)
-        .getApiServiceDescriptor();
+    this.apiServiceDescriptor =
+        functionSpec
+            .getSdkFnSpec()
+            .getData()
+            .unpack(BeamFnApi.RemoteGrpcPort.class)
+            .getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.outputTarget = outputTarget;
 
     @SuppressWarnings("unchecked")
-    Coder<WindowedValue<InputT>> coder = Serializer.deserialize(
-        OBJECT_MAPPER.readValue(
-            coderSpec.getFunctionSpec().getData().unpack(BytesValue.class).getValue().newInput(),
-            Map.class),
-        Coder.class);
+    Coder<WindowedValue<InputT>> coder =
+        Serializer.deserialize(
+            OBJECT_MAPPER.readValue(
+                coderSpec
+                    .getFunctionSpec()
+                    .getSdkFnSpec()
+                    .getData()
+                    .unpack(BytesValue.class)
+                    .getValue()
+                    .newInput(),
+                Map.class),
+            Coder.class);
     this.coder = coder;
   }
 
