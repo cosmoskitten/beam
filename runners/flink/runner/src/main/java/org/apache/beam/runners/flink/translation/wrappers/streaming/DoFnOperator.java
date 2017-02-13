@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -147,7 +148,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   private transient StateInternals<?> pushbackStateInternals;
 
-  private transient Long pushedBackWatermark;
+  private transient Optional<Long> pushedBackWatermark;
 
   public DoFnOperator(
       DoFn<InputT, FnOutputT> doFn,
@@ -242,7 +243,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         }
       }
 
-      pushedBackWatermark = null;
+      pushedBackWatermark = Optional.absent();
     }
 
     outputManager = outputManagerFactory.create(output);
@@ -311,7 +312,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     try {
       checkInitPushedBackWatermark();
-      return pushedBackWatermark;
+      return pushedBackWatermark.get();
     } catch (Exception e) {
       throw new RuntimeException("Error retrieving pushed back watermark state.", e);
     }
@@ -320,16 +321,18 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   private void checkInitPushedBackWatermark() {
     // init and restore from pushedBack state.
     // Not done in initializeState, because OperatorState is not ready.
-    if (pushedBackWatermark == null) {
-      pushedBackWatermark = TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE);
+    if (!pushedBackWatermark.isPresent()) {
+      pushedBackWatermark = Optional.fromNullable(
+          TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
       BagState<WindowedValue<InputT>> pushedBack =
           pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
+      long min = pushedBackWatermark.get();
       for (WindowedValue<InputT> value : pushedBack.read()) {
-        pushedBackWatermark =
-            Math.min(pushedBackWatermark, value.getTimestamp().getMillis());
+        min = Math.min(min, value.getTimestamp().getMillis());
       }
+      pushedBackWatermark = Optional.fromNullable(min);
     }
   }
 
@@ -353,11 +356,12 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     checkInitPushedBackWatermark();
 
+    long min = pushedBackWatermark.get();
     for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
-      pushedBackWatermark =
-          Math.min(pushedBackWatermark, pushedBackValue.getTimestamp().getMillis());
+      min = Math.min(min, pushedBackValue.getTimestamp().getMillis());
       pushedBack.add(pushedBackValue);
     }
+    pushedBackWatermark = Optional.fromNullable(min);
     pushbackDoFnRunner.finishBundle();
   }
 
@@ -393,12 +397,12 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     }
 
     pushedBack.clear();
-    pushedBackWatermark = TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE);
+    long min = TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE);
     for (WindowedValue<InputT> pushedBackValue : newPushedBack) {
-      pushedBackWatermark =
-          Math.min(pushedBackWatermark, pushedBackValue.getTimestamp().getMillis());
+      min = Math.min(min, pushedBackValue.getTimestamp().getMillis());
       pushedBack.add(pushedBackValue);
     }
+    pushedBackWatermark = Optional.fromNullable(min);
 
     pushbackDoFnRunner.finishBundle();
 
