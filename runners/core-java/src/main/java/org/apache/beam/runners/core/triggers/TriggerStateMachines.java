@@ -184,7 +184,6 @@ public class TriggerStateMachines {
           CONVERT_TIMESTAMP_TRANSFORM =
               new Function<TimestampTransform, SerializableFunction<Instant, Instant>>() {
                 @Override
-                @Nonnull
                 public SerializableFunction<Instant, Instant> apply(
                     @Nonnull TimestampTransform transform) {
                   if (transform instanceof TimestampTransform.Delay) {
