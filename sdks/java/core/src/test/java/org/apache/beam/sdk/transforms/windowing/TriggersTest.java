@@ -39,76 +39,52 @@ public class TriggersTest {
     abstract Trigger getTrigger();
   }
 
-  private static ToProtoAndBackSpec toProtoAndBack(Trigger trigger) {
+  private static ToProtoAndBackSpec toProtoAndBackSpec(Trigger trigger) {
     return new AutoValue_TriggersTest_ToProtoAndBackSpec(trigger);
   }
 
   @Parameters(name = "{index}: {0}")
-  public static Iterable<Object[]> data() {
-    return ImmutableList.copyOf(
-        new Object[][] {
+  public static Iterable<ToProtoAndBackSpec> data() {
+    return ImmutableList.of(
+        // Atomic triggers
+        toProtoAndBackSpec(AfterWatermark.pastEndOfWindow()),
+        toProtoAndBackSpec(AfterPane.elementCountAtLeast(73)),
+        toProtoAndBackSpec(AfterSynchronizedProcessingTime.ofFirstElement()),
+        toProtoAndBackSpec(Never.ever()),
+        toProtoAndBackSpec(DefaultTrigger.of()),
+        toProtoAndBackSpec(AfterProcessingTime.pastFirstElementInPane()),
+        toProtoAndBackSpec(
+            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.millis(23))),
+        toProtoAndBackSpec(
+            AfterProcessingTime.pastFirstElementInPane()
+                .alignedTo(Duration.millis(5), new Instant(27))),
+        toProtoAndBackSpec(
+            AfterProcessingTime.pastFirstElementInPane()
+                .plusDelayOf(Duration.standardSeconds(3))
+                .alignedTo(Duration.millis(5), new Instant(27))
+                .plusDelayOf(Duration.millis(13))),
 
-          // Atomic triggers
-          {toProtoAndBack(AfterWatermark.pastEndOfWindow())},
-          {toProtoAndBack(AfterPane.elementCountAtLeast(73))},
-          {toProtoAndBack(new AfterSynchronizedProcessingTime())},
-          {toProtoAndBack(Never.ever())},
-          {toProtoAndBack(DefaultTrigger.of())},
-          {toProtoAndBack(AfterProcessingTime.pastFirstElementInPane())},
-          {
-            toProtoAndBack(
-                AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.millis(23)))
-          },
-          {
-            toProtoAndBack(
-                AfterProcessingTime.pastFirstElementInPane()
-                    .alignedTo(Duration.millis(5), new Instant(27)))
-          },
-          {
-            toProtoAndBack(
-                AfterProcessingTime.pastFirstElementInPane()
-                    .plusDelayOf(Duration.standardSeconds(3))
-                    .alignedTo(Duration.millis(5), new Instant(27))
-                    .plusDelayOf(Duration.millis(13)))
-          },
+        // Composite triggers
 
-          // Composite triggers
-          {
-            toProtoAndBack(
-                AfterAll.of(AfterPane.elementCountAtLeast(79), AfterWatermark.pastEndOfWindow()))
-          },
-          {
-            toProtoAndBack(
-                AfterEach.inOrder(
-                    AfterPane.elementCountAtLeast(79), AfterPane.elementCountAtLeast(3)))
-          },
-          {
-            toProtoAndBack(
-                AfterFirst.of(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(3)))
-          },
-          {
-            toProtoAndBack(
-                AfterWatermark.pastEndOfWindow().withEarlyFirings(AfterPane.elementCountAtLeast(3)))
-          },
-          {
-            toProtoAndBack(
-                AfterWatermark.pastEndOfWindow().withLateFirings(AfterPane.elementCountAtLeast(3)))
-          },
-          {
-            toProtoAndBack(
-                AfterWatermark.pastEndOfWindow()
-                    .withEarlyFirings(
-                        AfterProcessingTime.pastFirstElementInPane()
-                            .plusDelayOf(Duration.millis(42)))
-                    .withLateFirings(AfterPane.elementCountAtLeast(3)))
-          },
-          {toProtoAndBack(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))},
-          {
-            toProtoAndBack(
-                Repeatedly.forever(AfterPane.elementCountAtLeast(1))
-                    .orFinally(AfterWatermark.pastEndOfWindow()))
-          }
-        });
+        toProtoAndBackSpec(
+            AfterAll.of(AfterPane.elementCountAtLeast(79), AfterWatermark.pastEndOfWindow())),
+        toProtoAndBackSpec(
+            AfterEach.inOrder(AfterPane.elementCountAtLeast(79), AfterPane.elementCountAtLeast(3))),
+        toProtoAndBackSpec(
+            AfterFirst.of(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(3))),
+        toProtoAndBackSpec(
+            AfterWatermark.pastEndOfWindow().withEarlyFirings(AfterPane.elementCountAtLeast(3))),
+        toProtoAndBackSpec(
+            AfterWatermark.pastEndOfWindow().withLateFirings(AfterPane.elementCountAtLeast(3))),
+        toProtoAndBackSpec(
+            AfterWatermark.pastEndOfWindow()
+                .withEarlyFirings(
+                    AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.millis(42)))
+                .withLateFirings(AfterPane.elementCountAtLeast(3))),
+        toProtoAndBackSpec(Repeatedly.forever(AfterWatermark.pastEndOfWindow())),
+        toProtoAndBackSpec(
+            Repeatedly.forever(AfterPane.elementCountAtLeast(1))
+                .orFinally(AfterWatermark.pastEndOfWindow())));
   }
 
   @Parameter(0)

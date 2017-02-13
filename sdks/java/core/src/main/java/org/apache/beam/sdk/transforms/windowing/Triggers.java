@@ -50,11 +50,6 @@ public class Triggers implements Serializable {
       return tryConvert(evaluationMethod, trigger);
     }
 
-    public RunnerApi.Trigger evaluateOnceTrigger(OnceTrigger trigger) {
-      Method evaluationMethod = getEvaluationMethod(trigger.getClass());
-      return (RunnerApi.Trigger) tryConvert(evaluationMethod, trigger);
-    }
-
     private RunnerApi.Trigger tryConvert(Method evaluationMethod, Trigger trigger) {
       try {
         return (RunnerApi.Trigger) evaluationMethod.invoke(this, trigger);
@@ -74,7 +69,7 @@ public class Triggers implements Serializable {
       try {
         return getClass().getDeclaredMethod("convertSpecific", clazz);
       } catch (NoSuchMethodException exc) {
-        throw new UnsupportedOperationException(
+        throw new IllegalArgumentException(
             String.format(
                 "Cannot translate trigger class %s to a runner-API proto.",
                 clazz.getCanonicalName()),
@@ -272,6 +267,9 @@ public class Triggers implements Serializable {
               trigger = trigger.plusDelayOf(Duration.millis(transform.getDelay().getDelayMillis()));
               break;
             case TIMESTAMPTRANSFORM_NOT_SET:
+              throw new IllegalArgumentException(
+                  String.format(
+                      "Required field 'timestamp_transform' not set in %s", transform));
             default:
               throw new IllegalArgumentException(
                   String.format(
@@ -281,7 +279,7 @@ public class Triggers implements Serializable {
         }
         return trigger;
       case AFTER_SYNCHRONIZED_PROCESSING_TIME:
-        return new AfterSynchronizedProcessingTime();
+        return AfterSynchronizedProcessingTime.ofFirstElement();
       case ELEMENT_COUNT:
         return AfterPane.elementCountAtLeast(triggerProto.getElementCount().getElementCount());
       case NEVER:
@@ -294,6 +292,8 @@ public class Triggers implements Serializable {
       case DEFAULT:
         return DefaultTrigger.of();
       case TRIGGER_NOT_SET:
+        throw new IllegalArgumentException(
+            String.format("Required field 'trigger' not set in %s", triggerProto));
       default:
         throw new IllegalArgumentException(
             String.format("Unknown trigger case: %s", triggerProto.getTriggerCase()));
