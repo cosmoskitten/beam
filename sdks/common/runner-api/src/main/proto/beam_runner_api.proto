@@ -466,16 +466,19 @@ message Trigger {
   message AfterSynchronizedProcessingTime {
   }
 
+  // The default trigger. Equivalent to Repeat { AfterEndOfWindow } but
+  // specially denoted to indicate the user did not alter the triggering.
+  message Default {
+  }
+
+  // Ready whenever the requisite number of input elements have arrived
+  message ElementCount {
+    int32 element_count = 1;
+  }
+
   // Never ready. There will only be an ON_TIME output and a final
   // output at window expiration.
   message Never {
-  }
-
-  // Ready whenever the subtrigger is ready; resets state when the subtrigger
-  // completes.
-  message Repeat {
-    // (Require) Trigger that is run repeatedly.
-    Trigger subtrigger = 1;
   }
 
   // Ready whenever either of its subtriggers are ready, but finishes output
@@ -489,14 +492,11 @@ message Trigger {
     Trigger finally = 2;
   }
 
-  // The default trigger. Equivalent to Repeat { AfterEndOfWindow } but
-  // specially denoted to indicate the user did not alter the triggering.
-  message Default {
-  }
-
-  // Ready whenever the requisite number of input elements have arrived
-  message ElementCount {
-    int64 element_count = 1;
+  // Ready whenever the subtrigger is ready; resets state when the subtrigger
+  // completes.
+  message Repeat {
+    // (Require) Trigger that is run repeatedly.
+    Trigger subtrigger = 1;
   }
 
   // The full disjoint union of possible triggers.
@@ -506,12 +506,12 @@ message Trigger {
     AfterEach after_each = 3;
     AfterEndOfWindow after_end_of_widow = 4;
     AfterProcessingTime after_processing_time = 5;
-    Never never = 7;
-    Repeat repeat = 8;
-    OrFinally or_finally = 9;
-    Default default = 10;
-    ElementCount element_count = 11;
-    AfterSynchronizedProcessingTime after_synchronized_processing_time = 12;
+    AfterSynchronizedProcessingTime after_synchronized_processing_time = 6;
+    Default default = 7;
+    ElementCount element_count = 8;
+    Never never = 9;
+    OrFinally or_finally = 10;
+    Repeat repeat = 11;
   }
 }
 
