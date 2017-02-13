@@ -36,7 +36,7 @@ import org.joda.time.format.PeriodFormatter;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterProcessingTime extends OnceTrigger {
 
-  private static final PeriodFormatter PERIOD_FORMATTER = PeriodFormat.wordBased(Locale.ENGLISH);
+  private static final PeriodFormatter DURATION_FORMATTER = PeriodFormat.wordBased(Locale.ENGLISH);
 
   private final List<TimestampTransform> timestampTransforms;
 
@@ -76,7 +76,7 @@ public class AfterProcessingTime extends OnceTrigger {
   }
 
   /**
-   * Aligns timestamps to the smallest multiple of {@code size} since the {@code offset} greater
+   * Aligns timestamps to the smallest multiple of {@code period} since the {@code offset} greater
    * than the timestamp.
    */
   public AfterProcessingTime alignedTo(final Duration period, final Instant offset) {
@@ -88,8 +88,8 @@ public class AfterProcessingTime extends OnceTrigger {
   }
 
   /**
-   * Aligns the time to be the smallest multiple of {@code size} greater than the timestamp since
-   * the epoch.
+   * Aligns the time to be the smallest multiple of {@code period} greater than the epoch
+   * boundary (aka {@code new Instant(0)}).
    */
   public AfterProcessingTime alignedTo(final Duration period) {
     return alignedTo(period, new Instant(0));
@@ -107,7 +107,7 @@ public class AfterProcessingTime extends OnceTrigger {
 
   @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
-    return new AfterSynchronizedProcessingTime();
+    return AfterSynchronizedProcessingTime.ofFirstElement();
   }
 
   @Override
@@ -118,13 +118,13 @@ public class AfterProcessingTime extends OnceTrigger {
         TimestampTransform.Delay delay = (TimestampTransform.Delay) transform;
         builder
             .append(".plusDelayOf(")
-            .append(PERIOD_FORMATTER.print(delay.getDelay().toPeriod()))
+            .append(DURATION_FORMATTER.print(delay.getDelay().toPeriod()))
             .append(")");
       } else if (transform instanceof TimestampTransform.AlignTo) {
         TimestampTransform.AlignTo alignTo = (TimestampTransform.AlignTo) transform;
         builder
             .append(".alignedTo(")
-            .append(PERIOD_FORMATTER.print(alignTo.getPeriod().toPeriod()))
+            .append(DURATION_FORMATTER.print(alignTo.getPeriod().toPeriod()))
             .append(", ")
             .append(alignTo.getOffset())
             .append(")");
