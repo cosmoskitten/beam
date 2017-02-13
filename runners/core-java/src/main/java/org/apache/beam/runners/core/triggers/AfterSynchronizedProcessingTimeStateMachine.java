@@ -27,13 +27,17 @@ import org.joda.time.Instant;
 
 class AfterSynchronizedProcessingTimeStateMachine extends AfterDelayFromFirstElementStateMachine {
 
+  public static AfterSynchronizedProcessingTimeStateMachine ofFirstElement() {
+    return new AfterSynchronizedProcessingTimeStateMachine();
+  }
+
   @Override
   @Nullable
   public Instant getCurrentTime(TriggerStateMachine.TriggerContext context) {
     return context.currentSynchronizedProcessingTime();
   }
 
-  public AfterSynchronizedProcessingTimeStateMachine() {
+  private AfterSynchronizedProcessingTimeStateMachine() {
     super(TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
         Collections.<SerializableFunction<Instant, Instant>>emptyList());
   }
