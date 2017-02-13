@@ -461,8 +461,11 @@ public class HadoopInputFormatIO {
 =======
      * options provided by the given configuration.
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Changes as per code review by Dipti, revisited code
      *
+=======
+>>>>>>> Review comments implemented given by Stephen
      * <p>
      * Does not modify this object.
 =======
@@ -891,6 +894,7 @@ public class HadoopInputFormatIO {
     @Override
     public long getEstimatedSizeBytes(PipelineOptions po) throws Exception {
       if (inputSplit == null) {
+        // If there are no splits computed yet, then retrieve the splits.
         computeSplitsIfNecessary();
         return boundedSourceEstimatedSize;
       }
@@ -899,6 +903,7 @@ public class HadoopInputFormatIO {
 
     /**
      * This is a helper function to compute splits. This method will also calculate size of the data
+<<<<<<< HEAD
 <<<<<<< HEAD
      * being read. Note: This method is called exactly once, the splits are retrieved and cached
      * for further use by splitIntoBundles() and getEstimatesSizeBytes().
@@ -927,6 +932,10 @@ public class HadoopInputFormatIO {
      * being read. Note: The splits are retrieved and cached for further use by splitIntoBundles()
      * and getEstimatesSizeBytes().
 >>>>>>> Review comments implemented for IO class.
+=======
+     * being read. Note: This method is executed exactly once, the splits are retrieved and cached for
+     * further use by splitIntoBundles() and getEstimatesSizeBytes().
+>>>>>>> Review comments implemented given by Stephen
      */
     @VisibleForTesting
 <<<<<<< HEAD
@@ -1075,10 +1084,10 @@ public class HadoopInputFormatIO {
         inputClass = Class.forName(inputFormatGenericClassName);
       } catch (Exception e) {
         /*
-         * Given inputFormatGenericType is a type parameter i.e. T, K, V, etc. In such cases class
-         * validation for user provided input key/value will not work correctly. Therefore the need
-         * to validate key/value classes by encoding and decoding key/value object with the given
-         * coder.
+         * Given inputFormatGenericClassName is a type parameter i.e. T, K, V, etc. In such cases
+         * class validation for user provided input key/value will not work correctly. Therefore the
+         * need to validate key/value classes by encoding and decoding key/value object with the
+         * given coder.
          */
         return validateClassUsingCoder(property, coder);
       }
@@ -1602,7 +1611,7 @@ public class HadoopInputFormatIO {
 
     /**
      * A wrapper to allow Hadoop {@link org.apache.hadoop.mapreduce.InputSplit} to be serialized
-     * using Java's standard serialization mechanisms. Note that the InputSplit is always Writable.
+     * using Java's standard serialization mechanisms.
      */
     public static class SerializableSplit implements Externalizable {
 
