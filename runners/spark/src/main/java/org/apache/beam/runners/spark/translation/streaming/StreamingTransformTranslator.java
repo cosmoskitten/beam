@@ -121,8 +121,7 @@ public final class StreamingTransformTranslator {
 
       @Override
       public String toString() {
-        // TODO: return meaningful Spark native operation
-        return "<readUnbounded>";
+        return "streamingContext.<readFrom(<source>)>()";
       }
     };
   }
