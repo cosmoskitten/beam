@@ -642,7 +642,7 @@ class PTransformLabelsTest(unittest.TestCase):
   def test_apply_custom_transform_with_label(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'PColl' >> beam.Create([1, 2, 3])
-    custom = PTransformLabelsTest.CustomTransform('*Custom*')
+    custom = '*Custom*' >> PTransformLabelsTest.CustomTransform()
     result = pipeline.apply(custom, pcoll)
     self.assertTrue('*Custom*' in pipeline.applied_labels)
     self.assertTrue('*Custom*/*Do*' in pipeline.applied_labels)

@@ -189,9 +189,8 @@ class PTransform(WithTypeHints, HasDisplayData):
   # Default is unset.
   _user_label = None
 
-  def __init__(self, label=None):
+  def __init__(self):
     super(PTransform, self).__init__()
-    self.label = label
 
   @property
   def label(self):
@@ -420,8 +419,9 @@ class PTransform(WithTypeHints, HasDisplayData):
 class ChainedPTransform(PTransform):
 
   def __init__(self, *parts):
-    super(ChainedPTransform, self).__init__(label=self._chain_label(parts))
+    super(ChainedPTransform, self).__init__()
     self._parts = parts
+    self.label = self._chain_label(parts)
 
   def _chain_label(self, parts):
     return '|'.join(p.label for p in parts)
@@ -661,7 +661,8 @@ def label_from_callable(fn):
 class _NamedPTransform(PTransform):
 
   def __init__(self, transform, label):
-    super(_NamedPTransform, self).__init__(label)
+    super(_NamedPTransform, self).__init__()
+    self.label = label
     self.transform = transform
 
   def __ror__(self, pvalueish):

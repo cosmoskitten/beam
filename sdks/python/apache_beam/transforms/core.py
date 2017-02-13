@@ -654,10 +654,11 @@ class ParDo(PTransformWithSideInputs):
 class _MultiParDo(PTransform):
 
   def __init__(self, do_transform, tags, main_tag):
-    super(_MultiParDo, self).__init__(do_transform.label)
+    super(_MultiParDo, self).__init__()
     self._do_transform = do_transform
     self._tags = tags
     self._main_tag = main_tag
+    self.label = do_transform.label
 
   def expand(self, pcoll):
     _ = pcoll | self._do_transform

@@ -64,9 +64,10 @@ class ViewAsSingleton(PTransform):
   def __init__(self, has_default, default_value, label=None):
     if label:
       label = 'ViewAsSingleton(%s)' % label
-    super(ViewAsSingleton, self).__init__(label=label)
+    super(ViewAsSingleton, self).__init__()
     self.has_default = has_default
     self.default_value = default_value
+    self.label = label
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
@@ -91,7 +92,8 @@ class ViewAsIterable(PTransform):
   def __init__(self, label=None):
     if label:
       label = 'ViewAsIterable(%s)' % label
-    super(ViewAsIterable, self).__init__(label=label)
+    super(ViewAsIterable, self).__init__()
+    self.label = label
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
@@ -116,7 +118,8 @@ class ViewAsList(PTransform):
   def __init__(self, label=None):
     if label:
       label = 'ViewAsList(%s)' % label
-    super(ViewAsList, self).__init__(label=label)
+    super(ViewAsList, self).__init__()
+    self.label = label
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
@@ -142,7 +145,8 @@ class ViewAsDict(PTransform):
   def __init__(self, label=None):
     if label:
       label = 'ViewAsDict(%s)' % label
-    super(ViewAsDict, self).__init__(label=label)
+    super(ViewAsDict, self).__init__()
+    self.label = label
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
