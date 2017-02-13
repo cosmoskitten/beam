@@ -34,7 +34,8 @@ class StandardCodersTest(unittest.TestCase):
   _urn_to_coder_class = {
       'urn:beam:coders:bytes:0.1': coders.BytesCoder,
       'urn:beam:coders:varint:0.1': coders.VarIntCoder,
-      'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v))
+      'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v)),
+      'urn:beam:coders:stream:0.1': lambda t: coders.IterableCoder(t),
   }
 
   _urn_to_json_value_parser = {
@@ -42,7 +43,8 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:varint:0.1': lambda x: x,
       'urn:beam:coders:kv:0.1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
-                                               value_parser(x['value']))
+                                               value_parser(x['value'])),
+      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x)
   }
 
   # We must prepend an underscore to this name so that the open-source unittest

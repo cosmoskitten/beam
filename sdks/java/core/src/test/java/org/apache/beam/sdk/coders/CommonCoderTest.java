@@ -63,6 +63,7 @@ public class CommonCoderTest {
       .put("urn:beam:coders:bytes:0.1", ByteCoder.class)
       .put("urn:beam:coders:kv:0.1", KvCoder.class)
       .put("urn:beam:coders:varint:0.1", VarLongCoder.class)
+      .put("urn:beam:coders:stream:0.1", IterableCoder.class)
       .build();
 
   @AutoValue
@@ -185,6 +186,15 @@ public class CommonCoderTest {
       }
       case "urn:beam:coders:varint:0.1":
         return ((Number) value).longValue();
+      case "urn:beam:coders:stream:0.1":
+        Coder elementCoder = ((IterableCoder) coder).getElemCoder();
+        List<Object> elements = (List<Object>) value;
+        List<Object> convertedElements = new LinkedList<>();
+        for (Object element : elements) {
+          convertedElements.add(
+              convertValue(element, coderSpec.getComponents().get(0), elementCoder));
+        }
+        return convertedElements;
       default:
         throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
@@ -202,6 +212,8 @@ public class CommonCoderTest {
         return KvCoder.of(components.get(0), components.get(1));
       case "urn:beam:coders:varint:0.1":
         return VarLongCoder.of();
+      case "urn:beam:coders:stream:0.1":
+        return IterableCoder.of(components.get(0));
       default:
         throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
     }
