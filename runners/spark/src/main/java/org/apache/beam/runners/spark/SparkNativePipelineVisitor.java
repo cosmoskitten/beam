@@ -28,6 +28,7 @@ import java.util.List;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -164,9 +165,17 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
             doFnName = fnClass.getName();
           }
           transformString = transformString.replace("<doFn>", doFnName);
+        } else if (transformString.contains("<source>")) {
+          String sourceName = "...";
+          if (transform instanceof Read.Bounded) {
+            sourceName = ((Read.Bounded<?>) transform).getSource().getClass().getName();
+          } else if (transform instanceof Read.Unbounded) {
+            sourceName = ((Read.Unbounded<?>) transform).getSource().getClass().getName();
+          }
+          transformString = transformString.replace("<doFn>", sourceName);
         }
-        if (transformString.startsWith("sparkContext") ||
-            transformString.startsWith("streamingContext")) {
+        if (transformString.startsWith("sparkContext")
+            || transformString.startsWith("streamingContext")) {
           return transformString;
         }
         return "." + transformString;

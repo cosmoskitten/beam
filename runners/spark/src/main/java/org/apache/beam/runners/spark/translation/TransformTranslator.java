@@ -439,7 +439,7 @@ public final class TransformTranslator {
 
       @Override
       public String toString() {
-        return "<ReadFrom<source>>";
+        return "sparkContext.<readFrom(<source>)>()";
       }
     };
   }
