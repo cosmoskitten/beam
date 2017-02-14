@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -34,8 +33,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -109,23 +106,9 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     private Window[] toGearpumpWindows(BoundedWindow[] windows) {
       Window[] gwins = new Window[windows.length];
       for (int i = 0; i < windows.length; i++) {
-        gwins[i] = toGearpumpWindow(windows[i]);
+        gwins[i] = TranslatorUtils.boundedWindowToGearpumpWindow(windows[i]);
       }
       return gwins;
-    }
-
-    private Window toGearpumpWindow(BoundedWindow window) {
-      if (window instanceof IntervalWindow) {
-        IntervalWindow intervalWindow = (IntervalWindow) window;
-        Instant start = TranslatorUtils.jodaTimeToJava8Time(intervalWindow.start());
-        Instant end = TranslatorUtils.jodaTimeToJava8Time(intervalWindow.end());
-        return new Window(start, end);
-      } else if (window instanceof GlobalWindow) {
-        Instant end = TranslatorUtils.jodaTimeToJava8Time(window.maxTimestamp());
-        return new Window(Instant.MIN, end);
-      } else {
-        throw new RuntimeException("unknown window " + window.getClass().getName());
-      }
     }
   }
 
