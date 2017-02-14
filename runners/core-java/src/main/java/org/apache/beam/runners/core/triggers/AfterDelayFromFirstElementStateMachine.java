@@ -47,6 +47,8 @@ import org.joda.time.format.PeriodFormatter;
  *
  * <p>This class is for internal use only and may change at any time.
  */
+// This class should be inlined to subclasses and deleted, simplifying them too
+// https://issues.apache.org/jira/browse/BEAM-1486
 @Experimental(Experimental.Kind.TRIGGER)
 public abstract class AfterDelayFromFirstElementStateMachine extends OnceTriggerStateMachine {
 
