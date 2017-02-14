@@ -524,7 +524,7 @@ message Trigger {
 message TimestampTransform {
   oneof timestamp_transform {
     Delay delay = 1;
-    AlignTo alignTo = 2;
+    AlignTo align_to = 2;
   }
 
   message Delay {
