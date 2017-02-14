@@ -51,7 +51,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -1957,7 +1956,7 @@ public class ParDoTest implements Serializable {
         };
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(RuntimeException.class);
     // Note that runners can reasonably vary their message - this matcher should be flexible
     // and can be evolved.
     thrown.expectMessage("relative timers");
@@ -1987,7 +1986,7 @@ public class ParDoTest implements Serializable {
         };
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(RuntimeException.class);
     // Note that runners can reasonably vary their message - this matcher should be flexible
     // and can be evolved.
     thrown.expectMessage("event time timer");
