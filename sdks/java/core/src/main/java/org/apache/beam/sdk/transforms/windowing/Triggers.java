@@ -257,7 +257,7 @@ public class Triggers implements Serializable {
         for (RunnerApi.TimestampTransform transform :
             triggerProto.getAfterProcessingTime().getTimestampTransformsList()) {
           switch (transform.getTimestampTransformCase()) {
-            case ALIGNTO:
+            case ALIGN_TO:
               trigger =
                   trigger.alignedTo(
                       Duration.millis(transform.getAlignTo().getPeriod()),
