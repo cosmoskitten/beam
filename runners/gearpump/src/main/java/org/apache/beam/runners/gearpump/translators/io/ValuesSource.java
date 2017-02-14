@@ -29,10 +29,12 @@ import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 
 /**
@@ -40,12 +42,15 @@ import org.joda.time.Instant;
  */
 public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
 
+  private static final long serialVersionUID = 9113026175795235710L;
   private final byte[] values;
   private final IterableCoder<T> iterableCoder;
+  private final boolean isVoid;
 
   public ValuesSource(Iterable<T> values, Coder<T> coder) {
     this.iterableCoder = IterableCoder.of(coder);
     this.values = encode(values, iterableCoder);
+    this.isVoid = coder instanceof VoidCoder;
   }
 
   private byte[] encode(Iterable<T> values, IterableCoder<T> coder) {
@@ -75,7 +80,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   public UnboundedReader<T> createReader(PipelineOptions options,
       @Nullable CheckpointMark checkpointMark) {
     try {
-      return new ValuesReader<>(decode(values), this);
+      return new ValuesReader<>(decode(values), this, isVoid);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -103,7 +108,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     private T current;
 
     ValuesReader(Iterable<T> values,
-        UnboundedSource<T, CheckpointMark> source) {
+        UnboundedSource<T, CheckpointMark> source, boolean isVoid) {
       this.values = values;
       this.source = source;
     }
@@ -135,7 +140,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
 
     @Override
     public Instant getCurrentTimestamp() throws NoSuchElementException {
-      return Instant.now();
+      return getTimestamp(current);
     }
 
     @Override
@@ -145,7 +150,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     @Override
     public Instant getWatermark() {
       if (iterator.hasNext()) {
-        return Instant.now();
+        return getTimestamp(current);
       } else {
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
       }
@@ -159,6 +164,14 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     @Override
     public UnboundedSource<T, ?> getCurrentSource() {
       return source;
+    }
+
+    private Instant getTimestamp(Object value) {
+      if (value instanceof TimestampedValue) {
+        return ((TimestampedValue) value).getTimestamp();
+      } else {
+        return Instant.now();
+      }
     }
   }
 }

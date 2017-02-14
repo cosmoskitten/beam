@@ -115,6 +115,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
   private static class GroupByFn<K, V> extends
       GroupByFunction<WindowedValue<KV<K, V>>, ByteBuffer> {
 
+    private static final long serialVersionUID = -807905402490735530L;
     private final Coder<K> keyCoder;
 
     GroupByFn(Coder<K> keyCoder) {
