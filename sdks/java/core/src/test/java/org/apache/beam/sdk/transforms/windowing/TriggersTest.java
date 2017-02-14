@@ -93,7 +93,7 @@ public class TriggersTest {
   @Test
   public void testToProtoAndBack() throws Exception {
     Trigger trigger = toProtoAndBackSpec.getTrigger();
-    Trigger toProtoAndBackTrigger = Triggers.protoToTrigger(Triggers.triggerToProto(trigger));
+    Trigger toProtoAndBackTrigger = Triggers.fromProto(Triggers.toProto(trigger));
 
     assertThat(toProtoAndBackTrigger, equalTo(trigger));
   }

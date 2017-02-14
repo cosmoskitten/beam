@@ -38,7 +38,7 @@ public class Triggers implements Serializable {
 
   @VisibleForTesting static final ProtoConverter CONVERTER = new ProtoConverter();
 
-  public static RunnerApi.Trigger triggerToProto(Trigger trigger) {
+  public static RunnerApi.Trigger toProto(Trigger trigger) {
     return CONVERTER.convertTrigger(trigger);
   }
 
@@ -119,7 +119,7 @@ public class Triggers implements Serializable {
       RunnerApi.Trigger.AfterAny.Builder builder = RunnerApi.Trigger.AfterAny.newBuilder();
 
       for (Trigger subtrigger : v.subTriggers()) {
-        builder.addSubtriggers(triggerToProto(subtrigger));
+        builder.addSubtriggers(toProto(subtrigger));
       }
 
       return RunnerApi.Trigger.newBuilder().setAfterAny(builder).build();
@@ -129,7 +129,7 @@ public class Triggers implements Serializable {
       RunnerApi.Trigger.AfterAll.Builder builder = RunnerApi.Trigger.AfterAll.newBuilder();
 
       for (Trigger subtrigger : v.subTriggers()) {
-        builder.addSubtriggers(triggerToProto(subtrigger));
+        builder.addSubtriggers(toProto(subtrigger));
       }
 
       return RunnerApi.Trigger.newBuilder().setAfterAll(builder).build();
@@ -146,9 +146,9 @@ public class Triggers implements Serializable {
       RunnerApi.Trigger.AfterEndOfWindow.Builder builder =
           RunnerApi.Trigger.AfterEndOfWindow.newBuilder();
 
-      builder.setEarlyFirings(triggerToProto(v.getEarlyTrigger()));
+      builder.setEarlyFirings(toProto(v.getEarlyTrigger()));
       if (v.getLateTrigger() != null) {
-        builder.setLateFirings(triggerToProto(v.getLateTrigger()));
+        builder.setLateFirings(toProto(v.getLateTrigger()));
       }
 
       return RunnerApi.Trigger.newBuilder().setAfterEndOfWidow(builder).build();
@@ -158,7 +158,7 @@ public class Triggers implements Serializable {
       RunnerApi.Trigger.AfterEach.Builder builder = RunnerApi.Trigger.AfterEach.newBuilder();
 
       for (Trigger subtrigger : v.subTriggers()) {
-        builder.addSubtriggers(triggerToProto(subtrigger));
+        builder.addSubtriggers(toProto(subtrigger));
       }
 
       return RunnerApi.Trigger.newBuilder().setAfterEach(builder).build();
@@ -168,7 +168,7 @@ public class Triggers implements Serializable {
       return RunnerApi.Trigger.newBuilder()
           .setRepeat(
               RunnerApi.Trigger.Repeat.newBuilder()
-                  .setSubtrigger(triggerToProto(v.getRepeatedTrigger())))
+                  .setSubtrigger(toProto(v.getRepeatedTrigger())))
           .build();
     }
 
@@ -176,8 +176,8 @@ public class Triggers implements Serializable {
       return RunnerApi.Trigger.newBuilder()
           .setOrFinally(
               RunnerApi.Trigger.OrFinally.newBuilder()
-                  .setMain(triggerToProto(v.getMainTrigger()))
-                  .setFinally(triggerToProto(v.getUntilTrigger())))
+                  .setMain(toProto(v.getMainTrigger()))
+                  .setFinally(toProto(v.getUntilTrigger())))
           .build();
     }
 
@@ -215,7 +215,7 @@ public class Triggers implements Serializable {
     }
   }
 
-  public static Trigger protoToTrigger(RunnerApi.Trigger triggerProto) {
+  public static Trigger fromProto(RunnerApi.Trigger triggerProto) {
     switch (triggerProto.getTriggerCase()) {
       case AFTER_ALL:
         return AfterAll.of(protosToTriggers(triggerProto.getAfterAll().getSubtriggersList()));
@@ -238,19 +238,19 @@ public class Triggers implements Serializable {
               AfterWatermark.pastEndOfWindow()
                   .withEarlyFirings(
                       (OnceTrigger)
-                          protoToTrigger(triggerProto.getAfterEndOfWidow().getEarlyFirings()));
+                          fromProto(triggerProto.getAfterEndOfWidow().getEarlyFirings()));
 
           if (triggerProto.getAfterEndOfWidow().hasLateFirings()) {
             trigger =
                 trigger.withLateFirings(
                     (OnceTrigger)
-                        protoToTrigger(triggerProto.getAfterEndOfWidow().getLateFirings()));
+                        fromProto(triggerProto.getAfterEndOfWidow().getLateFirings()));
           }
           return trigger;
         } else {
           // only late firings, so return directly
           return AfterWatermark.pastEndOfWindow()
-              .withLateFirings((OnceTrigger) protoToTrigger(eowProto.getLateFirings()));
+              .withLateFirings((OnceTrigger) fromProto(eowProto.getLateFirings()));
         }
       case AFTER_PROCESSING_TIME:
         AfterProcessingTime trigger = AfterProcessingTime.pastFirstElementInPane();
@@ -285,10 +285,10 @@ public class Triggers implements Serializable {
       case NEVER:
         return Never.ever();
       case OR_FINALLY:
-        return protoToTrigger(triggerProto.getOrFinally().getMain())
-            .orFinally((OnceTrigger) protoToTrigger(triggerProto.getOrFinally().getFinally()));
+        return fromProto(triggerProto.getOrFinally().getMain())
+            .orFinally((OnceTrigger) fromProto(triggerProto.getOrFinally().getFinally()));
       case REPEAT:
-        return Repeatedly.forever(protoToTrigger(triggerProto.getRepeat().getSubtrigger()));
+        return Repeatedly.forever(fromProto(triggerProto.getRepeat().getSubtrigger()));
       case DEFAULT:
         return DefaultTrigger.of();
       case TRIGGER_NOT_SET:
@@ -303,7 +303,7 @@ public class Triggers implements Serializable {
   private static List<Trigger> protosToTriggers(List<RunnerApi.Trigger> triggers) {
     List<Trigger> result = Lists.newArrayList();
     for (RunnerApi.Trigger trigger : triggers) {
-      result.add(protoToTrigger(trigger));
+      result.add(fromProto(trigger));
     }
     return result;
   }
