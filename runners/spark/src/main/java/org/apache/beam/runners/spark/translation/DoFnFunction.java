@@ -87,8 +87,7 @@ public class DoFnFunction<InputT, OutputT>
             doFn,
             new SparkSideInputReader(sideInputs),
             outputManager,
-            new TupleTag<OutputT>() {
-            },
+            new TupleTag<OutputT>() {},
             Collections.<TupleTag<?>>emptyList(),
             new SparkProcessContext.NoOpStepContext(),
             new SparkAggregators.Factory(runtimeContext, accumulator),
