@@ -174,6 +174,19 @@ class DataflowRunner(PipelineRunner):
     return DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
 
+    try:
+      job_id = self.result.job_id()
+    except AttributeError:
+      job_id = None
+
+    self._metrics = DataflowMetrics(self.dataflow_client, job_id)
+    self.result._metrics = self._metrics
+
+    if self.result.has_job and self.blocking:
+      self.result.wait_until_finish()
+
+    return self.result
+
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
     return self._get_cloud_encoding(self._get_coder(typehint,
@@ -639,7 +652,7 @@ class DataflowPipelineResult(PipelineResult):
     return self._job.id
 
   def metrics(self):
-    return DataflowMetrics()
+    return getattr(self, '_metrics', None)
 
   @property
   def has_job(self):
