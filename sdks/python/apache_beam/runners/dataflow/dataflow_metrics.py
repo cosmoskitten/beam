@@ -21,6 +21,11 @@ responding to queries of current metrics by going to the dataflow
 service.
 """
 
+from collections import defaultdict
+
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.metrics.metric import MetricResults
 
 
@@ -28,6 +33,49 @@ from apache_beam.metrics.metric import MetricResults
 # dataflow service
 class DataflowMetrics(MetricResults):
 
+  def __init__(self, dataflow_client=None, job_id=None):
+    super(DataflowMetrics, self).__init__()
+    self._dataflow_client = dataflow_client
+    self.job_id = job_id
+
+  def _populate_metric_results(self, user_metrics):
+    """Take a list of user metrics, and convert it to a list of MetricResult."""
+
+    # First get the tentative/committed versions of every metric together.
+    metrics_by_name = defaultdict(lambda: {})
+    for metric in user_metrics:
+      tentative = [prop
+                   for prop in metric.name.context.additionalProperties
+                   if prop.key == 'tentative' and prop.value == 'true']
+      key = 'tentative' if tentative else 'committed'
+      metrics_by_name[metric.name.name][key] = metric
+
+    # Now we create the metricresult elements
+    result = []
+    for name, metric in metrics_by_name.iteritems():
+      if (name.endswith('(DIST)') or
+          name.endswith('[MIN]') or
+          name.endswith('[MAX]') or
+          name.endswith('[MEAN]') or
+          name.endswith('[COUNT]')):
+        # Distributions are not yet fully supported in this runner
+        continue
+      [step, namespace, name] = name.split("/")
+      key = MetricKey(step, MetricName(namespace, name))
+      attempted = metric['tentative'].scalar.integer_value
+      committed = metric['committed'].scalar.integer_value
+      result.append(MetricResult(key, attempted=attempted, committed=committed))
+
+    return result
+
   def query(self, filter=None):
-    return {'counters': [],
+    if not self.job_id:
+      raise ValueError('Can not query metrics. Job id is unknown.')
+
+    response = self._dataflow_client.get_job_metrics(self.job_id)
+    user_metrics = [metric
+                    for metric in response.metrics
+                    if metric.name.origin == 'user']
+    counters = self._populate_metric_results(user_metrics)
+    return {'counters': counters,
             'distributions': []}
