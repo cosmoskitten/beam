@@ -63,7 +63,7 @@ public class BeamFnDataReadRunner<OutputT> {
       RunnerApi.FunctionSpec functionSpec,
       Supplier<Long> processBundleInstructionIdSupplier,
       BeamFnApi.Target inputTarget,
-      BeamFnApi.Coder coderSpec,
+      RunnerApi.Coder coderSpec,
       BeamFnDataClient beamFnDataClientFactory,
       Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap)
           throws IOException {
@@ -83,8 +83,7 @@ public class BeamFnDataReadRunner<OutputT> {
         Serializer.deserialize(
             OBJECT_MAPPER.readValue(
                 coderSpec
-                    .getFunctionSpec()
-                    .getSdkFnSpec()
+                    .getSdkCoderFnSpec()
                     .getData()
                     .unpack(BytesValue.class)
                     .getValue()

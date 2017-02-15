@@ -299,18 +299,19 @@ message CombinePayload {
 // a pipeline.
 message Coder {
 
-  // (Required) A cross-language, stable, unique identifier for the (possibly
-  // parametric) encoding.
+  // (Required) A cross-language, stable, unique identifier for the
+  // encoding. An encoding can be parameterized by component coders,
+  // but currently cannot carry other parameters.
   string urn = 1;
 
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,
   // the URN and all components must be identical, recursively.
-  repeated string component_coder_id = 2;
+  repeated string component_coder_ids = 2;
 
-  // (Optional) The pipeline-scoped id for the FunctionSpec of an SDK-specific
+  // (Optional) The SdkFunctionSpec of an SDK-specific
   // UDF implementing the encoding.
-  string custom_coder_fn_id = 3;
+  SdkFunctionSpec sdk_coder_fn_spec = 3;
 }
 
 // A windowing strategy describes the window function, triggering, allowed

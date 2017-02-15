@@ -101,42 +101,38 @@ public class ProcessBundleHandlerTest {
           .setId(58L)
           .setUrl("TestUrl"))
       .build();
-  private static final BeamFnApi.Coder LONG_CODER_SPEC;
-  private static final BeamFnApi.Coder STRING_CODER_SPEC;
+  private static final RunnerApi.Coder LONG_CODER_SPEC;
+  private static final RunnerApi.Coder STRING_CODER_SPEC;
   static {
     try {
       STRING_CODER_SPEC =
-          BeamFnApi.Coder.newBuilder()
-              .setFunctionSpec(
-                  RunnerApi.FunctionSpec.newBuilder()
-                      .setSdkFnSpec(
-                          RunnerApi.SdkFunctionSpec.newBuilder()
-                              .setData(
-                                  Any.pack(
-                                      BytesValue.newBuilder()
-                                          .setValue(
-                                              ByteString.copyFrom(
-                                                  OBJECT_MAPPER.writeValueAsBytes(
-                                                      STRING_CODER.asCloudObject())))
-                                          .build()))))
+          RunnerApi.Coder.newBuilder()
+              .setSdkCoderFnSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setData(
+                          Any.pack(
+                              BytesValue.newBuilder()
+                                  .setValue(
+                                      ByteString.copyFrom(
+                                          OBJECT_MAPPER.writeValueAsBytes(
+                                              STRING_CODER.asCloudObject())))
+                                  .build())))
               .build();
       LONG_CODER_SPEC =
-          BeamFnApi.Coder.newBuilder()
-              .setFunctionSpec(
-                  RunnerApi.FunctionSpec.newBuilder()
-                      .setSdkFnSpec(
-                          RunnerApi.SdkFunctionSpec.newBuilder()
-                              .setData(
-                                  Any.pack(
-                                      BytesValue.newBuilder()
-                                          .setValue(
-                                              ByteString.copyFrom(
-                                                  OBJECT_MAPPER.writeValueAsBytes(
-                                                      WindowedValue.getFullCoder(
-                                                              VarLongCoder.of(),
-                                                              GlobalWindow.Coder.INSTANCE)
-                                                          .asCloudObject())))
-                                          .build()))))
+          RunnerApi.Coder.newBuilder()
+              .setSdkCoderFnSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setData(
+                          Any.pack(
+                              BytesValue.newBuilder()
+                                  .setValue(
+                                      ByteString.copyFrom(
+                                          OBJECT_MAPPER.writeValueAsBytes(
+                                              WindowedValue.getFullCoder(
+                                                      VarLongCoder.of(),
+                                                      GlobalWindow.Coder.INSTANCE)
+                                                  .asCloudObject())))
+                                  .build())))
               .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);

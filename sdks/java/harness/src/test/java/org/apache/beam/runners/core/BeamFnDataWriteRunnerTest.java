@@ -64,23 +64,20 @@ public class BeamFnDataWriteRunnerTest {
           .build();
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-  private static final BeamFnApi.Coder CODER_SPEC;
+  private static final RunnerApi.Coder CODER_SPEC;
   static {
     try {
       CODER_SPEC =
-          BeamFnApi.Coder.newBuilder()
-              .setFunctionSpec(
-                  RunnerApi.FunctionSpec.newBuilder()
-                      .setSdkFnSpec(
-                          RunnerApi.SdkFunctionSpec.newBuilder()
-                              .setData(
-                                  Any.pack(
-                                      BytesValue.newBuilder()
-                                          .setValue(
-                                              ByteString.copyFrom(
-                                                  OBJECT_MAPPER.writeValueAsBytes(
-                                                      CODER.asCloudObject())))
-                                          .build()))))
+          RunnerApi.Coder.newBuilder()
+              .setSdkCoderFnSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setData(
+                          Any.pack(
+                              BytesValue.newBuilder()
+                                  .setValue(
+                                      ByteString.copyFrom(
+                                          OBJECT_MAPPER.writeValueAsBytes(CODER.asCloudObject())))
+                                  .build())))
               .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);

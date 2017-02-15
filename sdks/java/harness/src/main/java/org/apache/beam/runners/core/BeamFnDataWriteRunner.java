@@ -53,7 +53,7 @@ public class BeamFnDataWriteRunner<InputT> {
       RunnerApi.FunctionSpec functionSpec,
       Supplier<Long> processBundleInstructionIdSupplier,
       BeamFnApi.Target outputTarget,
-      BeamFnApi.Coder coderSpec,
+      RunnerApi.Coder coderSpec,
       BeamFnDataClient beamFnDataClientFactory)
           throws IOException {
     this.apiServiceDescriptor =
@@ -71,8 +71,7 @@ public class BeamFnDataWriteRunner<InputT> {
         Serializer.deserialize(
             OBJECT_MAPPER.readValue(
                 coderSpec
-                    .getFunctionSpec()
-                    .getSdkFnSpec()
+                    .getSdkCoderFnSpec()
                     .getData()
                     .unpack(BytesValue.class)
                     .getValue()

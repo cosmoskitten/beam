@@ -129,7 +129,7 @@ public class ProcessBundleHandler {
     switch (functionSpec.getSpec().getUrn()) {
       default:
         BeamFnApi.Target target;
-        BeamFnApi.Coder coderSpec;
+        RunnerApi.Coder coderSpec;
         throw new IllegalArgumentException(
             String.format("Unknown FunctionSpec %s", functionSpec));
 
@@ -138,7 +138,7 @@ public class ProcessBundleHandler {
             .setPrimitiveTransformReference(primitiveTransform.getId())
             .setName(getOnlyElement(primitiveTransform.getOutputsMap().keySet()))
             .build();
-        coderSpec = (BeamFnApi.Coder) fnApiRegistry.apply(
+        coderSpec = (RunnerApi.Coder) fnApiRegistry.apply(
             getOnlyElement(primitiveTransform.getOutputsMap().values()).getCoderReference());
         BeamFnDataWriteRunner<InputT> remoteGrpcWriteRunner =
             new BeamFnDataWriteRunner<>(
@@ -157,7 +157,7 @@ public class ProcessBundleHandler {
             .setPrimitiveTransformReference(primitiveTransform.getId())
             .setName(getOnlyElement(primitiveTransform.getInputsMap().keySet()))
             .build();
-        coderSpec = (BeamFnApi.Coder) fnApiRegistry.apply(
+        coderSpec = (RunnerApi.Coder) fnApiRegistry.apply(
             getOnlyElement(primitiveTransform.getOutputsMap().values()).getCoderReference());
         BeamFnDataReadRunner<OutputT> remoteGrpcReadRunner =
             new BeamFnDataReadRunner<>(
