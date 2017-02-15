@@ -38,6 +38,8 @@ class WordExtractingDoFn(beam.DoFn):
     super(WordExtractingDoFn, self).__init__()
     self.words_counter = Metrics.counter(self.__class__, 'words')
     self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')
+    self.word_lengths_dist = Metrics.distribution(
+        self.__class__, 'word_len_dist')
     self.empty_line_counter = Metrics.counter(self.__class__, 'empty_lines')
 
   def process(self, element):
@@ -58,6 +60,7 @@ class WordExtractingDoFn(beam.DoFn):
     for w in words:
       self.words_counter.inc()
       self.word_lengths_counter.inc(len(w))
+      self.word_lengths_dist.update(len(w))
     return words
 
 
