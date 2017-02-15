@@ -19,9 +19,13 @@ package org.apache.beam.sdk.io.gcp.storage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.services.storage.model.StorageObject;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
@@ -29,12 +33,20 @@ import java.util.List;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.util.GcsUtil.StorageObjectOrIOException;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link FileSystem} implementation for Google Cloud Storage.
  */
 class GcsFileSystem extends FileSystem<GcsResourceId> {
+  private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystem.class);
+
   private final GcsOptions options;
 
   GcsFileSystem(GcsOptions options) {
@@ -74,6 +86,38 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   protected void copy(List<GcsResourceId> srcResourceIds, List<GcsResourceId> destResourceIds)
       throws IOException {
     options.getGcsUtil().copy(toFilenames(srcResourceIds), toFilenames(destResourceIds));
+  }
+
+  @VisibleForTesting
+  List<MatchResult> matchNonGlobs(List<GcsPath> gcsPaths) throws IOException {
+    List<StorageObjectOrIOException> results = options.getGcsUtil().getObjects(gcsPaths);
+
+    ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
+    for (StorageObjectOrIOException result : results) {
+      ret.add(toMatchResult(result));
+    }
+    return ret.build();
+  }
+
+  private MatchResult toMatchResult(StorageObjectOrIOException objectOrException) {
+    if (objectOrException.ioException() != null) {
+      return MatchResult.create(Status.ERROR, objectOrException.ioException());
+    } else {
+      return MatchResult.create(
+          Status.OK, new Metadata[]{toMetadata(objectOrException.storageObject())});
+    }
+  }
+
+  private Metadata toMetadata(StorageObject storageObject) {
+    // TODO It is incorrect to return true here for files with content encoding set to gzip.
+    Metadata.Builder ret = Metadata.builder()
+        .setIsReadSeekEfficient(true)
+        .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
+    BigInteger size = storageObject.getSize();
+    if (size != null) {
+      ret.setSizeBytes(size.longValue());
+    }
+    return ret.build();
   }
 
   private List<String> toFilenames(Collection<GcsResourceId> resources) {
