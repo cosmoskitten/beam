@@ -18,9 +18,9 @@
 
 import unittest
 
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.runners.dataflow_runner import DataflowRunner
 from apache_beam.internal import apiclient
+from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowRunner
+from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 class UtilTest(unittest.TestCase):
