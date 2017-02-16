@@ -43,7 +43,7 @@ public class WordCountIT {
   /**
    * Options for the WordCount Integration Test.
    *
-   * <p>Define expected output file checksum to verify WordCount pipeline result
+   * <pipeline>Define expected output file checksum to verify WordCount pipeline result
    * with customized input.
    */
   public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {

@@ -295,7 +295,7 @@ public class BigQueryIOTest implements Serializable {
      * Sets the return values to mock {@link JobService#startLoadJob},
      * {@link JobService#startExtractJob} and {@link JobService#startQueryJob}.
      *
-     * <p>Throws if the {@link Object} is a {@link Exception}, returns otherwise.
+     * <pipeline>Throws if the {@link Object} is a {@link Exception}, returns otherwise.
      */
     public FakeJobService startJobReturns(Object... startJobReturns) {
       this.startJobReturns = startJobReturns;
@@ -305,7 +305,7 @@ public class BigQueryIOTest implements Serializable {
     /**
      * Sets the return values to mock {@link JobService#getJob}.
      *
-     * <p>Throws if the {@link Object} is a {@link InterruptedException}, returns otherwise.
+     * <pipeline>Throws if the {@link Object} is a {@link InterruptedException}, returns otherwise.
      */
     public FakeJobService getJobReturns(Object... getJobReturns) {
       this.getJobReturns = getJobReturns;
@@ -315,7 +315,7 @@ public class BigQueryIOTest implements Serializable {
     /**
      * Sets the return values to mock {@link JobService#pollJob}.
      *
-     * <p>Throws if the {@link Object} is a {@link Exception}, returns otherwise.
+     * <pipeline>Throws if the {@link Object} is a {@link Exception}, returns otherwise.
      */
     public FakeJobService pollJobReturns(Object... pollJobReturns) {
       this.pollJobReturns = pollJobReturns;
@@ -1050,7 +1050,7 @@ public class BigQueryIOTest implements Serializable {
   /**
    * A generic window function that allows partitioning data into windows by a string value.
    *
-   * <p>Logically, creates multiple global windows, and the user provides a function that
+   * <pipeline>Logically, creates multiple global windows, and the user provides a function that
    * decides which global window a value should go into.
    */
   private static class PartitionedGlobalWindows extends

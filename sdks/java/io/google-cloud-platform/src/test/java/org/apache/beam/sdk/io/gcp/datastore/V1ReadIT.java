@@ -64,7 +64,7 @@ public class V1ReadIT {
   /**
    * An end-to-end test for {@link DatastoreV1.Read}.
    *
-   * <p>Write some test entities to datastore and then run a dataflow pipeline that
+   * <pipeline>Write some test entities to datastore and then run a dataflow pipeline that
    * reads and counts the total number of entities. Verify that the count matches the
    * number of entities written.
    */

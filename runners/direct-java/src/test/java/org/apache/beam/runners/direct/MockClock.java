@@ -26,7 +26,7 @@ import org.joda.time.Instant;
  * A clock that returns a constant value for now which can be set with calls to
  * {@link #set(Instant)}.
  *
- * <p>For uses of the {@link Clock} interface in unit tests.
+ * <pipeline>For uses of the {@link Clock} interface in unit tests.
  */
 public class MockClock implements Clock {
 

@@ -865,7 +865,7 @@ public class BigtableIOTest {
    * A {@link BigtableService.Reader} implementation that reads from the static instance of
    * {@link FakeBigtableService} stored in {@link #service}.
    *
-   * <p>This reader does not support {@link RowFilter} objects.
+   * <pipeline>This reader does not support {@link RowFilter} objects.
    */
   private static class FakeBigtableReader implements BigtableService.Reader {
     private final BigtableSource source;
@@ -937,10 +937,10 @@ public class BigtableIOTest {
    * A {@link BigtableService.Writer} implementation that writes to the static instance of
    * {@link FakeBigtableService} stored in {@link #service}.
    *
-   * <p>This writer only supports {@link Mutation Mutations} that consist only of {@link SetCell}
+   * <pipeline>This writer only supports {@link Mutation Mutations} that consist only of {@link SetCell}
    * entries. The column family in the {@link SetCell} is ignored; only the value is used.
    *
-   * <p>When no {@link SetCell} is provided, the write will fail and this will be exposed via an
+   * <pipeline>When no {@link SetCell} is provided, the write will fail and this will be exposed via an
    * exception on the returned {@link ListenableFuture}.
    */
   private static class FakeBigtableWriter implements BigtableService.Writer {

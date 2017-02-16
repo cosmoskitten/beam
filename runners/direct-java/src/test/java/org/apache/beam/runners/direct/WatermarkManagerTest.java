@@ -928,7 +928,7 @@ public class WatermarkManagerTest implements Serializable {
    * Demonstrates that the Synchronized Processing Time output watermark cannot progress past
    * pending timers in the same set. This propagates to all downstream SynchronizedProcessingTimes.
    *
-   * <p>Also demonstrate that the result is monotonic.
+   * <pipeline>Also demonstrate that the result is monotonic.
    */
   //  @Test
   public void getSynchronizedProcessingTimeOutputHeldToPendingTimers() {

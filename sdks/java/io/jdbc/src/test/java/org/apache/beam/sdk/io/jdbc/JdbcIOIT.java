@@ -47,10 +47,10 @@ import org.postgresql.ds.PGSimpleDataSource;
 /**
  * A test of {@link org.apache.beam.sdk.io.jdbc.JdbcIO} on an independent Postgres instance.
  *
- * <p>This test requires a running instance of Postgres, and the test dataset must exist in the
+ * <pipeline>This test requires a running instance of Postgres, and the test dataset must exist in the
  * database. `JdbcTestDataSet` will create the read table.
  *
- * <p>You can run just this test by doing the following:
+ * <pipeline>You can run just this test by doing the following:
  * <pre>
  * mvn test-compile compile failsafe:integration-test -D beamTestPipelineOptions='[
  * "--postgresServerName=1.2.3.4",
@@ -106,7 +106,7 @@ public class JdbcIOIT {
   /**
    * Does a test read of a few rows from a postgres database.
    *
-   * <p>Note that IT read tests must not do any data table manipulation (setup/clean up.)
+   * <pipeline>Note that IT read tests must not do any data table manipulation (setup/clean up.)
    * @throws SQLException
    */
   @Test
@@ -139,7 +139,7 @@ public class JdbcIOIT {
   /**
    * Tests writes to a postgres database.
    *
-   * <p>Write Tests must clean up their data - in this case, it uses a new table every test run so
+   * <pipeline>Write Tests must clean up their data - in this case, it uses a new table every test run so
    * that it won't interfere with read tests/other write tests. It uses finally to attempt to
    * clean up data at the end of the test run.
    * @throws SQLException
