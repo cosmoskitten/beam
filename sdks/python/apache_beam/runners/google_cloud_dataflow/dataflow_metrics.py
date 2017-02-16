@@ -25,13 +25,14 @@ from collections import defaultdict
 
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
-from apache_beam.metrics.metricbase import MetricName
 from apache_beam.metrics.metric import MetricResults
+from apache_beam.metrics.metricbase import MetricName
 
 
 # TODO(pabloem)(JIRA-1381) Implement this once metrics are queriable from
 # dataflow service
 class DataflowMetrics(MetricResults):
+  """Implementation of MetricResults class for the Dataflow runner."""
 
   def __init__(self, dataflow_client=None, job_id=None):
     super(DataflowMetrics, self).__init__()
@@ -60,7 +61,7 @@ class DataflowMetrics(MetricResults):
           name.endswith('[COUNT]')):
         # Distributions are not yet fully supported in this runner
         continue
-      [step, namespace, name] = name.split("/")
+      [step, namespace, name] = name.split('/')
       key = MetricKey(step, MetricName(namespace, name))
       attempted = metric['tentative'].scalar.integer_value
       committed = metric['committed'].scalar.integer_value

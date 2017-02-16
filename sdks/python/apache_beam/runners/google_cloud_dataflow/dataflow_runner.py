@@ -171,7 +171,7 @@ class DataflowRunner(PipelineRunner):
         pipeline.options, job_version)
 
     # Create the job
-    return DataflowPipelineResult(
+    self.result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
 
     try:
@@ -180,7 +180,7 @@ class DataflowRunner(PipelineRunner):
       job_id = None
 
     self._metrics = DataflowMetrics(self.dataflow_client, job_id)
-    self.result._metrics = self._metrics
+    self.result.metrics_results = self._metrics
 
     if self.result.has_job and self.blocking:
       self.result.wait_until_finish()
@@ -652,7 +652,7 @@ class DataflowPipelineResult(PipelineResult):
     return self._job.id
 
   def metrics(self):
-    return getattr(self, '_metrics', None)
+    return getattr(self, 'metrics_results', None)
 
   @property
   def has_job(self):
