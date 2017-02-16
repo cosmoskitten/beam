@@ -224,6 +224,13 @@ public class GcsUtil {
     return dst.toString();
   }
 
+  /**
+   * Returns true if the given {@code spec} contains glob.
+   */
+  public static boolean isGlob(GcsPath spec) {
+    return GLOB_PREFIX.matcher(spec.getObject()).matches();
+  }
+
   private GcsUtil(
       Storage storageClient,
       HttpRequestInitializer httpRequestInitializer,
@@ -249,7 +256,7 @@ public class GcsUtil {
     checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
     Pattern p = null;
     String prefix = null;
-    if (!GLOB_PREFIX.matcher(gcsPattern.getObject()).matches()) {
+    if (!isGlob(gcsPattern)) {
       // Not a glob.
       try {
         // Use a get request to fetch the metadata of the object, and ignore the return value.
