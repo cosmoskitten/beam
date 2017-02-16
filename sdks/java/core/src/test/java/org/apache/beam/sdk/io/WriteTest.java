@@ -297,18 +297,6 @@ public class WriteTest {
     assertThat(displayData, hasDisplayItem("numShards", 1));
   }
 
-  @Test
-  public void testWriteUnbounded() {
-    PCollection<String> unbounded = p.apply(CountingInput.unbounded())
-        .apply(ToString.of());
-
-    TestSink sink = new TestSink();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("can only be applied to an unbounded PCollection if doing "
-        + "windowed writes"));
-    unbounded.apply(Write.to(sink));
-  }
-
   /**
    * Performs a Write transform and verifies the Write transform calls the appropriate methods on
    * a test sink in the correct order, as well as verifies that the elements of a PCollection are
