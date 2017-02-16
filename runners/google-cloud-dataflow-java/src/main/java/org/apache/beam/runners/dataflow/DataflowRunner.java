@@ -376,32 +376,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
 
-    if (Combine.GroupedValues.class.equals(transform.getClass())
-        || GroupByKey.class.equals(transform.getClass())) {
-
+    if (Combine.GroupedValues.class.equals(transform.getClass())) {
       // For both Dataflow runners (streaming and batch), GroupByKey and GroupedValues are
       // primitives. Returning a primitive output instead of the expanded definition
       // signals to the translator that translation is necessary.
       @SuppressWarnings("unchecked")
       PCollection<?> pc = (PCollection<?>) input;
       @SuppressWarnings("unchecked")
-      OutputT outputT = (OutputT) PCollection.createPrimitiveOutputInternal(
-          pc.getPipeline(),
-          transform instanceof GroupByKey
-              ? ((GroupByKey<?, ?>) transform).updateWindowingStrategy(pc.getWindowingStrategy())
-              : pc.getWindowingStrategy(),
-          pc.isBounded());
+      OutputT outputT =
+          (OutputT)
+              PCollection.createPrimitiveOutputInternal(
+                  pc.getPipeline(), pc.getWindowingStrategy(), pc.isBounded());
       return outputT;
-    } else if (Window.Bound.class.equals(transform.getClass())) {
-      /*
-       * TODO: make this the generic way overrides are applied (using super.apply() rather than
-       * Pipeline.applyTransform(); this allows the apply method to be replaced without inserting
-       * additional nodes into the graph.
-       */
-      // casting to wildcard
-      @SuppressWarnings("unchecked")
-      OutputT windowed = (OutputT) applyWindow((Window.Bound<?>) transform, (PCollection<?>) input);
-      return windowed;
     } else if (Flatten.FlattenPCollectionList.class.equals(transform.getClass())
         && ((PCollectionList<?>) input).size() == 0) {
       // This can cause downstream coder inference to be screwy. Most of the time, that won't be
