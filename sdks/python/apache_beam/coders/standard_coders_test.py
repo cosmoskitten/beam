@@ -33,7 +33,6 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms import window
 
 
-
 class StandardCodersTest(unittest.TestCase):
 
   _urn_to_coder_class = {
