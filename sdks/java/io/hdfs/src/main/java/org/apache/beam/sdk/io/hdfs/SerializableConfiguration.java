@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
-import org.apache.hadoop.conf.Configuration;
-
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Map;
+import org.apache.hadoop.conf.Configuration;
 
 /**
  * A {@code SerializableConfiguration} allows for serialization of Hadoop's {@code Configuration}.
