@@ -101,6 +101,7 @@ REQUIRED_PACKAGES = [
 
 REQUIRED_TEST_PACKAGES = [
     'pyhamcrest>=1.9,<2.0',
+    'Sphinx>=1.5.2,<2.0'
     ]
 
 setuptools.setup(
