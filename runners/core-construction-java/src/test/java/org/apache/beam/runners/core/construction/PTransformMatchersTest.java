@@ -25,11 +25,13 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.base.MoreObjects;
 import java.io.Serializable;
+import java.util.Collections;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -269,5 +271,53 @@ public class PTransformMatchersTest implements Serializable {
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
+  }
+
+  @Test
+  public void emptyFlattenWithEmptyFlatten() {
+    AppliedPTransform application =
+        AppliedPTransform.of(
+            "EmptyFlatten",
+            Collections.emptyList(),
+            Collections.singletonList(
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
+            Flatten.pCollections(),
+            p);
+
+    assertThat(PTransformMatchers.emptyFlatten().matches(application), is(true));
+  }
+
+  @Test
+  public void emptyFlattenWithNonEmptyFlatten() {
+    AppliedPTransform application =
+        AppliedPTransform.of(
+            "Flatten",
+            Collections.singletonList(
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
+            Collections.singletonList(
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
+            Flatten.pCollections(),
+            p);
+
+    assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
+  }
+
+  @Test
+  public void emptyFlattenWithNonFlatten() {
+    AppliedPTransform application =
+        AppliedPTransform.of(
+            "EmptyFlatten",
+            Collections.emptyList(),
+            Collections.singletonList(
+                PCollection.createPrimitiveOutputInternal(
+                    p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)),
+            Flatten.iterables() /* This isn't actually possible to construct,
+                                 * but for the sake of example */,
+            p);
+
+    assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
   }
 }
