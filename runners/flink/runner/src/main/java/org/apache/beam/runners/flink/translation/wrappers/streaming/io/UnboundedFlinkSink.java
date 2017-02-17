@@ -63,6 +63,10 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
       }
 
       @Override
+      public void setWindowedWrites(boolean windowedWrites) {
+      }
+
+      @Override
       public void finalize(Iterable<Object> writerResults, PipelineOptions options)
           throws Exception {
 
