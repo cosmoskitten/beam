@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.aggregators.ClearAggregatorsRule;
+import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
@@ -61,6 +62,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.joda.time.Duration;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -166,7 +168,7 @@ public class ResumeFromCheckpointStreamingTest {
   }
 
   private SparkPipelineResult runAgain(SparkPipelineOptions options) {
-    clearAggregatorsRule.clearNamedAggregators();
+    clean();
     // sleep before next run.
     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     return run(options);
@@ -220,6 +222,12 @@ public class ResumeFromCheckpointStreamingTest {
   public static void tearDown() {
     EMBEDDED_KAFKA_CLUSTER.shutdown();
     EMBEDDED_ZOOKEEPER.shutdown();
+  }
+
+  @After
+  public void clean(){
+    clearAggregatorsRule.clearNamedAggregators();
+    MicrobatchSource.clearCache();
   }
 
   private static class FormatAsText extends DoFn<KV<String, String>, String> {

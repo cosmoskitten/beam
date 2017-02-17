@@ -130,8 +130,8 @@ public class StateSpecFunctions {
         // create reader.
         BoundedSource.BoundedReader<T> reader;
         try {
-          reader =
-              microbatchSource.createReader(runtimeContext.getPipelineOptions(), checkpointMark);
+          reader = microbatchSource.getOrCreateReader(runtimeContext.getPipelineOptions(),
+              checkpointMark);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -155,8 +155,7 @@ public class StateSpecFunctions {
           }
 
           watermark = ((MicrobatchSource.Reader) reader).getWatermark();
-          // close and checkpoint reader.
-          reader.close();
+
           LOG.info("Source id {} spent {} msec on reading.", microbatchSource.getId(),
               stopwatch.stop().elapsed(TimeUnit.MILLISECONDS));
 
