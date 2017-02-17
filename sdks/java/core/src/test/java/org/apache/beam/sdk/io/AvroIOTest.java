@@ -318,6 +318,9 @@ public class AvroIOTest {
     }
   }
 
+  @Rule
+  public TestPipeline windowedAvroWritePipeline = TestPipeline.create();
+
   @Test
   public void testWindowedAvroIOWrite() throws Throwable {
     File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
@@ -354,7 +357,6 @@ public class AvroIOTest {
         firstWindowElements.toArray(new TimestampedValue[100]);
     TimestampedValue<GenericClass>[] secondWindowArray =
         secondWindowElements.toArray(new TimestampedValue[100]);
-    TestPipeline p = TestPipeline.create();
 
     TestStream<GenericClass> values = TestStream.create(AvroCoder.of(GenericClass.class))
         .advanceWatermarkTo(new Instant(0))
@@ -365,13 +367,14 @@ public class AvroIOTest {
         Arrays.copyOfRange(secondWindowArray, 1, secondWindowArray.length))
         .advanceWatermarkToInfinity();
 
-    p.apply(values)
+    windowedAvroWritePipeline
+        .apply(values)
         .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
         .apply(AvroIO.Write.to(new WindowedFilenamePolicy(outputFilePrefix))
             .withWindowedWrites()
             .withNumShards(2)
             .withSchema(GenericClass.class));
-    p.run();
+    windowedAvroWritePipeline.run();
 
     // Validate that the data written matches the expected elements in the expected order
     List<File> expectedFiles = new ArrayList<>();
