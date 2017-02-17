@@ -39,6 +39,7 @@ import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
@@ -78,6 +79,7 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -134,12 +136,12 @@ public class ResumeFromCheckpointStreamingTest {
     };
 
     try (@SuppressWarnings("unchecked") KafkaProducer<String, Instant> kafkaProducer =
-        new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
-          for (Map.Entry<String, Instant> en : messages.entrySet()) {
-            kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
-          }
-          kafkaProducer.close();
-        }
+             new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
+      for (Map.Entry<String, Instant> en : messages.entrySet()) {
+        kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
+      }
+      kafkaProducer.close();
+    }
   }
 
   @Test
@@ -181,9 +183,7 @@ public class ResumeFromCheckpointStreamingTest {
     //--- between executions:
 
     //- clear state.
-    AggregatorsAccumulator.clear();
-    SparkMetricsContainer.clear();
-    GlobalWatermarkHolder.clear();
+    clean();
 
     //- write a bit more.
     produce(ImmutableMap.of(
@@ -208,8 +208,8 @@ public class ResumeFromCheckpointStreamingTest {
     assertThat(
         String.format(
             "Expected %d successful assertions, but found %d.", 1, successAssertions),
-            successAssertions,
-            is(1));
+        successAssertions,
+        is(1));
     // validate assertion didn't fail.
     int failedAssertions = res.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
     assertThat(
@@ -259,8 +259,8 @@ public class ResumeFromCheckpointStreamingTest {
         .apply("EOFShallNotPassFn", ParDo.of(new EOFShallNotPassFn(view)).withSideInputs(view))
         .apply(Window.<String>into(FixedWindows.of(Duration.millis(500)))
             .triggering(AfterWatermark.pastEndOfWindow())
-                .accumulatingFiredPanes()
-                .withAllowedLateness(Duration.ZERO))
+            .accumulatingFiredPanes()
+            .withAllowedLateness(Duration.ZERO))
         .apply(WithKeys.<Integer, String>of(1))
         .apply(GroupByKey.<Integer, String>create())
         .apply(Values.<Iterable<String>>create());
@@ -268,6 +268,14 @@ public class ResumeFromCheckpointStreamingTest {
     grouped.apply(new PAssertWithoutFlatten<>("k1", "k2", "k3", "k4", "k5"));
 
     return (SparkPipelineResult) p.run();
+  }
+
+  @After
+  public void clean(){
+    AggregatorsAccumulator.clear();
+    SparkMetricsContainer.clear();
+    GlobalWatermarkHolder.clear();
+    MicrobatchSource.clearCache();
   }
 
   @AfterClass
