@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Properties;
 import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.KafkaWriteOnBatchCompleted;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
@@ -54,6 +55,7 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.joda.time.Duration;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -212,6 +214,11 @@ public class KafkaStreamingTest {
   public static void tearDown() {
     EMBEDDED_KAFKA_CLUSTER.shutdown();
     EMBEDDED_ZOOKEEPER.shutdown();
+  }
+
+  @After
+  public void clean(){
+    MicrobatchSource.clearCache();
   }
 
   private static class FormatKVFn extends DoFn<KV<String, String>, String> {
