@@ -1,16 +1,19 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
- * agreements. See the NOTICE file distributed with this work for additional information regarding
- * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License. You may obtain a
- * copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software distributed under the License
- * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
- * or implied. See the License for the specific language governing permissions and limitations under
- * the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
@@ -21,11 +24,8 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -42,8 +42,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
 import org.elasticsearch.hadoop.mr.EsInputFormat;
@@ -87,7 +85,7 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static final int TEST_DATA_ROW_COUNT = 10;
   private static final String ELASTIC_TYPE_ID_PREFIX = "s";
- 
+
   @ClassRule
   public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
 
@@ -95,8 +93,8 @@ public class HIFIOWithElasticTest implements Serializable {
   public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void startServer() throws NodeValidationException, InterruptedException,
-      IOException {
+  public static void startServer()
+      throws NodeValidationException, InterruptedException, IOException {
     ElasticEmbeddedServer.startElasticEmbeddedServer();
   }
 
@@ -141,18 +139,18 @@ public class HIFIOWithElasticTest implements Serializable {
     Configuration conf = getConfiguration();
     String fieldValue = ELASTIC_TYPE_ID_PREFIX + "2";
     String query =
-        "{\n" + "  \"query\": {\n" 
-              + "  \"match\" : {\n" 
-              + "    \"id\" : {\n"
-              + "      \"query\" : \"" 
-              + fieldValue 
-              + "" 
-              + "\",\n" 
-              + "      \"type\" : \"boolean\"\n"
-              + "    }\n" 
-              + "  }\n" 
-              + "  }\n" 
-              + "}";
+                "{\n" + "  \"query\": {\n"
+                      + "  \"match\" : {\n"
+                      + "    \"id\" : {\n"
+                      + "      \"query\" : \""
+                      + fieldValue
+                      + ""
+                      + "\",\n"
+                      + "      \"type\" : \"boolean\"\n"
+                      + "    }\n"
+                      + "  }\n"
+                      + "  }\n"
+                      + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
@@ -174,13 +172,13 @@ public class HIFIOWithElasticTest implements Serializable {
     PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
     pipeline.run().waitUntilFinish();
   }
-  
+
   /**
    * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
    * Configuration object should have InputFormat class, key class and value class set. Mandatory
    * fields for ESInputFormat to be set are es.resource, es.nodes, es.port, es.internal.es.version.
-   * Please refer to <a
-   * href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
+   * Please refer to
+   * <a href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
    * >Elasticsearch Configuration</a> for more details.
    */
   public Configuration getConfiguration() {
@@ -217,19 +215,17 @@ public class HIFIOWithElasticTest implements Serializable {
     private static final long serialVersionUID = 1L;
     private static Node node;
 
-    public static void startElasticEmbeddedServer() throws UnknownHostException,
-        NodeValidationException, InterruptedException {
-      Settings settings =
-          Settings.builder()
-                  .put("node.data", TRUE)
-                  .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
-                  .put("http.port", ELASTIC_IN_MEM_PORT)
-                  .put("path.data", elasticTempFolder.getRoot().getPath())
-                  .put("path.home", elasticTempFolder.getRoot().getPath())
-                  .put("transport.type", "local")
-                  .put("http.enabled", TRUE)
-                  .put("node.ingest", TRUE)
-                  .build();
+    public static void startElasticEmbeddedServer()
+        throws UnknownHostException, NodeValidationException, InterruptedException {
+      Settings settings = Settings.builder()
+          .put("node.data", TRUE)
+          .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
+          .put("http.port", ELASTIC_IN_MEM_PORT)
+          .put("path.data", elasticTempFolder.getRoot().getPath())
+          .put("path.home", elasticTempFolder.getRoot().getPath())
+          .put("transport.type", "local")
+          .put("http.enabled", TRUE)
+          .put("node.ingest", TRUE).build();
       node = new PluginNode(settings);
       node.start();
       LOGGER.info("Elastic in memory server started.");

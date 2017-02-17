@@ -17,6 +17,13 @@ package org.apache.beam.sdk.io.hadoop.inputformat;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.AtomicDouble;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -66,13 +73,6 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.AtomicDouble;
-
 /**
  * A {@link HadoopInputFormatIO} is a {@link Transform} for reading data from any source which
  * implements Hadoop InputFormat. For example- Cassandra, Elasticsearch, HBase, Redis, Postgres,
@@ -87,31 +87,38 @@ import com.google.common.util.concurrent.AtomicDouble;
  * <ul>
  * <li>mapreduce.job.inputformat.class: The InputFormat class used to connect to your data source of
  * choice.</li>
- * <li>key.class: The key class returned by the InputFormat in 'mapreduce.job.inputformat.class'.</li>
+ * <li>key.class: The key class returned by the InputFormat in
+ * 'mapreduce.job.inputformat.class'.</li>
  * <li>value.class: The value class returned by the InputFormat in
  * 'mapreduce.job.inputformat.class'.</li>
  * </ul>
- * For example:</p>
+ * For example:
+ * </p>
  *
- * <pre>{@code
- * Configuration myHadoopConfiguration = new Configuration(false);
- * // Set Hadoop InputFormat, key and value class in configuration
- * myHadoopConfiguration.setClass("mapreduce.job.inputformat.class", MyDbInputFormatClass, InputFormat.class);
- * myHadoopConfiguration.setClass("key.class", MyDbInputFormatKeyClass, Object.class);
- * myHadoopConfiguration.setClass("value.class", MyDbInputFormatValueClass, Object.class);
- * }</pre>
+ * <pre>
+ * {@code
+ *   Configuration myHadoopConfiguration = new Configuration(false);
+ *   // Set Hadoop InputFormat, key and value class in configuration
+ *   myHadoopConfiguration.setClass("mapreduce.job.inputformat.class", MyDbInputFormatClass,
+ *       InputFormat.class);
+ *   myHadoopConfiguration.setClass("key.class", MyDbInputFormatKeyClass, Object.class);
+ *   myHadoopConfiguration.setClass("value.class", MyDbInputFormatValueClass, Object.class);
+ * }
+ * </pre>
  *
- * <p>You will need to check to see if the key and value classes output by the InputFormat have a Beam
+ * <p>
+ * You will need to check to see if the key and value classes output by the InputFormat have a Beam
  * {@link Coder} available. If not, you can use withKeyTranslation/withValueTranslation to specify a
  * method transforming instances of those classes into another class that is supported by a Beam
  * {@link Coder}. These settings are optional and you don't need to specify translation for both key
  * and value. If you specify a translation, you will need to make sure the K or V of the read
- * transform match the output type of the translation.</p>
- *
+ * transform match the output type of the translation.
+ * </p>
  *
  * <h3>Reading using HadoopInputFormatIO</h3>
  *
- * <pre> {@code
+ * <pre>
+ *  {@code
  * Pipeline p = ...; // Create pipeline.
  * // Read data only with Hadoop configuration.
  * p.apply("read",
@@ -121,17 +128,20 @@ import com.google.common.util.concurrent.AtomicDouble;
  *
  * // Read data with configuration and key translation (Example scenario: Beam Coder is not
  * available for key class hence key translation is required.).
+ * 
  * SimpleFunction&lt;InputFormatKeyClass, MyKeyClass&gt; myOutputKeyType =
  *       new SimpleFunction&lt;InputFormatKeyClass, MyKeyClass&gt;() {
  *         public MyKeyClass apply(InputFormatKeyClass input) {
  *           // ...logic to transform InputFormatKeyClass to MyKeyClass
  *         }
  *       };
+ * <pre>
  * p.apply("read",
  *     HadoopInputFormatIO.<MyKeyClass, InputFormatKeyClass>read()
  *              .withConfiguration(myHadoopConfiguration)
  *              .withKeyTranslation(myOutputKeyType);
  * }
+ * </pre>
  *
  * // Read data with configuration and value translation (Example scenario: Beam Coder is not
  * available for value class hence value translation is required.).
@@ -145,11 +155,13 @@ import com.google.common.util.concurrent.AtomicDouble;
  *     HadoopInputFormatIO.<InputFormatKeyClass, MyValueClass>read()
  *              .withConfiguration(myHadoopConfiguration)
  *              .withValueTranslation(myOutputValueType);
- * }</pre>
+ * }
+ * </pre>
  *
  * <h3>Read data from Cassandra using HadoopInputFormatIO transform</h3>
  *
- * <pre>{@code
+ * <pre>
+ * {@code
  * Configuration cassandraConf = new Configuration();
  * cassandraConf.set("cassandra.input.thrift.port", "9160");
  * cassandraConf.set("cassandra.input.thrift.address", CassandraHostIp);
@@ -157,51 +169,72 @@ import com.google.common.util.concurrent.AtomicDouble;
  * cassandraConf.set("cassandra.input.keyspace", "myKeySpace");
  * cassandraConf.set("cassandra.input.columnfamily", "myColumnFamily");
  * cassandraConf.setClass("key.class", {@link java.lang.Long Long.class}, Object.class);
- * cassandraConf.setClass("value.class", {@link com.datastax.driver.core.Row Row.class}, Object.class);
- * cassandraConf.setClass("mapreduce.job.inputformat.class", {@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class}, InputFormat.class);
- * }</pre>
+ * cassandraConf.setClass("value.class", {@link com.datastax.driver.core.Row Row.class},
+ *                      Object.class);
+ * cassandraConf.setClass("mapreduce.job.inputformat.class",
+ * {@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class}, InputFormat.class);
+ * }
+ * </pre>
  *
- * <p>Call Read transform as follows:</p>
- * <pre>{@code
+ * <p>
+ * Call Read transform as follows:
+ * </p>
+ * <pre>
+ * {@code
  * PCollection<KV<Long, String>> cassandraData =
  *          p.apply("read",
  *                  HadoopInputFormatIO.<Long, String>read()
  *                      .withConfiguration(cassandraConf)
  *                      .withValueTranslation(cassandraOutputValueType);
- * }</pre>
+ * }
+ * </pre>
  *
- * <p>The CqlInputFormat value class is {@link com.datastax.driver.core.Row Row}, which does not have a
+ * <p>
+ * The CqlInputFormat value class is {@link com.datastax.driver.core.Row Row}, which does not have a
  * Beam Coder. Rather than write a new coder, you can provide your own translation method as
- * follows:</p>
- * <pre>{@code
+ * follows:
+ * <pre>
+ * {@code
  * SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, String>(){
  *    public String apply(Row row) {
  *      return row.getString('myColName');
  *    }
  * };
- * }</pre>
+ * }
+ * </pre>
  *
  * <h3>Read data from Elasticsearch using HadoopInputFormatIO transform</h3>
  *
- * <pre>{@code
+ * <pre>
+ * {@code
  * Configuration elasticSearchConf = new Configuration();
  * elasticSearchConf.set("es.nodes", ElasticsearchHostIp);
  * elasticSearchConf.set("es.port", "9200");
  * elasticSearchConf.set("es.resource", "ElasticIndexName/ElasticTypeName");
- * elasticSearchConf.setClass("key.class", {@link org.apache.hadoop.io.Text Text.class}, Object.class);
- * elasticSearchConf.setClass("value.class", {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class}, Object.class);
- * elasticSearchConf.setClass("mapreduce.job.inputformat.class", {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat.class}, InputFormat.class);
- * }</pre>
+ * elasticSearchConf.setClass("key.class", {@link org.apache.hadoop.io.Text Text.class},
+ *                  Object.class);
+ * elasticSearchConf.setClass("value.class",
+ *                  {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class},
+ *                  Object.class);
+ * elasticSearchConf.setClass("mapreduce.job.inputformat.class",
+ *                  {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat.class},
+ *                  InputFormat.class);
+ * }
+ * </pre>
  *
- * <p>Call Read transform as follows:
- * <pre>{@code
+ * <p>
+ * Call Read transform as follows:
+ * <pre>
+ * {@code
  * PCollection<KV<Text, LinkedMapWritable>> elasticData =
  *       p.apply("read", HadoopInputFormatIO.<Text, LinkedMapWritable>.read()
  *                       .withConfiguration(elasticSearchConf));
  * }
  * </pre>
- * Note: The {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat} key class is {@link org.apache.hadoop.io.Text Text} and value class is {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable}.
- * Both key and value classes have Beam Coders, which means they don't need a translation method specified..
+ * Note: The {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat} key class is
+ * {@link org.apache.hadoop.io.Text Text} and value class is
+ * {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable}. Both key and value
+ * classes have Beam Coders, which means they don't need a translation method specified..
  */
 
 public class HadoopInputFormatIO {
@@ -218,10 +251,9 @@ public class HadoopInputFormatIO {
   }
 
   /**
-   * A {@link PTransform} that reads from any data source which implements Hadoop InputFormat.
-   * For e.g. Cassandra, Elasticsearch, HBase, Redis, Postgres, etc. See the class-level Javadoc on
+   * A {@link PTransform} that reads from any data source which implements Hadoop InputFormat. For
+   * e.g. Cassandra, Elasticsearch, HBase, Redis, Postgres, etc. See the class-level Javadoc on
    * {@link HadoopInputFormatIO} for more information.
-   *
    * @param <K> Type of keys to be read.
    * @param <V> Type of values to be read.
    * @see HadoopInputFormatIO
@@ -286,7 +318,7 @@ public class HadoopInputFormatIO {
       return builder.build();
     }
 
-     /**
+    /**
      * Returns a new {@link HadoopInputFormatIO.Read} that will transform the keys read from the
      * source using the given key translation function.
      * <p>Does not modify this object.
@@ -301,6 +333,7 @@ public class HadoopInputFormatIO {
     /**
      * Returns a new {@link HadoopInputFormatIO.Read} that will transform the values read from the
      * source using the given value translation function.
+     * 
      * <p>Does not modify this object.
      */
     public Read<K, V> withValueTranslation(SimpleFunction<?, V> function) {
@@ -498,8 +531,8 @@ public class HadoopInputFormatIO {
 
     /**
      * This is a helper function to compute splits. This method will also calculate size of the data
-     * being read. Note: This method is executed exactly once, the splits are retrieved and cached for
-     * further use by splitIntoBundles() and getEstimatesSizeBytes().
+     * being read. Note: This method is executed exactly once, the splits are retrieved and cached
+     * for further use by splitIntoBundles() and getEstimatesSizeBytes().
      */
     @VisibleForTesting
     void computeSplitsIfNecessary() throws IOException, InterruptedException {
@@ -682,8 +715,9 @@ public class HadoopInputFormatIO {
       Type genericSuperclass = null;
       for (;;) {
         genericSuperclass = inputFormatClass.getGenericSuperclass();
-        if (genericSuperclass instanceof ParameterizedType)
+        if (genericSuperclass instanceof ParameterizedType) {
           break;
+        }
         inputFormatClass = inputFormatClass.getSuperclass();
       }
       return (ParameterizedType) genericSuperclass;
@@ -799,7 +833,8 @@ public class HadoopInputFormatIO {
           currentReader = null;
         } catch (InterruptedException e) {
           throw new IOException(
-              "Could not read because the thread got interrupted while reading the records with an exception: ",
+              "Could not read because the thread got interrupted while "
+              + "reading the records with an exception: ",
               e);
         }
         doneReading = true;
@@ -921,7 +956,8 @@ public class HadoopInputFormatIO {
         try {
           return (double) currentReader.getProgress();
         } catch (IOException | InterruptedException e) {
-          LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG + e.getMessage(), e);
+          LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG
+              + e.getMessage(), e);
           throw new IOException(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG
               + e.getMessage(), e);
         }

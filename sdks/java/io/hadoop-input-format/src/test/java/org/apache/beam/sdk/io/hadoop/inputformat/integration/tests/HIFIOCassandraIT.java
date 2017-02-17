@@ -1,18 +1,23 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
- * agreements. See the NOTICE file distributed with this work for additional information regarding
- * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License. You may obtain a
- * copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software distributed under the License
- * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
- * or implied. See the License for the specific language governing permissions and limitations under
- * the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
+
+import com.datastax.driver.core.Row;
 
 import java.io.Serializable;
 
@@ -37,19 +42,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import com.datastax.driver.core.Row;
-
 /**
- * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance.
- * You need to pass Cassandra server IP and port in beamTestPipelineOptions.
- * <p>
- * You can run just this test by doing the following: mvn test-compile compile
- * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4", 
- * "--serverPort=<port>", "--userName=<user_name>", "--password=<password>"]' 
- * -Dit.test=HIFIOCassandraIT -DskipITs=false
- * Setting username and password is optional, set these only if security is 
- * configured on Cassandra server. 
- * </p>
+ * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance. You need to pass
+ * Cassandra server IP and port in beamTestPipelineOptions.
+ * <p>You can run just this test by doing the following: mvn test-compile compile
+ * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
+ * "--serverPort=CASSANDRA_PORT", "--userName=CASSANDRA_USERNAME", "--password=CASSANDRA_PASSWORD"]'
+ * -Dit.test=HIFIOCassandraIT -DskipITs=false Setting username and password is optional, set these
+ * only if security is configured on Cassandra server.
  */
 
 @RunWith(JUnit4.class)
@@ -65,7 +65,7 @@ public class HIFIOCassandraIT implements Serializable {
   private static final String CASSANDRA_COLUMNFAMILY_PROPERTY = "cassandra.input.columnfamily";
   private static final String CASSANDRA_PARTITIONER_CLASS_VALUE = "Murmur3Partitioner";
   private static final String USERNAME = "cassandra.username";
-  private static final String PASSWORD  = "cassandra.password";
+  private static final String PASSWORD = "cassandra.password";
   private static final String INPUT_KEYSPACE_USERNAME_CONFIG = "cassandra.input.keyspace.username";
   private static final String INPUT_KEYSPACE_PASSWD_CONFIG = "cassandra.input.keyspace.passwd";
   private static HIFTestOptions options;
@@ -100,9 +100,8 @@ public class HIFIOCassandraIT implements Serializable {
             + input.getString("field15") + "|" + input.getString("field16");
       }
     };
-    PCollection<KV<Long, String>> cassandraData =
-        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
-            .withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData = pipeline.apply(HadoopInputFormatIO
+        .<Long, String>read().withConfiguration(conf).withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(expectedRecordsCount);
     PCollection<String> textValues = cassandraData.apply(Values.<String>create());
@@ -123,13 +122,9 @@ public class HIFIOCassandraIT implements Serializable {
     Long expectedNumRows = 1L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
-    conf.set(
-        "cassandra.input.cql",
-        "select * from "
-            + CASSANDRA_KEYSPACE
-            + "."
-            + CASSANDRA_TABLE
-            + " where token(y_id) > ? and token(y_id) <= ? and y_id='user3117720508089767496' allow filtering");
+    conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
+        + " where token(y_id) > ? and token(y_id) <= ? "
+        + "and y_id='user3117720508089767496' allow filtering");
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       @Override
       public String apply(Row input) {
@@ -144,9 +139,8 @@ public class HIFIOCassandraIT implements Serializable {
             + input.getString("field15") + "|" + input.getString("field16");
       }
     };
-    PCollection<KV<Long, String>> cassandraData =
-        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
-            .withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData = pipeline.apply(HadoopInputFormatIO
+        .<Long, String>read().withConfiguration(conf).withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(expectedNumRows);
     PCollection<String> textValues = cassandraData.apply(Values.<String>create());
@@ -174,7 +168,7 @@ public class HIFIOCassandraIT implements Serializable {
     conf.set(USERNAME, options.getUserName());
     conf.set(PASSWORD, options.getPassword());
     conf.set(INPUT_KEYSPACE_USERNAME_CONFIG, options.getUserName());
-    conf.set(INPUT_KEYSPACE_PASSWD_CONFIG, options.getPassword()); 
+    conf.set(INPUT_KEYSPACE_PASSWD_CONFIG, options.getPassword());
     conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
     conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, java.lang.Long.class, Object.class);

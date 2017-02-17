@@ -19,6 +19,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+import com.datastax.driver.core.Row;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -74,8 +76,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
-
-import com.datastax.driver.core.Row;
 
 /**
  * Unit tests for {@link HadoopInputFormatIO}.
@@ -171,7 +171,8 @@ public class HadoopInputFormatIOTest {
     assertEquals(null, read.getValueTranslationFunction());
     assertEquals(myKeyTranslate.getOutputTypeDescriptor(), read.getKeyClass());
     assertEquals(diffConf.getHadoopConfiguration()
-        .getClass(HadoopInputFormatIOConstants.VALUE_CLASS, Object.class), read.getValueClass().getRawType());
+        .getClass(HadoopInputFormatIOConstants.VALUE_CLASS, Object.class),
+        read.getValueClass().getRawType());
   }
 
   /**
@@ -402,9 +403,10 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate() Read.validate()} function when myValueTranslate's (simple
-   * function provided by user for value translation) input type is not same as Hadoop InputFormat's
-   * valueClass(Which is property set in configuration as "value.class").
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate()
+   * Read.validate()} function when myValueTranslate's (simple function provided by user for value
+   * translation) input type is not same as Hadoop InputFormat's valueClass(Which is property set in
+   * configuration as "value.class").
    */
   @Test
   public void testReadValidationFailsWithWrongInputTypeValueTranslationFunction() {
@@ -536,9 +538,10 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#start()
-   * start()} method if InputFormat's {@link InputFormat#getSplits() getSplits()} returns
-   * InputSplitList having zero records.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#start() start()} method if
+   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns InputSplitList having zero
+   * records.
    */
   @Test
   public void testReadersStartWhenZeroRecords() throws Exception {
@@ -651,9 +654,9 @@ public class HadoopInputFormatIOTest {
             null, // No key translation required.
             null, // No value translation required.
             split);
-    BoundedReader<KV<Text, Employee>> HIFReader = source.createReader(p.getOptions());
-    BoundedSource<KV<Text, Employee>> HIFSource = HIFReader.getCurrentSource();
-    assertEquals(HIFSource, source);
+    BoundedReader<KV<Text, Employee>> hifReader = source.createReader(p.getOptions());
+    BoundedSource<KV<Text, Employee>> hifSource = hifReader.getCurrentSource();
+    assertEquals(hifSource, source);
   }
 
   /**
@@ -675,9 +678,9 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary()
-   * computeSplits()} when Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()}
-   * returns empty list.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary() computeSplits()} when Hadoop
+   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns empty list.
    */
   @Test
   public void testComputeSplitsIfGetSplitsReturnsEmptyList() throws Exception {
@@ -700,9 +703,9 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary()
-   * computeSplits()} when Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()}
-   * returns NULL value.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary() computeSplits()} when Hadoop
+   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns NULL value.
    */
   @Test
   public void testComputeSplitsIfGetSplitsReturnsNullValue() throws Exception {
@@ -724,9 +727,10 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary()
-   * computeSplits()} if Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()} returns
-   * InputSplit list having some null values.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary() computeSplits()} if Hadoop
+   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns InputSplit list having some
+   * null values.
    */
   @Test
   public void testComputeSplitsIfGetSplitsReturnsListHavingNullValues() throws Exception {
@@ -927,7 +931,7 @@ public class HadoopInputFormatIOTest {
             keyCoder,
             valueCoder,
             null, // No key translation required.
-            null);// No value translation required.
+            null); // No value translation required.
   }
 
   private <K, V> List<BoundedSource<KV<K, V>>> getBoundedSourceList(

@@ -1,18 +1,27 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
- * agreements. See the NOTICE file distributed with this work for additional information regarding
- * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License. You may obtain a
- * copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software distributed under the License
- * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
- * or implied. See the License for the specific language governing permissions and limitations under
- * the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
+
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.mapping.annotations.Column;
+import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
 
@@ -36,16 +45,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.mapping.annotations.Column;
-import com.datastax.driver.mapping.annotations.Table;
-
 /**
- *
  * Tests to validate HadoopInputFormatIO for embedded Cassandra instance.
- *
  */
 @RunWith(JUnit4.class)
 public class HIFIOWithCassandraTest implements Serializable {
@@ -63,7 +64,7 @@ public class HIFIOWithCassandraTest implements Serializable {
   private static final String CASSANDRA_PORT = "9061";
   private static transient Cluster cluster;
   private static transient Session session;
-  private static long TEST_DATA_ROW_COUNT = 10L;
+  private static final long TEST_DATA_ROW_COUNT = 10L;
   // Setting Cassandra embedded server startup timeout to 2 min.
   private static final long CASSANDRA_SERVER_STARTUP_TIMEOUT = 120000L;
 
@@ -87,9 +88,8 @@ public class HIFIOWithCassandraTest implements Serializable {
         return scientistRecord;
       }
     };
-    PCollection<KV<Long, String>> cassandraData =
-        p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
-            .withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData = p.apply(HadoopInputFormatIO.<Long, String>read()
+        .withConfiguration(conf).withValueTranslation(myValueTranslate));
     // Verify the count of data retrieved from Cassandra matches expected count.
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(TEST_DATA_ROW_COUNT);
@@ -120,9 +120,8 @@ public class HIFIOWithCassandraTest implements Serializable {
         return scientistRecord;
       }
     };
-    PCollection<KV<Long, String>> cassandraData =
-        p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
-            .withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData = p.apply(HadoopInputFormatIO.<Long, String>read()
+        .withConfiguration(conf).withValueTranslation(myValueTranslate));
     // Verify the count of data retrieved from Cassandra matches expected count.
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(expectedCount);
@@ -162,13 +161,13 @@ public class HIFIOWithCassandraTest implements Serializable {
     session = cluster.connect();
     createCassandraData();
   }
-  
+
   public static void createCassandraData() throws Exception {
     session.execute("CREATE KEYSPACE " + CASSANDRA_KEYSPACE
         + " WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':1};");
     session.execute("USE " + CASSANDRA_KEYSPACE);
-    session.execute("CREATE TABLE " + CASSANDRA_TABLE
-        + "(id int, scientist text, PRIMARY KEY(id));");
+    session
+        .execute("CREATE TABLE " + CASSANDRA_TABLE + "(id int, scientist text, PRIMARY KEY(id));");
     for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
       session.execute("INSERT INTO " + CASSANDRA_TABLE + "(id, scientist) values(" + i
           + ", 'Faraday" + i + "');");
@@ -185,7 +184,10 @@ public class HIFIOWithCassandraTest implements Serializable {
     session.execute("Drop TABLE " + CASSANDRA_TABLE);
     session.execute("Drop KEYSPACE " + CASSANDRA_KEYSPACE);
   }
-  
+
+  /**
+   * POJO class for scientist data.
+   */
   @Table(name = CASSANDRA_TABLE, keyspace = CASSANDRA_KEYSPACE)
   public static class Scientist implements Serializable {
     private static final long serialVersionUID = 1L;

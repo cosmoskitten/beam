@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -44,14 +44,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Runs integration test to validate HadoopInputFromatIO for an Elasticsearch instance.
- * You need to pass Elasticsearch server IP and port in beamTestPipelineOptions.
- * <p>You can run just this test by doing the following: mvn test-compile compile
- * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4", 
- * "--serverPort=<port>", "--userName=<user_name>", "--password=<password>"]' 
- * -Dit.test=HIFIOElasticIT -DskipITs=false
- * Setting username and password is optional, set these only if security is 
- * configured on Elasticsearch server.</p>
+ * Runs integration test to validate HadoopInputFromatIO for an Elasticsearch instance.You need to
+ * pass Elasticsearch server IP and port in beamTestPipelineOptions.
+ * <p>
+ * You can run just this test by doing the following: mvn test-compile compile
+ * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
+ * "--serverPort=ES_PORT", "--userName=ES_USERNAME", "--password=ES_PASSWORD"]'
+ * -Dit.test=HIFIOElasticIT -DskipITs=false Setting username and password is optional, set these
+ * only if security is configured on Elasticsearch server.
  */
 @RunWith(JUnit4.class)
 public class HIFIOElasticIT implements Serializable {
@@ -62,7 +62,7 @@ public class HIFIOElasticIT implements Serializable {
   private static final String ELASTIC_TYPE_NAME = "test_type";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static HIFTestOptions options;
-  
+
   @BeforeClass
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
@@ -72,8 +72,6 @@ public class HIFIOElasticIT implements Serializable {
   /**
    * This test reads data from the Elasticsearch instance and verifies whether data is read
    * successfully.
-   * @throws IOException 
-   * @throws SecurityException 
    */
   @Test
   public void testHifIOWithElastic() throws SecurityException, IOException {
@@ -96,9 +94,7 @@ public class HIFIOElasticIT implements Serializable {
             rowValue = convertMapWRowToString(mapw, rowValue);
             return rowValue;
           }
-          
         });
-
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
@@ -106,7 +102,7 @@ public class HIFIOElasticIT implements Serializable {
     PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
     pipeline.run().waitUntilFinish();
   }
-  
+
   /*
    * Function to create a toString implementation of a MapWritable row by writing all field values
    * in a string row.
@@ -129,7 +125,7 @@ public class HIFIOElasticIT implements Serializable {
     rowValue = addFieldValuesToRow(rowValue, mapw, "City");
     return rowValue;
   }
-  
+
   /*
    * Convert a MapWritable row field into a string, and append it to the row string with a
    * separator.
@@ -147,19 +143,12 @@ public class HIFIOElasticIT implements Serializable {
   @Test
   public void testHifIOWithElasticQuery() {
     String expectedHashCode = "abfc29069634f6e9d02a10129ae476e114f15448";
-    Long expectedRecordsCount=1L;
+    Long expectedRecordsCount = 1L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
-    String query =
-        "{" + "  \"query\": {" 
-            + "  \"match\" : {" 
-            + "    \"Title\" : {"
-            + "      \"query\" : \"M9u5xcAR\"," 
-            + "      \"type\" : \"boolean\"" 
-            + "    }" 
-            + "  }"
-            + "  }" 
-            + "}";
+    String query = "{" + "  \"query\": {" + "  \"match\" : {" + "    \"Title\" : {"
+        + "      \"query\" : \"M9u5xcAR\"," + "      \"type\" : \"boolean\"" + "    }" + "  }"
+        + "  }" + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));

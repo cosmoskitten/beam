@@ -76,9 +76,8 @@ public class DBInputWritable implements Writable, DBWritable {
   }
 
   /*
-   * Serialize the fields {id, name} of this object to out. Note: You must implement this method
-   * for encoding in Beam. Leaving this method empty may result in incompatible value class in
-   * Beam.
+   * Serialize the fields {id, name} of this object to out. Note: You must implement this method for
+   * encoding in Beam. Leaving this method empty may result in incompatible value class in Beam.
    */
   public void write(DataOutput out) throws IOException {
     out.writeUTF(name);
@@ -96,23 +95,30 @@ public class DBInputWritable implements Writable, DBWritable {
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
+    if (this == obj) {
       return true;
-    if (obj == null)
+    }
+    if (obj == null) {
       return false;
-    if (getClass() != obj.getClass())
+    }
+    if (getClass() != obj.getClass()) {
       return false;
+    }
     DBInputWritable other = (DBInputWritable) obj;
     if (id == null) {
-      if (other.id != null)
+      if (other.id != null) {
         return false;
-    } else if (!id.equals(other.id))
+      }
+    } else if (!id.equals(other.id)) {
       return false;
+    }
     if (name == null) {
-      if (other.name != null)
+      if (other.name != null) {
         return false;
-    } else if (!name.equals(other.name))
+      }
+    } else if (!name.equals(other.name)) {
       return false;
+    }
     return true;
   }
 }
