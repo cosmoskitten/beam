@@ -382,7 +382,7 @@ public class AvroIO {
 
     /**
      * Returns a {@link PTransform} that writes to the file(s) specified by the provided
-     * {@link FilenamePolicy}.
+     * {@link FileBasedSink.FilenamePolicy}.
      */
     public static Bound<GenericRecord> to(FilenamePolicy filenamePolicy) {
       return new Bound<>(GenericRecord.class).to(filenamePolicy);

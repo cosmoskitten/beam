@@ -158,7 +158,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Context used for generating a name based on window, pane, shard numer, and num shards.
      * Window and pane will only be provided if windowed writes have been requested using
-     * {@link Write.Bound@withWindowedWrites}. The policy must produce unique filenames for unique
+     * {@link Write.Bound#withWindowedWrites}. The policy must produce unique filenames for unique
      * Context objects.
      */
     public static class Context {
