@@ -421,8 +421,6 @@ public class HadoopInputFormatIO {
     private long boundedSourceEstimatedSize = 0;
     private transient InputFormat<?, ?> inputFormatObj;
     private transient TaskAttemptContext taskAttemptContext;
-    private transient Class<?> expectedKeyClass;
-    private transient Class<?> expectedValueClass;
 
     HadoopInputFormatBoundedSource(
         SerializableConfiguration conf,
@@ -568,105 +566,100 @@ public class HadoopInputFormatIO {
      */
     private void validateUserInputForKeyAndValue() throws IOException, InterruptedException {
       ParameterizedType genericClassType = determineGenericType();
-      boolean isCorrectKeyClassSet = validateClasses(
-          genericClassType.getActualTypeArguments()[0].getTypeName(),
-          keyCoder,
-          "key.class");
-      boolean isCorrectValueClassSet = validateClasses(
-          genericClassType.getActualTypeArguments()[1].getTypeName(),
-          valueCoder,
-          "value.class");
+      RecordReader<?, ?> reader = fetchFirstRecordReader();
+      boolean isCorrectKeyClassSet =
+          validateKeyClass(genericClassType.getActualTypeArguments()[0].getTypeName(), keyCoder,
+              reader.getCurrentKey());
+      boolean isCorrectValueClassSet =
+          validateValueClass(genericClassType.getActualTypeArguments()[1].getTypeName(),
+              valueCoder, reader.getCurrentValue());
       if (!isCorrectKeyClassSet) {
-        Class<?> actualClass = conf.getHadoopConfiguration().getClass("key.class", Object.class);
+        Class<?> actualClass =
+            conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.KEY_CLASS,
+                Object.class);
         throw new IllegalArgumentException(String.format(
-            HadoopInputFormatIOConstants.WRONG_INPUTFORMAT_KEY_CLASS_ERROR_MSG,
-            getExpectedKeyClass().getName(),
-            actualClass.getName()));
+            HadoopInputFormatIOConstants.WRONG_INPUTFORMAT_KEY_CLASS_ERROR_MSG, reader
+                .getCurrentKey().getClass().getName(), actualClass.getName()));
       }
       if (!isCorrectValueClassSet) {
-        Class<?> actualClass = conf.getHadoopConfiguration().getClass("value.class", Object.class);
+        Class<?> actualClass =
+            conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.VALUE_CLASS,
+                Object.class);
         throw new IllegalArgumentException(String.format(
-            HadoopInputFormatIOConstants.WRONG_INPUTFORMAT_VALUE_CLASS_ERROR_MSG,
-            getExpectedValueClass().getName(),
-            actualClass.getName()));
+            HadoopInputFormatIOConstants.WRONG_INPUTFORMAT_VALUE_CLASS_ERROR_MSG, reader
+                .getCurrentValue().getClass().getName(), actualClass.getName()));
       }
     }
 
     /**
-     * Returns true if key/value class set by the user is compatible with the key/value class of a
-     * pair returned by RecordReader. User provided key and value classes are validated against
-     * parameterized type of InputFormat. If parameterized type has any type parameter such as T,
-     * K, V, etc then validation is done by encoding and decoding first pair returned by
+     * Returns true if key class set by the user is compatible with the key class of a pair returned
+     * by RecordReader. User provided key class is validated against the parameterized type's type
+     * arguments of InputFormat. If parameterized type has any type arguments such as T, K, V, etc
+     * then validation is done by encoding and decoding key object of first pair returned by
      * RecordReader.
      */
-    private <T> boolean validateClasses(
-        String inputFormatGenericClassName,
-        Coder<T> coder,
-        String property) throws IOException, InterruptedException {
-      Class<?> inputClass = null;
+    private <T> boolean validateKeyClass(String inputFormatGenericClassName, Coder<K> coder,
+        Object keyObject) {
       try {
-        inputClass = Class.forName(inputFormatGenericClassName);
+        Class<?> inputClass = Class.forName(inputFormatGenericClassName);
+        /*
+         * Validates key class with InputFormat's parameterized type.
+         */
+        return validateClassesEquality(
+            inputClass,
+            conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.KEY_CLASS,
+                Object.class));
+      } catch (ClassNotFoundException e) {
+        /*
+         * Given inputFormatGenericClassName is a type parameter i.e. T, K, V, etc. In such cases
+         * class validation for user provided input key will not work correctly. Therefore the need
+         * to validate key class by encoding and decoding key object with the given coder.
+         */
+        return validateClassUsingCoder(keyObject, coder);
+      }
+    }
+
+    /**
+     * Returns true if value class set by the user is compatible with the value class of a pair
+     * returned by RecordReader. User provided value class is validated against the parameterized
+     * type's type arguments of InputFormat. If parameterized type has any type arguments such as T,
+     * K, V, etc then validation is done by encoding and decoding value object of first pair
+     * returned by RecordReader.
+     */
+    private <T> boolean validateValueClass(String inputFormatGenericClassName, Coder coder,
+        Object valueObject) {
+      try {
+        Class<?> inputClass = Class.forName(inputFormatGenericClassName);
+        /*
+         * Validates value class with InputFormat's parameterized type.
+         */
+        return validateClassesEquality(
+            inputClass,
+            conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.VALUE_CLASS,
+                Object.class));
+
       } catch (Exception e) {
         /*
          * Given inputFormatGenericClassName is a type parameter i.e. T, K, V, etc. In such cases
-         * class validation for user provided input key/value will not work correctly. Therefore the
-         * need to validate key/value classes by encoding and decoding key/value object with the
-         * given coder.
+         * class validation for user provided input value will not work correctly. Therefore the
+         * need to validate value class by encoding and decoding value object with the given coder.
          */
-        return validateClassUsingCoder(property, coder);
-      }
-      /*
-       * Validates key/value class with InputFormat's parameterized type.
-       */
-      if (inputClass != null) {
-        return validateClassesEquality(inputClass, property);
-      }
-      return true;
-    }
-
-    /**
-     * Returns true if first record's key/value encodes and decodes successfully. This validates the
-     * key/value classes set by the user in the configuration. Also sets
-     * expectedKeyClass/expectedValueClass if cloning of key/value fails.
-     */
-    private <T> boolean validateClassUsingCoder(String property, Coder<T> coder)
-        throws IOException, InterruptedException {
-      RecordReader<?, ?> reader = null;
-      try {
-        reader = fetchFirstRecordReader();
-        if (property.contains("key")) {
-          boolean isKeyClassValid = checkEncodingAndDecoding(coder, (T) reader.getCurrentKey());
-          if (!isKeyClassValid) {
-            this.setExpectedKeyClass(reader.getCurrentKey().getClass());
-          }
-          return isKeyClassValid;
-        } else {
-          boolean isValueClassValid = checkEncodingAndDecoding(coder, (T) reader.getCurrentValue());
-          if (!isValueClassValid) {
-            this.setExpectedValueClass(reader.getCurrentValue().getClass());
-          }
-          return isValueClassValid;
-        }
-      } finally {
-        reader.close();
+        return validateClassUsingCoder(valueObject, coder);
       }
     }
 
     /**
-     * Returns true if the class set in a given property by the pipeline user is type of given
-     * expectedClass.
+     * Validates if key/value object encodes and decodes successfully using the given coder.
      */
-    private boolean validateClassesEquality(Class<?> expectedClass, String property) {
-      Class<?> actualClass = conf.getHadoopConfiguration().getClass(property, Object.class);
-      if (!actualClass.isAssignableFrom(expectedClass)) {
-        if (property.contains("key")) {
-          this.setExpectedKeyClass(expectedClass);
-        } else {
-          this.setExpectedValueClass(expectedClass);
-        }
-        return false;
-      }
-      return true;
+    private <T> boolean validateClassUsingCoder(Object entity, Coder<T> coder) {
+      return checkEncodingAndDecoding(coder, (T) entity);
+    }
+
+    /**
+     * Validates if a given class is type of a given expectedClass.
+     */
+    private boolean validateClassesEquality(Class<?> expectedClass, Class<?> actualClass) {
+      return actualClass.isAssignableFrom(expectedClass);
     }
 
     /**
@@ -727,22 +720,6 @@ public class HadoopInputFormatIO {
     @Override
     public Coder<KV<K, V>> getDefaultOutputCoder() {
       return KvCoder.of(keyCoder, valueCoder);
-    }
-
-    private Class<?> getExpectedKeyClass() {
-      return expectedKeyClass;
-    }
-
-    private void setExpectedKeyClass(Class<?> expectedKeyClass) {
-      this.expectedKeyClass = expectedKeyClass;
-    }
-
-    private Class<?> getExpectedValueClass() {
-      return expectedValueClass;
-    }
-
-    private void setExpectedValueClass(Class<?> expectedValueClass) {
-      this.expectedValueClass = expectedValueClass;
     }
 
     @Override

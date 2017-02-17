@@ -21,7 +21,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.apache.beam.sdk.io.hadoop.inputformat.integration.tests.HIFIOWithPostgresIT;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 
@@ -69,7 +68,7 @@ public class DBInputWritable implements Writable, DBWritable {
   public void write(PreparedStatement ps) {}
 
   /*
-   * Deserialize the fields {id, name} of this object from in. 
+   * Deserialize the fields {id, name} of this object from in.
    */
   public void readFields(DataInput in) throws IOException {
     name = in.readUTF();
