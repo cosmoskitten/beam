@@ -175,7 +175,7 @@ class DataflowRunner(PipelineRunner):
         self.dataflow_client.create_job(self.job), self)
 
     self._metrics = DataflowMetrics(self.dataflow_client, result)
-    result.metrics_results = self._metrics
+    result.metric_results = self._metrics
     return result
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
@@ -643,7 +643,7 @@ class DataflowPipelineResult(PipelineResult):
     return self._job.id
 
   def metrics(self):
-    return getattr(self, 'metrics_results', None)
+    return getattr(self, 'metric_results', None)
 
   @property
   def has_job(self):
