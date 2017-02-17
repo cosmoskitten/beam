@@ -172,7 +172,6 @@
     <profile>
       <id>beam-sdks-python-pydoc</id>
       <activation>
-        <activeByDefault>false</activeByDefault>
         <os>
           <family>unix</family>
         </os>
