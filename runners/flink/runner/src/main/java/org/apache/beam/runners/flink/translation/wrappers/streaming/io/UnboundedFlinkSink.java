@@ -153,7 +153,7 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
 
           @Override
           public void setWindowAndPane(BoundedWindow window, PaneInfo paneInfo) throws Exception {
-            
+
           }
 
           @Override
