@@ -174,12 +174,7 @@ class DataflowRunner(PipelineRunner):
     result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
 
-    try:
-      job_id = result.job_id()
-    except AttributeError:
-      job_id = None
-
-    self._metrics = DataflowMetrics(self.dataflow_client, job_id)
+    self._metrics = DataflowMetrics(self.dataflow_client, result)
     result.metrics_results = self._metrics
     return result
 

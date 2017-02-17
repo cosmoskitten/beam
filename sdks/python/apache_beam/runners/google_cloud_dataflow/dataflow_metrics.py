@@ -34,15 +34,18 @@ from apache_beam.metrics.metricbase import MetricName
 class DataflowMetrics(MetricResults):
   """Implementation of MetricResults class for the Dataflow runner."""
 
-  def __init__(self, dataflow_client=None, job_id=None):
+  def __init__(self, dataflow_client=None, job_result=None):
     super(DataflowMetrics, self).__init__()
     self._dataflow_client = dataflow_client
-    self.job_id = job_id
+    self.job_result = job_result
 
-  def _populate_metric_results(self, user_metrics):
-    """Take a list of user metrics, and convert it to a list of MetricResult."""
+  def _populate_metric_results(self, response):
+    """Take a list of metrics, and convert it to a list of MetricResult."""
+    user_metrics = [metric
+                    for metric in response.metrics
+                    if metric.name.origin == 'user']
 
-    # First get the tentative/committed versions of every metric together.
+    # Get the tentative/committed versions of every metric together.
     metrics_by_name = defaultdict(lambda: {})
     for metric in user_metrics:
       tentative = [prop
@@ -70,13 +73,14 @@ class DataflowMetrics(MetricResults):
     return result
 
   def query(self, filter=None):
-    if not self.job_id:
+    try:
+      job_id = result.job_id()
+    except AttributeError:
+      job_id = None
+    if not job_id:
       raise ValueError('Can not query metrics. Job id is unknown.')
 
-    response = self._dataflow_client.get_job_metrics(self.job_id)
-    user_metrics = [metric
-                    for metric in response.metrics
-                    if metric.name.origin == 'user']
-    counters = self._populate_metric_results(user_metrics)
-    return {'counters': counters,
+    response = self._dataflow_client.get_job_metrics(job_id)
+    counters = self._populate_metric_results(response)
+    return {'counters': [c for c in counters if self.matches(filter, c.key)],
             'distributions': []}
