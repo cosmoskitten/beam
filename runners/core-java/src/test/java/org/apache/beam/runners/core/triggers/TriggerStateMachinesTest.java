@@ -21,19 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
-import org.apache.beam.sdk.transforms.windowing.AfterAll;
-import org.apache.beam.sdk.transforms.windowing.AfterEach;
-import org.apache.beam.sdk.transforms.windowing.AfterFirst;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
-import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
-import org.apache.beam.sdk.transforms.windowing.Never;
-import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
-import org.apache.beam.sdk.transforms.windowing.OrFinallyTrigger;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -51,40 +39,64 @@ public class TriggerStateMachinesTest {
   @Test
   public void testStateMachineForAfterPane() {
     int count = 37;
-    AfterPane trigger = AfterPane.elementCountAtLeast(count);
-    AfterPaneStateMachine machine =
-        (AfterPaneStateMachine) TriggerStateMachines.stateMachineForOnceTrigger(trigger);
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setElementCount(RunnerApi.Trigger.ElementCount.newBuilder().setElementCount(count))
+            .build();
 
-    assertThat(machine.getElementCount(), equalTo(trigger.getElementCount()));
+    AfterPaneStateMachine machine =
+        (AfterPaneStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
+
+    assertThat(machine.getElementCount(), equalTo(trigger.getElementCount().getElementCount()));
   }
 
+  // TODO: make these all build the proto
   @Test
   public void testStateMachineForAfterProcessingTime() {
     Duration minutes = Duration.standardMinutes(94);
     Duration hours = Duration.standardHours(13);
 
-    AfterProcessingTime trigger =
-        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(minutes).alignedTo(hours);
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setAfterProcessingTime(
+                RunnerApi.Trigger.AfterProcessingTime.newBuilder()
+                    .addTimestampTransforms(
+                        RunnerApi.TimestampTransform.newBuilder()
+                            .setDelay(
+                                RunnerApi.TimestampTransform.Delay.newBuilder()
+                                    .setDelayMillis(minutes.getMillis())))
+                    .addTimestampTransforms(
+                        RunnerApi.TimestampTransform.newBuilder()
+                            .setAlignTo(
+                                RunnerApi.TimestampTransform.AlignTo.newBuilder()
+                                    .setPeriod(hours.getMillis()))))
+            .build();
 
     AfterDelayFromFirstElementStateMachine machine =
         (AfterDelayFromFirstElementStateMachine)
-            TriggerStateMachines.stateMachineForOnceTrigger(trigger);
+            TriggerStateMachines.stateMachineForTrigger(trigger);
 
     assertThat(machine.getTimeDomain(), equalTo(TimeDomain.PROCESSING_TIME));
   }
 
   @Test
   public void testStateMachineForAfterWatermark() {
-    AfterWatermark.FromEndOfWindow trigger = AfterWatermark.pastEndOfWindow();
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setAfterEndOfWidow(RunnerApi.Trigger.AfterEndOfWindow.getDefaultInstance())
+            .build();
     AfterWatermarkStateMachine.FromEndOfWindow machine =
         (AfterWatermarkStateMachine.FromEndOfWindow)
-            TriggerStateMachines.stateMachineForOnceTrigger(trigger);
+            TriggerStateMachines.stateMachineForTrigger(trigger);
     // No parameters, so if it doesn't crash, we win!
   }
 
   @Test
   public void testDefaultTriggerTranslation() {
-    DefaultTrigger trigger = DefaultTrigger.of();
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setDefault(RunnerApi.Trigger.Default.getDefaultInstance())
+            .build();
     DefaultTriggerStateMachine machine =
         (DefaultTriggerStateMachine)
             checkNotNull(TriggerStateMachines.stateMachineForTrigger(trigger));
@@ -93,7 +105,10 @@ public class TriggerStateMachinesTest {
 
   @Test
   public void testNeverTranslation() {
-    NeverTrigger trigger = Never.ever();
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setNever(RunnerApi.Trigger.Never.getDefaultInstance())
+            .build();
     NeverStateMachine machine =
         (NeverStateMachine) checkNotNull(TriggerStateMachines.stateMachineForTrigger(trigger));
     // No parameters, so if it doesn't crash, we win!
@@ -109,18 +124,35 @@ public class TriggerStateMachinesTest {
   private static final int ELEM_COUNT = 472;
   private static final Duration DELAY = Duration.standardSeconds(95673);
 
-  private final OnceTrigger subtrigger1 = AfterPane.elementCountAtLeast(ELEM_COUNT);
-  private final OnceTrigger subtrigger2 =
-      AfterProcessingTime.pastFirstElementInPane().plusDelayOf(DELAY);
+  private final RunnerApi.Trigger subtrigger1 =
+      RunnerApi.Trigger.newBuilder()
+          .setElementCount(RunnerApi.Trigger.ElementCount.newBuilder().setElementCount(ELEM_COUNT))
+          .build();
+  private final RunnerApi.Trigger subtrigger2 =
+      RunnerApi.Trigger.newBuilder()
+          .setAfterProcessingTime(
+              RunnerApi.Trigger.AfterProcessingTime.newBuilder()
+                  .addTimestampTransforms(
+                      RunnerApi.TimestampTransform.newBuilder()
+                          .setDelay(
+                              RunnerApi.TimestampTransform.Delay.newBuilder()
+                                  .setDelayMillis(DELAY.getMillis()))))
+          .build();
 
-  private final OnceTriggerStateMachine submachine1 =
-      TriggerStateMachines.stateMachineForOnceTrigger(subtrigger1);
-  private final OnceTriggerStateMachine submachine2 =
-      TriggerStateMachines.stateMachineForOnceTrigger(subtrigger2);
+  private final TriggerStateMachine submachine1 =
+      TriggerStateMachines.stateMachineForTrigger(subtrigger1);
+  private final TriggerStateMachine submachine2 =
+      TriggerStateMachines.stateMachineForTrigger(subtrigger2);
 
   @Test
   public void testAfterEachTranslation() {
-    AfterEach trigger = AfterEach.inOrder(subtrigger1, subtrigger2);
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setAfterEach(
+                RunnerApi.Trigger.AfterEach.newBuilder()
+                    .addSubtriggers(subtrigger1)
+                    .addSubtriggers(subtrigger2))
+            .build();
     AfterEachStateMachine machine =
         (AfterEachStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
 
@@ -129,7 +161,13 @@ public class TriggerStateMachinesTest {
 
   @Test
   public void testAfterFirstTranslation() {
-    AfterFirst trigger = AfterFirst.of(subtrigger1, subtrigger2);
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setAfterAny(
+                RunnerApi.Trigger.AfterAny.newBuilder()
+                    .addSubtriggers(subtrigger1)
+                    .addSubtriggers(subtrigger2))
+            .build();
     AfterFirstStateMachine machine =
         (AfterFirstStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
 
@@ -138,7 +176,13 @@ public class TriggerStateMachinesTest {
 
   @Test
   public void testAfterAllTranslation() {
-    AfterAll trigger = AfterAll.of(subtrigger1, subtrigger2);
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setAfterAll(
+                RunnerApi.Trigger.AfterAll.newBuilder()
+                    .addSubtriggers(subtrigger1)
+                    .addSubtriggers(subtrigger2))
+            .build();
     AfterAllStateMachine machine =
         (AfterAllStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
 
@@ -147,8 +191,11 @@ public class TriggerStateMachinesTest {
 
   @Test
   public void testAfterWatermarkEarlyTranslation() {
-    AfterWatermark.AfterWatermarkEarlyAndLate trigger =
-        AfterWatermark.pastEndOfWindow().withEarlyFirings(subtrigger1);
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setAfterEndOfWidow(
+                RunnerApi.Trigger.AfterEndOfWindow.newBuilder().setEarlyFirings(subtrigger1))
+            .build();
     AfterWatermarkStateMachine.AfterWatermarkEarlyAndLate machine =
         (AfterWatermarkStateMachine.AfterWatermarkEarlyAndLate)
             TriggerStateMachines.stateMachineForTrigger(trigger);
@@ -160,8 +207,13 @@ public class TriggerStateMachinesTest {
 
   @Test
   public void testAfterWatermarkEarlyLateTranslation() {
-    AfterWatermark.AfterWatermarkEarlyAndLate trigger =
-        AfterWatermark.pastEndOfWindow().withEarlyFirings(subtrigger1).withLateFirings(subtrigger2);
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setAfterEndOfWidow(
+                RunnerApi.Trigger.AfterEndOfWindow.newBuilder()
+                    .setEarlyFirings(subtrigger1)
+                    .setLateFirings(subtrigger2))
+            .build();
     AfterWatermarkStateMachine.AfterWatermarkEarlyAndLate machine =
         (AfterWatermarkStateMachine.AfterWatermarkEarlyAndLate)
             TriggerStateMachines.stateMachineForTrigger(trigger);
@@ -176,18 +228,30 @@ public class TriggerStateMachinesTest {
 
   @Test
   public void testOrFinallyTranslation() {
-    OrFinallyTrigger trigger = subtrigger1.orFinally(subtrigger2);
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setOrFinally(
+                RunnerApi.Trigger.OrFinally.newBuilder()
+                    .setMain(subtrigger1)
+                    .setFinally(subtrigger2))
+            .build();
     OrFinallyStateMachine machine =
-        (OrFinallyStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
+        (OrFinallyStateMachine)
+            TriggerStateMachines.stateMachineForTrigger(trigger);
 
     assertThat(machine, equalTo(submachine1.orFinally(submachine2)));
   }
 
   @Test
   public void testRepeatedlyTranslation() {
-    Repeatedly trigger = Repeatedly.forever(subtrigger1);
+    RunnerApi.Trigger trigger =
+        RunnerApi.Trigger.newBuilder()
+            .setRepeat(
+                RunnerApi.Trigger.Repeat.newBuilder()
+                    .setSubtrigger(subtrigger1)).build();
     RepeatedlyStateMachine machine =
-        (RepeatedlyStateMachine) TriggerStateMachines.stateMachineForTrigger(trigger);
+        (RepeatedlyStateMachine)
+            TriggerStateMachines.stateMachineForTrigger(trigger);
 
     assertThat(machine, equalTo(RepeatedlyStateMachine.forever(submachine1)));
   }
