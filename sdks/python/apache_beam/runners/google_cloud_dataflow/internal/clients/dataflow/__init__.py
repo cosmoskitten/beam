@@ -20,7 +20,6 @@
 
 import pkgutil
 
-from apitools.base.py import *
 from apache_beam.runners.google_cloud_dataflow.internal.clients.dataflow.dataflow_v1b3_messages import *
 from apache_beam.runners.google_cloud_dataflow.internal.clients.dataflow.dataflow_v1b3_client import *
 
