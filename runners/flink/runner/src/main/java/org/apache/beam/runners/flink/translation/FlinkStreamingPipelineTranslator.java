@@ -17,9 +17,24 @@
  */
 package org.apache.beam.runners.flink.translation;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Map;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.flink.FlinkRunner;
+import org.apache.beam.runners.flink.translation.overrides.streaming.FlinkStreamingCombineGloballyAsSingletonViewOverrideFactory;
+import org.apache.beam.runners.flink.translation.overrides.streaming.FlinkStreamingViewAsIterableOverrideFactory;
+import org.apache.beam.runners.flink.translation.overrides.streaming.FlinkStreamingViewAsListOverrideFactory;
+import org.apache.beam.runners.flink.translation.overrides.streaming.FlinkStreamingViewAsMapOverrideFactory;
+import org.apache.beam.runners.flink.translation.overrides.streaming.FlinkStreamingViewAsMultimapOverrideFactory;
+import org.apache.beam.runners.flink.translation.overrides.streaming.FlinkStreamingViewAsSingletonOverrideFactory;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
@@ -40,8 +55,50 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private int depth = 0;
 
+  /**
+   * The set of transform overrides to use in the {@link FlinkRunner}.
+   */
+  private static Map<PTransformMatcher, PTransformOverrideFactory>
+      transformOverrides =
+      ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
+          .put(
+              PTransformMatchers.classEqualTo(View.AsIterable.class),
+              new FlinkStreamingViewAsIterableOverrideFactory()
+          )
+          .put(
+              PTransformMatchers.classEqualTo(View.AsList.class),
+              new FlinkStreamingViewAsListOverrideFactory()
+          )
+          .put(
+              PTransformMatchers.classEqualTo(View.AsMap.class),
+              new FlinkStreamingViewAsMapOverrideFactory()
+          )
+          .put(
+              PTransformMatchers.classEqualTo(View.AsMultimap.class),
+              new FlinkStreamingViewAsMultimapOverrideFactory()
+          )
+          .put(
+              PTransformMatchers.classEqualTo(View.AsSingleton.class),
+              new FlinkStreamingViewAsSingletonOverrideFactory()
+          )
+          // this has to be last since the ViewAsSingleton override
+          // can expand to a Combine.GloballyAsSingletonView
+          .put(
+              PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+              new FlinkStreamingCombineGloballyAsSingletonViewOverrideFactory())
+          .build();
+
   public FlinkStreamingPipelineTranslator(StreamExecutionEnvironment env, PipelineOptions options) {
     this.streamingContext = new FlinkStreamingTranslationContext(env, options);
+  }
+
+  @Override
+  public void translate(Pipeline pipeline) {
+    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
+        transformOverrides.entrySet()) {
+      pipeline.replace(override.getKey(), override.getValue());
+    }
+    super.translate(pipeline);
   }
 
   // --------------------------------------------------------------------------------------------
