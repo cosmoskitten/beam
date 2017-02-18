@@ -296,6 +296,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     ImmutableMap.Builder<PTransformMatcher, PTransformOverrideFactory> ptoverrides =
         ImmutableMap.builder();
+    ptoverrides
+        .put(PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance())
+        .put(
+            PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
+            new PrimitiveCombineGroupedValuesOverrideFactory());
     if (options.isStreaming()) {
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
       // defer to Windmill's built-in implementation.
@@ -305,7 +310,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformMatchers.parDoWithFnType(unsupported),
             UnsupportedOverrideFactory.withMessage(getUnsupportedMessage(unsupported, true)));
       }
+      if (options.getExperiments() == null
+          || !options.getExperiments().contains("enable_custom_pubsub_source")) {
+        ptoverrides.put(
+            PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
+            new ReflectiveRootOverrideFactory(StreamingPubsubIORead.class, this));
+      }
+      if (options.getExperiments() == null
+          || !options.getExperiments().contains("enable_custom_pubsub_sink")) {
+        ptoverrides.put(
+            PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
+            new StreamingPubsubIOWriteOverrideFactory(this));
+      }
       ptoverrides
+          .put(
+              PTransformMatchers.classEqualTo(Read.Unbounded.class),
+              new ReflectiveRootOverrideFactory(StreamingUnboundedRead.class, this))
+          .put(
+              PTransformMatchers.classEqualTo(Read.Bounded.class),
+              new ReflectiveRootOverrideFactory(StreamingBoundedRead.class, this))
           .put(
               PTransformMatchers.classEqualTo(GloballyAsSingletonView.class),
               new ReflectiveOneToOneOverrideFactory(
@@ -329,26 +352,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .put(
               PTransformMatchers.classEqualTo(AsIterable.class),
               new ReflectiveOneToOneOverrideFactory(
-                  StreamingViewOverrides.StreamingViewAsIterable.class, this))
-          .put(
-              PTransformMatchers.classEqualTo(Read.Unbounded.class),
-              new ReflectiveRootOverrideFactory(StreamingUnboundedRead.class, this))
-          .put(
-              PTransformMatchers.classEqualTo(Read.Bounded.class),
-              new ReflectiveRootOverrideFactory(StreamingBoundedRead.class, this));
-
-      if (options.getExperiments() == null
-          || !options.getExperiments().contains("enable_custom_pubsub_source")) {
-        ptoverrides.put(
-            PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
-            new ReflectiveRootOverrideFactory(StreamingPubsubIORead.class, this));
-      }
-      if (options.getExperiments() == null
-          || !options.getExperiments().contains("enable_custom_pubsub_sink")) {
-        ptoverrides.put(
-            PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
-            new StreamingPubsubIOWriteOverrideFactory(this));
-      }
+                  StreamingViewOverrides.StreamingViewAsIterable.class, this));
     } else {
       // In batch mode must use the custom Pubsub bounded source/sink.
       for (Class<? extends PTransform> unsupported :
@@ -382,10 +386,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   BatchViewOverrides.BatchViewAsIterable.class, this))
           .put(PTransformMatchers.classEqualTo(Write.Bound.class), new BatchWriteFactory(this));
     }
-    ptoverrides.put(PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance());
-    ptoverrides.put(
-        PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
-        new PrimitiveCombineGroupedValuesOverrideFactory());
     overrides = ptoverrides.build();
   }
 
