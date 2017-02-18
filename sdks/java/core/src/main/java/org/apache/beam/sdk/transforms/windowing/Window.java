@@ -169,7 +169,7 @@ public class Window {
           // the situation is the same: we don't know what this OutputTime means
           throw new IllegalArgumentException(
               String.format(
-                  "Could convert unknown %s to %s: %s",
+                  "Cannot convert unknown %s to %s: %s",
                   RunnerApi.ClosingBehavior.class.getCanonicalName(),
                   ClosingBehavior.class.getCanonicalName(),
                   proto));
