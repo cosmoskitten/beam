@@ -92,6 +92,27 @@ public class WindowingStrategies<T, W extends BoundedWindow> implements Serializ
     }
   }
 
+  public static ClosingBehavior fromProto(RunnerApi.ClosingBehavior proto) {
+    switch (proto) {
+      case EMIT_ALWAYS:
+        return ClosingBehavior.FIRE_ALWAYS;
+      case EMIT_IF_NONEMPTY:
+        return ClosingBehavior.FIRE_IF_NON_EMPTY;
+      case UNRECOGNIZED:
+      default:
+        // Whether or not it is proto that cannot recognize it (due to the version of the
+        // generated code we link to) or the switch hasn't been updated to handle it,
+        // the situation is the same: we don't know what this OutputTime means
+        throw new IllegalArgumentException(
+            String.format(
+                "Cannot convert unknown %s to %s: %s",
+                RunnerApi.ClosingBehavior.class.getCanonicalName(),
+                ClosingBehavior.class.getCanonicalName(),
+                proto));
+
+    }
+  }
+
   public static RunnerApi.OutputTime toProto(OutputTimeFn<?> outputTimeFn) {
     if (outputTimeFn instanceof WindowingStrategy.CombineWindowFnOutputTimes) {
       return OutputTimeFns.toProto(
@@ -207,7 +228,7 @@ public class WindowingStrategies<T, W extends BoundedWindow> implements Serializ
     OutputTimeFn<?> outputTimeFn = OutputTimeFns.fromProto(proto.getOutputTime());
     AccumulationMode accumulationMode = fromProto(proto.getAccumulationMode());
     Trigger trigger = Triggers.fromProto(proto.getTrigger());
-    ClosingBehavior closingBehavior = ClosingBehavior.fromProto(proto.getClosingBehavior());
+    ClosingBehavior closingBehavior = fromProto(proto.getClosingBehavior());
     Duration allowedLateness = Duration.millis(proto.getAllowedLateness());
 
     return WindowingStrategy.of(windowFn)
@@ -217,4 +238,5 @@ public class WindowingStrategies<T, W extends BoundedWindow> implements Serializ
         .withOutputTimeFn(outputTimeFn)
         .withClosingBehavior(closingBehavior);
   }
+
 }

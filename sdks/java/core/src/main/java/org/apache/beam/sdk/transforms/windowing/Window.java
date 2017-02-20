@@ -22,8 +22,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.ClosingBehavior;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -156,26 +154,6 @@ public class Window {
      */
     FIRE_IF_NON_EMPTY;
 
-    public static ClosingBehavior fromProto(RunnerApi.ClosingBehavior proto) {
-      switch (proto) {
-        case EMIT_ALWAYS:
-          return FIRE_ALWAYS;
-        case EMIT_IF_NONEMPTY:
-          return FIRE_IF_NON_EMPTY;
-        case UNRECOGNIZED:
-        default:
-          // Whether or not it is proto that cannot recognize it (due to the version of the
-          // generated code we link to) or the switch hasn't been updated to handle it,
-          // the situation is the same: we don't know what this OutputTime means
-          throw new IllegalArgumentException(
-              String.format(
-                  "Cannot convert unknown %s to %s: %s",
-                  RunnerApi.ClosingBehavior.class.getCanonicalName(),
-                  ClosingBehavior.class.getCanonicalName(),
-                  proto));
-
-      }
-    }
   }
 
   /**
