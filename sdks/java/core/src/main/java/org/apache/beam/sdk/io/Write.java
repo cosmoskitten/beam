@@ -199,12 +199,12 @@ public class Write {
           WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
           LOG.info("Opening writer for write operation {}", writeOperation);
           writer = writeOperation.createWriter(c.getPipelineOptions());
-          writer.open(UUID.randomUUID().toString());
-          if (windowedWrites) {
-            writer.setWindowAndPane(window, c.pane());
-          } else {
-            writer.setWindowAndPane(null, null);
-          }
+
+          writer.open(UUID.randomUUID().toString(),
+              windowedWrites ? window : null,
+              windowedWrites ? c.pane() : null,
+              -1,
+              -1);
           LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
         }
         try {
@@ -263,11 +263,11 @@ public class Write {
         WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
         LOG.info("Opening writer for write operation {}", writeOperation);
         Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
-        writer.open(UUID.randomUUID().toString());
-        if (windowedWrites) {
-          writer.setWindowAndPane(window, c.pane());
-          writer.setShard(c.element().getKey(), getNumShards());
-        }
+        writer.open(UUID.randomUUID().toString(),
+            windowedWrites ? window : null,
+            windowedWrites ? c.pane() : null,
+            windowedWrites ? c.element().getKey() : -1,
+            windowedWrites ? getNumShards() : -1);
         LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
 
         try {
@@ -365,7 +365,6 @@ public class Write {
       writeOperation.setWindowedWrites(windowedWrites);
 
       // A coder to use for the WriteOperation.
-      // THIS DOESN'T PLAY NICE IN STREAMING!
       @SuppressWarnings("unchecked")
       Coder<WriteOperation<T, WriteT>> operationCoder =
           (Coder<WriteOperation<T, WriteT>>) SerializableCoder.of(writeOperation.getClass());
@@ -486,8 +485,7 @@ public class Write {
                           + " {}.", extraShardsNeeded, results.size(), minShardsNeeded);
                   for (int i = 0; i < extraShardsNeeded; ++i) {
                     Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
-                    writer.open(UUID.randomUUID().toString());
-                    writer.setWindowAndPane(null, null);
+                    writer.open(UUID.randomUUID().toString(), null, null, -1, -1);
                     WriteT emptyWrite = writer.close();
                     results.add(emptyWrite);
                   }

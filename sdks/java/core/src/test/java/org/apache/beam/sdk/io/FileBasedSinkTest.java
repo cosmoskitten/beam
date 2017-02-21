@@ -102,7 +102,7 @@ public class FileBasedSinkTest {
     expected.addAll(values);
     expected.add(SimpleSink.SimpleWriter.FOOTER);
 
-    writer.open(testUid);
+    writer.open(testUid, null, null, -1, -1);
     for (String value : values) {
       writer.write(value);
     }
@@ -510,7 +510,7 @@ public class FileBasedSinkTest {
     expected.add("footer");
     expected.add("footer");
 
-    writer.open(testUid);
+    writer.open(testUid, null, null, -1, -1);
     writer.write("a");
     writer.write("b");
     final FileResult result = writer.close();
