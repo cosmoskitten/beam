@@ -21,33 +21,89 @@ import unittest
 
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.value_provider import RuntimeValueProvider
+from apache_beam.utils.value_provider import StaticValueProvider
 
 
 class ValueProviderTests(unittest.TestCase):
-  def test_set_runtime_option(self):
-    # define options, regular and of vp type
+  def test_static_value_provider(self):
     class UserOptions(PipelineOptions):
-      # pass
       @classmethod
       def _add_argparse_args(cls, parser):
-        # pass
+        parser.add_value_provider_argument(
+            '--vp_arg',
+            help='This flag is a value provider',
+            default='some value')
+    options = UserOptions(['--vp_arg', 'abc'])
+    self.assertTrue(isinstance(options.vp_arg, StaticValueProvider))
+    self.assertTrue(options.vp_arg.is_accessible())
+    self.assertEqual(options.vp_arg.get(), 'abc')
+
+  def test_runtime_value_provider(self):
+    class UserOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
             '--vp_arg',
             help='This flag is a value provider')
+    options = UserOptions()
+    self.assertTrue(isinstance(options.vp_arg, RuntimeValueProvider))
+    self.assertFalse(options.vp_arg.is_accessible())
+    with self.assertRaises(RuntimeError):
+      options.vp_arg.get()
 
+  def test_static_value_provider_type_cast(self):
+    class UserOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
+            '--vp_arg',
+            type=int,
+            help='This flag is a value provider')
+
+    # options = UserOptions(['--vp_arg', 'hola'])
+    options = UserOptions(['--vp_arg', '123'])
+    self.assertTrue(isinstance(options.vp_arg, StaticValueProvider))
+    self.assertTrue(options.vp_arg.is_accessible())
+    self.assertEqual(options.vp_arg.get(), 123)
+
+  def test_set_runtime_option(self):
+    # define ValueProvider ptions, with and without default values
+    class UserOptions1(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            '--vp_arg',
+            help='This flag is a value provider')   # set at runtime
+
+        parser.add_value_provider_argument(         # not set, had default int
             '--vp_arg2',
-            default=1,
+            default=123,
             type=int)
 
+        parser.add_value_provider_argument(         # not set, had default str
+            '--vp_arg3',
+            default='123',
+            type=str)
+
+        parser.add_value_provider_argument(         # not set and no default
+            '--vp_arg4',
+            type=float)
+
     # provide values at graph-construction time
-    # (options not provided become of the type runtime vp)
-    options = UserOptions([])
+    # (options not provided here become of the type RuntimeValueProvider)
+    options = UserOptions1([''])
     assert options.vp_arg.is_accessible() is False
     assert options.vp_arg2.is_accessible() is False
+    assert options.vp_arg3.is_accessible() is False
+    assert options.vp_arg4.is_accessible() is False
     # provide values at job-execution time
-    RuntimeValueProvider.set_runtime_options({'vp_arg': 'b'})
+    # (options not provided here will use their default, if they have one)
+    RuntimeValueProvider.set_runtime_options({'vp_arg': 'abc'})
     assert options.vp_arg.is_accessible() is True
-    assert options.vp_arg.get() == 'b'
+    assert options.vp_arg.get() == 'abc'
     assert options.vp_arg2.is_accessible() is True
-    assert options.vp_arg2.get() == 1
+    assert options.vp_arg2.get() == 123
+    assert options.vp_arg3.is_accessible() is True
+    assert options.vp_arg3.get() == '123'
+    assert options.vp_arg4.is_accessible() is True
+    assert options.vp_arg4.get() is None
