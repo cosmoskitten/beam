@@ -209,7 +209,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
         DisplayDataItemMatcher(
             'file_pattern',
             '{}{}'.format(
-                "StaticValueProvider(type=str, value='%s')" % temp_path,
+                temp_path,
                 '-%(shard_num)05d-of-%(num_shards)05d.foo'))]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
