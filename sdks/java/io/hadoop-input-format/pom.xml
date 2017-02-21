@@ -22,12 +22,12 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <groupId>hadoop</groupId>
   <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-  <version>0.5.0-SNAPSHOT</version>
+  <version>0.6.0-SNAPSHOT</version>
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format</name>
   <description>IO library to read data from data sources which implement Hadoop Input Format from Beam.</description>
   <packaging>jar</packaging>
@@ -115,7 +115,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
       </plugin>
-      <!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-checkstyle-plugin</artifactId> 
+      <!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-checkstyle-plugin</artifactId>
         </plugin> -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -172,7 +172,7 @@
     <slf4j.api.version>1.7.14</slf4j.api.version>
     <guava.version>19.0</guava.version>
   </properties>
-  
+
   <dependencies>
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
@@ -180,14 +180,14 @@
       <version>${transport.netty4.client.version}</version>
       <scope>test</scope>
     </dependency>
-  
+
     <dependency>
       <groupId>org.elasticsearch.client</groupId>
       <artifactId>transport</artifactId>
       <version>5.0.0-beta1</version>
       <scope>test</scope>
     </dependency>
-  
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
