@@ -132,11 +132,11 @@ class DisplayDataTest(unittest.TestCase):
     expected_items = [
         DisplayDataItemMatcher(
             'int_flag',
-            'StaticValueProvider(type=int, value=1)'),
+            '1'),
         DisplayDataItemMatcher(
             'str_flag',
             'RuntimeValueProvider(option=str_flag,'
-            ' type=str, default_value=\'hello\', value=None)'
+            ' type=str, default_value=\'hello\')'
         )
     ]
     hc.assert_that(items, hc.contains_inanyorder(*expected_items))
