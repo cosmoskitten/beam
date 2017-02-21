@@ -50,7 +50,7 @@ public class UserCodeException extends RuntimeException {
 
   private UserCodeException(Throwable t) {
     super(t);
-    truncateStackTrace(t);
+    // truncateStackTrace(t);
   }
 
   /**
