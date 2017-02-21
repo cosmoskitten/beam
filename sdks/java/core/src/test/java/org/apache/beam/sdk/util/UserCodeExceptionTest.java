@@ -29,6 +29,7 @@ import org.hamcrest.Description;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -58,12 +59,14 @@ public class UserCodeExceptionTest {
     throwUserCodeException();
   }
 
+  @Ignore
   @Test
   public void testStackTraceIsTruncatedToUserCode() {
     thrown.expectCause(hasBottomStackFrame(method("userCode")));
     throwUserCodeException();
   }
 
+  @Ignore
   @Test
   public void testStackTraceIsTruncatedProperlyFromHelperMethod() {
     thrown.expectCause(hasBottomStackFrame(method("userCode")));
