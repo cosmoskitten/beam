@@ -44,9 +44,7 @@ class StaticValueProvider(ValueProvider):
     return self.value
 
   def __str__(self):
-    return '%s(type=%s, value=%s)' % (self.__class__.__name__,
-                                      self.value_type.__name__,
-                                      repr(self.value))
+    return str(self.value)
 
 
 class RuntimeValueProvider(ValueProvider):
@@ -58,7 +56,6 @@ class RuntimeValueProvider(ValueProvider):
     self.option_name = option_name
     self.default_value = default_value
     self.value_type = value_type
-    self.data = None
 
   def is_accessible(self):
     pipeline_options = RuntimeValueProvider.pipeline_options_dict
@@ -86,10 +83,9 @@ class RuntimeValueProvider(ValueProvider):
     RuntimeValueProvider.pipeline_options_dict = pipeline_options
 
   def __str__(self):
-    return '%s(option=%s, type=%s, default_value=%s, value=%s)' % (
+    return '%s(option=%s, type=%s, default_value=%s)' % (
         self.__class__.__name__,
         self.option_name,
         self.value_type.__name__,
-        repr(self.default_value),
-        repr(self.data)
+        repr(self.default_value)
     )
