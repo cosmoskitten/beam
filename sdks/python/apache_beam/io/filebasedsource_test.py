@@ -281,7 +281,7 @@ class TestFileBasedSource(unittest.TestCase):
     expected_items = [
         DisplayDataItemMatcher(
             'file_pattern',
-            'StaticValueProvider(type=str, value=\'%s\')' % file_name),
+            file_name),
         DisplayDataItemMatcher('compression', 'auto')]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
@@ -616,7 +616,7 @@ class TestSingleFileSource(unittest.TestCase):
         DisplayDataItemMatcher('compression', 'auto'),
         DisplayDataItemMatcher(
             'file_pattern',
-            'StaticValueProvider(type=str, value=\'%s\')' % file_name)]
+            file_name)]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
