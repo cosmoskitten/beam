@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -58,6 +59,8 @@ interface TransformTranslator<TransformT extends PTransform> {
     /** Returns the full name of the currently being translated transform. */
     String getFullName(PTransform<?, ?> transform);
 
+    AppliedPTransform<?, ?, ?> getApplication();
+
     /**
      * Adds a step to the Dataflow workflow for the given transform, with the given Dataflow step
      * type.
@@ -73,7 +76,7 @@ interface TransformTranslator<TransformT extends PTransform> {
      */
     Step addStep(PTransform<?, ? extends PValue> transform, Step step);
     /** Encode a PValue reference as an output reference. */
-    OutputReference asOutputReference(PValue value);
+    OutputReference asOutputReference(PValue value, AppliedPTransform<?, ?, ?> producer);
   }
 
   /** The interface for a {@link TransformTranslator} to build a Dataflow step. */
@@ -94,7 +97,7 @@ interface TransformTranslator<TransformT extends PTransform> {
      * Adds an input with the given name to this Dataflow step, coming from the specified input
      * PValue.
      */
-    void addInput(String name, PInput value);
+    void addInput(String name, PInput value, AppliedPTransform<?, ?, ?> producer);
 
     /** Adds an input that is a dictionary of strings to objects. */
     void addInput(String name, Map<String, Object> elements);

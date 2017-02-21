@@ -99,7 +99,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -988,7 +987,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(
             overriddenTransform.getElementCoder()));
       }
-      stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+      stepContext.addInput(
+          PropertyNames.PARALLEL_INPUT, context.getInput(transform), context.getApplication());
     }
   }
 
