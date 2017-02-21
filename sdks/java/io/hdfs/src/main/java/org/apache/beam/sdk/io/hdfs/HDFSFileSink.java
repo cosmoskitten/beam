@@ -63,6 +63,7 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 
+
 /**
  * A {@link Sink} for writing records to a Hadoop filesystem using a Hadoop file-based output
  * format.
@@ -393,7 +394,15 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
     }
 
     @Override
-    public void open(final String uId) throws Exception {
+    public final void open(final String uId,
+                           @Nullable BoundedWindow window,
+                           @Nullable PaneInfo paneInfo,
+                           int shard,
+                           int numShards) throws Exception {
+      if (window != null) {
+        throw new UnsupportedOperationException("Windowing support not implemented yet for"
+            + "HDFS.");
+      }
       UGIHelper.getBestUGI(writeOperation.sink.username()).doAs(
           new PrivilegedExceptionAction<Void>() {
             @Override
@@ -429,19 +438,6 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
           "Record writer can't be null. Make sure to open Writer first!");
       KV<K, V> kv = writeOperation.sink.outputConverter().apply(value);
       recordWriter.write(kv.getKey(), kv.getValue());
-    }
-
-    @Override
-    public void setWindowAndPane(BoundedWindow window, PaneInfo paneInfo) throws Exception {
-      if (window != null) {
-        throw new UnsupportedOperationException("Windowing support not implemented yet for"
-            + "HDFS.");
-      }
-    }
-
-    @Override
-    public void setShard(int shard, int numShards) {
-
     }
 
     @Override

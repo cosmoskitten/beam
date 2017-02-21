@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.Sink;
@@ -147,18 +148,11 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
       public Writer<T, Object> createWriter(PipelineOptions options) throws Exception {
         return new Writer<T, Object>() {
           @Override
-          public void open(String uId) throws Exception {
-
-          }
-
-          @Override
-          public void setWindowAndPane(BoundedWindow window, PaneInfo paneInfo) throws Exception {
-
-          }
-
-          @Override
-          public void setShard(int shard, int numShards) {
-
+          public void open(String uId,
+                                 @Nullable BoundedWindow window,
+                                 @Nullable PaneInfo paneInfo,
+                                 int shard,
+                                 int numShards) throws Exception {
           }
 
           @Override

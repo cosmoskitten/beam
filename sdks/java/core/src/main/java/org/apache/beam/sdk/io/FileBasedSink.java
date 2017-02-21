@@ -162,8 +162,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * Context objects.
      */
     public static class Context {
-      private BoundedWindow window;
-      private PaneInfo paneInfo;
+      @Nullable private BoundedWindow window;
+      @Nullable private PaneInfo paneInfo;
       private int shardNumber;
       private int numShards;
 
@@ -402,7 +402,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /** Directory for temporary output files. */
     protected final ValueProvider<String> tempDirectory;
 
-    /** Whether to delete the entire temp directory in finalize. */
+    /** Whether windowed writes are being used. */
     protected  boolean windowedWrites;
 
     /** Constructs a temporary file path given the temporary directory and a filename. */
@@ -732,8 +732,16 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * Opens the channel.
      */
     @Override
-    public final void open(String uId) throws Exception {
+    public final void open(String uId,
+                           @Nullable BoundedWindow window,
+                           @Nullable PaneInfo paneInfo,
+                           int shard,
+                           int numShards) throws Exception {
       this.id = uId;
+      this.window = window;
+      this.paneInfo = paneInfo;
+      this.shard = shard;
+      this.numShards = numShards;
       filename = FileBasedWriteOperation.buildTemporaryFilename(
           getWriteOperation().tempDirectory.get(), uId);
       LOG.debug("Opening {}.", filename);
@@ -766,18 +774,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       if (filename != null) {
         IOChannelUtils.getFactory(filename).remove(Lists.<String>newArrayList(filename));
       }
-    }
-
-    @Override
-    public void setWindowAndPane(BoundedWindow window, PaneInfo paneInfo) throws Exception {
-      this.window = window;
-      this.paneInfo = paneInfo;
-    }
-
-    @Override
-    public void setShard(int shard, int numShards) {
-      this.shard = shard;
-      this.numShards = numShards;
     }
 
     /**

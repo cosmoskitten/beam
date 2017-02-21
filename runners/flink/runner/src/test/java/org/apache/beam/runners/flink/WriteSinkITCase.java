@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -149,20 +150,14 @@ public class WriteSinkITCase extends JavaProgramTestBase {
         private PrintWriter internalWriter;
 
         @Override
-        public void open(String uId) throws Exception {
+        public final void open(String uId,
+                               @Nullable BoundedWindow window,
+                               @Nullable PaneInfo paneInfo,
+                               int shard,
+                               int numShards) throws Exception {
           Path path = new Path(resultPath + "/" + uId);
           FileSystem.get(new URI("file:///")).create(path, false);
           internalWriter = new PrintWriter(new File(path.toUri()));
-        }
-
-        @Override
-        public void setWindowAndPane(BoundedWindow window, PaneInfo paneInfo) throws Exception {
-
-        }
-
-        @Override
-        public void setShard(int shard, int numShards) {
-
         }
 
         @Override
