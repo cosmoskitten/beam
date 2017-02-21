@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Sink;
@@ -50,6 +51,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
+
 
 /**
  * A {@code Sink} for writing records to a Hadoop filesystem using a Hadoop file-based output
@@ -237,7 +239,16 @@ public class HDFSFileSink<K, V> extends Sink<KV<K, V>> {
     }
 
     @Override
-    public void open(String uId) throws Exception {
+    public final void open(String uId,
+                           @Nullable BoundedWindow window,
+                           @Nullable PaneInfo paneInfo,
+                           int shard,
+                           int numShards) throws Exception {
+      if (window != null) {
+        throw new UnsupportedOperationException("Windowing support not implemented yet for"
+            + "HDFS.");
+      }
+
       this.hash = uId.hashCode();
 
       Job job = ((HDFSFileSink<K, V>) getWriteOperation().getSink()).jobInstance();
@@ -253,19 +264,6 @@ public class HDFSFileSink<K, V> extends Sink<KV<K, V>> {
       FileOutputFormat<K, V> outputFormat = formatClass.newInstance();
       recordWriter = outputFormat.getRecordWriter(context);
       outputCommitter = (FileOutputCommitter) outputFormat.getOutputCommitter(context);
-    }
-
-    @Override
-    public void setWindowAndPane(BoundedWindow window, PaneInfo paneInfo) throws Exception {
-      if (window != null) {
-        throw new UnsupportedOperationException("Windowing support not implemented yet for"
-            + "HDFS.");
-      }
-    }
-
-    @Override
-    public void setShard(int shard, int numShards) {
-
     }
 
     @Override
