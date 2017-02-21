@@ -96,13 +96,15 @@ import org.slf4j.LoggerFactory;
  * </p>
  *
  * <pre>
- * {@code
+ * {
+ *   &#064;code
  *   Configuration myHadoopConfiguration = new Configuration(false);
  *   // Set Hadoop InputFormat, key and value class in configuration
- *   myHadoopConfiguration.setClass("mapreduce.job.inputformat.class", MyDbInputFormatClass,
- *       InputFormat.class);
- *   myHadoopConfiguration.setClass("key.class", MyDbInputFormatKeyClass, Object.class);
- *   myHadoopConfiguration.setClass("value.class", MyDbInputFormatValueClass, Object.class);
+ *   myHadoopConfiguration.setClass(&quot;mapreduce.job.inputformat.class&quot;,
+ *      MyDbInputFormatClass, InputFormat.class);
+ *   myHadoopConfiguration.setClass(&quot;key.class&quot;, MyDbInputFormatKeyClass, Object.class);
+ *   myHadoopConfiguration.setClass(&quot;value.class&quot;,
+ *      MyDbInputFormatValueClass, Object.class);
  * }
  * </pre>
  *
@@ -128,14 +130,15 @@ import org.slf4j.LoggerFactory;
  *
  * // Read data with configuration and key translation (Example scenario: Beam Coder is not
  * available for key class hence key translation is required.).
- * 
  * SimpleFunction&lt;InputFormatKeyClass, MyKeyClass&gt; myOutputKeyType =
  *       new SimpleFunction&lt;InputFormatKeyClass, MyKeyClass&gt;() {
  *         public MyKeyClass apply(InputFormatKeyClass input) {
  *           // ...logic to transform InputFormatKeyClass to MyKeyClass
  *         }
- *       };
+ * };
+ *
  * <pre>
+ * {@code
  * p.apply("read",
  *     HadoopInputFormatIO.<MyKeyClass, InputFormatKeyClass>read()
  *              .withConfiguration(myHadoopConfiguration)
@@ -143,14 +146,17 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * // Read data with configuration and value translation (Example scenario: Beam Coder is not
+ * </pre> // Read data with configuration and value translation (Example scenario: Beam Coder is not
  * available for value class hence value translation is required.).
  * SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt; myOutputValueType =
- *       new SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt;() {
- *         public MyValueClass apply(InputFormatValueClass input) {
- *           // ...logic to transform InputFormatValueClass to MyValueClass
- *         }
- *       };
+ *      new SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt;() {
+ *          public MyValueClass apply(InputFormatValueClass input) {
+ *            // ...logic to transform InputFormatValueClass to MyValueClass
+ *          }
+ * };
+ *
+ * <pre>
+ * {@code
  * p.apply("read",
  *     HadoopInputFormatIO.<InputFormatKeyClass, MyValueClass>read()
  *              .withConfiguration(myHadoopConfiguration)
@@ -179,6 +185,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Call Read transform as follows:
  * </p>
+ *
  * <pre>
  * {@code
  * PCollection<KV<Long, String>> cassandraData =
@@ -189,10 +196,10 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>
- * The CqlInputFormat value class is {@link com.datastax.driver.core.Row Row}, which does not have a
- * Beam Coder. Rather than write a new coder, you can provide your own translation method as
- * follows:
+ * <p>The CqlInputFormat value class is {@link com.datastax.driver.core.Row Row},
+ * which does not have a Beam Coder. Rather than write a new coder, you can provide
+ * your own translation method as follows:
+ *
  * <pre>
  * {@code
  * SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, String>(){
@@ -222,8 +229,8 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>
- * Call Read transform as follows:
+ * <p>Call Read transform as follows:
+ *
  * <pre>
  * {@code
  * PCollection<KV<Text, LinkedMapWritable>> elasticData =
@@ -289,6 +296,7 @@ public class HadoopInputFormatIO {
     /**
      * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source using the
      * options provided by the given configuration.
+     *
      * <p>Does not modify this object.
      */
     public Read<K, V> withConfiguration(Configuration configuration) {
@@ -321,6 +329,7 @@ public class HadoopInputFormatIO {
     /**
      * Returns a new {@link HadoopInputFormatIO.Read} that will transform the keys read from the
      * source using the given key translation function.
+     *
      * <p>Does not modify this object.
      */
     public Read<K, V> withKeyTranslation(SimpleFunction<?, K> function) {
@@ -333,7 +342,7 @@ public class HadoopInputFormatIO {
     /**
      * Returns a new {@link HadoopInputFormatIO.Read} that will transform the values read from the
      * source using the given value translation function.
-     * 
+     *
      * <p>Does not modify this object.
      */
     public Read<K, V> withValueTranslation(SimpleFunction<?, V> function) {

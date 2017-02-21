@@ -59,13 +59,14 @@ public class HIFChecksumEvaluator {
     ResultSet resultSet = session.execute("select * from usertable");
     Row row = null;
     while ((row = resultSet.one()) != null) {
-      data.add(row.getString("y_id") + "|" + row.getString("field0") + "|" + row.getString("field1") + "|"
-                    + row.getString("field2") + "|" + row.getString("field3") + "|"
-                    + row.getString("field4") + "|" + row.getString("field5") + "|" + row.getString("field6") + "|"
-                    + row.getString("field7") + "|" + row.getString("field8") + "|" + row.getString("field9") + "|"
-                    + row.getString("field10") + "|" + row.getString("field11") + "|" + row.getString("field12") + "|"
-                    + row.getString("field13") + "|" + row.getString("field14") + "|" + row.getString("field15") + "|"
-                    + row.getString("field16"));
+      data.add(row.getString("y_id") + "|" + row.getString("field0") + "|"
+          + row.getString("field1") + "|" + row.getString("field2") + "|" + row.getString("field3")
+          + "|" + row.getString("field4") + "|" + row.getString("field5") + "|"
+          + row.getString("field6") + "|" + row.getString("field7") + "|" + row.getString("field8")
+          + "|" + row.getString("field9") + "|" + row.getString("field10") + "|"
+          + row.getString("field11") + "|" + row.getString("field12") + "|"
+          + row.getString("field13") + "|" + row.getString("field14") + "|"
+          + row.getString("field15") + "|" + row.getString("field16"));
     }
     cluster.close();
     String generatedHash = generateHash(data);

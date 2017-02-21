@@ -46,8 +46,8 @@ import org.junit.runners.JUnit4;
 /**
  * Runs integration test to validate HadoopInputFromatIO for an Elasticsearch instance.You need to
  * pass Elasticsearch server IP and port in beamTestPipelineOptions.
- * <p>
- * You can run just this test by doing the following: mvn test-compile compile
+ *
+ * <p>You can run just this test by doing the following: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
  * "--serverPort=ES_PORT", "--userName=ES_USERNAME", "--password=ES_PASSWORD"]'
  * -Dit.test=HIFIOElasticIT -DskipITs=false Setting username and password is optional, set these
