@@ -35,12 +35,14 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * {@code List<KV>} as {@linkplain ReuseObjectsEmployeeRecordReader#employeeDataList
  * employeeDataList}. {@linkplain ReuseObjectsEmployeeRecordReader#employeeDataList
  * employeeDataList} is populated using {@linkplain TestEmployeeDataSet#populateEmployeeDataNew()}.
+ *
  * <p>{@linkplain ReuseObjectsEmployeeInputFormat} splits data into
  * {@value TestEmployeeDataSet#NUMBER_OF_SPLITS} splits, each split having
  * {@value TestEmployeeDataSet#NUMBER_OF_RECORDS_IN_EACH_SPLIT} records each.
  * {@linkplain ReuseObjectsEmployeeInputFormat} reads data from
  * {@linkplain ReuseObjectsEmployeeRecordReader#employeeDataList employeeDataList} and produces a
  * key (employee id) of type Text and value of type {@linkplain Employee Employee}.
+ *
  * <p>{@linkplain ReuseObjectsEmployeeInputFormat} is also input to test whether
  * {@linkplain HadoopInputFormatIO } source returns immutable records for a scenario when
  * RecordReader returns the same key and value objects with updating values every time it reads

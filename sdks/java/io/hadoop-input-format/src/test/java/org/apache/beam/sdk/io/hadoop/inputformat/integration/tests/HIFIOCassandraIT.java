@@ -45,6 +45,7 @@ import org.junit.runners.JUnit4;
 /**
  * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance. You need to pass
  * Cassandra server IP and port in beamTestPipelineOptions.
+ *
  * <p>You can run just this test by doing the following: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
  * "--serverPort=CASSANDRA_PORT", "--userName=CASSANDRA_USERNAME", "--password=CASSANDRA_PASSWORD"]'
