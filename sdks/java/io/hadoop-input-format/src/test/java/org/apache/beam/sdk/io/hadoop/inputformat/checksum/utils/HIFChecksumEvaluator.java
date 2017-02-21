@@ -1,3 +1,17 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements. See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package org.apache.beam.sdk.io.hadoop.inputformat.checksum.utils;
 
 import com.datastax.driver.core.Cluster;
@@ -45,13 +59,14 @@ public class HIFChecksumEvaluator {
     ResultSet resultSet = session.execute("select * from usertable");
     Row row = null;
     while ((row = resultSet.one()) != null) {
-      data.add(row.getString("y_id") + "|" + row.getString("field0") + "|" + row.getString("field1") + "|"
-                    + row.getString("field2") + "|" + row.getString("field3") + "|"
-                    + row.getString("field4") + "|" + row.getString("field5") + "|" + row.getString("field6") + "|"
-                    + row.getString("field7") + "|" + row.getString("field8") + "|" + row.getString("field9") + "|"
-                    + row.getString("field10") + "|" + row.getString("field11") + "|" + row.getString("field12") + "|"
-                    + row.getString("field13") + "|" + row.getString("field14") + "|" + row.getString("field15") + "|"
-                    + row.getString("field16"));
+      data.add(row.getString("y_id") + "|" + row.getString("field0") + "|"
+          + row.getString("field1") + "|" + row.getString("field2") + "|" + row.getString("field3")
+          + "|" + row.getString("field4") + "|" + row.getString("field5") + "|"
+          + row.getString("field6") + "|" + row.getString("field7") + "|" + row.getString("field8")
+          + "|" + row.getString("field9") + "|" + row.getString("field10") + "|"
+          + row.getString("field11") + "|" + row.getString("field12") + "|"
+          + row.getString("field13") + "|" + row.getString("field14") + "|"
+          + row.getString("field15") + "|" + row.getString("field16"));
     }
     cluster.close();
     String generatedHash = generateHash(data);
