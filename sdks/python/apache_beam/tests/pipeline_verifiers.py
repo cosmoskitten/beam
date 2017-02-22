@@ -29,6 +29,7 @@ from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
 from hamcrest.core.base_matcher import BaseMatcher
 
+from apache_beam.internal import auth
 from apache_beam.io.fileio import ChannelFactory
 from apache_beam.runners.runner import PipelineState
 from apache_beam.utils import retry
@@ -161,7 +162,9 @@ class BigqueryMatcher(BaseMatcher):
   def _matches(self, _):
     logging.info('Start verify Bigquery data.')
     # Run query
-    bigquery_client = bigquery.Client(project=self.project)
+    bigquery_client = bigquery.Client(
+        project=self.project,
+        credentials=auth.get_service_credentials())
     response = self._query_with_retry(bigquery_client)
 
     # Compute checksum
