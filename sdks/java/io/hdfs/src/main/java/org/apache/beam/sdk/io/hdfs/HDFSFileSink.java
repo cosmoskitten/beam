@@ -239,11 +239,11 @@ public class HDFSFileSink<K, V> extends Sink<KV<K, V>> {
     }
 
     @Override
-    public final void open(String uId,
-                           @Nullable BoundedWindow window,
-                           @Nullable PaneInfo paneInfo,
-                           int shard,
-                           int numShards) throws Exception {
+    public void open(String uId,
+                     @Nullable BoundedWindow window,
+                     @Nullable PaneInfo paneInfo,
+                     int shard,
+                     int numShards) throws Exception {
       if (window != null) {
         throw new UnsupportedOperationException("Windowing support not implemented yet for"
             + "HDFS.");

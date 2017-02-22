@@ -18,9 +18,12 @@
 package org.apache.beam.sdk.io.hdfs.simpleauth;
 
 import java.security.PrivilegedExceptionAction;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.hdfs.HDFSFileSink;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -99,18 +102,23 @@ public class SimpleAuthHDFSFileSink<K, V> extends HDFSFileSink<K, V> {
     }
 
     @Override
-    public void open(final String uId) throws Exception {
+    public void open(String uId,
+                     @Nullable BoundedWindow window,
+                     @Nullable PaneInfo paneInfo,
+                     int shard,
+                     int numShards) throws Exception {
+      final String id = uId;
       ugi.doAs(new PrivilegedExceptionAction<Void>() {
         @Override
         public Void run() throws Exception {
-          superOpen(uId);
+          superOpen(id);
           return null;
         }
       });
     }
 
     private void superOpen(String uId) throws Exception {
-      super.open(uId);
+      super.open(uId, null, null, -1, -1);
     }
 
     @Override
