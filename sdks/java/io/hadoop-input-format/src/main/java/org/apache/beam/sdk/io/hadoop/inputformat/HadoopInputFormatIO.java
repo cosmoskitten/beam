@@ -268,9 +268,9 @@ public class HadoopInputFormatIO {
   @AutoValue
   public abstract static class Read<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
 
-    public static TypeDescriptor<?> inputFormatClass;
-    public static TypeDescriptor<?> inputFormatKeyClass;
-    public static TypeDescriptor<?> inputFormatValueClass;
+    static TypeDescriptor<?> inputFormatClass;
+    static TypeDescriptor<?> inputFormatKeyClass;
+    static TypeDescriptor<?> inputFormatValueClass;
 
     // Returns the Hadoop Configuration which contains specification of source.
     @Nullable
