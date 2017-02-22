@@ -826,8 +826,8 @@ class BatchViewOverrides {
 
       return Pipeline.applyTransform(outputs,
           Flatten.<IsmRecord<WindowedValue<V>>>pCollections())
-          .apply(CreatePCollectionView.<IsmRecord<WindowedValue<V>>,
-              ViewT>of(view));
+          .apply(CreateIsmPCollectionView.<IsmRecord<WindowedValue<V>>,
+              ViewT>of(view, ismCoder));
     }
 
     @Override
@@ -970,7 +970,7 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       return reifiedPerWindowAndSorted.apply(
-          CreatePCollectionView.<IsmRecord<WindowedValue<FinalT>>, ViewT>of(view));
+          CreateIsmPCollectionView.<IsmRecord<WindowedValue<FinalT>>, ViewT>of(view, ismCoder));
     }
 
     @Override
@@ -1114,7 +1114,7 @@ class BatchViewOverrides {
 
         runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
         return reifiedPerWindowAndSorted.apply(
-            CreatePCollectionView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
+            CreateIsmPCollectionView.<IsmRecord<WindowedValue<T>>, ViewT>of(view, ismCoder));
       }
 
       PCollection<IsmRecord<WindowedValue<T>>> reifiedPerWindowAndSorted = input
@@ -1124,7 +1124,7 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       return reifiedPerWindowAndSorted.apply(
-          CreatePCollectionView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
+          CreateIsmPCollectionView.<IsmRecord<WindowedValue<T>>, ViewT>of(view, ismCoder));
     }
 
     @Override
@@ -1388,4 +1388,28 @@ class BatchViewOverrides {
     }
   }
 
+  static class CreateIsmPCollectionView<ElemT, ViewT>
+      extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
+    private final PCollectionView<ViewT> view;
+    private final Coder<ElemT> coder;
+
+    public static <ElemT, ViewT> CreateIsmPCollectionView<ElemT, ViewT> of(
+        PCollectionView<ViewT> view, Coder<ElemT> coder) {
+      return new CreateIsmPCollectionView<>(view, coder);
+    }
+
+    CreateIsmPCollectionView(PCollectionView<ViewT> view, Coder<ElemT> coder) {
+      this.view = view;
+      this.coder = coder;
+    }
+
+    @Override
+    public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
+      return view;
+    }
+
+    public Coder<ElemT> getCoder() {
+      return coder;
+    }
+  }
 }
