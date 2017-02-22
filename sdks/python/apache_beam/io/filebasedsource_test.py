@@ -277,7 +277,6 @@ class TestFileBasedSource(unittest.TestCase):
     file_name, _ = write_data(10)
     fbs = LineSource(file_name)
     dd = DisplayData.create_from(fbs)
-    print dd.items
     expected_items = [
         DisplayDataItemMatcher(
             'file_pattern',
