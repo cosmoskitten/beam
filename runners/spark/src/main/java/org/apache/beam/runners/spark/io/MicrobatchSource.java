@@ -116,7 +116,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     return createReader(options, null);
   }
 
-  public BoundedReader<T> createReader(PipelineOptions options, CheckpointMarkT checkpointMark)
+  public Reader createReader(PipelineOptions options, CheckpointMarkT checkpointMark)
       throws IOException {
     return new Reader(source.createReader(options, checkpointMark));
   }

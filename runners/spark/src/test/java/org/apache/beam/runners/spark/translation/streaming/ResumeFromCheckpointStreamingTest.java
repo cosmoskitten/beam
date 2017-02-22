@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
@@ -60,6 +61,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -73,6 +75,20 @@ import org.junit.rules.TemporaryFolder;
  * Test pipelines which are resumed from checkpoint.
  */
 public class ResumeFromCheckpointStreamingTest {
+
+  private static class FormatAsText extends DoFn<KV<String, String>, String> {
+
+    private final Aggregator<Long, Long> aggregator =
+        createAggregator("processedMessages", Sum.ofLongs());
+
+    @ProcessElement
+    public void process(ProcessContext c) {
+      aggregator.addValue(1L);
+      String formatted = c.element().getKey() + "," + c.element().getValue();
+      c.output(formatted);
+    }
+  }
+
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
       new EmbeddedKafkaCluster.EmbeddedZookeeper();
   private static final EmbeddedKafkaCluster EMBEDDED_KAFKA_CLUSTER =
@@ -121,14 +137,42 @@ public class ResumeFromCheckpointStreamingTest {
         }
   }
 
-  /**
-   * Tests DStream recovery from checkpoint - recreate the job and continue (from checkpoint).
-   * <p>Also tests Aggregator values, which should be restored upon recovery from checkpoint.</p>
-   */
-  @Test
-  public void testRun() throws Exception {
-    Duration batchIntervalDuration = Duration.standardSeconds(5);
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+  private void assertMetrics(final SparkPipelineResult metrics, final long expectedCounterFirst) {
+
+    final MetricsFilter testCounterMetricsFilter =
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.inNamespace(ResumeFromCheckpointStreamingTest.class))
+            .build();
+
+    assertThat(
+        metrics.metrics().queryMetrics(testCounterMetricsFilter).counters(),
+        hasItem(
+            attemptedMetricsResult(
+                ResumeFromCheckpointStreamingTest.class.getName(),
+                "aCounter",
+                "formatKV",
+                expectedCounterFirst)));
+
+    final MetricsFilter kafkaSourceReadMetricFilter =
+        MetricsFilter.builder()
+                     .addNameFilter(MetricNameFilter.inNamespace("UnboundedKafkaSource"))
+                     .build();
+
+    assertThat(
+        metrics.metrics().queryMetrics(kafkaSourceReadMetricFilter).distributions(),
+        notNullValue());
+  }
+
+  private void assertProcessedMessages(final SparkPipelineResult res, final Matcher<Long> matcher) {
+    assertThat(
+        "Unexpected number of processed messages",
+        res.getAggregatorValue("processedMessages", Long.class),
+        matcher);
+  }
+
+  private SparkPipelineOptions buildOptions(final Duration batchIntervalDuration)
+      throws IOException {
+    final SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
     // provide a generous enough batch-interval to have everything fit in one micro-batch.
     options.setBatchIntervalMillis(batchIntervalDuration.getMillis());
     // provide a very generous read time bound, we rely on num records bound here.
@@ -139,30 +183,7 @@ public class ResumeFromCheckpointStreamingTest {
     // checkpoint after first (and only) interval.
     options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
 
-    MetricsFilter metricsFilter =
-        MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.inNamespace(ResumeFromCheckpointStreamingTest.class))
-            .build();
-
-    // first run will read from Kafka backlog - "auto.offset.reset=smallest"
-    SparkPipelineResult res = run(options);
-    long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(String.format("Expected %d processed messages count but "
-        + "found %d", EXPECTED_AGG_FIRST, processedMessages1), processedMessages1,
-            equalTo(EXPECTED_AGG_FIRST));
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
-        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
-            "aCounter", "formatKV", EXPECTED_COUNTER_FIRST)));
-
-    // recovery should resume from last read offset, and read the second batch of input.
-    res = runAgain(options);
-    long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(String.format("Expected %d processed messages count but "
-        + "found %d", EXPECTED_AGG_SECOND, processedMessages2), processedMessages2,
-            equalTo(EXPECTED_AGG_SECOND));
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
-        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
-            "aCounter", "formatKV", EXPECTED_COUNTER_SECOND)));
+    return options;
   }
 
   private SparkPipelineResult runAgain(SparkPipelineOptions options) {
@@ -172,6 +193,7 @@ public class ResumeFromCheckpointStreamingTest {
     return run(options);
   }
 
+  // leave static to avoid serialisation of the enclosing test class.
   private static SparkPipelineResult run(SparkPipelineOptions options) {
     // write to Kafka
     produce();
@@ -216,23 +238,31 @@ public class ResumeFromCheckpointStreamingTest {
     return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED, timeout);
   }
 
+  /**
+   * Tests DStream recovery from checkpoint - recreate the job and continue (from checkpoint).
+   * <p>Also tests Aggregator values, which should be restored upon recovery from checkpoint.</p>
+   */
+  @Test
+  public void testRun() throws Exception {
+    final Duration batchIntervalDuration = Duration.standardSeconds(5);
+    final SparkPipelineOptions options = buildOptions(batchIntervalDuration);
+    options.setEnableSparkMetricSinks(true);
+
+    // first run will read from Kafka backlog - "auto.offset.reset=smallest"
+    SparkPipelineResult res = run(options);
+    assertProcessedMessages(res, equalTo(EXPECTED_AGG_FIRST));
+    assertMetrics(res, EXPECTED_COUNTER_FIRST);
+
+    // recovery should resume from last read offset, and read the second batch of input.
+    res = runAgain(options);
+    assertProcessedMessages(res, equalTo(EXPECTED_AGG_SECOND));
+    assertMetrics(res, EXPECTED_COUNTER_SECOND);
+  }
+
   @AfterClass
   public static void tearDown() {
     EMBEDDED_KAFKA_CLUSTER.shutdown();
     EMBEDDED_ZOOKEEPER.shutdown();
-  }
-
-  private static class FormatAsText extends DoFn<KV<String, String>, String> {
-
-    private final Aggregator<Long, Long> aggregator =
-        createAggregator("processedMessages", Sum.ofLongs());
-
-    @ProcessElement
-    public void process(ProcessContext c) {
-      aggregator.addValue(1L);
-      String formatted = c.element().getKey() + "," + c.element().getValue();
-      c.output(formatted);
-    }
   }
 
 }

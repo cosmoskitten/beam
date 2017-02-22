@@ -110,7 +110,8 @@ final class StreamingTransformTranslator {
             SparkUnboundedSource.read(
                 context.getStreamingContext(),
                 context.getRuntimeContext(),
-                transform.getSource()));
+                transform.getSource(),
+                context.getCurrentTransform().getFullName()));
       }
     };
   }

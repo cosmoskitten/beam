@@ -67,6 +67,13 @@ public class MetricsAccumulator {
     }
   }
 
+  /**
+   * This method should be called from a deferred code that runs the driver side, after
+   * {@link MetricsAccumulator#init(JavaSparkContext, Optional)} has completed.
+   * <p>For instance, {@link org.apache.spark.streaming.dstream.DStream#foreachRDD}
+   * would be a suitable place.
+   * </p>
+   */
   public static Accumulator<SparkMetricsContainer> getInstance() {
     if (instance == null) {
       throw new IllegalStateException("Metrics accumulator has not been instantiated");

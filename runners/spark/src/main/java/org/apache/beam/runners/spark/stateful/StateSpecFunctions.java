@@ -32,7 +32,6 @@ import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.io.SparkUnboundedSource.Metadata;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -136,7 +135,7 @@ public class StateSpecFunctions {
         }
 
         // create reader.
-        BoundedSource.BoundedReader<T> reader;
+        MicrobatchSource<T, CheckpointMarkT>.Reader reader;
         try {
           reader =
               microbatchSource.createReader(runtimeContext.getPipelineOptions(), checkpointMark);
@@ -146,11 +145,11 @@ public class StateSpecFunctions {
 
         // read microbatch as a serialized collection.
         final List<byte[]> readValues = new ArrayList<>();
-        final Instant watermark;
         WindowedValue.FullWindowedValueCoder<T> coder =
             WindowedValue.FullWindowedValueCoder.of(
                 source.getDefaultOutputCoder(),
                 GlobalWindow.Coder.INSTANCE);
+        final long readDurationMillis;
         try {
           // measure how long a read takes per-partition.
           Stopwatch stopwatch = Stopwatch.createStarted();
@@ -161,15 +160,18 @@ public class StateSpecFunctions {
             readValues.add(CoderHelpers.toByteArray(wv, coder));
             finished = !reader.advance();
           }
+          readDurationMillis = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
 
           // end-of-read watermark is the high watermark, but don't allow decrease.
-          Instant sourceWatermark = ((MicrobatchSource.Reader) reader).getWatermark();
+          Instant sourceWatermark = reader.getWatermark();
           highWatermark = sourceWatermark.isAfter(lowWatermark) ? sourceWatermark : lowWatermark;
 
           // close and checkpoint reader.
           reader.close();
-          LOG.info("Source id {} spent {} msec on reading.", microbatchSource.getId(),
-              stopwatch.stop().elapsed(TimeUnit.MILLISECONDS));
+          LOG.info(
+              "Source id {} spent {} milliseconds on reading.",
+              microbatchSource.getId(),
+              readDurationMillis);
 
           // if the Source does not supply a CheckpointMark skip updating the state.
           @SuppressWarnings("unchecked")
@@ -194,7 +196,10 @@ public class StateSpecFunctions {
             return Iterators.unmodifiableIterator(readValues.iterator());
           }
         };
-        return new Tuple2<>(iterable, new Metadata(readValues.size(), lowWatermark, highWatermark));
+
+        return new Tuple2<>(
+            iterable,
+            new Metadata(readValues.size(), lowWatermark, highWatermark, readDurationMillis));
       }
     };
   }

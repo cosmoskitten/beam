@@ -18,10 +18,13 @@
 
 package org.apache.beam.runners.spark.io;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.StateSpecFunctions;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
@@ -30,6 +33,10 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.metrics.DistributionCell;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -49,7 +56,8 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.dstream.DStream;
 import org.apache.spark.streaming.scheduler.StreamInputInfo;
 import org.joda.time.Instant;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.runtime.BoxedUnit;
 
@@ -73,7 +81,8 @@ public class SparkUnboundedSource {
   public static <T, CheckpointMarkT extends CheckpointMark> UnboundedDataset<T> read(
       JavaStreamingContext jssc,
       SparkRuntimeContext rc,
-      UnboundedSource<T, CheckpointMarkT> source) {
+      UnboundedSource<T, CheckpointMarkT> source,
+      String stepName) {
 
     SparkPipelineOptions options = rc.getPipelineOptions().as(SparkPipelineOptions.class);
     Long maxRecordsPerBatch = options.getMaxRecordsPerBatch();
@@ -108,7 +117,8 @@ public class SparkUnboundedSource {
         });
 
     // register the ReportingDStream op.
-    new ReportingDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
+    new ReportingDStream(metadataDStream.dstream(), id, getSourceName(source, id), stepName)
+        .register();
 
     // output the actual (deserialized) stream.
     WindowedValue.FullWindowedValueCoder<T> coder =
@@ -150,18 +160,27 @@ public class SparkUnboundedSource {
    * for RateControl purposes and visibility.
    */
   private static class ReportingDStream extends DStream<BoxedUnit> {
+
+    private static final String IO_NAMESPACE = "io";
+    private static final String READ_DURATION_METRIC = "readDuration";
+
+    private static final Logger LOG = LoggerFactory.getLogger(ReportingDStream.class);
+
     private final DStream<Metadata> parent;
     private final int inputDStreamId;
     private final String sourceName;
+    private final String stepName;
 
     ReportingDStream(
-        DStream<Metadata> parent,
-        int inputDStreamId,
-        String sourceName) {
+        final DStream<Metadata> parent,
+        final int inputDStreamId,
+        final String sourceName,
+        final String stepName) {
       super(parent.ssc(), JavaSparkContext$.MODULE$.<BoxedUnit>fakeClassTag());
       this.parent = parent;
       this.inputDStreamId = inputDStreamId;
       this.sourceName = sourceName;
+      this.stepName = stepName;
     }
 
     @Override
@@ -185,7 +204,10 @@ public class SparkUnboundedSource {
       Instant globalHighWatermarkForBatch = BoundedWindow.TIMESTAMP_MIN_VALUE;
       if (parentRDDOpt.isDefined()) {
         JavaRDD<Metadata> parentRDD = parentRDDOpt.get().toJavaRDD();
+        final MetricsContainer metricsContainer =
+            MetricsAccumulator.getInstance().localValue().getContainer(stepName);
         for (Metadata metadata: parentRDD.collect()) {
+          updateReadDuration(metricsContainer, metadata);
           count += metadata.getNumRecords();
           // compute the global input watermark - advance to latest of all partitions.
           Instant partitionLowWatermark = metadata.getLowWatermark();
@@ -211,6 +233,18 @@ public class SparkUnboundedSource {
       return scala.Option.empty();
     }
 
+    private void updateReadDuration(final MetricsContainer metricsContainer,
+                                    final Metadata metadata) {
+      final MetricName metricName = MetricName.named(IO_NAMESPACE, READ_DURATION_METRIC);
+      final DistributionCell duration = metricsContainer.getDistribution(metricName);
+
+      try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+        duration.update(metadata.getReadDurationMilli());
+      } catch (IOException e) {
+        LOG.error("Could not close scoped metrics container when updating {}", metricName);
+      }
+    }
+
     private void report(Time batchTime, long count, SparkWatermarks sparkWatermark) {
       // metadata - #records read and a description.
       scala.collection.immutable.Map<String, Object> metadata =
@@ -234,11 +268,16 @@ public class SparkUnboundedSource {
     private final long numRecords;
     private final Instant lowWatermark;
     private final Instant highWatermark;
+    private final long readDurationMilli;
 
-    public Metadata(long numRecords, Instant lowWatermark, Instant highWatermark) {
+    public Metadata(final long numRecords,
+                    final Instant lowWatermark,
+                    final Instant highWatermark,
+                    final long readDurationMilli) {
       this.numRecords = numRecords;
       this.lowWatermark = lowWatermark;
       this.highWatermark = highWatermark;
+      this.readDurationMilli = readDurationMilli;
     }
 
     public long getNumRecords() {
@@ -251,6 +290,10 @@ public class SparkUnboundedSource {
 
     public Instant getHighWatermark() {
       return highWatermark;
+    }
+
+    public long getReadDurationMilli() {
+      return readDurationMilli;
     }
   }
 }
