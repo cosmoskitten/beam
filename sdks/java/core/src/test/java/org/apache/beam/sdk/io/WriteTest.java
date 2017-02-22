@@ -355,7 +355,7 @@ public class WriteTest {
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
-    assertThat(displayData, hasDisplayItem("Fixed Number of Shards", 1));
+    assertThat(displayData, hasDisplayItem("numShards", "1"));
   }
 
   @Test
