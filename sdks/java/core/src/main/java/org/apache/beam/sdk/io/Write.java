@@ -315,6 +315,7 @@ public class Write {
 
       WriteShardedBundles(PCollectionView<WriteOperation<T, WriteT>> writeOperationView) {
         this.writeOperationView = writeOperationView;
+        checkNotNull(getNumShards());
       }
 
       @ProcessElement
@@ -368,13 +369,13 @@ public class Write {
 
     private static class ApplyShardingKey<T> extends DoFn<T, KV<Integer, T>> {
       private final PCollectionView<Integer> numShardsView;
-      private final ValueProvider<Integer> numShards;
+      private final ValueProvider<Integer> numShardsProvider;
       private int shardNumber;
 
       ApplyShardingKey(PCollectionView<Integer> numShardsView,
-                       ValueProvider<Integer> numShards) {
+                       ValueProvider<Integer> numShardsProvider) {
         this.numShardsView = numShardsView;
-        this.numShards = numShards;
+        this.numShardsProvider = numShardsProvider;
         shardNumber = -1;
       }
 
@@ -384,7 +385,8 @@ public class Write {
         if (numShardsView != null) {
           shardCount = context.sideInput(numShardsView);
         } else {
-          shardCount = numShards.get();
+          checkNotNull(numShardsProvider);
+          shardCount = numShardsProvider.get();
         }
         checkArgument(
             shardCount > 0,
@@ -507,7 +509,7 @@ public class Write {
         } else {
           numShardsView = null;
           sharded = input
-              .apply("ApplyShardLabel", ParDo.of(new ApplyShardingKey<T>(null, getNumShards())));
+              .apply("ApplyShardLabel", ParDo.of(new ApplyShardingKey<T>(null, numShardsProvider)));
         }
         results = sharded.apply("GroupIntoShards", GroupByKey.<Integer, T>create())
             .apply("WriteShardedBundles",
