@@ -244,9 +244,9 @@ public class HDFSFileSink<K, V> extends Sink<KV<K, V>> {
                      @Nullable PaneInfo paneInfo,
                      int shard,
                      int numShards) throws Exception {
-      if (window != null) {
+      if (window != null || paneInfo != null) {
         throw new UnsupportedOperationException("Windowing support not implemented yet for"
-            + "HDFS.");
+            + "HDFS. Window " + window);
       }
 
       this.hash = uId.hashCode();
