@@ -434,10 +434,6 @@ public class View {
       return new CreatePCollectionView<>(view);
     }
 
-    public PCollectionView<ViewT> getView() {
-      return view;
-    }
-
     @Override
     public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
       return view;
