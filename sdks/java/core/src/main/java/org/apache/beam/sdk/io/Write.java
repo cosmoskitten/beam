@@ -85,6 +85,9 @@ import org.slf4j.LoggerFactory;
 public class Write {
   private static final Logger LOG = LoggerFactory.getLogger(Write.class);
 
+  private static final int UNKNOWN_SHARDNUM = -1;
+  private static final int UNKNOWN_NUMSHARDS = -1;
+
   /**
    * Creates a {@link Write} transform that writes to the given {@link Sink}, letting the runner
    * control how many different shards are produced.
@@ -264,8 +267,8 @@ public class Write {
           writer.open(UUID.randomUUID().toString(),
               windowedWrites ? window : null,
               windowedWrites ? c.pane() : null,
-              -1,
-              -1);
+              UNKNOWN_SHARDNUM,
+              UNKNOWN_NUMSHARDS);
           LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
         }
         try {
@@ -330,8 +333,8 @@ public class Write {
         writer.open(UUID.randomUUID().toString(),
             windowedWrites ? window : null,
             windowedWrites ? c.pane() : null,
-            windowedWrites ? c.element().getKey() : -1,
-            windowedWrites ? numShards : -1);
+            windowedWrites ? c.element().getKey() : UNKNOWN_SHARDNUM,
+            windowedWrites ? numShards : UNKNOWN_NUMSHARDS);
         LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
 
         try {
@@ -378,7 +381,7 @@ public class Write {
                        ValueProvider<Integer> numShardsProvider) {
         this.numShardsView = numShardsView;
         this.numShardsProvider = numShardsProvider;
-        shardNumber = -1;
+        shardNumber = UNKNOWN_SHARDNUM;
       }
 
       @ProcessElement
@@ -395,7 +398,7 @@ public class Write {
             "Must have a positive number of shards specified for non-runner-determined sharding."
                 + " Got %s",
             shardCount);
-        if (shardNumber == -1) {
+        if (shardNumber == UNKNOWN_SHARDNUM) {
           // We want to desynchronize the first record sharding key for each instance of
           // ApplyShardingKey, so records in a small PCollection will be statistically balanced.
           shardNumber = ThreadLocalRandom.current().nextInt(shardCount);
@@ -504,17 +507,13 @@ public class Write {
       } else {
         if (computeNumShards != null) {
           numShardsView = input.apply(computeNumShards);
-          ImmutableList.Builder<PCollectionView<?>> sideInputs =
-              ImmutableList.<PCollectionView<?>>builder()
-                  .add(writeOperationView)
-                  .add(numShardsView);
           results  = input
               .apply("ApplyShardLabel", ParDo.of(
                   new ApplyShardingKey<T>(numShardsView, null)).withSideInputs(numShardsView))
               .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
               .apply("WriteShardedBundles",
                   ParDo.of(new WriteShardedBundles<>(writeOperationView, numShardsView))
-                      .withSideInputs(sideInputs.build()));
+                      .withSideInputs(numShardsView, writeOperationView));
         } else {
           numShardsView = null;
           results = input
@@ -594,7 +593,8 @@ public class Write {
                           + " {}.", extraShardsNeeded, results.size(), minShardsNeeded);
                   for (int i = 0; i < extraShardsNeeded; ++i) {
                     Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
-                    writer.open(UUID.randomUUID().toString(), null, null, -1, -1);
+                    writer.open(UUID.randomUUID().toString(), null, null, UNKNOWN_SHARDNUM,
+                        UNKNOWN_NUMSHARDS);
                     WriteT emptyWrite = writer.close();
                     results.add(emptyWrite);
                   }
