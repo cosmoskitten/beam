@@ -61,7 +61,7 @@ class WriteWithShardingFactory<InputT>
   @Override
   public PTransform<PCollection<InputT>, PDone> getReplacementTransform(
       Bound<InputT> transform) {
-    if (transform.getSharding() == null) {
+    if (transform.getSharding() == null && transform.getNumShards() == null) {
       return new DynamicallyReshardedWrite<>(transform);
     }
     return transform;

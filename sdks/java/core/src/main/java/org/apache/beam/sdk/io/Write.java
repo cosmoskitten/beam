@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.util.List;
@@ -104,8 +103,12 @@ public class Write {
    */
   public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
     private final Sink<T> sink;
+    // This allows the number of shards to be dynamically computed based on the input
+    // PCollection.
     @Nullable
     private final PTransform<PCollection<T>, PCollectionView<Integer>> computeNumShards;
+    // We don't use a side input for static sharding, as we want this value to be updatable
+    // when a pipeline is updated.
     @Nullable
     private final ValueProvider<Integer> numShardsProvider;
     private boolean windowedWrites;
@@ -140,7 +143,9 @@ public class Write {
       if (getSharding() != null) {
         builder.include("sharding", getSharding());
       } else if (getNumShards() != null) {
-        builder.add(DisplayData.item("numShards", getNumShards())
+        String numShards = getNumShards().isAccessible()
+            ? getNumShards().get().toString() : getNumShards().toString();
+        builder.add(DisplayData.item("numShards", numShards)
             .withLabel("Fixed Number of Shards"));
       }
     }
