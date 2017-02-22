@@ -142,8 +142,6 @@ class DoFn(WithTypeHints, HasDisplayData):
 
     Args:
       element: The element to be processed
-      context: a DoFnProcessContext object containing. See the
-        DoFnProcessContext documentation for details.
       *args: side inputs
       **kwargs: keyword side inputs
     """
@@ -904,6 +902,7 @@ class CombineGlobally(PTransform):
               | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
 
 
+# pylint: disable=anomalous-backslash-in-string
 class CombinePerKey(PTransformWithSideInputs):
   """A per-key Combine transform.
 
@@ -915,7 +914,7 @@ class CombinePerKey(PTransformWithSideInputs):
   Args:
     pcoll: input pcollection.
     fn: instance of CombineFn to apply to all values under the same key in
-      pcoll, or a callable whose signature is f(iterable, *args, **kwargs)
+      pcoll, or a callable whose signature is f(iterable, \*args, \**kwargs)
       (e.g., sum, max).
     *args: arguments and side inputs, passed directly to the CombineFn.
     **kwargs: arguments and side inputs, passed directly to the CombineFn.
@@ -944,6 +943,7 @@ class CombinePerKey(PTransformWithSideInputs):
         self.args, self.kwargs, self.side_inputs)
     return pcoll | GroupByKey() | 'Combine' >> CombineValues(
         self.fn, *args, **kwargs)
+# pylint: enable=anomalous-backslash-in-string
 
 
 # TODO(robertwb): Rename to CombineGroupedValues?
