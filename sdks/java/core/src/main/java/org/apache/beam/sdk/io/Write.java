@@ -311,15 +311,17 @@ public class Write {
      */
     private class WriteShardedBundles<WriteT> extends DoFn<KV<Integer, Iterable<T>>, WriteT> {
       private final PCollectionView<WriteOperation<T, WriteT>> writeOperationView;
+      private final PCollectionView<Integer> numShardsView;
 
-
-      WriteShardedBundles(PCollectionView<WriteOperation<T, WriteT>> writeOperationView) {
+      WriteShardedBundles(PCollectionView<WriteOperation<T, WriteT>> writeOperationView,
+                          PCollectionView<Integer> numShardsView) {
         this.writeOperationView = writeOperationView;
-        checkNotNull(getNumShards());
+        this.numShardsView = numShardsView;
       }
 
       @ProcessElement
       public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+        int numShards = numShardsView != null ? c.sideInput(numShardsView) : getNumShards().get();
         // In a sharded write, single input element represents one shard. We can open and close
         // the writer in each call to processElement.
         WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
@@ -329,7 +331,7 @@ public class Write {
             windowedWrites ? window : null,
             windowedWrites ? c.pane() : null,
             windowedWrites ? c.element().getKey() : -1,
-            windowedWrites ? getNumShards().get() : -1);
+            windowedWrites ? numShards : -1);
         LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
 
         try {
@@ -500,21 +502,28 @@ public class Write {
                 ParDo.of(new WriteBundles<>(writeOperationView))
                     .withSideInputs(writeOperationView));
       } else {
-        PCollection<KV<Integer, T>> sharded;
         if (computeNumShards != null) {
           numShardsView = input.apply(computeNumShards);
-          sharded = input
+          ImmutableList.Builder<PCollectionView<?>> sideInputs =
+              ImmutableList.<PCollectionView<?>>builder()
+                  .add(writeOperationView)
+                  .add(numShardsView);
+          results  = input
               .apply("ApplyShardLabel", ParDo.of(
-                  new ApplyShardingKey<T>(numShardsView, null)).withSideInputs(numShardsView));
+                  new ApplyShardingKey<T>(numShardsView, null)).withSideInputs(numShardsView))
+              .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
+              .apply("WriteShardedBundles",
+                  ParDo.of(new WriteShardedBundles<>(writeOperationView, numShardsView))
+                      .withSideInputs(sideInputs.build()));
         } else {
           numShardsView = null;
-          sharded = input
-              .apply("ApplyShardLabel", ParDo.of(new ApplyShardingKey<T>(null, numShardsProvider)));
+          results = input
+              .apply("ApplyShardLabel", ParDo.of(new ApplyShardingKey<T>(null, numShardsProvider)))
+              .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
+              .apply("WriteShardedBundles",
+                  ParDo.of(new WriteShardedBundles<>(writeOperationView, null))
+                      .withSideInputs(writeOperationView));
         }
-        results = sharded.apply("GroupIntoShards", GroupByKey.<Integer, T>create())
-            .apply("WriteShardedBundles",
-                ParDo.of(new WriteShardedBundles<>(writeOperationView))
-                    .withSideInputs(writeOperationView));
       }
       results.setCoder(writeOperation.getWriterResultCoder());
 
