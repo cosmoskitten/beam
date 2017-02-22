@@ -548,11 +548,12 @@ class FileSink(iobase.Sink):
     """
     if not (isinstance(file_path_prefix, basestring)
             or isinstance(file_path_prefix, ValueProvider)):
-      raise TypeError('file_path_prefix must be a string; got %r instead' %
-                      file_path_prefix)
-    if not isinstance(file_name_suffix, basestring):
-      raise TypeError('file_name_suffix must be a string; got %r instead' %
-                      file_name_suffix)
+      raise TypeError('file_path_prefix must be a string or ValueProvider;'
+                      'got %r instead' % file_path_prefix)
+    if not (isinstance(file_name_suffix, basestring)
+            or isinstance(file_name_suffix, ValueProvider)):
+      raise TypeError('file_name_suffix must be a string or ValueProvider;'
+                      'got %r instead' % file_name_suffix)
 
     if not CompressionTypes.is_valid_compression_type(compression_type):
       raise TypeError('compression_type must be CompressionType object but '
@@ -563,6 +564,8 @@ class FileSink(iobase.Sink):
       num_shards = 1
     if isinstance(file_path_prefix, basestring):
       file_path_prefix = StaticValueProvider(str, file_path_prefix)
+    if isinstance(file_name_suffix, basestring):
+      file_name_suffix = StaticValueProvider(str, file_name_suffix)
     self.file_path_prefix = file_path_prefix
     self.file_name_suffix = file_name_suffix
     self.num_shards = num_shards
@@ -622,7 +625,8 @@ class FileSink(iobase.Sink):
     if not self.file_path_prefix.is_accessible():
       raise RuntimeError('%s not accessible' % self.file_path_prefix)
     file_path_prefix = self.file_path_prefix.get()
-    tmp_dir = file_path_prefix + self.file_name_suffix + time.strftime(
+    file_name_suffix = self.file_name_suffix.get()
+    tmp_dir = file_path_prefix + file_name_suffix + time.strftime(
         '-temp-%Y-%m-%d_%H-%M-%S')
     ChannelFactory().mkdir(tmp_dir)
     return tmp_dir
@@ -635,14 +639,16 @@ class FileSink(iobase.Sink):
     if not self.file_path_prefix.is_accessible():
       raise RuntimeError('%s not accessible' % self.file_path_prefix)
     file_path_prefix = self.file_path_prefix.get()
+    file_name_suffix = self.file_name_suffix.get()
     suffix = (
-        '.' + os.path.basename(file_path_prefix) + self.file_name_suffix)
+        '.' + os.path.basename(file_path_prefix) + file_name_suffix)
     return FileSinkWriter(self, os.path.join(init_result, uid) + suffix)
 
   def finalize_write(self, init_result, writer_results):
     if not self.file_path_prefix.is_accessible():
       raise RuntimeError('%s not accessible' % self.file_path_prefix)
     file_path_prefix = self.file_path_prefix.get()
+    file_name_suffix = self.file_name_suffix.get()
     writer_results = sorted(writer_results)
     num_shards = len(writer_results)
     min_threads = min(num_shards, FileSink._MAX_RENAME_THREADS)
@@ -652,7 +658,7 @@ class FileSink(iobase.Sink):
     for shard_num, shard in enumerate(writer_results):
       final_name = ''.join([
           file_path_prefix, self.shard_name_format % dict(
-              shard_num=shard_num, num_shards=num_shards), self.file_name_suffix
+              shard_num=shard_num, num_shards=num_shards), file_name_suffix
       ])
       rename_ops.append((shard, final_name))
 
