@@ -253,7 +253,7 @@ def run(argv=None):
   if query_result['counters']:
     empty_lines_counter = query_result['counters'][0]
     logging.info('number of empty lines: %d', empty_lines_counter.committed)
-  #TODO(pabloem)(BEAM-1366) Fix these once metrics are 100% queriable.
+  # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
 
 
 if __name__ == '__main__':

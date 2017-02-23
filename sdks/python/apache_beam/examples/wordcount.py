@@ -109,7 +109,7 @@ def run(argv=None):
   if query_result['counters']:
     empty_lines_counter = query_result['counters'][0]
     logging.info('number of empty lines: %d', empty_lines_counter.committed)
-  #TODO(pabloem)(BEAM-1366) Add querying of MEAN metrics.
+  # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -88,14 +88,34 @@ class TestDataflowMetrics(unittest.TestCase):
        "updateTime": "2017-02-23T01:13:36.659Z"}
   ]}
 
-  def test_query_couple_counters(self):
+  def setup_mock_client_result(self):
     mock_client = mock.Mock()
     mock_query_result = DictToObject(self.BASIC_COUNTER_LIST)
     mock_client.get_job_metrics.return_value = mock_query_result
-
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
+    mock_job_result.is_in_terminal_state.return_value = False
+    return mock_client, mock_job_result
 
+  def test_cache_functions(self):
+    mock_client, mock_job_result = self.setup_mock_client_result()
+    dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
+
+    # At first creation, we should always query dataflow.
+    self.assertTrue(dm._should_query_dataflow())
+
+    # Right after querying, we still query again.
+    dm.query()
+    self.assertTrue(dm._should_query_dataflow())
+
+    # The job has ended. The query should not run again after this.
+    mock_job_result.is_in_terminal_state.return_value = True
+    self.assertTrue(dm._should_query_dataflow())
+    dm.query()
+    self.assertFalse(dm._should_query_dataflow())
+
+  def test_query_counters(self):
+    mock_client, mock_job_result = self.setup_mock_client_result()
     dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
     query_result = dm.query()
     expected_counters = [
@@ -109,9 +129,9 @@ class TestDataflowMetrics(unittest.TestCase):
             26181, 26185),
         ]
     self.assertEqual(sorted(query_result['counters'],
-                            key=lambda x:x.key.metric.name),
+                            key=lambda x: x.key.metric.name),
                      sorted(expected_counters,
-                            key=lambda x:x.key.metric.name))
+                            key=lambda x: x.key.metric.name))
 
 if __name__ == '__main__':
   unittest.main()
