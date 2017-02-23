@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -103,6 +104,9 @@ public class JdbcIOIT {
     }
   }
 
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
+
   /**
    * Does a test read of a few rows from a postgres database.
    *
@@ -112,8 +116,6 @@ public class JdbcIOIT {
   @Test
   public void testRead() throws SQLException {
     String tableName = JdbcTestDataSet.READ_TABLE_NAME;
-
-    TestPipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> output = pipeline.apply(JdbcIO.<KV<String, Integer>>read()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
@@ -147,8 +149,6 @@ public class JdbcIOIT {
   @Test
   public void testWrite() throws SQLException {
     writeTableName = JdbcTestDataSet.createWriteDataTable(dataSource);
-
-    TestPipeline pipeline = TestPipeline.create();
 
     ArrayList<KV<Integer, String>> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
