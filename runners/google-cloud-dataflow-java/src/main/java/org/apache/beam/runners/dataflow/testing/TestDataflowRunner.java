@@ -175,7 +175,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
     } catch (ExecutionException e) {
-      Throwables.propagateIfPossible(e.getCause());
+      Throwables.throwIfUnchecked(e.getCause());
       throw new RuntimeException(e.getCause());
     } catch (IOException e) {
       throw new RuntimeException(e);
