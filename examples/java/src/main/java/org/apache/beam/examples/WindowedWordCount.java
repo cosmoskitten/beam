@@ -265,6 +265,7 @@ public class WindowedWordCount {
                 );
               }
             })
+            .withNumShards(1)
             .withWindowedWrites());
 
     PipelineResult result = pipeline.run();
