@@ -115,13 +115,19 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
       <artifactId>beam-sdks-java-io-hadoop-common</artifactId>
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
+<<<<<<< HEAD
 =======
 >>>>>>> [BEAM-1157] Add HBaseIO
+=======
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
       <artifactId>beam-sdks-java-io-hbase</artifactId>
     </dependency>
 

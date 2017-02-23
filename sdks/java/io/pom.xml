@@ -83,8 +83,12 @@
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
 <<<<<<< HEAD
+<<<<<<< HEAD
 	<module>hadoop-input-format</module>
 =======
+=======
+    <module>hadoop-common</module>
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
     <module>hbase</module>
 >>>>>>> [BEAM-1157] Add HBaseIO
 >>>>>>> [BEAM-1157] Add HBaseIO

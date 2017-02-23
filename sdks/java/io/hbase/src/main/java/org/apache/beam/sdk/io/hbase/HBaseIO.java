@@ -40,11 +40,14 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 <<<<<<< HEAD
+<<<<<<< HEAD
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 =======
+=======
+import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
 import org.apache.beam.sdk.io.hbase.coders.HBaseMutationCoder;
 import org.apache.beam.sdk.io.hbase.coders.HBaseResultCoder;
-import org.apache.beam.sdk.io.hbase.coders.SerializableConfiguration;
 import org.apache.beam.sdk.io.hbase.coders.SerializableScan;
 >>>>>>> [BEAM-1157] Add HBaseIO
 import org.apache.beam.sdk.io.range.ByteKey;
@@ -280,10 +283,14 @@ public class HBaseIO {
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(
 <<<<<<< HEAD
+<<<<<<< HEAD
                     serializableConfiguration.get())) {
 =======
                     serializableConfiguration.getConfiguration())) {
 >>>>>>> [BEAM-1157] Add HBaseIO
+=======
+                    serializableConfiguration.get())) {
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
@@ -297,11 +304,15 @@ public class HBaseIO {
             super.populateDisplayData(builder);
             builder.add(DisplayData.item("configuration",
 <<<<<<< HEAD
+<<<<<<< HEAD
                     serializableConfiguration.get().toString()));
             builder.add(DisplayData.item("tableId", tableId));
             builder.addIfNotNull(DisplayData.item("scan", serializableScan.get().toString()));
 =======
                     serializableConfiguration.getConfiguration().toString()));
+=======
+                    serializableConfiguration.get().toString()));
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
             builder.add(DisplayData.item("tableId", tableId));
             builder.addIfNotNull(DisplayData.item("scan", serializableScan.getScan().toString()));
 >>>>>>> [BEAM-1157] Add HBaseIO
@@ -313,10 +324,14 @@ public class HBaseIO {
 
         public Configuration getConfiguration() {
 <<<<<<< HEAD
+<<<<<<< HEAD
             return serializableConfiguration.get();
 =======
             return serializableConfiguration.getConfiguration();
 >>>>>>> [BEAM-1157] Add HBaseIO
+=======
+            return serializableConfiguration.get();
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
         }
 
         /**
@@ -379,10 +394,14 @@ public class HBaseIO {
             // This code is based on RegionSizeCalculator in hbase-server
             long estimatedSizeBytes = 0L;
 <<<<<<< HEAD
+<<<<<<< HEAD
             Configuration configuration = this.read.serializableConfiguration.get();
 =======
             Configuration configuration = this.read.serializableConfiguration.getConfiguration();
 >>>>>>> [BEAM-1157] Add HBaseIO
+=======
+            Configuration configuration = this.read.serializableConfiguration.get();
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
             try (Connection connection = ConnectionFactory.createConnection(configuration)) {
                 // filter regions for the given table/scan
                 List<HRegionLocation> regionLocations = getRegionLocations(connection);
@@ -552,10 +571,14 @@ public class HBaseIO {
         @Override
         public boolean start() throws IOException {
 <<<<<<< HEAD
+<<<<<<< HEAD
             Configuration configuration = source.read.serializableConfiguration.get();
 =======
             Configuration configuration = source.read.serializableConfiguration.getConfiguration();
 >>>>>>> [BEAM-1157] Add HBaseIO
+=======
+            Configuration configuration = source.read.serializableConfiguration.get();
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
             String tableId = source.read.tableId;
             connection = ConnectionFactory.createConnection(configuration);
             TableName tableName = TableName.valueOf(tableId);
@@ -670,10 +693,14 @@ public class HBaseIO {
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(
 <<<<<<< HEAD
+<<<<<<< HEAD
                     serializableConfiguration.get())) {
 =======
                     serializableConfiguration.getConfiguration())) {
 >>>>>>> [BEAM-1157] Add HBaseIO
+=======
+                    serializableConfiguration.get())) {
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
@@ -687,10 +714,14 @@ public class HBaseIO {
             super.populateDisplayData(builder);
             builder.add(DisplayData.item("configuration",
 <<<<<<< HEAD
+<<<<<<< HEAD
                     serializableConfiguration.get().toString()));
 =======
                     serializableConfiguration.getConfiguration().toString()));
 >>>>>>> [BEAM-1157] Add HBaseIO
+=======
+                    serializableConfiguration.get().toString()));
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
             builder.add(DisplayData.item("tableId", tableId));
         }
 
@@ -700,10 +731,14 @@ public class HBaseIO {
 
         public Configuration getConfiguration() {
 <<<<<<< HEAD
+<<<<<<< HEAD
             return serializableConfiguration.get();
 =======
             return serializableConfiguration.getConfiguration();
 >>>>>>> [BEAM-1157] Add HBaseIO
+=======
+            return serializableConfiguration.get();
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
         }
 
         private final String tableId;
@@ -721,10 +756,14 @@ public class HBaseIO {
             @Setup
             public void setup() throws Exception {
 <<<<<<< HEAD
+<<<<<<< HEAD
                 Configuration configuration = this.serializableConfiguration.get();
 =======
                 Configuration configuration = this.serializableConfiguration.getConfiguration();
 >>>>>>> [BEAM-1157] Add HBaseIO
+=======
+                Configuration configuration = this.serializableConfiguration.get();
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
                 connection = ConnectionFactory.createConnection(configuration);
 
                 TableName tableName = TableName.valueOf(tableId);

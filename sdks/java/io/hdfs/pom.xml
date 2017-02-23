@@ -53,6 +53,14 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-hadoop-common</artifactId>
+<<<<<<< HEAD
+=======
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+>>>>>>> [BEAM-1541] Create hadoop-common and refactor HdfsIO and HBaseIO to use it
     </dependency>
 
     <dependency>
