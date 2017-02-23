@@ -188,10 +188,10 @@ public class WindowedWordCount {
      */
     PCollection<String> input = pipeline
       /** Read from the GCS file. */
-      .apply(TextIO.Read.from(options.getInputFile()))
+      .apply("ReadInputFile", TextIO.Read.from(options.getInputFile()))
       // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
       // See AddTimestampFn for more detail on this.
-      .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
+      .apply("AddTimestamps", ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
 
     /**
      * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
@@ -200,7 +200,7 @@ public class WindowedWordCount {
      * available (e.g., sliding windows).
      */
     PCollection<String> windowedWords =
-        input.apply(
+        input.apply("FixedWindows",
             Window.<String>into(
                 FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
 
@@ -208,7 +208,8 @@ public class WindowedWordCount {
      * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
      * windows over a PCollection containing windowed values.
      */
-    PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
+    PCollection<KV<String, Long>> wordCounts = windowedWords.apply(
+        "CountWords", new WordCount.CountWords());
 
     /**
      * Concept #5: Customize the output format using windowing information
@@ -221,7 +222,7 @@ public class WindowedWordCount {
      * be automatically detected and populated with the window for the current element.
      */
     PCollection<KV<IntervalWindow, KV<String, Long>>> keyedByWindow =
-        wordCounts.apply(
+        wordCounts.apply("KeyByWindow",
             ParDo.of(
                 new DoFn<KV<String, Long>, KV<IntervalWindow, KV<String, Long>>>() {
                   @ProcessElement
@@ -236,8 +237,8 @@ public class WindowedWordCount {
      * writes must be idempotent, but the details of writing to files is elided here.
      */
     keyedByWindow
-        .apply(GroupByKey.<IntervalWindow, KV<String, Long>>create())
-        .apply(
+        .apply("GBK", GroupByKey.<IntervalWindow, KV<String, Long>>create())
+        .apply("FormatOutput",
             ParDo.of(
                 new DoFn<KV<IntervalWindow, Iterable<KV<String, Long>>>, String>() {
                   @ProcessElement
@@ -249,7 +250,7 @@ public class WindowedWordCount {
                   }
                 })
         )
-        .apply(TextIO.Write
+        .apply("WriteOutput", TextIO.Write
             .to(new FilenamePolicy() {
               @Override
               public ValueProvider<String> getBaseOutputFilenameProvider() {
