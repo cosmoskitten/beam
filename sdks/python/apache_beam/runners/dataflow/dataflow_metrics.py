@@ -35,11 +35,11 @@ class DataflowMetrics(MetricResults):
   """Implementation of MetricResults class for the Dataflow runner."""
 
   def __init__(self, dataflow_client=None, job_result=None):
-    """Initialize the dataflow metrics object.
+    """Initialize the Dataflow metrics object.
 
     Args:
       dataflow_client: apiclient.DataflowApplicationClient to interact with the
-        dataflow serive.
+        dataflow service.
       job_result: DataflowPipelineResult with the state and id information of
         the job
     """
@@ -47,6 +47,7 @@ class DataflowMetrics(MetricResults):
     self._dataflow_client = dataflow_client
     self.job_result = job_result
     self._queried_after_termination = False
+    self._cached_metrics = None
 
   def _populate_metric_results(self, response):
     """Take a list of metrics, and convert it to a list of MetricResult."""
@@ -81,21 +82,6 @@ class DataflowMetrics(MetricResults):
 
     return result
 
-  def _should_query_dataflow(self):
-    """Determine whether to query metrics from dataflow or use cached metrics.
-
-    If the last query was made after the job terminated, then it will use
-    the cached result. OTHERWISE, it should query the dataflow service.
-
-    Returns:
-      True if the dataflow service should be queried for metrics. False if the
-      cached query is good enough.
-    """
-    if self._queried_after_termination:
-      return False
-    else:
-      return True
-
   def _get_metrics_from_dataflow(self):
     """Return cached metrics or query the dataflow service."""
     try:
@@ -105,13 +91,14 @@ class DataflowMetrics(MetricResults):
     if not job_id:
       raise ValueError('Can not query metrics. Job id is unknown.')
 
-    if self._should_query_dataflow():
-      self._cached_metrics = self._dataflow_client.get_job_metrics(job_id)
+    if self._cached_metrics:
+      return self._cached_metrics
 
-      if self.job_result.is_in_terminal_state():
-        self._queried_after_termination = True
-
-    return self._cached_metrics
+    job_metrics = self._dataflow_client.get_job_metrics(job_id)
+    # If the job has terminated, metrics will not change and we can cache them.
+    if self.job_result._is_in_terminal_state():
+      self._cached_metrics = job_metrics
+    return job_metrics
 
   def query(self, filter=None):
     response = self._get_metrics_from_dataflow()

@@ -94,7 +94,7 @@ class TestDataflowMetrics(unittest.TestCase):
     mock_client.get_job_metrics.return_value = mock_query_result
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
-    mock_job_result.is_in_terminal_state.return_value = False
+    mock_job_result._is_in_terminal_state.return_value = False
     return mock_client, mock_job_result
 
   def test_cache_functions(self):
@@ -102,17 +102,16 @@ class TestDataflowMetrics(unittest.TestCase):
     dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
 
     # At first creation, we should always query dataflow.
-    self.assertTrue(dm._should_query_dataflow())
+    self.assertTrue(dm._cached_metrics is None)
 
     # Right after querying, we still query again.
     dm.query()
-    self.assertTrue(dm._should_query_dataflow())
+    self.assertTrue(dm._cached_metrics is None)
 
     # The job has ended. The query should not run again after this.
-    mock_job_result.is_in_terminal_state.return_value = True
-    self.assertTrue(dm._should_query_dataflow())
+    mock_job_result._is_in_terminal_state.return_value = True
     dm.query()
-    self.assertFalse(dm._should_query_dataflow())
+    self.assertTrue(dm._cached_metrics)
 
   def test_query_counters(self):
     mock_client, mock_job_result = self.setup_mock_client_result()

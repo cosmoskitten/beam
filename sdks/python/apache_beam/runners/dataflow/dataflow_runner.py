@@ -675,7 +675,7 @@ class DataflowPipelineResult(PipelineResult):
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)
 
-  def is_in_terminal_state(self):
+  def _is_in_terminal_state(self):
     if not self.has_job:
       return True
 
@@ -684,7 +684,7 @@ class DataflowPipelineResult(PipelineResult):
         PipelineState.CANCELLED, PipelineState.DRAINED]
 
   def wait_until_finish(self, duration=None):
-    if not self.is_in_terminal_state():
+    if not self._is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
       if duration:
