@@ -258,12 +258,6 @@ public final class PCollectionViewTesting {
       return windowingStrategy;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    @Override
-    public Coder<Iterable<WindowedValue<?>>> getCoderInternal() {
-      return (Coder) coder;
-    }
-
     @Override
     public int hashCode() {
       return Objects.hash(tag);

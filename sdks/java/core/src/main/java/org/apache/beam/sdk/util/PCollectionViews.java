@@ -485,15 +485,6 @@ public class PCollectionViews {
     }
 
     @Override
-    public Coder<Iterable<WindowedValue<?>>> getCoderInternal() {
-      // Safe cast: It is required that the rest of the SDK only use this untyped coder
-      // for the elements of an appropriately typed underlying PCollection.
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      Coder<Iterable<WindowedValue<?>>> untypedCoder = (Coder) coder;
-      return untypedCoder;
-    }
-
-    @Override
     public int hashCode() {
       return Objects.hash(tag);
     }

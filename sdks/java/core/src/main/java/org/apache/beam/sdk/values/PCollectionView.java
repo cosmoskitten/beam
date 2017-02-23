@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.ViewFn;
@@ -67,12 +66,4 @@ public interface PCollectionView<T> extends PValue, Serializable {
    */
   @Deprecated
   WindowingStrategy<?, ?> getWindowingStrategyInternal();
-
-  /**
-   * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
-   *     input, including its {@link Coder}, is part of the side input's specification with a {@link
-   *     ParDo} transform, which will obtain that information via a package-private channel.
-   */
-  @Deprecated
-  Coder<Iterable<WindowedValue<?>>> getCoderInternal();
 }
