@@ -317,6 +317,12 @@ public class AvroIOTest {
       }
       return filename;
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add(DisplayData.item("fileNamePrefix", outputFilePrefix)
+          .withLabel("File Name Prefix"));
+    }
   }
 
   @Rule

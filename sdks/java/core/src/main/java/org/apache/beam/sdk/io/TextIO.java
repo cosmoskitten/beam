@@ -712,8 +712,11 @@ public class TextIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
 
-        String prefixString = filenamePrefix.isAccessible()
-            ? filenamePrefix.get() : filenamePrefix.toString();
+        String prefixString = "";
+        if (filenamePrefix != null) {
+          prefixString = filenamePrefix.isAccessible()
+              ? filenamePrefix.get() : filenamePrefix.toString();
+        }
         builder
             .addIfNotNull(DisplayData.item("filePrefix", prefixString)
               .withLabel("Output File Prefix"))
