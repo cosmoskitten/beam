@@ -19,17 +19,22 @@ package org.apache.beam.examples;
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
+
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
-import org.apache.beam.examples.common.WriteWindowedFilesDoFn;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -41,6 +46,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 
 /**
@@ -91,6 +98,9 @@ import org.joda.time.Instant;
  */
 public class WindowedWordCount {
     static final int WINDOW_SIZE = 10;  // Default window duration in minutes
+
+  private static DateTimeFormatter formatter = ISODateTimeFormat.hourMinute();
+
   /**
    * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
    * this example, for the bounded data case.
@@ -229,7 +239,34 @@ public class WindowedWordCount {
      */
     keyedByWindow
         .apply(GroupByKey.<IntervalWindow, KV<String, Long>>create())
-        .apply(ParDo.of(new WriteWindowedFilesDoFn(output)));
+        .apply(
+            ParDo.of(
+                new DoFn<KV<IntervalWindow, Iterable<KV<String, Long>>>, String>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) throws Exception {
+                    String line;
+                    for (KV<String, Long> wordCount : context.element().getValue()) {
+                      context.output(wordCount.getKey() + ": " + wordCount.getValue());
+                    }
+                  }
+                })
+        )
+        .apply(TextIO.Write
+            .to(new FilenamePolicy() {
+              @Override
+              public ValueProvider<String> getBaseOutputFilenameProvider() {
+                return StaticValueProvider.of(output);
+              }
+
+              @Override
+              public String apply(Context input) {
+                IntervalWindow window = (IntervalWindow) input.getWindow();
+                return String.format(
+                    "-%s-%s", formatter.print(window.start()), formatter.print(window.end())
+                );
+              }
+            })
+            .withWindowedWrites());
 
     PipelineResult result = pipeline.run();
     try {
