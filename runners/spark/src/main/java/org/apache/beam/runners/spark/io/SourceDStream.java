@@ -60,6 +60,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private final UnboundedSource<T, CheckpointMarkT> unboundedSource;
   private final SparkRuntimeContext runtimeContext;
   private final Duration boundReadDuration;
+  private final double readerCacheInterval;
   // the initial parallelism, set by Spark's backend, will be determined once when the job starts.
   // in case of resuming/recovering from checkpoint, the DStream will be reconstructed and this
   // property should not be reset.
@@ -84,6 +85,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     // set initial parallelism once.
     this.initialParallelism = ssc().sc().defaultParallelism();
     checkArgument(this.initialParallelism > 0, "Number of partitions must be greater than zero.");
+    this.readerCacheInterval = 1.5 * options.getBatchIntervalMillis();
   }
 
   public void setMaxRecordsPerBatch(long maxRecordsPerBatch) {
@@ -95,7 +97,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     long maxNumRecords = boundMaxRecords != null ? boundMaxRecords : rateControlledMaxRecords();
     MicrobatchSource<T, CheckpointMarkT> microbatchSource = new MicrobatchSource<>(
         unboundedSource, boundReadDuration, initialParallelism, maxNumRecords, -1,
-        id());
+        id(), readerCacheInterval);
     RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> rdd = new SourceRDD.Unbounded<>(
         ssc().sc(), runtimeContext, microbatchSource);
     return scala.Option.apply(rdd);
