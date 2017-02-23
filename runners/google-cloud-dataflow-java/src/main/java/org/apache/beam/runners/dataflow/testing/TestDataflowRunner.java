@@ -162,7 +162,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         throw new IllegalStateException(
             "The dataflow did not output a success or failure metric.");
       } else if (!success.get()) {
-        throw new AssertionError(
+        throw new RuntimeException(
             Strings.isNullOrEmpty(messageHandler.getErrorMessage())
                 ? String.format(
                     "Dataflow job %s terminated in state %s but did not return a failure reason.",
