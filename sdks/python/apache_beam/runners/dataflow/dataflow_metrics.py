@@ -74,7 +74,7 @@ class DataflowMetrics(MetricResults):
 
   def query(self, filter=None):
     try:
-      job_id = result.job_id()
+      job_id = self.job_result.job_id()
     except AttributeError:
       job_id = None
     if not job_id:
