@@ -22,6 +22,7 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.runners.spark.ReuseSparkContext;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -134,7 +135,8 @@ public class TrackStreamingSourcesTest {
         Integer... expected) {
       this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, jssc);
       this.evaluator = new SparkRunner.Evaluator(
-          new StreamingTransformTranslator.Translator(new TransformTranslator.Translator()), ctxt);
+          new StreamingTransformTranslator.Translator(new TransformTranslator.Translator()), ctxt,
+          new HashMap<PCollection, Long>());
       this.transformClassToAssert = transformClassToAssert;
       this.expected = expected;
     }
@@ -156,7 +158,7 @@ public class TrackStreamingSourcesTest {
         AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
         ctxt.setCurrentTransform(appliedTransform);
         //noinspection unchecked
-        Dataset dataset = ctxt.borrowDataset((PTransform<? extends PValue, ?>) transform);
+        Dataset dataset = ctxt.borrowDataset((PTransform<? extends PValue, ?>) transform, false);
         assertSourceIds(((UnboundedDataset<?>) dataset).getStreamingSources());
         ctxt.setCurrentTransform(null);
       } else {
