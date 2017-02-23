@@ -78,6 +78,16 @@ class WriteWithShardingFactory<InputT>
 
   @VisibleForTesting
   static class CalculateShardsFn extends DoFn<Long, Integer> {
+    private final int maxRandomExtraShards;
+
+    public CalculateShardsFn() {
+      maxRandomExtraShards = MAX_RANDOM_EXTRA_SHARDS;
+    }
+
+    public CalculateShardsFn(int maxRandomExtraShards) {
+      this.maxRandomExtraShards = maxRandomExtraShards;
+    }
+
     @ProcessElement
     public void process(ProcessContext ctxt) {
       ctxt.output(calculateShards(ctxt.element()));
@@ -88,13 +98,15 @@ class WriteWithShardingFactory<InputT>
         // Write out at least one shard, even if there is no input.
         return 1;
       }
+      // Windows get their own number of random extra shards. This is stored in a side input, so
+      // writers use a consistent number of keys.
+      int randomExtraShards = ThreadLocalRandom.current().nextInt(0, maxRandomExtraShards);
       if (totalRecords < MIN_SHARDS_FOR_LOG + randomExtraShards) {
         return (int) totalRecords;
       }
       // 100mil records before >7 output files
       int floorLogRecs = Double.valueOf(Math.log10(totalRecords)).intValue();
-      return Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG)
-          + ThreadLocalRandom.current().nextInt(0, MAX_RANDOM_EXTRA_SHARDS);
+      return Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG) + randomExtraShards;
     }
   }
 }
