@@ -212,41 +212,16 @@ public class WindowedWordCount {
         "CountWords", new WordCount.CountWords());
 
     /**
-     * Concept #5: Customize the output format using windowing information
-     *
-     * <p>At this point, the data is organized by window. We're writing text files and and have no
-     * late data, so for simplicity we can use the window as the key and {@link GroupByKey} to get
-     * one output file per window. (if we had late data this key would not be unique)
-     *
-     * <p>To access the window in a {@link DoFn}, add a {@link BoundedWindow} parameter. This will
-     * be automatically detected and populated with the window for the current element.
+     * Concept #5: Format the results and write to a sharded file partitioned by window.
      */
-    PCollection<KV<IntervalWindow, KV<String, Long>>> keyedByWindow =
-        wordCounts.apply("KeyByWindow",
-            ParDo.of(
-                new DoFn<KV<String, Long>, KV<IntervalWindow, KV<String, Long>>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context, IntervalWindow window) {
-                    context.output(KV.of(window, context.element()));
-                  }
-                }));
-
-    /**
-     * Concept #6: Format the results and write to a sharded file partitioned by window, using a
-     * simple ParDo operation. Because there may be failures followed by retries, the
-     * writes must be idempotent, but the details of writing to files is elided here.
-     */
-    keyedByWindow
-        .apply("GBK", GroupByKey.<IntervalWindow, KV<String, Long>>create())
+    wordCounts
         .apply("FormatOutput",
             ParDo.of(
-                new DoFn<KV<IntervalWindow, Iterable<KV<String, Long>>>, String>() {
+                new DoFn<KV<String, Long>, String>() {
                   @ProcessElement
                   public void processElement(ProcessContext context) throws Exception {
-                    String line;
-                    for (KV<String, Long> wordCount : context.element().getValue()) {
-                      context.output(wordCount.getKey() + ": " + wordCount.getValue());
-                    }
+                    KV<String, Long> wordCount = context.element();
+                    context.output(wordCount.getKey() + ": " + wordCount.getValue());
                   }
                 })
         )
