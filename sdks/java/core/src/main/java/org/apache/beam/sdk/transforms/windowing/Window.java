@@ -472,12 +472,13 @@ public class Window {
       WindowingStrategy<?, ?> outputStrategy =
           getOutputStrategyInternal(input.getWindowingStrategy());
       if (windowFn == null) {
-        // A new PCollection must be created in case input is reused in a different location.
+        // A new PCollection must be created in case input is reused in a different location as the
+        // two PCollections will, in general, have a different windowing strategy.
         return input
             .apply(ParDo.of(new IdentityDoFn<T>()))
             .setWindowingStrategyInternal(outputStrategy);
       } else {
-        // This is the assignWindows primitive
+        // This is the AssignWindows primitive
         return PCollection.createPrimitiveOutputInternal(
             input.getPipeline(), outputStrategy, input.isBounded());
       }

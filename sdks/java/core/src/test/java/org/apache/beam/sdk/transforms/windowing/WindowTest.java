@@ -243,6 +243,7 @@ public class WindowTest implements Serializable {
                     }))
             .apply("AssignWindows", Window.<Long>into(FixedWindows.of(Duration.millis(5L))));
 
+    // Sanity check the window assignment to demonstrate the baseline
     PAssert.that(initialWindows)
         .inWindow(new IntervalWindow(new Instant(0L), new Instant(5L)))
         .containsInAnyOrder(0L, 1L, 2L, 3L, 4L);
@@ -267,8 +268,8 @@ public class WindowTest implements Serializable {
         .inWindow(new IntervalWindow(new Instant(5L), new Instant(10L)))
         .containsInAnyOrder(5L, 6L, 7L, 8L, 9L);
 
-    // Should in general only update the windowing strategy, not any windows that were assigned
-    // previously.
+    // The elements should be in the same windows, even though they would not be assigned to the
+    // same windows with the updated timestamps
     PCollection<Long> updatedTrigger =
        newTimestamps.apply(
             "UpdateWindowingStrategy",
