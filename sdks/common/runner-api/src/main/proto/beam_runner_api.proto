@@ -74,7 +74,6 @@ message MessageWithComponents {
     PTransform ptransform = 7;
     PCollection pcollection = 8;
     ReadPayload read_payload = 9;
-    SdkFunctionSpec sdk_function_spec = 10;
     SideInput side_input = 11;
     WindowIntoPayload window_into_payload = 12;
     WindowingStrategy windowing_strategy = 13;
@@ -100,7 +99,8 @@ message Pipeline {
   // (Required) The id of the PTransform that is the root of the pipeline
   string root_transform_id = 2;
 
-  // (Required) Static display data for the pipeline.
+  // (Optional) Static display data for the pipeline. If there is none,
+  // it may be omitted.
   DisplayData display_data = 3;
 }
 
@@ -167,7 +167,9 @@ message PTransform {
   //
   map<string, string> outputs = 4;
 
-  // (Required) Static display data for this PTransform application.
+  // (Optional) Static display data for this PTransform application. If
+  // there is none, or it is not relevant (such as use by the Fn API)
+  // then it may be omitted.
   DisplayData display_data = 6;
 }
 
@@ -193,7 +195,9 @@ message PCollection {
   // (Required) The id of the windowing strategy for this PCollection.
   string windowing_strategy_id = 4;
 
-  // (Required) Static display data for this PCollection.
+  // (Optional) Static display data for this PTransform application. If
+  // there is none, or it is not relevant (such as use by the Fn API)
+  // then it may be omitted.
   DisplayData display_data = 5;
 }
 
@@ -301,18 +305,17 @@ message CombinePayload {
 // a pipeline.
 message Coder {
 
-  // (Required) A cross-language, stable, unique identifier for the (possibly
-  // parametric) encoding.
-  string urn = 1;
+  // (Required) A specification for the coder, as a URN plus parameters. This
+  // may be a cross-language agreed-upon format, or it may be a "custom coder"
+  // that can only be used by a particular SDK. it does not include component
+  // coders, as it is beneficial for these to be comprehensible to a runner
+  // regardless of whether the binary format is agree-upon.
+  FunctionSpec spec = 1;
 
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,
   // the URN and all components must be identical, recursively.
-  repeated string component_coder_id = 2;
-
-  // (Optional) The pipeline-scoped id for the FunctionSpec of an SDK-specific
-  // UDF implementing the encoding.
-  string custom_coder_fn_id = 3;
+  repeated string component_coder_ids = 2;
 }
 
 // A windowing strategy describes the window function, triggering, allowed
@@ -609,34 +612,44 @@ message Environment {
   string url = 1;
 }
 
-// Description of a function in a Beam pipeline.
+// A specification of a user defined function.
 //
-// Contains one of _or both of_ a UrnWithParameter specifying the function
-// and the specification for how to execute it against a particular
-// SDK's harness.
 message FunctionSpec {
 
-  // (Optional) An SDK-independent specification of this function.
-  // If present, this must _fully_ specify the function.
+  // (Required) A full specification of this function.
   //
-  // For example the distinguished urn "urn:beam:windowfn:FixedWindows" with
-  // payload `{ duration: n }` fully specifies a windowing function which can
-  // be implemented by the SDK constructing the pipeline, by another SDK (for
-  // language-to-language fusion compatibility) or by the runner directly.
+  // There are two main styles, which need not be fully distinct
+  //
+  // 1. A well-known URN like "urn:beam:windowfn:FixedWindows"
+  //    with an agreed-upon payload (e.g. a duration) that the
+  //    SDK generating this pipeline understands, but is also
+  //    possibly understood by a runnner and/or other SDKs.
+  // 2. A URN that the runner does not understand, such as
+  //    "urn:beam:dofn:javasdk:1.0" that might indicate that
+  //    it is just a serialized Java DoFn from a particular
+  //    version of the Beam Java SDK. The payload will often
+  //    then be an opaque message such as bytes in a
+  //    language-specific serialization format.
+  //
+  // In both cases, the SDK generating the pipeline understands
+  // the data attached to the URN.
   UrnWithParameter spec = 1;
 
-  // (Optional) An SDK-specific specification for how to execute this function,
-  // including a specification of the environment in which the function
-  // can be interpreted and executed.
-  SdkFunctionSpec sdk_fn_spec = 2;
+  // (Required) Reference to the specification of the execution environment
+  // required to invoke this function.
+  string environment_id = 2;
 }
 
 // A URN along with a parameter object whose schema is determined by the
 // URN.
 //
-// The URN will often specify a parametric function or transform such as
-// "Top" or "FixedWindows" while the payload would specify _n_ or
-// _duration_, respectively.
+// This structure is reused in two distinct, but compatible, ways:
+//
+// 1. This can be a specification of the function over PCollections
+//    that a PTransform computes.
+// 2. This can be a specification of a user-defined function, possibly
+//    SDK-specific. (external to this message must be adequate context
+//    to indicate the environment in which the UDF can be understood.
 message UrnWithParameter {
 
   // (Required) A URN that describes the accompanying payload.
@@ -645,20 +658,6 @@ message UrnWithParameter {
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
   google.protobuf.Any parameter = 2;
-}
-
-// An arbitrary payload tagged with the environment that knows how to
-// interpret it as a user-defined function.
-message SdkFunctionSpec {
-
-  // (Required) Reference to the specification of the execution environment
-  // required to invoke this function.
-  string environment_id = 2;
-
-  // (Required) The raw data of the function that the SDK knows how to
-  // deserialize, but need not be comprehensible to any other runner, SDK, or
-  // other entity.
-  bytes data = 4;
 }
 
 // TODO: transfer javadoc here
