@@ -105,12 +105,13 @@ public final class TransformTranslator {
         } else {
           JavaRDD<WindowedValue<T>>[] rdds = new JavaRDD[pcs.size()];
           for (int i = 0; i < rdds.length; i++) {
+            TaggedPValue taggedPValue = pcs.get(i);
             checkArgument(
-                pcs.get(i).getValue() instanceof PCollection,
+                taggedPValue.getValue() instanceof PCollection,
                 "Flatten had non-PCollection value in input: %s of type %s",
-                pcs.get(i).getValue(),
-                pcs.get(i).getValue().getClass().getSimpleName());
-            rdds[i] = ((BoundedDataset<T>) context.borrowDataset(pcs.get(i).getValue())).getRDD();
+                taggedPValue.getValue(),
+                taggedPValue.getValue().getClass().getSimpleName());
+            rdds[i] = ((BoundedDataset<T>) context.borrowDataset(taggedPValue.getValue())).getRDD();
           }
           unionRDD = context.getSparkContext().union(rdds);
         }
@@ -119,8 +120,7 @@ public final class TransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<flattenPColl>";
+        return "sparkContext.union(...)";
       }
     };
   }
@@ -188,8 +188,7 @@ public final class TransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<combineGrouped>";
+        return "map(new <fn>())";
       }
     };
   }
@@ -225,8 +224,7 @@ public final class TransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<combineGlobally>";
+        return "aggregate(..., new <fn>(), ...)";
       }
     };
   }
@@ -262,8 +260,7 @@ public final class TransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<combinePerKey>";
+        return "combineByKey(..., new <fn>(), ...)";
       }
     };
   }
@@ -295,7 +292,7 @@ public final class TransformTranslator {
 
       @Override
       public String toNativeString() {
-        return "mapPartitions(new <doFn>())";
+        return "mapPartitions(new <fn>())";
       }
     };
   }
@@ -340,7 +337,7 @@ public final class TransformTranslator {
 
       @Override
       public String toNativeString() {
-        return "mapPartitions(new <doFn>())";
+        return "mapPartitions(new <fn>())";
       }
     };
   }
@@ -611,8 +608,7 @@ public final class TransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<window>";
+        return "map(new <windowFn>())";
       }
     };
   }
@@ -698,8 +694,7 @@ public final class TransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<createPCollView>";
+        return "<createPCollectionView>";
       }
     };
   }

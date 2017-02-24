@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.WordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,7 @@ import org.slf4j.LoggerFactory;
 public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   private static final Logger LOG = LoggerFactory.getLogger(SparkNativePipelineVisitor.class);
 
-  private final List<DebugTransform> transforms;
+  private final List<NativeTransform> transforms;
   private final List<String> knownComposites =
       Lists.newArrayList(
           "org.apache.beam.sdk.transforms",
@@ -76,7 +77,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
         return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
       } else if (!knownComposites.contains(transformClass.getPackage().getName())) {
         if (shouldDebug(node)) {
-          transforms.add(new DebugTransform(node, null, transform, true));
+          transforms.add(new NativeTransform(node, null, transform, true));
         }
       }
     }
@@ -89,9 +90,9 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   }
 
   private boolean shouldDebug(final TransformHierarchy.Node node) {
-    return node == null || !Iterables.any(transforms, new Predicate<DebugTransform>() {
+    return node == null || !Iterables.any(transforms, new Predicate<NativeTransform>() {
       @Override
-      public boolean apply(DebugTransform debugTransform) {
+      public boolean apply(NativeTransform debugTransform) {
         return debugTransform.getNode().equals(node) && debugTransform.isComposite();
       }
     }) && shouldDebug(node.getEnclosingNode());
@@ -111,7 +112,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
     evaluator.evaluate(transform, ctxt);
     ctxt.setCurrentTransform(null);
     if (debugTransform) {
-      transforms.add(new DebugTransform(node, evaluator, transform, false));
+      transforms.add(new NativeTransform(node, evaluator, transform, false));
     }
   }
 
@@ -119,13 +120,13 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
     return StringUtils.join(transforms, "\n");
   }
 
-  private static class DebugTransform {
+  private static class NativeTransform {
     private final TransformHierarchy.Node node;
     private final TransformEvaluator<?> transformEvaluator;
     private final PTransform<?, ?> transform;
     private final boolean composite;
 
-    DebugTransform(
+    NativeTransform(
         TransformHierarchy.Node node,
         TransformEvaluator<?> transformEvaluator,
         PTransform<?, ?> transform,
@@ -152,23 +153,13 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
           return "KafkaUtils.createDirectStream(...)";
         }
         if (composite) {
-          return ".<" + transformClass.getName() + ">";
+          return "_.<" + transformClass.getName() + ">";
         }
         String transformString = transformEvaluator.toNativeString();
-        if (transformString.contains("<doFn>")) {
-          Object fn = transformClass.getMethod("getFn").invoke(transform);
-          Class<?> fnClass = fn.getClass();
-          String doFnName;
-          if (fnClass.getEnclosingClass().equals(MapElements.class)) {
-            Field parent = fnClass.getDeclaredField("this$0");
-            parent.setAccessible(true);
-            Field fnField = fnClass.getEnclosingClass().getDeclaredField("fn");
-            fnField.setAccessible(true);
-            doFnName = fnField.get(parent.get(fn)).getClass().getName();
-          } else {
-            doFnName = fnClass.getName();
-          }
-          transformString = transformString.replace("<doFn>", doFnName);
+        if (transformString.contains("<fn>")) {
+          transformString = replaceFnString(transformClass, transformString, "fn");
+        } else if (transformString.contains("<windowFn>")) {
+          transformString = replaceFnString(transformClass, transformString, "windowFn");
         } else if (transformString.contains("<source>")) {
           String sourceName = "...";
           if (transform instanceof Read.Bounded) {
@@ -182,7 +173,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
             || transformString.startsWith("streamingContext")) {
           return transformString;
         }
-        return "." + transformString;
+        return "_." + transformString;
       } catch (
           NoSuchMethodException
               | InvocationTargetException
@@ -190,6 +181,30 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
               | NoSuchFieldException e) {
         return "<FailedTranslation>";
       }
+    }
+
+    private String replaceFnString(
+        Class<? extends PTransform> transformClass,
+        String transformString,
+        String fnFieldName)
+        throws IllegalAccessException, InvocationTargetException, NoSuchMethodException,
+        NoSuchFieldException {
+      Object fn =
+          transformClass.getMethod("get" + WordUtils.capitalize(fnFieldName)).invoke(transform);
+      Class<?> fnClass = fn.getClass();
+      String doFnName;
+      Class<?> enclosingClass = fnClass.getEnclosingClass();
+      if (enclosingClass != null && enclosingClass.equals(MapElements.class)) {
+        Field parent = fnClass.getDeclaredField("this$0");
+        parent.setAccessible(true);
+        Field fnField = enclosingClass.getDeclaredField(fnFieldName);
+        fnField.setAccessible(true);
+        doFnName = fnField.get(parent.get(fn)).getClass().getName();
+      } else {
+        doFnName = fnClass.getName();
+      }
+      transformString = transformString.replace("<" + fnFieldName + ">", doFnName);
+      return transformString;
     }
   }
 }

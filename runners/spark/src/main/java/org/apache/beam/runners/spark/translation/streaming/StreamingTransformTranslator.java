@@ -191,8 +191,7 @@ public final class StreamingTransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<flattenPColl>";
+        return "streamingContext.union(...)";
       }
     };
   }
@@ -242,8 +241,7 @@ public final class StreamingTransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<window>";
+        return "map(new <windowFn>())";
       }
     };
   }
@@ -333,8 +331,7 @@ public final class StreamingTransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<combineGrouped>";
+        return "map(new <fn>())";
       }
     };
   }
@@ -385,8 +382,8 @@ public final class StreamingTransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<combineGlobally>";
+        return "transform(new Function<JavaRDD<...>, JavaRDD<...>>() {"
+            + " @Override ... call(JavaRDD<...> rdd) { rdd.aggregate(..., new <fn>(), ...); } })";
       }
     };
   }
@@ -434,8 +431,9 @@ public final class StreamingTransformTranslator {
 
       @Override
       public String toNativeString() {
-        // TODO: return meaningful Spark native operation
-        return "<combinePerKey>";
+        return "transform(new Function<JavaRDD<...>, JavaRDD<...>>() {"
+            + " @Override ... call(JavaRDD<...> rdd) {"
+            + " rdd.combineByKey(..., new <fn>(), ...); } })";
       }
     };
   }
@@ -486,7 +484,7 @@ public final class StreamingTransformTranslator {
 
       @Override
       public String toNativeString() {
-        return "mapPartitions(new <doFn>())";
+        return "mapPartitions(new <fn>())";
       }
     };
   }
@@ -547,7 +545,7 @@ public final class StreamingTransformTranslator {
 
       @Override
       public String toNativeString() {
-        return "mapPartitions(new <doFn>())";
+        return "mapPartitions(new <fn>())";
       }
     };
   }

@@ -35,16 +35,23 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.hamcrest.Matchers;
@@ -90,9 +97,24 @@ public class SparkNativePipelineVisitorTest {
 
     Pipeline pipeline = Pipeline.create(options);
 
-    pipeline
-        .apply(Create.of(Collections.<String>emptyList()).withCoder(StringUtf8Coder.of()))
-        .apply(new WordCount.CountWords())
+    PCollection<String> lines = pipeline
+        .apply(Create.of(Collections.<String>emptyList()).withCoder(StringUtf8Coder.of()));
+
+    PCollection<KV<String, Long>> wordCounts = lines
+        .apply(new WordCount.CountWords());
+
+    wordCounts
+        .apply(GroupByKey.<String, Long>create())
+        .apply(Combine.<String, Long, Long>groupedValues(Sum.ofLongs()));
+
+    PCollection<KV<String, Long>> wordCountsPlusOne = wordCounts
+        .apply(MapElements.via(new PlusOne()));
+
+    PCollection<KV<String, Long>> flattened =
+        PCollectionList.of(wordCounts).and(wordCountsPlusOne)
+            .apply(Flatten.<KV<String, Long>>pCollections());
+
+    wordCounts
         .apply(MapElements.via(new WordCount.FormatAsTextFn()))
         .apply(TextIO.Write.to(outputDir.getAbsolutePath()).withNumShards(3).withSuffix(".txt"));
 
@@ -103,11 +125,17 @@ public class SparkNativePipelineVisitorTest {
     pipeline.traverseTopologically(visitor);
 
     final String expectedPipeline = "sparkContext.parallelize(Arrays.asList(...))\n"
-        + ".mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
-        + ".mapPartitions(new org.apache.beam.sdk.transforms.Count$PerElement$1())\n"
-        + ".<combinePerKey>\n"
-        + ".mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$FormatAsTextFn())\n."
-        + "<org.apache.beam.sdk.io.TextIO$Write$Bound>";
+        + "_.mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
+        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Count$PerElement$1())\n"
+        + "_.combineByKey(..., new org.apache.beam.sdk.transforms"
+        + ".Combine$CombineFn$KeyIgnoringCombineFn(), ...)\n"
+        + "_.groupByKey()\n"
+        + "_.map(new org.apache.beam.sdk.transforms.Combine$CombineFn$KeyIgnoringCombineFn())\n"
+        + "_.mapPartitions(new org.apache.beam.runners.spark"
+        + ".SparkNativePipelineVisitorTest$PlusOne())\n"
+        + "sparkContext.union(...)\n"
+        + "_.mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$FormatAsTextFn())\n"
+        + "_.<org.apache.beam.sdk.io.TextIO$Write$Bound>";
 
     String debugString = visitor.getDebugString();
 
@@ -161,14 +189,18 @@ public class SparkNativePipelineVisitorTest {
     pipeline.traverseTopologically(visitor);
 
     final String expectedPipeline = "KafkaUtils.createDirectStream(...)\n"
-        + ".<window>\n"
-        + ".mapPartitions(new org.apache.beam.runners.spark."
+        + "_.map(new org.apache.beam.sdk.transforms.windowing.FixedWindows())\n"
+        + "_.mapPartitions(new org.apache.beam.runners.spark."
         + "SparkNativePipelineVisitorTest$FormatKVFn())\n"
-        + ".mapPartitions(new org.apache.beam.sdk.transforms.Distinct$2())\n"
-        + ".<combinePerKey>\n"
-        + ".mapPartitions(new org.apache.beam.sdk.transforms.Keys$1())\n"
-        + ".mapPartitions(new org.apache.beam.sdk.transforms.WithKeys$2())\n"
-        + ".<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";
+        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$2())\n"
+        + "_.transform(new Function<JavaRDD<...>, JavaRDD<...>>() {"
+        + " @Override ... call(JavaRDD<...> rdd) {"
+        + " rdd.combineByKey(...,"
+        + " new org.apache.beam.sdk.transforms.Combine$CombineFn$KeyIgnoringCombineFn(), ...);"
+        + " } })\n"
+        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Keys$1())\n"
+        + "_.mapPartitions(new org.apache.beam.sdk.transforms.WithKeys$2())\n"
+        + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";
 
     String debugString = visitor.getDebugString();
 
@@ -200,5 +232,12 @@ public class SparkNativePipelineVisitorTest {
     options.setDebugPipeline(true);
     options.setRunner(TestSparkRunner.class);
     return options;
+  }
+
+  private static class PlusOne extends SimpleFunction<KV<String, Long>, KV<String, Long>> {
+    @Override
+    public KV<String, Long> apply(KV<String, Long> input) {
+      return KV.of(input.getKey(), input.getValue() + 1);
+    }
   }
 }
