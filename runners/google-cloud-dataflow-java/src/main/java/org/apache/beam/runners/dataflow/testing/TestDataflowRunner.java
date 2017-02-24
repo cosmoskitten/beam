@@ -116,36 +116,17 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         job, new MonitoringUtil.LoggingHandler());
 
     try {
-      final Optional<Boolean> success;
+      final Optional<Boolean> assertionResult;
 
+      State finalState;
       if (options.isStreaming()) {
-        Future<Optional<Boolean>> resultFuture = options.getExecutorService().submit(
-            new Callable<Optional<Boolean>>() {
-          @Override
-          public Optional<Boolean> call() throws Exception {
-            try {
-              for (;;) {
-                JobMetrics metrics = getJobMetrics(job);
-                Optional<Boolean> success = checkForPAssertSuccess(job, metrics);
-                if (success.isPresent() && (!success.get() || atMaxWatermark(job, metrics))) {
-                  // It's possible that the streaming pipeline doesn't use PAssert.
-                  // So checkForSuccess() will return true before job is finished.
-                  // atMaxWatermark() will handle this case.
-                  return success;
-                }
-                Thread.sleep(10000L);
-              }
-            } finally {
-              if (!job.getState().isTerminal()) {
-                LOG.info("Cancelling Dataflow job {}", job.getJobId());
-                job.cancel();
-              }
-            }
-          }
-        });
-        State finalState =
+        Future<Optional<Boolean>> assertionResultFuture =
+            options.getExecutorService().submit(new PAssertSuccessWatcher(job));
+
+        finalState =
             job.waitUntilFinish(
                 Duration.standardSeconds(options.getTestTimeoutSeconds()), messageHandler);
+
         if (finalState == null || finalState == State.RUNNING) {
           LOG.info(
               "Dataflow job {} took longer than {} seconds to complete, cancelling.",
@@ -153,23 +134,47 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               options.getTestTimeoutSeconds());
           job.cancel();
         }
-        success = resultFuture.get();
+        assertionResult = assertionResultFuture.get();
+        finalState = job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
       } else {
-        job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
-        success = checkForPAssertSuccess(job, getJobMetrics(job));
+        finalState = job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
+        assertionResult = checkForPAssertSuccess(job, getJobMetrics(job));
       }
-      if (!success.isPresent()) {
-        throw new IllegalStateException(
-            "The dataflow did not output a success or failure metric.");
-      } else if (!success.get()) {
-        throw new AssertionError(
-            Strings.isNullOrEmpty(messageHandler.getErrorMessage())
-                ? String.format(
-                    "Dataflow job %s terminated in state %s but did not return a failure reason.",
-                    job.getJobId(), job.getState())
-                : messageHandler.getErrorMessage());
+
+      String errorMessage =
+          Strings.isNullOrEmpty(messageHandler.getErrorMessage())
+              ? "no error message returned"
+              : messageHandler.getErrorMessage();
+
+      if (!assertionResult.isPresent()) {
+        // In this case, we cannot confirm any PAssert successes or failures.
+        // This implies that there were actually PAsserts but they were not
+        // run, for whatever reason. This is a failure, but not known to be
+        // an assertion failure.
+        throw new RuntimeException(
+            String.format(
+                "Dataflow job %s in state %s did not execute all PAsserts: %s",
+                job.getJobId(), finalState, errorMessage));
       } else {
-        assertThat(job, testPipelineOptions.getOnSuccessMatcher());
+        // In this case, we can conclusively determine whether all PAsserts
+        // succeeded or failed. However, in the success case the job may still have
+        // failed for other reasons, and we still need to check the onSuccessMatcher.
+
+        if (!assertionResult.get()) {
+          throw new AssertionError(
+              String.format(
+                  "Dataflow job %s terminated in state %s: %s",
+                  job.getJobId(), finalState, errorMessage));
+        } else if (!(finalState == State.DONE || finalState == State.CANCELLED)) {
+          throw new RuntimeException(
+              String.format(
+                  "Dataflow job %s terminated in state %s: ",
+                  job.getJobId(),
+                  finalState,
+                  errorMessage));
+        } else {
+          assertThat(job, testPipelineOptions.getOnSuccessMatcher());
+        }
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -198,21 +203,14 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Check that PAssert expectations were met.
    *
-   * <p>If the pipeline is not in a failed/cancelled state and no PAsserts were used
-   * within the pipeline, then this method will state that all PAsserts succeeded.
-   *
-   * @return Optional.of(false) if the job failed, was cancelled or if any PAssert
-   *         expectation was not met, true if all the PAssert expectations passed,
-   *         Optional.absent() if the metrics were inconclusive.
+   * @return Optional.of(false) if any PAssert expectation was not met,
+   *         true if all the PAssert expectations passed,
+   *         Optional.absent() if metrics are absent
+   *         be considered an AssertionError or the metrics were inconclusive.
    */
   @VisibleForTesting
   Optional<Boolean> checkForPAssertSuccess(DataflowPipelineJob job, @Nullable JobMetrics metrics)
       throws IOException {
-    State state = job.getState();
-    if (state == State.FAILED || state == State.CANCELLED) {
-      LOG.info("The pipeline failed");
-      return Optional.of(false);
-    }
 
     if (metrics == null || metrics.getMetrics() == null) {
       LOG.warn("Metrics not present for Dataflow job {}.", job.getJobId());
@@ -249,6 +247,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     LOG.info("Running Dataflow job {}. Found {} success, {} failures out of {} expected "
         + "assertions.", job.getJobId(), successes, failures, expectedNumberOfAssertions);
+
     return Optional.absent();
   }
 
@@ -352,6 +351,41 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     private String getErrorMessage() {
       return errorMessage.toString();
+    }
+  }
+
+  /**
+   * A callable that repeatedly polls a job for PAssert success or failure, and cancels the job when
+   * either is discovered.
+   */
+  private class PAssertSuccessWatcher implements Callable<Optional<Boolean>> {
+
+    private final DataflowPipelineJob job;
+
+    public PAssertSuccessWatcher(DataflowPipelineJob job) {
+      this.job = job;
+    }
+
+    @Override
+    public Optional<Boolean> call() throws Exception {
+      try {
+        for (;;) {
+          JobMetrics metrics = getJobMetrics(job);
+          Optional<Boolean> success = checkForPAssertSuccess(job, metrics);
+          if (success.isPresent() && (!success.get() || atMaxWatermark(job, metrics))) {
+            // It's possible that the streaming pipeline doesn't use PAssert.
+            // So checkForSuccess() will return true before job is finished.
+            // atMaxWatermark() will handle this case.
+            return success;
+          }
+          Thread.sleep(10000L);
+        }
+      } finally {
+        if (!job.getState().isTerminal()) {
+          LOG.info("Cancelling Dataflow job {}", job.getJobId());
+          job.cancel();
+        }
+      }
     }
   }
 }

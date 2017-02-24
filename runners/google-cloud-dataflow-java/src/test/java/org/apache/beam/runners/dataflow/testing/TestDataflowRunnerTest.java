@@ -29,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
@@ -83,6 +84,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -165,7 +167,7 @@ public class TestDataflowRunnerTest {
         false /* tentative */, null /* additionalMetrics */));
     try {
       runner.run(p, mockRunner);
-    } catch (AssertionError expected) {
+    } catch (RuntimeException expected) {
       return;
     }
     // Note that fail throws an AssertionError which is why it is placed out here
@@ -224,6 +226,10 @@ public class TestDataflowRunnerTest {
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
     when(mockJob.getState()).thenReturn(State.RUNNING);
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+        .thenReturn(State.RUNNING);
+    when(mockJob.waitUntilFinish(eq(Duration.standardSeconds(-1)), any(JobMessagesHandler.class)))
+        .thenReturn(State.CANCELLED);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
@@ -245,6 +251,10 @@ public class TestDataflowRunnerTest {
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
     when(mockJob.getState()).thenReturn(State.RUNNING);
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+        .thenReturn(State.RUNNING);
+    when(mockJob.waitUntilFinish(eq(Duration.standardSeconds(-1)), any(JobMessagesHandler.class)))
+        .thenReturn(State.CANCELLED);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
@@ -488,7 +498,7 @@ public class TestDataflowRunnerTest {
 
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     doReturn(State.FAILED).when(job).getState();
-    assertEquals(Optional.of(false), runner.checkForPAssertSuccess(job, null /* metrics */));
+    assertEquals(Optional.absent(), runner.checkForPAssertSuccess(job, null /* metrics */));
   }
 
   @Test
