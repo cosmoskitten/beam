@@ -100,7 +100,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return ".print(...)";
       }
     };
@@ -119,7 +119,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "streamingContext.<readFrom(<source>)>()";
       }
     };
@@ -135,7 +135,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "streamingContext.queueStream(...)";
       }
     };
@@ -190,7 +190,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<flattenPColl>";
       }
@@ -241,7 +241,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<window>";
       }
@@ -281,7 +281,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "groupByKey()";
       }
     };
@@ -332,7 +332,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<combineGrouped>";
       }
@@ -384,7 +384,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<combineGlobally>";
       }
@@ -433,7 +433,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<combinePerKey>";
       }
@@ -485,7 +485,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "mapPartitions(new <doFn>())";
       }
     };
@@ -546,7 +546,7 @@ public final class StreamingTransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "mapPartitions(new <doFn>())";
       }
     };

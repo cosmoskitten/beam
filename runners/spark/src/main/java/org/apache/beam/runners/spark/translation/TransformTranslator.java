@@ -118,7 +118,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<flattenPColl>";
       }
@@ -151,7 +151,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "groupByKey()";
       }
     };
@@ -187,7 +187,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<combineGrouped>";
       }
@@ -224,7 +224,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<combineGlobally>";
       }
@@ -261,7 +261,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<combinePerKey>";
       }
@@ -294,7 +294,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "mapPartitions(new <doFn>())";
       }
     };
@@ -339,7 +339,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "mapPartitions(new <doFn>())";
       }
     };
@@ -354,6 +354,11 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<String>> rdd = context.getSparkContext().textFile(pattern)
             .map(WindowingHelpers.<String>windowFunction());
         context.putDataset(transform, new BoundedDataset<>(rdd));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.textFile(...)";
       }
     };
   }
@@ -380,6 +385,11 @@ public final class TransformTranslator {
         writeHadoopFile(last, new Configuration(), shardTemplateInfo, Text.class,
             NullWritable.class, TemplatedTextOutputFormat.class);
       }
+
+      @Override
+      public String toNativeString() {
+        return "saveAsNewAPIHadoopFile(...)";
+      }
     };
   }
 
@@ -403,6 +413,11 @@ public final class TransformTranslator {
               }
             }).map(WindowingHelpers.<T>windowFunction());
         context.putDataset(transform, new BoundedDataset<>(rdd));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.newAPIHadoopFile(...)";
       }
     };
   }
@@ -435,6 +450,11 @@ public final class TransformTranslator {
         writeHadoopFile(last, job.getConfiguration(), shardTemplateInfo,
             AvroKey.class, NullWritable.class, TemplatedAvroKeyOutputFormat.class);
       }
+
+      @Override
+      public String toNativeString() {
+        return "mapToPair(<objectToAvroKeyFn>).saveAsNewAPIHadoopFile(...)";
+      }
     };
   }
 
@@ -452,7 +472,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "sparkContext.<readFrom(<source>)>()";
       }
     };
@@ -480,7 +500,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "sparkContext.newAPIHadoopFile(...)";
       }
     };
@@ -513,7 +533,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "saveAsNewAPIHadoopFile(...)";
       }
     };
@@ -590,7 +610,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<window>";
       }
@@ -609,7 +629,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "sparkContext.parallelize(Arrays.asList(...))";
       }
     };
@@ -631,7 +651,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "collect()";
       }
     };
@@ -653,7 +673,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "collect()";
       }
     };
@@ -677,7 +697,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         // TODO: return meaningful Spark native operation
         return "<createPCollView>";
       }
@@ -704,7 +724,7 @@ public final class TransformTranslator {
       }
 
       @Override
-      public String toString() {
+      public String toNativeString() {
         return "sparkContext.parallelize(rdd.getStorageLevel().description())";
       }
     };
