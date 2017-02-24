@@ -273,14 +273,12 @@
       <groupId>com.datastax.cassandra</groupId>
       <artifactId>cassandra-driver-core</artifactId>
       <version>${cassandra.driver.core.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch-hadoop</artifactId>
       <version>${elasticsearch.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
