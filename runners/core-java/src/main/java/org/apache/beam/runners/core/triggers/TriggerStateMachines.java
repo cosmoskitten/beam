@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -49,11 +49,10 @@ public class TriggerStateMachines {
       case NEVER:
         return NeverStateMachine.ever();
       case ALWAYS:
-        return new ReshuffleTriggerStateMachine();
+        return ReshuffleTriggerStateMachine.create();
       case OR_FINALLY:
-        return new OrFinallyStateMachine(
-            stateMachineForTrigger(trigger.getOrFinally().getMain()),
-            stateMachineForTrigger(trigger.getOrFinally().getFinally()));
+        return stateMachineForTrigger(trigger.getOrFinally().getMain())
+            .orFinally(stateMachineForTrigger(trigger.getOrFinally().getFinally()));
       case REPEAT:
         return RepeatedlyStateMachine.forever(
             stateMachineForTrigger(trigger.getRepeat().getSubtrigger()));
@@ -61,38 +60,12 @@ public class TriggerStateMachines {
         return AfterEachStateMachine.inOrder(
             stateMachinesForTriggers(trigger.getAfterEach().getSubtriggersList()));
       case AFTER_PROCESSING_TIME:
-        AfterDelayFromFirstElementStateMachine stateMachine =
-            AfterProcessingTimeStateMachine.pastFirstElementInPane();
-        for (RunnerApi.TimestampTransform transform :
-            trigger.getAfterProcessingTime().getTimestampTransformsList()) {
-          switch (transform.getTimestampTransformCase()) {
-            case ALIGN_TO:
-              stateMachine =
-                  stateMachine.alignedTo(
-                      Duration.millis(transform.getAlignTo().getPeriod()),
-                      new Instant(transform.getAlignTo().getOffset()));
-              break;
-            case DELAY:
-              stateMachine =
-                  stateMachine.plusDelayOf(Duration.millis(transform.getDelay().getDelayMillis()));
-              break;
-            case TIMESTAMPTRANSFORM_NOT_SET:
-              throw new IllegalArgumentException(
-                  String.format("Required field 'timestamp_transform' not set in %s", transform));
-            default:
-              throw new IllegalArgumentException(
-                  String.format(
-                      "Unknown timestamp transform case: %s",
-                      transform.getTimestampTransformCase()));
-          }
-        }
-        return stateMachine;
+        return stateMachineForAfterProcessingTime(trigger.getAfterProcessingTime());
       case TRIGGER_NOT_SET:
         throw new IllegalArgumentException(
             String.format("Required field 'trigger' not set on %s", trigger));
       default:
-        throw new IllegalArgumentException(
-            String.format("Unknown trigger type %s", trigger));
+        throw new IllegalArgumentException(String.format("Unknown trigger type %s", trigger));
     }
   }
 
@@ -112,9 +85,37 @@ public class TriggerStateMachines {
     }
   }
 
+  private static TriggerStateMachine stateMachineForAfterProcessingTime(
+      RunnerApi.Trigger.AfterProcessingTime trigger) {
+    AfterDelayFromFirstElementStateMachine stateMachine =
+        AfterProcessingTimeStateMachine.pastFirstElementInPane();
+    for (RunnerApi.TimestampTransform transform : trigger.getTimestampTransformsList()) {
+      switch (transform.getTimestampTransformCase()) {
+        case ALIGN_TO:
+          stateMachine =
+              stateMachine.alignedTo(
+                  Duration.millis(transform.getAlignTo().getPeriod()),
+                  new Instant(transform.getAlignTo().getOffset()));
+          break;
+        case DELAY:
+          stateMachine =
+              stateMachine.plusDelayOf(Duration.millis(transform.getDelay().getDelayMillis()));
+          break;
+        case TIMESTAMPTRANSFORM_NOT_SET:
+          throw new IllegalArgumentException(
+              String.format("Required field 'timestamp_transform' not set in %s", transform));
+        default:
+          throw new IllegalArgumentException(
+              String.format(
+                  "Unknown timestamp transform case: %s", transform.getTimestampTransformCase()));
+      }
+    }
+    return stateMachine;
+  }
+
   private static List<TriggerStateMachine> stateMachinesForTriggers(
       List<RunnerApi.Trigger> triggers) {
-    List<TriggerStateMachine> stateMachines = Lists.newArrayListWithCapacity(triggers.size());
+    List<TriggerStateMachine> stateMachines = new ArrayList<>(triggers.size());
     for (RunnerApi.Trigger trigger : triggers) {
       stateMachines.add(stateMachineForTrigger(trigger));
     }

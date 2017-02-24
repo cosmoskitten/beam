@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.triggers;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
@@ -88,7 +89,10 @@ public class TriggerStateMachinesTest {
     AfterWatermarkStateMachine.FromEndOfWindow machine =
         (AfterWatermarkStateMachine.FromEndOfWindow)
             TriggerStateMachines.stateMachineForTrigger(trigger);
-    // No parameters, so if it doesn't crash, we win!
+
+    assertThat(
+        TriggerStateMachines.stateMachineForTrigger(trigger),
+        instanceOf(AfterWatermarkStateMachine.FromEndOfWindow.class));
   }
 
   @Test
@@ -97,10 +101,10 @@ public class TriggerStateMachinesTest {
         RunnerApi.Trigger.newBuilder()
             .setDefault(RunnerApi.Trigger.Default.getDefaultInstance())
             .build();
-    DefaultTriggerStateMachine machine =
-        (DefaultTriggerStateMachine)
-            checkNotNull(TriggerStateMachines.stateMachineForTrigger(trigger));
-    // No parameters, so if it doesn't crash, we win!
+
+    assertThat(
+        TriggerStateMachines.stateMachineForTrigger(trigger),
+        instanceOf(DefaultTriggerStateMachine.class));
   }
 
   @Test
