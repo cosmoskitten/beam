@@ -63,7 +63,6 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 
-
 /**
  * A {@link Sink} for writing records to a Hadoop filesystem using a Hadoop file-based output
  * format.
