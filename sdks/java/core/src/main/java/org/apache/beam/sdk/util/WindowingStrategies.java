@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
@@ -127,14 +129,19 @@ public class WindowingStrategies implements Serializable {
 
   // This URN says that the coder is just a UDF blob the indicated SDK understands
   // TODO: standardize such things
-  private static final String CUSTOM_CODER_URN = "urn:beam:coders:custom:1.0";
+  private static final String CUSTOM_CODER_URN = "urn:beam:coders:javasdk:0.1";
 
   // This URN says that the WindowFn is just a UDF blob the indicated SDK understands
   // TODO: standardize such things
-  private static final String CUSTOM_WINDOWFN_URN = "urn:beam:windowfn:custom:1.0";
+  private static final String CUSTOM_WINDOWFN_URN = "urn:beam:windowfn:javasdk:0.1";
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+  /**
+   * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where
+   * {@link RunnerApi.MessageWithComponents#getFunctionSpec()} is a {@link RunnerApi.FunctionSpec}
+   * for the input {@link WindowFn}.
+   */
   public static RunnerApi.MessageWithComponents toProto(WindowFn<?, ?> windowFn)
       throws IOException {
     Coder<?> windowCoder = windowFn.windowCoder();
@@ -179,6 +186,12 @@ public class WindowingStrategies implements Serializable {
         .build();
   }
 
+  /**
+   * Converts a {@link WindowingStrategy} into a {@link RunnerApi.MessageWithComponents} where
+   * {@link RunnerApi.MessageWithComponents#getWindowingStrategy()} ()} is a {@link
+   * RunnerApi.WindowingStrategy RunnerApi.WindowingStrategy (proto)} for the input {@link
+   * WindowingStrategy}.
+   */
   public static RunnerApi.MessageWithComponents toProto(WindowingStrategy<?, ?> windowingStrategy)
       throws IOException {
 
@@ -233,16 +246,20 @@ public class WindowingStrategies implements Serializable {
       RunnerApi.WindowingStrategy proto, RunnerApi.Components components)
       throws InvalidProtocolBufferException {
 
+    FunctionSpec windowFnSpec =
+        components
+            .getFunctionSpecsMap()
+            .get(proto.getFnId());
+
+    checkArgument(
+        windowFnSpec.getSpec().getUrn().equals(CUSTOM_WINDOWFN_URN),
+        "Only Java-serialized %s instances are supported, with URN %s. But found URN %s",
+        WindowFn.class.getSimpleName(),
+        windowFnSpec.getSpec().getUrn());
+
     Object deserializedWindowFn =
         SerializableUtils.deserializeFromByteArray(
-            components
-                .getFunctionSpecsMap()
-                .get(proto.getFnId())
-                .getSpec()
-                .getParameter()
-                .unpack(BytesValue.class)
-                .getValue()
-                .toByteArray(),
+            windowFnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray(),
             "WindowFn");
 
     WindowFn<?, ?> windowFn = (WindowFn<?, ?>) deserializedWindowFn;
