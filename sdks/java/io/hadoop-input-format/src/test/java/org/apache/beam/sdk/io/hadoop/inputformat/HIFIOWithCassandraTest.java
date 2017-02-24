@@ -22,7 +22,10 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
+
 import java.io.Serializable;
+
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -76,6 +79,7 @@ public class HIFIOWithCassandraTest implements Serializable {
   public void testHIFReadForCassandra() throws Exception {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     String expectedHashCode = "4651110ba1ef2cd3a7315091ca27877b18fceb0e";
+    Pipeline p = TestPipeline.create();
     Configuration conf = getConfiguration();
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       @Override
@@ -105,6 +109,7 @@ public class HIFIOWithCassandraTest implements Serializable {
   public void testHIFReadForCassandraQuery() throws Exception {
     Long expectedCount = 1L;
     String expectedChecksum = "6a62f24ccce0713004889aec1cf226949482d188";
+    Pipeline p = TestPipeline.create();
     Configuration conf = getConfiguration();
     conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
         + " where token(id) > ? and token(id) <= ? and scientist='Faraday1' allow filtering");
