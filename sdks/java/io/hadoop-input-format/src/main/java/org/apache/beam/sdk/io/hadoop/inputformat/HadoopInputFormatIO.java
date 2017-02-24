@@ -147,8 +147,11 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
+ * <p>
  * // Read data with configuration and value translation (Example scenario: Beam Coder is not
  * available for value class hence value translation is required.).
+ * </p>
+ *
  * <pre>
  * {@code
  * SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt; myOutputValueType =
