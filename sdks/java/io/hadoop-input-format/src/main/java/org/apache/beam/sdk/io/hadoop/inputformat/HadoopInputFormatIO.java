@@ -93,7 +93,6 @@ import org.slf4j.LoggerFactory;
  * 'mapreduce.job.inputformat.class'.</li>
  * </ul>
  * For example:
- * </p>
  *
  * <pre>
  * {
