@@ -80,9 +80,9 @@ import org.slf4j.LoggerFactory;
  * so if there is another Beam IO Transform specifically for connecting to your data source of
  * choice, we would recommend using that one, but this IO Transform allows you to connect to many
  * data sources that do not yet have a Beam IO Transform.
- * <p>
- * You will need to pass a Hadoop {@link Configuration} with parameters specifying how the read will
- * occur. Many properties of the Configuration are optional, and some are required for certain
+ *
+ * <p>You will need to pass a Hadoop {@link Configuration} with parameters specifying how the read
+ * will occur. Many properties of the Configuration are optional, and some are required for certain
  * InputFormat classes, but the following properties must be set for all InputFormats:
  * <ul>
  * <li>mapreduce.job.inputformat.class: The InputFormat class used to connect to your data source of
