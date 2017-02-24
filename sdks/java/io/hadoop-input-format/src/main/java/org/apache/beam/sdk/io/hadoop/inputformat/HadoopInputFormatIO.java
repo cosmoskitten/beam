@@ -27,7 +27,9 @@ import com.google.common.util.concurrent.AtomicDouble;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -62,6 +64,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -989,47 +992,37 @@ public class HadoopInputFormatIO {
         return 1;
       }
     }
+  }
 
-    /**
-     * A wrapper to allow Hadoop {@link org.apache.hadoop.mapreduce.InputSplit} to be serialized
-     * using Java's standard serialization mechanisms.
-     */
-    public static class SerializableSplit implements Externalizable {
+  /**
+   * A wrapper to allow Hadoop {@link org.apache.hadoop.mapreduce.InputSplit} to be serialized using
+   * Java's standard serialization mechanisms.
+   */
+  public static class SerializableSplit implements Serializable {
 
-      private InputSplit split;
+    InputSplit inputSplit;
 
-      public SerializableSplit() {}
+    public SerializableSplit() {}
 
-      public SerializableSplit(InputSplit split) {
-        checkArgument(split instanceof Writable, String
-            .format(HadoopInputFormatIOConstants.SERIALIZABLE_SPLIT_WRITABLE_ERROR_MSG, split));
-        this.split = split;
-      }
-
-      public InputSplit getSplit() {
-        return split;
-      }
-
-      @Override
-      public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeUTF(split.getClass().getCanonicalName());
-        ((Writable) split).write(out);
-      }
-
-      @Override
-      public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        String className = in.readUTF();
-        try {
-          split = (InputSplit) Class.forName(className).newInstance();
-          ((Writable) split).readFields(in);
-        } catch (InstantiationException | IllegalAccessException e) {
-          throw new IOException("Unable to create split: " + e);
-        }
-      }
+    public SerializableSplit(InputSplit split) {
+      checkArgument(split instanceof Writable,
+          String.format(HadoopInputFormatIOConstants.SERIALIZABLE_SPLIT_WRITABLE_ERROR_MSG, split));
+      this.inputSplit = split;
     }
 
-    public boolean producesSortedKeys(PipelineOptions arg0) throws Exception {
-      return false;
+    public InputSplit getSplit() {
+      return inputSplit;
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      ObjectWritable ow = new ObjectWritable();
+      ow.setConf(new Configuration(false));
+      ow.readFields(in);
+      this.inputSplit = (InputSplit) ow.get();
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+      new ObjectWritable(inputSplit).write(out);
     }
   }
 

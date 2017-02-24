@@ -108,6 +108,7 @@
         <configuration>
           <systemPropertyVariables>
             <beamUseDummyRunner>false</beamUseDummyRunner>
+            <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
           </systemPropertyVariables>
         </configuration>
       </plugin>

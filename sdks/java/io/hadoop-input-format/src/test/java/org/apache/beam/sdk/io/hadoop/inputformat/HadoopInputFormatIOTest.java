@@ -19,8 +19,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.datastax.driver.core.Row;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -36,9 +34,9 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource.SerializableSplit;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Read;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableSplit;
 import org.apache.beam.sdk.io.hadoop.inputformat.coders.WritableCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ConfigurableEmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.Employee;
@@ -76,6 +74,8 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
+
+import com.datastax.driver.core.Row;
 
 /**
  * Unit tests for {@link HadoopInputFormatIO}.
