@@ -17,11 +17,17 @@
  */
 package org.apache.beam.runners.spark;
 
+import static org.junit.Assert.assertEquals;
+
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Test;
 
 /**
  * This test checks how the cache candidates is populated by the Spark runner when evaluating the
@@ -29,23 +35,22 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class CacheTest {
 
-  /**
-   * An evaluator used to get the cache candidates populated during DAGPreVisit and test if the
-   * cache is correctly enabled.
-   */
-  class TestEvaluator extends Pipeline.PipelineVisitor.Defaults {
+  @Test
+  public void testCache() throws Exception {
+    SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection pcollection = pipeline.apply(Create.of("foo", "bar"));
+    pcollection.setName("shouldBeCached");
+    // first read
+    pcollection.apply(Count.globally());
+    // second read
+    pcollection.apply(Count.globally());
 
-    private final Map<PCollection, Long> cacheCandidates;
-
-    public TestEvaluator(Map<PCollection, Long> cacheCandidates) {
-      this.cacheCandidates = cacheCandidates;
-    }
-
-    @Override
-    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-      // TODO
-    }
-
+    Map<PCollection, Long> cacheCandidates = new HashMap<>();
+    SparkRunner.DAGPreVisit dagPreVisit = new SparkRunner.DAGPreVisit(cacheCandidates);
+    pipeline.traverseTopologically(dagPreVisit);
+    assertEquals(2L, (long) cacheCandidates.get(pcollection));
   }
 
 }
