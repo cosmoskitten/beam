@@ -125,11 +125,8 @@ import org.slf4j.LoggerFactory;
  *     HadoopInputFormatIO.<InputFormatKeyClass, InputFormatKeyClass>read()
  *              .withConfiguration(myHadoopConfiguration);
  * }
- *
- * <p>
  * // Read data with configuration and key translation (Example scenario: Beam Coder is not
  * available for key class hence key translation is required.).
- * </p>
  * SimpleFunction&lt;InputFormatKeyClass, MyKeyClass&gt; myOutputKeyType =
  *       new SimpleFunction&lt;InputFormatKeyClass, MyKeyClass&gt;() {
  *         public MyKeyClass apply(InputFormatKeyClass input) {
