@@ -234,8 +234,10 @@ public class WindowedWordCount {
               public String apply(Context input) {
                 IntervalWindow window = (IntervalWindow) input.getWindow();
                 return String.format(
-                    "-%s-%s", formatter.print(window.start()), formatter.print(window.end())
-                );
+                    "%s-%s-%s",
+                    output,
+                    formatter.print(window.start()),
+                    formatter.print(window.end()));
               }
             })
             .withNumShards(1)
