@@ -19,6 +19,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+import com.datastax.driver.core.Row;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -65,8 +66,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
-
-import com.datastax.driver.core.Row;
 
 /**
  * Unit tests for {@link HadoopInputFormatIO}.
