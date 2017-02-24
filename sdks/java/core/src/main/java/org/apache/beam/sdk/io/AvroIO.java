@@ -95,12 +95,13 @@ import org.apache.beam.sdk.values.PDone;
  * {@code "gs://<bucket>/<filepath>"}). {@link AvroIO.Write#to(FilenamePolicy)} can also be used
  * to specify a custom file naming policy.
  *
- * <p>By default, all input is put into the global window before writing. If per-winodw writes are
+ * <p>By default, all input is put into the global window before writing. If per-window writes are
  * desired - for example, when using a streaming runner -
  * {@link AvroIO.Write.Bound#withWindowedWrites()} will cause windowing and triggering to be
- * preserved. When producing windowed writes, the number of output shards must be set explicilty
- * using {@link AvroIO.Write.Bound#withNumShards(int)}. A {@link FilenamePolicy} must be set, and
- * unique windows and triggers must produce unique filenames.
+ * preserved. When producing windowed writes, the number of output shards must be set explicitly
+ * using {@link AvroIO.Write.Bound#withNumShards(int)}; some runners may set this for you to a
+ * runner-chosen value, so you may need not set it yourself. A {@link FilenamePolicy} must be
+ * set, and unique windows and triggers must produce unique filenames.
  *
  * <p>It is required to specify {@link AvroIO.Write#withSchema}. To
  * write specific records, such as Avro-generated classes, provide an

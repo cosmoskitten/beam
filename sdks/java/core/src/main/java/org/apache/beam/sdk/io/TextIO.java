@@ -86,6 +86,14 @@ import org.apache.beam.sdk.values.PDone;
  * filename or sharded filename pattern of the form
  * {@code "gs://<bucket>/<filepath>"}).
  *
+ * <p>By default, all input is put into the global window before writing. If per-window writes are
+ * desired - for example, when using a streaming runner -
+ * {@link AvroIO.Write.Bound#withWindowedWrites()} will cause windowing and triggering to be
+ * preserved. When producing windowed writes, the number of output shards must be set explicitly
+ * using {@link AvroIO.Write.Bound#withNumShards(int)}; some runners may set this for you to a
+ * runner-chosen value, so you may need not set it yourself. A {@link FilenamePolicy} must be
+ * set, and unique windows and triggers must produce unique filenames.
+ *
  * <p>Any existing files with the same names as generated output files
  * will be overwritten.
  *
