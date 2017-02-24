@@ -33,12 +33,16 @@ import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
@@ -218,6 +222,62 @@ public class WindowTest implements Serializable {
       .apply("Mode", Window.<String>accumulatingFiredPanes())
       .apply("Window", Window.<String>into(fixed10))
       .apply("Trigger", Window.<String>triggering(trigger));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testNoWindowFnDoesNotReassignWindows() {
+    pipeline.enableAbandonedNodeEnforcement(true);
+
+    PCollection<Long> initialWindows = pipeline.apply(CountingInput.upTo(10L))
+        .apply("AssignInitialTimestamps", WithTimestamps.of(new SerializableFunction<Long, Instant>() {
+          @Override
+          public Instant apply(Long input) {
+            return new Instant(input);
+          }
+        }))
+        .apply("AssignWindows", Window.<Long>into(FixedWindows.of(Duration.millis(5L))));
+
+    PAssert.that(initialWindows)
+        .inWindow(new IntervalWindow(new Instant(0L), new Instant(5L)))
+        .containsInAnyOrder(0L, 1L, 2L, 3L, 4L);
+    PAssert.that(initialWindows)
+        .inWindow(new IntervalWindow(new Instant(5L), new Instant(10L)))
+        .containsInAnyOrder(5L, 6L, 7L, 8L, 9L);
+
+    PCollection<Long> newTimestamps =
+        initialWindows.apply(
+            "AssignSkewedTimestamps",
+            WithTimestamps.of(
+                new SerializableFunction<Long, Instant>() {
+                  @Override
+                  public Instant apply(Long input) {
+                    return new Instant(input + 10L);
+                  }
+                }));
+    PAssert.that(newTimestamps)
+        .inWindow(new IntervalWindow(new Instant(0L), new Instant(5L)))
+        .containsInAnyOrder(0L, 1L, 2L, 3L, 4L);
+    PAssert.that(newTimestamps)
+        .inWindow(new IntervalWindow(new Instant(5L), new Instant(10L)))
+        .containsInAnyOrder(5L, 6L, 7L, 8L, 9L);
+
+    // Should in general only update the windowing strategy, not any windows that were assigned
+    // previously.
+    PCollection<Long> updatedTrigger =
+       newTimestamps.apply(
+            "UpdateWindowingStrategy",
+            Window.<Long>triggering(Never.ever())
+                .withAllowedLateness(Duration.ZERO)
+                .accumulatingFiredPanes());
+    PAssert.that(updatedTrigger)
+        .inWindow(new IntervalWindow(new Instant(0L), new Instant(5L)))
+        .containsInAnyOrder(0L, 1L, 2L, 3L, 4L);
+    PAssert.that(updatedTrigger)
+        .inWindow(new IntervalWindow(new Instant(5L), new Instant(10L)))
+        .containsInAnyOrder(5L, 6L, 7L, 8L, 9L);
+
+    pipeline.run();
   }
 
   /**
