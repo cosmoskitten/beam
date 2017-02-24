@@ -30,6 +30,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -40,9 +42,9 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
@@ -224,65 +226,84 @@ public class WindowTest implements Serializable {
       .apply("Trigger", Window.<String>triggering(trigger));
   }
 
+  private static class WindowOddEvenBuckets extends NonMergingWindowFn<Long, IntervalWindow> {
+    private static final IntervalWindow EVEN_WINDOW =
+        new IntervalWindow(
+            BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE.maxTimestamp());
+    private static final IntervalWindow ODD_WINDOW =
+        new IntervalWindow(
+            BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE.maxTimestamp().minus(1));
+
+    @Override
+    public Collection<IntervalWindow> assignWindows(AssignContext c) throws Exception {
+      if (c.element() % 2 == 0) {
+        return Collections.singleton(EVEN_WINDOW);
+      }
+      return Collections.singleton(ODD_WINDOW);
+    }
+
+    @Override
+    public boolean isCompatible(WindowFn<?, ?> other) {
+      return other instanceof WindowOddEvenBuckets;
+    }
+
+    @Override
+    public Coder<IntervalWindow> windowCoder() {
+      return new IntervalWindow.IntervalWindowCoder();
+    }
+
+    @Override
+    public IntervalWindow getSideInputWindow(BoundedWindow window) {
+      throw new UnsupportedOperationException(
+          String.format("Can't use %s for side inputs", getClass().getSimpleName()));
+    }
+  }
+
   @Test
   @Category(RunnableOnService.class)
   public void testNoWindowFnDoesNotReassignWindows() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
-    PCollection<Long> initialWindows =
+    final PCollection<Long> initialWindows =
         pipeline
             .apply(CountingInput.upTo(10L))
-            .apply(
-                "AssignInitialTimestamps",
-                WithTimestamps.of(
-                    new SerializableFunction<Long, Instant>() {
-                      @Override
-                      public Instant apply(Long input) {
-                        return new Instant(input);
-                      }
-                    }))
-            .apply("AssignWindows", Window.<Long>into(FixedWindows.of(Duration.millis(5L))));
+            .apply("AssignWindows", Window.into(new WindowOddEvenBuckets()));
 
     // Sanity check the window assignment to demonstrate the baseline
     PAssert.that(initialWindows)
-        .inWindow(new IntervalWindow(new Instant(0L), new Instant(5L)))
-        .containsInAnyOrder(0L, 1L, 2L, 3L, 4L);
+        .inWindow(WindowOddEvenBuckets.EVEN_WINDOW)
+        .containsInAnyOrder(0L, 2L, 4L, 6L, 8L);
     PAssert.that(initialWindows)
-        .inWindow(new IntervalWindow(new Instant(5L), new Instant(10L)))
-        .containsInAnyOrder(5L, 6L, 7L, 8L, 9L);
+        .inWindow(WindowOddEvenBuckets.ODD_WINDOW)
+        .containsInAnyOrder(1L, 3L, 5L, 7L, 9L);
 
-    PCollection<Long> newTimestamps =
+    PCollection<Boolean> upOne =
         initialWindows.apply(
-            "AssignSkewedTimestamps",
-            WithTimestamps.of(
-                new SerializableFunction<Long, Instant>() {
+            "ModifyTypes",
+            MapElements.<Long, Boolean>via(
+                new SimpleFunction<Long, Boolean>() {
                   @Override
-                  public Instant apply(Long input) {
-                    return new Instant(input + 10L);
+                  public Boolean apply(Long input) {
+                    return input % 2 == 0;
                   }
                 }));
-    PAssert.that(newTimestamps)
-        .inWindow(new IntervalWindow(new Instant(0L), new Instant(5L)))
-        .containsInAnyOrder(0L, 1L, 2L, 3L, 4L);
-    PAssert.that(newTimestamps)
-        .inWindow(new IntervalWindow(new Instant(5L), new Instant(10L)))
-        .containsInAnyOrder(5L, 6L, 7L, 8L, 9L);
+    PAssert.that(upOne)
+        .inWindow(WindowOddEvenBuckets.EVEN_WINDOW)
+        .containsInAnyOrder(true, true, true, true, true);
+    PAssert.that(upOne)
+        .inWindow(WindowOddEvenBuckets.ODD_WINDOW)
+        .containsInAnyOrder(false, false, false, false, false);
 
     // The elements should be in the same windows, even though they would not be assigned to the
-    // same windows with the updated timestamps
-    PCollection<Long> updatedTrigger =
-       newTimestamps.apply(
+    // same windows with the updated timestamps. If we try to apply the original WindowFn, the type
+    // will not be appropriate and the runner should crash, as a Boolean cannot be converted into
+    // a long.
+    PCollection<Boolean> updatedTrigger =
+        upOne.apply(
             "UpdateWindowingStrategy",
-            Window.<Long>triggering(Never.ever())
+            Window.<Boolean>triggering(Never.ever())
                 .withAllowedLateness(Duration.ZERO)
                 .accumulatingFiredPanes());
-    PAssert.that(updatedTrigger)
-        .inWindow(new IntervalWindow(new Instant(0L), new Instant(5L)))
-        .containsInAnyOrder(0L, 1L, 2L, 3L, 4L);
-    PAssert.that(updatedTrigger)
-        .inWindow(new IntervalWindow(new Instant(5L), new Instant(10L)))
-        .containsInAnyOrder(5L, 6L, 7L, 8L, 9L);
-
     pipeline.run();
   }
 

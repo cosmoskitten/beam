@@ -22,16 +22,16 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
 
 /**
@@ -474,8 +474,8 @@ public class Window {
       if (windowFn == null) {
         // A new PCollection must be created in case input is reused in a different location as the
         // two PCollections will, in general, have a different windowing strategy.
-        return input
-            .apply(ParDo.of(new IdentityDoFn<T>()))
+        return PCollectionList.of(input)
+            .apply(Flatten.<T>pCollections())
             .setWindowingStrategyInternal(outputStrategy);
       } else {
         // This is the AssignWindows primitive
@@ -530,17 +530,6 @@ public class Window {
     @Override
     protected String getKindString() {
       return "Window.Into()";
-    }
-  }
-
-  /**
-   * A {@link DoFn} that outputs every input element. Used to create a {@link PCollection} which
-   * is identical to the input {@link PCollection}, but has an independent node in the graph.
-   */
-  private static class IdentityDoFn<T> extends DoFn<T, T> {
-    @ProcessElement
-    public void identity(ProcessContext ctxt) {
-      ctxt.output(ctxt.element());
     }
   }
 
