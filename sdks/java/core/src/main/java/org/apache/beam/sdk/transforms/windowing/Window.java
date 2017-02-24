@@ -22,9 +22,11 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -152,7 +154,7 @@ public class Window {
      *
      * <p>This is the default behavior.
      */
-    FIRE_IF_NON_EMPTY;
+    FIRE_IF_NON_EMPTY
 
   }
 
@@ -469,8 +471,16 @@ public class Window {
     public PCollection<T> expand(PCollection<T> input) {
       WindowingStrategy<?, ?> outputStrategy =
           getOutputStrategyInternal(input.getWindowingStrategy());
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), outputStrategy, input.isBounded());
+      if (windowFn == null) {
+        // A new PCollection must be created in case input is reused in a different location.
+        return input
+            .apply(ParDo.of(new IdentityDoFn<T>()))
+            .setWindowingStrategyInternal(outputStrategy);
+      } else {
+        // This is the assignWindows primitive
+        return PCollection.createPrimitiveOutputInternal(
+            input.getPipeline(), outputStrategy, input.isBounded());
+      }
     }
 
     @Override
@@ -519,6 +529,17 @@ public class Window {
     @Override
     protected String getKindString() {
       return "Window.Into()";
+    }
+  }
+
+  /**
+   * A {@link DoFn} that outputs every input element. Used to create a {@link PCollection} which
+   * is identical to the input {@link PCollection}, but has an independent node in the graph.
+   */
+  private static class IdentityDoFn<T> extends DoFn<T, T> {
+    @ProcessElement
+    public void identity(ProcessContext ctxt) {
+      ctxt.output(ctxt.element());
     }
   }
 
