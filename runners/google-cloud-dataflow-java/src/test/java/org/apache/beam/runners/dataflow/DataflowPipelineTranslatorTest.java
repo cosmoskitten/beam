@@ -86,7 +86,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
@@ -441,7 +440,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  @Ignore("TODO: Reenable when the hierarchy is copied")
   public void testPredefinedAddStep() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
 
@@ -458,11 +456,13 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         .apply(ParDo.of(new NoOpFn()))
         .apply(new EmbeddedTransform(predefinedStep.clone()))
         .apply(ParDo.of(new NoOpFn()));
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
     Job job =
         translator
             .translate(
                 pipeline,
-                (DataflowRunner) pipeline.getRunner(),
+                runner,
                 Collections.<DataflowPackage>emptyList())
             .getJob();
     assertAllStepOutputsHaveUniqueIds(job);
@@ -824,7 +824,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  @Ignore("Incompatible with surgery as-written")
   public void testToSingletonTranslationWithIsmSideInput() throws Exception {
     // A "change detector" test that makes sure the translation
     // of getting a PCollectionView<T> does not change
@@ -836,11 +835,13 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
     pipeline.apply(Create.of(1))
         .apply(View.<Integer>asSingleton());
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
     Job job =
         translator
             .translate(
                 pipeline,
-                (DataflowRunner) pipeline.getRunner(),
+                runner,
                 Collections.<DataflowPackage>emptyList())
             .getJob();
     assertAllStepOutputsHaveUniqueIds(job);
@@ -859,7 +860,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  @Ignore("Incompatible with surgery as-written")
   public void testToIterableTranslationWithIsmSideInput() throws Exception {
     // A "change detector" test that makes sure the translation
     // of getting a PCollectionView<Iterable<T>> does not change
@@ -872,7 +872,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply(Create.of(1, 2, 3))
         .apply(View.<Integer>asIterable());
 
-    DataflowRunner runner = (DataflowRunner) pipeline.getRunner();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
     Job job =
         translator.translate(pipeline, runner, Collections.<DataflowPackage>emptyList()).getJob();
