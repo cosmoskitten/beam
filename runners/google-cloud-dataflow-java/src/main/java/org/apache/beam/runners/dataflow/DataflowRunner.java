@@ -681,6 +681,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return dataflowPipelineJob;
   }
 
+  @VisibleForTesting
   void replaceTransforms(Pipeline pipeline) {
     for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override : overrides.entrySet()) {
       pipeline.replace(override.getKey(), override.getValue());
