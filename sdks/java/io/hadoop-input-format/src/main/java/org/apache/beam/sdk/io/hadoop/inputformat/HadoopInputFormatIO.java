@@ -74,7 +74,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link HadoopInputFormatIO} is a {@link Transform} for reading data from any source which
+ * A {@link HadoopInputFormatIO} is a Transform for reading data from any source which
  * implements Hadoop InputFormat. For example- Cassandra, Elasticsearch, HBase, Redis, Postgres,
  * etc. HadoopInputFormatIO has to make several performance trade-offs in connecting to InputFormat,
  * so if there is another Beam IO Transform specifically for connecting to your data source of
@@ -96,7 +96,6 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>
  * {
- *   &#064;code
  *   Configuration myHadoopConfiguration = new Configuration(false);
  *   // Set Hadoop InputFormat, key and value class in configuration
  *   myHadoopConfiguration.setClass(&quot;mapreduce.job.inputformat.class&quot;,
@@ -119,7 +118,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading using HadoopInputFormatIO</h3>
  *
  * <pre>
- *  {@code
+ * {@code
  * Pipeline p = ...; // Create pipeline.
  * // Read data only with Hadoop configuration.
  * p.apply("read",
@@ -135,6 +134,7 @@ import org.slf4j.LoggerFactory;
  *           // ...logic to transform InputFormatKeyClass to MyKeyClass
  *         }
  * };
+ * </pre>
  *
  * <pre>
  * {@code
@@ -145,14 +145,18 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * </pre> // Read data with configuration and value translation (Example scenario: Beam Coder is not
+ * // Read data with configuration and value translation (Example scenario: Beam Coder is not
  * available for value class hence value translation is required.).
+ * <pre>
+ * {@code
  * SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt; myOutputValueType =
  *      new SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt;() {
  *          public MyValueClass apply(InputFormatValueClass input) {
  *            // ...logic to transform InputFormatValueClass to MyValueClass
  *          }
- * };
+ *  };
+ * }
+ * </pre>
  *
  * <pre>
  * {@code
