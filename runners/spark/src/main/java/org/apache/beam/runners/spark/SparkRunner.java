@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
@@ -272,6 +273,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline,
    * and populate the candidates for caching. It's the preparation step of the runner.
    */
+  @VisibleForTesting
   static class DAGPreVisit extends Pipeline.PipelineVisitor.Defaults {
     private static final Logger LOG = LoggerFactory.getLogger(DAGPreVisit.class);
 
