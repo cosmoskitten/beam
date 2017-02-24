@@ -240,6 +240,9 @@ public class WindowedWordCount {
                     formatter.print(window.end()));
               }
             })
+            // This is the number of shards per window. We set it to 1 here for testing
+            // convenience, however for many runners this does not need to be set. The output
+            // is still sharded by window however.
             .withNumShards(1)
             .withWindowedWrites());
 
