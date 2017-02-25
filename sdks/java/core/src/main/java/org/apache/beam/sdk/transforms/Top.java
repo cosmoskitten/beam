@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 import org.apache.beam.sdk.transforms.Combine.PerKey;
@@ -525,7 +526,7 @@ public class Top {
    * A {@link Coder} for {@link BoundedHeap}, using Java serialization via {@link CustomCoder}.
    */
   private static class BoundedHeapCoder<T, ComparatorT extends Comparator<T> & Serializable>
-      extends CustomCoder<BoundedHeap<T, ComparatorT>> {
+      extends StandardCoder<BoundedHeap<T, ComparatorT>> {
     private final Coder<List<T>> listCoder;
     private final ComparatorT compareFn;
     private final int maximumSize;
@@ -547,6 +548,11 @@ public class Top {
     public BoundedHeap<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       return new BoundedHeap<>(maximumSize, compareFn, listCoder.decode(inStream, context));
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return null;
     }
 
     @Override
