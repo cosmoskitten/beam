@@ -36,12 +36,11 @@ import org.junit.Test;
 public class CacheTest {
 
   @Test
-  public void testCache() throws Exception {
+  public void dagPreVisitCacheTest() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
     Pipeline pipeline = Pipeline.create(options);
     PCollection pcollection = pipeline.apply(Create.of("foo", "bar"));
-    pcollection.setName("shouldBeCached");
     // first read
     pcollection.apply(Count.globally());
     // second read
