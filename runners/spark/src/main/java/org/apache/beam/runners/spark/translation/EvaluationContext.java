@@ -116,15 +116,19 @@ public class EvaluationContext {
     return currentTransform.getOutputs();
   }
 
-  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
-    putDataset(getOutput(transform), dataset);
+  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset,
+                         boolean cacheHint) {
+    putDataset(getOutput(transform), dataset, cacheHint);
   }
 
-  public void putDataset(PValue pvalue, Dataset dataset) {
+  public void putDataset(PValue pvalue, Dataset dataset, boolean cacheHint) {
     try {
       dataset.setName(pvalue.getName());
     } catch (IllegalStateException e) {
       // name not set, ignore
+    }
+    if (cacheHint) {
+      dataset.cache(storageLevel());
     }
     datasets.put(pvalue, dataset);
     leaves.add(dataset);
@@ -140,16 +144,13 @@ public class EvaluationContext {
     datasets.put(getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
   }
 
-  public Dataset borrowDataset(PTransform<? extends PValue, ?> transform, boolean cacheHint) {
-    return borrowDataset(getInput(transform), cacheHint);
+  public Dataset borrowDataset(PTransform<? extends PValue, ?> transform) {
+    return borrowDataset(getInput(transform));
   }
 
-  public Dataset borrowDataset(PValue pvalue, boolean cacheHint) {
+  public Dataset borrowDataset(PValue pvalue) {
     Dataset dataset = datasets.get(pvalue);
     leaves.remove(dataset);
-    if (cacheHint) {
-      dataset.cache(storageLevel());
-    }
     return dataset;
   }
 

@@ -111,12 +111,12 @@ public final class TransformTranslator {
                 "Flatten had non-PCollection value in input: %s of type %s",
                 pcs.get(i).getValue(),
                 pcs.get(i).getValue().getClass().getSimpleName());
-            rdds[i] = ((BoundedDataset<T>) context.borrowDataset(pcs.get(i).getValue(), cacheHint))
+            rdds[i] = ((BoundedDataset<T>) context.borrowDataset(pcs.get(i).getValue()))
             .getRDD();
           }
           unionRDD = context.getSparkContext().union(rdds);
         }
-        context.putDataset(transform, new BoundedDataset<>(unionRDD));
+        context.putDataset(transform, new BoundedDataset<>(unionRDD), cacheHint);
       }
     };
   }
@@ -128,7 +128,7 @@ public final class TransformTranslator {
                            boolean cacheHint) {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<KV<K, V>>> inRDD =
-            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform, cacheHint)).getRDD();
+            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
 
         @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
@@ -144,7 +144,8 @@ public final class TransformTranslator {
                     accum,
                     coder,
                     context.getRuntimeContext(),
-                    context.getInput(transform).getWindowingStrategy())));
+                    context.getInput(transform).getWindowingStrategy())),
+            cacheHint);
       }
     };
   }
@@ -167,7 +168,7 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<KV<K, Iterable<InputT>>>> inRDD =
             ((BoundedDataset<KV<K, Iterable<InputT>>>)
-                context.borrowDataset(transform, cacheHint)).getRDD();
+                context.borrowDataset(transform)).getRDD();
 
         SparkKeyedCombineFn<K, InputT, ?, OutputT> combineFnWithContext =
             new SparkKeyedCombineFn<>(fn, context.getRuntimeContext(),
@@ -175,7 +176,8 @@ public final class TransformTranslator {
                 windowingStrategy);
         context.putDataset(transform, new BoundedDataset<>(inRDD.map(new TranslationUtils
             .CombineGroupedValues<>(
-            combineFnWithContext))));
+            combineFnWithContext))),
+            cacheHint);
       }
     };
   }
@@ -203,11 +205,12 @@ public final class TransformTranslator {
 
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRdd =
-            ((BoundedDataset<InputT>) context.borrowDataset(transform, cacheHint)).getRDD();
+            ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
 
         context.putDataset(transform, new BoundedDataset<>(GroupCombineFunctions
             .combineGlobally(inRdd, combineFn,
-                iCoder, oCoder, runtimeContext, windowingStrategy, sideInputs, hasDefault)));
+                iCoder, oCoder, runtimeContext, windowingStrategy, sideInputs, hasDefault)),
+            cacheHint);
       }
     };
   }
@@ -234,11 +237,11 @@ public final class TransformTranslator {
 
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<KV<K, InputT>>> inRdd =
-            ((BoundedDataset<KV<K, InputT>>) context.borrowDataset(transform, cacheHint)).getRDD();
+            ((BoundedDataset<KV<K, InputT>>) context.borrowDataset(transform)).getRDD();
 
         context.putDataset(transform, new BoundedDataset<>(GroupCombineFunctions
             .combinePerKey(inRdd, combineFn,
-                inputCoder, runtimeContext, windowingStrategy, sideInputs)));
+                inputCoder, runtimeContext, windowingStrategy, sideInputs)), cacheHint);
       }
     };
   }
@@ -254,7 +257,7 @@ public final class TransformTranslator {
         rejectStateAndTimers(doFn);
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
-            ((BoundedDataset<InputT>) context.borrowDataset(transform, cacheHint)).getRDD();
+            ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         JavaSparkContext jsc = context.getSparkContext();
@@ -266,7 +269,8 @@ public final class TransformTranslator {
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         context.putDataset(transform,
             new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(aggAccum, metricsAccum,
-                stepName, doFn, context.getRuntimeContext(), sideInputs, windowingStrategy))));
+                stepName, doFn, context.getRuntimeContext(), sideInputs, windowingStrategy))),
+            cacheHint);
       }
     };
   }
@@ -283,7 +287,7 @@ public final class TransformTranslator {
         rejectStateAndTimers(doFn);
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
-            ((BoundedDataset<InputT>) context.borrowDataset(transform, cacheHint)).getRDD();
+            ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         JavaSparkContext jsc = context.getSparkContext();
@@ -306,7 +310,7 @@ public final class TransformTranslator {
           // Object is the best we can do since different outputs can have different tags
           JavaRDD<WindowedValue<Object>> values =
               (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
-          context.putDataset(e.getValue(), new BoundedDataset<>(values));
+          context.putDataset(e.getValue(), new BoundedDataset<>(values), cacheHint);
         }
       }
     };
@@ -321,7 +325,7 @@ public final class TransformTranslator {
         String pattern = transform.getFilepattern();
         JavaRDD<WindowedValue<String>> rdd = context.getSparkContext().textFile(pattern)
             .map(WindowingHelpers.<String>windowFunction());
-        context.putDataset(transform, new BoundedDataset<>(rdd));
+        context.putDataset(transform, new BoundedDataset<>(rdd), cacheHint);
       }
     };
   }
@@ -333,7 +337,7 @@ public final class TransformTranslator {
                            EvaluationContext context, boolean cacheHint) {
         @SuppressWarnings("unchecked")
         JavaPairRDD<T, Void> last =
-            ((BoundedDataset<T>) context.borrowDataset(transform, cacheHint)).getRDD()
+            ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD()
             .map(WindowingHelpers.<T>unwindowFunction())
             .mapToPair(new PairFunction<T, T,
                     Void>() {
@@ -372,7 +376,7 @@ public final class TransformTranslator {
                 return key.datum();
               }
             }).map(WindowingHelpers.<T>windowFunction());
-        context.putDataset(transform, new BoundedDataset<>(rdd));
+        context.putDataset(transform, new BoundedDataset<>(rdd), cacheHint);
       }
     };
   }
@@ -391,7 +395,7 @@ public final class TransformTranslator {
         AvroJob.setOutputKeySchema(job, transform.getSchema());
         @SuppressWarnings("unchecked")
         JavaPairRDD<AvroKey<T>, NullWritable> last =
-            ((BoundedDataset<T>) context.borrowDataset(transform, cacheHint)).getRDD()
+            ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD()
             .map(WindowingHelpers.<T>unwindowFunction())
             .mapToPair(new PairFunction<T, AvroKey<T>, NullWritable>() {
               @Override
@@ -420,7 +424,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<T>> input = new SourceRDD.Bounded<>(
             jsc.sc(), transform.getSource(), runtimeContext).toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
-        context.putDataset(transform, new BoundedDataset<>(input.cache()));
+        context.putDataset(transform, new BoundedDataset<>(input.cache()), cacheHint);
       }
     };
   }
@@ -444,7 +448,7 @@ public final class TransformTranslator {
             return KV.of(t2._1(), t2._2());
           }
         }).map(WindowingHelpers.<KV<K, V>>windowFunction());
-        context.putDataset(transform, new BoundedDataset<>(rdd));
+        context.putDataset(transform, new BoundedDataset<>(rdd), cacheHint);
       }
     };
   }
@@ -456,7 +460,7 @@ public final class TransformTranslator {
                            EvaluationContext context, boolean cacheHint) {
         @SuppressWarnings("unchecked")
         JavaPairRDD<K, V> last =
-            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform, cacheHint))
+            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform))
             .getRDD()
             .map(WindowingHelpers.<KV<K, V>>unwindowFunction())
             .mapToPair(new PairFunction<KV<K, V>, K, V>() {
@@ -540,13 +544,13 @@ public final class TransformTranslator {
                            EvaluationContext context, boolean cacheHint) {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<T>> inRDD =
-            ((BoundedDataset<T>) context.borrowDataset(transform, cacheHint)).getRDD();
+            ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD();
 
         if (TranslationUtils.skipAssignWindows(transform, context)) {
-          context.putDataset(transform, new BoundedDataset<>(inRDD));
+          context.putDataset(transform, new BoundedDataset<>(inRDD), cacheHint);
         } else {
           context.putDataset(transform, new BoundedDataset<>(
-              inRDD.map(new SparkAssignWindowFn<>(transform.getWindowFn()))));
+              inRDD.map(new SparkAssignWindowFn<>(transform.getWindowFn()))), cacheHint);
         }
       }
     };
@@ -626,7 +630,7 @@ public final class TransformTranslator {
       @Override
       public void evaluate(StorageLevelPTransform transform,
                            EvaluationContext context, boolean cacheHint) {
-        JavaRDD rdd = ((BoundedDataset) (context).borrowDataset(transform, cacheHint)).getRDD();
+        JavaRDD rdd = ((BoundedDataset) (context).borrowDataset(transform)).getRDD();
         JavaSparkContext javaSparkContext = context.getSparkContext();
 
         WindowedValue.ValueOnlyWindowedValueCoder<String> windowCoder =
@@ -638,7 +642,7 @@ public final class TransformTranslator {
                     StringUtf8Coder.of()))
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
-        context.putDataset(transform, new BoundedDataset<String>(output));
+        context.putDataset(transform, new BoundedDataset<String>(output), cacheHint);
       }
     };
   }

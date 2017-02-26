@@ -96,7 +96,7 @@ final class StreamingTransformTranslator {
                            EvaluationContext context, boolean cacheHint) {
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<T>> dstream =
-            ((UnboundedDataset<T>) (context).borrowDataset(transform, cacheHint)).getDStream();
+            ((UnboundedDataset<T>) (context).borrowDataset(transform)).getDStream();
         dstream.map(WindowingHelpers.<T>unwindowFunction()).print(transform.getNum());
       }
     };
@@ -112,7 +112,7 @@ final class StreamingTransformTranslator {
             SparkUnboundedSource.read(
                 context.getStreamingContext(),
                 context.getRuntimeContext(),
-                transform.getSource()));
+                transform.getSource()), cacheHint);
       }
     };
   }
@@ -149,7 +149,7 @@ final class StreamingTransformTranslator {
               pv.getValue(),
               pv.getValue().getClass().getSimpleName());
           PCollection<T> pcol = (PCollection<T>) pv.getValue();
-          Dataset dataset = context.borrowDataset(pcol, cacheHint);
+          Dataset dataset = context.borrowDataset(pcol);
           if (dataset instanceof UnboundedDataset) {
             UnboundedDataset<T> unboundedDataset = (UnboundedDataset<T>) dataset;
             streamingSources.addAll(unboundedDataset.getStreamingSources());
@@ -172,9 +172,11 @@ final class StreamingTransformTranslator {
                       return new JavaSparkContext(streamRdd.context()).union(streamRdd, rdds);
                     }
                   });
-          context.putDataset(transform, new UnboundedDataset<>(joined, streamingSources));
+          context.putDataset(transform, new UnboundedDataset<>(joined, streamingSources),
+              cacheHint);
         } else {
-          context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
+          context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources),
+              cacheHint);
         }
       }
     };
@@ -189,7 +191,7 @@ final class StreamingTransformTranslator {
         WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
         @SuppressWarnings("unchecked")
         UnboundedDataset<T> unboundedDataset =
-            ((UnboundedDataset<T>) context.borrowDataset(transform, cacheHint));
+            ((UnboundedDataset<T>) context.borrowDataset(transform));
         JavaDStream<WindowedValue<T>> dStream = unboundedDataset.getDStream();
         // get the right window durations.
         Duration windowDuration;
@@ -210,7 +212,8 @@ final class StreamingTransformTranslator {
         //--- then we apply windowing to the elements
         if (TranslationUtils.skipAssignWindows(transform, context)) {
           context.putDataset(transform,
-              new UnboundedDataset<>(windowedDStream, unboundedDataset.getStreamingSources()));
+              new UnboundedDataset<>(windowedDStream, unboundedDataset.getStreamingSources()),
+              cacheHint);
         } else {
           JavaDStream<WindowedValue<T>> outStream = windowedDStream.transform(
               new Function<JavaRDD<WindowedValue<T>>, JavaRDD<WindowedValue<T>>>() {
@@ -220,7 +223,8 @@ final class StreamingTransformTranslator {
             }
           });
           context.putDataset(transform,
-              new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
+              new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()),
+              cacheHint);
         }
       }
     };
@@ -233,7 +237,7 @@ final class StreamingTransformTranslator {
                            EvaluationContext context, boolean cacheHint) {
         @SuppressWarnings("unchecked")
         UnboundedDataset<KV<K, V>> unboundedDataset =
-            ((UnboundedDataset<KV<K, V>>) context.borrowDataset(transform, cacheHint));
+            ((UnboundedDataset<KV<K, V>>) context.borrowDataset(transform));
         JavaDStream<WindowedValue<KV<K, V>>> dStream = unboundedDataset.getDStream();
 
         @SuppressWarnings("unchecked")
@@ -256,7 +260,8 @@ final class StreamingTransformTranslator {
           }
         });
         context.putDataset(transform,
-            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
+            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()),
+            cacheHint);
       }
     };
   }
@@ -278,8 +283,7 @@ final class StreamingTransformTranslator {
 
         @SuppressWarnings("unchecked")
         UnboundedDataset<KV<K, Iterable<InputT>>> unboundedDataset =
-            ((UnboundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform,
-                cacheHint));
+            ((UnboundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform));
         JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> dStream = unboundedDataset.getDStream();
 
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
@@ -303,7 +307,8 @@ final class StreamingTransformTranslator {
                 });
 
         context.putDataset(transform,
-            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
+            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()),
+            cacheHint);
       }
     };
   }
@@ -331,7 +336,7 @@ final class StreamingTransformTranslator {
 
         @SuppressWarnings("unchecked")
         UnboundedDataset<InputT> unboundedDataset =
-            ((UnboundedDataset<InputT>) context.borrowDataset(transform, cacheHint));
+            ((UnboundedDataset<InputT>) context.borrowDataset(transform));
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
         JavaDStream<WindowedValue<OutputT>> outStream = dStream.transform(
@@ -349,7 +354,8 @@ final class StreamingTransformTranslator {
         });
 
         context.putDataset(transform,
-            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
+            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()),
+            cacheHint);
       }
     };
   }
@@ -374,7 +380,7 @@ final class StreamingTransformTranslator {
 
         @SuppressWarnings("unchecked")
         UnboundedDataset<KV<K, InputT>> unboundedDataset =
-            ((UnboundedDataset<KV<K, InputT>>) context.borrowDataset(transform, cacheHint));
+            ((UnboundedDataset<KV<K, InputT>>) context.borrowDataset(transform));
         JavaDStream<WindowedValue<KV<K, InputT>>> dStream = unboundedDataset.getDStream();
 
         JavaDStream<WindowedValue<KV<K, OutputT>>> outStream =
@@ -392,7 +398,8 @@ final class StreamingTransformTranslator {
           }
         });
         context.putDataset(transform,
-            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
+            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()),
+            cacheHint);
       }
     };
   }
@@ -412,7 +419,7 @@ final class StreamingTransformTranslator {
 
         @SuppressWarnings("unchecked")
         UnboundedDataset<InputT> unboundedDataset =
-            ((UnboundedDataset<InputT>) context.borrowDataset(transform, cacheHint));
+            ((UnboundedDataset<InputT>) context.borrowDataset(transform));
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
         final String stepName = context.getCurrentTransform().getFullName();
@@ -438,7 +445,8 @@ final class StreamingTransformTranslator {
         });
 
         context.putDataset(transform,
-            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()));
+            new UnboundedDataset<>(outStream, unboundedDataset.getStreamingSources()),
+            cacheHint);
       }
     };
   }
@@ -459,7 +467,7 @@ final class StreamingTransformTranslator {
 
         @SuppressWarnings("unchecked")
         UnboundedDataset<InputT> unboundedDataset =
-            ((UnboundedDataset<InputT>) context.borrowDataset(transform, cacheHint));
+            ((UnboundedDataset<InputT>) context.borrowDataset(transform));
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
         JavaPairDStream<TupleTag<?>, WindowedValue<?>> all = dStream.transformToPair(
@@ -493,7 +501,8 @@ final class StreamingTransformTranslator {
               (JavaDStream<WindowedValue<Object>>)
                   (JavaDStream<?>) TranslationUtils.dStreamValues(filtered);
           context.putDataset(e.getValue(),
-              new UnboundedDataset<>(values, unboundedDataset.getStreamingSources()));
+              new UnboundedDataset<>(values, unboundedDataset.getStreamingSources()),
+              cacheHint);
         }
       }
     };
