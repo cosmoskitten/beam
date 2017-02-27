@@ -133,7 +133,7 @@ class PipelineOptionsTest(unittest.TestCase):
 
     options.view_as(PipelineOptionsTest.MockOptions).mock_flag = True
     self.assertEqual(options.get_all_options()['num_workers'], 5)
-    self.assertEqual(options.get_all_options()['mock_flag'], True)
+    self.assertTrue(options.get_all_options()['mock_flag'])
 
   def test_experiments(self):
     options = PipelineOptions(['--experiment', 'abc', '--experiment', 'def'])
@@ -187,7 +187,7 @@ class PipelineOptionsTest(unittest.TestCase):
         parser.add_argument('--redefined_flag', action='store_true')
 
     options = PipelineOptions(['--redefined_flag'])
-    self.assertEqual(options.get_all_options()['redefined_flag'], True)
+    self.assertTrue(options.get_all_options()['redefined_flag'])
 
   def test_value_provider_options(self):
     class UserOptions(PipelineOptions):
@@ -227,7 +227,7 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertTrue(options.vp_arg2.is_accessible(),
                     '%s is not accessible' % options.vp_arg2)
     self.assertEqual(options.vp_arg2.get(), 'bye')
-    self.assertEqual(options.non_vp_arg.is_accessible(), False)
+    self.assertFalse(options.non_vp_arg.is_accessible())
 
     with self.assertRaises(RuntimeError):
       options.non_vp_arg.get()
