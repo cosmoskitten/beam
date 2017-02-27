@@ -58,8 +58,7 @@ class RuntimeValueProvider(ValueProvider):
     self.value_type = value_type
 
   def is_accessible(self):
-    pipeline_options = RuntimeValueProvider.pipeline_options_dict
-    return pipeline_options is not None
+    return RuntimeValueProvider.pipeline_options_dict is not None
 
   def get(self):
     pipeline_options_dict = RuntimeValueProvider.pipeline_options_dict
@@ -80,6 +79,7 @@ class RuntimeValueProvider(ValueProvider):
 
   @classmethod
   def set_runtime_options(cls, pipeline_options):
+    assert RuntimeValueProvider.pipeline_options_dict is None
     RuntimeValueProvider.pipeline_options_dict = pipeline_options
 
   def __str__(self):
@@ -89,3 +89,16 @@ class RuntimeValueProvider(ValueProvider):
         self.value_type.__name__,
         repr(self.default_value)
     )
+
+
+def check_accessible(fields):
+  assert isinstance(fields, list)
+
+  def _check_accessible(fnc):
+    def _f(self, *args, **kwargs):
+      for vp in [getattr(self, field) for field in fields]:
+        if not vp.is_accessible():
+          raise RuntimeError('%s not accessible' % vp)
+      return fnc(self, *args, **kwargs)
+    return _f
+  return _check_accessible
