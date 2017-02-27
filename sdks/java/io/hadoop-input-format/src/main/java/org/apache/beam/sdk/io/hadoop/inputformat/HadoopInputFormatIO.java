@@ -469,15 +469,8 @@ public class HadoopInputFormatIO {
     private final SerializableSplit inputSplit;
     private transient List<SerializableSplit> inputSplits;
     private long boundedSourceEstimatedSize = 0;
-<<<<<<< HEAD
     private transient InputFormat<?, ?> inputFormatObj;
     private transient TaskAttemptContext taskAttemptContext;
-=======
-    private InputFormat<?, ?> inputFormatObj;
-    private TaskAttemptContextImpl taskAttemptContext;
-    private transient Class<?> expectedKeyClass;
-    private transient Class<?> expectedValueClass;
->>>>>>> 397499a... Added synchronization for currentReader in start() method
 
     HadoopInputFormatBoundedSource(
         SerializableConfiguration conf,
@@ -662,7 +655,6 @@ public class HadoopInputFormatIO {
         /*
          * Validates key class with InputFormat's parameterized type.
          */
-<<<<<<< HEAD
         return validateClassesEquality(
             inputClass,
             conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.KEY_CLASS,
@@ -674,15 +666,6 @@ public class HadoopInputFormatIO {
          * to validate key class by encoding and decoding key object with the given coder.
          */
         return validateClassUsingCoder(keyObject, coder);
-=======
-        return validateClassUsingCoder(property, coder);
-      }
-      /*
-       * Validates key/value class with InputFormat's parameterized type.
-       */
-      if (inputClass != null) {
-        return validateClassesEquality(inputClass, property);
->>>>>>> 397499a... Added synchronization for currentReader in start() method
       }
     }
 
@@ -789,25 +772,6 @@ public class HadoopInputFormatIO {
     public Coder<KV<K, V>> getDefaultOutputCoder() {
       return KvCoder.of(keyCoder, valueCoder);
     }
-<<<<<<< HEAD
-=======
-
-    private Class<?> getExpectedKeyClass() {
-      return expectedKeyClass;
-    }
-
-    private void setExpectedKeyClass(Class<?> expectedKeyClass) {
-      this.expectedKeyClass = expectedKeyClass;
-    }
-
-    private Class<?> getExpectedValueClass() {
-      return expectedValueClass;
-    }
-
-    private void setExpectedValueClass(Class<?> expectedValueClass) {
-      this.expectedValueClass = expectedValueClass;
-    }
->>>>>>> 397499a... Added synchronization for currentReader in start() method
 
     @Override
     public BoundedReader<KV<K, V>> createReader(PipelineOptions options) throws IOException {
@@ -870,7 +834,6 @@ public class HadoopInputFormatIO {
         try {
           recordsReturned = 0;
           currentReader =
-<<<<<<< HEAD
               (RecordReader<T1, T2>) inputFormatObj.createRecordReader(split.getSplit(),
                   taskAttemptContext);
           if (currentReader != null) {
@@ -883,24 +846,6 @@ public class HadoopInputFormatIO {
             throw new IOException(String.format(
                 HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
                 inputFormatObj.getClass()));
-=======
-              (RecordReader<K1, V1>) inputFormatObj.createRecordReader(split, taskAttemptContext);
-          // currentReader object could be accessed concurrently by multiple sources. Hence to be on
-          // safer side, it has been added in synchronized block
-          synchronized (currentReader) {
-            if (currentReader != null) {
-              currentReader.initialize(split, taskAttemptContext);
-              if (currentReader.nextKeyValue()) {
-                recordsReturned++;
-                return true;
-              }
-            } else {
-              throw new IOException(String.format(
-                  HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
-                  inputFormatObj.getClass()));
-            }
-            currentReader = null;
->>>>>>> 397499a... Added synchronization for currentReader in start() method
           }
           currentReader = null;
         } catch (InterruptedException e) {
