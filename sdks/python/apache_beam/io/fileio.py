@@ -34,6 +34,7 @@ from apache_beam.io import iobase
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.value_provider import ValueProvider
 from apache_beam.utils.value_provider import StaticValueProvider
+from apache_beam.utils.value_provider import check_accessible
 
 # TODO(sourabhbajaj): Fix the constant values after the new IO factory
 # Current constants are copy pasted from gcsio.py till we fix this.
@@ -621,9 +622,8 @@ class FileSink(iobase.Sink):
     if file_handle is not None:
       file_handle.close()
 
+  @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def initialize_write(self):
-    if not self.file_path_prefix.is_accessible():
-      raise RuntimeError('%s not accessible' % self.file_path_prefix)
     file_path_prefix = self.file_path_prefix.get()
     file_name_suffix = self.file_name_suffix.get()
     tmp_dir = file_path_prefix + file_name_suffix + time.strftime(
@@ -631,22 +631,20 @@ class FileSink(iobase.Sink):
     ChannelFactory().mkdir(tmp_dir)
     return tmp_dir
 
+  @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def open_writer(self, init_result, uid):
     # A proper suffix is needed for AUTO compression detection.
     # We also ensure there will be no collisions with uid and a
     # (possibly unsharded) file_path_prefix and a (possibly empty)
     # file_name_suffix.
-    if not self.file_path_prefix.is_accessible():
-      raise RuntimeError('%s not accessible' % self.file_path_prefix)
     file_path_prefix = self.file_path_prefix.get()
     file_name_suffix = self.file_name_suffix.get()
     suffix = (
         '.' + os.path.basename(file_path_prefix) + file_name_suffix)
     return FileSinkWriter(self, os.path.join(init_result, uid) + suffix)
 
+  @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def finalize_write(self, init_result, writer_results):
-    if not self.file_path_prefix.is_accessible():
-      raise RuntimeError('%s not accessible' % self.file_path_prefix)
     file_path_prefix = self.file_path_prefix.get()
     file_name_suffix = self.file_name_suffix.get()
     writer_results = sorted(writer_results)

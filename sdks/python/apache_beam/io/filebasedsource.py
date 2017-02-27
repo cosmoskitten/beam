@@ -36,7 +36,8 @@ from apache_beam.io import range_trackers
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.value_provider import ValueProvider
 from apache_beam.utils.value_provider import StaticValueProvider
-from apache_beam.utils.value_provider import RuntimeValueProvider
+from apache_beam.utils.value_provider import check_accessible
+
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
@@ -101,7 +102,7 @@ class FileBasedSource(iobase.BoundedSource):
     else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
-    if validate and not isinstance(file_pattern, RuntimeValueProvider):
+    if validate and file_pattern.is_accessible():
       self._validate()
 
   def display_data(self):
@@ -110,10 +111,9 @@ class FileBasedSource(iobase.BoundedSource):
             'compression': DisplayDataItem(str(self._compression_type),
                                            label='Compression Type')}
 
+  @check_accessible(['_pattern'])
   def _get_concat_source(self):
     if self._concat_source is None:
-      if not self._pattern.is_accessible():
-        raise RuntimeError('%s not accessible' % self._pattern)
       pattern = self._pattern.get()
 
       single_file_sources = []
@@ -176,11 +176,10 @@ class FileBasedSource(iobase.BoundedSource):
                                                                  file_names)
         return [file_sizes[f] for f in file_names]
 
+  @check_accessible(['_pattern'])
   def _validate(self):
     """Validate if there are actual files in the specified glob pattern
     """
-    if not self._pattern.is_accessible():
-      raise RuntimeError('%s not accessible' % self._pattern)
     pattern = self._pattern.get()
 
     # Limit the responses as we only want to check if something exists
@@ -195,9 +194,8 @@ class FileBasedSource(iobase.BoundedSource):
         start_position=start_position,
         stop_position=stop_position)
 
+  @check_accessible(['_pattern'])
   def estimate_size(self):
-    if not self._pattern.is_accessible():
-      raise RuntimeError('%s not accessible' % self._pattern)
     pattern = self._pattern.get()
     file_names = [f for f in fileio.ChannelFactory.glob(pattern)]
 
