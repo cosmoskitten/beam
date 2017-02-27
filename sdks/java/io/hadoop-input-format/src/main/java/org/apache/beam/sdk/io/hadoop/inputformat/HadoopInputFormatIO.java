@@ -183,7 +183,7 @@ import org.slf4j.LoggerFactory;
  * cassandraConf.set("cassandra.input.keyspace", "myKeySpace");
  * cassandraConf.set("cassandra.input.columnfamily", "myColumnFamily");
  * cassandraConf.setClass("key.class", {@link java.lang.Long Long.class}, Object.class);
- * cassandraConf.setClass("value.class", {@link com.datastax.driver.core.Row Row.class},
+ * cassandraConf.setClass("value.class", com.datastax.driver.core.Row.class,
  *                      Object.class);
  * cassandraConf.setClass("mapreduce.job.inputformat.class",
  * {@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class}, InputFormat.class);
@@ -204,7 +204,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>The CqlInputFormat value class is {@link com.datastax.driver.core.Row Row},
+ * <p>The CqlInputFormat value class is com.datastax.driver.core.Row,
  * which does not have a Beam Coder. Rather than write a new coder, you can provide
  * your own translation method as follows:
  *
@@ -229,10 +229,10 @@ import org.slf4j.LoggerFactory;
  * elasticSearchConf.setClass("key.class", {@link org.apache.hadoop.io.Text Text.class},
  *                  Object.class);
  * elasticSearchConf.setClass("value.class",
- *                  {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class},
+ *                  org.elasticsearch.hadoop.mr.LinkedMapWritable.class},
  *                  Object.class);
  * elasticSearchConf.setClass("mapreduce.job.inputformat.class",
- *                  {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat.class},
+ *                  org.elasticsearch.hadoop.mr.EsInputFormat.class,
  *                  InputFormat.class);
  * }
  * </pre>
@@ -246,9 +246,9 @@ import org.slf4j.LoggerFactory;
  *                       .withConfiguration(elasticSearchConf));
  * }
  * </pre>
- * Note: The {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat} key class is
+ * Note: The org.elasticsearch.hadoop.mr.EsInputFormat key class is
  * {@link org.apache.hadoop.io.Text Text} and value class is
- * {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable}. Both key and value
+ * org.elasticsearch.hadoop.mr.LinkedMapWritable. Both key and value
  * classes have Beam Coders, which means they don't need a translation method specified..
  */
 
