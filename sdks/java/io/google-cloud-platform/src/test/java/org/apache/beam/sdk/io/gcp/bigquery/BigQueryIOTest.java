@@ -26,7 +26,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -1760,7 +1759,7 @@ public class BigQueryIOTest implements Serializable {
     TableReference table = BigQueryIO.parseTableSpec("project.data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
+        jobIdToken, StaticValueProvider.of(table),
         extractDestinationDir, fakeBqServices,
         StaticValueProvider.of("project"));
 
@@ -1799,7 +1798,7 @@ public class BigQueryIOTest implements Serializable {
     TableReference table = BigQueryIO.parseTableSpec("project:data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
+        jobIdToken, StaticValueProvider.of(table),
         extractDestinationDir, fakeBqServices, StaticValueProvider.of("project"));
 
     List<TableRow> expected = ImmutableList.of(
@@ -1865,7 +1864,7 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of("query"),
+        jobIdToken, StaticValueProvider.of("query"),
         StaticValueProvider.of(destinationTable),
         true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
@@ -1954,7 +1953,7 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of("query"),
+        jobIdToken, StaticValueProvider.of("query"),
         StaticValueProvider.of(destinationTable),
         true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
@@ -2073,9 +2072,9 @@ public class BigQueryIOTest implements Serializable {
         .apply(Create.of(1, 2, 3))
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
           @Override
-          void cleanup(PipelineOptions options) throws Exception {
+          void cleanup(DoFn.ProcessContext c) throws Exception {
             // no-op
-          }}));
+          }}, null));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3);
 
@@ -2089,9 +2088,9 @@ public class BigQueryIOTest implements Serializable {
     p.apply(Create.empty(VarIntCoder.of()))
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
           @Override
-          void cleanup(PipelineOptions options) throws Exception {
+          void cleanup(DoFn.ProcessContext c) throws Exception {
             throw new RuntimeException("cleanup executed");
-          }}));
+          }}, null));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("cleanup executed");
@@ -2381,6 +2380,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  @Ignore
   public void testRuntimeOptionsNotCalledInApplyInputQuery() {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
@@ -2472,21 +2472,5 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testShardedKeyCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(BigQueryIO.ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
-  }
-
-  @Test
-  public void testUniqueStepIdRead() {
-    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    Pipeline pipeline = TestPipeline.create(options);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-    BigQueryIO.Read.Bound read1 = BigQueryIO.Read.fromQuery(
-        options.getInputQuery()).withoutValidation();
-    pipeline.apply(read1);
-    BigQueryIO.Read.Bound read2 = BigQueryIO.Read.fromQuery(
-        options.getInputQuery()).withoutValidation();
-    pipeline.apply(read2);
-    assertNotEquals(read1.stepUuid, read2.stepUuid);
-    assertNotEquals(read1.jobUuid.get(), read2.jobUuid.get());
   }
 }
