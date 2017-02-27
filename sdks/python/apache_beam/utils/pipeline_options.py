@@ -25,7 +25,7 @@ from apache_beam.utils.value_provider import RuntimeValueProvider
 from apache_beam.utils.value_provider import ValueProvider
 
 
-def static_value_provider_of(value_type):
+def _static_value_provider_of(value_type):
   """"Helper function to plug a ValueProvider into argparse.
 
   Args:
@@ -42,30 +42,30 @@ def static_value_provider_of(value_type):
   return _f
 
 
-class ValueProviderArgumentParser(argparse.ArgumentParser):
-  """This class provides an API to add options of ValueProvider type.
+class BeamArgumentParser(argparse.ArgumentParser):
+  """An ArgumentParser that supports ValueProvider options.
 
-  It preserves the functionalities of the parent ArgumentParser.
-  A template user willing to define parameterizable options will
-  only need to define a subclass of PipelineOptions in this manner:
-
+  Example Usage:
     class TemplateUserOptions(PipelineOptions):
-
       @classmethod
+
       def _add_argparse_args(cls, parser):
-          parser.add_value_provider_argument('--abc', default='start')
-          parser.add_value_provider_argument('--xyz', default='end')
+        parser.add_value_provider_argument('--vp-arg1', default='start')
+        parser.add_value_provider_argument('--vp-arg2')
+        parser.add_argument('--non-vp-arg')
+
   """
   def add_value_provider_argument(self, *args, **kwargs):
     # extract the option name.
-    # TODO(mariapython): handle multiple positional args like ('--quux',)
+    # TODO(mariapython): handle short-form args
+    # as in parser.add_value_provider_argument('-arg', '--argument')
     option_name = args[0].replace('-', '')
 
     # reassign the type to make room for StaticValueProvider
     value_type = kwargs.get('type') or str
 
     # use StaticValueProvider as the type of the argument
-    kwargs['type'] = static_value_provider_of(value_type)
+    kwargs['type'] = _static_value_provider_of(value_type)
 
     # reassign default to value_default to make room for using
     # RuntimeValueProvider as the default for add_argument
@@ -130,7 +130,7 @@ class PipelineOptions(HasDisplayData):
     """
     self._flags = flags
     self._all_options = kwargs
-    parser = ValueProviderArgumentParser()
+    parser = BeamArgumentParser()
 
     for cls in type(self).mro():
       if cls == PipelineOptions:
@@ -185,7 +185,7 @@ class PipelineOptions(HasDisplayData):
     # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
     # repeated. Pick last unique instance of each subclass to avoid conflicts.
     subset = {}
-    parser = ValueProviderArgumentParser()
+    parser = BeamArgumentParser()
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
