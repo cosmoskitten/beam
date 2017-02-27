@@ -238,7 +238,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
     p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
     p.run()
     self.assertEqual(
-        open(str(temp_path) + '-00000-of-00001.output').read(), '[start][end]')
+        open(temp_path.get() + '-00000-of-00001.output').read(), '[start][end]')
 
   def test_fixed_shard_write(self):
     temp_path = os.path.join(self._new_tempdir(), 'empty')

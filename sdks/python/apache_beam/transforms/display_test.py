@@ -127,6 +127,10 @@ class DisplayDataTest(unittest.TestCase):
             type=str,
             default='hello',
             help='str_flag description')
+        parser.add_value_provider_argument(
+            '--float_flag',
+            type=float,
+            help='float_flag description')
     options = TestOptions(['--int_flag', '1'])
     items = DisplayData.create_from_options(options).items
     expected_items = [
@@ -137,6 +141,11 @@ class DisplayDataTest(unittest.TestCase):
             'str_flag',
             'RuntimeValueProvider(option=str_flag,'
             ' type=str, default_value=\'hello\')'
+        ),
+        DisplayDataItemMatcher(
+            'float_flag',
+            'RuntimeValueProvider(option=float_flag,'
+            ' type=float, default_value=None)'
         )
     ]
     hc.assert_that(items, hc.contains_inanyorder(*expected_items))
