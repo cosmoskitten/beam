@@ -60,7 +60,6 @@ class ValueProviderTests(unittest.TestCase):
             type=int,
             help='This flag is a value provider')
 
-    # options = UserOptions(['--vp_arg', 'hola'])
     options = UserOptions(['--vp_arg', '123'])
     self.assertTrue(isinstance(options.vp_arg, StaticValueProvider))
     self.assertTrue(options.vp_arg.is_accessible())
@@ -92,18 +91,19 @@ class ValueProviderTests(unittest.TestCase):
     # provide values at graph-construction time
     # (options not provided here become of the type RuntimeValueProvider)
     options = UserOptions1([''])
-    assert options.vp_arg.is_accessible() is False
-    assert options.vp_arg2.is_accessible() is False
-    assert options.vp_arg3.is_accessible() is False
-    assert options.vp_arg4.is_accessible() is False
+    self.assertFalse(options.vp_arg.is_accessible())
+    self.assertFalse(options.vp_arg2.is_accessible())
+    self.assertFalse(options.vp_arg3.is_accessible())
+    self.assertFalse(options.vp_arg4.is_accessible())
+
     # provide values at job-execution time
     # (options not provided here will use their default, if they have one)
     RuntimeValueProvider.set_runtime_options({'vp_arg': 'abc'})
-    assert options.vp_arg.is_accessible() is True
-    assert options.vp_arg.get() == 'abc'
-    assert options.vp_arg2.is_accessible() is True
-    assert options.vp_arg2.get() == 123
-    assert options.vp_arg3.is_accessible() is True
-    assert options.vp_arg3.get() == '123'
-    assert options.vp_arg4.is_accessible() is True
-    assert options.vp_arg4.get() is None
+    self.assertTrue(options.vp_arg.is_accessible())
+    self.assertEqual(options.vp_arg.get(), 'abc')
+    self.assertTrue(options.vp_arg2.is_accessible())
+    self.assertEqual(options.vp_arg2.get(), 123)
+    self.assertTrue(options.vp_arg3.is_accessible())
+    self.assertEqual(options.vp_arg3.get(), '123')
+    self.assertTrue(options.vp_arg4.is_accessible())
+    self.assertIsNone(options.vp_arg4.get())
