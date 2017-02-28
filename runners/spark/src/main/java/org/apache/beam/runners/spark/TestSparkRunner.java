@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
@@ -92,9 +93,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     // and the source is an adapted unbounded source (as bounded),
     // read it as unbounded source via UnboundedReadFromBoundedSource.
     if (isForceStreaming) {
-      pipeline.replace(
-          PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
-          new AdaptedBoundedAsUnbounded.Factory());
+      adaptBoundedReads(pipeline);
     }
 
     AssertionCountingVisitor assertionCountingVisitor = AssertionCountingVisitor.create();
@@ -135,6 +134,13 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       assertThat("Failure aggregator should be zero.", failure, is(0));
     }
     return result;
+  }
+  
+  @VisibleForTesting
+  void adaptBoundedReads(Pipeline pipeline) {
+    pipeline.replace(
+        PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
+        new AdaptedBoundedAsUnbounded.Factory());
   }
 
   private static class AdaptedBoundedAsUnbounded<T> extends PTransform<PBegin, PCollection<T>> {
