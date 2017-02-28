@@ -20,7 +20,7 @@ cimport libc.stdint
 
 cdef class OutputStream(object):
   cdef char* data
-  cdef size_t size
+  cdef size_t _size
   cdef size_t pos
 
   cpdef write(self, bytes b, bint nested=*)
@@ -32,8 +32,9 @@ cdef class OutputStream(object):
   cpdef write_bigendian_double(self, double d)
 
   cpdef bytes get(self)
-
+  cpdef size_t size(self) except? -1
   cdef extend(self, size_t missing)
+
 
 
 cdef class ByteCountingOutputStream(OutputStream):
@@ -46,7 +47,6 @@ cdef class ByteCountingOutputStream(OutputStream):
   cpdef write_bigendian_int32(self, libc.stdint.int32_t val)
   cpdef size_t get_count(self)
   cpdef bytes get(self)
-
 
 cdef class InputStream(object):
   cdef size_t pos
