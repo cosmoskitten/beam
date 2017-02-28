@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -130,9 +129,8 @@ public class Sample {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Implementation of {@link #any(long)}; do not use directly. */
-  @VisibleForTesting
-  public static class Any<T> extends PTransform<PCollection<T>, PCollection<T>> {
+  /** Implementation of {@link #any(long)}. */
+  private static class Any<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private final long limit;
 
     /**
