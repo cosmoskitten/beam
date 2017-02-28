@@ -115,8 +115,8 @@ public class Latest {
     }
 
     @Override
-    public TimestampedValue<T> addInput(TimestampedValue<T> accumulator,
-                                        TimestampedValue<T> input) {
+    public TimestampedValue<T> addInput(
+        TimestampedValue<T> accumulator, TimestampedValue<T> input) {
       checkNotNull(accumulator, "accumulator must be non-null");
       checkNotNull(input, "input must be non-null");
 
