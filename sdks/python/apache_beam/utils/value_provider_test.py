@@ -75,12 +75,12 @@ class ValueProviderTests(unittest.TestCase):
             help='This flag is a value provider')   # set at runtime
 
         parser.add_value_provider_argument(         # not set, had default int
-            '--vp_arg2',
+            '-v', '--vp_arg2',                      # with short form
             default=123,
             type=int)
 
         parser.add_value_provider_argument(         # not set, had default str
-            '--vp_arg3',
+            '--vp-arg3',                            # with dash in name
             default='123',
             type=str)
 
