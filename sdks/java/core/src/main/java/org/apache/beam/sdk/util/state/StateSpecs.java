@@ -44,8 +44,23 @@ public class StateSpecs {
   private StateSpecs() {}
 
   /** Create a simple state spec for values of type {@code T}. */
+  public static <T> StateSpec<Object, ValueState<T>> value() {
+    return value(null);
+  }
+
+  /** Create a simple state spec for values of type {@code T}. */
   public static <T> StateSpec<Object, ValueState<T>> value(Coder<T> valueCoder) {
     return new ValueStateSpec<>(valueCoder);
+  }
+
+  /**
+   * Create a state spec for values that use a {@link CombineFn} to automatically merge multiple
+   * {@code InputT}s into a single {@code OutputT}.
+   */
+  public static <InputT, AccumT, OutputT>
+  StateSpec<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>> combiningValue(
+      CombineFn<InputT, AccumT, OutputT> combineFn) {
+    return combiningValueInternal(null, combineFn);
   }
 
   /**
@@ -63,9 +78,29 @@ public class StateSpecs {
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
+  StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> keyedCombiningValue(
+      KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+    return keyedCombiningValueInternal(null, combineFn);
+  }
+
+  /**
+   * Create a state spec for values that use a {@link KeyedCombineFn} to automatically merge
+   * multiple {@code InputT}s into a single {@code OutputT}.
+   */
+  public static <K, InputT, AccumT, OutputT>
       StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> keyedCombiningValue(
           Coder<AccumT> accumCoder, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return keyedCombiningValueInternal(accumCoder, combineFn);
+  }
+
+  /**
+   * Create a state spec for values that use a {@link KeyedCombineFnWithContext} to automatically
+   * merge multiple {@code InputT}s into a single {@code OutputT}.
+   */
+  public static <K, InputT, AccumT, OutputT>
+  StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
+  keyedCombiningValueWithContext(KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
+    return new KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>(null, combineFn);
   }
 
   /**
@@ -121,8 +156,23 @@ public class StateSpecs {
    * Create a state spec that is optimized for adding values frequently, and occasionally retrieving
    * all the values that have been added.
    */
+  public static <T> StateSpec<Object, BagState<T>> bag() {
+    return bag(null);
+  }
+
+  /**
+   * Create a state spec that is optimized for adding values frequently, and occasionally retrieving
+   * all the values that have been added.
+   */
   public static <T> StateSpec<Object, BagState<T>> bag(Coder<T> elemCoder) {
-    return new BagStateSpec<T>(elemCoder);
+    return new BagStateSpec<>(elemCoder);
+  }
+
+  /**
+   * Create a state spec that supporting for {@link java.util.Set} like access patterns.
+   */
+  public static <T> StateSpec<Object, SetState<T>> set() {
+    return set(null);
   }
 
   /**
@@ -130,6 +180,13 @@ public class StateSpecs {
    */
   public static <T> StateSpec<Object, SetState<T>> set(Coder<T> elemCoder) {
     return new SetStateSpec<>(elemCoder);
+  }
+
+  /**
+   * Create a state spec that supporting for {@link java.util.Map} like access patterns.
+   */
+  public static <K, V> StateSpec<Object, MapState<K, V>> map() {
+    return new MapStateSpec<>(null, null);
   }
 
   /**
@@ -174,7 +231,7 @@ public class StateSpecs {
    */
   private static class ValueStateSpec<T> implements StateSpec<Object, ValueState<T>> {
 
-    private final Coder<T> coder;
+    private Coder<T> coder;
 
     private ValueStateSpec(Coder<T> coder) {
       this.coder = coder;
@@ -183,6 +240,16 @@ public class StateSpecs {
     @Override
     public ValueState<T> bind(String id, StateBinder<?> visitor) {
       return visitor.bindValue(id, this, coder);
+    }
+
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.coder == null) {
+        if (coders[0] != null) {
+          //noinspection unchecked
+          this.coder = (Coder<T>) coders[0];
+        }
+      }
     }
 
     @Override
@@ -214,7 +281,7 @@ public class StateSpecs {
       extends KeyedCombiningValueStateSpec<Object, InputT, AccumT, OutputT>
       implements StateSpec<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
 
-    private final Coder<AccumT> accumCoder;
+    private Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private CombiningValueStateSpec(
@@ -222,6 +289,21 @@ public class StateSpecs {
       super(accumCoder, combineFn.asKeyedFn());
       this.combineFn = combineFn;
       this.accumCoder = accumCoder;
+    }
+
+    @Override
+    protected Coder<AccumT> getAccumCoder() {
+      return accumCoder;
+    }
+
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.accumCoder == null) {
+        if (coders[1] != null) {
+          //noinspection unchecked
+          this.accumCoder = (Coder<AccumT>) coders[1];
+        }
+      }
     }
   }
 
@@ -234,7 +316,7 @@ public class StateSpecs {
   private static class KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>
       implements StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
 
-    private final Coder<AccumT> accumCoder;
+    private Coder<AccumT> accumCoder;
     private final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn;
 
     protected KeyedCombiningValueWithContextStateSpec(
@@ -247,6 +329,16 @@ public class StateSpecs {
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder<? extends K> visitor) {
       return visitor.bindKeyedCombiningValueWithContext(id, this, accumCoder, combineFn);
+    }
+
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.accumCoder == null) {
+        if (coders[2] != null) {
+          //noinspection unchecked
+          this.accumCoder = (Coder<AccumT>) coders[2];
+        }
+      }
     }
 
     @Override
@@ -282,7 +374,7 @@ public class StateSpecs {
   private static class KeyedCombiningValueStateSpec<K, InputT, AccumT, OutputT>
       implements StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
 
-    private final Coder<AccumT> accumCoder;
+    private Coder<AccumT> accumCoder;
     private final KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn;
 
     protected KeyedCombiningValueStateSpec(
@@ -291,10 +383,24 @@ public class StateSpecs {
       this.accumCoder = accumCoder;
     }
 
+    protected Coder<AccumT> getAccumCoder() {
+      return accumCoder;
+    }
+
     @Override
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder<? extends K> visitor) {
-      return visitor.bindKeyedCombiningValue(id, this, accumCoder, keyedCombineFn);
+      return visitor.bindKeyedCombiningValue(id, this, getAccumCoder(), keyedCombineFn);
+    }
+
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.accumCoder == null) {
+        if (coders[2] != null) {
+          //noinspection unchecked
+          this.accumCoder = (Coder<AccumT>) coders[2];
+        }
+      }
     }
 
     @Override
@@ -330,7 +436,7 @@ public class StateSpecs {
    */
   private static class BagStateSpec<T> implements StateSpec<Object, BagState<T>> {
 
-    private final Coder<T> elemCoder;
+    private Coder<T> elemCoder;
 
     private BagStateSpec(Coder<T> elemCoder) {
       this.elemCoder = elemCoder;
@@ -339,6 +445,16 @@ public class StateSpecs {
     @Override
     public BagState<T> bind(String id, StateBinder<?> visitor) {
       return visitor.bindBag(id, this, elemCoder);
+    }
+
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.elemCoder == null) {
+        if (coders[0] != null) {
+          //noinspection unchecked
+          this.elemCoder = (Coder<T>) coders[0];
+        }
+      }
     }
 
     @Override
@@ -363,8 +479,8 @@ public class StateSpecs {
 
   private static class MapStateSpec<K, V> implements StateSpec<Object, MapState<K, V>> {
 
-    private final Coder<K> keyCoder;
-    private final Coder<V> valueCoder;
+    private Coder<K> keyCoder;
+    private Coder<V> valueCoder;
 
     private MapStateSpec(Coder<K> keyCoder, Coder<V> valueCoder) {
       this.keyCoder = keyCoder;
@@ -374,6 +490,22 @@ public class StateSpecs {
     @Override
     public MapState<K, V> bind(String id, StateBinder<?> visitor) {
       return visitor.bindMap(id, this, keyCoder, valueCoder);
+    }
+
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.keyCoder == null) {
+        if (coders[0] != null) {
+          //noinspection unchecked
+          this.keyCoder = (Coder<K>) coders[0];
+        }
+      }
+      if (this.valueCoder == null) {
+        if (coders[1] != null) {
+          //noinspection unchecked
+          this.valueCoder = (Coder<V>) coders[1];
+        }
+      }
     }
 
     @Override
@@ -404,7 +536,10 @@ public class StateSpecs {
    */
   private static class SetStateSpec<T> implements StateSpec<Object, SetState<T>> {
 
-    private final Coder<T> elemCoder;
+    private Coder<T> elemCoder;
+
+    public SetStateSpec() {
+    }
 
     private SetStateSpec(Coder<T> elemCoder) {
       this.elemCoder = elemCoder;
@@ -413,6 +548,16 @@ public class StateSpecs {
     @Override
     public SetState<T> bind(String id, StateBinder<?> visitor) {
       return visitor.bindSet(id, this, elemCoder);
+    }
+
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.elemCoder == null) {
+        if (coders[0] != null) {
+          //noinspection unchecked
+          this.elemCoder = (Coder<T>) coders[0];
+        }
+      }
     }
 
     @Override
@@ -458,6 +603,10 @@ public class StateSpecs {
     @Override
     public WatermarkHoldState<W> bind(String id, StateBinder<?> visitor) {
       return visitor.bindWatermark(id, this, outputTimeFn);
+    }
+
+    @Override
+    public void offerCoders(Coder[] coders) {
     }
 
     @Override
