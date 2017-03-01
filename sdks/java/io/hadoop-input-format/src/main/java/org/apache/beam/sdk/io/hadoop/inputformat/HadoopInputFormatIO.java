@@ -198,7 +198,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>The {@link CqlInputFormat} value class is {@link com.datastax.driver.core.Row},
+ * <p>The CqlInputFormat value class is com.datastax.driver.core.Row,
  * which does not have a Beam Coder. Rather than write a new coder, you can provide
  * your own translation method as follows:
  *
