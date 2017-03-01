@@ -56,10 +56,12 @@ class BeamArgumentParser(argparse.ArgumentParser):
 
   """
   def add_value_provider_argument(self, *args, **kwargs):
-    # extract the option name.
-    # TODO(mariapython): handle short-form args
-    # as in parser.add_value_provider_argument('-arg', '--argument')
-    option_name = args[0].replace('-', '')
+    # Extract the option name from positional ['pos_arg'] or keyword arguments
+    # like [--kw_arg, -k, -w] or [--kw-arg]
+    if args[0][0] != '-':
+      option_name = args[0]
+    else:
+      option_name = [i.replace('--', '') for i in args if i[:2] == '--'][0]
 
     # reassign the type to make room for StaticValueProvider
     value_type = kwargs.get('type') or str

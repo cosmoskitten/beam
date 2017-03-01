@@ -74,13 +74,13 @@ class ValueProviderTests(unittest.TestCase):
             '--vp_arg',
             help='This flag is a value provider')   # set at runtime
 
-        parser.add_value_provider_argument(         # not set, had default int
-            '--vp_arg2',
+        parser.add_value_provider_argument(         # not set, had default int, with short form
+            '-v', '--vp_arg2',
             default=123,
             type=int)
 
-        parser.add_value_provider_argument(         # not set, had default str
-            '--vp_arg3',
+        parser.add_value_provider_argument(         # not set, had default str, with dash
+            '--vp-arg3',
             default='123',
             type=str)
 
