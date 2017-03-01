@@ -78,22 +78,22 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A {@link HadoopInputFormatIO} is a Transform for reading data from any source which
- * implements Hadoop InputFormat. For example- Cassandra, Elasticsearch, HBase, Redis, Postgres,
- * etc. HadoopInputFormatIO has to make several performance trade-offs in connecting to InputFormat,
- * so if there is another Beam IO Transform specifically for connecting to your data source of
- * choice, we would recommend using that one, but this IO Transform allows you to connect to many
- * data sources that do not yet have a Beam IO Transform.
+ * implements Hadoop {@link InputFormat}. For example- Cassandra, Elasticsearch, HBase, Redis,
+ * Postgres etc. {@link HadoopInputFormatIO} has to make several performance trade-offs in
+ * connecting to {@link InputFormat}, so if there is another Beam IO Transform specifically for
+ * connecting to your data source of choice, we would recommend using that one, but this IO
+ * Transform allows you to connect to many data sources that do not yet have a Beam IO Transform.
  *
  * <p>You will need to pass a Hadoop {@link Configuration} with parameters specifying how the read
  * will occur. Many properties of the Configuration are optional, and some are required for certain
- * InputFormat classes, but the following properties must be set for all InputFormats:
+ * {@link InputFormat} classes, but the following properties must be set for all InputFormats:
  * <ul>
- * <li>mapreduce.job.inputformat.class: The InputFormat class used to connect to your data source of
- * choice.</li>
- * <li>key.class: The key class returned by the InputFormat in
- * 'mapreduce.job.inputformat.class'.</li>
- * <li>value.class: The value class returned by the InputFormat in
- * 'mapreduce.job.inputformat.class'.</li>
+ * <li>{@code mapreduce.job.inputformat.class}: The {@link InputFormat} class used to connect to
+ * your data source of choice.</li>
+ * <li>{@code key.class}: The key class returned by the {@link InputFormat} in
+ * {@code mapreduce.job.inputformat.class}.</li>
+ * <li>{@code value.class}: The value class returned by the {@link InputFormat} in
+ * {@code mapreduce.job.inputformat.class}.</li>
  * </ul>
  * For example:
  *
@@ -109,16 +109,14 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>
- * You will need to check to see if the key and value classes output by the InputFormat have a Beam
- * {@link Coder} available. If not, you can use withKeyTranslation/withValueTranslation to specify a
- * method transforming instances of those classes into another class that is supported by a Beam
- * {@link Coder}. These settings are optional and you don't need to specify translation for both key
- * and value. If you specify a translation, you will need to make sure the K or V of the read
- * transform match the output type of the translation.
- * </p>
+ * <p>You will need to check to see if the key and value classes output by the {@link InputFormat}
+ * have a Beam {@link Coder} available. If not, you can use withKeyTranslation/withValueTranslation
+ * to specify a method transforming instances of those classes into another class that is supported
+ * by a Beam {@link Coder}. These settings are optional and you don't need to specify translation
+ * for both key and value. If you specify a translation, you will need to make sure the K or V of
+ * the read transform match the output type of the translation.
  *
- * <h3>Reading using HadoopInputFormatIO</h3>
+ * <h3>Reading using {@link HadoopInputFormatIO}</h3>
  *
  * <pre>
  * {@code
@@ -147,10 +145,8 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>
- * // Read data with configuration and value translation (Example scenario: Beam Coder is not
+ * <p>// Read data with configuration and value translation (Example scenario: Beam Coder is not
  * available for value class hence value translation is required.).
- * </p>
  *
  * <pre>
  * {@code
@@ -172,7 +168,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <h3>Read data from Cassandra using HadoopInputFormatIO transform</h3>
+ * <h3>Read data from Cassandra using {@link HadoopInputFormatIO} transform</h3>
  *
  * <pre>
  * {@code
@@ -190,9 +186,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>
- * Call Read transform as follows:
- * </p>
+ * <p>Call Read transform as follows:
  *
  * <pre>
  * {@code
@@ -204,7 +198,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>The CqlInputFormat value class is com.datastax.driver.core.Row,
+ * <p>The {@link CqlInputFormat} value class is {@link com.datastax.driver.core.Row},
  * which does not have a Beam Coder. Rather than write a new coder, you can provide
  * your own translation method as follows:
  *
@@ -218,7 +212,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <h3>Read data from Elasticsearch using HadoopInputFormatIO transform</h3>
+ * <h3>Read data from Elasticsearch using {@link HadoopInputFormatIO} transform</h3>
  *
  * <pre>
  * {@code
@@ -246,20 +240,22 @@ import org.slf4j.LoggerFactory;
  *                       .withConfiguration(elasticSearchConf));
  * }
  * </pre>
- * Note: The org.elasticsearch.hadoop.mr.EsInputFormat key class is
+ *
+ * <p>Note: The {@code org.elasticsearch.hadoop.mr.EsInputFormat} key class is
  * {@link org.apache.hadoop.io.Text Text} and value class is
- * org.elasticsearch.hadoop.mr.LinkedMapWritable. Both key and value
- * classes have Beam Coders, which means they don't need a translation method specified..
+ * {@code org.elasticsearch.hadoop.mr.LinkedMapWritable}. Both key and value
+ * classes have Beam Coders, which means they don't need a translation method specified.
  */
 
 public class HadoopInputFormatIO {
   private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatIO.class);
 
   /**
-   * Creates an uninitialized HadoopInputFormatIO.Read. Before use, the {@code Read} must be
-   * initialized with a HadoopInputFormatIO.Read#withConfiguration(HadoopConfiguration) that
+   * Creates an uninitialized {@link HadoopInputFormatIO.Read}. Before use, the {@code Read} must
+   * be initialized with a HadoopInputFormatIO.Read#withConfiguration(HadoopConfiguration) that
    * specifies the source. A key/value translation may also optionally be specified using
-   * HadoopInputFormatIO.Read#withKeyTranslation/HadoopInputFormatIO.Read#withValueTranslation.
+   * {@link HadoopInputFormatIO.Read#withKeyTranslation}/
+   * {@link HadoopInputFormatIO.Read#withValueTranslation}.
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_HadoopInputFormatIO_Read.Builder<K, V>().build();
@@ -455,7 +451,7 @@ public class HadoopInputFormatIO {
   }
 
   /**
-   * Bounded source implementation for HadoopInputFormatIO.
+   * Bounded source implementation for {@link HadoopInputFormatIO}.
    * @param <K> Type of keys to be read.
    * @param <V> Type of values to be read.
    */
@@ -515,25 +511,23 @@ public class HadoopInputFormatIO {
     @Override
     public List<BoundedSource<KV<K, V>>> splitIntoBundles(long desiredBundleSizeBytes,
         PipelineOptions options) throws Exception {
-      if (inputSplit == null) {
-        computeSplitsIfNecessary();
-        LOG.info("Generated {} splits. Size of first split is {} ", inputSplits.size(),
-            inputSplits.get(0).getSplit().getLength());
-        return Lists.transform(inputSplits,
-            new Function<SerializableSplit, BoundedSource<KV<K, V>>>() {
-              @Override
-              public BoundedSource<KV<K, V>> apply(SerializableSplit serializableInputSplit) {
-                HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
-                    new HadoopInputFormatBoundedSource<K, V>(conf, keyCoder, valueCoder,
-                        keyTranslationFunction, valueTranslationFunction,
-                        serializableInputSplit);
-                return hifBoundedSource;
-              }
-            });
-      } else {
+      if (inputSplit != null) {
         LOG.info("Not splitting source {} because source is already split.", this);
         return ImmutableList.of((BoundedSource<KV<K, V>>) this);
       }
+      computeSplitsIfNecessary();
+      LOG.info("Generated {} splits. Size of first split is {} ", inputSplits.size(), inputSplits
+          .get(0).getSplit().getLength());
+      return Lists.transform(inputSplits,
+          new Function<SerializableSplit, BoundedSource<KV<K, V>>>() {
+            @Override
+            public BoundedSource<KV<K, V>> apply(SerializableSplit serializableInputSplit) {
+              HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
+                  new HadoopInputFormatBoundedSource<K, V>(conf, keyCoder, valueCoder,
+                      keyTranslationFunction, valueTranslationFunction, serializableInputSplit);
+              return hifBoundedSource;
+            }
+          });
     }
 
     @Override
@@ -553,28 +547,28 @@ public class HadoopInputFormatIO {
      */
     @VisibleForTesting
     void computeSplitsIfNecessary() throws IOException, InterruptedException {
-      if (inputSplits == null) {
-        createInputFormatInstance();
-        List<InputSplit> splits =
-            inputFormatObj.getSplits(Job.getInstance(conf.getHadoopConfiguration()));
-        if (splits == null) {
-          throw new IOException(
-              HadoopInputFormatIOConstants.COMPUTESPLITS_NULL_GETSPLITS_ERROR_MSG);
-        }
-        if (splits.isEmpty()) {
-          throw new IOException(HadoopInputFormatIOConstants.COMPUTESPLITS_EMPTY_SPLITS_ERROR_MSG);
-        }
-        boundedSourceEstimatedSize = 0;
-        inputSplits = new ArrayList<SerializableSplit>();
-        for (InputSplit inputSplit : splits) {
-          if (inputSplit == null) {
-            throw new IOException(HadoopInputFormatIOConstants.COMPUTESPLITS_NULL_SPLIT_ERROR_MSG);
-          }
-          boundedSourceEstimatedSize += inputSplit.getLength();
-          inputSplits.add(new SerializableSplit(inputSplit));
-        }
-        validateUserInputForKeyAndValue();
+      if (inputSplits != null) {
+        return;
       }
+      createInputFormatInstance();
+      List<InputSplit> splits =
+          inputFormatObj.getSplits(Job.getInstance(conf.getHadoopConfiguration()));
+      if (splits == null) {
+        throw new IOException(HadoopInputFormatIOConstants.COMPUTESPLITS_NULL_GETSPLITS_ERROR_MSG);
+      }
+      if (splits.isEmpty()) {
+        throw new IOException(HadoopInputFormatIOConstants.COMPUTESPLITS_EMPTY_SPLITS_ERROR_MSG);
+      }
+      boundedSourceEstimatedSize = 0;
+      inputSplits = new ArrayList<SerializableSplit>();
+      for (InputSplit inputSplit : splits) {
+        if (inputSplit == null) {
+          throw new IOException(HadoopInputFormatIOConstants.COMPUTESPLITS_NULL_SPLIT_ERROR_MSG);
+        }
+        boundedSourceEstimatedSize += inputSplit.getLength();
+        inputSplits.add(new SerializableSplit(inputSplit));
+      }
+      validateUserInputForKeyAndValue();
     }
 
     /**
@@ -802,7 +796,7 @@ public class HadoopInputFormatIO {
       @Nullable private final SimpleFunction<T1, K> keyTranslationFunction;
       @Nullable private final SimpleFunction<T2, V> valueTranslationFunction;
       private final SerializableSplit split;
-      private RecordReader<T1, T2> currentReader;
+      private RecordReader<T1, T2> recordReader;
       private volatile boolean doneReading = false;
       private long recordsReturned = 0L;
       // Tracks the progress of the RecordReader.
@@ -833,12 +827,12 @@ public class HadoopInputFormatIO {
       public boolean start() throws IOException {
         try {
           recordsReturned = 0;
-          currentReader =
+          recordReader =
               (RecordReader<T1, T2>) inputFormatObj.createRecordReader(split.getSplit(),
                   taskAttemptContext);
-          if (currentReader != null) {
-            currentReader.initialize(split.getSplit(), taskAttemptContext);
-            if (currentReader.nextKeyValue()) {
+          if (recordReader != null) {
+            recordReader.initialize(split.getSplit(), taskAttemptContext);
+            if (recordReader.nextKeyValue()) {
               recordsReturned++;
               return true;
             }
@@ -847,7 +841,7 @@ public class HadoopInputFormatIO {
                 HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
                 inputFormatObj.getClass()));
           }
-          currentReader = null;
+          recordReader = null;
         } catch (InterruptedException e) {
           throw new IOException(
               "Could not read because the thread got interrupted while "
@@ -862,7 +856,7 @@ public class HadoopInputFormatIO {
       public boolean advance() throws IOException {
         try {
           progressValue = new AtomicDouble(getProgress());
-          if (currentReader != null && currentReader.nextKeyValue()) {
+          if (recordReader != null && recordReader.nextKeyValue()) {
             recordsReturned++;
             return true;
           }
@@ -880,14 +874,14 @@ public class HadoopInputFormatIO {
         try {
           // Transform key if translation function is provided.
           key =
-              transformKeyOrValue((T1) currentReader.getCurrentKey(), keyTranslationFunction,
+              transformKeyOrValue((T1) recordReader.getCurrentKey(), keyTranslationFunction,
                   keyCoder);
           // Transform value if if translation function is provided.
           value =
-              transformKeyOrValue((T2) currentReader.getCurrentValue(), valueTranslationFunction,
+              transformKeyOrValue((T2) recordReader.getCurrentValue(), valueTranslationFunction,
                   valueCoder);
         } catch (IOException | InterruptedException e) {
-          LOG.error(HadoopInputFormatIOConstants.GET_CURRENT_ERROR_MSG + e);
+          LOG.error(HadoopInputFormatIOConstants.GET_CURRENT_ERROR_MSG + "{}", e);
           return null;
         }
         if (key == null) {
@@ -948,9 +942,9 @@ public class HadoopInputFormatIO {
       @Override
       public void close() throws IOException {
         LOG.info("Closing reader after reading {} records.", recordsReturned);
-        if (currentReader != null) {
-          currentReader.close();
-          currentReader = null;
+        if (recordReader != null) {
+          recordReader.close();
+          recordReader = null;
         }
       }
 
@@ -959,7 +953,7 @@ public class HadoopInputFormatIO {
         if (doneReading) {
           return 1.0;
         }
-        if (currentReader == null || recordsReturned == 0) {
+        if (recordReader == null || recordsReturned == 0) {
           return 0.0;
         }
         return progressValue.doubleValue();
@@ -971,7 +965,7 @@ public class HadoopInputFormatIO {
        */
       private Double getProgress() throws IOException {
         try {
-          return (double) currentReader.getProgress();
+          return (double) recordReader.getProgress();
         } catch (IOException | InterruptedException e) {
           LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG
               + e.getMessage(), e);
