@@ -21,11 +21,16 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -38,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -533,6 +539,41 @@ public class ParDo {
     return DisplayData.item("fn", fn.getClass()).withLabel("Transform Function");
   }
 
+  private static void inferStateCodersIfNeeded(DoFn<?, ?> fn, CoderRegistry coderRegistry) {
+    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+    Map<String, DoFnSignature.StateDeclaration> stateDeclarations = signature.stateDeclarations();
+    for (DoFnSignature.StateDeclaration stateDeclaration : stateDeclarations.values()) {
+      try {
+        StateSpec<?, ?> stateSpec = (StateSpec<?, ?>) stateDeclaration.field().get(fn);
+        stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry));
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  private static Coder[] codersForStateSpecTypes(
+      DoFnSignature.StateDeclaration stateDeclaration,
+      CoderRegistry coderRegistry) {
+    Type stateType = stateDeclaration.stateType().getType();
+    if (stateType instanceof ParameterizedType) {
+      Type[] typeArguments = ((ParameterizedType) stateType).getActualTypeArguments();
+      Coder[] coders = new Coder[typeArguments.length];
+      for (int i = 0; i < typeArguments.length; i++) {
+        try {
+          Type typeArgument = typeArguments[i];
+          if (typeArgument instanceof Class) {
+            coders[i] = coderRegistry.getDefaultCoder((Class) typeArgument);
+          }
+        } catch (CannotProvideCoderException ignored) {
+        }
+      }
+      return coders;
+    }
+    return new Coder[0];
+  }
+
+
   /**
    * Perform common validations of the {@link DoFn} against the input {@link PCollection}, for
    * example ensuring that the window type expected by the {@link DoFn} matches the window type of
@@ -739,6 +780,7 @@ public class ParDo {
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       validateWindowType(input, fn);
+      inferStateCodersIfNeeded(fn, input.getPipeline().getCoderRegistry());
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
               input.getWindowingStrategy(),
@@ -930,6 +972,10 @@ public class ParDo {
     public PCollectionTuple expand(PCollection<? extends InputT> input) {
       // SplittableDoFn should be forbidden on the runner-side.
       validateWindowType(input, fn);
+
+      // Use coder registry to determine coders for all StateSpec defined in the fn signature.
+      inferStateCodersIfNeeded(fn, input.getPipeline().getCoderRegistry());
+
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
