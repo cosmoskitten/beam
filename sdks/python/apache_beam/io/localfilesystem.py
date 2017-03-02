@@ -34,6 +34,14 @@ class LocalFileSystem(FileSystem):
 
   @staticmethod
   def mkdirs(path):
+    """Recursively create directories for the provided path.
+
+    Args:
+      path: string path of the directory structure that should be created
+
+    Raises:
+      IOError if leaf directory already exists.
+    """
     try:
       os.makedirs(path)
     except OSError as err:
@@ -41,12 +49,22 @@ class LocalFileSystem(FileSystem):
 
   @staticmethod
   def match(pattern, limit=None):
+    """Find all matching paths to the pattern provided.
+
+    Args:
+      pattern: string for the file path pattern to match against
+      limit: Maximum number of responses that need to be fetched
+
+    Returns: List of FileMetadata objects that match the provided pattern.
+    """
     files = glob.glob(pattern)
     return [FileMetadata(f, os.path.getsize(f)) for f in files[:limit]]
 
   @staticmethod
   def _path_open(path, mode, mime_type='application/octet-stream',
                  compression_type=CompressionTypes.AUTO):
+    """Helper functions to open a file in the provided mode.
+    """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     raw_file = open(path, mode)
     if compression_type == CompressionTypes.UNCOMPRESSED:
@@ -57,15 +75,35 @@ class LocalFileSystem(FileSystem):
   @staticmethod
   def create(path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    """Returns a write channel for the given file path.
+
+    Args:
+      path: string path of the file object to be written to the system
+      mime_type: MIME type to specify the type on content in the file object
+      compression_type: Type of compression to be used for this object
+    """
     return LocalFileSystem._path_open(path, 'wb', mime_type, compression_type)
 
   @staticmethod
   def open(path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    """Returns a read channel for the given file path.
+
+    Args:
+      path: string path of the file object to be written to the system
+      mime_type: MIME type to specify the type on content in the file object
+      compression_type: Type of compression to be used for this object
+    """
     return LocalFileSystem._path_open(path, 'rb', mime_type, compression_type)
 
   @staticmethod
-  def copy(source, destination):
+  def _copy_tree(source, destination):
+    """Recursively copy the file tree from the source to the destination
+
+    Args:
+      source: Source file object that needs to be copied
+      destination: Destination of the new file object
+    """
     try:
       if os.path.exists(destination):
         shutil.rmtree(destination)
@@ -74,7 +112,19 @@ class LocalFileSystem(FileSystem):
       raise IOError(err)
 
   @staticmethod
+  def copy(sources, destinations):
+    """Recursively copy the file tree from the source to the destination
+
+    Args:
+      sources: list of source file/directory object that needs to be copied
+      destinations: list of destination of the new object
+    """
+    for source, destination in zip(sources, destinations):
+      LocalFileSystem._copy_tree(source, destination)
+
+  @staticmethod
   def _rename_file(src, dest):
+    """Rename a single file object"""
     try:
       os.rename(src, dest)
     except OSError as err:
@@ -82,6 +132,14 @@ class LocalFileSystem(FileSystem):
 
   @staticmethod
   def rename(sources, destinations):
+    """Rename the files at the source to the destination paths.
+    Sources and destinations lists should be of the same size.
+
+
+    Args:
+      sources: List of file paths that need to be moved
+      destinations: List of respective destinations for the file objects
+    """
     exceptions = []
     for src, dest in zip(sources, destinations):
       try:
@@ -92,10 +150,20 @@ class LocalFileSystem(FileSystem):
 
   @staticmethod
   def exists(path):
+    """Check if the provided path exists on the FileSystem.
+
+    Args:
+      path: string path that needs to be checked.
+    """
     return os.path.exists(path)
 
   @staticmethod
-  def delete(path):
+  def _delete_path(path):
+    """Recursively delete the file or directory at the provided path.
+
+    Args:
+      path: string path where the file object should be deleted
+    """
     try:
       if os.path.isdir(path):
         shutil.rmtree(path)
@@ -105,8 +173,23 @@ class LocalFileSystem(FileSystem):
       raise IOError(err)
 
   @staticmethod
+  def delete(paths):
+    """Recursively delete the file or directory at the provided path.
+
+    Args:
+      paths: list of string path where the file object should be deleted
+    """
+    for path in paths:
+      LocalFileSystem._delete_path(path)
+
+  @staticmethod
   def delete_directory(path):
+    """Delete the directory at the particular path.
+
+    Args:
+      path: path of the directory that needs to be deleted
+    """
     if os.path.isdir(path):
-      LocalFileSystem.delete(path)
+      LocalFileSystem._delete_path(path)
     else:
       raise IOError("Path %s is not a directory" % path)
