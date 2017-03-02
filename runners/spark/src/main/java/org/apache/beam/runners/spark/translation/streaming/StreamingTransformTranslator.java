@@ -43,7 +43,6 @@ import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.BoundedDataset;
 import org.apache.beam.runners.spark.translation.Dataset;
-import org.apache.beam.runners.spark.translation.DoFnFunction;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
 import org.apache.beam.runners.spark.translation.MultiDoFnFunction;
@@ -331,52 +330,6 @@ final class StreamingTransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.Bound<InputT, OutputT>> parDo() {
-    return new TransformEvaluator<ParDo.Bound<InputT, OutputT>>() {
-      @Override
-      public void evaluate(final ParDo.Bound<InputT, OutputT> transform,
-                           final EvaluationContext context) {
-        final DoFn<InputT, OutputT> doFn = transform.getFn();
-        rejectSplittable(doFn);
-        rejectStateAndTimers(doFn);
-        final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
-        final WindowingStrategy<?, ?> windowingStrategy =
-            context.getInput(transform).getWindowingStrategy();
-        final SparkPCollectionView pviews = context.getPViews();
-
-        @SuppressWarnings("unchecked")
-        UnboundedDataset<InputT> unboundedDataset =
-            ((UnboundedDataset<InputT>) context.borrowDataset(transform));
-        JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
-
-        final String stepName = context.getCurrentTransform().getFullName();
-
-        JavaDStream<WindowedValue<OutputT>> outStream =
-            dStream.transform(new Function<JavaRDD<WindowedValue<InputT>>,
-                JavaRDD<WindowedValue<OutputT>>>() {
-          @Override
-          public JavaRDD<WindowedValue<OutputT>> call(JavaRDD<WindowedValue<InputT>> rdd) throws
-              Exception {
-            final JavaSparkContext jsc = new JavaSparkContext(rdd.context());
-            final Accumulator<NamedAggregators> aggAccum =
-                SparkAggregators.getNamedAggregators(jsc);
-            final Accumulator<SparkMetricsContainer> metricsAccum =
-                MetricsAccumulator.getInstance();
-            final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
-                TranslationUtils.getSideInputs(transform.getSideInputs(),
-                    jsc, pviews);
-            return rdd.mapPartitions(
-                new DoFnFunction<>(aggAccum, metricsAccum, stepName, doFn, runtimeContext,
-                    sideInputs, windowingStrategy));
-          }
-        });
-
-        context.putDataset(transform,
-            new UnboundedDataset<>(outStream, unboundedDataset.getStreamSources()));
-      }
-    };
-  }
-
   private static <InputT, OutputT> TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>
   multiDo() {
     return new TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>() {
@@ -440,7 +393,6 @@ final class StreamingTransformTranslator {
     EVALUATORS.put(Read.Unbounded.class, readUnbounded());
     EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
-    EVALUATORS.put(ParDo.Bound.class, parDo());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
     EVALUATORS.put(ConsoleIO.Write.Unbound.class, print());
     EVALUATORS.put(CreateStream.class, createFromQueue());

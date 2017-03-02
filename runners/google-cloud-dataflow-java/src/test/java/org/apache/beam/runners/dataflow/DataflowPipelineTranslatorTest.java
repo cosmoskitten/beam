@@ -525,7 +525,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(13, job.getSteps().size());
     Step step = job.getSteps().get(1);
-    assertEquals(stepName, getString(step.getProperties(), PropertyNames.USER_NAME));
+    assertEquals(stepName + "/ParMultiDo(NoOp)", getString(step.getProperties(), PropertyNames.USER_NAME));
     assertAllStepOutputsHaveUniqueIds(job);
     return step;
   }

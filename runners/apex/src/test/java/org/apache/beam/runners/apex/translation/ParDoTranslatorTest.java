@@ -68,11 +68,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * integration test for {@link ParDoBoundTranslator}.
+ * integration test for {@link ParDoTranslator}.
  */
 @RunWith(JUnit4.class)
-public class ParDoBoundTranslatorTest {
-  private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslatorTest.class);
+public class ParDoTranslatorTest {
+  private static final Logger LOG = LoggerFactory.getLogger(ParDoTranslatorTest.class);
   private static final long SLEEP_MILLIS = 500;
   private static final long TIMEOUT_MILLIS = 30000;
 
