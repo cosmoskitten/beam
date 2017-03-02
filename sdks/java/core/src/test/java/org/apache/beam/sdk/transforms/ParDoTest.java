@@ -48,6 +48,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1501,6 +1502,51 @@ public class ParDoTest implements Serializable {
             .apply(ParDo.of(fn));
 
     PAssert.that(output).containsInAnyOrder(0, 1, 2);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testValueStateDedup() {
+    final String stateId = "foo";
+
+    DoFn<KV<Integer, Integer>, Integer> onePerKey =
+        new DoFn<KV<Integer, Integer>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<Integer>> seenSpec =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> seenState) {
+            Integer seen = MoreObjects.firstNonNull(seenState.read(), 0);
+
+            if (seen == 0) {
+              seenState.write(seen + 1);
+              c.output(c.element().getValue());
+            }
+          }
+        };
+
+    int numKeys = 50;
+    // A big enough list that we can see some deduping
+    List<KV<Integer, Integer>> input = new ArrayList<>();
+
+    // The output should have no dupes
+    Set<Integer> expectedOutput = new HashSet<>();
+
+    for (int key = 0; key < numKeys; ++key) {
+      expectedOutput.add(2 * key);
+
+      for (int i = 0; i < 15; ++i) {
+        input.add(KV.of(key, 2 * key));
+      }
+    }
+
+    PCollection<Integer> output = pipeline.apply(Create.of(input)).apply(ParDo.of(onePerKey));
+
+    PAssert.that(output).containsInAnyOrder(expectedOutput);
     pipeline.run();
   }
 
