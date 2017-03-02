@@ -48,8 +48,9 @@ class GCSFileSystemTest(unittest.TestCase):
         FileMetadata('gs://bucket/file1', 1),
         FileMetadata('gs://bucket/file2', 2)
     ])
+    file_system = gcsfilesystem.GCSFileSystem()
     self.assertEqual(
-        set(gcsfilesystem.GCSFileSystem.match('gs://bucket/*')),
+        set(file_system.match(['gs://bucket/*'])[0]),
         expected_results)
     gcsio_mock.size_of_files_in_glob.assert_called_once_with('gs://bucket/*')
 
@@ -80,7 +81,8 @@ class GCSFileSystemTest(unittest.TestCase):
     ]]
 
     # Issue batch rename.
-    gcsfilesystem.GCSFileSystem.rename(sources, destinations)
+    file_system = gcsfilesystem.GCSFileSystem()
+    file_system.rename(sources, destinations)
 
     gcsio_mock.copy_batch.assert_called_once_with([
         ('gs://bucket/from1', 'gs://bucket/to1'),
