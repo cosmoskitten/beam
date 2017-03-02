@@ -100,6 +100,8 @@ public class BoundedDataset<T> implements Dataset {
 
   @Override
   public void cache(String storageLevel) {
+    // populate the rdd if needed
+    getRDD();
     rdd.persist(StorageLevel.fromString(storageLevel));
   }
 
