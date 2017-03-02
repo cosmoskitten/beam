@@ -21,6 +21,8 @@ package org.apache.beam.runners.spark.translation.streaming;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.util.Map;
+
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
@@ -29,6 +31,7 @@ import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -50,14 +53,17 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
   private final Pipeline pipeline;
   private final SparkPipelineOptions options;
   private final CheckpointDir checkpointDir;
+  private final Map<PCollection, Long> cacheCandidates;
 
   public SparkRunnerStreamingContextFactory(
       Pipeline pipeline,
       SparkPipelineOptions options,
-      CheckpointDir checkpointDir) {
+      CheckpointDir checkpointDir,
+      Map<PCollection, Long> cacheCandidates) {
     this.pipeline = pipeline;
     this.options = options;
     this.checkpointDir = checkpointDir;
+    this.cacheCandidates = cacheCandidates;
   }
 
   private EvaluationContext ctxt;
@@ -82,7 +88,7 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     // We must first init accumulators since translators expect them to be instantiated.
     SparkRunner.initAccumulators(options, jsc);
 
-    ctxt = new EvaluationContext(jsc, pipeline, jssc);
+    ctxt = new EvaluationContext(jsc, pipeline, jssc, cacheCandidates);
     pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
     ctxt.computeOutputs();
 
