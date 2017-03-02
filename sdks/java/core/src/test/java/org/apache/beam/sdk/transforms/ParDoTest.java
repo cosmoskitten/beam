@@ -1544,7 +1544,14 @@ public class ParDoTest implements Serializable {
       }
     }
 
-    PCollection<Integer> output = pipeline.apply(Create.of(input)).apply(ParDo.of(onePerKey));
+    TupleTag<Integer> mainOutputTag = new TupleTag<Integer>(){};
+
+    PCollectionTuple outputTuple =
+        pipeline
+            .apply(Create.of(input))
+            .apply(ParDo.of(onePerKey).withOutputTags(mainOutputTag, TupleTagList.empty()));
+
+    PCollection<Integer> output = outputTuple.get(mainOutputTag);
 
     PAssert.that(output).containsInAnyOrder(expectedOutput);
     pipeline.run();
