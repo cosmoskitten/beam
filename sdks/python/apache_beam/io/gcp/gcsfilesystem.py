@@ -31,16 +31,34 @@ class GCSFileSystem(FileSystem):
 
   @staticmethod
   def mkdirs(path):
+    """Recursively create directories for the provided path.
+
+    Args:
+      path: string path of the directory structure that should be created
+
+    Raises:
+      IOError if leaf directory already exists.
+    """
     pass
 
   @staticmethod
   def match(pattern, limit=None):
+    """Find all matching paths to the pattern provided.
+
+    Args:
+      pattern: string for the file path pattern to match against
+      limit: Maximum number of responses that need to be fetched
+
+    Returns: List of FileMetadata objects that match the provided pattern.
+    """
     file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern)
     return [FileMetadata(path, size) for path, size in file_sizes.iteritems()]
 
   @staticmethod
   def _path_open(path, mode, mime_type='application/octet-stream',
                  compression_type=CompressionTypes.AUTO):
+    """Helper functions to open a file in the provided mode.
+    """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
     raw_file = gcsio.GcsIO().open(path, mode, mime_type=mime_type)
@@ -52,15 +70,35 @@ class GCSFileSystem(FileSystem):
   @staticmethod
   def create(path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    """Returns a write channel for the given file path.
+
+    Args:
+      path: string path of the file object to be written to the system
+      mime_type: MIME type to specify the type on content in the file object
+      compression_type: Type of compression to be used for this object
+    """
     return GCSFileSystem._path_open(path, 'wb', mime_type, compression_type)
 
   @staticmethod
   def open(path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    """Returns a read channel for the given file path.
+
+    Args:
+      path: string path of the file object to be written to the system
+      mime_type: MIME type to specify the type on content in the file object
+      compression_type: Type of compression to be used for this object
+    """
     return GCSFileSystem._path_open(path, 'rb', mime_type, compression_type)
 
   @staticmethod
   def copy(source, destination):
+    """Recursively copy the file tree from the source to the destination
+
+    Args:
+      source: Source file object that needs to be copied
+      destination: Destination of the new file object
+    """
     if not destination.startswith('gs://'):
       raise ValueError('Destination %r must be GCS path.', destination)
     assert source.endswith('/'), source
@@ -69,6 +107,14 @@ class GCSFileSystem(FileSystem):
 
   @staticmethod
   def rename(sources, destinations):
+    """Rename the files at the source to the destination paths.
+    Sources and destinations lists should be of the same size.
+
+
+    Args:
+      sources: List of file paths that need to be moved
+      destinations: List of respective destinations for the file objects
+    """
     gcs_batches = []
     gcs_current_batch = []
     for src, dest in zip(sources, destinations):
@@ -99,10 +145,20 @@ class GCSFileSystem(FileSystem):
 
   @staticmethod
   def exists(path):
+    """Check if the provided path exists on the FileSystem.
+
+    Args:
+      path: string path that needs to be checked.
+    """
     return gcsio.GcsIO().exists(path)
 
   @staticmethod
   def delete(path):
+    """Recursively delete the file or directory at the provided path.
+
+    Args:
+      path: string path where the file object should be deleted
+    """
     if path.endswith('/'):
       path += '*'
     for file_metadata in GCSFileSystem.match(path):
@@ -110,6 +166,11 @@ class GCSFileSystem(FileSystem):
 
   @staticmethod
   def delete_directory(path):
+    """Delete the directory at the particular path.
+
+    Args:
+      path: path of the directory that needs to be deleted
+    """
     if not path.endswith('/'):
       path += '/'
     GCSFileSystem.delete(path)
