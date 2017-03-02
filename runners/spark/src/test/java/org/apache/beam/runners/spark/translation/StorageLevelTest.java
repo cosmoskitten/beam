@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.PipelineRule;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -32,16 +32,14 @@ import org.junit.Test;
  */
 public class StorageLevelTest {
 
-  @Rule
-  public final transient PipelineRule pipelineRule = PipelineRule.batch();
-
   @Test
-  @Ignore("This test is failing. I'm investigating.")
   public void test() throws Exception {
-    pipelineRule.getOptions().setStorageLevel("DISK_ONLY");
-    Pipeline p = pipelineRule.createPipeline();
+    SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    options.setStorageLevel("DISK_ONLY");
+    Pipeline pipeline = Pipeline.create(options);
 
-    PCollection<String> pCollection = p.apply(Create.of("foo"));
+    PCollection<String> pCollection = pipeline.apply(Create.of("foo"));
 
     // by default, the Spark runner doesn't cache the RDD if it accessed only one time.
     // So, to "force" the caching of the RDD, we have to call the RDD at least two time.
@@ -52,7 +50,7 @@ public class StorageLevelTest {
 
     PAssert.thatSingleton(output).isEqualTo("Disk Serialized 1x Replicated");
 
-    p.run();
+    pipeline.run();
   }
 
 }
