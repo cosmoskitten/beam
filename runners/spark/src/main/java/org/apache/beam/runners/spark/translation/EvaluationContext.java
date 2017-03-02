@@ -52,19 +52,22 @@ public class EvaluationContext {
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
-  private final Set<PValue> multiReads = new LinkedHashSet<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
+  private final Map<PCollection, Long> cacheCandidates;
 
-  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
+  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
+                           Map<PCollection, Long> cacheCandidates) {
     this.jsc = jsc;
     this.pipeline = pipeline;
     this.runtime = new SparkRuntimeContext(pipeline);
+    this.cacheCandidates = cacheCandidates;
   }
 
-  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, JavaStreamingContext jssc) {
-    this(jsc, pipeline);
+  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, JavaStreamingContext jssc,
+                           Map<PCollection, Long> cacheCandidates) {
+    this(jsc, pipeline, cacheCandidates);
     this.jssc = jssc;
   }
 
@@ -116,6 +119,15 @@ public class EvaluationContext {
     return currentTransform.getOutputs();
   }
 
+  private boolean shouldCache(PValue pvalue) {
+    if ((pvalue instanceof PCollection)
+        && cacheCandidates.containsKey(pvalue)
+        && cacheCandidates.get(pvalue) > 1) {
+      return true;
+    }
+    return false;
+  }
+
   public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
     putDataset(getOutput(transform), dataset);
   }
@@ -125,6 +137,9 @@ public class EvaluationContext {
       dataset.setName(pvalue.getName());
     } catch (IllegalStateException e) {
       // name not set, ignore
+    }
+    if (shouldCache(pvalue)) {
+      dataset.cache(storageLevel());
     }
     datasets.put(pvalue, dataset);
     leaves.add(dataset);
@@ -142,12 +157,6 @@ public class EvaluationContext {
   public Dataset borrowDataset(PValue pvalue) {
     Dataset dataset = datasets.get(pvalue);
     leaves.remove(dataset);
-    if (multiReads.contains(pvalue)) {
-      // Ensure the RDD is marked as cached
-      dataset.cache(storageLevel());
-    } else {
-      multiReads.add(pvalue);
-    }
     return dataset;
   }
 
