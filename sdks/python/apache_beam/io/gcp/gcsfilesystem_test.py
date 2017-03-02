@@ -49,7 +49,7 @@ class GCSFileSystemTest(unittest.TestCase):
         FileMetadata('gs://bucket/file2', 2)
     ])
     self.assertEqual(
-        set(gcsfilesystem.GCSFileSystem.match('gs://bucket/*')),
+        set(gcsfilesystem.GCSFileSystem.match(['gs://bucket/*'])[0]),
         expected_results)
     gcsio_mock.size_of_files_in_glob.assert_called_once_with('gs://bucket/*')
 
