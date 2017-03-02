@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
+import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -135,7 +136,8 @@ public class TrackStreamingSourcesTest {
         Pipeline pipeline,
         Class<? extends PTransform> transformClassToAssert,
         Integer... expected) {
-      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, jssc);
+      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, jssc,
+          new HashMap<PCollection, Long>());
       this.evaluator = new SparkRunner.Evaluator(
           new StreamingTransformTranslator.Translator(new TransformTranslator.Translator()), ctxt);
       this.transformClassToAssert = transformClassToAssert;
