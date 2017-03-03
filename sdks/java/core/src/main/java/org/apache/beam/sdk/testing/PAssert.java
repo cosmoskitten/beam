@@ -1006,7 +1006,7 @@ public class PAssert {
           .apply("WindowToken", windowToken)
           .apply(
               "RunChecks",
-              ParDo.withSideInputs(actual).of(new SideInputCheckerDoFn<>(checkerFn, actual)));
+              ParDo.of(new SideInputCheckerDoFn<>(checkerFn, actual)).withSideInputs(actual));
 
       return PDone.in(input.getPipeline());
     }

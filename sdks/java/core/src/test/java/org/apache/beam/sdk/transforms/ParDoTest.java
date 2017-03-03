@@ -494,12 +494,13 @@ public class ParDoTest implements Serializable {
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new DoFn<Integer, Void>(){
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.sideOutput(sideOutputTag, c.element());
-                }}));
+                }})
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     PAssert.that(outputs.get(mainOutputTag)).empty();
     PAssert.that(outputs.get(sideOutputTag)).containsInAnyOrder(inputs);
@@ -583,10 +584,11 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1, sideInputUnread, sideInput2)
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1, sideInputUnread, sideInput2));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput
@@ -614,12 +616,13 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput
@@ -650,13 +653,14 @@ public class ParDoTest implements Serializable {
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     PAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput
@@ -687,13 +691,14 @@ public class ParDoTest implements Serializable {
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     PAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput
@@ -1198,7 +1203,6 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(new TestDummy())
             .withCoder(TestDummyCoder.of()))
         .apply(ParDo
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
             .of(
                 new DoFn<TestDummy, TestDummy>() {
                   @ProcessElement
@@ -1208,7 +1212,8 @@ public class ParDoTest implements Serializable {
                     context.sideOutput(sideOutputTag, element);
                   }
                 })
-    );
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        );
 
     // Before fix, tuple.get(mainOutputTag).apply(...) would indirectly trigger
     // tuple.get(sideOutputTag).finishSpecifyingOutput(), which would crash
@@ -1260,14 +1265,15 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)).of(
+        .apply(ParDo.of(
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public void processElement(ProcessContext c) {
                 c.sideOutputWithTimestamp(
                     sideOutputTag, c.element(), new Instant(c.element().longValue()));
               }
-            })).get(sideOutputTag)
+            }).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)))
+        .get(sideOutputTag)
         .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.ZERO, Duration.ZERO)))
         .apply(ParDo.of(new TestFormatTimestampDoFn()));
 
@@ -2077,8 +2083,8 @@ public class ParDoTest implements Serializable {
     };
 
     ParDo.BoundMulti<String, String> parDo = ParDo
-            .withOutputTags(new TupleTag<String>(), TupleTagList.empty())
-            .of(fn);
+            .of(fn)
+            .withOutputTags(new TupleTag<String>(), TupleTagList.empty());
 
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, includesDisplayDataFor("fn", fn));
