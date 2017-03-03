@@ -104,12 +104,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   private final SparkPipelineOptions mOptions;
 
   /**
-   * Map used to store the PCollections (input/output of PTransforms) that should be cached (as
-   * accessed several times).
-   */
-  private final Map<PCollection, Long> cacheCandidates = new HashMap<>();
-
-  /**
    * Creates and returns a new SparkRunner with default options. In particular, against a
    * spark instance running in local mode.
    *
@@ -186,7 +180,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     MetricsEnvironment.setMetricsSupported(true);
 
-    detectTranslationMode(pipeline);
+    // populate the cache candidates
+    Map<PCollection, Long> cacheCandidates = preVisit(pipeline);
 
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
@@ -249,17 +244,17 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   /**
-   * Detect the translation mode for the pipeline and change options in case streaming
-   * translation is needed.
-   * @param pipeline
+   * Previsit the pipline to collect cache candidates and detect the translation mode for the
+   * pipeline and change options in case streaming translation is needed.
    */
-  private void detectTranslationMode(Pipeline pipeline) {
-    DAGPreVisit detector = new DAGPreVisit(cacheCandidates);
-    pipeline.traverseTopologically(detector);
-    if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {
+  private Map<PCollection, Long> preVisit(Pipeline pipeline) {
+    DAGPreVisit dagPreVisit = new DAGPreVisit();
+    pipeline.traverseTopologically(dagPreVisit);
+    if (dagPreVisit.getTranslationMode().equals(TranslationMode.STREAMING)) {
       // set streaming mode if it's a streaming pipeline
       this.mOptions.setStreaming(true);
     }
+    return dagPreVisit.cacheCandidates;
   }
 
   /**
@@ -276,26 +271,29 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * Traverses the pipeline to determine the {@link TranslationMode} for this pipeline, and
    * populate the candidates for caching. It's the preparation step of the runner.
    */
-  @VisibleForTesting
   static class DAGPreVisit extends Pipeline.PipelineVisitor.Defaults {
     private static final Logger LOG = LoggerFactory.getLogger(DAGPreVisit.class);
     private static final Collection<Class<? extends PTransform>> UNBOUNDED_INPUTS =
         Arrays.asList(Read.Unbounded.class, CreateStream.class);
 
     private TranslationMode translationMode;
-    private Map<PCollection, Long> cacheCandidates;
+    private Map<PCollection, Long> cacheCandidates = new HashMap<>();
 
-    DAGPreVisit(TranslationMode defaultMode, Map<PCollection, Long> cacheCandidates) {
+    DAGPreVisit(TranslationMode defaultMode) {
       this.translationMode = defaultMode;
-      this.cacheCandidates = cacheCandidates;
     }
 
-    DAGPreVisit(Map<PCollection, Long> cacheCandidates) {
-      this(TranslationMode.BATCH, cacheCandidates);
+    DAGPreVisit() {
+      this(TranslationMode.BATCH);
     }
 
     TranslationMode getTranslationMode() {
       return translationMode;
+    }
+
+    @VisibleForTesting
+    Map<PCollection, Long> getCacheCandidates() {
+      return cacheCandidates;
     }
 
     @Override
