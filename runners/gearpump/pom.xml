@@ -77,8 +77,7 @@
                   </dependenciesToScan>
                   <excludes>
                     <exclude>
-                      org.apache.beam.sdk.transforms.ParDoTest,
-                      org.apache.beam.sdk.transforms.ViewTest
+                      org.apache.beam.sdk.transforms.ParDoTest
                     </exclude>
                   </excludes>
                   <systemPropertyVariables>

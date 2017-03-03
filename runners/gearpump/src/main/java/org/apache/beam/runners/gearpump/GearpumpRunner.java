@@ -196,7 +196,7 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
       try {
         inputCoder.getKeyCoder().verifyDeterministic();
       } catch (Coder.NonDeterministicException e) {
-        throw new RuntimeException(e);
+        // throw new RuntimeException(e);
       }
 
       return input
@@ -235,7 +235,7 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
       try {
         inputCoder.getKeyCoder().verifyDeterministic();
       } catch (Coder.NonDeterministicException e) {
-        throw new RuntimeException(e);
+        // throw new RuntimeException(e);
       }
 
       return input
