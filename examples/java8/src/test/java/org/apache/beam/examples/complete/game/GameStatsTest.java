@@ -23,7 +23,7 @@ import java.util.List;
 import org.apache.beam.examples.complete.game.GameStats.CalculateSpammyUsers;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
@@ -63,7 +63,7 @@ public class GameStatsTest implements Serializable {
 
   /** Test the calculation of 'spammy users'. */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testCalculateSpammyUsers() throws Exception {
     PCollection<KV<String, Integer>> input = p.apply(Create.of(USER_SCORES));
     PCollection<KV<String, Integer>> output = input.apply(new CalculateSpammyUsers());
