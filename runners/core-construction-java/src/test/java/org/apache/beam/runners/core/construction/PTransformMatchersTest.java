@@ -91,7 +91,7 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void classEqualToMatchesSameClass() {
-    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.Bound.class);
+    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.SingleOutput.class);
     AppliedPTransform<?, ?, ?> application =
         getAppliedTransform(
             ParDo.of(
@@ -126,7 +126,7 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void classEqualToDoesNotMatchUnrelatedClass() {
-    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.Bound.class);
+    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.SingleOutput.class);
     AppliedPTransform<?, ?, ?> application =
         getAppliedTransform(Window.<KV<String, Integer>>into(new GlobalWindows()));
 
@@ -191,7 +191,7 @@ public class PTransformMatchersTest implements Serializable {
       };
 
   /**
-   * Demonstrates that a {@link ParDo.Bound} does not match any ParDo matcher.
+   * Demonstrates that a {@link ParDo.SingleOutput} does not match any ParDo matcher.
    */
   @Test
   public void parDoSingle() {
