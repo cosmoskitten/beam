@@ -72,7 +72,7 @@ class ValueProviderTests(unittest.TestCase):
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
             '--vp_arg',
-            help='This flag is a value provider')   # set at runtime
+            help='This keyword argument is a value provider')   # set at runtime
 
         parser.add_value_provider_argument(         # not set, had default int
             '-v', '--vp_arg2',                      # with short form
@@ -88,13 +88,19 @@ class ValueProviderTests(unittest.TestCase):
             '--vp_arg4',
             type=float)
 
+        parser.add_value_provider_argument(         # positional argument
+            'vp_pos_arg',
+            help='This positional argument is a value provider',
+            type=float)
+
     # provide values at graph-construction time
     # (options not provided here become of the type RuntimeValueProvider)
-    options = UserOptions1([''])
+    options = UserOptions1([])
     self.assertFalse(options.vp_arg.is_accessible())
     self.assertFalse(options.vp_arg2.is_accessible())
     self.assertFalse(options.vp_arg3.is_accessible())
     self.assertFalse(options.vp_arg4.is_accessible())
+    self.assertFalse(options.vp_pos_arg.is_accessible())
 
     # provide values at job-execution time
     # (options not provided here will use their default, if they have one)
