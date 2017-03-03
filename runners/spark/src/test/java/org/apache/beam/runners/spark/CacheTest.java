@@ -19,9 +19,6 @@ package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
@@ -46,10 +43,9 @@ public class CacheTest {
     // second read
     pcollection.apply(Count.globally());
 
-    Map<PCollection, Long> cacheCandidates = new HashMap<>();
-    SparkRunner.DAGPreVisit dagPreVisit = new SparkRunner.DAGPreVisit(cacheCandidates);
+    SparkRunner.DAGPreVisit dagPreVisit = new SparkRunner.DAGPreVisit();
     pipeline.traverseTopologically(dagPreVisit);
-    assertEquals(2L, (long) cacheCandidates.get(pcollection));
+    assertEquals(2L, (long) dagPreVisit.getCacheCandidates().get(pcollection));
   }
 
 }
