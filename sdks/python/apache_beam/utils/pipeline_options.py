@@ -45,7 +45,8 @@ def _static_value_provider_of(value_type):
 class BeamArgumentParser(argparse.ArgumentParser):
   """An ArgumentParser that supports ValueProvider options.
 
-  Example Usage:
+  Example Usage::
+
     class TemplateUserOptions(PipelineOptions):
       @classmethod
 
@@ -56,24 +57,23 @@ class BeamArgumentParser(argparse.ArgumentParser):
 
   """
   def add_value_provider_argument(self, *args, **kwargs):
-    # Extract the option name from positional ['pos_arg'] or keyword arguments
-    # like [--kw_arg, -k, -w] or [--kw-arg]
+    # Extract the option name from positional argument ['pos_arg']
     if args[0][0] != '-':
       option_name = args[0]
+      if kwargs.get('nargs') is None:  # make them optionally templated
+        kwargs['nargs'] = '?'
+    # or keyword arguments like [--kw_arg, -k, -w] or [--kw-arg]
     else:
       option_name = [i.replace('--', '') for i in args if i[:2] == '--'][0]
 
-    # reassign the type to make room for StaticValueProvider
+    # reassign the type to make room for using
+    # StaticValueProvider as the type for add_argument
     value_type = kwargs.get('type') or str
-
-    # use StaticValueProvider as the type of the argument
     kwargs['type'] = _static_value_provider_of(value_type)
 
     # reassign default to value_default to make room for using
     # RuntimeValueProvider as the default for add_argument
     default_value = kwargs.get('default')
-
-    # use RuntimeValueProvider() as the default
     kwargs['default'] = RuntimeValueProvider(
         pipeline_options_subclass=(self.pipeline_options_subclass
                                    or PipelineOptions),
@@ -81,9 +81,8 @@ class BeamArgumentParser(argparse.ArgumentParser):
         value_type=value_type,
         default_value=default_value,
     )
-    kwargs['nargs'] = '?'  # make positional arguments optionally templated
 
-    # we still want add_argument to do most of the work
+    # have add_argument do most of the work
     self.add_argument(*args, **kwargs)
 
 
