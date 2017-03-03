@@ -29,18 +29,45 @@ class GCSFileSystem(FileSystem):
   """A GCS file system implementation for accessing files on disk.
   """
 
-  @staticmethod
-  def mkdirs(path):
+  def mkdirs(self, path):
+    """Recursively create directories for the provided path.
+
+    Args:
+      path: string path of the directory structure that should be created
+
+    Raises:
+      IOError if leaf directory already exists.
+    """
     pass
 
-  @staticmethod
-  def match(pattern, limit=None):
-    file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern)
-    return [FileMetadata(path, size) for path, size in file_sizes.iteritems()]
+  def match(self, patterns, limits=None):
+    """Find all matching paths to the pattern provided.
 
-  @staticmethod
-  def _path_open(path, mode, mime_type='application/octet-stream',
+    Args:
+      pattern: string for the file path pattern to match against
+      limit: Maximum number of responses that need to be fetched
+
+    Returns: list of list of ``FileMetadata`` objects that match the patterns.
+    """
+    if limits is None:
+      limits = [None] * len(patterns)
+    else:
+      err_msg = "Patterns and limits should be equal in length"
+      assert len(patterns) == len(limits), err_msg
+
+    def _match(pattern, limit):
+      """Find all matching paths to the pattern provided.
+      """
+      if pattern.endswith('/'):
+        pattern += '*'
+      file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern)
+      return [FileMetadata(path, size) for path, size in file_sizes.iteritems()]
+    return [_match(pattern, limit) for pattern, limit in zip(patterns, limits)]
+
+  def _path_open(self, path, mode, mime_type='application/octet-stream',
                  compression_type=CompressionTypes.AUTO):
+    """Helper functions to open a file in the provided mode.
+    """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
     raw_file = gcsio.GcsIO().open(path, mode, mime_type=mime_type)
@@ -49,26 +76,70 @@ class GCSFileSystem(FileSystem):
     else:
       return CompressedFile(raw_file, compression_type=compression_type)
 
-  @staticmethod
-  def create(path, mime_type='application/octet-stream',
+  def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    """Returns a write channel for the given file path.
+
+    Args:
+      path: string path of the file object to be written to the system
+      mime_type: MIME type to specify the type of content in the file object
+      compression_type: Type of compression to be used for this object
+
+    Returns: file handle with a close function for the user to use
+    """
     return GCSFileSystem._path_open(path, 'wb', mime_type, compression_type)
 
-  @staticmethod
-  def open(path, mime_type='application/octet-stream',
+  def open(self, path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    """Returns a read channel for the given file path.
+
+    Args:
+      path: string path of the file object to be written to the system
+      mime_type: MIME type to specify the type of content in the file object
+      compression_type: Type of compression to be used for this object
+
+    Returns: file handle with a close function for the user to use
+    """
     return GCSFileSystem._path_open(path, 'rb', mime_type, compression_type)
 
-  @staticmethod
-  def copy(source, destination):
-    if not destination.startswith('gs://'):
-      raise ValueError('Destination %r must be GCS path.', destination)
-    assert source.endswith('/'), source
-    assert destination.endswith('/'), destination
-    gcsio.GcsIO().copytree(source, destination)
+  def copy(self, sources, destinations):
+    """Recursively copy the file tree from the source to the destination
 
-  @staticmethod
-  def rename(sources, destinations):
+    Args:
+      sources: list of source file/directory object that needs to be copied
+      destinations: list of destination of the new object
+    """
+    err_msg = "Sources and Destinations should be equal in length"
+    assert len(sources) == len(destinations), err_msg
+
+    def _copy_path(source, destination):
+      """Recursively copy the file tree from the source to the destination
+      """
+      if not destination.startswith('gs://'):
+        raise ValueError('Destination %r must be GCS path.', destination)
+      # Use copy_tree if the path ends with / as it is a directory
+      if source.endswith('/'):
+        gcsio.GcsIO().copytree(source, destination)
+      else:
+        gcsio.GcsIO().copy(source, destination)
+
+    for source, destination in zip(sources, destinations):
+      _copy_path(source, destination)
+
+  def rename(self, sources, destinations):
+    """Rename the files at the source list to the destination list.
+    Source and destination lists should be of the same size.
+
+
+    Args:
+      sources: List of file paths that need to be moved
+      destinations: List of respective destinations for the file objects
+
+    Returns: list of exceptions encountered in the process
+    """
+    err_msg = "Sources and Destinations should be equal in length"
+    assert len(sources) == len(destinations), err_msg
+
     gcs_batches = []
     gcs_current_batch = []
     for src, dest in zip(sources, destinations):
@@ -97,19 +168,38 @@ class GCSFileSystem(FileSystem):
           exceptions.append((src, dest, exception))
     return exceptions
 
-  @staticmethod
-  def exists(path):
+  def exists(self, path):
+    """Check if the provided path exists on the FileSystem.
+
+    Args:
+      path: string path that needs to be checked.
+
+    Returns: boolean flag indicating if path exists
+    """
     return gcsio.GcsIO().exists(path)
 
-  @staticmethod
-  def delete(path):
-    if path.endswith('/'):
-      path += '*'
-    for file_metadata in GCSFileSystem.match(path):
-      gcsio.GcsIO().delete(file_metadata.path)
+  def delete(self, paths):
+    """Recursively delete the file or directory at the provided path.
 
-  @staticmethod
-  def delete_directory(path):
+    Args:
+      paths: list of string path where the file object should be deleted
+    """
+    def _delete(path):
+      """Recursively delete the file or directory at the provided path.
+      """
+      if path.endswith('/'):
+        path += '*'
+      metadata_list = self.match([path])[0]
+      gcsio.GcsIO().delete_batch([m.path for m in metadata_list])
+    for path in paths:
+      _delete(path)
+
+  def delete_directory(self, path):
+    """Delete the directory at the particular path.
+
+    Args:
+      path: path of the directory that needs to be deleted
+    """
     if not path.endswith('/'):
       path += '/'
-    GCSFileSystem.delete(path)
+    GCSFileSystem.delete([path])

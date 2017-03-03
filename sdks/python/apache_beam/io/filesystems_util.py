@@ -21,6 +21,9 @@ from apache_beam.io.localfilesystem import LocalFileSystem
 
 # TODO(BEAM-1585): Add a mechanism to add user implemented file systems
 def get_filesystem(path):
+  """Function that returns the FileSystem class to use based on the path
+  pattern provided in the input.
+  """
   if path.startswith('gs://'):
     from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
     return GCSFileSystem()
