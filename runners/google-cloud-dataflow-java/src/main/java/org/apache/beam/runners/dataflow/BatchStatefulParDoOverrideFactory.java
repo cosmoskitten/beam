@@ -34,11 +34,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -119,29 +115,15 @@ class BatchStatefulParDoOverrideFactory<InputT, OutputT>
           .apply("Reify timestamps", ParDo.of(new ReifyWindowedValueFn<K, InputT>()))
           .setCoder(KvCoder.of(keyCoder, WindowedValue.getFullCoder(kvCoder, windowCoder)))
 
-          // We are going to GBK to gather keys and windows but otherwise do not want
-          // to alter the flow of data. This entails:
-          //  - trigger as fast as possible
-          //  - maintain the full timestamps of elements
-          //  - ensure this GBK holds to the minimum of those timestamps (via OutputTimeFn)
-          //  - discard past panes as it is "just a stream" of elements
-          .apply(
-              Window.<KV<K, WindowedValue<KV<K, InputT>>>>triggering(
-                      Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-                  .discardingFiredPanes()
-                  .withAllowedLateness(inputWindowingStrategy.getAllowedLateness())
-                  .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
-
-          // A full GBK to group by key _and_ window, not just reshuffle
+          // A full GBK to group by key _and_ window, not just reshuffle.
+          // Since this is batch only, we don't need to alter the triggering.
           .apply("Group by key", GroupByKey.<K, WindowedValue<KV<K, InputT>>>create())
 
           // Explode the elements
           .apply("Explode groups", ParDo.of(new ExplodeGroupsDoFn<K, InputT>()))
           .setCoder(input.getCoder())
 
-          // Because of the intervening GBK, we may have abused the windowing strategy
-          // of the input, which should be transferred to the output in a straightforward manner
-          // according to what ParDo already does.
+          // Because of the intervening GBK, we need to reset the windowing strategy
           .setWindowingStrategyInternal(inputWindowingStrategy)
 
           // Do the stateful ParDo as-is now
