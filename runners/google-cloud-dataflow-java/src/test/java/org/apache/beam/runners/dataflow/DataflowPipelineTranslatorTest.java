@@ -972,7 +972,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .put("type", "JAVA_CLASS")
             .put("value", fn1.getClass().getName())
             .put("shortValue", fn1.getClass().getSimpleName())
-            .put("namespace", ParDo.BoundMulti.class.getName())
+            .put("namespace", ParDo.MultiOutput.class.getName())
             .build(),
         ImmutableMap.<String, Object>builder()
             .put("key", "foo2")
@@ -992,7 +992,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .put("type", "JAVA_CLASS")
             .put("value", fn2.getClass().getName())
             .put("shortValue", fn2.getClass().getSimpleName())
-            .put("namespace", ParDo.BoundMulti.class.getName())
+            .put("namespace", ParDo.MultiOutput.class.getName())
             .build(),
         ImmutableMap.<String, Object>builder()
             .put("key", "foo3")

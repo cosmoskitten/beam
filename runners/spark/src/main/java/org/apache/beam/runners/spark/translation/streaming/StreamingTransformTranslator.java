@@ -331,11 +331,11 @@ final class StreamingTransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>
+  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>
   multiDo() {
-    return new TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>() {
+    return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
       public void evaluate(
-          final ParDo.BoundMulti<InputT, OutputT> transform, final EvaluationContext context) {
+          final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
         if (transform.getSideOutputTags().size() == 0) {
           evaluateSingle(transform, context);
         } else {
@@ -344,7 +344,7 @@ final class StreamingTransformTranslator {
       }
 
       private void evaluateMulti(
-          final ParDo.BoundMulti<InputT, OutputT> transform, final EvaluationContext context) {
+          final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectSplittable(doFn);
         rejectStateAndTimers(doFn);
@@ -394,7 +394,7 @@ final class StreamingTransformTranslator {
       }
 
       private void evaluateSingle(
-          final ParDo.BoundMulti<InputT, OutputT> transform, final EvaluationContext context) {
+          final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectSplittable(doFn);
         rejectStateAndTimers(doFn);
@@ -452,7 +452,7 @@ final class StreamingTransformTranslator {
     EVALUATORS.put(Read.Unbounded.class, readUnbounded());
     EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
-    EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
+    EVALUATORS.put(ParDo.MultiOutput.class, multiDo());
     EVALUATORS.put(ConsoleIO.Write.Unbound.class, print());
     EVALUATORS.put(CreateStream.class, createFromQueue());
     EVALUATORS.put(Window.Assign.class, window());

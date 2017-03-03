@@ -54,7 +54,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -90,7 +90,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
               PTransformMatchers.classEqualTo(TestStream.class),
               new DirectTestStreamFactory()) /* primitive */
           .put(
-              PTransformMatchers.classEqualTo(BoundMulti.class),
+              PTransformMatchers.classEqualTo(MultiOutput.class),
               /* returns one of two primitives; SplittableParDos and ParDos with state and timers
               are replaced appropriately by the override factory. */
               new ParDoMultiOverrideFactory())
@@ -203,7 +203,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   /** The set of {@link PTransform PTransforms} that execute a UDF. Useful for some enforcements. */
   private static final Set<Class<? extends PTransform>> CONTAINS_UDF =
       ImmutableSet.of(
-          Read.Bounded.class, Read.Unbounded.class, ParDo.SingleOutput.class, ParDo.BoundMulti.class);
+          Read.Bounded.class, Read.Unbounded.class, ParDo.SingleOutput.class, MultiOutput.class);
 
   enum Enforcement {
     ENCODABILITY {
@@ -257,7 +257,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       }
       Collection<ModelEnforcementFactory> parDoEnforcements = enabledParDoEnforcements.build();
       enforcements.put(ParDo.SingleOutput.class, parDoEnforcements);
-      enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
+      enforcements.put(MultiOutput.class, parDoEnforcements);
       return enforcements.build();
     }
 
