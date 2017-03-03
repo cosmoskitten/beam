@@ -26,7 +26,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -676,14 +675,14 @@ public class BigQueryIOTest implements Serializable {
     assertEquals(project, read.getTable().getProjectId());
     assertEquals(dataset, read.getTable().getDatasetId());
     assertEquals(table, read.getTable().getTableId());
-    assertNull(read.query);
+    assertNull(read.getQuery());
     assertEquals(validate, read.getValidate());
   }
 
   private void checkReadQueryObjectWithValidate(
       BigQueryIO.Read read, String query, boolean validate) {
     assertNull(read.getTable());
-    assertEquals(query, read.getQuery());
+    assertEquals(query, read.getQuery().get());
     assertEquals(validate, read.getValidate());
   }
 
@@ -2415,21 +2414,5 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testShardedKeyCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(BigQueryIO.ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
-  }
-
-  @Test
-  public void testUniqueStepIdRead() {
-    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    Pipeline pipeline = TestPipeline.create(options);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-    BigQueryIO.Read read1 = BigQueryIO.Read.fromQuery(
-        options.getInputQuery()).withoutValidation();
-    pipeline.apply(read1);
-    BigQueryIO.Read read2 = BigQueryIO.Read.fromQuery(
-        options.getInputQuery()).withoutValidation();
-    pipeline.apply(read2);
-    assertNotEquals(read1.stepUuid, read2.stepUuid);
-    assertNotEquals(read1.jobUuid.get(), read2.jobUuid.get());
   }
 }
