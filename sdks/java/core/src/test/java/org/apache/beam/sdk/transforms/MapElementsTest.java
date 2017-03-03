@@ -26,7 +26,7 @@ import java.io.Serializable;
 import java.util.Set;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
@@ -250,7 +250,7 @@ public class MapElementsTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testPrimitiveDisplayData() {
     SimpleFunction<Integer, ?> mapFn = new SimpleFunction<Integer, Integer>() {
       @Override

@@ -61,7 +61,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesMapState;
@@ -318,7 +318,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDo() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -334,7 +334,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDo2() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -350,7 +350,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoEmpty() {
 
     List<Integer> inputs = Arrays.asList();
@@ -366,7 +366,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoEmptyOutputs() {
 
     List<Integer> inputs = Arrays.asList();
@@ -381,7 +381,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoWithSideOutputs() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -423,7 +423,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoEmptyWithSideOutputs() {
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
     TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
@@ -461,7 +461,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoWithEmptySideOutputs() {
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
     TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
@@ -485,7 +485,7 @@ public class ParDoTest implements Serializable {
 
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoWithOnlySideOutputs() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -567,7 +567,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoWithSideInputs() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -598,7 +598,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoWithSideInputsIsCumulative() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -631,7 +631,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultiOutputParDoWithSideInputs() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -668,7 +668,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultiOutputParDoWithSideInputsIsCumulative() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -738,7 +738,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSideInputsWithMultipleWindows() {
     // Tests that the runner can safely run a DoFn that uses side inputs
     // on an input where the element is in multiple windows. The complication is
@@ -906,7 +906,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoInCustomTransform() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -1373,7 +1373,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowingInStartAndFinishBundle() {
 
     PCollection<String> output =
@@ -1477,7 +1477,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateSimple() {
     final String stateId = "foo";
 
@@ -1506,7 +1506,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateDedup() {
     final String stateId = "foo";
 
@@ -1554,7 +1554,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateFixedWindows() {
     final String stateId = "foo";
 
@@ -1602,7 +1602,7 @@ public class ParDoTest implements Serializable {
    * which may (or may not) be executed in similar contexts after runner optimizations.
    */
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateSameId() {
     final String stateId = "foo";
 
@@ -1652,7 +1652,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateSideOutput() {
     final String stateId = "foo";
 
@@ -1702,7 +1702,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testBagState() {
     final String stateId = "foo";
 
@@ -1737,7 +1737,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesSetState.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
   public void testSetState() {
     final String stateId = "foo";
     final String countStateId = "count";
@@ -1779,7 +1779,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesMapState.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
   public void testMapState() {
     final String stateId = "foo";
     final String countStateId = "count";
@@ -1824,7 +1824,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testCombiningState() {
     final String stateId = "foo";
 
@@ -1863,7 +1863,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testBagStateSideInput() {
 
     final PCollectionView<List<Integer>> listView =
@@ -1925,7 +1925,7 @@ public class ParDoTest implements Serializable {
    * and is only supported by the direct runner.
    */
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testEventTimeTimerBounded() throws Exception {
     final String timerId = "foo";
 
@@ -1957,7 +1957,7 @@ public class ParDoTest implements Serializable {
    * supplementary output. The test is otherwise identical to {@link #testEventTimeTimerBounded()}.
    */
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testEventTimeTimerAbsolute() throws Exception {
     final String timerId = "foo";
 
@@ -1990,7 +1990,7 @@ public class ParDoTest implements Serializable {
    * implementations that may GC in ways not simply governed by the watermark.
    */
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testEventTimeTimerMultipleKeys() throws Exception {
     final String timerId = "foo";
     final String stateId = "sizzle";
@@ -2054,7 +2054,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
     final String timerId = "foo";
 
@@ -2083,7 +2083,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testOutOfBoundsEventTimeTimer() throws Exception {
     final String timerId = "foo";
 
