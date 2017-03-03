@@ -34,7 +34,7 @@ import java.util.List;
 import org.apache.beam.sdk.TestUtils;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -300,7 +300,7 @@ public class ApproximateUniqueTest implements Serializable {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testApproximateUniqueWithSmallInput() {
       final PCollection<Integer> input = p.apply(
           Create.of(Arrays.asList(1, 2, 3, 3)));

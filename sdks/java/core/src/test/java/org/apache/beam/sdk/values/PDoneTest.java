@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.TestUtils.LINES;
 import java.io.File;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -79,7 +79,7 @@ public class PDoneTest {
   // transforms that contain no nested transforms.
   @Ignore
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyTransform() {
     p.begin().apply(new EmptyTransform());
 

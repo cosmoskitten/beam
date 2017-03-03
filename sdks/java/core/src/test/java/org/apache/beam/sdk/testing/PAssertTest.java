@@ -122,7 +122,7 @@ public class PAssertTest implements Serializable {
    * serializable.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testContainsInAnyOrderNotSerializable() throws Exception {
     PCollection<NotSerializableObject> pcollection = pipeline
         .apply(Create.of(
@@ -143,7 +143,7 @@ public class PAssertTest implements Serializable {
    * though.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSerializablePredicate() throws Exception {
     PCollection<NotSerializableObject> pcollection = pipeline
         .apply(Create.of(
@@ -168,7 +168,7 @@ public class PAssertTest implements Serializable {
    * though.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedSerializablePredicate() throws Exception {
     PCollection<NotSerializableObject> pcollection = pipeline
         .apply(Create.timestamped(
@@ -259,7 +259,7 @@ public class PAssertTest implements Serializable {
    * Basic test for {@code isEqualTo}.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testIsEqualTo() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(43));
     PAssert.thatSingleton(pcollection).isEqualTo(43);
@@ -270,7 +270,7 @@ public class PAssertTest implements Serializable {
    * Basic test for {@code isEqualTo}.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedIsEqualTo() throws Exception {
     PCollection<Integer> pcollection =
         pipeline.apply(Create.timestamped(TimestampedValue.of(43, new Instant(250L)),
@@ -289,7 +289,7 @@ public class PAssertTest implements Serializable {
    * Basic test for {@code notEqualTo}.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testNotEqualTo() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(43));
     PAssert.thatSingleton(pcollection).notEqualTo(42);
@@ -300,7 +300,7 @@ public class PAssertTest implements Serializable {
    * Tests that {@code containsInAnyOrder} is actually order-independent.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testContainsInAnyOrder() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
     PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
@@ -311,7 +311,7 @@ public class PAssertTest implements Serializable {
    * Tests that {@code containsInAnyOrder} is actually order-independent.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testGlobalWindowContainsInAnyOrder() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
     PAssert.that(pcollection).inWindow(GlobalWindow.INSTANCE).containsInAnyOrder(2, 1, 4, 3);
@@ -322,7 +322,7 @@ public class PAssertTest implements Serializable {
    * Tests that windowed {@code containsInAnyOrder} is actually order-independent.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedContainsInAnyOrder() throws Exception {
     PCollection<Integer> pcollection =
         pipeline.apply(Create.timestamped(TimestampedValue.of(1, new Instant(100L)),
@@ -351,7 +351,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmpty() {
     PCollection<Long> vals =
         pipeline.apply(Create.empty(VarLongCoder.of()));
@@ -365,7 +365,7 @@ public class PAssertTest implements Serializable {
    * Tests that {@code containsInAnyOrder} fails when and how it should.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testContainsInAnyOrderFalse() throws Exception {
     PCollection<Integer> pcollection = pipeline
         .apply(Create.of(1, 2, 3, 4));
@@ -386,7 +386,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyFalse() throws Exception {
     PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
     PAssert.that(vals).empty();

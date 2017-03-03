@@ -55,7 +55,7 @@
     </profile>
 
     <profile>
-      <!-- This profile adds execution of RunnableOnService integration tests
+      <!-- This profile adds execution of ValidatesRunner integration tests
            against a local Spark endpoint. -->
       <id>local-runnable-on-service-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
@@ -72,7 +72,7 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
                   <excludedGroups>
                     org.apache.beam.sdk.testing.UsesStatefulParDo,
                     org.apache.beam.sdk.testing.UsesTimersInParDo,
@@ -295,7 +295,7 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Depend on test jar to scan for RunnableOnService tests -->
+    <!-- Depend on test jar to scan for ValidatesRunner tests -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>

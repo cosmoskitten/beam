@@ -25,7 +25,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -69,7 +69,7 @@ public class ReshuffleTest {
   public final TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testJustReshuffle() {
 
     PCollection<KV<String, Integer>> input = pipeline
@@ -89,7 +89,7 @@ public class ReshuffleTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testReshuffleAfterSessionsAndGroupByKey() {
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
@@ -112,7 +112,7 @@ public class ReshuffleTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testReshuffleAfterFixedWindowsAndGroupByKey() {
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
@@ -135,7 +135,7 @@ public class ReshuffleTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testReshuffleAfterSlidingWindowsAndGroupByKey() {
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
@@ -158,7 +158,7 @@ public class ReshuffleTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testReshuffleAfterFixedWindows() {
 
     PCollection<KV<String, Integer>> input = pipeline
@@ -181,7 +181,7 @@ public class ReshuffleTest {
 
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testReshuffleAfterSlidingWindows() {
 
     PCollection<KV<String, Integer>> input = pipeline

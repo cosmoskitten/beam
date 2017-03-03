@@ -34,7 +34,7 @@ import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -124,7 +124,7 @@ public class PipelineTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultipleApply() {
     PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
         addSuffix("+");
@@ -198,7 +198,7 @@ public class PipelineTest {
    * Tests that Pipeline supports a pass-through identity function.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testIdentityTransform() throws Exception {
 
     PCollection<Integer> output = pipeline
@@ -221,7 +221,7 @@ public class PipelineTest {
    * Tests that Pipeline supports pulling an element out of a tuple as a transform.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testTupleProjectionTransform() throws Exception {
     PCollection<Integer> input = pipeline
         .apply(Create.<Integer>of(1, 2, 3, 4));
@@ -254,7 +254,7 @@ public class PipelineTest {
    * Tests that Pipeline supports putting an element into a tuple as a transform.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testTupleInjectionTransform() throws Exception {
     PCollection<Integer> input = pipeline
         .apply(Create.<Integer>of(1, 2, 3, 4));

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static org.hamcrest.Matchers.containsString;
 
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -45,7 +45,7 @@ public class WithKeysJava8Test {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void withLambdaAndTypeDescriptorShouldSucceed() {
 
 
