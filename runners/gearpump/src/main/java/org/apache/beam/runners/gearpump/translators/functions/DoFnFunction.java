@@ -174,8 +174,8 @@ public class DoFnFunction<InputT, OutputT> extends
   private static class DoFnOutputManager implements DoFnRunners.OutputManager, Serializable {
 
     private static final long serialVersionUID = 4967375172737408160L;
-    private final List<RawUnionValue> outputs = new LinkedList<>();
-    private final Set<TupleTag<?>> outputTags = new HashSet<>();
+    private transient List<RawUnionValue> outputs = new LinkedList<>();
+    private transient Set<TupleTag<?>> outputTags = new HashSet<>();
 
     DoFnOutputManager(TupleTag<?> mainOutput, List<TupleTag<?>> sideOutputs) {
       outputTags.add(mainOutput);
