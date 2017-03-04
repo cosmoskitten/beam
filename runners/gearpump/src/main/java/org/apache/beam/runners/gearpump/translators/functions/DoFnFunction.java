@@ -62,12 +62,12 @@ public class DoFnFunction<InputT, OutputT> extends
 
   private static final long serialVersionUID = -5701440128544343353L;
   private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
-  private DoFn<InputT, OutputT> doFn;
-  private DoFnInvoker<InputT, OutputT> doFnInvoker;
-  private PushbackSideInputDoFnRunner<InputT, OutputT> doFnRunner;
-  private SideInputHandler sideInputReader;
-  private List<WindowedValue<InputT>> pushedBackValues;
-  private Map<PCollectionView<?>, List<WindowedValue<Iterable<?>>>> sideInputValues;
+  private final DoFn<InputT, OutputT> doFn;
+  private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
+  private transient PushbackSideInputDoFnRunner<InputT, OutputT> doFnRunner;
+  private transient SideInputHandler sideInputReader;
+  private transient List<WindowedValue<InputT>> pushedBackValues;
+  private transient Map<PCollectionView<?>, List<WindowedValue<Iterable<?>>>> sideInputValues;
   private final Collection<PCollectionView<?>> sideInputs;
   private final Map<String, PCollectionView<?>> tagsToSideInputs;
   private final DoFnOutputManager outputManager;
@@ -174,7 +174,7 @@ public class DoFnFunction<InputT, OutputT> extends
   private static class DoFnOutputManager implements DoFnRunners.OutputManager, Serializable {
 
     private static final long serialVersionUID = 4967375172737408160L;
-    private List<RawUnionValue> outputs = new LinkedList<>();
+    private final List<RawUnionValue> outputs = new LinkedList<>();
     private final Set<TupleTag<?>> outputTags = new HashSet<>();
 
     DoFnOutputManager(TupleTag<?> mainOutput, List<TupleTag<?>> sideOutputs) {
