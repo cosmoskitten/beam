@@ -25,16 +25,19 @@ import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.runners.gearpump.translators.utils.DoFnRunnerFactory;
+import org.apache.beam.runners.gearpump.translators.utils.GearpumpStateInternals;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpAggregatorFactory;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpStepContext;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
@@ -47,6 +50,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
+import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
@@ -79,7 +83,7 @@ public class DoFnFunction<InputT, OutputT> extends
       final TupleTag<OutputT> mainOutput,
       final List<TupleTag<?>> sideOutputs) {
     this.doFn = doFn;
-    this.outputManager = new DoFnOutputManager();
+    this.outputManager = new DoFnOutputManager(mainOutput, sideOutputs);
     this.doFnRunnerFactory = new DoFnRunnerFactory<>(
         pipelineOptions,
         doFn,
@@ -173,13 +177,18 @@ public class DoFnFunction<InputT, OutputT> extends
 
     private static final long serialVersionUID = 4967375172737408160L;
     private List<RawUnionValue> outputs = new LinkedList<>();
+    private final Set<TupleTag<?>> outputTags = new HashSet<>();
 
-    DoFnOutputManager() {
+    DoFnOutputManager(TupleTag<?> mainOutput, List<TupleTag<?>> sideOutputs) {
+      outputTags.add(mainOutput);
+      outputTags.addAll(sideOutputs);
     }
 
     @Override
     public <T> void output(TupleTag<T> outputTag, WindowedValue<T> output) {
-      outputs.add(new RawUnionValue(outputTag.getId(), output));
+      if (outputTags.contains(outputTag)) {
+        outputs.add(new RawUnionValue(outputTag.getId(), output));
+      }
     }
 
     void clear() {

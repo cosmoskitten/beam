@@ -66,7 +66,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
         new Predicate<TupleTag<?>>() {
           @Override
           public boolean apply(@Nullable TupleTag<?> tupleTag) {
-            return tupleTag != null && tupleTag.getId().equals(mainOutput.getId());
+            return tupleTag != null && !tupleTag.getId().equals(mainOutput.getId());
           }
         }));
 
@@ -84,6 +84,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
                 mainOutput,
                 sideOutputs), transform.getName());
     for (Map.Entry<TupleTag<?>, PCollection<?>> output: outputs.entrySet()) {
+      output.getValue().getCoder();
       JavaStream<WindowedValue<OutputT>> taggedStream = outputStream
           .filter(new FilterByOutputTag(output.getKey().getId()),
               "filter_by_output_tag")
