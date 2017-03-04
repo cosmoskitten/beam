@@ -62,14 +62,16 @@ public class DoFnFunction<InputT, OutputT> extends
 
   private static final long serialVersionUID = -5701440128544343353L;
   private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
-  private DoFn<InputT, OutputT> doFn;
-  private DoFnInvoker<InputT, OutputT> doFnInvoker;
-  private PushbackSideInputDoFnRunner<InputT, OutputT> doFnRunner;
-  private SideInputHandler sideInputReader;
-  private List<WindowedValue<InputT>> pushedBackValues;
-  private Map<PCollectionView<?>, List<WindowedValue<Iterable<?>>>> sideInputValues;
+  private final DoFn<InputT, OutputT> doFn;
+  private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
+  private transient PushbackSideInputDoFnRunner<InputT, OutputT> doFnRunner;
+  private transient SideInputHandler sideInputReader;
+  private transient List<WindowedValue<InputT>> pushedBackValues;
+  private transient Map<PCollectionView<?>, List<WindowedValue<Iterable<?>>>> sideInputValues;
   private final Collection<PCollectionView<?>> sideInputs;
   private final Map<String, PCollectionView<?>> tagsToSideInputs;
+  private final TupleTag<OutputT> mainOutput;
+  private final List<TupleTag<?>> sideOutputs;
   private final DoFnOutputManager outputManager;
 
   public DoFnFunction(
@@ -78,10 +80,10 @@ public class DoFnFunction<InputT, OutputT> extends
       WindowingStrategy<?, ?> windowingStrategy,
       Collection<PCollectionView<?>> sideInputs,
       Map<String, PCollectionView<?>> sideInputTagMapping,
-      final TupleTag<OutputT> mainOutput,
-      final List<TupleTag<?>> sideOutputs) {
+      TupleTag<OutputT> mainOutput,
+      List<TupleTag<?>> sideOutputs) {
     this.doFn = doFn;
-    this.outputManager = new DoFnOutputManager(mainOutput, sideOutputs);
+    this.outputManager = new DoFnOutputManager();
     this.doFnRunnerFactory = new DoFnRunnerFactory<>(
         pipelineOptions,
         doFn,
@@ -95,6 +97,8 @@ public class DoFnFunction<InputT, OutputT> extends
     );
     this.sideInputs = sideInputs;
     this.tagsToSideInputs = sideInputTagMapping;
+    this.mainOutput = mainOutput;
+    this.sideOutputs = sideOutputs;
   }
 
   @Override
@@ -108,6 +112,7 @@ public class DoFnFunction<InputT, OutputT> extends
 
     pushedBackValues = new LinkedList<>();
     sideInputValues = new HashMap<>();
+    outputManager.setup(mainOutput, sideOutputs);
   }
 
   @Override
@@ -174,19 +179,21 @@ public class DoFnFunction<InputT, OutputT> extends
   private static class DoFnOutputManager implements DoFnRunners.OutputManager, Serializable {
 
     private static final long serialVersionUID = 4967375172737408160L;
-    private List<RawUnionValue> outputs = new LinkedList<>();
-    private final Set<TupleTag<?>> outputTags = new HashSet<>();
-
-    DoFnOutputManager(TupleTag<?> mainOutput, List<TupleTag<?>> sideOutputs) {
-      outputTags.add(mainOutput);
-      outputTags.addAll(sideOutputs);
-    }
+    private transient List<RawUnionValue> outputs;
+    private transient Set<TupleTag<?>> outputTags;
 
     @Override
     public <T> void output(TupleTag<T> outputTag, WindowedValue<T> output) {
       if (outputTags.contains(outputTag)) {
         outputs.add(new RawUnionValue(outputTag.getId(), output));
       }
+    }
+
+    void setup(TupleTag<?> mainOutput, List<TupleTag<?>> sideOutputs) {
+      outputs = new LinkedList<>();
+      outputTags = new HashSet<>();
+      outputTags.add(mainOutput);
+      outputTags.addAll(sideOutputs);
     }
 
     void clear() {
