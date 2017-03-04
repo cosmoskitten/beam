@@ -27,11 +27,17 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
+import org.apache.beam.runners.spark.translation.EvaluationContext;
+import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
+import org.apache.beam.runners.spark.translation.TransformTranslator;
+import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
@@ -48,9 +54,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.commons.io.FileUtils;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * The SparkRunner translate operations defined on a pipeline to a representation executable
@@ -103,7 +112,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     if (isForceStreaming) {
       adaptBoundedReads(pipeline);
     }
-    SparkPipelineResult result = null;
+    SparkPipelineResult result;
 
     int expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
 
@@ -114,49 +123,70 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     LOG.info("About to run test pipeline " + testSparkPipelineOptions.getJobName());
 
-    // if the pipeline was executed in streaming mode, validate aggregators.
-    if (isForceStreaming) {
-      try {
-        result = delegate.run(pipeline);
-        Long timeout = testSparkPipelineOptions.getTestTimeoutSeconds();
-        result.waitUntilFinish(Duration.standardSeconds(checkNotNull(timeout)));
-        // validate assertion succeeded (at least once).
-        int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
-        assertThat(
-            String.format(
-                "Expected %d successful assertions, but found %d.",
-                expectedNumberOfAssertions, successAssertions),
-            successAssertions,
-            is(expectedNumberOfAssertions));
-        // validate assertion didn't fail.
-        int failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
-        assertThat(
-            String.format("Found %d failed assertions.", failedAssertions),
-            failedAssertions,
-            is(0));
-
-        LOG.info(
-            String.format(
-                "Successfully asserted pipeline %s with %d successful assertions.",
-                testSparkPipelineOptions.getJobName(),
-                successAssertions));
-      } finally {
-        try {
-          // cleanup checkpoint dir.
-          FileUtils.deleteDirectory(new File(testSparkPipelineOptions.getCheckpointDir()));
-        } catch (IOException e) {
-          throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
-        }
-      }
+    if (testSparkPipelineOptions.isDebugPipeline()) {
+      result = runDebugPipeline(pipeline, testSparkPipelineOptions);
     } else {
-      // for batch test pipelines, run and block until done.
-      result = delegate.run(pipeline);
-      result.waitUntilFinish();
-      // assert via matchers.
-      assertThat(result, testSparkPipelineOptions.getOnCreateMatcher());
-      assertThat(result, testSparkPipelineOptions.getOnSuccessMatcher());
+      // if the pipeline was executed in streaming mode, validate aggregators.
+      if (isForceStreaming) {
+        try {
+          result = delegate.run(pipeline);
+          Long timeout = testSparkPipelineOptions.getTestTimeoutSeconds();
+          result.waitUntilFinish(Duration.standardSeconds(checkNotNull(timeout)));
+          // validate assertion succeeded (at least once).
+          int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+          assertThat(
+              String.format("Expected %d successful assertions, but found %d.",
+                  expectedNumberOfAssertions, successAssertions),
+              successAssertions,
+              is(expectedNumberOfAssertions));
+          // validate assertion didn't fail.
+          int failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+          assertThat(String.format("Found %d failed assertions.", failedAssertions),
+              failedAssertions, is(0));
+
+          LOG.info(String.format("Successfully asserted pipeline %s with %d successful assertions.",
+              testSparkPipelineOptions.getJobName(), successAssertions));
+        } finally {
+          try {
+            // cleanup checkpoint dir.
+            FileUtils.deleteDirectory(new File(testSparkPipelineOptions.getCheckpointDir()));
+          } catch (IOException e) {
+            throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
+          }
+        }
+      } else {
+        // for batch test pipelines, run and block until done.
+        result = delegate.run(pipeline);
+        result.waitUntilFinish();
+        // assert via matchers.
+        assertThat(result, testSparkPipelineOptions.getOnCreateMatcher());
+        assertThat(result, testSparkPipelineOptions.getOnSuccessMatcher());
+      }
     }
     return result;
+  }
+
+  private SparkPipelineResult runDebugPipeline(Pipeline pipeline,
+      TestSparkPipelineOptions testSparkPipelineOptions) {
+    JavaSparkContext jsc = new JavaSparkContext("local[1]", "Debug_Pipeline");
+    JavaStreamingContext jssc =
+        new JavaStreamingContext(jsc, new org.apache.spark.streaming.Duration(1000));
+    TransformTranslator.Translator translator = new TransformTranslator.Translator();
+    SparkNativePipelineVisitor visitor;
+    if (testSparkPipelineOptions.isStreaming() || isForceStreaming) {
+      SparkPipelineTranslator streamingTranslator =
+          new StreamingTransformTranslator.Translator(translator);
+      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
+      visitor = new SparkNativePipelineVisitor(streamingTranslator, ctxt);
+    } else {
+      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
+      visitor = new SparkNativePipelineVisitor(translator, ctxt);
+    }
+    pipeline.traverseTopologically(visitor);
+    jsc.stop();
+    String debugString = visitor.getDebugString();
+    LOG.info("Translated Native Spark pipeline:\n" + debugString);
+    return new DebugSparkPipelineResult(debugString);
   }
 
   @VisibleForTesting
@@ -184,7 +214,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     static class Factory<T>
         implements PTransformOverrideFactory<
-            PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> {
+        PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> {
       @Override
       public PTransform<PBegin, PCollection<T>> getReplacementTransform(
           BoundedReadFromUnboundedSource<T> transform) {
@@ -201,6 +231,37 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
           List<TaggedPValue> outputs, PCollection<T> newOutput) {
         return ReplacementOutputs.singleton(outputs, newOutput);
       }
+    }
+  }
+
+  /**
+   * PipelineResult of running a {@link Pipeline} when
+   * {@link TestSparkPipelineOptions#isDebugPipeline()} is true.
+   * Use {@link #getDebugString} to get a {@link String} representation of the {@link Pipeline}
+   * translated into Spark native operations.
+   */
+  public static class DebugSparkPipelineResult extends SparkPipelineResult {
+    private final String debugString;
+
+    DebugSparkPipelineResult(String debugString) {
+      super(null, null);
+      this.debugString = debugString;
+    }
+
+    /**
+     * Returns Beam pipeline translated into Spark native operations.
+     */
+    String getDebugString() {
+      return debugString;
+    }
+
+    @Override protected void stop() {
+      // Empty implementation
+    }
+
+    @Override protected State awaitTermination(Duration duration)
+        throws TimeoutException, ExecutionException, InterruptedException {
+      return State.DONE;
     }
   }
 }

@@ -32,4 +32,8 @@ public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipe
   boolean isForceStreaming();
   void setForceStreaming(boolean forceStreaming);
 
+  @Description("A special flag that prints translated Spark native pipeline instead of running it.")
+  @Default.Boolean(false)
+  boolean isDebugPipeline();
+  void setDebugPipeline(boolean debugPipeline);
 }
