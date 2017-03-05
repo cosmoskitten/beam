@@ -107,9 +107,8 @@ public class BoundedDataset<T> implements Dataset {
   @Override
   public void action() {
     // Empty function to force computation of RDD.
-    rdd.foreachPartition(new VoidFunction<Iterator<WindowedValue<T>>>() {
-      @Override
-      public void call(Iterator<WindowedValue<T>> windowedValueIterator) throws Exception {
+    rdd.foreach(new VoidFunction<WindowedValue<T>>() {
+      @Override public void call(WindowedValue<T> tWindowedValue) throws Exception {
         // Empty implementation.
       }
     });
