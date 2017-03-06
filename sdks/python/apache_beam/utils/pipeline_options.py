@@ -57,13 +57,17 @@ class BeamArgumentParser(argparse.ArgumentParser):
 
   """
   def add_value_provider_argument(self, *args, **kwargs):
+    """ValueProvider arguments can be either of type keyword or positional.
+    At runtime, even positional arguments will need to be supplied in the
+    key/value form.
+    """
     # Extract the option name from positional argument ['pos_arg']
     if args[0][0] != '-':
       option_name = args[0]
       if kwargs.get('nargs') is None:  # make them optionally templated
         kwargs['nargs'] = '?'
-    # or keyword arguments like [--kw_arg, -k, -w] or [--kw-arg]
     else:
+      # or keyword arguments like [--kw_arg, -k, -w] or [--kw-arg]
       option_name = [i.replace('--', '') for i in args if i[:2] == '--'][0]
 
     # reassign the type to make room for using
@@ -71,7 +75,7 @@ class BeamArgumentParser(argparse.ArgumentParser):
     value_type = kwargs.get('type') or str
     kwargs['type'] = _static_value_provider_of(value_type)
 
-    # reassign default to value_default to make room for using
+    # reassign default to default_value to make room for using
     # RuntimeValueProvider as the default for add_argument
     default_value = kwargs.get('default')
     kwargs['default'] = RuntimeValueProvider(
