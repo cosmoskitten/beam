@@ -29,7 +29,6 @@ import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
@@ -45,12 +44,10 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   private static final long serialVersionUID = 9113026175795235710L;
   private final byte[] values;
   private final IterableCoder<T> iterableCoder;
-  private final boolean isVoid;
 
   public ValuesSource(Iterable<T> values, Coder<T> coder) {
     this.iterableCoder = IterableCoder.of(coder);
     this.values = encode(values, iterableCoder);
-    this.isVoid = coder instanceof VoidCoder;
   }
 
   private byte[] encode(Iterable<T> values, IterableCoder<T> coder) {
@@ -80,7 +77,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   public UnboundedReader<T> createReader(PipelineOptions options,
       @Nullable CheckpointMark checkpointMark) {
     try {
-      return new ValuesReader<>(decode(values), this, isVoid);
+      return new ValuesReader<>(decode(values), this);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -108,7 +105,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     private T current;
 
     ValuesReader(Iterable<T> values,
-        UnboundedSource<T, CheckpointMark> source, boolean isVoid) {
+        UnboundedSource<T, CheckpointMark> source) {
       this.values = values;
       this.source = source;
     }

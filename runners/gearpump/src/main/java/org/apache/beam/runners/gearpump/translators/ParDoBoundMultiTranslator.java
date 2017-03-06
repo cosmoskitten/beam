@@ -74,7 +74,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
         context, inputStream, tagsToSideInputs);
 
     JavaStream<TranslatorUtils.RawUnionValue> outputStream =
-        TranslatorUtils.toIterable(unionStream).flatMap(
+        TranslatorUtils.toList(unionStream).flatMap(
             new DoFnFunction<>(
                 context.getPipelineOptions(),
                 transform.getFn(),
@@ -103,7 +103,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
     }
 
     @Override
-    public boolean apply(TranslatorUtils.RawUnionValue value) {
+    public boolean filter(TranslatorUtils.RawUnionValue value) {
       return value.getUnionTag().equals(tag);
     }
   }
