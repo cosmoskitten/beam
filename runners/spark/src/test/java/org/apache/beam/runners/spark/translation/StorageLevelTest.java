@@ -17,13 +17,14 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.PipelineRule;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -31,13 +32,12 @@ import org.junit.Test;
  */
 public class StorageLevelTest {
 
-  @Rule
-  public final transient PipelineRule pipelineRule = PipelineRule.batch();
-
   @Test
   public void test() throws Exception {
-    pipelineRule.getOptions().setStorageLevel("DISK_ONLY");
-    Pipeline pipeline = pipelineRule.createPipeline();
+    SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    options.setStorageLevel("DISK_ONLY");
+    Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> pCollection = pipeline.apply(Create.of("foo"));
 
