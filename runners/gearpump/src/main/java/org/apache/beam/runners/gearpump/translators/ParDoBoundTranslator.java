@@ -67,7 +67,7 @@ public class ParDoBoundTranslator<InputT, OutputT> implements
         mainOutput, sideOutputs);
 
     JavaStream<WindowedValue<OutputT>> outputStream =
-        TranslatorUtils.toIterable(unionStream)
+        TranslatorUtils.toList(unionStream)
             .flatMap(doFnFunction, transform.getName())
             .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
 

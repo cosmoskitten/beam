@@ -41,6 +41,8 @@ import org.joda.time.Instant;
 @SuppressWarnings("unchecked")
 public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bound<T>> {
 
+  private static final long serialVersionUID = -964887482120489061L;
+
   @Override
   public void translate(Window.Bound<T> transform, TranslationContext context) {
     PCollection<T> input = context.getInput(transform);
@@ -58,6 +60,7 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
   private static class AssignWindows<T> extends
       FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
 
+    private static final long serialVersionUID = 7284565861938681360L;
     private final WindowFn<T, BoundedWindow> windowFn;
 
     AssignWindows(WindowFn<T, BoundedWindow> windowFn) {
@@ -65,7 +68,7 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
     }
 
     @Override
-    public Iterator<WindowedValue<T>> apply(final WindowedValue<T> value) {
+    public Iterator<WindowedValue<T>> flatMap(final WindowedValue<T> value) {
       try {
         Collection<BoundedWindow> windows = windowFn.assignWindows(windowFn.new AssignContext() {
           @Override

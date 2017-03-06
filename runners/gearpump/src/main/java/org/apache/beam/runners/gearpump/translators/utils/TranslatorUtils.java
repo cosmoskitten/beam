@@ -18,12 +18,12 @@
 
 package org.apache.beam.runners.gearpump.translators.utils;
 
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.beam.runners.gearpump.translators.TranslationContext;
@@ -33,8 +33,8 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 
+import org.apache.gearpump.streaming.dsl.api.functions.FoldFunction;
 import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
-import org.apache.gearpump.streaming.dsl.api.functions.ReduceFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.dsl.window.impl.Window;
 
@@ -97,20 +97,21 @@ public class TranslatorUtils {
     return tagsToSideInputs;
   }
 
-  public static JavaStream<Iterable<RawUnionValue>> toIterable(JavaStream<RawUnionValue> stream) {
-    return stream.map(new MapFunction<RawUnionValue, Iterable<RawUnionValue>>() {
+  public static JavaStream<List<RawUnionValue>> toList(JavaStream<RawUnionValue> stream) {
+    return stream.fold(new FoldFunction<RawUnionValue, List<RawUnionValue>>() {
+
       @Override
-      public Iterable<RawUnionValue> apply(RawUnionValue rawUnionValue) {
-        return Lists.newArrayList(rawUnionValue);
+      public List<RawUnionValue> init() {
+        return Lists.newArrayList();
       }
-    }, "map_to_iterable")
-        .reduce(new ReduceFunction<Iterable<RawUnionValue>>() {
-          @Override
-          public Iterable<RawUnionValue> apply(
-              Iterable<RawUnionValue> t1, Iterable<RawUnionValue> t2) {
-            return Iterables.concat(t1, t2);
-          }
-        }, "reduce_to_concat");
+
+      @Override
+      public List<RawUnionValue> fold(List<RawUnionValue> accumulator,
+          RawUnionValue rawUnionValue) {
+        accumulator.add(rawUnionValue);
+        return accumulator;
+      }
+    }, "fold_to_iterable");
   }
 
   /**
@@ -122,7 +123,7 @@ public class TranslatorUtils {
     private static final long serialVersionUID = -4764968219713478955L;
 
     @Override
-    public WindowedValue<OutputT> apply(RawUnionValue value) {
+    public WindowedValue<OutputT> map(RawUnionValue value) {
       return (WindowedValue<OutputT>) value.getValue();
     }
   }
@@ -138,7 +139,7 @@ public class TranslatorUtils {
     }
 
     @Override
-    public RawUnionValue apply(WindowedValue<T> windowedValue) {
+    public RawUnionValue map(WindowedValue<T> windowedValue) {
       return new RawUnionValue(tag, windowedValue);
     }
   }
