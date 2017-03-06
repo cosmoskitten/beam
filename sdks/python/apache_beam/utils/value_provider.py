@@ -19,6 +19,8 @@
 and dynamically provided values.
 """
 
+from functools import wraps
+
 
 class ValueProvider(object):
   def is_accessible(self):
@@ -91,14 +93,16 @@ class RuntimeValueProvider(ValueProvider):
     )
 
 
-def check_accessible(fields):
-  assert isinstance(fields, list)
+def check_accessible(value_provider_list):
+  """Check accessibility of a list of ValueProvider objects."""
+  assert isinstance(value_provider_list, list)
 
   def _check_accessible(fnc):
+    @wraps(fnc)
     def _f(self, *args, **kwargs):
-      for vp in [getattr(self, field) for field in fields]:
-        if not vp.is_accessible():
-          raise RuntimeError('%s not accessible' % vp)
+      for obj in [getattr(self, vp) for vp in value_provider_list]:
+        if not obj.is_accessible():
+          raise RuntimeError('%s not accessible' % obj)
       return fnc(self, *args, **kwargs)
     return _f
   return _check_accessible
