@@ -58,7 +58,7 @@ import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
  */
 @SuppressWarnings("unchecked")
 public class DoFnFunction<InputT, OutputT> extends
-    FlatMapFunction<Iterable<RawUnionValue>, RawUnionValue> {
+    FlatMapFunction<List<RawUnionValue>, RawUnionValue> {
 
   private static final long serialVersionUID = -5701440128544343353L;
   private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
@@ -121,7 +121,7 @@ public class DoFnFunction<InputT, OutputT> extends
   }
 
   @Override
-  public Iterator<TranslatorUtils.RawUnionValue> apply(Iterable<RawUnionValue> inputs) {
+  public Iterator<TranslatorUtils.RawUnionValue> flatMap(List<RawUnionValue> inputs) {
     outputManager.clear();
 
     doFnRunner.startBundle();

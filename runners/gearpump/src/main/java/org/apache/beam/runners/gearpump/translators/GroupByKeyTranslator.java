@@ -55,6 +55,9 @@ import org.apache.gearpump.streaming.dsl.window.impl.Window;
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKey<K, V>> {
+
+  private static final long serialVersionUID = -8742202583992787659L;
+
   @Override
   public void translate(GroupByKey<K, V> transform, TranslationContext context) {
     PCollection<KV<K, V>> input = context.getInput(transform);
@@ -123,7 +126,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
 
     @Override
-    public ByteBuffer apply(WindowedValue<KV<K, V>> wv) {
+    public ByteBuffer groupBy(WindowedValue<KV<K, V>> wv) {
       try {
         return ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, wv.getValue().getKey()));
       } catch (CoderException e) {
@@ -132,11 +135,12 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
   }
 
+
   private static class ValueToIterable<K, V>
       extends MapFunction<WindowedValue<KV<K, V>>, WindowedValue<KV<K, Iterable<V>>>> {
 
     @Override
-    public WindowedValue<KV<K, Iterable<V>>> apply(WindowedValue<KV<K, V>> wv) {
+    public WindowedValue<KV<K, Iterable<V>>> map(WindowedValue<KV<K, V>> wv) {
       Iterable<V> values = Lists.newArrayList(wv.getValue().getValue());
       return wv.withValue(KV.of(wv.getValue().getKey(), values));
     }
@@ -153,7 +157,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
 
     @Override
-    public KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> apply(
+    public KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> map(
         WindowedValue<KV<K, Iterable<V>>> wv) {
       org.joda.time.Instant timestamp = outputTimeFn.assignOutputTime(wv.getTimestamp(),
           Iterables.getOnlyElement(wv.getWindows()));
@@ -174,7 +178,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
 
     @Override
-    public KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> apply(
+    public KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> reduce(
         KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> kv1,
         KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> kv2) {
       org.joda.time.Instant t1 = kv1.getKey();
@@ -222,7 +226,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
           WindowedValue<KV<K, Iterable<V>>>> {
 
     @Override
-    public WindowedValue<KV<K, Iterable<V>>> apply(KV<org.joda.time.Instant,
+    public WindowedValue<KV<K, Iterable<V>>> map(KV<org.joda.time.Instant,
         WindowedValue<KV<K, Iterable<V>>>> kv) {
       org.joda.time.Instant timestamp = kv.getKey();
       WindowedValue<KV<K, Iterable<V>>> wv = kv.getValue();

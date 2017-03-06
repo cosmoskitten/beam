@@ -77,7 +77,7 @@ public class FlattenPCollectionTranslator<T> implements
     private static final long serialVersionUID = 5454396869997290471L;
 
     @Override
-    public T apply(T t) {
+    public T map(T t) {
       return t;
     }
   }
