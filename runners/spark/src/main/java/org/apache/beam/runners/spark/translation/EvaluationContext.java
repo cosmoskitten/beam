@@ -166,6 +166,7 @@ public class EvaluationContext {
    */
   public void computeOutputs() {
     for (Dataset dataset : leaves) {
+      dataset.cache(storageLevel());
       dataset.action(); // force computation.
     }
   }
