@@ -25,31 +25,57 @@ from apache_beam.utils.value_provider import StaticValueProvider
 
 
 class ValueProviderTests(unittest.TestCase):
-  def test_static_value_provider(self):
+  def test_static_value_provider_keyword_argument(self):
     class UserOptions(PipelineOptions):
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
             '--vp_arg',
-            help='This flag is a value provider',
+            help='This keyword argument is a value provider',
             default='some value')
     options = UserOptions(['--vp_arg', 'abc'])
     self.assertTrue(isinstance(options.vp_arg, StaticValueProvider))
     self.assertTrue(options.vp_arg.is_accessible())
     self.assertEqual(options.vp_arg.get(), 'abc')
 
-  def test_runtime_value_provider(self):
+  def test_runtime_value_provider_keyword_arguent(self):
     class UserOptions(PipelineOptions):
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
             '--vp_arg',
-            help='This flag is a value provider')
+            help='This keyword argument is a value provider')
     options = UserOptions()
     self.assertTrue(isinstance(options.vp_arg, RuntimeValueProvider))
     self.assertFalse(options.vp_arg.is_accessible())
     with self.assertRaises(RuntimeError):
       options.vp_arg.get()
+
+  def test_static_value_provider_positional_argument(self):
+    class UserOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            'vp_pos_arg',
+            help='This positional argument is a value provider',
+            default='some value')
+    options = UserOptions(['abc'])
+    self.assertTrue(isinstance(options.vp_pos_arg, StaticValueProvider))
+    self.assertTrue(options.vp_pos_arg.is_accessible())
+    self.assertEqual(options.vp_pos_arg.get(), 'abc')
+
+  def test_runtime_value_provider_positional_argument(self):
+    class UserOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            'vp_pos_arg',
+            help='This positional argument is a value provider')
+    options = UserOptions([])
+    self.assertTrue(isinstance(options.vp_pos_arg, RuntimeValueProvider))
+    self.assertFalse(options.vp_pos_arg.is_accessible())
+    with self.assertRaises(RuntimeError):
+      options.vp_pos_arg.get()
 
   def test_static_value_provider_type_cast(self):
     class UserOptions(PipelineOptions):
@@ -88,23 +114,27 @@ class ValueProviderTests(unittest.TestCase):
             '--vp_arg4',
             type=float)
 
-        parser.add_value_provider_argument(         # positional argument
-            'vp_pos_arg',
+        parser.add_value_provider_argument(         # positional argument set
+            'vp_pos_arg',                           # default & runtime ignored
             help='This positional argument is a value provider',
-            type=float)
+            type=float,
+            default=5.4)
 
     # provide values at graph-construction time
     # (options not provided here become of the type RuntimeValueProvider)
-    options = UserOptions1([])
+    options = UserOptions1(['1.2'])
     self.assertFalse(options.vp_arg.is_accessible())
     self.assertFalse(options.vp_arg2.is_accessible())
     self.assertFalse(options.vp_arg3.is_accessible())
     self.assertFalse(options.vp_arg4.is_accessible())
-    self.assertFalse(options.vp_pos_arg.is_accessible())
+    # self.assertFalse(options.vp_pos_arg.is_accessible())
+    self.assertTrue(options.vp_pos_arg.is_accessible())
 
     # provide values at job-execution time
     # (options not provided here will use their default, if they have one)
-    RuntimeValueProvider.set_runtime_options({'vp_arg': 'abc'})
+    RuntimeValueProvider.set_runtime_options({'vp_arg': 'abc',
+                                              'vp_pos_arg':'3.2'})
+    # RuntimeValueProvider.set_runtime_options({'vp_arg': 'abc'})
     self.assertTrue(options.vp_arg.is_accessible())
     self.assertEqual(options.vp_arg.get(), 'abc')
     self.assertTrue(options.vp_arg2.is_accessible())
@@ -113,3 +143,5 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(options.vp_arg3.get(), '123')
     self.assertTrue(options.vp_arg4.is_accessible())
     self.assertIsNone(options.vp_arg4.get())
+    self.assertTrue(options.vp_pos_arg.is_accessible())
+    self.assertEqual(options.vp_pos_arg.get(), 1.2)
