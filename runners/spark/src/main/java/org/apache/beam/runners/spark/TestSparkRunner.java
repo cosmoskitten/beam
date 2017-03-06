@@ -121,7 +121,12 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
         Long timeout = testSparkPipelineOptions.getTestTimeoutSeconds();
         result.waitUntilFinish(Duration.standardSeconds(checkNotNull(timeout)));
         // validate assertion succeeded (at least once).
-        int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        int successAssertions = 0;
+        try {
+          successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        } catch (NullPointerException npe) {
+          // No assertions registered will cause an NPE here.
+        }
         assertThat(
             String.format(
                 "Expected %d successful assertions, but found %d.",
@@ -129,7 +134,12 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             successAssertions,
             is(expectedNumberOfAssertions));
         // validate assertion didn't fail.
-        int failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        int failedAssertions = 0;
+        try {
+          failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        } catch (NullPointerException npe) {
+          // No assertions registered will cause an NPE here.
+        }
         assertThat(
             String.format("Found %d failed assertions.", failedAssertions),
             failedAssertions,
