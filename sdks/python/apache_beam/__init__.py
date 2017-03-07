@@ -74,6 +74,7 @@ if not (sys.version_info[0] == 2 and sys.version_info[1] == 7):
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler
 
+from apache_beam.version import __version__
 from apache_beam import coders
 from apache_beam import io
 from apache_beam import typehints
