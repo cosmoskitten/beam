@@ -243,7 +243,7 @@ public class ResumeFromCheckpointStreamingTest {
     options.setExpectedAssertions(expectedAssertions);
     // timeout is per execution so it can be injected by the caller.
     if (endOfTimeWatermark.isPresent()) {
-      options.setEndOfTimeWatermark(endOfTimeWatermark.get().getMillis());
+      options.setStopPipelineWatermark(endOfTimeWatermark.get().getMillis());
     }
     Pipeline p = pipelineRule.createPipeline();
 
