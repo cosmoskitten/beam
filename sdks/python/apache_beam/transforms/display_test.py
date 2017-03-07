@@ -139,13 +139,13 @@ class DisplayDataTest(unittest.TestCase):
             '1'),
         DisplayDataItemMatcher(
             'str_flag',
-            'RuntimeValueProvider(option=str_flag,'
-            ' type=str, default_value=\'hello\')'
+            'RuntimeValueProvider(option: str_flag,'
+            ' type: str, default_value: \'hello\')'
         ),
         DisplayDataItemMatcher(
             'float_flag',
-            'RuntimeValueProvider(option=float_flag,'
-            ' type=float, default_value=None)'
+            'RuntimeValueProvider(option: float_flag,'
+            ' type: float, default_value: None)'
         )
     ]
     hc.assert_that(items, hc.contains_inanyorder(*expected_items))

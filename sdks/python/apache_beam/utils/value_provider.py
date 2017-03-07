@@ -85,7 +85,7 @@ class RuntimeValueProvider(ValueProvider):
     RuntimeValueProvider.pipeline_options_dict = pipeline_options
 
   def __str__(self):
-    return '%s(option=%s, type=%s, default_value=%s)' % (
+    return '%s(option: %s, type: %s, default_value: %s)' % (
         self.__class__.__name__,
         self.option_name,
         self.value_type.__name__,
