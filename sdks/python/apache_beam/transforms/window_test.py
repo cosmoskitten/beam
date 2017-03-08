@@ -226,7 +226,10 @@ class WindowTest(unittest.TestCase):
                 label='assert:mean')
     p.run()
 
-  def test_runner_api(self):
+
+class RunnerApiTest(unittest.TestCase):
+
+  def test_windowfn_encoding(self):
     for window_fn in (GlobalWindows(),
                       FixedWindows(37),
                       SlidingWindows(2, 389),
@@ -235,6 +238,7 @@ class WindowTest(unittest.TestCase):
       self.assertEqual(
           window_fn,
           WindowFn.from_runner_api(window_fn.to_runner_api(context), context))
+
 
 if __name__ == '__main__':
   unittest.main()

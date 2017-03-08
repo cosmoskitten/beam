@@ -27,6 +27,7 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import util
+from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
@@ -1209,6 +1210,30 @@ class Windowing(object):
 
   def is_default(self):
     return self._is_default
+
+  def to_runner_api(self, context):
+    raise NotImplementedError
+    return beam_runner_api_pb2.WindowingStrategy(
+        window_fn=self.window_fn.to_runner_api(),
+        # TODO(robertwb): Prohibit implicit multi-level merging.
+        merge_status=(MergeStatus.NEEDS_MERGE
+                      if window_fn.is_merging()
+                      else MergeStatus.NON_MERGING),
+        window_coder_id=context.coders.get_id(
+            self.window_fn.get_window_coder()),
+        trigger=self.triggerfn.to_runner_api(context),
+        accumulation_mode=self.accumulation_mode,
+        output_time=self.output_time,
+        closing_behavior=EMIT_ALWAYS,
+        allowed_lateness=0)
+
+  @staticmethod
+  def from_runner_api(self, proto, context):
+    return Windowing(
+        window_fn=WindowFn.from_runner_api(proto.window_fn),
+        trigger_fn=TriggerFn.from_runner_api(proto.trigger),
+        accumulation_mode=proto.accumulation_mode,
+        output_time=proto.output_time)
 
 
 @typehints.with_input_types(T)

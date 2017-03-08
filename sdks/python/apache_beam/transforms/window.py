@@ -70,9 +70,9 @@ from apache_beam.utils import urns
 class OutputTimeFn(object):
   """Determines how output timestamps of grouping operations are assigned."""
 
-  OUTPUT_AT_EOW = 'OUTPUT_AT_EOW'
-  OUTPUT_AT_EARLIEST = 'OUTPUT_AT_EARLIEST'
-  OUTPUT_AT_LATEST = 'OUTPUT_AT_LATEST'
+  OUTPUT_AT_EOW = beam_runner_api_pb2.END_OF_WINDOW
+  OUTPUT_AT_EARLIEST = beam_runner_api_pb2.EARLIEST_IN_PANE
+  OUTPUT_AT_LATEST = beam_runner_api_pb2.LATEST_IN_PANE
   OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
 
   @staticmethod
