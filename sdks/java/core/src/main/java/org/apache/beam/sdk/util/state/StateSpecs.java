@@ -310,8 +310,8 @@ public class StateSpecs {
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.accumCoder == null) {
-        if (coders[0] != null) {
-          this.accumCoder = (Coder<AccumT>) coders[0];
+        if (coders[1] != null) {
+          this.accumCoder = (Coder<AccumT>) coders[1];
         }
       }
     }
@@ -341,8 +341,9 @@ public class StateSpecs {
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder<? extends K> visitor) {
       if (accumCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for ValueState and no Coder"
-            + " was specified. Please set a coder by either invoking"
+        throw new IllegalStateException("Unable to infer a coder for"
+            + " KeyedCombiningValueWithContextState and no Coder was specified."
+            + " Please set a coder by either invoking"
             + " StateSpecs.keyedCombiningValue(Coder<AccumT> accumCoder,"
             + " KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn)"
             + " or by registering the coder in the Pipeline's CoderRegistry.");
@@ -426,8 +427,8 @@ public class StateSpecs {
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.accumCoder == null) {
-        if (coders[0] != null) {
-          this.accumCoder = (Coder<AccumT>) coders[0];
+        if (coders[2] != null) {
+          this.accumCoder = (Coder<AccumT>) coders[2];
         }
       }
     }
@@ -528,7 +529,7 @@ public class StateSpecs {
     @Override
     public MapState<K, V> bind(String id, StateBinder<?> visitor) {
       if (keyCoder == null || valueCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for SetState and no Coder"
+        throw new IllegalStateException("Unable to infer a coder for MapState and no Coder"
             + " was specified. Please set a coder by either invoking"
             + " StateSpecs.map(Coder<K> keyCoder, Coder<V> valueCoder) or by registering the"
             + " coder in the Pipeline's CoderRegistry.");

@@ -1612,6 +1612,36 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testValueStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, MyInteger> fn =
+        new DoFn<KV<String, Integer>, MyInteger>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<MyInteger>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+            MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
+            c.output(currentValue);
+            state.write(new MyInteger(currentValue.getValue() + 1));
+          }
+        };
+
+    pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+        .apply(ParDo.of(fn)).setCoder(myIntegerCoder);
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for ValueState and no Coder was specified.");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
   public void testValueStateFixedWindows() {
     final String stateId = "foo";
 
@@ -1833,6 +1863,42 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testBagStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, List<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, List<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, BagState<MyInteger>> bufferState =
+              StateSpecs.bag();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) BagState<MyInteger> state) {
+            Iterable<MyInteger> currentValue = state.read();
+            state.add(new MyInteger(c.element().getValue()));
+            if (Iterables.size(state.read()) >= 4) {
+              List<MyInteger> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted);
+              c.output(sorted);
+            }
+          }
+        };
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
+        .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for BagState and no Coder was specified.");
+    pipeline.run();
+  }
+
+  @Test
   @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesSetState.class})
   public void testSetState() {
     final String stateId = "foo";
@@ -1915,6 +1981,48 @@ public class ParDoTest implements Serializable {
     PAssert.that(output).containsInAnyOrder(
         Sets.newHashSet(new MyInteger(97), new MyInteger(42), new MyInteger(12)));
     pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesSetState.class})
+  public void testSetStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, Set<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, Set<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, SetState<MyInteger>> setState = StateSpecs.set();
+
+          @StateId(countStateId)
+          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId) SetState<MyInteger> state,
+              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer> count) {
+            state.add(new MyInteger(c.element().getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Set<MyInteger> set = Sets.newHashSet(state.read());
+              c.output(set);
+            }
+          }
+        };
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
+        .apply(ParDo.of(fn)).setCoder(SetCoder.of(myIntegerCoder));
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for SetState and no Coder was specified.");
     pipeline.run();
   }
 
@@ -2007,6 +2115,51 @@ public class ParDoTest implements Serializable {
     PAssert.that(output).containsInAnyOrder(KV.of("a", new MyInteger(97)),
         KV.of("b", new MyInteger(42)), KV.of("c", new MyInteger(12)));
     pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesMapState.class})
+  public void testMapStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+        new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
+          @StateId(countStateId)
+          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) MapState<String, MyInteger> state,
+              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+                  count) {
+            KV<String, Integer> value = c.element().getValue();
+            state.put(value.getKey(), new MyInteger(value.getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Iterable<Map.Entry<String, MyInteger>> iterate = state.iterate();
+              for (Map.Entry<String, MyInteger> entry : iterate) {
+                c.output(KV.of(entry.getKey(), entry.getValue()));
+              }
+            }
+          }
+        };
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
+            KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+        .apply(ParDo.of(fn)).setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for MapState and no Coder was specified.");
     pipeline.run();
   }
 
@@ -2109,6 +2262,67 @@ public class ParDoTest implements Serializable {
     // There should only be one moment at which the average is exactly 16
     PAssert.that(output).containsInAnyOrder("right on");
     pipeline.getCoderRegistry().registerCoder(MyInteger.class, MyIntegerCoder.of());
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testCombiningStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, String> fn =
+        new DoFn<KV<String, Integer>, String>() {
+          private static final int EXPECTED_SUM = 16;
+
+          @StateId(stateId)
+          private final StateSpec<
+              Object, AccumulatorCombiningState<Integer, MyInteger, Integer>>
+              combiningState =
+              StateSpecs.combiningValue(new Combine.CombineFn<Integer, MyInteger, Integer>() {
+                @Override
+                public MyInteger createAccumulator() {
+                  return new MyInteger(0);
+                }
+
+                @Override
+                public MyInteger addInput(MyInteger accumulator, Integer input) {
+                  return new MyInteger(accumulator.getValue() + input);
+                }
+
+                @Override
+                public MyInteger mergeAccumulators(Iterable<MyInteger> accumulators) {
+                  int newValue = 0;
+                  for (MyInteger myInteger : accumulators) {
+                    newValue += myInteger.getValue();
+                  }
+                  return new MyInteger(newValue);
+                }
+
+                @Override
+                public Integer extractOutput(MyInteger accumulator) {
+                  return accumulator.getValue();
+                }
+              });
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId)
+                  AccumulatorCombiningState<Integer, MyInteger, Integer> state) {
+            state.add(c.element().getValue());
+            Integer currentValue = state.read();
+            if (currentValue == EXPECTED_SUM) {
+              c.output("right on");
+            }
+          }
+        };
+
+    pipeline
+        .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))
+        .apply(ParDo.of(fn));
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for CombiningState and no Coder was specified.");
     pipeline.run();
   }
 
