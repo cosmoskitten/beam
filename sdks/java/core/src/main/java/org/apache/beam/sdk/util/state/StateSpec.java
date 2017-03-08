@@ -40,7 +40,9 @@ public interface StateSpec<K, StateT extends State> extends Serializable {
 
   /**
    * Given {code coders} are inferred from type arguments defined for this class.
-   * @param coders Array of coders indexed by the type arguments order.
+   * Coders which are already set should take precedence over offered coders.
+   * @param coders Array of coders indexed by the type arguments order. Entries might be null if
+   *               the coder could not be inferred.
    */
   void offerCoders(Coder[] coders);
 }
