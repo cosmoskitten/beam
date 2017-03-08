@@ -294,12 +294,6 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           @Override
           public <T> ValueState<T> bindValue(
               StateTag<? super K, ValueState<T>> address, Coder<T> coder) {
-            if (coder == null) {
-              throw new IllegalStateException("Unable to infer a coder for ValueState and no Coder"
-                  + "was specified. Please set a coder by either invoking"
-                  + " StateSpecs.value(Coder<T> valueCoder) or by registering the coder in the"
-                  + " Pipeline's CoderRegistry.");
-            }
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends ValueState<T>> existingState =
@@ -316,12 +310,6 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
               bindCombiningValue(
                   StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
                   Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-            if (accumCoder == null) {
-              throw new IllegalStateException("Unable to infer a coder for CombiningState and no"
-                  + "Coder was specified. Please set a coder by either invoking"
-                  + "combiningValue(Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT>"
-                  + "combineFn) or by registering the coder in the Pipeline's CoderRegistry.");
-            }
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT, OutputT>>
@@ -338,12 +326,6 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           @Override
           public <T> BagState<T> bindBag(
               StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
-            if (elemCoder == null) {
-              throw new IllegalStateException("Unable to infer a coder for BagState and no Coder"
-                  + "was specified. Please set a coder by either invoking"
-                  + " StateSpecs.bag(Coder<T> elemCoder) or by registering the coder in the"
-                  + " Pipeline's CoderRegistry.");
-            }
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends BagState<T>> existingState =
@@ -358,12 +340,6 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           @Override
           public <T> SetState<T> bindSet(
               StateTag<? super K, SetState<T>> address, Coder<T> elemCoder) {
-            if (elemCoder == null) {
-              throw new IllegalStateException("Unable to infer a coder for SetState and no Coder"
-                  + "was specified. Please set a coder by either invoking"
-                  + " StateSpecs.set(Coder<T> elemCoder) or by registering the coder in the"
-                  + " Pipeline's CoderRegistry.");
-            }
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends SetState<T>> existingState =
@@ -379,12 +355,6 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
               StateTag<? super K, MapState<KeyT, ValueT>> address,
               Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
-            if (mapKeyCoder == null || mapValueCoder == null) {
-              throw new IllegalStateException("Unable to infer a coder for SetState and no Coder"
-                  + "was specified. Please set a coder by either invoking"
-                  + " StateSpecs.map(Coder<K> keyCoder, Coder<V> valueCoder) or by registering the"
-                  + "coder in the Pipeline's CoderRegistry.");
-            }
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends MapState<KeyT, ValueT>> existingState =
@@ -402,10 +372,6 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
                   StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
                   Coder<AccumT> accumCoder,
                   KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-            if (accumCoder == null) {
-              throw new IllegalStateException("Unable to infer a coder for CombiningState and no"
-                  + "Coder was specified.");
-            }
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT, OutputT>>
