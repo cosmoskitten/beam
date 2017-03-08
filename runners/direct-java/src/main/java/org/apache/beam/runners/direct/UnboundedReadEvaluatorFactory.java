@@ -140,6 +140,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
           Instant watermark = reader.getWatermark();
           UnboundedSourceShard<OutputT, CheckpointMarkT> residual = finishRead(reader, shard);
+          reader = residual.getExistingReader();
           resultBuilder
               .addOutput(output)
               .addUnprocessedElements(
