@@ -27,6 +27,12 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Dataflow') {
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
+  delegate.wrapper {
+    timeout {
+      absolute(120)
+      abortBuild()
+    }
+  }
 
   // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)
