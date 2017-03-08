@@ -184,6 +184,7 @@ class Coder(object):
     # pylint: enable=protected-access
 
   def to_runner_api(self, context):
+    # TODO(BEAM-115): Use specialized URNs and components.
     from apache_beam.runners.api import beam_runner_api_pb2
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.FunctionSpec(
