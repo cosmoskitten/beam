@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
  *          .setCoder(StringUtf8Coder.of());
  *  pipeline.run();
  * }</pre>
+ *
  * *
  */
 public class BatchingParDo<K, InputT, OutputT>
@@ -158,7 +159,6 @@ public class BatchingParDo<K, InputT, OutputT>
         ProcessContext c,
         BoundedWindow window) {
       Instant firingInstant = window.maxTimestamp().plus(allowedLateness);
-      Duration delay = new Duration(c.timestamp(), firingInstant);
       // Timers are scoped to the window. A timer can be set only for a single time per scope.
       // But prevent to set it at each element (set it once per window)
       Integer isSet = timerAlreadySetForWindow.read();
@@ -166,9 +166,9 @@ public class BatchingParDo<K, InputT, OutputT>
         // TODO setting log level to debug does not work, so info, remove it afterwards
         LOGGER.info(
             String.format(
-                "***** SET TIMER ***** Delay of %d ms added to timestamp %s set for window %s",
-                delay.getMillis(), c.timestamp(), window.toString()));
-        timer.setForNowPlus(delay);
+                "***** SET TIMER ***** to point in time %s for window %s",
+                firingInstant.toString(), window.toString()));
+        timer.set(firingInstant);
         timerAlreadySetForWindow.write(1);
       }
       key.write(c.element().getKey());
@@ -186,8 +186,7 @@ public class BatchingParDo<K, InputT, OutputT>
       }
       if (num >= batchSize) {
         // TODO setting log level to debug does not work, so info, remove it afterwards
-        LOGGER.info(
-            String.format("***** END OF BATCH ***** for window %s", window.toString()));
+        LOGGER.info(String.format("***** END OF BATCH ***** for window %s", window.toString()));
         flushBatch(c, key, batch, numElementsInBatch);
       }
     }
@@ -197,23 +196,21 @@ public class BatchingParDo<K, InputT, OutputT>
         OnTimerContext context,
         @StateId(KEY_ID) ValueState<K> key,
         @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID) ValueState<Long> numElementsInBatch) {
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID) ValueState<Long> numElementsInBatch,
+        BoundedWindow window) {
       // TODO setting log level to debug does not work, so info, remove it afterwards
       LOGGER.info(
-          String.format("***** END OF WINDOW ***** for timer timestamp %s", context.timestamp()));
-
-
+          String.format(
+              "***** END OF WINDOW ***** for timer timestamp %s in windows %s",
+              context.timestamp(), window.toString()));
 
       // TODO remove
       Iterable<InputT> batchRead = batch.read();
       long num = 0;
-      for (InputT e : batchRead){
+      for (InputT e : batchRead) {
         num++;
       }
-      LOGGER.info(
-        String.format("***** IN ONTIMER ***** batch size %d", num));
-
-
+      LOGGER.info(String.format("***** IN ONTIMER ***** batch size %d", num));
 
       flushBatch(context, key, batch, numElementsInBatch);
     }
@@ -223,12 +220,10 @@ public class BatchingParDo<K, InputT, OutputT>
       // TODO remove
       Iterable<InputT> batchRead = batch.read();
       long num = 0;
-      for (InputT e : batchRead){
+      for (InputT e : batchRead) {
         num++;
       }
-      LOGGER.info(
-        String.format("***** FLUSH ***** batch size %d", num));
-
+      LOGGER.info(String.format("***** FLUSH ***** batch size %d", num));
 
       Iterable<OutputT> batchOutput = perBatchFn.apply(batchRead);
 
