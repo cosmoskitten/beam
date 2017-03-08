@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util.state;
 
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -231,14 +232,21 @@ public class StateSpecs {
    */
   private static class ValueStateSpec<T> implements StateSpec<Object, ValueState<T>> {
 
+    @Nullable
     private Coder<T> coder;
 
-    private ValueStateSpec(Coder<T> coder) {
+    private ValueStateSpec(@Nullable Coder<T> coder) {
       this.coder = coder;
     }
 
     @Override
     public ValueState<T> bind(String id, StateBinder<?> visitor) {
+      if (coder == null) {
+        throw new IllegalStateException("Unable to infer a coder for ValueState and no Coder"
+            + " was specified. Please set a coder by either invoking"
+            + " StateSpecs.value(Coder<T> valueCoder) or by registering the coder in the"
+            + " Pipeline's CoderRegistry.");
+      }
       return visitor.bindValue(id, this, coder);
     }
 
@@ -281,11 +289,13 @@ public class StateSpecs {
       extends KeyedCombiningValueStateSpec<Object, InputT, AccumT, OutputT>
       implements StateSpec<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
 
+    @Nullable
     private Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private CombiningValueStateSpec(
-        Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+        @Nullable Coder<AccumT> accumCoder,
+        CombineFn<InputT, AccumT, OutputT> combineFn) {
       super(accumCoder, combineFn.asKeyedFn());
       this.combineFn = combineFn;
       this.accumCoder = accumCoder;
@@ -299,9 +309,9 @@ public class StateSpecs {
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.accumCoder == null) {
-        if (coders[1] != null) {
+        if (coders[0] != null) {
           //noinspection unchecked
-          this.accumCoder = (Coder<AccumT>) coders[1];
+          this.accumCoder = (Coder<AccumT>) coders[0];
         }
       }
     }
@@ -316,11 +326,13 @@ public class StateSpecs {
   private static class KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>
       implements StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
 
+    @Nullable
     private Coder<AccumT> accumCoder;
     private final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn;
 
     protected KeyedCombiningValueWithContextStateSpec(
-        Coder<AccumT> accumCoder, KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
+        @Nullable Coder<AccumT> accumCoder,
+        KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
       this.combineFn = combineFn;
       this.accumCoder = accumCoder;
     }
@@ -328,6 +340,13 @@ public class StateSpecs {
     @Override
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder<? extends K> visitor) {
+      if (accumCoder == null) {
+        throw new IllegalStateException("Unable to infer a coder for ValueState and no Coder"
+            + " was specified. Please set a coder by either invoking"
+            + " StateSpecs.keyedCombiningValue(Coder<AccumT> accumCoder,"
+            + " KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn)"
+            + " or by registering the coder in the Pipeline's CoderRegistry.");
+      }
       return visitor.bindKeyedCombiningValueWithContext(id, this, accumCoder, combineFn);
     }
 
@@ -374,11 +393,13 @@ public class StateSpecs {
   private static class KeyedCombiningValueStateSpec<K, InputT, AccumT, OutputT>
       implements StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
 
+    @Nullable
     private Coder<AccumT> accumCoder;
     private final KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn;
 
     protected KeyedCombiningValueStateSpec(
-        Coder<AccumT> accumCoder, KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn) {
+        @Nullable Coder<AccumT> accumCoder,
+        KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn) {
       this.keyedCombineFn = keyedCombineFn;
       this.accumCoder = accumCoder;
     }
@@ -390,15 +411,23 @@ public class StateSpecs {
     @Override
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder<? extends K> visitor) {
-      return visitor.bindKeyedCombiningValue(id, this, getAccumCoder(), keyedCombineFn);
+      Coder<AccumT> accumCoder = getAccumCoder();
+      if (accumCoder == null) {
+        throw new IllegalStateException("Unable to infer a coder for CombiningState and no"
+            + " Coder was specified. Please set a coder by either invoking"
+            + " StateSpecs.combiningValue(Coder<AccumT> accumCoder,"
+            + " CombineFn<InputT, AccumT, OutputT> combineFn)"
+            + " or by registering the coder in the Pipeline's CoderRegistry.");
+      }
+      return visitor.bindKeyedCombiningValue(id, this, accumCoder, keyedCombineFn);
     }
 
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.accumCoder == null) {
-        if (coders[2] != null) {
+        if (coders[0] != null) {
           //noinspection unchecked
-          this.accumCoder = (Coder<AccumT>) coders[2];
+          this.accumCoder = (Coder<AccumT>) coders[0];
         }
       }
     }
@@ -436,14 +465,21 @@ public class StateSpecs {
    */
   private static class BagStateSpec<T> implements StateSpec<Object, BagState<T>> {
 
+    @Nullable
     private Coder<T> elemCoder;
 
-    private BagStateSpec(Coder<T> elemCoder) {
+    private BagStateSpec(@Nullable Coder<T> elemCoder) {
       this.elemCoder = elemCoder;
     }
 
     @Override
     public BagState<T> bind(String id, StateBinder<?> visitor) {
+      if (elemCoder == null) {
+        throw new IllegalStateException("Unable to infer a coder for BagState and no Coder"
+            + " was specified. Please set a coder by either invoking"
+            + " StateSpecs.bag(Coder<T> elemCoder) or by registering the coder in the"
+            + " Pipeline's CoderRegistry.");
+      }
       return visitor.bindBag(id, this, elemCoder);
     }
 
@@ -479,16 +515,24 @@ public class StateSpecs {
 
   private static class MapStateSpec<K, V> implements StateSpec<Object, MapState<K, V>> {
 
+    @Nullable
     private Coder<K> keyCoder;
+    @Nullable
     private Coder<V> valueCoder;
 
-    private MapStateSpec(Coder<K> keyCoder, Coder<V> valueCoder) {
+    private MapStateSpec(@Nullable Coder<K> keyCoder, @Nullable Coder<V> valueCoder) {
       this.keyCoder = keyCoder;
       this.valueCoder = valueCoder;
     }
 
     @Override
     public MapState<K, V> bind(String id, StateBinder<?> visitor) {
+      if (keyCoder == null || valueCoder == null) {
+        throw new IllegalStateException("Unable to infer a coder for SetState and no Coder"
+            + " was specified. Please set a coder by either invoking"
+            + " StateSpecs.map(Coder<K> keyCoder, Coder<V> valueCoder) or by registering the"
+            + " coder in the Pipeline's CoderRegistry.");
+      }
       return visitor.bindMap(id, this, keyCoder, valueCoder);
     }
 
@@ -536,17 +580,21 @@ public class StateSpecs {
    */
   private static class SetStateSpec<T> implements StateSpec<Object, SetState<T>> {
 
+    @Nullable
     private Coder<T> elemCoder;
 
-    public SetStateSpec() {
-    }
-
-    private SetStateSpec(Coder<T> elemCoder) {
+    private SetStateSpec(@Nullable Coder<T> elemCoder) {
       this.elemCoder = elemCoder;
     }
 
     @Override
     public SetState<T> bind(String id, StateBinder<?> visitor) {
+      if (elemCoder == null) {
+        throw new IllegalStateException("Unable to infer a coder for SetState and no Coder"
+            + " was specified. Please set a coder by either invoking"
+            + " StateSpecs.set(Coder<T> elemCoder) or by registering the coder in the"
+            + " Pipeline's CoderRegistry.");
+      }
       return visitor.bindSet(id, this, elemCoder);
     }
 
