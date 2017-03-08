@@ -461,7 +461,7 @@ class PipelineContextMap(object):
 
   def _unique_ref(self):
     self._counter += 1
-    return "ref_%s_%s" % (obj_type.__name__, self._counter)
+    return "ref_%s_%s" % (self._obj_type.__name__, self._counter)
 
   def populate_map(self, proto_map):
     for id, obj in self._id_to_obj:
@@ -499,6 +499,6 @@ class PipelineContext(object):
 
   def to_runner_api(self):
     context_proto = beam_runner_api_pb2.Components()
-    for name, cls in self.__COMPONENT_TYEPS:
+    for name, cls in self._COMPONENT_TYEPS:
       getattr(self, name).populate_map(getattr(context_proto, name))
-    return components
+    return context_proto
