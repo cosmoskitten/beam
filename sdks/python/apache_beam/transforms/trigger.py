@@ -583,7 +583,7 @@ class AfterEach(TriggerFn):
 
   @staticmethod
   def from_runner_api(proto, context):
-    return AfterEach([
+    return AfterEach(*[
       TriggerFn.from_runner_api(subtrigger, context)
       for subtrigger in proto.after_each.subtriggers])
 
@@ -591,7 +591,8 @@ class AfterEach(TriggerFn):
     return beam_runner_api_pb2.Trigger(
         after_each=beam_runner_api_pb2.Trigger.AfterEach(
             subtriggers=[
-                subtrigger.to_runner_api(context) for subtrigger in triggers]))
+                subtrigger.to_runner_api(context)
+                for subtrigger in self.triggers]))
 
 
 class OrFinally(AfterFirst):
@@ -603,6 +604,7 @@ class OrFinally(AfterFirst):
   def from_runner_api(proto, context):
     return OrFinally(
         TriggerFn.from_runner_api(proto.or_finally.main, context),
+        # getattr is used as finally is a keyword in Python
         TriggerFn.from_runner_api(getattr(proto.or_finally, 'finally'),
                                   context))
 
@@ -610,6 +612,7 @@ class OrFinally(AfterFirst):
     return beam_runner_api_pb2.Trigger(
         or_finally=beam_runner_api_pb2.Trigger.OrFinally(
             main=self.triggers[0].to_runner_api(context),
+            # dict keyword argument is used as finally is a keyword in Python
             **{'finally': self.triggers[1].to_runner_api(context)}))
 
 

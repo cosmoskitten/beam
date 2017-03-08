@@ -402,6 +402,7 @@ class RunnerApiTest(unittest.TestCase):
         DefaultTrigger(),
         AfterAll(AfterCount(1), AfterCount(10)),
         AfterFirst(AfterCount(10), AfterCount(100)),
+        AfterEach(AfterCount(100), AfterCount(1000)),
         AfterWatermark(early=AfterCount(1000)),
         AfterWatermark(early=AfterCount(1000), late=AfterCount(1)),
         Repeatedly(AfterCount(100)),

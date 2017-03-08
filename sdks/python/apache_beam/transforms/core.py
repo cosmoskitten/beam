@@ -1228,10 +1228,12 @@ class Windowing(object):
         allowed_lateness=0)
 
   @staticmethod
-  def from_runner_api(self, proto, context):
+  def from_runner_api(proto, context):
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.transforms.trigger import TriggerFn
     return Windowing(
-        window_fn=WindowFn.from_runner_api(proto.window_fn),
-        trigger_fn=TriggerFn.from_runner_api(proto.trigger),
+        windowfn=WindowFn.from_runner_api(proto.window_fn),
+        triggerfn=TriggerFn.from_runner_api(proto.trigger),
         accumulation_mode=proto.accumulation_mode,
         output_time=proto.output_time)
 
