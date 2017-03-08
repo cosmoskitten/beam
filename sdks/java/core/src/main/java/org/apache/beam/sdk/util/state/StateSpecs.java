@@ -250,11 +250,11 @@ public class StateSpecs {
       return visitor.bindValue(id, this, coder);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.coder == null) {
         if (coders[0] != null) {
-          //noinspection unchecked
           this.coder = (Coder<T>) coders[0];
         }
       }
@@ -306,11 +306,11 @@ public class StateSpecs {
       return accumCoder;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.accumCoder == null) {
         if (coders[0] != null) {
-          //noinspection unchecked
           this.accumCoder = (Coder<AccumT>) coders[0];
         }
       }
@@ -350,11 +350,11 @@ public class StateSpecs {
       return visitor.bindKeyedCombiningValueWithContext(id, this, accumCoder, combineFn);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.accumCoder == null) {
         if (coders[2] != null) {
-          //noinspection unchecked
           this.accumCoder = (Coder<AccumT>) coders[2];
         }
       }
@@ -422,11 +422,11 @@ public class StateSpecs {
       return visitor.bindKeyedCombiningValue(id, this, accumCoder, keyedCombineFn);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.accumCoder == null) {
         if (coders[0] != null) {
-          //noinspection unchecked
           this.accumCoder = (Coder<AccumT>) coders[0];
         }
       }
@@ -483,11 +483,11 @@ public class StateSpecs {
       return visitor.bindBag(id, this, elemCoder);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.elemCoder == null) {
         if (coders[0] != null) {
-          //noinspection unchecked
           this.elemCoder = (Coder<T>) coders[0];
         }
       }
@@ -536,17 +536,16 @@ public class StateSpecs {
       return visitor.bindMap(id, this, keyCoder, valueCoder);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.keyCoder == null) {
         if (coders[0] != null) {
-          //noinspection unchecked
           this.keyCoder = (Coder<K>) coders[0];
         }
       }
       if (this.valueCoder == null) {
         if (coders[1] != null) {
-          //noinspection unchecked
           this.valueCoder = (Coder<V>) coders[1];
         }
       }
@@ -598,11 +597,11 @@ public class StateSpecs {
       return visitor.bindSet(id, this, elemCoder);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
       if (this.elemCoder == null) {
         if (coders[0] != null) {
-          //noinspection unchecked
           this.elemCoder = (Coder<T>) coders[0];
         }
       }
