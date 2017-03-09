@@ -31,6 +31,7 @@ def pack_Any(msg):
     result.Pack(msg)
     return result
 
+
 def unpack_Any(any_msg, msg_class):
   """Unpacks any_msg into msg_class.
 
@@ -42,6 +43,7 @@ def unpack_Any(any_msg, msg_class):
     msg = msg_class()
     any_msg.Unpack(msg)
     return msg
+
 
 def pack_Struct(**kwargs):
   """Returns a struct containing the values indicated by kwargs.

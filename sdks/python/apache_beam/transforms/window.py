@@ -143,7 +143,6 @@ class WindowFn(object):
     # By default, just return the input timestamp.
     return input_timestamp
 
-
   _known_urns = {}
 
   @classmethod
@@ -177,7 +176,6 @@ WindowFn.register_urn(
     urns.PICKLED_WINDOW_FN,
     wrappers_pb2.BytesValue,
     WindowFn.from_runner_api_parameter)
-
 
 
 class BoundedWindow(object):
