@@ -44,9 +44,9 @@ def unpack_Any(any_msg, msg_class):
     return msg
 
 def pack_Struct(**kwargs):
-  """Returns a struct containging the values indicated by kwargs.
+  """Returns a struct containing the values indicated by kwargs.
   """
   msg = struct_pb2.Struct()
   for key, value in kwargs.items():
-    msg[key] = value
+    msg[key] = value  # pylint: disable=unsubscriptable-object
   return msg

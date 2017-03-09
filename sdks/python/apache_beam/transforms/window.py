@@ -49,7 +49,6 @@ WindowFn.
 
 from __future__ import absolute_import
 
-from google.protobuf import any_pb2
 from google.protobuf import struct_pb2
 from google.protobuf import wrappers_pb2
 
@@ -155,7 +154,8 @@ class WindowFn(object):
   def from_runner_api(cls, fn_proto, context):
     parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
     return constructor(
-        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type), context)
+        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
+        context)
 
   def to_runner_api(self, context):
     urn, typed_param = self.to_runner_api_parameter(context)
@@ -351,13 +351,13 @@ class FixedWindows(NonMergingWindowFn):
   @staticmethod
   def from_runner_api_parameter(fn_parameter, unused_context):
     return FixedWindows(
-      size=Duration(micros=fn_parameter['size']),
-      offset=Timestamp(micros=fn_parameter['offset']))
+        size=Duration(micros=fn_parameter['size']),
+        offset=Timestamp(micros=fn_parameter['offset']))
 
   def to_runner_api_parameter(self, context):
     return (urns.FIXED_WINDOWS_FN,
             proto_utils.pack_Struct(size=self.size.micros,
-                         offset=self.offset.micros))
+                                    offset=self.offset.micros))
 
 WindowFn.register_urn(
     urns.FIXED_WINDOWS_FN,
@@ -402,9 +402,9 @@ class SlidingWindows(NonMergingWindowFn):
   @staticmethod
   def from_runner_api_parameter(fn_parameter, unused_context):
     return SlidingWindows(
-      size=Duration(micros=fn_parameter['size']),
-      offset=Timestamp(micros=fn_parameter['offset']),
-      period=Duration(micros=fn_parameter['period']))
+        size=Duration(micros=fn_parameter['size']),
+        offset=Timestamp(micros=fn_parameter['offset']),
+        period=Duration(micros=fn_parameter['period']))
 
   def to_runner_api_parameter(self, context):
     return (urns.SLIDING_WINDOWS_FN,
