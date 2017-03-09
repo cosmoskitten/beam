@@ -142,6 +142,7 @@ class DisplayData(object):
     Returns:
       A DisplayData instance with populated items.
 
+:q
     Raises:
       ValueError: If the has_display_data argument is not an instance of
         HasDisplayData.
@@ -160,6 +161,7 @@ class DisplayDataItem(object):
   display item belongs to.
   """
   typeDict = {str:'STRING',
+              unicode:'STRING',
               int:'INTEGER',
               float:'FLOAT',
               bool: 'BOOLEAN',
