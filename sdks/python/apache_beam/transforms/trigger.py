@@ -189,17 +189,17 @@ class TriggerFn(object):
   @staticmethod
   def from_runner_api(proto, context):
     return {
-      'after_all': AfterAll,
-      'after_any': AfterFirst,
-      'after_each': AfterEach,
-      'after_end_of_widow': AfterWatermark,
-      # after_processing_time, after_synchronized_processing_time
-      # always
-      'default': DefaultTrigger,
-      'element_count': AfterCount,
-      # never
-      'or_finally': OrFinally,
-      'repeat': Repeatedly,
+        'after_all': AfterAll,
+        'after_any': AfterFirst,
+        'after_each': AfterEach,
+        'after_end_of_widow': AfterWatermark,
+        # after_processing_time, after_synchronized_processing_time
+        # always
+        'default': DefaultTrigger,
+        'element_count': AfterCount,
+        # never
+        'or_finally': OrFinally,
+        'repeat': Repeatedly,
     }[proto.WhichOneof('trigger')].from_runner_api(proto, context)
 
   @abstractmethod
@@ -337,20 +337,20 @@ class AfterWatermark(TriggerFn):
   @staticmethod
   def from_runner_api(proto, context):
     return AfterWatermark(
-      early=TriggerFn.from_runner_api(
-          proto.after_end_of_widow.early_firings, context)
+        early=TriggerFn.from_runner_api(
+            proto.after_end_of_widow.early_firings, context)
         if proto.after_end_of_widow.HasField('early_firings')
         else None,
-      late=TriggerFn.from_runner_api(
-          proto.after_end_of_widow.late_firings, context)
+        late=TriggerFn.from_runner_api(
+            proto.after_end_of_widow.late_firings, context)
         if proto.after_end_of_widow.HasField('late_firings')
         else None)
 
   def to_runner_api(self, context):
-    early_proto = self.early.underlying.to_runner_api(context
-        ) if self.early else None
-    late_proto = self.late.underlying.to_runner_api(context
-        ) if self.late else None
+    early_proto = self.early.underlying.to_runner_api(
+        context) if self.early else None
+    late_proto = self.late.underlying.to_runner_api(
+        context) if self.late else None
     return beam_runner_api_pb2.Trigger(
         after_end_of_widow=beam_runner_api_pb2.Trigger.AfterEndOfWindow(
             early_firings=early_proto,
@@ -429,7 +429,7 @@ class Repeatedly(TriggerFn):
   @staticmethod
   def from_runner_api(proto, context):
     return Repeatedly(
-      TriggerFn.from_runner_api(proto.repeat.subtrigger, context))
+        TriggerFn.from_runner_api(proto.repeat.subtrigger, context))
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.Trigger(
@@ -488,9 +488,9 @@ class ParallelTriggerFn(TriggerFn):
   @staticmethod
   def from_runner_api(proto, context):
     subtriggers = [
-      TriggerFn.from_runner_api(subtrigger, context)
-      for subtrigger
-      in (proto.after_all.subtriggers or proto.after_any.subtriggers)]
+        TriggerFn.from_runner_api(subtrigger, context)
+        for subtrigger
+        in proto.after_all.subtriggers or proto.after_any.subtriggers]
     if proto.after_all.subtriggers:
       return AfterAll(*subtriggers)
     else:
@@ -584,8 +584,8 @@ class AfterEach(TriggerFn):
   @staticmethod
   def from_runner_api(proto, context):
     return AfterEach(*[
-      TriggerFn.from_runner_api(subtrigger, context)
-      for subtrigger in proto.after_each.subtriggers])
+        TriggerFn.from_runner_api(subtrigger, context)
+        for subtrigger in proto.after_each.subtriggers])
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.Trigger(
