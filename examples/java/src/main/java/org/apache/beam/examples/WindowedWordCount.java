@@ -19,21 +19,23 @@ package org.apache.beam.examples;
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.examples.WordCount.FormatAsTextFn;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
-import org.apache.beam.examples.common.WriteWindowedFilesDoFn;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -41,6 +43,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 
 /**
@@ -91,6 +95,9 @@ import org.joda.time.Instant;
  */
 public class WindowedWordCount {
     static final int WINDOW_SIZE = 10;  // Default window duration in minutes
+
+  private static DateTimeFormatter formatter = ISODateTimeFormat.hourMinute();
+
   /**
    * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
    * this example, for the bounded data case.
@@ -180,10 +187,10 @@ public class WindowedWordCount {
      */
     PCollection<String> input = pipeline
       /** Read from the GCS file. */
-      .apply(TextIO.Read.from(options.getInputFile()))
+      .apply("ReadInputFile", TextIO.Read.from(options.getInputFile()))
       // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
       // See AddTimestampFn for more detail on this.
-      .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
+      .apply("AddTimestamps", ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
 
     /**
      * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
@@ -192,7 +199,7 @@ public class WindowedWordCount {
      * available (e.g., sliding windows).
      */
     PCollection<String> windowedWords =
-        input.apply(
+        input.apply("FixedWindows",
             Window.<String>into(
                 FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
 
@@ -200,36 +207,15 @@ public class WindowedWordCount {
      * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
      * windows over a PCollection containing windowed values.
      */
-    PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
+    PCollection<KV<String, Long>> wordCounts = windowedWords.apply(
+        "CountWords", new WordCount.CountWords());
 
-    /**
-     * Concept #5: Customize the output format using windowing information
-     *
-     * <p>At this point, the data is organized by window. We're writing text files and and have no
-     * late data, so for simplicity we can use the window as the key and {@link GroupByKey} to get
-     * one output file per window. (if we had late data this key would not be unique)
-     *
-     * <p>To access the window in a {@link DoFn}, add a {@link BoundedWindow} parameter. This will
-     * be automatically detected and populated with the window for the current element.
-     */
-    PCollection<KV<IntervalWindow, KV<String, Long>>> keyedByWindow =
-        wordCounts.apply(
-            ParDo.of(
-                new DoFn<KV<String, Long>, KV<IntervalWindow, KV<String, Long>>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context, IntervalWindow window) {
-                    context.output(KV.of(window, context.element()));
-                  }
-                }));
-
-    /**
-     * Concept #6: Format the results and write to a sharded file partitioned by window, using a
-     * simple ParDo operation. Because there may be failures followed by retries, the
-     * writes must be idempotent, but the details of writing to files is elided here.
-     */
-    keyedByWindow
-        .apply(GroupByKey.<IntervalWindow, KV<String, Long>>create())
-        .apply(ParDo.of(new WriteWindowedFilesDoFn(output)));
+    /** Concept #5: Format the results and write to a sharded file partitioned by window. */
+    wordCounts
+        .apply("FormatOutput", MapElements.via(new FormatAsTextFn()))
+        .apply(
+            "WriteOutput",
+            TextIO.Write.to(new PerWindowFiles(output)).withWindowedWrites().withNumShards(3));
 
     PipelineResult result = pipeline.run();
     try {
@@ -239,4 +225,39 @@ public class WindowedWordCount {
     }
   }
 
+  /**
+   * A {@link FilenamePolicy} produces a base file name for a write based on metadata about the
+   * data being written. This always includes the shard number and the total number of shards.
+   * For windowed writes, it also includes the window and pane index (a sequence number assigned
+   * to each trigger firing).
+   */
+  static class PerWindowFiles extends FilenamePolicy {
+
+    private final String output;
+
+    public PerWindowFiles(String output) {
+      this.output = output;
+    }
+
+    @Override
+    public ValueProvider<String> getBaseOutputFilenameProvider() {
+      return StaticValueProvider.of(output);
+    }
+
+    String filenamePrefixForWindow(IntervalWindow window) {
+      return String.format(
+          "%s-%s-%s",
+          output, formatter.print(window.start()), formatter.print(window.end()));
+    }
+
+    @Override
+    public String apply(Context context) {
+      IntervalWindow window = (IntervalWindow) context.getWindow();
+      return String.format(
+          "%s-%s-of-%s",
+          filenamePrefixForWindow(window),
+          context.getShardNumber(),
+          context.getNumShards());
+    }
+  }
 }
