@@ -50,8 +50,21 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
   steps {
     maven {
       // Set maven parameters.
-      common_job_properties.setMavenConfig(delegate)
+//      common_job_properties.setMavenConfig(delegate)
 
+      mavenInstallation('Maven 3.3.3')
+      mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
+      mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
+      // The -XX:+TieredCompilation -XX:TieredStopAtLevel=1 JVM options enable
+      // tiered compilation to make the JVM startup times faster during the tests.
+      mavenOpts('-XX:+TieredCompilation')
+      mavenOpts('-XX:TieredStopAtLevel=1')
+      rootPOM('pom.xml')
+      // Use a repository local to the workspace for better isolation of jobs.
+      localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
+
+
+      
       // Maven build project
       goals('-B -e -P release,dataflow-runner clean install coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
     }
