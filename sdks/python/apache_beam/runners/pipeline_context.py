@@ -41,8 +41,8 @@ class _PipelineContextMap(object):
     return "ref_%s_%s" % (self._obj_type.__name__, self._counter)
 
   def populate_map(self, proto_map):
-    for id, obj in self._id_to_obj.items():
-      proto_map[id].CopyFrom(self._id_to_proto[id])
+    for id, proto in self._id_to_proto.items():
+      proto_map[id].CopyFrom(proto)
 
   def get_id(self, obj):
     if obj not in self._obj_to_id:
@@ -55,7 +55,7 @@ class _PipelineContextMap(object):
   def get_by_id(self, id):
     if id not in self._id_to_obj:
       self._id_to_obj[id] = self._obj_type.from_runner_api(
-        self._id_to_proto[id], self._pipeline_context)
+          self._id_to_proto[id], self._pipeline_context)
     return self._id_to_obj[id]
 
 
@@ -64,11 +64,11 @@ class PipelineContext(object):
   """
 
   _COMPONENT_TYPES = {
-    'transforms': pipeline.AppliedPTransform,
-    'pcollections': pvalue.PCollection,
-    'coders': coders.Coder,
-    'windowing_strategies': core.Windowing,
-    # TODO: environment
+      'transforms': pipeline.AppliedPTransform,
+      'pcollections': pvalue.PCollection,
+      'coders': coders.Coder,
+      'windowing_strategies': core.Windowing,
+      # TODO: environment
   }
 
   def __init__(self, context_proto=None):
@@ -83,6 +83,6 @@ class PipelineContext(object):
 
   def to_runner_api(self):
     context_proto = beam_runner_api_pb2.Components()
-    for name, cls in self._COMPONENT_TYPES.items():
+    for name in self._COMPONENT_TYPES:
       getattr(self, name).populate_map(getattr(context_proto, name))
     return context_proto
