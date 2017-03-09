@@ -69,7 +69,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         // set allowed lateness.
         .setWindowingStrategyInternal(originalStrategy)
         .apply("ExpandIterable", ParDo.of(
-            new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
+              new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
               @ProcessElement
               public void processElement(ProcessContext c) {
                 K key = c.element().getKey();
