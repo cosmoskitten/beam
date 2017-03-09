@@ -604,7 +604,7 @@ public class HadoopInputFormatIO {
      */
     private ParameterizedType determineGenericType() {
       // Any InputFormatClass always inherits from InputFormat<K, V> which is a ParameterizedType.
-   	  // Hence, we can fetch generic super class of inputFormatClass which is a ParameterizedType.
+      // Hence, we can fetch generic super class of inputFormatClass which is a ParameterizedType.
       Class<?> inputFormatClass = inputFormatObj.getClass();
       Type genericSuperclass = null;
       for (;;) {
@@ -714,6 +714,7 @@ public class HadoopInputFormatIO {
                   taskAttemptContext);
           if (recordReader != null) {
             recordReader.initialize(split.getSplit(), taskAttemptContext);
+            progressValue.set(getProgress());
             if (recordReader.nextKeyValue()) {
               recordsReturned++;
               doneReading = false;
