@@ -64,7 +64,6 @@ import org.slf4j.LoggerFactory;
  *          .setCoder(StringUtf8Coder.of());
  *  pipeline.run();
  * }</pre>
- *
  * *
  */
 public class BatchingParDo<K, InputT, OutputT>
