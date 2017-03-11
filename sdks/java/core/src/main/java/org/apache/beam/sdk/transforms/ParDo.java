@@ -538,13 +538,16 @@ public class ParDo {
     return DisplayData.item("fn", fn.getClass()).withLabel("Transform Function");
   }
 
-  private static void inferStateCodersIfNeeded(DoFn<?, ?> fn, CoderRegistry coderRegistry) {
+  private static void inferStateCodersIfNeeded(
+      DoFn<?, ?> fn,
+      CoderRegistry coderRegistry,
+      Coder<?> inputCoder) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     Map<String, DoFnSignature.StateDeclaration> stateDeclarations = signature.stateDeclarations();
     for (DoFnSignature.StateDeclaration stateDeclaration : stateDeclarations.values()) {
       try {
         StateSpec<?, ?> stateSpec = (StateSpec<?, ?>) stateDeclaration.field().get(fn);
-        stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry));
+        stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder));
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -555,18 +558,26 @@ public class ParDo {
    * Try to provide coders for as many of the type arguments of given
    * {@link DoFnSignature.StateDeclaration} as possible.
    */
-  private static Coder[] codersForStateSpecTypes(
+  private static <InputT> Coder[] codersForStateSpecTypes(
       DoFnSignature.StateDeclaration stateDeclaration,
-      CoderRegistry coderRegistry) {
+      CoderRegistry coderRegistry,
+      Coder<InputT> inputCoder) {
     Type stateType = stateDeclaration.stateType().getType();
     if (stateType instanceof ParameterizedType) {
       Type[] typeArguments = ((ParameterizedType) stateType).getActualTypeArguments();
       Coder[] coders = new Coder[typeArguments.length];
       for (int i = 0; i < typeArguments.length; i++) {
+        Type typeArgument = typeArguments[i];
+        TypeDescriptor<?> typeDescriptor = TypeDescriptor.of(typeArgument);
         try {
-          Type typeArgument = typeArguments[i];
-          coders[i] = coderRegistry.getDefaultCoder(TypeDescriptor.of(typeArgument));
-        } catch (CannotProvideCoderException ignored) {
+          coders[i] = coderRegistry.getDefaultCoder(typeDescriptor);
+        } catch (CannotProvideCoderException e) {
+          try {
+            coders[i] = coderRegistry.getDefaultCoder(
+                typeDescriptor, inputCoder.getEncodedTypeDescriptor(), inputCoder);
+          } catch (CannotProvideCoderException ignored) {
+            // Since not all type arguments will have a registered coder we ignore this exception.
+          }
         }
       }
       return coders;
@@ -780,7 +791,7 @@ public class ParDo {
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       validateWindowType(input, fn);
-      inferStateCodersIfNeeded(fn, input.getPipeline().getCoderRegistry());
+      inferStateCodersIfNeeded(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
               input.getWindowingStrategy(),
@@ -974,7 +985,7 @@ public class ParDo {
       validateWindowType(input, fn);
 
       // Use coder registry to determine coders for all StateSpec defined in the fn signature.
-      inferStateCodersIfNeeded(fn, input.getPipeline().getCoderRegistry());
+      inferStateCodersIfNeeded(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
 
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),

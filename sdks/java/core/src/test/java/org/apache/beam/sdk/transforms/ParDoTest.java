@@ -1692,6 +1692,37 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testValueStateCoderInferenceFromInputCoder() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, MyInteger>, MyInteger> fn =
+        new DoFn<KV<String, MyInteger>, MyInteger>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<MyInteger>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+            MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
+            c.output(currentValue);
+            state.write(new MyInteger(currentValue.getValue() + 1));
+          }
+        };
+
+        pipeline
+            .apply(Create.of(KV.of("hello", new MyInteger(42)),
+                KV.of("hello", new MyInteger(97)), KV.of("hello", new MyInteger(84)))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder)))
+            .apply(ParDo.of(fn)).setCoder(myIntegerCoder);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
   public void testCoderInferenceOfList() {
     final String stateId = "foo";
     MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
