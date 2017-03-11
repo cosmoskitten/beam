@@ -57,7 +57,7 @@ public class DataflowPipelineJob implements PipelineResult {
   /**
    * The id for the job.
    */
-  private String jobId;
+  protected String jobId;
 
   /**
    * The {@link DataflowPipelineOptions} for the job.
@@ -69,6 +69,11 @@ public class DataflowPipelineJob implements PipelineResult {
    * for information about the job.
    */
   private final DataflowClient dataflowClient;
+
+  /**
+   *
+   */
+  private final DataflowMetrics dataflowMetrics;
 
   /**
    * The state the job terminated in or {@code null} if the job has not terminated.
@@ -129,6 +134,7 @@ public class DataflowPipelineJob implements PipelineResult {
     this.dataflowOptions = dataflowOptions;
     this.dataflowClient = (dataflowOptions == null ? null : DataflowClient.create(dataflowOptions));
     this.aggregatorTransforms = aggregatorTransforms;
+    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
   }
 
   /**
@@ -462,8 +468,7 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException(
-        "The DataflowRunner does not currently support metrics.");
+    return dataflowMetrics;
   }
 
   private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)
