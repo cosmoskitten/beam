@@ -26,7 +26,6 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -552,6 +551,10 @@ public class ParDo {
     }
   }
 
+  /**
+   * Try to provide coders for as many of the type arguments of given
+   * {@link DoFnSignature.StateDeclaration} as possible.
+   */
   private static Coder[] codersForStateSpecTypes(
       DoFnSignature.StateDeclaration stateDeclaration,
       CoderRegistry coderRegistry) {
@@ -562,9 +565,7 @@ public class ParDo {
       for (int i = 0; i < typeArguments.length; i++) {
         try {
           Type typeArgument = typeArguments[i];
-          if (typeArgument instanceof Class) {
-            coders[i] = coderRegistry.getDefaultCoder((Class) typeArgument);
-          }
+          coders[i] = coderRegistry.getDefaultCoder(TypeDescriptor.of(typeArgument));
         } catch (CannotProvideCoderException ignored) {
         }
       }
@@ -572,7 +573,6 @@ public class ParDo {
     }
     return new Coder[0];
   }
-
 
   /**
    * Perform common validations of the {@link DoFn} against the input {@link PCollection}, for

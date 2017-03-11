@@ -38,6 +38,7 @@ import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -1686,6 +1687,39 @@ public class ParDoTest implements Serializable {
 
     thrown.expect(PipelineExecutionException.class);
     thrown.expectMessage("Unable to infer a coder for ValueState and no Coder was specified.");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testCoderInferenceOfList() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, List<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, List<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<List<MyInteger>>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<List<MyInteger>> state) {
+            MyInteger myInteger = new MyInteger(c.element().getValue());
+            List<MyInteger> currentValue = state.read();
+            List<MyInteger> newValue = currentValue != null
+                ? ImmutableList.<MyInteger>builder().addAll(currentValue).add(myInteger).build()
+                : Collections.singletonList(myInteger);
+            c.output(newValue);
+            state.write(newValue);
+          }
+        };
+
+    pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+        .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
+
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
     pipeline.run();
   }
 
