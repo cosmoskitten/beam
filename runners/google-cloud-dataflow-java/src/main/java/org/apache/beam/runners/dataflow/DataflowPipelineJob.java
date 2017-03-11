@@ -71,7 +71,8 @@ public class DataflowPipelineJob implements PipelineResult {
   private final DataflowClient dataflowClient;
 
   /**
-   *
+   * MetricResults object for Dataflow Runner. It allows for querying of metrics from the Dataflow
+   * service.
    */
   private final DataflowMetrics dataflowMetrics;
 

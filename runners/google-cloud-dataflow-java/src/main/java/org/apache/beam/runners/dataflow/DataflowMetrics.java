@@ -59,11 +59,10 @@ class DataflowMetrics extends MetricResults {
   private MetricQueryResults cachedMetricResults = null;
 
   /**
-   *
-   * @param dataflowPipelineJob
-   * @param dataflowClient
+   * Constructor for the DataflowMetrics class.
+   * @param dataflowPipelineJob is used to get Job state and Job ID information.
+   * @param dataflowClient is used to query user metrics from the Dataflow service.
    */
-
   public DataflowMetrics(DataflowPipelineJob dataflowPipelineJob, DataflowClient dataflowClient) {
     this.dataflowClient = dataflowClient;
     this.dataflowPipelineJob = dataflowPipelineJob;
@@ -96,9 +95,10 @@ class DataflowMetrics extends MetricResults {
   }
 
   /**
-   * Take a list of metric updates coming from the Dataflow service.
+   * Take a list of metric updates coming from the Dataflow service, and format it into a
+   * Metrics API MetricQueryResults instance.
    * @param metricUpdates
-   * @return
+   * @return a populated MetricQueryResults object.
    */
   private MetricQueryResults populateMetricQueryResults(
       List<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates,
