@@ -18,8 +18,12 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -29,9 +33,15 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +75,15 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   public void translate(Pipeline pipeline) {
     Map<PTransformMatcher, PTransformOverrideFactory> transformOverrides =
         ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
+            /* Single-output ParDos are implemented in terms of Multi-output ParDos. Any override
+            that is applied to a multi-output ParDo must first have all matching Single-output
+            ParDos converted to match.
+            */
+            .put(
+                PTransformMatchers.splittableParDoSingle(),
+                new ParDoSingleViaMultiOverrideFactory())
+            .put(
+                PTransformMatchers.splittableParDoMulti(), new SplittableParDoOverrideFactory())
             .put(
                 PTransformMatchers.classEqualTo(View.AsIterable.class),
                 new ReflectiveOneToOneOverrideFactory(
@@ -228,4 +247,75 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     }
   }
 
+  /**
+   * A {@link PTransformOverrideFactory} that overrides single-output {@link ParDo} to implement
+   * it in terms of multi-output {@link ParDo}.
+   *
+   * <p>This could be removed once https://issues.apache.org/jira/browse/BEAM-1709 is in.
+   */
+  static class ParDoSingleViaMultiOverrideFactory<InputT, OutputT>
+      extends SingleInputOutputOverrideFactory<
+      PCollection<? extends InputT>, PCollection<OutputT>, ParDo.Bound<InputT, OutputT>> {
+    @Override
+    public PTransform<PCollection<? extends InputT>, PCollection<OutputT>> getReplacementTransform(
+        ParDo.Bound<InputT, OutputT> transform) {
+      return new ParDoSingleViaMulti<>(transform);
+    }
+
+    static class ParDoSingleViaMulti<InputT, OutputT>
+        extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+      private static final String MAIN_OUTPUT_TAG = "main";
+
+      private final ParDo.Bound<InputT, OutputT> underlyingParDo;
+
+      public ParDoSingleViaMulti(ParDo.Bound<InputT, OutputT> underlyingParDo) {
+        this.underlyingParDo = underlyingParDo;
+      }
+
+      @Override
+      public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+
+        // Output tags for ParDo need only be unique up to applied transform
+        TupleTag<OutputT> mainOutputTag = new TupleTag<OutputT>(MAIN_OUTPUT_TAG);
+
+        PCollectionTuple outputs =
+            input.apply(
+                ParDo.of(underlyingParDo.getFn())
+                    .withSideInputs(underlyingParDo.getSideInputs())
+                    .withOutputTags(mainOutputTag, TupleTagList.empty()));
+        PCollection<OutputT> output = outputs.get(mainOutputTag);
+
+        output.setTypeDescriptor(underlyingParDo.getFn().getOutputTypeDescriptor());
+        return output;
+      }
+    }
+  }
+
+  /**
+   * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
+   * in the direct runner. Currently overrides applications of <a
+   * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
+   */
+  static class SplittableParDoOverrideFactory<InputT, OutputT>
+      implements PTransformOverrideFactory<
+      PCollection<? extends InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>> {
+    @Override
+    @SuppressWarnings("unchecked")
+    public PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
+        ParDo.BoundMulti<InputT, OutputT> transform) {
+      return new SplittableParDo(transform);
+    }
+
+    @Override
+    public PCollection<? extends InputT> getInput(
+        List<TaggedPValue> inputs, Pipeline p) {
+      return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs).getValue();
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        List<TaggedPValue> outputs, PCollectionTuple newOutput) {
+      return ReplacementOutputs.tagged(outputs, newOutput);
+    }
+  }
 }
