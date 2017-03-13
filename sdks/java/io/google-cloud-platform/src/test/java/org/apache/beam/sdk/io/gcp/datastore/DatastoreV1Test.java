@@ -147,10 +147,12 @@ public class DatastoreV1Test {
   @Test
   public void testBuildRead() throws Exception {
     DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
+        .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE)
+        .withLocalhost(LOCALHOST);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId());
     assertEquals(NAMESPACE, read.getNamespace());
+    assertEquals(LOCALHOST, read.getLocalhost());
   }
 
   /**
@@ -383,8 +385,19 @@ public class DatastoreV1Test {
    */
   @Test
   public void testBuildWrite() throws Exception {
-    DatastoreV1.Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
+    DatastoreV1.Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID).withLocalhost(LOCALHOST);
     assertEquals(PROJECT_ID, write.getProjectId());
+    assertEquals(LOCALHOST, write.getLocalhost());
+  }
+
+  /**
+   * {@link #testBuildWrite} but constructed in a different order.
+   */
+  @Test
+  public void testBuildWriteAlt() throws Exception {
+    DatastoreV1.Write write =  DatastoreIO.v1().write().withLocalhost(LOCALHOST).withProjectId(PROJECT_ID);
+    assertEquals(PROJECT_ID, write.getProjectId());
+    assertEquals(LOCALHOST, write.getLocalhost());
   }
 
   /**
