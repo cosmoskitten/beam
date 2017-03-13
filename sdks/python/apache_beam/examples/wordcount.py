@@ -66,7 +66,7 @@ class WordExtractingDoFn(beam.DoFn):
 
 def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
-  class UserOptions(PipelineOptions):
+  class WordcountOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_value_provider_argument(
@@ -79,14 +79,15 @@ def run(argv=None):
           dest='output',
           required=True,
           help='Output file to write results to.')
-  pipeline_options = UserOptions(argv)
+  pipeline_options = PipelineOptions(argv)
+  user_options = pipeline_options.view_as(WordcountOptions)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options.view_as(SetupOptions).save_main_session = True
   p = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | 'read' >> ReadFromText(pipeline_options.input)
+  lines = p | 'read' >> ReadFromText(user_options.input)
 
   # Count the occurrences of each word.
   counts = (lines
@@ -101,7 +102,7 @@ def run(argv=None):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> WriteToText(pipeline_options.output)
+  output | 'write' >> WriteToText(user_options.output)
 
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()

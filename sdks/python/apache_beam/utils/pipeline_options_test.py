@@ -232,6 +232,7 @@ class PipelineOptionsTest(unittest.TestCase):
     with self.assertRaises(RuntimeError):
       options.non_vp_arg.get()
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
