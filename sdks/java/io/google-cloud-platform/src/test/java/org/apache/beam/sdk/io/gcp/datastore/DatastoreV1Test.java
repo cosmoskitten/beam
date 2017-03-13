@@ -27,6 +27,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Mutate;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.DEFAULT_BUNDLE_SIZE_BYTES;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.QUERY_BATCH_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.getEstimatedSizeBytes;
@@ -68,16 +69,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DatastoreWriterFn;
-import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntity;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntityFn;
-import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKey;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKeyFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.UpsertFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.V1DatastoreFactory;
-import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -246,7 +244,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testWriteValidationFailsWithNoProject() throws Exception {
-    Write write =  DatastoreIO.v1().write();
+    Mutate write =  DatastoreIO.v1().write();
 
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -256,13 +254,13 @@ public class DatastoreV1Test {
 
   @Test
   public void testWriteValidationSucceedsWithProject() throws Exception {
-    Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
+    Mutate write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
     write.validate(null);
   }
 
   @Test
   public void testWriteDisplayData() {
-    Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
+    Mutate write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -279,7 +277,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testDeleteEntityValidationFailsWithNoProject() throws Exception {
-    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity();
+    Mutate deleteEntity = DatastoreIO.v1().deleteEntity();
 
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -289,13 +287,13 @@ public class DatastoreV1Test {
 
   @Test
   public void testDeleteEntityValidationSucceedsWithProject() throws Exception {
-    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
+    Mutate deleteEntity = DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
     deleteEntity.validate(null);
   }
 
   @Test
   public void testDeleteEntityDisplayData() {
-    DeleteEntity deleteEntity =  DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
+    Mutate deleteEntity =  DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(deleteEntity);
 
@@ -312,7 +310,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testDeleteKeyValidationFailsWithNoProject() throws Exception {
-    DeleteKey deleteKey = DatastoreIO.v1().deleteKey();
+    Mutate deleteKey = DatastoreIO.v1().deleteKey();
 
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -322,13 +320,13 @@ public class DatastoreV1Test {
 
   @Test
   public void testDeleteKeyValidationSucceedsWithProject() throws Exception {
-    DeleteKey deleteKey = DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
+    Mutate deleteKey = DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
     deleteKey.validate(null);
   }
 
   @Test
   public void testDeleteKeyDisplayData() {
-    DeleteKey deleteKey =  DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
+    Mutate deleteKey =  DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(deleteKey);
 
@@ -385,7 +383,7 @@ public class DatastoreV1Test {
    */
   @Test
   public void testBuildWrite() throws Exception {
-    DatastoreV1.Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID).withLocalhost(LOCALHOST);
+    Mutate write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID).withLocalhost(LOCALHOST);
     assertEquals(PROJECT_ID, write.getProjectId());
     assertEquals(LOCALHOST, write.getLocalhost());
   }
@@ -395,7 +393,7 @@ public class DatastoreV1Test {
    */
   @Test
   public void testBuildWriteAlt() throws Exception {
-    DatastoreV1.Write write =  DatastoreIO.v1().write().withLocalhost(LOCALHOST).withProjectId(PROJECT_ID);
+    Mutate write =  DatastoreIO.v1().write().withLocalhost(LOCALHOST).withProjectId(PROJECT_ID);
     assertEquals(PROJECT_ID, write.getProjectId());
     assertEquals(LOCALHOST, write.getLocalhost());
   }

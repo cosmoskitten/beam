@@ -664,126 +664,27 @@ public class DatastoreV1 {
   }
 
   /**
-   * Returns an empty {@link DatastoreV1.Write} builder. Configure the destination
-   * {@code projectId} using {@link DatastoreV1.Write#withProjectId}.
+   * Returns an empty {@link Mutate} write builder. Configure the destination
+   * {@code projectId} using {@link Mutate#withProjectId}.
    */
-  public Write write() {
-    return new Write(null, null);
+  public Mutate write() {
+    return new Mutate(null, null, new UpsertFn());
   }
 
   /**
-   * Returns an empty {@link DeleteEntity} builder. Configure the destination
-   * {@code projectId} using {@link DeleteEntity#withProjectId}.
+   * Returns an empty {@link Mutate} deleteEntity builder. Configure the destination
+   * {@code projectId} using {@link Mutate#withProjectId}.
    */
-  public DeleteEntity deleteEntity() {
-    return new DeleteEntity(null, null);
+  public Mutate deleteEntity() {
+    return new Mutate(null, null, new DeleteEntityFn());
   }
 
   /**
-   * Returns an empty {@link DeleteKey} builder. Configure the destination
-   * {@code projectId} using {@link DeleteKey#withProjectId}.
+   * Returns an empty {@link Mutate} deleteKey. Configure the destination
+   * {@code projectId} using {@link Mutate#withProjectId}.
    */
-  public DeleteKey deleteKey() {
-    return new DeleteKey(null, null);
-  }
-
-  /**
-   * A {@link PTransform} that writes {@link Entity} objects to Cloud Datastore.
-   *
-   * @see DatastoreIO
-   */
-  public static class Write extends Mutate<Entity> {
-    /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
-     * it is {@code null} at instantiation time, an error will be thrown.
-     */
-    Write(@Nullable String projectId, @Nullable String localhost) {
-      super(projectId, localhost, new UpsertFn());
-    }
-
-    /**
-     * Returns a new {@link Write} that writes to the Cloud Datastore for the specified project.
-     */
-    public Write withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
-      return new Write(projectId, null);
-    }
-
-    /**
-     * Returns a new {@link Write} that writes to the Cloud Datastore Emulator running locally on
-     * the specified host port.
-     */
-    public Write withLocalhost(String localhost) {
-      checkNotNull(localhost, "localhost");
-      return new Write(null, localhost);
-    }
-  }
-
-  /**
-   * A {@link PTransform} that deletes {@link Entity Entities} from Cloud Datastore.
-   *
-   * @see DatastoreIO
-   */
-  public static class DeleteEntity extends Mutate<Entity> {
-    /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
-     * it is {@code null} at instantiation time, an error will be thrown.
-     */
-    DeleteEntity(@Nullable String projectId, @Nullable String localhost) {
-      super(projectId, localhost, new DeleteEntityFn());
-    }
-
-    /**
-     * Returns a new {@link DeleteEntity} that deletes entities from the Cloud Datastore for the
-     * specified project.
-     */
-    public DeleteEntity withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
-      return new DeleteEntity(projectId, null);
-    }
-
-    /**
-     * Returns a new {@link DeleteEntity} that deletes entities from the Cloud Datastore Emulator
-     * running locally on the specified host port.
-     */
-    public DeleteEntity withLocalhost(String localhost) {
-      checkNotNull(localhost, "localhost");
-      return new DeleteEntity(null, localhost);
-    }
-  }
-
-  /**
-   * A {@link PTransform} that deletes {@link Entity Entities} associated with the given
-   * {@link Key Keys} from Cloud Datastore.
-   *
-   * @see DatastoreIO
-   */
-  public static class DeleteKey extends Mutate<Key> {
-    /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
-     * it is {@code null} at instantiation time, an error will be thrown.
-     */
-    DeleteKey(@Nullable String projectId, @Nullable String localhost) {
-      super(projectId, localhost, new DeleteKeyFn());
-    }
-
-    /**
-     * Returns a new {@link DeleteKey} that deletes entities from the Cloud Datastore for the
-     * specified project.
-     */
-    public DeleteKey withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
-      return new DeleteKey(projectId, null);
-    }
-
-    /**
-     * Returns a new {@link DeleteKey} that deletes entities from the Cloud Datastore Emulator
-     * running locally on the specified host port.
-     */
-    public DeleteKey withLocalhost(String localhost) {
-      checkNotNull(localhost, "localhost");
-      return new DeleteKey(null, localhost);
-    }
+  public Mutate deleteKey() {
+    return new Mutate(null, null, new DeleteKeyFn());
   }
 
   /**
@@ -794,7 +695,7 @@ public class DatastoreV1 {
    * <b>Note:</b> Only idempotent Cloud Datastore mutation operations (upsert and delete) should
    * be used by the {@code DoFn} provided, as the commits are retried when failures occur.
    */
-  private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
+  public static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
     private final String projectId;
     @Nullable
@@ -843,6 +744,24 @@ public class DatastoreV1 {
           .addIfNotNull(DisplayData.item("projectId", projectId)
               .withLabel("Output Project"))
           .include("mutationFn", mutationFn);
+    }
+
+    /**
+     * Returns a new {@link Mutate} that mutates entities from the Cloud Datastore for the
+     * specified project.
+     */
+    public Mutate withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new Mutate(projectId, localhost, mutationFn);
+    }
+
+    /**
+     * Returns a new {@link Mutate} that mutates entities from the Cloud Datastore Emulator
+     * running locally on the specified host:port.
+     */
+    public Mutate withLocalhost(String localhost) {
+      checkNotNull(localhost, "localhost");
+      return new Mutate(projectId, localhost, mutationFn);
     }
 
     public String getProjectId() {
