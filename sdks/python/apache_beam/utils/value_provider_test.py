@@ -127,7 +127,6 @@ class ValueProviderTests(unittest.TestCase):
     self.assertFalse(options.vp_arg2.is_accessible())
     self.assertFalse(options.vp_arg3.is_accessible())
     self.assertFalse(options.vp_arg4.is_accessible())
-    # self.assertFalse(options.vp_pos_arg.is_accessible())
     self.assertTrue(options.vp_pos_arg.is_accessible())
 
     # provide values at job-execution time
