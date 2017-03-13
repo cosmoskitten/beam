@@ -68,6 +68,7 @@ import org.elasticsearch.client.RestClientBuilder;
 
 /**
  * Transforms for reading and writing data from/to Elasticsearch.
+ * This IO is only compatible with Elasticsearch v2.x
  *
  * <h3>Reading from Elasticsearch</h3>
  *
