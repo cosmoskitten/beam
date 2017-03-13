@@ -19,7 +19,7 @@
 import common_job_properties
 
 // This job runs the Java multi-JDK tests in postcommit, including WordCountIT.
-matrixJob('beam_PostCommit_Java_Version_Test') {
+mavenJob('beam_PostCommit_Java_Version_Test') {
   description('Runs postcommit tests on the Java SDK in multiple Jdk versions.')
 
   // Execute concurrent builds if necessary.
@@ -28,13 +28,28 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
 
-  // Override jdk version here
-  axes {
-    label('label', 'beam')
-    jdk('JDK 1.8 (latest)',
-        'JDK 1.7 (latest)',
-        'OpenJDK 7 (on Ubuntu only)',
-        'OpenJDK 8 (on Ubuntu only)')
+  // Set Java JDK matrix
+  configure { project ->
+    project / axes {
+      'hudson.matrix.LabelAxis' {
+        name 'label'
+        values {
+          string 'beam'
+        }
+      }
+      'hudson.matrix.JDKAxis' {
+        name 'jdk'
+        values {
+          string 'JDK 1.8 (latest)'
+          string 'JDK 1.7 (latest)'
+          string 'OpenJDK 7 (on Ubuntu only)'
+          string 'OpenJDK 8 (on Ubuntu only)'
+        }
+      }
+    }
+    project / executionStrategy(class: 'hudson.matrix.DefaultMatrixExecutionStrategyImpl') {
+      runSequentially false
+    }
   }
 
   // Sets that this is a PostCommit job.
@@ -46,14 +61,9 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
       'Java JDK Versions Test',
       'Run Java Versions Test')
 
-  // Maven build for this job.
-  steps {
-    maven {
-      // Set maven parameters.
-      common_job_properties.setMavenConfig(delegate)
+  // Set maven parameters.
+  common_job_properties.setMavenConfig(delegate)
 
-      // Maven build project
-      goals('-B -e -P release,dataflow-runner clean install coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
-    }
-  }
+  // Maven build project
+  goals('-B -e -P release,dataflow-runner clean install coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
 }
