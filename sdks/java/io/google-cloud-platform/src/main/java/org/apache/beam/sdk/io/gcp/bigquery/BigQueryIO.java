@@ -93,6 +93,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.ValueInSingleWindow;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -130,6 +131,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -434,6 +436,19 @@ public class BigQueryIO {
     return NestedValueProvider.of(table, new TableRefToTableSpec());
   }
 
+
+  /**
+   * A formatting function that maps a TableRow to itself. This allows sending a
+   * {@code PCollection<TableRow>} directly to BigQueryIO.Write.
+   */
+  private static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
+      new SerializableFunction<TableRow, TableRow>() {
+    @Override
+    public TableRow apply(TableRow input) {
+      return input;
+    }
+  };
+
   /**
    * A {@link PTransform} that reads from a BigQuery table and returns a
    * {@link PCollection} of {@link TableRow TableRows} containing each of the rows of the table.
@@ -500,7 +515,10 @@ public class BigQueryIO {
     }
 
     /**
-     * Same as {@code from(String)}, but with a {@link ValueProvider}.
+     * Returns a copy of this transform that reads from the specified table. Refer to
+     * {@link #parseTableSpec(String)} for the specification format.
+     *
+     * <p>Does not modify this object.
      */
     public Read from(ValueProvider<String> tableSpec) {
       ensureFromNotCalledYet();
@@ -527,7 +545,17 @@ public class BigQueryIO {
     }
 
     /**
-     * Same as {@code from(String)}, but with a {@link ValueProvider}.
+     * Returns a copy of this transform that reads the results of the specified query.
+     *
+     * <p>Does not modify this object.
+     *
+     * <p>By default, the query results will be flattened -- see
+     * "flattenResults" in the <a href="https://cloud.google.com/bigquery/docs/reference/v2/jobs">
+     * Jobs documentation</a> for more information.  To disable flattening, use
+     * {@link BigQueryIO.Read#withoutResultFlattening}.
+     *
+     * <p>By default, the query will use BigQuery's legacy SQL dialect. To use the BigQuery
+     * Standard SQL dialect, use {@link BigQueryIO.Read#usingStandardSql}.
      */
     public Read fromQuery(ValueProvider<String> query) {
       ensureFromNotCalledYet();
@@ -535,7 +563,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Reads a BigQuery table specified as a {@link TableReference} object.
+     * Like {@link #fromQuery(String)}, but from a {@link ValueProvider}.
      */
     public Read from(TableReference table) {
       return from(StaticValueProvider.of(toTableSpec(table)));
@@ -1352,8 +1380,9 @@ public class BigQueryIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@link PTransform} that writes a {@link PCollection} containing {@link TableRow TableRows}
-   * to a BigQuery table.
+   * A {@link PTransform} that writes a {@link PCollection} containing objects of type {@code T}
+   * to a BigQuery table. A formatting function must be provided to turn {@code T} into a
+   * {@link TableRow}.
    *
    * <p>In BigQuery, each table has an encosing dataset. The dataset being written must already
    * exist.
@@ -1379,8 +1408,8 @@ public class BigQueryIO {
    *   }
    * }}</pre>
    */
-  public static Write write() {
-    return new AutoValue_BigQueryIO_Write.Builder()
+  public static <T> Write<T> write() {
+    return new AutoValue_BigQueryIO_Write.Builder<T>()
         .setValidate(true)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
@@ -1388,9 +1417,17 @@ public class BigQueryIO {
         .build();
   }
 
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} containing {@link TableRow TableRows}
+   * to a BigQuery table.
+   */
+  public static Write<TableRow> writeTableRows() {
+    return BigQueryIO.<TableRow>write().withFormatFunction(IDENTITY_FORMATTER);
+  }
+
   /** Implementation of {@link #write}. */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<TableRow>, PDone> {
+  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @VisibleForTesting
     // Maximum number of files in a single partition.
     static final int MAX_NUM_FILES = 10000;
@@ -1407,7 +1444,9 @@ public class BigQueryIO {
     private static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
     @Nullable abstract ValueProvider<String> getJsonTableRef();
-    @Nullable abstract SerializableFunction<BoundedWindow, TableReference> getTableRefFunction();
+    @Nullable abstract SerializableFunction<ValueInSingleWindow<T>, TableReference>
+      getTableRefFunction();
+    @Nullable abstract SerializableFunction<T, TableRow> getFormatFunction();
     /** Table schema. The schema is required only if the table does not exist. */
     @Nullable abstract ValueProvider<String> getJsonSchema();
     abstract CreateDisposition getCreateDisposition();
@@ -1417,21 +1456,22 @@ public class BigQueryIO {
     abstract boolean getValidate();
     abstract BigQueryServices getBigQueryServices();
 
-    abstract Builder toBuilder();
+    abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setJsonTableRef(ValueProvider<String> jsonTableRef);
-      abstract Builder setTableRefFunction(
-          SerializableFunction<BoundedWindow, TableReference> tableRefFunction);
-      abstract Builder setJsonSchema(ValueProvider<String> jsonSchema);
-      abstract Builder setCreateDisposition(CreateDisposition createDisposition);
-      abstract Builder setWriteDisposition(WriteDisposition writeDisposition);
-      abstract Builder setTableDescription(String tableDescription);
-      abstract Builder setValidate(boolean validate);
-      abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
+    abstract static class Builder<T> {
+      abstract Builder<T> setJsonTableRef(ValueProvider<String> jsonTableRef);
+      abstract Builder<T> setTableRefFunction(
+          SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction);
+      abstract Builder<T> setFormatFunction(SerializableFunction<T, TableRow> formatFunction);
+      abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
+      abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
+      abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
+      abstract Builder<T> setTableDescription(String tableDescription);
+      abstract Builder<T> setValidate(boolean validate);
+      abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
 
-      abstract Write build();
+      abstract Write<T> build();
     }
 
     /**
@@ -1504,23 +1544,22 @@ public class BigQueryIO {
     /** Ensures that methods of the to() family are called at most once. */
     private void ensureToNotCalledYet() {
       checkState(
-          getJsonTableRef() == null && getTable() == null, "to() already called");
-    }
+          getJsonTableRef() == null && getTable() == null, "to() already called");}
 
     /**
      * Writes to the given table, specified in the format described in {@link #parseTableSpec}.
      */
-    public Write to(String tableSpec) {
+    public Write<T> to(String tableSpec) {
       return to(StaticValueProvider.of(tableSpec));
     }
 
     /** Writes to the given table, specified as a {@link TableReference}. */
-    public Write to(TableReference table) {
+    public Write<T> to(TableReference table) {
       return to(StaticValueProvider.of(toTableSpec(table)));
     }
 
     /** Same as {@link #to(String)}, but with a {@link ValueProvider}. */
-    public Write to(ValueProvider<String> tableSpec) {
+    public Write<T> to(ValueProvider<String> tableSpec) {
       ensureToNotCalledYet();
       return toBuilder()
           .setJsonTableRef(
@@ -1531,43 +1570,44 @@ public class BigQueryIO {
     }
 
     /**
-     * Creates a write transformation from a function that maps windows to table specifications.
-     * Each time a new window is encountered, this function will be called and the resulting table
-     * will be created. Records within that window will be written to the associated table.
+     * Returns a copy of this write transformation, but writing to the specified table. Refer to
+     * {@link #parseTableSpec(String)} for the specification format.
      *
-     * <p>See {@link #parseTableSpec(String)} for the format that {@code tableSpecFunction} should
-     * return.
-     *
-     * <p>{@code tableSpecFunction} should be deterministic. When given the same window, it should
-     * always return the same table specification.
+     * <p>Does not modify this object.
      */
-    public Write to(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
-      return toTableReference(new TranslateTableSpecFunction(tableSpecFunction));
+    public Write<T> to(SerializableFunction<ValueInSingleWindow<T>, String> tableSpecFunction) {
+      return toTableReference(new TranslateTableSpecFunction<T>(tableSpecFunction));
     }
 
     /**
-     * Creates a write transformation from a function that maps windows to {@link TableReference}
-     * objects.
+     * Returns a copy of this write transformation, but writing to the specified table.
      *
-     * <p>{@code tableRefFunction} should be deterministic. When given the same window, it should
-     * always return the same table reference.
+     * <p>Does not modify this object.
      */
-    private Write toTableReference(
-        SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
+    private Write<T> toTableReference(
+        SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction) {
       ensureToNotCalledYet();
       return toBuilder().setTableRefFunction(tableRefFunction).build();
     }
 
-    private static class TranslateTableSpecFunction implements
-        SerializableFunction<BoundedWindow, TableReference> {
-      private SerializableFunction<BoundedWindow, String> tableSpecFunction;
+    /**
+     * Formats the user's type into a {@link TableRow} to be written to BigQuery.
+     */
+    public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
+      return toBuilder().setFormatFunction(formatFunction).build();
+    }
 
-      TranslateTableSpecFunction(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
+    private static class TranslateTableSpecFunction<T> implements
+        SerializableFunction<ValueInSingleWindow<T>, TableReference> {
+      private SerializableFunction<ValueInSingleWindow<T>, String> tableSpecFunction;
+
+      TranslateTableSpecFunction(
+          SerializableFunction<ValueInSingleWindow<T>, String> tableSpecFunction) {
         this.tableSpecFunction = tableSpecFunction;
       }
 
       @Override
-      public TableReference apply(BoundedWindow value) {
+      public TableReference apply(ValueInSingleWindow<T> value) {
         return parseTableSpec(tableSpecFunction.apply(value));
       }
     }
@@ -1579,43 +1619,49 @@ public class BigQueryIO {
      * exist, and {@link CreateDisposition} is set to
      * {@link CreateDisposition#CREATE_IF_NEEDED}.
      */
-    public Write withSchema(TableSchema schema) {
+    public Write<T> withSchema(TableSchema schema) {
       return toBuilder()
           .setJsonSchema(StaticValueProvider.of(toJsonString(schema)))
           .build();
     }
 
     /**
-     * Like {@link #withSchema(TableSchema)}, but with a {@link ValueProvider}.
+     * Returns a copy of this write transformation, but using the specified function to determine
+     * which table to write to for each window.
+     *
+     * <p>Does not modify this object.
+     *
+     * <p>{@code tableRefFunction} should be deterministic. When given the same window value, it
+     * should always return the same table reference.
      */
-    public Write withSchema(ValueProvider<TableSchema> schema) {
+    public Write<T> withSchema(ValueProvider<TableSchema> schema) {
       return toBuilder()
           .setJsonSchema(NestedValueProvider.of(schema, new TableSchemaToJsonSchema()))
           .build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
-    public Write withCreateDisposition(CreateDisposition createDisposition) {
+    public Write<T> withCreateDisposition(CreateDisposition createDisposition) {
       return toBuilder().setCreateDisposition(createDisposition).build();
     }
 
     /** Specifies what to do with existing data in the table, in case the table already exists. */
-    public Write withWriteDisposition(WriteDisposition writeDisposition) {
+    public Write<T> withWriteDisposition(WriteDisposition writeDisposition) {
       return toBuilder().setWriteDisposition(writeDisposition).build();
     }
 
     /** Specifies the table description. */
-    public Write withTableDescription(String tableDescription) {
+    public Write<T> withTableDescription(String tableDescription) {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
     /** Disables BigQuery table validation. */
-    public Write withoutValidation() {
+    public Write<T> withoutValidation() {
       return toBuilder().setValidate(false).build();
     }
 
     @VisibleForTesting
-    Write withTestServices(BigQueryServices testServices) {
+    Write<T> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
@@ -1640,7 +1686,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public void validate(PCollection<TableRow> input) {
+    public void validate(PCollection<T> input) {
       BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
       // Exactly one of the table and table reference can be configured.
@@ -1651,6 +1697,9 @@ public class BigQueryIO {
           getJsonTableRef() == null || getTableRefFunction() == null,
           "Cannot set both a table reference and a table function for a BigQueryIO.Write"
               + " transform");
+
+      checkArgument(getFormatFunction() != null,
+                    "A function must be provided to convert type into a TableRow");
 
       // Require a schema if creating one or more tables.
       checkArgument(
@@ -1714,14 +1763,14 @@ public class BigQueryIO {
     }
 
     @Override
-    public PDone expand(PCollection<TableRow> input) {
+    public PDone expand(PCollection<T> input) {
       Pipeline p = input.getPipeline();
       BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
 
       // When writing an Unbounded PCollection, or when a tablespec function is defined, we use
       // StreamWithDeDup and BigQuery's streaming import API.
       if (input.isBounded() == IsBounded.UNBOUNDED || getTableRefFunction() != null) {
-        return input.apply(new StreamWithDeDup(this));
+        return input.apply(new StreamWithDeDup<T>(this));
       }
 
       ValueProvider<TableReference> table = getTableWithDefaultProject(options);
@@ -1756,9 +1805,11 @@ public class BigQueryIO {
 
       PCollection<TableRow> inputInGlobalWindow =
           input.apply(
-              Window.<TableRow>into(new GlobalWindows())
+              Window.<T>into(new GlobalWindows())
                   .triggering(DefaultTrigger.of())
-                  .discardingFiredPanes());
+                  .discardingFiredPanes())
+              .apply(MapElements.via(getFormatFunction())
+                  .withOutputType(new TypeDescriptor<TableRow>(){}));
 
       PCollection<KV<String, Long>> results = inputInGlobalWindow
           .apply("WriteBundles",
@@ -1943,6 +1994,7 @@ public class BigQueryIO {
       return getJsonTableRef() == null ? null :
           NestedValueProvider.of(getJsonTableRef(), new JsonTableRefToTableRef());
     }
+
 
     static class TableRowWriter {
       private static final Coder<TableRow> CODER = TableRowJsonCoder.of();
@@ -2652,20 +2704,24 @@ public class BigQueryIO {
    * id is created by concatenating this randomUUID with a sequential number.
    */
   @VisibleForTesting
-  static class TagWithUniqueIdsAndTable
-      extends DoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>> {
+  static class TagWithUniqueIdsAndTable<T>
+      extends DoFn<T, KV<ShardedKey<String>, TableRowInfo>> {
     /** TableSpec to write to. */
     private final ValueProvider<String> tableSpec;
 
-    /** User function mapping windows to {@link TableReference} in JSON. */
-    private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+    /** User function mapping windowed values to {@link TableReference} in JSON. */
+    private final SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction;
+
+    /** User function mapping user type to a TableRow. */
+    private final SerializableFunction<T, TableRow> formatFunction;
 
     private transient String randomUUID;
     private transient long sequenceNo = 0L;
 
     TagWithUniqueIdsAndTable(BigQueryOptions options,
         ValueProvider<TableReference> table,
-        SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
+        SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction,
+        SerializableFunction<T, TableRow> formatFunction) {
       checkArgument(table == null ^ tableRefFunction == null,
           "Exactly one of table or tableRefFunction should be set");
       if (table != null) {
@@ -2681,6 +2737,7 @@ public class BigQueryIO {
         tableSpec = null;
       }
       this.tableRefFunction = tableRefFunction;
+      this.formatFunction = formatFunction;
     }
 
 
@@ -2694,12 +2751,13 @@ public class BigQueryIO {
     public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
       String uniqueId = randomUUID + sequenceNo++;
       ThreadLocalRandom randomGenerator = ThreadLocalRandom.current();
-      String tableSpec = tableSpecFromWindow(
-          context.getPipelineOptions().as(BigQueryOptions.class), window);
+      String tableSpec = tableSpecFromWindowedValue(
+          context.getPipelineOptions().as(BigQueryOptions.class),
+          ValueInSingleWindow.of(context.element(), context.timestamp(), window, context.pane()));
       // We output on keys 0-50 to ensure that there's enough batching for
       // BigQuery.
       context.output(KV.of(ShardedKey.of(tableSpec, randomGenerator.nextInt(0, 50)),
-          new TableRowInfo(context.element(), uniqueId)));
+          new TableRowInfo(formatFunction.apply(context.element()), uniqueId)));
     }
 
     @Override
@@ -2718,11 +2776,12 @@ public class BigQueryIO {
       return tableSpec;
     }
 
-    private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window) {
+    private String tableSpecFromWindowedValue(BigQueryOptions options,
+                                              ValueInSingleWindow<T> value) {
       if (tableSpec != null) {
         return tableSpec.get();
       } else {
-        TableReference table = tableRefFunction.apply(window);
+        TableReference table = tableRefFunction.apply(value);
         if (table.getProjectId() == null) {
           table.setProjectId(options.getProject());
         }
@@ -2737,11 +2796,11 @@ public class BigQueryIO {
   * PTransform that performs streaming BigQuery write. To increase consistency,
   * it leverages BigQuery best effort de-dup mechanism.
    */
-  private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
-    private final Write write;
+  private static class StreamWithDeDup<T> extends PTransform<PCollection<T>, PDone> {
+    private final Write<T> write;
 
     /** Constructor. */
-    StreamWithDeDup(Write write) {
+    StreamWithDeDup(Write<T> write) {
       this.write = write;
     }
 
@@ -2751,7 +2810,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public PDone expand(PCollection<TableRow> input) {
+    public PDone expand(PCollection<T> input) {
       // A naive implementation would be to simply stream data directly to BigQuery.
       // However, this could occasionally lead to duplicated data, e.g., when
       // a VM that runs this code is restarted and the code is re-run.
@@ -2760,11 +2819,12 @@ public class BigQueryIO {
       // BigQuery built-in best effort de-dup mechanism.
 
       // To use this mechanism, each input TableRow is tagged with a generated
-      // unique id, which is then passed to BigQuery and used to ignore duplicates.
+      // unique id, which is then passed to BigQuery and usedTableRowInfo to ignore duplicates.
 
       PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged = input.apply(ParDo.of(
-          new TagWithUniqueIdsAndTable(input.getPipeline().getOptions().as(BigQueryOptions.class),
-              write.getTable(), write.getTableRefFunction())));
+          new TagWithUniqueIdsAndTable<T>(input.getPipeline().getOptions().as(
+              BigQueryOptions.class), write.getTable(), write.getTableRefFunction(),
+              write.getFormatFunction())));
 
       // To prevent having the same TableRow processed more than once with regenerated
       // different unique ids, this implementation relies on "checkpointing", which is
