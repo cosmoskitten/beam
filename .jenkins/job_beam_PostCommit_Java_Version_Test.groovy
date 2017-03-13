@@ -19,7 +19,7 @@
 import common_job_properties
 
 // This job runs the Java multi-JDK tests in postcommit, including WordCountIT.
-mavenJob('beam_PostCommit_Java_Version_Test') {
+mavenJob('beam_PostCommit_Java_Version_Test_MavenInstall') {
   description('Runs postcommit tests on the Java SDK in multiple Jdk versions.')
 
   // Execute concurrent builds if necessary.
