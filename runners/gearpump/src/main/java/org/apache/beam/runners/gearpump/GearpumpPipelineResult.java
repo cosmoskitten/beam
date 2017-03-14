@@ -43,6 +43,7 @@ public class GearpumpPipelineResult implements PipelineResult {
 
   private final ClientContext client;
   private final RunningApplication app;
+  private boolean clusterTerminated = false;
 
   public GearpumpPipelineResult(ClientContext client, RunningApplication app) {
     this.client = client;
@@ -51,13 +52,21 @@ public class GearpumpPipelineResult implements PipelineResult {
 
   @Override
   public State getState() {
-    return getGearpumpState();
+    if (!clusterTerminated) {
+      return getGearpumpState();
+    } else {
+      return State.DONE;
+    }
   }
 
   @Override
   public State cancel() throws IOException {
-    app.shutDown();
-    return State.CANCELLED;
+    if (!clusterTerminated) {
+      app.shutDown();
+      return State.CANCELLED;
+    } else {
+      return State.DONE;
+    }
   }
 
   @Override
@@ -67,7 +76,9 @@ public class GearpumpPipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    app.waitUntilFinish();
+    if (!clusterTerminated) {
+      app.waitUntilFinish();
+    }
     return State.DONE;
   }
 
@@ -103,5 +114,9 @@ public class GearpumpPipelineResult implements PipelineResult {
     } else {
       return State.FAILED;
     }
+  }
+
+  public void setClusterTerminated(Boolean terminated) {
+    this.clusterTerminated = terminated;
   }
 }
