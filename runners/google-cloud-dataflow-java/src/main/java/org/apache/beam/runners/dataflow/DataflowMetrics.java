@@ -145,8 +145,7 @@ class DataflowMetrics extends MetricResults {
       String step = metricKey.stepName();
       Long committed = ((Number) committedByName.get(metricKey).getScalar()).longValue();
       Long attempted = ((Number) tentativeByName.get(metricKey).getScalar()).longValue();
-      if (MetricFiltering.matches(
-          filter, MetricKey.create(step, MetricName.named(namespace, metricName)))) {
+      if (MetricFiltering.matches(filter, metricKey)) {
         counterResults.add(DataflowMetricResult.create(
             MetricName.named(namespace, metricName),
             step, committed, attempted));
