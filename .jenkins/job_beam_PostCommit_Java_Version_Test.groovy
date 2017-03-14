@@ -19,7 +19,7 @@
 import common_job_properties
 
 // This job runs the Java multi-JDK tests in postcommit, including WordCountIT.
-mavenJob('beam_PostCommit_Java_Version_Test_MavenInstall') {
+mavenJob('beam_PostCommit_Java_Version_Test') {
   description('Runs postcommit tests on the Java SDK in multiple Jdk versions.')
 
   // Execute concurrent builds if necessary.
@@ -30,6 +30,7 @@ mavenJob('beam_PostCommit_Java_Version_Test_MavenInstall') {
 
   // Set Java JDK matrix
   configure { project ->
+    project.name = 'matrix-project'
     project / axes {
       'hudson.matrix.LabelAxis' {
         name 'label'
