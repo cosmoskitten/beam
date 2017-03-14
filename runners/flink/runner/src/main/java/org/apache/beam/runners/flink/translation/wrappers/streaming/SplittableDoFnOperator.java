@@ -47,7 +47,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * Flink operator for executing window {@link DoFn DoFns}.
+ * Flink operator for executing splittable {@link DoFn DoFns}.
  *
  * @param <InputT>
  * @param <OutputT>
@@ -88,56 +88,58 @@ public class SplittableDoFnOperator<
   public void open() throws Exception {
     super.open();
 
-    if (doFn instanceof SplittableParDo.ProcessFn) {
-      StateInternalsFactory<String> stateInternalsFactory = new StateInternalsFactory<String>() {
-        @Override
-        public StateInternals<String> stateInternalsForKey(String key) {
-          //this will implicitly be keyed by the key of the incoming
-          // element or by the key of a firing timer
-          return (StateInternals<String>) stateInternals;
-        }
-      };
-      TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
-        @Override
-        public TimerInternals timerInternalsForKey(String key) {
-          //this will implicitly be keyed like the StateInternalsFactory
-          return timerInternals;
-        }
-      };
-
-      ((SplittableParDo.ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
-      ((SplittableParDo.ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
-      ((SplittableParDo.ProcessFn) doFn).setProcessElementInvoker(
-          new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
-              doFn,
-              serializedOptions.getPipelineOptions(),
-              new OutputWindowedValue<FnOutputT>() {
-                @Override
-                public void outputWindowedValue(
-                    FnOutputT output,
-                    Instant timestamp,
-                    Collection<? extends BoundedWindow> windows,
-                    PaneInfo pane) {
-                  outputManager.output(
-                      mainOutputTag,
-                      WindowedValue.of(output, timestamp, windows, pane));
-                }
-
-                @Override
-                public <SideOutputT> void sideOutputWindowedValue(
-                    TupleTag<SideOutputT> tag,
-                    SideOutputT output,
-                    Instant timestamp,
-                    Collection<? extends BoundedWindow> windows,
-                    PaneInfo pane) {
-                  outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
-                }
-              },
-              sideInputReader,
-              Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
-              10000,
-              Duration.standardSeconds(10)));
+    if (!(doFn instanceof SplittableParDo.ProcessFn)) {
+      return;
     }
+
+    StateInternalsFactory<String> stateInternalsFactory = new StateInternalsFactory<String>() {
+      @Override
+      public StateInternals<String> stateInternalsForKey(String key) {
+        //this will implicitly be keyed by the key of the incoming
+        // element or by the key of a firing timer
+        return (StateInternals<String>) stateInternals;
+      }
+    };
+    TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
+      @Override
+      public TimerInternals timerInternalsForKey(String key) {
+        //this will implicitly be keyed like the StateInternalsFactory
+        return timerInternals;
+      }
+    };
+
+    ((SplittableParDo.ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
+    ((SplittableParDo.ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
+    ((SplittableParDo.ProcessFn) doFn).setProcessElementInvoker(
+        new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
+            doFn,
+            serializedOptions.getPipelineOptions(),
+            new OutputWindowedValue<FnOutputT>() {
+              @Override
+              public void outputWindowedValue(
+                  FnOutputT output,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo pane) {
+                outputManager.output(
+                    mainOutputTag,
+                    WindowedValue.of(output, timestamp, windows, pane));
+              }
+
+              @Override
+              public <SideOutputT> void sideOutputWindowedValue(
+                  TupleTag<SideOutputT> tag,
+                  SideOutputT output,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo pane) {
+                outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
+              }
+            },
+            sideInputReader,
+            Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+            10000,
+            Duration.standardSeconds(10)));
   }
 
   @Override
