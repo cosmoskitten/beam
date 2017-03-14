@@ -75,8 +75,12 @@ class DataflowMetrics extends MetricResults {
    */
   private MetricKey metricHashKey(
       com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+    String fullStepName = metricUpdate.getName().getContext().get("step");
+    fullStepName = (dataflowPipelineJob.aggregatorTransforms != null
+        ? dataflowPipelineJob.aggregatorTransforms
+            .getAppliedTransformForStepName(fullStepName).getFullName() : fullStepName);
     return MetricKey.create(
-        metricUpdate.getName().getContext().get("step"),
+        fullStepName,
         MetricName.named(
             metricUpdate.getName().getContext().get("namespace"),
             metricUpdate.getName().getName()));
@@ -107,7 +111,7 @@ class DataflowMetrics extends MetricResults {
     HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
         tentativeByName = new HashMap<>();
     HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
-        commitedByName = new HashMap<>();
+        committedByName = new HashMap<>();
     HashSet<MetricKey> metricHashKeys = new HashSet<>();
 
     // If the Context of the metric update does not have a namespace, then these are not
@@ -120,7 +124,7 @@ class DataflowMetrics extends MetricResults {
       } else if (Objects.equal(update.getName().getOrigin(), "user")
           && update.getName().getContext().containsKey("namespace")
           && !isMetricTentative(update)) {
-        commitedByName.put(metricHashKey(update), update);
+        committedByName.put(metricHashKey(update), update);
         metricHashKeys.add(metricHashKey(update));
       }
     }
@@ -131,7 +135,7 @@ class DataflowMetrics extends MetricResults {
     for (MetricKey metricKey : metricHashKeys) {
       String metricName = metricKey.metricName().name();
       if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
-          || metricName.endsWith("[MEAN]") || metricName.endsWith("[SUM]")) {
+          || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
         // Skip distribution metrics, as these are not yet properly supported.
         LOG.warn("Distribution metrics are not yet supported. You can see them in the Dataflow"
             + "User Interface");
@@ -139,7 +143,7 @@ class DataflowMetrics extends MetricResults {
       }
       String namespace = metricKey.metricName().namespace();
       String step = metricKey.stepName();
-      Long committed = ((Number) commitedByName.get(metricKey).getScalar()).longValue();
+      Long committed = ((Number) committedByName.get(metricKey).getScalar()).longValue();
       Long attempted = ((Number) tentativeByName.get(metricKey).getScalar()).longValue();
       if (MetricFiltering.matches(
           filter, MetricKey.create(step, MetricName.named(namespace, metricName)))) {

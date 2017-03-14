@@ -88,7 +88,7 @@ public class DataflowPipelineJob implements PipelineResult {
   @Nullable
   private DataflowPipelineJob replacedByJob = null;
 
-  private DataflowAggregatorTransforms aggregatorTransforms;
+  protected DataflowAggregatorTransforms aggregatorTransforms;
 
   /**
    * The Metric Updates retrieved after the job was in a terminal state.
