@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
+import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -29,12 +30,16 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -45,7 +50,7 @@ import org.junit.runners.JUnit4;
  * Tests for {@link Reshuffle}.
  */
 @RunWith(JUnit4.class)
-public class ReshuffleTest {
+public class ReshuffleTest implements Serializable {
 
   private static final List<KV<String, Integer>> ARBITRARY_KVS = ImmutableList.of(
         KV.of("k1", 3),
@@ -66,7 +71,7 @@ public class ReshuffleTest {
         KV.of("k2", (Iterable<Integer>) ImmutableList.of(4)));
 
   @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   @Category(RunnableOnService.class)
@@ -84,6 +89,29 @@ public class ReshuffleTest {
     assertEquals(
         input.getWindowingStrategy(),
         output.getWindowingStrategy());
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testReshuffleAndAssignTimestamps() {
+    PCollection<KV<String, Integer>> input = pipeline
+        .apply(Create.of(ARBITRARY_KVS)
+            .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<KV<String, Integer>> output = input
+        .apply(Reshuffle.<String, Integer>of());
+
+    output.apply(WithTimestamps.of(new SerializableFunction<KV<String, Integer>, Instant>() {
+      @Override
+      public Instant apply(KV<String, Integer> input) {
+        // Move the input timestamps forwards by one millisecond.
+        return BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1L);
+      }
+    }));
+
+    PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
     pipeline.run();
   }

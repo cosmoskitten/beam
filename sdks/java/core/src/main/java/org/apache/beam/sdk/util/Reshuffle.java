@@ -22,6 +22,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -36,6 +37,8 @@ import org.joda.time.Duration;
  * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the
  * {@link WindowingStrategy} so that no data is dropped, but doesn't affect the need for
  * the user to specify allowed lateness and accumulation mode before a user-inserted GroupByKey.
+ *
+ * <p>Reshuffle may shift elements in time, due to being grouped and then output.
  *
  * @param <K> The type of key being reshuffled on.
  * @param <V> The type of value being reshuffled.
@@ -56,11 +59,10 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
     // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
     Window.Bound<KV<K, V>> rewindow =
-        Window.<KV<K, V>>into(
-                new IdentityWindowFn<>(
-                    originalStrategy.getWindowFn().windowCoder()))
+        Window.<KV<K, V>>into(new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
             .triggering(new ReshuffleTrigger<>())
             .discardingFiredPanes()
+            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
             .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     return input.apply(rewindow)
