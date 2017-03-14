@@ -361,7 +361,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       Set<W> expectedWindows, Set<StateTag<? super String, ?>> allowedTags) {
     Set<StateNamespace> expectedWindowsSet = new HashSet<>();
     for (W expectedWindow : expectedWindows) {
-      expectedWindowsSet.add(windowNamespace(expectedWindow));
+      expectedWindowsSet.add((expectedWindow));
     }
     Map<StateNamespace, Set<StateTag<? super String, ?>>> actualWindows = new HashMap<>();
 
