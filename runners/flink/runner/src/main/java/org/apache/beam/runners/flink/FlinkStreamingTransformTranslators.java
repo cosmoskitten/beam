@@ -1111,7 +1111,7 @@ class FlinkStreamingTransformTranslators {
           new CoderTypeInformation<>(windowedWorkItemCoder);
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
-      
+
       DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
               .flatMap(new ToKeyedWorkItem<K, InputT>())
