@@ -23,6 +23,7 @@ of test pipeline job. Customized verifier should extend
 """
 
 import logging
+import time
 
 from hamcrest.core.base_matcher import BaseMatcher
 
@@ -92,6 +93,9 @@ class FileChecksumMatcher(BaseMatcher):
     matched_path = ChannelFactory.glob(self.file_path)
     if not matched_path:
       raise IOError('No such file or directory: %s' % self.file_path)
+
+    logging.info('Find %d files in %s: \n%s',
+                 len(matched_path), self.file_path, '\n'.join(matched_path))
     for path in matched_path:
       with ChannelFactory.open(path, 'r') as f:
         for line in f:
@@ -99,6 +103,11 @@ class FileChecksumMatcher(BaseMatcher):
     return read_lines
 
   def _matches(self, _):
+    # Wait to have output file ready on FS
+    wait_time = 20
+    logging.info('Wait %d seconds...', wait_time)
+    time.sleep(wait_time)
+
     # Read from given file(s) path
     read_lines = self._read_with_retry()
 
