@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
@@ -29,9 +31,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -39,7 +41,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -93,6 +94,9 @@ public class ReshuffleTest implements Serializable {
     pipeline.run();
   }
 
+  /**
+   * Tests that timestamps can
+   */
   @Test
   @Category(RunnableOnService.class)
   public void testReshuffleAndAssignTimestamps() {
@@ -100,17 +104,18 @@ public class ReshuffleTest implements Serializable {
         .apply(Create.of(ARBITRARY_KVS)
             .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
-    PCollection<KV<String, Integer>> output = input
-        .apply(Reshuffle.<String, Integer>of());
-
-    output.apply(WithTimestamps.of(new SerializableFunction<KV<String, Integer>, Instant>() {
-      @Override
-      public Instant apply(KV<String, Integer> input) {
-        // Move the input timestamps forwards by one millisecond.
-        return BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1L);
-      }
-    }));
-
+    PCollection<KV<String, Integer>> output =
+        input
+            .apply(Reshuffle.<String, Integer>of())
+            .apply(
+                ParDo.of(
+                    new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+                      @ProcessElement
+                      public void assertMinValueTimestamp(ProcessContext ctxt) {
+                        assertThat(ctxt.timestamp(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
+                        ctxt.output(ctxt.element());
+                      }
+                    }));
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
     pipeline.run();
