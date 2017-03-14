@@ -33,6 +33,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.MetricFiltering;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -255,7 +256,7 @@ class DirectMetrics extends MetricResults {
       MetricsFilter filter,
       ImmutableList.Builder<MetricResult<ResultT>> resultsBuilder,
       Map.Entry<MetricKey, ? extends DirectMetric<?, ResultT>> entry) {
-    if (matches(filter, entry.getKey())) {
+    if (MetricFiltering.matches(filter, entry.getKey())) {
       resultsBuilder.add(DirectMetricResult.create(
           entry.getKey().metricName(),
           entry.getKey().stepName(),

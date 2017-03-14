@@ -21,12 +21,12 @@ import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.MetricFiltering;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -73,13 +73,13 @@ class DataflowMetrics extends MetricResults {
    * @param metricUpdate
    * @return
    */
-  private ImmutableMap<String, String> metricHashKey(
+  private MetricKey metricHashKey(
       com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
-    return ImmutableMap.of(
-        "name", metricUpdate.getName().getName(),
-        "namespace", metricUpdate.getName().getContext().get("namespace"),
-        "step", metricUpdate.getName().getContext().get("step")
-    );
+    return MetricKey.create(
+        metricUpdate.getName().getContext().get("step"),
+        MetricName.named(
+            metricUpdate.getName().getContext().get("namespace"),
+            metricUpdate.getName().getName()));
   }
 
   /**
@@ -104,11 +104,11 @@ class DataflowMetrics extends MetricResults {
       List<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates,
       MetricsFilter filter) {
     // Separate metric updates by name and by tentative/committed.
-    HashMap<ImmutableMap<String, String>, com.google.api.services.dataflow.model.MetricUpdate>
+    HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
         tentativeByName = new HashMap<>();
-    HashMap<ImmutableMap<String, String>, com.google.api.services.dataflow.model.MetricUpdate>
+    HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
         commitedByName = new HashMap<>();
-    HashSet<ImmutableMap<String, String>> metricHashKeys = new HashSet<>();
+    HashSet<MetricKey> metricHashKeys = new HashSet<>();
 
     // If the Context of the metric update does not have a namespace, then these are not
     // actual metrics counters.
@@ -128,8 +128,8 @@ class DataflowMetrics extends MetricResults {
     ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
     ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults =
         ImmutableList.builder();
-    for (ImmutableMap<String, String> metricKey : metricHashKeys) {
-      String metricName = metricKey.get("name");
+    for (MetricKey metricKey : metricHashKeys) {
+      String metricName = metricKey.metricName().name();
       if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
           || metricName.endsWith("[MEAN]") || metricName.endsWith("[SUM]")) {
         // Skip distribution metrics, as these are not yet properly supported.
@@ -137,11 +137,12 @@ class DataflowMetrics extends MetricResults {
             + "User Interface");
         continue;
       }
-      String namespace = metricKey.get("namespace");
-      String step = metricKey.get("step");
+      String namespace = metricKey.metricName().namespace();
+      String step = metricKey.stepName();
       Long committed = ((Number) commitedByName.get(metricKey).getScalar()).longValue();
       Long attempted = ((Number) tentativeByName.get(metricKey).getScalar()).longValue();
-      if (matches(filter, MetricKey.create(step, MetricName.named(namespace, metricName)))) {
+      if (MetricFiltering.matches(
+          filter, MetricKey.create(step, MetricName.named(namespace, metricName)))) {
         counterResults.add(DataflowMetricResult.create(
             MetricName.named(namespace, metricName),
             step, committed, attempted));
