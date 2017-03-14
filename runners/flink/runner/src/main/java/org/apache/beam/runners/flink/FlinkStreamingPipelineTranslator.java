@@ -249,6 +249,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   /**
    * A {@link PTransformOverrideFactory} that overrides single-output {@link ParDo} to implement
    * it in terms of multi-output {@link ParDo}.
+   *
+   * <p>This could be removed once https://issues.apache.org/jira/browse/BEAM-1709 is in.
    */
   static class ParDoSingleViaMultiOverrideFactory<InputT, OutputT>
       extends SingleInputOutputOverrideFactory<
