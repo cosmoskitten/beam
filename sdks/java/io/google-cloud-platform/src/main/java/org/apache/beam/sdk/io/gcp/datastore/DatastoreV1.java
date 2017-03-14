@@ -706,7 +706,7 @@ public class DatastoreV1 {
      */
     public Write withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return new Write(projectId, null);
+      return new Write(projectId, localhost);
     }
 
     /**
@@ -715,7 +715,7 @@ public class DatastoreV1 {
      */
     public Write withLocalhost(String localhost) {
       checkNotNull(localhost, "localhost");
-      return new Write(null, localhost);
+      return new Write(projectId, localhost);
     }
   }
 
@@ -796,9 +796,9 @@ public class DatastoreV1 {
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
-    private final String projectId;
+    final String projectId;
     @Nullable
-    private final String localhost;
+    final String localhost;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 
