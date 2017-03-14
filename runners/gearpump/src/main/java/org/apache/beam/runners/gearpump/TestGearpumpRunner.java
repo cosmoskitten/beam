@@ -24,9 +24,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 
 import org.apache.gearpump.cluster.ClusterConfig;
 import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
@@ -61,7 +58,6 @@ public class TestGearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
     try {
       GearpumpPipelineResult result = delegate.run(pipeline);
       result.waitUntilFinish();
-      cluster.stop();
       return result;
     } catch (Throwable e) {
       // copied from TestFlinkRunner to pull out AssertionError
@@ -82,12 +78,8 @@ public class TestGearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
       } else {
         throw e;
       }
+    } finally {
+      cluster.stop();
     }
-  }
-
-  @Override
-  public <OutputT extends POutput, InputT extends PInput>
-  OutputT apply(PTransform<InputT, OutputT> transform, InputT input) {
-    return delegate.apply(transform, input);
   }
 }
