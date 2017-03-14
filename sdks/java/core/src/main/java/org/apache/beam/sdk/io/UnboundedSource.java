@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.joda.time.Instant;
 
 /**
@@ -102,6 +103,10 @@ public abstract class UnboundedSource<
    * {@link org.apache.beam.sdk.io.UnboundedSource.UnboundedReader}.
    *
    * <p>For example, this could be offsets in a set of files being read.
+   *
+   * <p>Checkpoints are durably committed atomically with the elements produced since the last time
+   * a checkpoint was taken. A checkpoint will be committed only if all previous checkpoints
+   * produced by the reader have been successfully committed.
    */
   public interface CheckpointMark {
     /**
@@ -116,17 +121,25 @@ public abstract class UnboundedSource<
      * <ul>
      * <li>This finalize method may be called from any thread, concurrently with calls to
      * the {@link UnboundedReader} it was created from.
+     * <li>This method may be called on a {@link CheckpointMark} that has been decoded by the
+     * {@link Coder} returned by {@link #getCheckpointMarkCoder()}.
      * <li>Checkpoints will not necessarily be finalized as soon as they are created.
-     * A checkpoint may be taken while a previous checkpoint from the same
+     * <li>A checkpoint may be taken while a previous checkpoint from the same
      * {@link UnboundedReader} has not yet be finalized.
-     * <li>In the absence of failures, all checkpoints will be finalized and they will be
-     * finalized in the same order they were taken from the {@link UnboundedReader}.
      * <li>It is possible for a checkpoint to be taken but this method never called. This method
      * will never be called if the checkpoint could not be committed, and other failures may cause
      * this method to never be called.
+     * <li>A {@link PipelineRunner} may finalize a checkpoint more than once.
+     * <li>A {@link PipelineRunner} may finalize a checkpoint that has been decoded with the result
+     * of {@link UnboundedSource#getCheckpointMarkCoder()}.
+     * <li>In the absence of failures, all checkpoints will be finalized and they will be
+     * finalized in the same order they were taken from the {@link UnboundedReader}.
      * <li>It is not safe to assume the {@link UnboundedReader} from which this checkpoint was
      * created still exists at the time this method is called.
      * </ul>
+     *
+     * <p>As a result of the above requirements, {@link #finalizeCheckpoint()} must be idempotent
+     * and contain any state required to perform finalization.
      */
     void finalizeCheckpoint() throws IOException;
   }
