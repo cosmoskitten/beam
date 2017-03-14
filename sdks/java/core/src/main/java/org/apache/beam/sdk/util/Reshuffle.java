@@ -22,9 +22,11 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 
 /**
@@ -36,6 +38,8 @@ import org.joda.time.Duration;
  * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the
  * {@link WindowingStrategy} so that no data is dropped, but doesn't affect the need for
  * the user to specify allowed lateness and accumulation mode before a user-inserted GroupByKey.
+ *
+ * <p>Reshuffle may shift elements in time, due to being grouped and then output.
  *
  * @param <K> The type of key being reshuffled on.
  * @param <V> The type of value being reshuffled.
@@ -55,28 +59,32 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     // If the input has already had its windows merged, then the GBK that performed the merge
     // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
     // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
+    // Elements may not be shifted forwards in time by the GroupByKey, which requires updating the
+    // OutputTimeFn to output at the earliest encountered timestamp. Because this outputs as fast
+    // as possible, this should not hold the watermark.
     Window.Bound<KV<K, V>> rewindow =
-        Window.<KV<K, V>>into(
-                new IdentityWindowFn<>(
-                    originalStrategy.getWindowFn().windowCoder()))
+        Window.<KV<K, V>>into(new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
             .triggering(new ReshuffleTrigger<>())
             .discardingFiredPanes()
+            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
             .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     return input.apply(rewindow)
-        .apply(GroupByKey.<K, V>create())
+        .apply(ReifyTimestamps.<K, V>inValues())
+        .apply(GroupByKey.<K, TimestampedValue<V>>create())
         // Set the windowing strategy directly, so that it doesn't get counted as the user having
         // set allowed lateness.
         .setWindowingStrategyInternal(originalStrategy)
         .apply("ExpandIterable", ParDo.of(
-            new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
+            new DoFn<KV<K, Iterable<TimestampedValue<V>>>, KV<K, TimestampedValue<V>>>() {
               @ProcessElement
               public void processElement(ProcessContext c) {
                 K key = c.element().getKey();
-                for (V value : c.element().getValue()) {
+                for (TimestampedValue<V> value : c.element().getValue()) {
                   c.output(KV.of(key, value));
                 }
               }
-            }));
+            }))
+        .apply(ReifyTimestamps.<K, V>extractFromValues());
   }
 }

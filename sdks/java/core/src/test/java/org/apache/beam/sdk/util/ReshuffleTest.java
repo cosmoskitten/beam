@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -28,13 +31,23 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -45,7 +58,7 @@ import org.junit.runners.JUnit4;
  * Tests for {@link Reshuffle}.
  */
 @RunWith(JUnit4.class)
-public class ReshuffleTest {
+public class ReshuffleTest implements Serializable {
 
   private static final List<KV<String, Integer>> ARBITRARY_KVS = ImmutableList.of(
         KV.of("k1", 3),
@@ -66,7 +79,7 @@ public class ReshuffleTest {
         KV.of("k2", (Iterable<Integer>) ImmutableList.of(4)));
 
   @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   @Category(RunnableOnService.class)
@@ -87,6 +100,70 @@ public class ReshuffleTest {
 
     pipeline.run();
   }
+
+  /**
+   * Tests that timestamps are not moved forwards in time after applying a {@link Reshuffle} with
+   * the default {@link WindowingStrategy}.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testReshuffleDoesNotMoveTimestampsForwards() {
+    PCollection<KV<String, TimestampedValue<String>>> input =
+        pipeline
+            .apply(
+                Create.timestamped(
+                        TimestampedValue.of("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
+                        TimestampedValue.of("foo", new Instant(0)),
+                        TimestampedValue.of("bar", new Instant(33)),
+                        TimestampedValue.of("bar", GlobalWindow.INSTANCE.maxTimestamp()))
+                    .withCoder(StringUtf8Coder.of()))
+            .apply("PairWithOriginalTimestamp", ParDo.of(new PairWithTimestampFn<String>()))
+            .setCoder(TimestampedValueCoder.of(StringUtf8Coder.of()))
+        .apply(WithKeys.of(new SerializableFunction<TimestampedValue<String>, String>() {
+          @Override
+          public String apply(TimestampedValue<String> input) {
+            return input.getValue();
+          }
+        }));
+
+    PCollection<TimestampedValue<TimestampedValue<String>>> output =
+        input
+            .apply(Reshuffle.<String, TimestampedValue<String>>of())
+            .apply(Values.<TimestampedValue<String>>create())
+            .apply(
+                "PairWithReshuffledTimestamp",
+                ParDo.of(new PairWithTimestampFn<TimestampedValue<String>>()));
+
+    PAssert.that(output)
+        .satisfies(
+            new SerializableFunction<Iterable<TimestampedValue<TimestampedValue<String>>>, Void>() {
+              @Override
+              public Void apply(Iterable<TimestampedValue<TimestampedValue<String>>> input) {
+                for (TimestampedValue<TimestampedValue<String>> elem : input) {
+                  Instant originalTimestamp = elem.getValue().getTimestamp();
+                  Instant afterReshuffleTimestamp = elem.getTimestamp();
+                  // Reshuffle may shift elements in time, but should only shift elements backwards
+                  // in time. Any shift backwards in time permits a user to reassign a timestamp
+                  // with outputWithTimestamp, but the data may become late if they shift it
+                  // backwards in time.
+                  assertThat(
+                      "Reshuffle may not reassign element timestamps",
+                      afterReshuffleTimestamp,
+                      equalTo(originalTimestamp));
+                }
+                return null;
+              }
+            });
+
+    pipeline.run();
+  }
+
+  private static class PairWithTimestampFn<T> extends DoFn<T, TimestampedValue<T>> {
+    @ProcessElement
+    public void pairWithTimestamp(ProcessContext ctxt) {
+      ctxt.output(TimestampedValue.of(ctxt.element(), ctxt.timestamp()));
+    }
+  };
 
   @Test
   @Category(RunnableOnService.class)
