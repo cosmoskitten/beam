@@ -47,7 +47,7 @@
           <artifactId>exec-maven-plugin</artifactId>
           <executions>
             <execution>
-              <!-- trick by @aaltay to skip inheritance -->
+              <!-- trick to skip inheritance -->
               <phase>none</phase>
             </execution>
           </executions>
@@ -55,6 +55,41 @@
       </plugins>
     </pluginManagement>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>copy-project-files</id>
+              <phase>prepare-package</phase>
+              <goals>
+                <goal>run</goal>
+              </goals>
+              <configuration>
+                <tasks>
+                  <copy file="../../LICENSE" tofile="${basedir}/LICENSE"/>
+                  <copy file="../../NOTICE" tofile="${basedir}/NOTICE"/>
+                </tasks>
+              </configuration>
+            </execution>
+          </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>copy-project-files-clean</id>
+              <phase>clean</phase>
+              <configuration>
+                <tasks>
+                  <delete file="${basedir}/LICENSE"/>
+                  <delete file="${basedir}/NOTICE"/>
+                </tasks>
+              </configuration>
+            </execution>
+          </executions>
+      </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>

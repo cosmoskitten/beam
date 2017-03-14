@@ -19,3 +19,5 @@
 include pom.xml
 
 include README.md
+include NOTICE
+include LICENSE
