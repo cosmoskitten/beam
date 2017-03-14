@@ -1816,6 +1816,7 @@ public class BigQueryIO {
               .apply(MapElements.via(getFormatFunction())
                   .withOutputType(new TypeDescriptor<TableRow>(){}));
 
+      // PCollection of filename, file byte size.
       PCollection<KV<String, Long>> results = inputInGlobalWindow
           .apply("WriteBundles",
               ParDo.of(new WriteBundles(tempFilePrefix)));
@@ -1825,6 +1826,8 @@ public class BigQueryIO {
       TupleTag<KV<Long, List<String>>> singlePartitionTag =
           new TupleTag<KV<Long, List<String>>>("singlePartitionTag") {};
 
+      // Turn the list of files and record counts in a PCollectionView that can be used as a
+      // side input.
       PCollectionView<Iterable<KV<String, Long>>> resultsView = results
           .apply("ResultsView", View.<KV<String, Long>>asIterable());
       PCollectionTuple partitions = singleton.apply(ParDo
@@ -1835,7 +1838,9 @@ public class BigQueryIO {
           .withSideInputs(resultsView)
           .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
 
-      // Write multiple partitions to separate temporary tables
+      // If WriteBundles produced more than MAX_NUM_FILES files or MAX_SIZE_BYTES bytes, then
+      // the import needs to be split into multiple partitions, and those partitions will be
+      // specified in multiPartitionsTag.
       PCollection<String> tempTables = partitions.get(multiPartitionsTag)
           .apply("MultiPartitionsGroupByKey", GroupByKey.<Long, List<String>>create())
           .apply("MultiPartitionsWriteTables", ParDo.of(new WriteTables(
