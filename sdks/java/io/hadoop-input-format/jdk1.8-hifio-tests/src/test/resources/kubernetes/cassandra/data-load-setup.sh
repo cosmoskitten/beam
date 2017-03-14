@@ -16,7 +16,13 @@
 
 #!/bin/sh
 
-# Create Cassandra services and Replication controller.
-kubectl create -f cassandra-peer-service.yaml
-kubectl create -f cassandra-service.yaml
-kubectl create -f cassandra-controller.yaml
+# load YCSB tool
+echo "Downloading YCSB tool"
+echo "------------------------------"
+curl -O --location https://github.com/brianfrankcooper/YCSB/releases/download/0.12.0/ycsb-0.12.0.tar.gz
+tar xfvz ycsb-0.12.0.tar.gz
+wget https://www.slf4j.org/dist/slf4j-1.7.22.tar.gz
+tar xfvz slf4j-1.7.22.tar.gz
+cp slf4j-1.7.22/slf4j-simple-*.jar ycsb-0.12.0/lib/
+cp slf4j-1.7.22/slf4j-api-*.jar ycsb-0.12.0/lib/
+echo "YCSB tool loaded"

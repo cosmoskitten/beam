@@ -24,10 +24,13 @@ cassandra_svc="kubectl get svc cassandra"
 echo
 
 # After starting the service, it takes couple of minutes to generate the external IP for the service. Hence, wait for sometime.
-sleep 2m
-
 # Identify external IP of the pod
 external_ip="$(kubectl get svc cassandra -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+while [ -z "$external_ip" ]
+do
+   sleep 10s
+   external_ip="$(kubectl get svc cassandra -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+done
 echo "External IP - $external_ip"
 echo
 
@@ -46,18 +49,6 @@ echo "Table created successfully."
 echo "-------------------------------"
 echo "$table_creation_command"
 
-# load YCSB tool
-echo
-echo
-echo "Downloading YCSB tool"
-echo "------------------------------"
-curl -O --location https://github.com/brianfrankcooper/YCSB/releases/download/0.12.0/ycsb-0.12.0.tar.gz
-tar xfvz ycsb-0.12.0.tar.gz
-wget https://www.slf4j.org/dist/slf4j-1.7.22.tar.gz
-tar xfvz slf4j-1.7.22.tar.gz
-cp slf4j-1.7.22/slf4j-simple-*.jar ycsb-0.12.0/lib/
-cp slf4j-1.7.22/slf4j-api-*.jar ycsb-0.12.0/lib/
-echo "YCSB tool loaded"
 cd ycsb-0.12.0
 
 echo "Starting to load data"

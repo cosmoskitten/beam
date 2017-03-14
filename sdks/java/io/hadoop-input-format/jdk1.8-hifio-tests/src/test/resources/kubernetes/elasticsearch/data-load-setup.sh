@@ -16,7 +16,10 @@
 
 #!/bin/sh
 
-# Create Cassandra services and Replication controller.
-kubectl create -f cassandra-peer-service.yaml
-kubectl create -f cassandra-service.yaml
-kubectl create -f cassandra-controller.yaml
+# Install python
+sudo apt-get update
+sudo apt-get install python-pip
+sudo pip install --upgrade pip
+sudo apt-get install python-dev
+sudo pip install tornado numpy
+echo
