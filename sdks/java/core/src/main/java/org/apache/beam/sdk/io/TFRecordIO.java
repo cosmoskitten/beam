@@ -512,7 +512,7 @@ public class TFRecordIO {
           throw new IllegalStateException(
               "need to set the filename prefix of a TFRecordIO.Write transform");
         }
-        org.apache.beam.sdk.io.Write.Bound<byte[]> write =
+        org.apache.beam.sdk.io.Write<byte[]> write =
             org.apache.beam.sdk.io.Write.to(
                 new TFRecordSink(filenamePrefix, filenameSuffix, shardTemplate, compressionType));
         if (getNumShards() > 0) {
