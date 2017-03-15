@@ -17,10 +17,6 @@
  */
 package org.apache.beam.integration.nexmark;
 
-import javax.annotation.Nullable;
-import org.apache.beam.runners.spark.SparkPipelineResult;
-import org.apache.beam.sdk.PipelineResult;
-
 /**
  * Run a query using the Spark runner.
  */
