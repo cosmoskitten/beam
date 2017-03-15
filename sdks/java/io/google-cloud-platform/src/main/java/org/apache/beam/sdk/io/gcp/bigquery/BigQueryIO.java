@@ -203,7 +203,7 @@ import org.slf4j.LoggerFactory;
  *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
  * }</pre>
  *
- * <p>>BigQueryIO.Write can also take in a user-defined type, as long as a function is provided to
+ * <p>BigQueryIO.Write can also take in a user-defined type, as long as a function is provided to
  * turn
  * this type into a {@link TableRow} using
  * {@link BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
