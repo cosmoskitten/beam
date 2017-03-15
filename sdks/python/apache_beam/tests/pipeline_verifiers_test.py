@@ -87,8 +87,8 @@ class PipelineVerifiersTest(unittest.TestCase):
       f.write(content)
       return f.name
 
-  @patch('time.sleep', return_value=None)
-  def test_file_checksum_matcher_success(self, _):
+  # @patch('time.sleep', return_value=None)
+  def test_file_checksum_matcher_success(self):
     for case in self.test_cases:
       temp_dir = tempfile.mkdtemp()
       for _ in range(case['num_files']):
@@ -97,9 +97,8 @@ class PipelineVerifiersTest(unittest.TestCase):
                                               case['expected_checksum'])
       hc_assert_that(self._mock_result, matcher)
 
-  @patch('time.sleep', return_value=None)
   @patch.object(ChannelFactory, 'glob')
-  def test_file_checksum_matcher_read_failed(self, mock_glob, _):
+  def test_file_checksum_matcher_read_failed(self, mock_glob):
     mock_glob.side_effect = IOError('No file found.')
     matcher = verifiers.FileChecksumMatcher('dummy/path', Mock())
     with self.assertRaises(IOError):
@@ -107,10 +106,9 @@ class PipelineVerifiersTest(unittest.TestCase):
     self.assertTrue(mock_glob.called)
     self.assertEqual(verifiers.MAX_RETRIES + 1, mock_glob.call_count)
 
-  @patch('time.sleep', return_value=None)
   @patch.object(ChannelFactory, 'glob')
   @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
-  def test_file_checksum_matcher_service_error(self, mock_glob, _):
+  def test_file_checksum_matcher_service_error(self, mock_glob):
     mock_glob.side_effect = HttpError(
         response={'status': '404'}, url='', content='Not Found',
     )
@@ -119,6 +117,17 @@ class PipelineVerifiersTest(unittest.TestCase):
       hc_assert_that(self._mock_result, matcher)
     self.assertTrue(mock_glob.called)
     self.assertEqual(verifiers.MAX_RETRIES + 1, mock_glob.call_count)
+
+  @patch('time.sleep', return_value=None)
+  def test_file_checksum_matcher_sleep_before_verify(self, mocked_sleep):
+    temp_dir = tempfile.mkdtemp()
+    case = self.test_cases[0]
+    self.create_temp_file(case['content'], temp_dir)
+    matcher = verifiers.FileChecksumMatcher(temp_dir + '/*',
+                                            case['expected_checksum'],
+                                            10)
+    hc_assert_that(self._mock_result, matcher)
+    self.assertTrue(mocked_sleep.called)
 
 
 if __name__ == '__main__':
