@@ -964,8 +964,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
-    .apply(BigQueryIO.<TableRow>write().to("dataset-id.table-id")
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
+    .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withSchema(new TableSchema().setFields(
             ImmutableList.of(
@@ -999,8 +998,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "d").set("number", 4))
           .withCoder(TableRowJsonCoder.of()))
             .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-            .apply(BigQueryIO.<TableRow>write().to("project-id:dataset-id.table-id")
-                .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
+            .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(new TableSchema().setFields(
                     ImmutableList.of(
@@ -1210,8 +1208,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
-    .apply(BigQueryIO.<TableRow>write().to("project-id:dataset-id.table-id")
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
+    .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
         .withCreateDisposition(CreateDisposition.CREATE_NEVER)
         .withTestServices(fakeBqServices)
         .withoutValidation());
@@ -1244,8 +1241,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
-        .apply(BigQueryIO.<TableRow>write().to("dataset-id.table-id")
-            .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
+        .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withTestServices(fakeBqServices)
             .withoutValidation());
@@ -1335,8 +1331,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testBuildWrite() {
     BigQueryIO.Write<TableRow> write =
-            BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable")
-                .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER);
+            BigQueryIO.writeTableRows().to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
@@ -1362,9 +1357,8 @@ public class BigQueryIOTest implements Serializable {
     options.as(StreamingOptions.class).setStreaming(streaming);
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 
-    BigQueryIO.Write write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write write = BigQueryIO.writeTableRows()
         .to("project:dataset.table")
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
         .withSchema(new TableSchema().set("col1", "type1").set("col2", "type2"))
         .withTestServices(new FakeBigQueryServices()
           .withDatasetService(mockDatasetService)
@@ -1400,8 +1394,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteDefaultProject() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write().to("somedataset.sometable")
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER);
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to("somedataset.sometable");
     checkWriteObject(
         write, null, "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY,
@@ -1414,8 +1407,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
         .setTableId("sometable");
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write().to(table)
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER);
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to(table);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
@@ -1443,9 +1435,8 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithCreateDispositionIfNeeded() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
@@ -1464,9 +1455,8 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionAppend() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
@@ -1486,9 +1476,8 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testBuildWriteWithWriteWithTableDescription() {
     final String tblDescription = "foo bar table";
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
         .withTableDescription(tblDescription);
     checkWriteObject(
         write,
@@ -1507,9 +1496,8 @@ public class BigQueryIOTest implements Serializable {
     TableSchema schema = new TableSchema().set("col1", "type1").set("col2", "type2");
     final String tblDescription = "foo bar table";
 
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to(tableSpec)
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
         .withSchema(schema)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withWriteDisposition(WriteDisposition.WRITE_APPEND)
@@ -1573,8 +1561,7 @@ public class BigQueryIOTest implements Serializable {
             .or(Matchers.containsString("BigQuery dataset not found for table")));
     tableRows
         .apply(
-            BigQueryIO.<TableRow>write().to(tableRef)
-                .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
+            BigQueryIO.writeTableRows().to(tableRef)
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(new TableSchema())
                 .withTestServices(fakeBqServices));
@@ -1621,8 +1608,7 @@ public class BigQueryIOTest implements Serializable {
                 }))
         .setCoder(TableRowJsonCoder.of());
     tableRows
-        .apply(BigQueryIO.<TableRow>write().to(tableRef)
-            .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
+        .apply(BigQueryIO.writeTableRows().to(tableRef)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withoutValidation());
   }
@@ -1707,9 +1693,8 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage("no schema was provided");
     p
         .apply(Create.empty(TableRowJsonCoder.of()))
-        .apply(BigQueryIO.<TableRow>write()
+        .apply(BigQueryIO.writeTableRows()
             .to("dataset.table")
-            .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
   }
 
@@ -2365,9 +2350,8 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to(options.getOutputTable())
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
         .withSchema(NestedValueProvider.of(
             options.getOutputSchema(), new JsonSchemaToTableSchema()))
         .withoutValidation();

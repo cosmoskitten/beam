@@ -441,7 +441,7 @@ public class BigQueryIO {
    * A formatting function that maps a TableRow to itself. This allows sending a
    * {@code PCollection<TableRow>} directly to BigQueryIO.Write.
    */
-  public static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
+  private static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
       new SerializableFunction<TableRow, TableRow>() {
     @Override
     public TableRow apply(TableRow input) {
@@ -1380,8 +1380,9 @@ public class BigQueryIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@link PTransform} that writes a {@link PCollection} containing {@link TableRow TableRows}
-   * to a BigQuery table.
+   * A {@link PTransform} that writes a {@link PCollection} containing objects of type {@code T}
+   * to a BigQuery table. A formatting function must be provided to turn {@code T} into a
+   * {@link TableRow}.
    *
    * <p>In BigQuery, each table has an encosing dataset. The dataset being written must already
    * exist.
@@ -1414,6 +1415,14 @@ public class BigQueryIO {
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
         .build();
+  }
+
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} containing {@link TableRow TableRows}
+   * to a BigQuery table.
+   */
+  public static Write<TableRow> writeTableRows() {
+    return BigQueryIO.<TableRow>write().withFormatFunction(IDENTITY_FORMATTER);
   }
 
   /** Implementation of {@link #write}. */
@@ -1584,9 +1593,6 @@ public class BigQueryIO {
 
     /**
      * Formats the user's type into a {@link TableRow} to be written to BigQuery.
-     *
-     * <p>A convenience IDENTIY_FORMATTER is provided for the case where the input is already
-     * a TableRow object.
      */
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
