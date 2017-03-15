@@ -31,9 +31,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -45,7 +43,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -117,22 +114,21 @@ public class ReshuffleTest implements Serializable {
                         TimestampedValue.of("bar", new Instant(33)),
                         TimestampedValue.of("bar", GlobalWindow.INSTANCE.maxTimestamp()))
                     .withCoder(StringUtf8Coder.of()))
-            .apply("PairWithOriginalTimestamp", ParDo.of(new PairWithTimestampFn<String>()))
-            .setCoder(TimestampedValueCoder.of(StringUtf8Coder.of()))
-        .apply(WithKeys.of(new SerializableFunction<TimestampedValue<String>, String>() {
-          @Override
-          public String apply(TimestampedValue<String> input) {
-            return input.getValue();
-          }
-        }));
+            .apply(
+                WithKeys.of(
+                    new SerializableFunction<String, String>() {
+                      @Override
+                      public String apply(String input) {
+                        return input;
+                      }
+                    }))
+            .apply(ReifyTimestamps.<String, String>inValues());
 
     PCollection<TimestampedValue<TimestampedValue<String>>> output =
         input
             .apply(Reshuffle.<String, TimestampedValue<String>>of())
-            .apply(Values.<TimestampedValue<String>>create())
-            .apply(
-                "PairWithReshuffledTimestamp",
-                ParDo.of(new PairWithTimestampFn<TimestampedValue<String>>()));
+            .apply(ReifyTimestamps.<String, TimestampedValue<String>>inValues())
+            .apply(Values.<TimestampedValue<TimestampedValue<String>>>create());
 
     PAssert.that(output)
         .satisfies(
@@ -142,10 +138,6 @@ public class ReshuffleTest implements Serializable {
                 for (TimestampedValue<TimestampedValue<String>> elem : input) {
                   Instant originalTimestamp = elem.getValue().getTimestamp();
                   Instant afterReshuffleTimestamp = elem.getTimestamp();
-                  // Reshuffle may shift elements in time, but should only shift elements backwards
-                  // in time. Any shift backwards in time permits a user to reassign a timestamp
-                  // with outputWithTimestamp, but the data may become late if they shift it
-                  // backwards in time.
                   assertThat(
                       "Reshuffle may not reassign element timestamps",
                       afterReshuffleTimestamp,
@@ -157,13 +149,6 @@ public class ReshuffleTest implements Serializable {
 
     pipeline.run();
   }
-
-  private static class PairWithTimestampFn<T> extends DoFn<T, TimestampedValue<T>> {
-    @ProcessElement
-    public void pairWithTimestamp(ProcessContext ctxt) {
-      ctxt.output(TimestampedValue.of(ctxt.element(), ctxt.timestamp()));
-    }
-  };
 
   @Test
   @Category(RunnableOnService.class)

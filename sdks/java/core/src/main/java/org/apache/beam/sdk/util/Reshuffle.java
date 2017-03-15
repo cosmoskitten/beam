@@ -39,8 +39,6 @@ import org.joda.time.Duration;
  * {@link WindowingStrategy} so that no data is dropped, but doesn't affect the need for
  * the user to specify allowed lateness and accumulation mode before a user-inserted GroupByKey.
  *
- * <p>Reshuffle may shift elements in time, due to being grouped and then output.
- *
  * @param <K> The type of key being reshuffled on.
  * @param <V> The type of value being reshuffled.
  */
@@ -59,9 +57,8 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     // If the input has already had its windows merged, then the GBK that performed the merge
     // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
     // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
-    // Elements may not be shifted forwards in time by the GroupByKey, which requires updating the
-    // OutputTimeFn to output at the earliest encountered timestamp. Because this outputs as fast
-    // as possible, this should not hold the watermark.
+    // The OutputTimeFn is set to ensure the GroupByKey does not shift elements forwards in time.
+    // Because this outputs as fast as possible, this should not hold the watermark.
     Window.Bound<KV<K, V>> rewindow =
         Window.<KV<K, V>>into(new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
             .triggering(new ReshuffleTrigger<>())
