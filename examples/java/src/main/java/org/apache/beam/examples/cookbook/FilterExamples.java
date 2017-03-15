@@ -241,8 +241,9 @@ public class FilterExamples {
     p.apply(BigQueryIO.read().from(options.getInput()))
      .apply(ParDo.of(new ProjectionFn()))
      .apply(new BelowGlobalMean(options.getMonthFilter()))
-     .apply(BigQueryIO.write()
+     .apply(BigQueryIO.<TableRow>write()
         .to(options.getOutput())
+        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
         .withSchema(schema)
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
