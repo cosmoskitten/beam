@@ -1529,7 +1529,8 @@ public class BigQueryIO {
     /** Ensures that methods of the to() family are called at most once. */
     private void ensureToNotCalledYet() {
       checkState(
-          getJsonTableRef() == null && getTable() == null, "to() already called");}
+          getJsonTableRef() == null && getTable() == null, "to() already called");
+    }
 
     /**
      * @deprecated Should be private. Instead, use one of the factory methods in
