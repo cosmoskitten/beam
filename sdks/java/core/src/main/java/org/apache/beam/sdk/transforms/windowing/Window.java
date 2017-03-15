@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -544,7 +545,8 @@ public class Window {
      * WindowingStrategy}. Windows should be assigned using the {@link WindowFn} returned by
      * {@link #getWindowFn()}.
      */
-    private Assign(WindowingStrategy updatedStrategy) {
+    @VisibleForTesting
+    Assign(WindowingStrategy updatedStrategy) {
       this.updatedStrategy = updatedStrategy;
     }
 
@@ -552,6 +554,46 @@ public class Window {
     public PCollection<T> expand(PCollection<T> input) {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), updatedStrategy, input.isBounded());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder
+          .add(
+              DisplayData.item("windowFn", updatedStrategy.getWindowFn().getClass())
+                  .withLabel("Windowing Function"))
+          .include("windowFn", updatedStrategy.getWindowFn());
+
+      if (updatedStrategy.isAllowedLatenessSpecified()) {
+        builder.add(
+            DisplayData.item("allowedLateness", updatedStrategy.getAllowedLateness())
+                .withLabel("Allowed Lateness"));
+      }
+
+      if (updatedStrategy.isTriggerSpecified()) {
+        builder.add(
+            DisplayData.item("trigger", updatedStrategy.getTrigger().toString())
+                .withLabel("Trigger"));
+      }
+
+      if (updatedStrategy.isModeSpecified()) {
+        builder.add(
+            DisplayData.item("accumulationMode", updatedStrategy.getMode().toString())
+                .withLabel("Accumulation Mode"));
+      }
+
+      builder.addIfNotDefault(
+          DisplayData.item("closingBehavior", updatedStrategy.getClosingBehavior().toString())
+              .withLabel("Window Closing Behavior"),
+          WindowingStrategy.globalDefault().getClosingBehavior().toString());
+
+      if (updatedStrategy.isOutputTimeFnSpecified()) {
+        builder.add(
+            DisplayData.item("outputTimeFn", updatedStrategy.getOutputTimeFn().getClass())
+                .withLabel("Output Time Function"));
+      }
     }
 
     public WindowFn<T, ?> getWindowFn() {

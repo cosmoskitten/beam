@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.KV;
@@ -443,6 +444,55 @@ public class WindowTest implements Serializable {
         hasDisplayItem("allowedLateness", allowedLateness));
     assertThat(displayData, hasDisplayItem("closingBehavior", closingBehavior.toString()));
     assertThat(displayData, hasDisplayItem("outputTimeFn", outputTimeFn.getClass()));
+  }
+
+  @Test
+  public void testAssignDisplayData() {
+    FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
+    AfterWatermark.FromEndOfWindow triggerBuilder = AfterWatermark.pastEndOfWindow();
+    Duration allowedLateness = Duration.standardMinutes(10);
+    Window.ClosingBehavior closingBehavior = ClosingBehavior.FIRE_ALWAYS;
+    OutputTimeFn<BoundedWindow> outputTimeFn = OutputTimeFns.outputAtLatestInputTimestamp();
+
+    WindowingStrategy<?, ?> updated =
+        WindowingStrategy.globalDefault()
+            .withWindowFn(windowFn)
+            .withTrigger(triggerBuilder)
+            .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .withAllowedLateness(allowedLateness)
+            .withClosingBehavior(closingBehavior)
+            .withOutputTimeFn(outputTimeFn);
+
+    DisplayData displayData = DisplayData.from(new Window.Assign<>(updated));
+
+    assertThat(displayData, hasDisplayItem("windowFn", windowFn.getClass()));
+    assertThat(displayData, includesDisplayDataFor("windowFn", windowFn));
+
+    assertThat(displayData, hasDisplayItem("trigger", triggerBuilder.toString()));
+    assertThat(displayData,
+        hasDisplayItem("accumulationMode", AccumulationMode.ACCUMULATING_FIRED_PANES.toString()));
+    assertThat(displayData,
+        hasDisplayItem("allowedLateness", allowedLateness));
+    assertThat(displayData, hasDisplayItem("closingBehavior", closingBehavior.toString()));
+    assertThat(displayData, hasDisplayItem("outputTimeFn"));
+  }
+
+  @Test
+  public void testAssignDisplayDataUnchanged() {
+    FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
+
+    WindowingStrategy<?, ?> updated = WindowingStrategy.globalDefault().withWindowFn(windowFn);
+
+    DisplayData displayData = DisplayData.from(new Window.Assign<>(updated));
+
+    assertThat(displayData, hasDisplayItem("windowFn", windowFn.getClass()));
+    assertThat(displayData, includesDisplayDataFor("windowFn", windowFn));
+
+    assertThat(displayData, not(hasDisplayItem("trigger")));
+    assertThat(displayData, not(hasDisplayItem("accumulationMode")));
+    assertThat(displayData, not(hasDisplayItem("allowedLateness")));
+    assertThat(displayData, not(hasDisplayItem("closingBehavior")));
+    assertThat(displayData, not(hasDisplayItem("outputTimeFn")));
   }
 
   @Test
