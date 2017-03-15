@@ -348,8 +348,7 @@ public class TrafficMaxLaneFlow {
             Duration.standardMinutes(options.getWindowDuration())).
             every(Duration.standardMinutes(options.getWindowSlideEvery()))))
         .apply(new MaxLaneFlow())
-        .apply(BigQueryIO.<TableRow>write().to(tableRef)
-            .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
+        .apply(BigQueryIO.writeTableRows().to(tableRef)
             .withSchema(FormatMaxesFn.getSchema()));
 
     // Run the pipeline.
