@@ -42,7 +42,7 @@ public class NexmarkSparkRunner extends NexmarkRunner<NexmarkSparkDriver.Nexmark
 
     @Override
     protected boolean canMonitor() {
-        return false;
+        return true;
     }
 
     @Override
@@ -56,11 +56,6 @@ public class NexmarkSparkRunner extends NexmarkRunner<NexmarkSparkDriver.Nexmark
         throw new UnsupportedOperationException();
     }
 
-    @Override
-    @Nullable
-    protected NexmarkPerf monitor(NexmarkQuery query) {
-        return null;
-    }
 
     public NexmarkSparkRunner(NexmarkSparkDriver.NexmarkSparkOptions options) {
         super(options);
