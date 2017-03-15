@@ -65,6 +65,7 @@
 
   <modules>
 <<<<<<< HEAD
+<<<<<<< HEAD
     <module>common</module>
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
@@ -80,6 +81,9 @@
 	<module>hadoop-input-format</module>
 >>>>>>> Added Hadoop Input Format module in io pom file and minor changes in pom file.
 =======
+=======
+    <module>common</module>
+>>>>>>> [BEAM-1644] Move PipelineOptions for IO ITs into shared location.
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
 <<<<<<< HEAD
