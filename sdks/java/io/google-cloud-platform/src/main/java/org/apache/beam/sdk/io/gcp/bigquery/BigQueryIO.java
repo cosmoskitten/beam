@@ -1535,7 +1535,8 @@ public class BigQueryIO {
     /** Ensures that methods of the to() family are called at most once. */
     private void ensureToNotCalledYet() {
       checkState(
-          getJsonTableRef() == null && getTable() == null, "to() already called");}
+          getJsonTableRef() == null && getTable() == null, "to() already called");
+    }
 
     /**
      * Writes to the given table, specified in the format described in {@link #parseTableSpec}.
