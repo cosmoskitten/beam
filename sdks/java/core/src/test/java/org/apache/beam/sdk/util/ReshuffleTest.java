@@ -116,13 +116,15 @@ public class ReshuffleTest implements Serializable {
                         TimestampedValue.of("bar", new Instant(33)),
                         TimestampedValue.of("bar", BoundedWindow.TIMESTAMP_MAX_VALUE))
                     .withCoder(StringUtf8Coder.of()))
-            .apply(ParDo.of(new PairWithTimestampFn<String>()))
+            .apply("PairWithOriginalTimestamp", ParDo.of(new PairWithTimestampFn<String>()))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), InstantCoder.of()));
 
     PCollection<KV<KV<String, Instant>, Instant>> output =
         input
             .apply(Reshuffle.<String, Instant>of())
-            .apply(ParDo.of(new PairWithTimestampFn<KV<String, Instant>>()));
+            .apply(
+                "PairWithReshuffledTimestamp",
+                ParDo.of(new PairWithTimestampFn<KV<String, Instant>>()));
 
     PAssert.that(output)
         .satisfies(
