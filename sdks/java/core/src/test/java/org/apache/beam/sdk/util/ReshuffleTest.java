@@ -144,7 +144,12 @@ public class ReshuffleTest implements Serializable {
                 for (TimestampedValue<TimestampedValue<String>> elem : input) {
                   Instant originalTimestamp = elem.getValue().getTimestamp();
                   Instant afterReshuffleTimestamp = elem.getTimestamp();
+                  // Reshuffle may shift elements in time, but should only shift elements backwards
+                  // in time. Any shift backwards in time permits a user to reassign a timestamp
+                  // with outputWithTimestamp, but the data may become late if they shift it
+                  // backwards in time.
                   assertThat(
+                      "Reshuffle may not move elements forwards in time",
                       afterReshuffleTimestamp,
                       not(Matchers.<ReadableInstant>greaterThan(originalTimestamp)));
                 }
