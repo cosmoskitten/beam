@@ -197,11 +197,16 @@ import org.slf4j.LoggerFactory;
  * fields.add(new TableFieldSchema().setName("quote").setType("STRING"));
  * TableSchema schema = new TableSchema().setFields(fields);
  *
- * quotes.apply(BigQueryIO.Write
+ * quotes.apply(BigQueryIO.writeTableRows()
  *     .to("my-project:output.output_table")
  *     .withSchema(schema)
  *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
  * }</pre>
+ *
+ * <p>>BigQueryIO.Write can also take in a user-defined type, as long as a function is provided to
+ * turn
+ * this type into a {@link TableRow} using
+ * {@link BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
  *
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
@@ -515,10 +520,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this transform that reads from the specified table. Refer to
-     * {@link #parseTableSpec(String)} for the specification format.
-     *
-     * <p>Does not modify this object.
+     * Same as {@code from(String)}, but with a {@link ValueProvider}.
      */
     public Read from(ValueProvider<String> tableSpec) {
       ensureFromNotCalledYet();
@@ -530,26 +532,14 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this transform that reads from the specified table.
-     *
-     * <p>Does not modify this object.
+     * Reads results received after executing the given query.
      */
     public Read fromQuery(String query) {
       return fromQuery(StaticValueProvider.of(query));
     }
 
     /**
-     * Returns a copy of this transform that reads the results of the specified query.
-     *
-     * <p>Does not modify this object.
-     *
-     * <p>By default, the query results will be flattened -- see
-     * "flattenResults" in the <a href="https://cloud.google.com/bigquery/docs/reference/v2/jobs">
-     * Jobs documentation</a> for more information.  To disable flattening, use
-     * {@link BigQueryIO.Read#withoutResultFlattening}.
-     *
-     * <p>By default, the query will use BigQuery's legacy SQL dialect. To use the BigQuery
-     * Standard SQL dialect, use {@link BigQueryIO.Read#usingStandardSql}.
+     * Same as {@code fromQuery(String)}, but with a {@link ValueProvider}.
      */
     public Read fromQuery(ValueProvider<String> query) {
       ensureFromNotCalledYet();
@@ -1376,7 +1366,7 @@ public class BigQueryIO {
   /**
    * A {@link PTransform} that writes a {@link PCollection} containing objects of type {@code T}
    * to a BigQuery table. A formatting function must be provided to turn {@code T} into a
-   * {@link TableRow}.
+   * {@link TableRow} using {@link Write#withFormatFunction(SerializableFunction)}.
    *
    * <p>In BigQuery, each table has an encosing dataset. The dataset being written must already
    * exist.
@@ -1541,11 +1531,7 @@ public class BigQueryIO {
           getJsonTableRef() == null && getTable() == null, "to() already called");
     }
 
-    /**
-     * @deprecated Should be private. Instead, use one of the factory methods in
-     * {@link BigQueryIO.Write}, such as {@link BigQueryIO.Write#to(String)}, to create an
-     * instance of this class.
-     */
+    /** Creates a write transformation for the given table. */
     public Write<T> to(String tableSpec) {
       return to(StaticValueProvider.of(tableSpec));
     }
@@ -1567,8 +1553,9 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this write transformation, but writing to the specified table. Refer to
-     * {@link #parseTableSpec(String)} for the specification format.
+     * Returns a copy of this write transformation, but with the specified table function. The
+     * table is a function of {@link ValueInSingleWindow}, so can be determined by the value or
+     * by the window.
      *
      * <p>Does not modify this object.
      */
@@ -1577,7 +1564,9 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this write transformation, but writing to the specified table.
+     * Returns a copy of this write transformation, but with the specified table function. The
+     * table is a function of {@link ValueInSingleWindow}, so can be determined by the value or
+     * by the window.
      *
      * <p>Does not modify this object.
      */
@@ -1622,13 +1611,10 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this write transformation, but using the specified function to determine
-     * which table to write to for each window.
+     * Returns a copy of this write transformation, but using the specified schema for rows
+     * to be written.
      *
      * <p>Does not modify this object.
-     *
-     * <p>{@code tableRefFunction} should be deterministic. When given the same window value, it
-     * should always return the same table reference.
      */
     public Write<T> withSchema(ValueProvider<TableSchema> schema) {
       return toBuilder()
@@ -1711,7 +1697,8 @@ public class BigQueryIO {
               + " transform");
 
       checkArgument(getFormatFunction() != null,
-                    "A function must be provided to convert type into a TableRow");
+                    "A function must be provided to convert type into a TableRow. "
+      + "use BigQueryIO.Write.withFormatFunction to provide a formatting function.");
 
       // Require a schema if creating one or more tables.
       checkArgument(
