@@ -84,7 +84,7 @@ public class TFRecordIO {
      * <p>If no compression type is specified, the default is
      * {@link TFRecordIO.CompressionType#AUTO}.
      * In this mode, the compression type of the file is determined by its extension
-     * (e.g., {@code *.gz} is gzipped, {@code *.deflate} is deflate compressed, and all other
+     * (e.g., {@code *.gz} is gzipped, {@code *.zlib} is zlib compressed, and all other
      * extensions are uncompressed).
      */
     public static Bound withCompressionType(TFRecordIO.CompressionType compressionType) {
@@ -207,7 +207,7 @@ public class TFRecordIO {
             return
                 CompressedSource.from(new TFRecordSource(filepattern))
                     .withDecompression(CompressedSource.CompressionMode.GZIP);
-          case DEFLATE:
+          case ZLIB:
             return
                 CompressedSource.from(new TFRecordSource(filepattern))
                     .withDecompression(CompressedSource.CompressionMode.DEFLATE);
@@ -595,9 +595,9 @@ public class TFRecordIO {
      */
     GZIP(".gz"),
     /**
-     * Deflate compressed.
+     * ZLIB compressed.
      */
-    DEFLATE(".deflate");
+    ZLIB(".zlib");
 
     private String filenameSuffix;
 
@@ -758,7 +758,7 @@ public class TFRecordIO {
           return CompressionType.UNCOMPRESSED;
         case GZIP:
           return CompressionType.GZIP;
-        case DEFLATE:
+        case ZLIB:
           return CompressionType.DEFLATE;
       }
       return CompressionType.UNCOMPRESSED;
