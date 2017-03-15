@@ -202,9 +202,8 @@ public class CombinePerKeyExamples {
 
     p.apply(BigQueryIO.read().from(options.getInput()))
      .apply(new PlaysForWord())
-     .apply(BigQueryIO.<TableRow>write()
+     .apply(BigQueryIO.writeTableRows()
         .to(options.getOutput())
-        .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
         .withSchema(schema)
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));

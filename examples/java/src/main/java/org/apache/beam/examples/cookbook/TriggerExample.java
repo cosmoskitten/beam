@@ -452,9 +452,8 @@ public class TriggerExample {
         .apply(new CalculateTotalFlow(options.getWindowDuration()));
 
     for (int i = 0; i < resultList.size(); i++){
-      resultList.get(i).apply(BigQueryIO.<TableRow>write()
+      resultList.get(i).apply(BigQueryIO.writeTableRows()
           .to(tableRef)
-          .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
           .withSchema(getSchema()));
     }
 
