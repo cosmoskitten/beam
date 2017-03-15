@@ -359,7 +359,8 @@ public class TrafficRoutes {
             Duration.standardMinutes(options.getWindowDuration())).
             every(Duration.standardMinutes(options.getWindowSlideEvery()))))
         .apply(new TrackSpeed())
-        .apply(BigQueryIO.write().to(tableRef)
+        .apply(BigQueryIO.<TableRow>write().to(tableRef)
+            .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
             .withSchema(FormatStatsFn.getSchema()));
 
     // Run the pipeline.

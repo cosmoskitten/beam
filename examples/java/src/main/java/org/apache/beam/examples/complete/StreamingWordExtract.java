@@ -136,7 +136,8 @@ public class StreamingWordExtract {
         .apply(ParDo.of(new ExtractWords()))
         .apply(ParDo.of(new Uppercase()))
         .apply(ParDo.of(new StringToRowConverter()))
-        .apply(BigQueryIO.write().to(tableSpec)
+        .apply(BigQueryIO.<TableRow>write().to(tableSpec)
+            .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
             .withSchema(StringToRowConverter.getSchema()));
 
     PipelineResult result = pipeline.run();

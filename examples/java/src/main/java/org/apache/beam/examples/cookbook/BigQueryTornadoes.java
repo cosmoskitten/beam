@@ -158,11 +158,12 @@ public class BigQueryTornadoes {
 
     p.apply(BigQueryIO.read().from(options.getInput()))
      .apply(new CountTornadoes())
-     .apply(BigQueryIO.write()
-        .to(options.getOutput())
-        .withSchema(schema)
-        .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+     .apply(BigQueryIO.<TableRow>write()
+         .to(options.getOutput())
+         .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
+         .withSchema(schema)
+         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
   }
