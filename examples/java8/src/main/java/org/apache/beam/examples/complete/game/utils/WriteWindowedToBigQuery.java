@@ -60,9 +60,8 @@ public class WriteWindowedToBigQuery<T>
   public PDone expand(PCollection<T> teamAndScore) {
     return teamAndScore
       .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
-      .apply(BigQueryIO.<TableRow>write()
+      .apply(BigQueryIO.writeTableRows()
                 .to(getTable(teamAndScore.getPipeline(), tableName))
-                .withFormatFunction(BigQueryIO.IDENTITY_FORMATTER)
                 .withSchema(getSchema())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(WriteDisposition.WRITE_APPEND));
