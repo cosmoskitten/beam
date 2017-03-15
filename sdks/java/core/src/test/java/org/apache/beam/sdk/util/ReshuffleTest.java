@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -36,13 +35,17 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -107,33 +110,40 @@ public class ReshuffleTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testReshuffleDoesNotMoveTimestampsForwards() {
-    PCollection<KV<String, Instant>> input =
+    PCollection<KV<String, TimestampedValue<String>>> input =
         pipeline
             .apply(
                 Create.timestamped(
                         TimestampedValue.of("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
                         TimestampedValue.of("foo", new Instant(0)),
                         TimestampedValue.of("bar", new Instant(33)),
-                        TimestampedValue.of("bar", BoundedWindow.TIMESTAMP_MAX_VALUE))
+                        TimestampedValue.of("bar", GlobalWindow.INSTANCE.maxTimestamp()))
                     .withCoder(StringUtf8Coder.of()))
             .apply("PairWithOriginalTimestamp", ParDo.of(new PairWithTimestampFn<String>()))
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), InstantCoder.of()));
+            .setCoder(TimestampedValueCoder.of(StringUtf8Coder.of()))
+        .apply(WithKeys.of(new SerializableFunction<TimestampedValue<String>, String>() {
+          @Override
+          public String apply(TimestampedValue<String> input) {
+            return input.getValue();
+          }
+        }));
 
-    PCollection<KV<KV<String, Instant>, Instant>> output =
+    PCollection<TimestampedValue<TimestampedValue<String>>> output =
         input
-            .apply(Reshuffle.<String, Instant>of())
+            .apply(Reshuffle.<String, TimestampedValue<String>>of())
+            .apply(Values.<TimestampedValue<String>>create())
             .apply(
                 "PairWithReshuffledTimestamp",
-                ParDo.of(new PairWithTimestampFn<KV<String, Instant>>()));
+                ParDo.of(new PairWithTimestampFn<TimestampedValue<String>>()));
 
     PAssert.that(output)
         .satisfies(
-            new SerializableFunction<Iterable<KV<KV<String, Instant>, Instant>>, Void>() {
+            new SerializableFunction<Iterable<TimestampedValue<TimestampedValue<String>>>, Void>() {
               @Override
-              public Void apply(Iterable<KV<KV<String, Instant>, Instant>> input) {
-                for (KV<KV<String, Instant>, Instant> elem : input) {
-                  Instant originalTimestamp = elem.getKey().getValue();
-                  Instant afterReshuffleTimestamp = elem.getValue();
+              public Void apply(Iterable<TimestampedValue<TimestampedValue<String>>> input) {
+                for (TimestampedValue<TimestampedValue<String>> elem : input) {
+                  Instant originalTimestamp = elem.getValue().getTimestamp();
+                  Instant afterReshuffleTimestamp = elem.getTimestamp();
                   assertThat(
                       afterReshuffleTimestamp,
                       not(Matchers.<ReadableInstant>greaterThan(originalTimestamp)));
@@ -145,10 +155,10 @@ public class ReshuffleTest implements Serializable {
     pipeline.run();
   }
 
-  private static class PairWithTimestampFn<T> extends DoFn<T, KV<T, Instant>> {
+  private static class PairWithTimestampFn<T> extends DoFn<T, TimestampedValue<T>> {
     @ProcessElement
     public void pairWithTimestamp(ProcessContext ctxt) {
-      ctxt.output(KV.of(ctxt.element(), ctxt.timestamp()));
+      ctxt.output(TimestampedValue.of(ctxt.element(), ctxt.timestamp()));
     }
   };
 
