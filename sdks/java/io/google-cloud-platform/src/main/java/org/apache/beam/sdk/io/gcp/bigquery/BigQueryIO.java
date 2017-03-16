@@ -188,7 +188,11 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing</h3>
  *
  * <p>To write to a BigQuery table, apply a {@link BigQueryIO.Write} transformation.
- * This consumes a {@link PCollection} of {@link TableRow TableRows} as input.
+ * This consumes either a {@link PCollection} of {@link TableRow TableRows} as input when using
+ * {@link BigQueryIO#writeTableRows()} or of a user-defined type when using
+ * {@link BigQueryIO#write()}. When using a user-defined type, a function must be provided to
+ * turn this type into a {@link TableRow} using
+ * {@link BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
  * <pre>{@code
  * PCollection<TableRow> quotes = ...
  *
@@ -202,10 +206,6 @@ import org.slf4j.LoggerFactory;
  *     .withSchema(schema)
  *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
  * }</pre>
- *
- * <p>BigQueryIO.Write can also take in a user-defined type, as long as a function is provided to
- * turn this type into a {@link TableRow} using
- * {@link BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
  *
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
@@ -554,7 +554,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Like {@link #fromQuery(String)}, but from a {@link ValueProvider}.
+     * Read from table specified by a {@link TableReference}.
      */
     public Read from(TableReference table) {
       return from(StaticValueProvider.of(toTableSpec(table)));
@@ -1371,9 +1371,9 @@ public class BigQueryIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@link PTransform} that writes a {@link PCollection} containing objects of type {@code T}
-   * to a BigQuery table. A formatting function must be provided to turn {@code T} into a
-   * {@link TableRow} using {@link Write#withFormatFunction(SerializableFunction)}.
+   * A {@link PTransform} that writes a {@link PCollection} to a BigQuery table. A formatting
+   * function must be provided to convert each input element into a {@link TableRow} using
+   * {@link Write#withFormatFunction(SerializableFunction)}.
    *
    * <p>In BigQuery, each table has an encosing dataset. The dataset being written must already
    * exist.
@@ -1562,22 +1562,16 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this write transformation, but with the specified table function. The
-     * table is a function of {@link ValueInSingleWindow}, so can be determined by the value or
-     * by the window.
-     *
-     * <p>Does not modify this object.
+     * Writes to table specified by the specified table function. The table is a function of
+     * {@link ValueInSingleWindow}, so can be determined by the value or by the window.
      */
     public Write<T> to(SerializableFunction<ValueInSingleWindow<T>, String> tableSpecFunction) {
       return toTableReference(new TranslateTableSpecFunction<T>(tableSpecFunction));
     }
 
     /**
-     * Returns a copy of this write transformation, but with the specified table function. The
-     * table is a function of {@link ValueInSingleWindow}, so can be determined by the value or
-     * by the window.
-     *
-     * <p>Does not modify this object.
+     * Like {@link BigQueryIO.Write#to(SerializableFunction)}, but the function returns a
+     * {@link TableReference} instead of a string table specification.
      */
     private Write<T> toTableReference(
         SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction) {
@@ -1621,10 +1615,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this write transformation, but using the specified schema for rows
-     * to be written.
-     *
-     * <p>Does not modify this object.
+     * Use the specified schema for rows to be written.
      */
     public Write<T> withSchema(ValueProvider<TableSchema> schema) {
       return toBuilder()
@@ -1796,13 +1787,21 @@ public class BigQueryIO {
               }))
           .apply(View.<String>asSingleton());
 
-      PCollection<TableRow> inputInGlobalWindow =
+      PCollection<T> typedInputInGlobalWindow =
           input.apply(
               Window.<T>into(new GlobalWindows())
                   .triggering(DefaultTrigger.of())
-                  .discardingFiredPanes())
-              .apply(MapElements.via(getFormatFunction())
-                  .withOutputType(new TypeDescriptor<TableRow>(){}));
+                  .discardingFiredPanes());
+      // Avoid applying the formatFunction if it is the identity formatter.
+      PCollection<TableRow> inputInGlobalWindow;
+      if (getFormatFunction() == IDENTITY_FORMATTER) {
+        inputInGlobalWindow = (PCollection<TableRow>) typedInputInGlobalWindow;
+      } else {
+        inputInGlobalWindow = typedInputInGlobalWindow
+            .apply(MapElements.via(getFormatFunction())
+                .withOutputType(new TypeDescriptor<TableRow>() {
+                }));
+      }
 
       // PCollection of filename, file byte size.
       PCollection<KV<String, Long>> results = inputInGlobalWindow
