@@ -204,8 +204,7 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>BigQueryIO.Write can also take in a user-defined type, as long as a function is provided to
- * turn
- * this type into a {@link TableRow} using
+ * turn this type into a {@link TableRow} using
  * {@link BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
  *
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
@@ -2818,12 +2817,12 @@ public class BigQueryIO {
       // BigQuery built-in best effort de-dup mechanism.
 
       // To use this mechanism, each input TableRow is tagged with a generated
-      // unique id, which is then passed to BigQuery and usedTableRowInfo to ignore duplicates.
+      // unique id, which is then passed to BigQuery and used to ignore duplicates.
 
-      PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged = input.apply(ParDo.of(
-          new TagWithUniqueIdsAndTable<T>(input.getPipeline().getOptions().as(
-              BigQueryOptions.class), write.getTable(), write.getTableRefFunction(),
-              write.getFormatFunction())));
+      PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged =
+          input.apply(ParDo.of(new TagWithUniqueIdsAndTable<T>(
+              input.getPipeline().getOptions().as(BigQueryOptions.class), write.getTable(),
+              write.getTableRefFunction(), write.getFormatFunction())));
 
       // To prevent having the same TableRow processed more than once with regenerated
       // different unique ids, this implementation relies on "checkpointing", which is
