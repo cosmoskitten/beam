@@ -99,12 +99,12 @@ public class ReshuffleTest implements Serializable {
   }
 
   /**
-   * Tests that timestamps are not moved forwards in time after applying a {@link Reshuffle} with
-   * the default {@link WindowingStrategy}.
+   * Tests that timestamps are preserved after applying a {@link Reshuffle} with the default
+   * {@link WindowingStrategy}.
    */
   @Test
   @Category(RunnableOnService.class)
-  public void testReshuffleDoesNotMoveTimestampsForwards() {
+  public void testReshufflePreservesTimestamps() {
     PCollection<KV<String, TimestampedValue<String>>> input =
         pipeline
             .apply(
@@ -124,6 +124,8 @@ public class ReshuffleTest implements Serializable {
                     }))
             .apply(ReifyTimestamps.<String, String>inValues());
 
+    // The outer TimestampedValue is the reified timestamp post-reshuffle. The inner
+    // TimestampedValue is the pre-reshuffle timestamp.
     PCollection<TimestampedValue<TimestampedValue<String>>> output =
         input
             .apply(Reshuffle.<String, TimestampedValue<String>>of())
@@ -139,7 +141,7 @@ public class ReshuffleTest implements Serializable {
                   Instant originalTimestamp = elem.getValue().getTimestamp();
                   Instant afterReshuffleTimestamp = elem.getTimestamp();
                   assertThat(
-                      "Reshuffle may not reassign element timestamps",
+                      "Reshuffle must preserve element timestamps",
                       afterReshuffleTimestamp,
                       equalTo(originalTimestamp));
                 }

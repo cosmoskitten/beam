@@ -33,12 +33,13 @@ public class ReifyTimestamps {
   private ReifyTimestamps() {}
 
   /**
-   * Create a {@link PTransform} that will output all input {@link KV KVs} with the timestamp
-   * inside the value.
+   * Create a {@link PTransform} that will output all input {@link KV KVs} with the timestamp inside
+   * the value.
    */
   public static <K, V>
-      PTransform<PCollection<KV<K, V>>, PCollection<KV<K, TimestampedValue<V>>>> inValues() {
-    return new ReifyValueTimestamps<>();
+      PTransform<PCollection<? extends KV<K, V>>, PCollection<KV<K, TimestampedValue<V>>>>
+          inValues() {
+    return ParDo.of(new ReifyValueTimestampDoFn<K, V>());
   }
 
   /**
@@ -47,17 +48,9 @@ public class ReifyTimestamps {
    * {@link TimestampedValue}.
    */
   public static <K, V>
-      PTransform<PCollection<KV<K, TimestampedValue<V>>>, PCollection<KV<K, V>>>
+      PTransform<PCollection<? extends KV<K, TimestampedValue<V>>>, PCollection<KV<K, V>>>
           extractFromValues() {
-    return new ExtractTimestampedValue<>();
-  }
-
-  private static class ReifyValueTimestamps<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, TimestampedValue<V>>>> {
-    @Override
-    public PCollection<KV<K, TimestampedValue<V>>> expand(PCollection<KV<K, V>> input) {
-      return input.apply(ParDo.of(new ReifyValueTimestampDoFn<K, V>()));
-    }
+    return ParDo.of(new ExtractTimestampedValueDoFn<K, V>());
   }
 
   private static class ReifyValueTimestampDoFn<K, V>
@@ -68,14 +61,6 @@ public class ReifyTimestamps {
           KV.of(
               context.element().getKey(),
               TimestampedValue.of(context.element().getValue(), context.timestamp())));
-    }
-  }
-
-  private static class ExtractTimestampedValue<K, V>
-      extends PTransform<PCollection<KV<K, TimestampedValue<V>>>, PCollection<KV<K, V>>> {
-    @Override
-    public PCollection<KV<K, V>> expand(PCollection<KV<K, TimestampedValue<V>>> input) {
-      return input.apply(ParDo.of(new ExtractTimestampedValueDoFn<K, V>()));
     }
   }
 
