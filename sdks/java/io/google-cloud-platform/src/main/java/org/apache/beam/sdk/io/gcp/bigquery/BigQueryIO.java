@@ -1546,12 +1546,12 @@ public class BigQueryIO {
     }
 
     /** Writes to the given table, specified as a {@link TableReference}. */
-    public Write to(TableReference table) {
+    public Write<T> to(TableReference table) {
       return to(StaticValueProvider.of(toTableSpec(table)));
     }
 
     /** Same as {@link #to(String)}, but with a {@link ValueProvider}. */
-    public Write to(ValueProvider<String> tableSpec) {
+    public Write<T> to(ValueProvider<String> tableSpec) {
       ensureToNotCalledYet();
       return toBuilder()
           .setJsonTableRef(
@@ -1633,22 +1633,22 @@ public class BigQueryIO {
     }
 
     /** Specifies whether the table should be created if it does not exist. */
-    public Write withCreateDisposition(CreateDisposition createDisposition) {
+    public Write<T> withCreateDisposition(CreateDisposition createDisposition) {
       return toBuilder().setCreateDisposition(createDisposition).build();
     }
 
     /** Specifies what to do with existing data in the table, in case the table already exists. */
-    public Write withWriteDisposition(WriteDisposition writeDisposition) {
+    public Write<T> withWriteDisposition(WriteDisposition writeDisposition) {
       return toBuilder().setWriteDisposition(writeDisposition).build();
     }
 
     /** Specifies the table description. */
-    public Write withTableDescription(String tableDescription) {
+    public Write<T> withTableDescription(String tableDescription) {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
     /** Disables BigQuery table validation. */
-    public Write withoutValidation() {
+    public Write<T> withoutValidation() {
       return toBuilder().setValidate(false).build();
     }
 
