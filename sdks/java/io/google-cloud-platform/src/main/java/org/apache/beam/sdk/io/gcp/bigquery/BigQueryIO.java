@@ -188,7 +188,11 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing</h3>
  *
  * <p>To write to a BigQuery table, apply a {@link BigQueryIO.Write} transformation.
- * This consumes a {@link PCollection} of {@link TableRow TableRows} as input.
+ * This consumes either a {@link PCollection} of {@link TableRow TableRows} as input when using
+ * {@link BigQueryIO#writeTableRows()} or of a user-defined type when using
+ * {@link BigQueryIO#write()}. When using a user-defined type, a function must be provided to
+ * turn this type into a {@link TableRow} using
+ * {@link BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
  * <pre>{@code
  * PCollection<TableRow> quotes = ...
  *
@@ -202,10 +206,6 @@ import org.slf4j.LoggerFactory;
  *     .withSchema(schema)
  *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
  * }</pre>
- *
- * <p>BigQueryIO.Write can also take in a user-defined type, as long as a function is provided to
- * turn this type into a {@link TableRow} using
- * {@link BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
  *
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
@@ -1371,9 +1371,9 @@ public class BigQueryIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@link PTransform} that writes a {@link PCollection} containing objects of type {@code T}
-   * to a BigQuery table. A formatting function must be provided to turn {@code T} into a
-   * {@link TableRow} using {@link Write#withFormatFunction(SerializableFunction)}.
+   * A {@link PTransform} that writes a {@link PCollection} to a BigQuery table. A formatting
+   * function must be provided to convert each input element into a {@link TableRow} using
+   * {@link Write#withFormatFunction(SerializableFunction)}.
    *
    * <p>In BigQuery, each table has an encosing dataset. The dataset being written must already
    * exist.
@@ -1796,13 +1796,21 @@ public class BigQueryIO {
               }))
           .apply(View.<String>asSingleton());
 
-      PCollection<TableRow> inputInGlobalWindow =
+      PCollection<T> typedInputInGlobalWindow =
           input.apply(
               Window.<T>into(new GlobalWindows())
                   .triggering(DefaultTrigger.of())
-                  .discardingFiredPanes())
-              .apply(MapElements.via(getFormatFunction())
-                  .withOutputType(new TypeDescriptor<TableRow>(){}));
+                  .discardingFiredPanes());
+      // Avoid applying the formatFunction if it is the identity formatter.
+      PCollection<TableRow> inputInGlobalWindow;
+      if (getFormatFunction() == IDENTITY_FORMATTER) {
+        inputInGlobalWindow = (PCollection<TableRow>) typedInputInGlobalWindow;
+      } else {
+        inputInGlobalWindow = typedInputInGlobalWindow
+            .apply(MapElements.via(getFormatFunction())
+                .withOutputType(new TypeDescriptor<TableRow>() {
+                }));
+      }
 
       // PCollection of filename, file byte size.
       PCollection<KV<String, Long>> results = inputInGlobalWindow
