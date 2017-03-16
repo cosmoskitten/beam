@@ -19,6 +19,7 @@ package org.apache.beam.examples.complete.game.utils;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Map;
+
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
