@@ -93,7 +93,7 @@ public class HIFIOCassandraIT implements Serializable {
   @Test
   public void testHIFReadForCassandra() {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
-    String expectedHashCode = "a26b01ae5fe64cce653624df8f6ff761bc87c23a";
+    String expectedHashCode = "ecf1fcd8c3b2b3ef72af29291cd93c0495e4efef";
     Long expectedRecordsCount = 1000L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
@@ -135,9 +135,10 @@ public class HIFIOCassandraIT implements Serializable {
     Configuration conf = getConfiguration(options);
     conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
         + " where token(y_id) > ? and token(y_id) <= ? "
-        + "and y_id='user3117720508089767496' allow filtering");
-    PCollection<KV<Long, String>> cassandraData = pipeline.apply(HadoopInputFormatIO
-        .<Long, String>read().withConfiguration(conf).withValueTranslation(myValueTranslate));
+        + "and y_id='user1820151046732198393' allow filtering");
+    PCollection<KV<Long, String>> cassandraData =
+        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
+            .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(expectedNumRows);
     PCollection<String> textValues = cassandraData.apply(Values.<String>create());
