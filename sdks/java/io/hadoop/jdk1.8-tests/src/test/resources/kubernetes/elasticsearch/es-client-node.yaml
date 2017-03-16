@@ -13,8 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-# Kubernetes service file for Elasticsearch client nodes. Client nodes are responsible for 
-# processing HTTP requests, perform gather processing etc.
+# Kubernetes deployment script for Elasticsearch client nodes (aka load balancing proxies). 
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
