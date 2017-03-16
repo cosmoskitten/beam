@@ -22,9 +22,12 @@ import com.google.common.base.Objects;
 import java.util.Set;
 
 /**
- * Created by pabloem on 3/14/17.
+ * Implements matching for metrics filters. Specifically, matching for metric name,
+ * namespace, and step name.
  */
 public class MetricFiltering {
+
+  private MetricFiltering() { }
 
   /** Matching logic is implemented here rather than in MetricsFilter because we would like
    *  MetricsFilter to act as a "dumb" value-object, with the possibility of replacing it with

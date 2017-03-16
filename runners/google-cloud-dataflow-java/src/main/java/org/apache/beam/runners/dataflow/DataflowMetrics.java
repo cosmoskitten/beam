@@ -37,7 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of {@link MetricResults} for the Direct Runner.
+ * Implementation of {@link MetricResults} for the Dataflow Runner.
  */
 class DataflowMetrics extends MetricResults {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowMetrics.class);
@@ -70,8 +70,7 @@ class DataflowMetrics extends MetricResults {
 
   /**
    * Build an immutable map that serves as a hash key for a metric update.
-   * @param metricUpdate
-   * @return
+   * @return a {@link MetricKey} that can be hashed and used to identify a metric.
    */
   private MetricKey metricHashKey(
       com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
@@ -89,7 +88,6 @@ class DataflowMetrics extends MetricResults {
   /**
    * Check whether a {@link com.google.api.services.dataflow.model.MetricUpdate} is a tentative
    * update or not.
-   * @param metricUpdate
    * @return true if update is tentative, false otherwise
    */
   private boolean isMetricTentative(
