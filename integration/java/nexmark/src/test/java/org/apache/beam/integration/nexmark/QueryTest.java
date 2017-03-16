@@ -40,6 +40,7 @@ public class QueryTest {
   public TestPipeline p = TestPipeline.create();
 
   static {
+    //careful, results of tests are linked to numEvents value
     CONFIG.numEvents = 100;
   }
 
