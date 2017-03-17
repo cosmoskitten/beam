@@ -60,7 +60,7 @@ import org.junit.runners.JUnit4;
  * </pre>
  *
  * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
- * and spark in the jdbc pom. You'll want to activate those in addition to the normal test runner
+ * and spark in the jdk1.8-tests pom. You'll want to activate those in addition to the normal test runner
  * invocation pipeline options.
  */
 

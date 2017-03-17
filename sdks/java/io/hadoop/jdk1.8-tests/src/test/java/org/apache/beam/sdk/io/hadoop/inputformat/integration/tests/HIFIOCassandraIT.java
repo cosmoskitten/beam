@@ -117,10 +117,7 @@ public class HIFIOCassandraIT implements Serializable {
           + input.getString("field3") + "|" + input.getString("field4") + "|"
           + input.getString("field5") + "|" + input.getString("field6") + "|"
           + input.getString("field7") + "|" + input.getString("field8") + "|"
-          + input.getString("field9") + "|" + input.getString("field10") + "|"
-          + input.getString("field11") + "|" + input.getString("field12") + "|"
-          + input.getString("field13") + "|" + input.getString("field14") + "|"
-          + input.getString("field15") + "|" + input.getString("field16");
+          + input.getString("field9");
     }
   };
   /**
