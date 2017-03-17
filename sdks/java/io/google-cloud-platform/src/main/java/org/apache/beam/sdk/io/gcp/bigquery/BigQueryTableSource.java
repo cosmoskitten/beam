@@ -55,14 +55,16 @@ class BigQueryTableSource extends BigQuerySourceBase {
   public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     checkState(jsonTable.isAccessible());
-    TableReference tableRef = BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
+    TableReference tableRef = BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(),
+        TableReference.class);
     return new BigQueryReader(this, bqServices.getReaderFromTable(bqOptions, tableRef));
   }
 
   @Override
   public synchronized long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     if (tableSizeBytes.get() == null) {
-      TableReference table = BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
+      TableReference table = BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(),
+          TableReference.class);
 
       Long numBytes = bqServices.getDatasetService(options.as(BigQueryOptions.class))
           .getTable(table).getNumBytes();
