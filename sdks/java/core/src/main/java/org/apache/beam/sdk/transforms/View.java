@@ -339,9 +339,12 @@ public class View {
 
     @Override
     public PCollectionView<T> expand(PCollection<T> input) {
-      return input.apply(
-          Combine.globally(new SingletonCombineFn<T>(hasDefault, input.getCoder(), defaultValue))
-              .asSingletonView());
+      Combine.Globally<T, T> singletonCombine =
+          Combine.globally(new SingletonCombineFn<>(hasDefault, input.getCoder(), defaultValue));
+      if (!hasDefault) {
+        singletonCombine = singletonCombine.withoutDefaults();
+      }
+      return input.apply(singletonCombine.asSingletonView());
     }
   }
 
