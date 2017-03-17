@@ -18,18 +18,24 @@
 package org.apache.beam.sdk;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Multiset;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -42,12 +48,17 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TupleTag;
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -289,5 +300,95 @@ public class PipelineTest {
   @Category(NeedsRunner.class)
   public void testEmptyPipeline() throws Exception {
     pipeline.run();
+  }
+
+  @Test
+  public void testTraverseTopologically() {
+    final PTransform<PBegin, PCollection<Long>> rootPrimitive =
+        new PTransform<PBegin, PCollection<Long>>() {
+          @Override
+          public PCollection<Long> expand(PBegin input) {
+            return PCollection.createPrimitiveOutputInternal(
+                input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED);
+          }
+        };
+    PTransform<PBegin, PCollection<Long>> rootComposite =
+        new PTransform<PBegin, PCollection<Long>>() {
+          @Override
+          public PCollection<Long> expand(PBegin input) {
+            return input.apply(rootPrimitive);
+          }
+        };
+    final PTransform<PCollectionList<Long>, PCollection<Long>> intermediatePrimtive =
+        new PTransform<PCollectionList<Long>, PCollection<Long>>() {
+          @Override
+          public PCollection<Long> expand(PCollectionList<Long> input) {
+            return PCollection.createPrimitiveOutputInternal(
+                input.getPipeline(), input.get(0).getWindowingStrategy(), input.get(0).isBounded());
+          }
+        };
+    final TupleTag<Long> tag = new TupleTag<>();
+    final TupleTag<Long> otherTag = new TupleTag<>();
+    final PTransform<PCollectionTuple, PCollectionList<Long>> nestedIntermediateComposite =
+        new PTransform<PCollectionTuple, PCollectionList<Long>>() {
+          @Override
+          public PCollectionList<Long> expand(PCollectionTuple input) {
+            return PCollectionList.of(input.get(tag)).and(input.get(otherTag));
+          }
+        };
+    PTransform<PCollectionTuple, PCollection<Long>> intermediateComposite =
+        new PTransform<PCollectionTuple, PCollection<Long>>() {
+          @Override
+          public PCollection<Long> expand(PCollectionTuple input) {
+            return input.apply(nestedIntermediateComposite).apply(intermediatePrimtive);
+          }
+        };
+    PTransform<PCollection<Long>, PDone> emptySink =
+        new PTransform<PCollection<Long>, PDone>() {
+          @Override
+          public PDone expand(PCollection<Long> input) {
+            return PDone.in(input.getPipeline());
+          }
+        };
+
+    PCollection<Long> firstRoot = pipeline.apply(rootComposite);
+    PCollection<Long> other = pipeline.apply(rootPrimitive);
+    PCollectionTuple tuple = PCollectionTuple.of(tag, firstRoot).and(otherTag, other);
+    tuple.apply(intermediateComposite).apply(emptySink);
+
+    final Multiset<PTransform<?, ?>> visitedComposites = HashMultiset.create();
+    final Multiset<PTransform<?, ?>> leftComposites = HashMultiset.create();
+    final Multiset<PTransform<?, ?>> visitedPrimitives = HashMultiset.create();
+    pipeline.traverseTopologically(new PipelineVisitor.Defaults() {
+      @Override
+      public CompositeBehavior enterCompositeTransform(Node node) {
+        if (!node.isRootNode()) {
+          visitedComposites.add(node.getTransform());
+        }
+        return CompositeBehavior.ENTER_TRANSFORM;
+      }
+
+      @Override
+      public void leaveCompositeTransform(Node node) {
+        if (!node.isRootNode()) {
+          leftComposites.add(node.getTransform());
+        }
+      }
+
+      @Override
+      public void visitPrimitiveTransform(Node node) {
+        visitedPrimitives.add(node.getTransform());
+      }
+    });
+
+    assertThat(visitedComposites, equalTo(leftComposites));
+    assertThat(
+        visitedComposites,
+        Matchers.<PTransform<?, ?>>containsInAnyOrder(
+            rootComposite, nestedIntermediateComposite, intermediateComposite, emptySink));
+    assertThat(
+        visitedPrimitives,
+        Matchers.<PTransform<?, ?>>containsInAnyOrder(
+            rootPrimitive, rootPrimitive, intermediatePrimtive));
   }
 }
