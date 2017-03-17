@@ -101,9 +101,8 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
-import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.TableRowWriter;
@@ -113,6 +112,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteRename;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteTables;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -2282,9 +2282,12 @@ public class BigQueryIOTest implements Serializable {
     String datasetId = "somedataset";
     List<String> tables = Lists.newArrayList("table1", "table2", "table3");
     List<TableReference> tableRefs = Lists.newArrayList(
-        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(0))),
-        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(1))),
-        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(2))));
+        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId,
+            tables.get(0))),
+        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId,
+            tables.get(1))),
+        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId,
+            tables.get(2))));
 
     doThrow(new IOException("Unable to delete table"))
         .when(mockDatasetService).deleteTable(tableRefs.get(0));

@@ -864,7 +864,8 @@ public class BigQueryIO {
     }
 
     /**
-     * Writes to the given table, specified in the format described in {@link BigQueryHelpers#parseTableSpec}.
+     * Writes to the given table, specified in the format described in
+     * {@link BigQueryHelpers#parseTableSpec}.
      */
     public Write<T> to(String tableSpec) {
       return to(StaticValueProvider.of(tableSpec));
@@ -1454,7 +1455,8 @@ public class BigQueryIO {
         List<String> partition = Lists.newArrayList(c.element().getValue()).get(0);
         String jobIdPrefix = String.format(
             c.sideInput(jobIdToken) + "_%05d", c.element().getKey());
-        TableReference ref = BigQueryHelpers.fromJsonString(jsonTableRef.get(), TableReference.class);
+        TableReference ref = BigQueryHelpers.fromJsonString(jsonTableRef.get(),
+            TableReference.class);
         if (!singlePartition) {
           ref.setTableId(jobIdPrefix);
         }
@@ -1511,7 +1513,8 @@ public class BigQueryIO {
               return;
             case UNKNOWN:
               throw new RuntimeException(String.format(
-                  "UNKNOWN status of load job [%s]: %s.", jobId, BigQueryHelpers.jobToPrettyString(loadJob)));
+                  "UNKNOWN status of load job [%s]: %s.", jobId,
+                  BigQueryHelpers.jobToPrettyString(loadJob)));
             case FAILED:
               lastFailedLoadJob = loadJob;
               continue;
@@ -1657,7 +1660,8 @@ public class BigQueryIO {
               return;
             case UNKNOWN:
               throw new RuntimeException(String.format(
-                  "UNKNOWN status of copy job [%s]: %s.", jobId, BigQueryHelpers.jobToPrettyString(copyJob)));
+                  "UNKNOWN status of copy job [%s]: %s.", jobId,
+                  BigQueryHelpers.jobToPrettyString(copyJob)));
             case FAILED:
               lastFailedCopyJob = copyJob;
               continue;
@@ -1729,7 +1733,8 @@ public class BigQueryIO {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
         throw new IllegalArgumentException(
-            String.format(RESOURCE_NOT_FOUND_ERROR, "table", BigQueryHelpers.toTableSpec(table)), e);
+            String.format(RESOURCE_NOT_FOUND_ERROR, "table", BigQueryHelpers.toTableSpec(table)),
+            e);
       } else if (e instanceof  RuntimeException) {
         throw (RuntimeException) e;
       } else {
@@ -1811,7 +1816,8 @@ public class BigQueryIO {
     public void processElement(ProcessContext context) {
       String tableSpec = context.element().getKey().getKey();
       List<TableRow> rows = BigQueryHelpers.getOrCreateMapListValue(tableRows, tableSpec);
-      List<String> uniqueIds = BigQueryHelpers.getOrCreateMapListValue(uniqueIdsForTableRows, tableSpec);
+      List<String> uniqueIds = BigQueryHelpers.getOrCreateMapListValue(uniqueIdsForTableRows,
+          tableSpec);
 
       rows.add(context.element().getValue().tableRow);
       uniqueIds.add(context.element().getValue().uniqueId);
