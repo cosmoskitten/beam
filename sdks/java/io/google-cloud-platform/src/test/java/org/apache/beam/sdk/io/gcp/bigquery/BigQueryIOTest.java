@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.fromJsonString;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.toJsonString;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.fromJsonString;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
@@ -101,13 +101,10 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryQuerySource;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryTableSource;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.JsonSchemaToTableSchema;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup.CleanupOperation;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
+import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TransformingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.TableRowWriter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -1581,7 +1578,7 @@ public class BigQueryIOTest implements Serializable {
   public void testStreamingWriteFnCreateNever() throws Exception {
     BigQueryIO.StreamingWriteFn fn = new BigQueryIO.StreamingWriteFn(
         null, CreateDisposition.CREATE_NEVER, null, new FakeBigQueryServices());
-    assertEquals(BigQueryIO.parseTableSpec("dataset.table"),
+    assertEquals(BigQueryHelpers.parseTableSpec("dataset.table"),
         fn.getOrCreateTable(null, "dataset.table"));
   }
 
@@ -1615,7 +1612,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testTableParsing() {
-    TableReference ref = BigQueryIO
+    TableReference ref = BigQueryHelpers
         .parseTableSpec("my-project:data_set.table_name");
     Assert.assertEquals("my-project", ref.getProjectId());
     Assert.assertEquals("data_set", ref.getDatasetId());
@@ -1624,14 +1621,14 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testTableParsing_validPatterns() {
-    BigQueryIO.parseTableSpec("a123-456:foo_bar.d");
-    BigQueryIO.parseTableSpec("a12345:b.c");
-    BigQueryIO.parseTableSpec("b12345.c");
+    BigQueryHelpers.parseTableSpec("a123-456:foo_bar.d");
+    BigQueryHelpers.parseTableSpec("a12345:b.c");
+    BigQueryHelpers.parseTableSpec("b12345.c");
   }
 
   @Test
   public void testTableParsing_noProjectId() {
-    TableReference ref = BigQueryIO
+    TableReference ref = BigQueryHelpers
         .parseTableSpec("data_set.table_name");
     Assert.assertEquals(null, ref.getProjectId());
     Assert.assertEquals("data_set", ref.getDatasetId());
@@ -1641,25 +1638,25 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testTableParsingError() {
     thrown.expect(IllegalArgumentException.class);
-    BigQueryIO.parseTableSpec("0123456:foo.bar");
+    BigQueryHelpers.parseTableSpec("0123456:foo.bar");
   }
 
   @Test
   public void testTableParsingError_2() {
     thrown.expect(IllegalArgumentException.class);
-    BigQueryIO.parseTableSpec("myproject:.bar");
+    BigQueryHelpers.parseTableSpec("myproject:.bar");
   }
 
   @Test
   public void testTableParsingError_3() {
     thrown.expect(IllegalArgumentException.class);
-    BigQueryIO.parseTableSpec(":a.b");
+    BigQueryHelpers.parseTableSpec(":a.b");
   }
 
   @Test
   public void testTableParsingError_slash() {
     thrown.expect(IllegalArgumentException.class);
-    BigQueryIO.parseTableSpec("a\\b12345:c.d");
+    BigQueryHelpers.parseTableSpec("a\\b12345:c.d");
   }
 
   // Test that BigQuery's special null placeholder objects can be encoded.
@@ -1708,7 +1705,7 @@ public class BigQueryIOTest implements Serializable {
             toJsonString(new TableRow().set("name", "c").set("number", "3")));
 
     String jobIdToken = "testJobIdToken";
-    TableReference table = BigQueryIO.parseTableSpec("project.data_set.table_name");
+    TableReference table = BigQueryHelpers.parseTableSpec("project.data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
         StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
@@ -1747,7 +1744,7 @@ public class BigQueryIOTest implements Serializable {
             toJsonString(new TableRow().set("name", "c").set("number", "3")));
 
     String jobIdToken = "testJobIdToken";
-    TableReference table = BigQueryIO.parseTableSpec("project:data_set.table_name");
+    TableReference table = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
         StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
@@ -1814,7 +1811,7 @@ public class BigQueryIOTest implements Serializable {
 
     String jobIdToken = "testJobIdToken";
     String extractDestinationDir = "mock://tempLocation";
-    TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
+    TableReference destinationTable = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
         StaticValueProvider.of(jobIdToken), StaticValueProvider.of("query"),
         StaticValueProvider.of(destinationTable),
@@ -1903,7 +1900,7 @@ public class BigQueryIOTest implements Serializable {
 
     String jobIdToken = "testJobIdToken";
     String extractDestinationDir = "mock://tempLocation";
-    TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
+    TableReference destinationTable = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
         StaticValueProvider.of(jobIdToken), StaticValueProvider.of("query"),
         StaticValueProvider.of(destinationTable),
@@ -2284,9 +2281,9 @@ public class BigQueryIOTest implements Serializable {
     String datasetId = "somedataset";
     List<String> tables = Lists.newArrayList("table1", "table2", "table3");
     List<TableReference> tableRefs = Lists.newArrayList(
-        BigQueryIO.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(0))),
-        BigQueryIO.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(1))),
-        BigQueryIO.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(2))));
+        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(0))),
+        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(1))),
+        BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(2))));
 
     doThrow(new IOException("Unable to delete table"))
         .when(mockDatasetService).deleteTable(tableRefs.get(0));
@@ -2370,8 +2367,8 @@ public class BigQueryIOTest implements Serializable {
         new BigQueryIO.TagWithUniqueIdsAndTable<TableRow>(
             bqOptions, NestedValueProvider.of(
                 StaticValueProvider.of("data_set.table_name"),
-                new BigQueryIO.TableSpecToTableRef()), null, null);
-    TableReference table = BigQueryIO.parseTableSpec(tag.getTableSpec().get());
+                new TableSpecToTableRef()), null, null);
+    TableReference table = BigQueryHelpers.parseTableSpec(tag.getTableSpec().get());
     assertNotNull(table.getProjectId());
   }
 
