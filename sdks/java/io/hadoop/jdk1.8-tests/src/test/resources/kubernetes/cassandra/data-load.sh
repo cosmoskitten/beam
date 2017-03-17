@@ -43,7 +43,7 @@ echo "$keyspace_creation_command"
 echo
 
 # Create table
-table_creation_command="use ycsb;drop table if exists usertable;create table usertable (y_id varchar primary key,field0 varchar,field1 varchar,field2 varchar,field3 varchar,field4 varchar,field5 varchar,field6 varchar,field7 varchar,field8 varchar,field9 varchar,field10 varchar,field11 varchar,field12 varchar,field13 varchar,field14 varchar,field15 varchar,field16 varchar);"
+table_creation_command="use ycsb;drop table if exists usertable;create table usertable (y_id varchar primary key,field0 varchar,field1 varchar,field2 varchar,field3 varchar,field4 varchar,field5 varchar,field6 varchar,field7 varchar,field8 varchar,field9 varchar);"
 kubectl exec -ti $running_seed -- cqlsh -e "$table_creation_command"
 echo "Table created successfully."
 echo "-------------------------------"
