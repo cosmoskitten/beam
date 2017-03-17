@@ -210,7 +210,7 @@ public class BigQueryHelpers {
       implements SerializableFunction<String, String> {
     private final String stepUuid;
 
-    private CreatePerBeamJobUuid(String stepUuid) {
+    CreatePerBeamJobUuid(String stepUuid) {
       this.stepUuid = stepUuid;
     }
 
