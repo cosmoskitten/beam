@@ -1,5 +1,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
@@ -15,10 +17,10 @@ import java.util.regex.Matcher;
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-
 
 /**
  * A set of helper functions and classes used by {@link BigQueryIO}.
@@ -136,6 +138,26 @@ public class BigQueryHelpers {
    */
   static String randomUUIDString() {
     return UUID.randomUUID().toString().replaceAll("-", "");
+  }
+
+  static void verifyTableNotExistOrEmpty(
+      DatasetService datasetService,
+      TableReference tableRef) {
+    try {
+      if (datasetService.getTable(tableRef) != null) {
+        checkState(
+            datasetService.isTableEmpty(tableRef),
+            "BigQuery table is not empty: %s.",
+            toTableSpec(tableRef));
+      }
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      throw new RuntimeException(
+          "unable to confirm BigQuery table emptiness for table "
+              + toTableSpec(tableRef), e);
+    }
   }
 
   @VisibleForTesting
