@@ -554,7 +554,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Like {@link #fromQuery(String)}, but from a {@link ValueProvider}.
+     * Read from table specified by a {@link TableReference}.
      */
     public Read from(TableReference table) {
       return from(StaticValueProvider.of(toTableSpec(table)));
@@ -1562,22 +1562,16 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this write transformation, but with the specified table function. The
-     * table is a function of {@link ValueInSingleWindow}, so can be determined by the value or
-     * by the window.
-     *
-     * <p>Does not modify this object.
+     * Writes to table specified by the specified table function. The table is a function of
+     * {@link ValueInSingleWindow}, so can be determined by the value or by the window.
      */
     public Write<T> to(SerializableFunction<ValueInSingleWindow<T>, String> tableSpecFunction) {
       return toTableReference(new TranslateTableSpecFunction<T>(tableSpecFunction));
     }
 
     /**
-     * Returns a copy of this write transformation, but with the specified table function. The
-     * table is a function of {@link ValueInSingleWindow}, so can be determined by the value or
-     * by the window.
-     *
-     * <p>Does not modify this object.
+     * Like {@link BigQueryIO.Write#to(SerializableFunction)}, but the function returns a
+     * {@link TableReference} instead of a string table specification.
      */
     private Write<T> toTableReference(
         SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction) {
@@ -1621,10 +1615,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this write transformation, but using the specified schema for rows
-     * to be written.
-     *
-     * <p>Does not modify this object.
+     * Use the specified schema for rows to be written.
      */
     public Write<T> withSchema(ValueProvider<TableSchema> schema) {
       return toBuilder()
