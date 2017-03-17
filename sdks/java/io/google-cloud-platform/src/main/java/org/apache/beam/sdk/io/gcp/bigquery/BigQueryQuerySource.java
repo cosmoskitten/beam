@@ -167,7 +167,8 @@ class BigQueryQuerySource extends BigQuerySourceBase {
     Job job = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
     if (BigQueryHelpers.parseStatus(job) != Status.SUCCEEDED) {
       throw new IOException(String.format(
-          "Query job %s failed, status: %s.", jobId, BigQueryHelpers.statusToPrettyString(job.getStatus())));
+          "Query job %s failed, status: %s.", jobId,
+          BigQueryHelpers.statusToPrettyString(job.getStatus())));
     }
   }
 
