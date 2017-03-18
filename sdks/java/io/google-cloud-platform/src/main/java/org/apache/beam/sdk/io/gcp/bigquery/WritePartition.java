@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.TableRowWriter;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
