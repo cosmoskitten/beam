@@ -105,7 +105,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSche
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.TableRowWriter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
@@ -1574,7 +1573,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testStreamingWriteFnCreateNever() throws Exception {
-    BigQueryIO.StreamingWriteFn fn = new BigQueryIO.StreamingWriteFn(
+    StreamingWriteFn fn = new StreamingWriteFn(
         null, CreateDisposition.CREATE_NEVER, null, new FakeBigQueryServices());
     assertEquals(BigQueryHelpers.parseTableSpec("dataset.table"),
         fn.getOrCreateTable(null, "dataset.table"));
@@ -2364,8 +2363,8 @@ public class BigQueryIOTest implements Serializable {
   public void testTagWithUniqueIdsAndTableProjectNotNullWithNvp() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("project");
-    BigQueryIO.TagWithUniqueIdsAndTable<TableRow> tag =
-        new BigQueryIO.TagWithUniqueIdsAndTable<TableRow>(
+    TagWithUniqueIdsAndTable<TableRow> tag =
+        new TagWithUniqueIdsAndTable<TableRow>(
             bqOptions, NestedValueProvider.of(
                 StaticValueProvider.of("data_set.table_name"),
                 new TableSpecToTableRef()), null, null);
@@ -2420,12 +2419,12 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testShardedKeyCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(BigQueryIO.ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
   public void testTableRowInfoCoderSerializable() {
-    CoderProperties.coderSerializable(BigQueryIO.TableRowInfoCoder.of());
+    CoderProperties.coderSerializable(TableRowInfoCoder.of());
   }
 
   @Test
@@ -2433,8 +2432,8 @@ public class BigQueryIOTest implements Serializable {
     CoderProperties.coderSerializable(
         WindowedValue.getFullCoder(
             KvCoder.of(
-                BigQueryIO.ShardedKeyCoder.of(StringUtf8Coder.of()),
-                BigQueryIO.TableRowInfoCoder.of()),
+                ShardedKeyCoder.of(StringUtf8Coder.of()),
+                TableRowInfoCoder.of()),
             IntervalWindow.getCoder()));
   }
 }
