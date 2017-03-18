@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
+ * PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery.
  */
 class BatchLoadBigQuery<T> extends PTransform<PCollection<T>, PDone> {
   BigQueryIO.Write<T> write;
