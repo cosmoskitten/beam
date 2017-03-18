@@ -1,9 +1,14 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToTableSpec;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -16,12 +21,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-
-import java.io.IOException;
-import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * Fn that tags each table row with a unique id and destination table.
@@ -46,7 +45,8 @@ class TagWithUniqueIdsAndTable<T>
 
   TagWithUniqueIdsAndTable(BigQueryOptions options,
                            ValueProvider<TableReference> table,
-                           SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction,
+                           SerializableFunction<ValueInSingleWindow<T>, TableReference>
+                               tableRefFunction,
                            SerializableFunction<T, TableRow> formatFunction) {
     checkArgument(table == null ^ tableRefFunction == null,
         "Exactly one of table or tableRefFunction should be set");
