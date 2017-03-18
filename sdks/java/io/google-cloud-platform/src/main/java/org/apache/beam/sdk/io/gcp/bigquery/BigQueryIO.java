@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.json.JsonFactory;
@@ -40,7 +39,6 @@ import java.util.List;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -63,33 +61,18 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -246,7 +229,7 @@ public class BigQueryIO {
    * A formatting function that maps a TableRow to itself. This allows sending a
    * {@code PCollection<TableRow>} directly to BigQueryIO.Write.
    */
-  private static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
+   static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
       new SerializableFunction<TableRow, TableRow>() {
     @Override
     public TableRow apply(TableRow input) {
@@ -572,7 +555,7 @@ public class BigQueryIO {
      *
      * <p>If the table's project is not specified, use the executing project.
      */
-    @Nullable private ValueProvider<TableReference> getTableWithDefaultProject(
+    @Nullable ValueProvider<TableReference> getTableWithDefaultProject(
         BigQueryOptions bqOptions) {
       ValueProvider<TableReference> table = getTableProvider();
       if (table == null) {
@@ -1004,129 +987,13 @@ public class BigQueryIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      Pipeline p = input.getPipeline();
-      BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
-
       // When writing an Unbounded PCollection, or when a tablespec function is defined, we use
       // StreamWithDeDup and BigQuery's streaming import API.
       if (input.isBounded() == IsBounded.UNBOUNDED || getTableRefFunction() != null) {
         return input.apply(new StreamWithDeDup<T>(this));
-      }
-
-      ValueProvider<TableReference> table = getTableWithDefaultProject(options);
-
-      final String stepUuid = BigQueryHelpers.randomUUIDString();
-
-      String tempLocation = options.getTempLocation();
-      String tempFilePrefix;
-      try {
-        IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-        tempFilePrefix = factory.resolve(
-                factory.resolve(tempLocation, "BigQueryWriteTemp"),
-                stepUuid);
-      } catch (IOException e) {
-        throw new RuntimeException(
-            String.format("Failed to resolve BigQuery temp location in %s", tempLocation),
-            e);
-      }
-
-      // Create a singleton job ID token at execution time.
-      PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
-      PCollectionView<String> jobIdTokenView = p
-          .apply("TriggerIdCreation", Create.of("ignored"))
-          .apply("CreateJobId", MapElements.via(
-              new SimpleFunction<String, String>() {
-                @Override
-                public String apply(String input) {
-                  return stepUuid;
-                }
-              }))
-          .apply(View.<String>asSingleton());
-
-      PCollection<T> typedInputInGlobalWindow =
-          input.apply(
-              Window.<T>into(new GlobalWindows())
-                  .triggering(DefaultTrigger.of())
-                  .discardingFiredPanes());
-      // Avoid applying the formatFunction if it is the identity formatter.
-      PCollection<TableRow> inputInGlobalWindow;
-      if (getFormatFunction() == IDENTITY_FORMATTER) {
-        inputInGlobalWindow = (PCollection<TableRow>) typedInputInGlobalWindow;
       } else {
-        inputInGlobalWindow = typedInputInGlobalWindow
-            .apply(MapElements.via(getFormatFunction())
-                .withOutputType(new TypeDescriptor<TableRow>() {
-                }));
+        return input.apply(new BatchLoadBigQuery<T>(this));
       }
-
-      // PCollection of filename, file byte size.
-      PCollection<KV<String, Long>> results = inputInGlobalWindow
-          .apply("WriteBundles",
-              ParDo.of(new WriteBundles(tempFilePrefix)));
-
-      TupleTag<KV<Long, List<String>>> multiPartitionsTag =
-          new TupleTag<KV<Long, List<String>>>("multiPartitionsTag") {};
-      TupleTag<KV<Long, List<String>>> singlePartitionTag =
-          new TupleTag<KV<Long, List<String>>>("singlePartitionTag") {};
-
-      // Turn the list of files and record counts in a PCollectionView that can be used as a
-      // side input.
-      PCollectionView<Iterable<KV<String, Long>>> resultsView = results
-          .apply("ResultsView", View.<KV<String, Long>>asIterable());
-      PCollectionTuple partitions = singleton.apply(ParDo
-          .of(new WritePartition(
-              resultsView,
-              multiPartitionsTag,
-              singlePartitionTag))
-          .withSideInputs(resultsView)
-          .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
-
-      // If WriteBundles produced more than MAX_NUM_FILES files or MAX_SIZE_BYTES bytes, then
-      // the import needs to be split into multiple partitions, and those partitions will be
-      // specified in multiPartitionsTag.
-      PCollection<String> tempTables = partitions.get(multiPartitionsTag)
-          .apply("MultiPartitionsGroupByKey", GroupByKey.<Long, List<String>>create())
-          .apply("MultiPartitionsWriteTables", ParDo.of(new WriteTables(
-              false,
-              getBigQueryServices(),
-              jobIdTokenView,
-              tempFilePrefix,
-              NestedValueProvider.of(table, new TableRefToJson()),
-              getJsonSchema(),
-              WriteDisposition.WRITE_EMPTY,
-              CreateDisposition.CREATE_IF_NEEDED,
-              getTableDescription()))
-          .withSideInputs(jobIdTokenView));
-
-      PCollectionView<Iterable<String>> tempTablesView = tempTables
-          .apply("TempTablesView", View.<String>asIterable());
-      singleton.apply(ParDo
-          .of(new WriteRename(
-              getBigQueryServices(),
-              jobIdTokenView,
-              NestedValueProvider.of(table, new TableRefToJson()),
-              getWriteDisposition(),
-              getCreateDisposition(),
-              tempTablesView,
-              getTableDescription()))
-          .withSideInputs(tempTablesView, jobIdTokenView));
-
-      // Write single partition to final table
-      partitions.get(singlePartitionTag)
-          .apply("SinglePartitionGroupByKey", GroupByKey.<Long, List<String>>create())
-          .apply("SinglePartitionWriteTables", ParDo.of(new WriteTables(
-              true,
-              getBigQueryServices(),
-              jobIdTokenView,
-              tempFilePrefix,
-              NestedValueProvider.of(table, new TableRefToJson()),
-              getJsonSchema(),
-              getWriteDisposition(),
-              getCreateDisposition(),
-              getTableDescription()))
-          .withSideInputs(jobIdTokenView));
-
-      return PDone.in(input.getPipeline());
     }
 
     @Override
@@ -1171,7 +1038,7 @@ public class BigQueryIO {
      *
      * <p>If the table's project is not specified, use the executing project.
      */
-    @Nullable private ValueProvider<TableReference> getTableWithDefaultProject(
+    @Nullable ValueProvider<TableReference> getTableWithDefaultProject(
         BigQueryOptions bqOptions) {
       ValueProvider<TableReference> table = getTable();
       if (table == null) {
