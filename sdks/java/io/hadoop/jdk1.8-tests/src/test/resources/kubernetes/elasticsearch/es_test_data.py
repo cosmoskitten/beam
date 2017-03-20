@@ -96,7 +96,7 @@ def get_data_for_format(format,count):
         return_val = "{0}.{1}.{2}.{3}".format(1,2,3,count%255)
 
     elif field_type in ["ts", "tstxt"]:
-        return_val = field_name + str(count)
+        return_val = int(count * 1000) if field_type == "ts" else datetime.datetime.fromtimestamp(count).strftime("%Y-%m-%dT%H:%M:%S.000-0000")
 
     elif field_type == "words":
         return_val = field_name + str(count)
