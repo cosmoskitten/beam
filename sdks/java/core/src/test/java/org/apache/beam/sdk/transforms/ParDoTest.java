@@ -2018,6 +2018,34 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+  public void testEventTimeTimerAlignBounded() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.setForNowAlign(Duration.standardSeconds(1), Duration.millis(1));
+            context.output(3);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testTimerReceivedInOriginalWindow() throws Exception {
     final String timerId = "foo";
 
@@ -2282,6 +2310,79 @@ public class ParDoTest implements Serializable {
         .advanceWatermarkTo(new Instant(0))
         .addElements(KV.of("hello", 37))
         .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
+        .advanceWatermarkToInfinity();
+
+    PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+  public void testEventTimeTimerAlignUnbounded() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            // will be aligned to 0 sec, 1 sec, 2 sec, 3 sec, 3 sec...
+            timer.setForNowAlign(Duration.standardSeconds(1), Duration.millis(0));
+            context.output(3);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    TestStream<KV<String, Integer>> stream = TestStream.create(KvCoder
+        .of(StringUtf8Coder.of(), VarIntCoder.of()))
+        .advanceWatermarkTo(new Instant(5))
+        .addElements(KV.of("hello", 37))
+        .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1)))
+        .advanceWatermarkToInfinity();
+
+    PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+  public void testEventTimeTimerAlignAfterGcTimeUnbounded() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            // This aligned time will exceed the END_OF_GLOBAL_WINDOW
+            timer.setForNowAlign(Duration.standardDays(1), Duration.millis(0));
+            context.output(3);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    TestStream<KV<String, Integer>> stream = TestStream.create(KvCoder
+        .of(StringUtf8Coder.of(), VarIntCoder.of()))
+        // see GlobalWindow,
+        // END_OF_GLOBAL_WINDOW is TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))
+        .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1)))
+        .addElements(KV.of("hello", 37))
         .advanceWatermarkToInfinity();
 
     PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
