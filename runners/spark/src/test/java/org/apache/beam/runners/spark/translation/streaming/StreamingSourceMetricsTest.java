@@ -47,7 +47,7 @@ public class StreamingSourceMetricsTest implements Serializable {
 
   @Test
   public void testUnboundedSourceMetrics() {
-    TestSparkPipelineOptions options = (TestSparkPipelineOptions) pipelineRule.getOptions();
+    TestSparkPipelineOptions options = pipelineRule.getOptions();
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -57,9 +57,13 @@ public class StreamingSourceMetricsTest implements Serializable {
 
     PipelineResult pipelineResult = pipeline.run();
 
-    MetricQueryResults metrics = pipelineResult.metrics().queryMetrics(
-        MetricsFilter.builder().addNameFilter(MetricNameFilter.named("io", "elementsRead"))
-            .build());
+    MetricQueryResults metrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+                    .build());
 
     assertThat(metrics.counters(), hasItem(
         attemptedMetricsResult("io", "elementsRead", "Read(UnboundedCountingSource)", 1000L)));

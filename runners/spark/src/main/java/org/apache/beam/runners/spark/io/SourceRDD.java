@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
@@ -133,6 +132,8 @@ public class SourceRDD {
 
         @Override
         public boolean hasNext() {
+          // Add metrics container to the scope of org.apache.beam.sdk.io.Source.Reader methods
+          // since they may report metrics.
           try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
             try {
               if (!started) {

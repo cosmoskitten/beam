@@ -27,7 +27,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.CountingSource.CounterMark;
@@ -145,9 +144,13 @@ public class CountingSourceTest {
 
     PipelineResult pipelineResult = p.run();
 
-    MetricQueryResults metrics = pipelineResult.metrics().queryMetrics(
-        MetricsFilter.builder().addNameFilter(MetricNameFilter.named("io", "elementsRead"))
-            .build());
+    MetricQueryResults metrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+                    .build());
 
     assertThat(metrics.counters(), hasItem(
         attemptedMetricsResult("io", "elementsRead", "Read(BoundedCountingSource)", 1000L)));

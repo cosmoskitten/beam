@@ -201,7 +201,6 @@ public class StateSpecFunctions {
               return Iterators.unmodifiableIterator(readValues.iterator());
             }
           };
-          sparkMetricsContainer.materialize();
           return new Tuple2<>(iterable,
               new Metadata(readValues.size(), lowWatermark, highWatermark, sparkMetricsContainer));
         } catch (IOException e) {
