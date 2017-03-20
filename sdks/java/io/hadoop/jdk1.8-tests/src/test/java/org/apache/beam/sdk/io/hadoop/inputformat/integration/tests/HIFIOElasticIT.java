@@ -51,12 +51,12 @@ import org.junit.runners.JUnit4;
  *
  * <p>You can run this test by doing the following:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop-input-format/jdk1.8-hifio-tests/HIFIOElasticIT
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOElasticIT
  *  -DintegrationTestPipelineOptions='[
- *  "--serverIp=1.2.3.4",
- *  "--serverPort=port",
- *  "--userName=user",
- *  "--password=mypass" ]'
+ *  "--elasticServerIp=1.2.3.4",
+ *  "--elasticServerPort=port",
+ *  "--elasticUserName=user",
+ *  "--elasticPassword=mypass" ]'
  * </pre>
  *
  * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow

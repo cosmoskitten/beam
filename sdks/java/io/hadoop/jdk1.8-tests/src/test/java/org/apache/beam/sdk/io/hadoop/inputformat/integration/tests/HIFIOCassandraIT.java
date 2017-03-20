@@ -50,12 +50,12 @@ import org.junit.runners.JUnit4;
  *
  * <p>You can run this test by doing the following:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop-input-format/jdk1.8-hifio-tests/HIFIOCassandraIT
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOCassandraIT
  *  -DintegrationTestPipelineOptions='[
- *  "--serverIp=1.2.3.4",
- *  "--serverPort=port",
- *  "--userName=user",
- *  "--password=mypass" ]'
+ *  "--cassandraServerIp=1.2.3.4",
+ *  "--cassandraServerPort=port",
+ *  "--cassandraUserName=user",
+ *  "--cassandraPassword=mypass" ]'
  * </pre>
  *
  * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
