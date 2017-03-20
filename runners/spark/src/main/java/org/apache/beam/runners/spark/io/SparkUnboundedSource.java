@@ -273,7 +273,6 @@ public class SparkUnboundedSource {
       return numRecords;
     }
 
-
     Instant getLowWatermark() {
       return lowWatermark;
     }
