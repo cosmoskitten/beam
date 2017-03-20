@@ -833,6 +833,32 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       setUnderlyingTimer(target);
     }
 
+    @Override
+    public void setForNowAlign(Duration size, Instant offset) {
+      Instant now = getCurrentTime();
+      long millisSinceStart = new Duration(offset, now).getMillis() % size.getMillis();
+      Instant target = millisSinceStart == 0 ? now : now.plus(size).minus(millisSinceStart);
+      target = minTargetAndGcTime(target);
+      setUnderlyingTimer(target);
+    }
+
+    /**
+     * For event time timers the target time should be prior to window GC time. So it return
+     * min(time to set, GC Time of window).
+     */
+    private Instant minTargetAndGcTime(Instant target) {
+      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
+        if (target.isBefore(windowExpiry)) {
+          return target;
+        } else {
+          return windowExpiry;
+        }
+      } else {
+        return target;
+      }
+    }
+
     /**
      * Ensures that the target time is reasonable. For event time timers this means that the
      * time should be prior to window GC time.
