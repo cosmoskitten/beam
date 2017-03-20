@@ -1,3 +1,4 @@
+#!/bin/sh
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -12,20 +13,10 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+#
 
-# Kubernetes headless service for Elasticsearch discovery of nodes.
-apiVersion: v1
-kind: Service
-metadata:
-  name: elasticsearch-discovery
-  labels:
-    component: elasticsearch
-    role: master
-spec:
-  selector:
-    component: elasticsearch
-    role: master
-  ports:
-  - name: transport
-    port: 9300
-    protocol: TCP
+# Create Elasticsearch services and deployments.
+kubectl create -f es-services.yaml
+# Wait until es-master_rc deployment is provisioned
+sleep 2m
+kubectl create -f es-client-data-node-deployment.yaml
