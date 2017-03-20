@@ -5,4 +5,4 @@ external_ip="$(kubectl get svc elasticsearch -o jsonpath='{.status.loadBalancer.
 echo "Elasticsearch cluster health info"
 echo "---------------------------------"
 curl $external_ip:9200/_cluster/health
-echo # empy line since curl doesn't output CRLF
+echo # empty line since curl doesn't output CRLF
