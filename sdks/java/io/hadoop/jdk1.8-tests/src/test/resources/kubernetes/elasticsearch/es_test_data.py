@@ -84,28 +84,28 @@ def get_data_for_format(format,count):
         if count%2 == 0:
            return_val = True
         else:
-           return_val=False
+           return_val= False
 
     elif field_type == "str":
-        return_val = field_name+"{0}".format(count)
+        return_val = field_name + str(count)
 
     elif field_type == "int":
         return_val = count
     
     elif field_type == "ipv4":
-        return_val = "{0}.{1}.{2}.{3}".format(1,2,3,count)
+        return_val = "{0}.{1}.{2}.{3}".format(1,2,3,count%255)
 
     elif field_type in ["ts", "tstxt"]:
-        return_val = int(count * 1000) if field_type == "ts" else datetime.datetime.fromtimestamp(count).strftime("%Y-%m-%dT%H:%M:%S.000-0000")
+        return_val = field_name + str(count)
 
     elif field_type == "words":
-        return_val = field_name+"{0}".format(count)
+        return_val = field_name + str(count)
 
     elif field_type == "dict":
-        return_val = field_name+"{0}".format(count)
+        return_val = "".join(field_name + str(count) for _ in range(10)) #10 words are added in dictionary
 
     elif field_type == "text":
-        return_val = field_name+"{0}".format(count)
+        return_val = field_name + str(count)
 
     return field_name, return_val
 
