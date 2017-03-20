@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -147,7 +148,20 @@ public class EvaluationContext {
 
   <T> void putBoundedDatasetFromValues(
       PTransform<?, ? extends PValue> transform, Iterable<T> values, Coder<T> coder) {
-    datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
+    PValue output = getOutput(transform);
+    if (shouldCache(output)) {
+      // eagerly create the RDD, as it will be reused.
+      Iterable<WindowedValue<T>> elems = Iterables.transform(values,
+          WindowingHelpers.<T>windowValueFunction());
+      WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
+          WindowedValue.getValueOnlyCoder(coder);
+      JavaRDD<WindowedValue<T>> rdd =
+          getSparkContext().parallelize(CoderHelpers.toByteArrays(elems, windowCoder))
+          .map(CoderHelpers.fromByteFunction(windowCoder));
+      putDataset(transform, new BoundedDataset<>(rdd));
+    } else {
+      datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
+    }
   }
 
   public Dataset borrowDataset(PTransform<? extends PValue, ?> transform) {
