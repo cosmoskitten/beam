@@ -102,7 +102,10 @@ def get_data_for_format(format,count):
         return_val = field_name + str(count)
 
     elif field_type == "dict":
-        return_val = "".join(field_name + str(count) for _ in range(10)) #10 words are added in dictionary
+        mydict = dict(a=field_name + str(count), b=field_name + str(count), c=field_name + str(count),
+                      d=field_name + str(count), e=field_name + str(count), f=field_name + str(count),
+                      g=field_name + str(count), h=field_name + str(count), i=field_name + str(count), j=field_name + str(count))
+        return_val = ", ".join("=".join(_) for _ in mydict.items())
 
     elif field_type == "text":
         return_val = field_name + str(count)
