@@ -23,7 +23,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -36,7 +35,6 @@ public class StorageLevelTest {
   public final transient PipelineRule pipelineRule = PipelineRule.batch();
 
   @Test
-  @Ignore("SparkTestRunner doesn't behave like SparkRunner, investigating")
   public void test() throws Exception {
     pipelineRule.getOptions().setStorageLevel("DISK_ONLY");
     Pipeline pipeline = pipelineRule.createPipeline();
