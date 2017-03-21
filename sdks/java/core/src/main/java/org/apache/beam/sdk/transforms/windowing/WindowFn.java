@@ -125,11 +125,22 @@ public abstract class WindowFn<T, W extends BoundedWindow>
 
   /**
    * Returns the window of the side input corresponding to the given window of
-   * the main input.
+   * the main input. If not overridden, will use the window returned by calling
+   * {@link WindowMappingFn#getSideInputWindow(BoundedWindow)} on the result of
+   * {@link #getDefaultWindowMappingFn()}.
    *
-   * <p>Authors of custom {@code WindowFn}s should override this.
+   * @deprecated see {@link #getDefaultWindowMappingFn()}
    */
-  public abstract W getSideInputWindow(BoundedWindow window);
+  @Deprecated
+  public W getSideInputWindow(BoundedWindow window) {
+    return (W) getDefaultWindowMappingFn().getSideInputWindow(window);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public abstract WindowMappingFn getDefaultWindowMappingFn();
 
   /**
    * Returns the output timestamp to use for data depending on the given
