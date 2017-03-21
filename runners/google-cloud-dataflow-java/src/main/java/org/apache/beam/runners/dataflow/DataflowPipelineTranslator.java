@@ -62,7 +62,6 @@ import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -86,6 +85,7 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.runners.core.construction.ParDos;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -847,6 +847,7 @@ public class DataflowPipelineTranslator {
             BiMap<Long, TupleTag<?>> outputMap =
                 translateOutputs(context.getOutputs(transform), stepContext);
             translateFn(
+                transform,
                 stepContext,
                 transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
@@ -939,6 +940,7 @@ public class DataflowPipelineTranslator {
   }
 
   private static void translateFn(
+      ParDo.MultiOutput<?, ?> pardo,
       StepTranslationContext stepContext,
       DoFn fn,
       WindowingStrategy windowingStrategy,
@@ -959,11 +961,7 @@ public class DataflowPipelineTranslator {
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     stepContext.addInput(
-        PropertyNames.SERIALIZED_FN,
-        byteArrayToJsonString(
-            serializeToByteArray(
-                DoFnInfo.forFn(
-                    fn, windowingStrategy, sideInputs, inputCoder, mainOutput, outputMap))));
+        PropertyNames.SERIALIZED_FN, byteArrayToJsonString(ParDos.toProto(pardo).toByteArray()));
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works
     // in streaming but does not work in batch
