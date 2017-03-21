@@ -330,6 +330,10 @@ class FileSystem(object):
                       'was %s' % type(compression_type))
     return compression_type
 
+  @staticmethod
+  def is_compressed(fileobj):
+    return isinstance(fileobj, CompressedFile)
+
   @abc.abstractmethod
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
