@@ -1,3 +1,7 @@
+# Script to populate data on Elasticsearch
+# Hashcode for 1000 records is ed36c09b5e24a95fd8d3cc711a043a85320bb47d, 
+# For test with query to select one record from 1000 docs, hashcode is 83c108ff81e87b6f3807c638e6bb9a9e3d430dc7
+# Hashcode for 50m records (~20 gigs) is aff7390ee25c4c330f0a58dfbfe335421b11e405 
 #!/usr/bin/python
 
 import json
