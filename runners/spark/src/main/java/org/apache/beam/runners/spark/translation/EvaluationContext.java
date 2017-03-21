@@ -56,19 +56,16 @@ public class EvaluationContext {
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
-  private final Map<PCollection, Long> cacheCandidates;
+  private Map<PCollection, Long> cacheCandidates;
 
-  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
-                           Map<PCollection, Long> cacheCandidates) {
+  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
     this.pipeline = pipeline;
     this.runtime = new SparkRuntimeContext(pipeline);
-    this.cacheCandidates = cacheCandidates;
   }
 
-  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, JavaStreamingContext jssc,
-                           Map<PCollection, Long> cacheCandidates) {
-    this(jsc, pipeline, cacheCandidates);
+  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, JavaStreamingContext jssc) {
+    this(jsc, pipeline);
     this.jssc = jssc;
   }
 
@@ -250,6 +247,13 @@ public class EvaluationContext {
 
   private String storageLevel() {
     return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
+  }
+
+  /**
+   * Update the cache candidates map used.
+   */
+  public void setCacheCandidates(Map<PCollection, Long> cacheCandidates) {
+    this.cacheCandidates = cacheCandidates;
   }
 
 }
