@@ -503,7 +503,14 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       pushbackDoFnRunner.finishBundle();
 
       // maybe output a new watermark
-      processWatermark1(new Watermark(currentInputWatermark));
+      Instant watermarkHold = stateInternals.watermarkHold();
+
+      long potentialOutputWatermark = Math.min(currentInputWatermark, watermarkHold.getMillis());
+
+      if (potentialOutputWatermark > currentOutputWatermark) {
+        currentOutputWatermark = potentialOutputWatermark;
+        output.emitWatermark(new Watermark(currentOutputWatermark));
+      }
     }
   }
 
