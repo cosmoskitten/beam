@@ -48,7 +48,6 @@ spec:
       labels:
         component: elasticsearch
     spec:
-      serviceAccount: elasticsearch
       containers:
       - name: es
         securityContext:
