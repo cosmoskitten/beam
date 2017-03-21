@@ -108,9 +108,12 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
 
   @Override
   public Collection<IntervalWindow> assignWindows(AssignContext c) {
+    return assignWindows(c.timestamp());
+  }
+
+  public Collection<IntervalWindow> assignWindows(Instant timestamp) {
     List<IntervalWindow> windows =
         new ArrayList<>((int) (size.getMillis() / period.getMillis()));
-    Instant timestamp = c.timestamp();
     long lastStart = lastStartFor(timestamp);
     for (long start = lastStart;
          start > timestamp.minus(size).getMillis();
