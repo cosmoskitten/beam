@@ -19,10 +19,17 @@ package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.beam.runners.spark.translation.EvaluationContext;
+import org.apache.beam.runners.spark.translation.SparkContextFactory;
+import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -36,7 +43,7 @@ public class CacheTest {
   public final transient PipelineRule pipelineRule = PipelineRule.batch();
 
   @Test
-  public void dagPreVisitCacheTest() throws Exception {
+  public void cacheCandidatesUpdaterTest() throws Exception {
     Pipeline pipeline = pipelineRule.createPipeline();
     PCollection pcollection = pipeline.apply(Create.of("foo", "bar"));
     // first read
@@ -44,9 +51,14 @@ public class CacheTest {
     // second read
     pcollection.apply(Count.globally());
 
-    SparkRunner.DAGPreVisit dagPreVisit = new SparkRunner.DAGPreVisit();
-    pipeline.traverseTopologically(dagPreVisit);
-    assertEquals(2L, (long) dagPreVisit.getCacheCandidates().get(pcollection));
+    Map<PCollection, Long> cacheCandidates = new HashMap<>();
+    JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineRule.getOptions());
+    SparkRunner.CacheCandidatesUpdater updater =
+        new SparkRunner.CacheCandidatesUpdater(cacheCandidates,
+            new TransformTranslator.Translator(),
+            new EvaluationContext(jsc, pipeline));
+    pipeline.traverseTopologically(updater);
+    assertEquals(2L, (long) cacheCandidates.get(pcollection));
   }
 
 }

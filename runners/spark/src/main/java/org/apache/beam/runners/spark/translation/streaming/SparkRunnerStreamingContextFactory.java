@@ -52,17 +52,16 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
   private final Pipeline pipeline;
   private final SparkPipelineOptions options;
   private final CheckpointDir checkpointDir;
-  private final Map<PCollection, Long> cacheCandidates;
+
+  private Map<PCollection, Long> cacheCandidates;
 
   public SparkRunnerStreamingContextFactory(
       Pipeline pipeline,
       SparkPipelineOptions options,
-      CheckpointDir checkpointDir,
-      Map<PCollection, Long> cacheCandidates) {
+      CheckpointDir checkpointDir) {
     this.pipeline = pipeline;
     this.options = options;
     this.checkpointDir = checkpointDir;
-    this.cacheCandidates = cacheCandidates;
   }
 
   private EvaluationContext ctxt;
@@ -87,13 +86,22 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     // We must first init accumulators since translators expect them to be instantiated.
     SparkRunner.initAccumulators(options, jsc);
 
-    ctxt = new EvaluationContext(jsc, pipeline, jssc, cacheCandidates);
+    ctxt = new EvaluationContext(jsc, pipeline, jssc);
+    ctxt.setCacheCandidates(cacheCandidates);
     pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
     ctxt.computeOutputs();
 
     checkpoint(jssc);
 
     return jssc;
+  }
+
+  public EvaluationContext getEvaluationContext() {
+    return this.ctxt;
+  }
+
+  public void setCacheCandidates(Map<PCollection, Long> cacheCandidates) {
+    this.cacheCandidates = cacheCandidates;
   }
 
   private void checkpoint(JavaStreamingContext jssc) {

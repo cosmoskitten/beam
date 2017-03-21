@@ -91,12 +91,12 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
         && ((TestSparkPipelineOptions) options).isForceStreaming()) {
       SparkPipelineTranslator streamingTranslator =
           new StreamingTransformTranslator.Translator(translator);
-      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc,
-          new HashMap<PCollection, Long>());
+      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
+      ctxt.setCacheCandidates(new HashMap<PCollection, Long>());
       visitor = new SparkNativePipelineVisitor(streamingTranslator, ctxt);
     } else {
-      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc,
-          new HashMap<PCollection, Long>());
+      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
+      ctxt.setCacheCandidates(new HashMap<PCollection, Long>());
       visitor = new SparkNativePipelineVisitor(translator, ctxt);
     }
 
