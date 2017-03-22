@@ -113,6 +113,7 @@ public class PipelineOptionsTest {
   public void parDoBaseClassPipelineOptionsNullTest() {
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
+        "stepName",
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
         new TupleTag<String>("main-output"),
         Collections.<TupleTag<?>>emptyList(),
@@ -133,6 +134,7 @@ public class PipelineOptionsTest {
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
+        "stepName",
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
         new TupleTag<String>("main-output"),
         Collections.<TupleTag<?>>emptyList(),

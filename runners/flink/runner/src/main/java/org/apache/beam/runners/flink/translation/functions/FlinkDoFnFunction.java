@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -50,6 +51,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
   private final SerializedPipelineOptions serializedOptions;
 
   private final DoFn<InputT, OutputT> doFn;
+  private final String stepName;
   private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
   private final WindowingStrategy<?, ?> windowingStrategy;
@@ -61,6 +63,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
   public FlinkDoFnFunction(
       DoFn<InputT, OutputT> doFn,
+      String stepName,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions options,
@@ -68,6 +71,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
       TupleTag<OutputT> mainOutputTag) {
 
     this.doFn = doFn;
+    this.stepName = stepName;
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializedPipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
@@ -102,6 +106,8 @@ public class FlinkDoFnFunction<InputT, OutputT>
         new FlinkNoOpStepContext(),
         new FlinkAggregatorFactory(runtimeContext),
         windowingStrategy);
+
+    doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
 
     doFnRunner.startBundle();
 

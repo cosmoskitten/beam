@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -55,6 +56,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     extends RichGroupReduceFunction<WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
 
   private final DoFn<KV<K, V>, OutputT> dofn;
+  private String stepName;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
   private final SerializedPipelineOptions serializedOptions;
@@ -64,6 +66,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
   public FlinkStatefulDoFnFunction(
       DoFn<KV<K, V>, OutputT> dofn,
+      String stepName,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions,
@@ -71,6 +74,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       TupleTag<OutputT> mainOutputTag) {
 
     this.dofn = dofn;
+    this.stepName = stepName;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
@@ -128,6 +132,8 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
         },
         new FlinkAggregatorFactory(runtimeContext),
         windowingStrategy);
+
+    doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
 
     doFnRunner.startBundle();
 
