@@ -199,47 +199,21 @@ public class BatchingParDoTest implements Serializable {
             new DoFn<KV<String, String>, Void>() {
               @ProcessElement
               public void processElement(ProcessContext c, BoundedWindow window) {
-                LOGGER.info(
-                    String.format(
-                        "**** ELEMENT: (%s,%s) with timestamp %s in window %s *****",
+                LOGGER.debug("*** ELEMENT: (%s,%s) *** with timestamp %s in window %s",
                         c.element().getKey(),
                         c.element().getValue(),
                         c.timestamp().toString(),
-                        window.toString()));
+                        window.toString());
               }
             }));
 
-    // TODO remove after everything is ok
     PCollection<KV<String, Long>> countInput =
         inputCollection.apply(
             "Count elements in windows before applying batchingParDo",
             Count.<String, String>perKey());
-    countInput.apply(
-        "Print inputCollection counts per window",
-        ParDo.of(
-            new DoFn<KV<String, Long>, Void>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                LOGGER.info(
-                    String.format(
-                        "**** ELEMENT COUNT BEFORE BATCHNIG PARDO: (%s,%d) *****",
-                        c.element().getKey(), c.element().getValue()));
-              }
-            }));
     PAssert.that(countInput)
         .satisfies(
-            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-              @Override
-              public Void apply(Iterable<KV<String, Long>> input) {
-                for (KV<String, Long> element : input) {
-                  assertThat(
-                      "Wrong number of elements in window",
-                      element.getValue(),
-                      Matchers.equalTo(WINDOW_DURATION));
-                }
-                return null;
-              }
-            });
+            new CheckNumElementsInWindows());
 
     PCollection<KV<String, String>> outputCollection =
         inputCollection
@@ -252,33 +226,9 @@ public class BatchingParDoTest implements Serializable {
         outputCollection.apply(
             "Count elements in windows after applying batchingParDo",
             Count.<String, String>perKey());
-    countOutput.apply(
-        "Print outputCollection counts per window",
-        ParDo.of(
-            new DoFn<KV<String, Long>, Void>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                LOGGER.info(
-                    String.format(
-                        "**** ELEMENT COUNT AFTER BATCHING PARDO: (%s,%d) *****",
-                        c.element().getKey(), c.element().getValue()));
-              }
-            }));
 
     PAssert.that(countOutput)
-        .satisfies(
-            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-              @Override
-              public Void apply(Iterable<KV<String, Long>> input) {
-                for (KV<String, Long> element : input) {
-                  assertThat(
-                      "Wrong number of elements in window",
-                      element.getValue(),
-                      Matchers.equalTo(WINDOW_DURATION));
-                }
-                return null;
-              }
-            });
+        .satisfies(new CheckNumElementsInWindows());
 
     // test that there is NUM_ELEMENTS / WINDOW_DURATION windows
 /*
@@ -316,6 +266,18 @@ public class BatchingParDoTest implements Serializable {
       assertTrue(
           "all elements of the collection have not been processed ",
           checkAllElementsProcessing(input, Processing.PROCESSED));
+      return null;
+    }
+  }
+  private class CheckNumElementsInWindows implements SerializableFunction<Iterable<KV<String, Long>>, Void>{
+    @Override
+    public Void apply(Iterable<KV<String, Long>> input) {
+      for (KV<String, Long> element : input) {
+        assertThat(
+          "Wrong number of elements in window",
+          element.getValue(),
+          Matchers.equalTo(WINDOW_DURATION));
+      }
       return null;
     }
   }
