@@ -162,8 +162,9 @@ public class BatchingParDo<K, InputT, OutputT>
       // But prevent to set it at each element (set it once per window)
       Integer isSet = timerAlreadySetForWindow.read();
       if (isSet == null) {
-        LOGGER.debug("*** SET TIMER *** to point in time %s for window %s",
-                firingInstant.toString(), window.toString());
+        LOGGER.debug(
+            "*** SET TIMER *** to point in time %s for window %s",
+            firingInstant.toString(), window.toString());
         timer.set(firingInstant);
         timerAlreadySetForWindow.write(1);
       }
@@ -193,8 +194,9 @@ public class BatchingParDo<K, InputT, OutputT>
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID) ValueState<Long> numElementsInBatch,
         BoundedWindow window) {
-      LOGGER.debug("*** END OF WINDOW *** for timer timestamp %s in windows %s",
-              context.timestamp(), window.toString());
+      LOGGER.debug(
+          "*** END OF WINDOW *** for timer timestamp %s in windows %s",
+          context.timestamp(), window.toString());
       flushBatch(context, key, batch, numElementsInBatch);
     }
 

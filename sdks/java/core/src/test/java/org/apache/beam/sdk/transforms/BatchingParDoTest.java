@@ -205,7 +205,8 @@ public class BatchingParDoTest implements Serializable {
               }
             }));
 
-    // elements have the same key and collection is divided into windows, so Count.perKey values are the number of elements in windows
+    // elements have the same key and collection is divided into windows,
+    // so Count.perKey values are the number of elements in windows
     PCollection<KV<String, Long>> countInput =
         inputCollection.apply(
             "Count elements in windows before applying batchingParDo",
@@ -221,7 +222,8 @@ public class BatchingParDoTest implements Serializable {
     PAssert.that("All elements have not been processed", outputCollection)
         .satisfies(new CheckAllElementsProcessingFn());
 
-    // elements have the same key and collection is divided into windows, so Count.perKey values are the number of elements in windows
+    // elements have the same key and collection is divided into windows,
+    // so Count.perKey values are the number of elements in windows
     PCollection<KV<String, Long>> countOutput =
         outputCollection.apply(
             "Count elements in windows after applying batchingParDo",
