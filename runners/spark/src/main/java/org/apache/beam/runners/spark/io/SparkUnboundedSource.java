@@ -49,7 +49,8 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.dstream.DStream;
 import org.apache.spark.streaming.scheduler.StreamInputInfo;
 import org.joda.time.Instant;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.runtime.BoxedUnit;
 
@@ -70,20 +71,28 @@ import scala.runtime.BoxedUnit;
  */
 public class SparkUnboundedSource {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SparkUnboundedSource.class);
+
   public static <T, CheckpointMarkT extends CheckpointMark> UnboundedDataset<T> read(
       JavaStreamingContext jssc,
       SparkRuntimeContext rc,
       UnboundedSource<T, CheckpointMarkT> source) {
 
     SparkPipelineOptions options = rc.getPipelineOptions().as(SparkPipelineOptions.class);
-    Long maxRecordsPerBatch = options.getMaxRecordsPerBatch();
+
+    Integer defaultParallelism = jssc.sc().defaultParallelism();
+
     SourceDStream<T, CheckpointMarkT> sourceDStream =
-        new SourceDStream<>(jssc.ssc(), source, rc, maxRecordsPerBatch);
+        new SourceDStream<>(
+            jssc.ssc(),
+            source,
+            rc,
+            options.getMaxRecordsPerBatch(), defaultParallelism);
 
     JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream =
         JavaPairInputDStream$.MODULE$.fromInputDStream(sourceDStream,
             JavaSparkContext$.MODULE$.<Source<T>>fakeClassTag(),
-                JavaSparkContext$.MODULE$.<CheckpointMarkT>fakeClassTag());
+            JavaSparkContext$.MODULE$.<CheckpointMarkT>fakeClassTag());
 
     // call mapWithState to read from a checkpointable sources.
     JavaMapWithStateDStream<Source<T>, CheckpointMarkT, Tuple2<byte[], Instant>,
@@ -114,6 +123,7 @@ public class SparkUnboundedSource {
         WindowedValue.FullWindowedValueCoder.of(
             source.getDefaultOutputCoder(),
             GlobalWindow.Coder.INSTANCE);
+
     JavaDStream<WindowedValue<T>> readUnboundedStream = mapWithStateDStream.flatMap(
         new FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]>() {
           @Override
@@ -121,6 +131,19 @@ public class SparkUnboundedSource {
             return t2._1();
           }
         }).map(CoderHelpers.fromByteFunction(coder));
+
+    if (sourceDStream.getNumPartitions() < defaultParallelism) {
+      // Repartition up to default parallelism if there are too few partitions.
+      LOG.info(
+          "Less partitions than default parallelism for source {} "
+              + "(partitions={} < parallelism={}). "
+              + "Repartitioning up to default parallelism.",
+          source,
+          sourceDStream.getNumPartitions(),
+          defaultParallelism);
+      readUnboundedStream = readUnboundedStream.repartition(defaultParallelism);
+    }
+
     return new UnboundedDataset<>(readUnboundedStream, Collections.singletonList(id));
   }
 

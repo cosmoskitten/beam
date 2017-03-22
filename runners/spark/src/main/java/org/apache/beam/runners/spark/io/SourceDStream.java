@@ -73,7 +73,8 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       StreamingContext ssc,
       UnboundedSource<T, CheckpointMarkT> unboundedSource,
       SparkRuntimeContext runtimeContext,
-      Long boundMaxRecords) {
+      Long boundMaxRecords,
+      int defaultParallelism) {
     super(ssc, JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
     this.unboundedSource = unboundedSource;
     this.runtimeContext = runtimeContext;
@@ -84,8 +85,8 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     this.boundReadDuration = boundReadDuration(options.getReadTimePercentage(),
         options.getMinReadTimeMillis());
     // set initial parallelism once.
-    this.initialParallelism = ssc().sc().defaultParallelism();
-    checkArgument(this.initialParallelism > 0, "Number of partitions must be greater than zero.");
+    checkArgument(defaultParallelism > 0, "Number of partitions must be greater than zero.");
+    this.initialParallelism = defaultParallelism;
 
     this.boundMaxRecords = boundMaxRecords > 0 ? boundMaxRecords : rateControlledMaxRecords();
 
