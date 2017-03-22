@@ -444,6 +444,7 @@ class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
+                context.getCurrentTransform().getFullName(),
                 inputCoder,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),
@@ -469,6 +470,7 @@ class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
+                context.getCurrentTransform().getFullName(),
                 inputCoder,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),
@@ -698,6 +700,7 @@ class FlinkStreamingTransformTranslators {
       WindowDoFnOperator<K, InputT, Iterable<InputT>> doFnOperator =
           new WindowDoFnOperator<>(
               reduceFn,
+              context.getCurrentTransform().getFullName(),
               (Coder) windowedWorkItemCoder,
               new TupleTag<KV<K, Iterable<InputT>>>("main output"),
               Collections.<TupleTag<?>>emptyList(),
@@ -798,6 +801,7 @@ class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
+                context.getCurrentTransform().getFullName(),
                 (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
@@ -823,6 +827,7 @@ class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
+                context.getCurrentTransform().getFullName(),
                 (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),

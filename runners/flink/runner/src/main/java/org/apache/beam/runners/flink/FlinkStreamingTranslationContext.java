@@ -108,6 +108,9 @@ class FlinkStreamingTranslationContext {
     return new CoderTypeInformation<>(windowedValueCoder);
   }
 
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
+    return currentTransform;
+  }
 
   @SuppressWarnings("unchecked")
   public <T extends PValue> T getInput(PTransform<T, ?> transform) {

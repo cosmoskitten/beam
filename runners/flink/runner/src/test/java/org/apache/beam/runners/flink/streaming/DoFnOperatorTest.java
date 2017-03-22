@@ -111,7 +111,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
-        windowedValueCoder,
+        "stepName", windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
         new DoFnOperator.DefaultOutputManagerFactory(),
@@ -153,7 +153,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, RawUnionValue> doFnOperator = new DoFnOperator<>(
         new MultiOutputDoFn(sideOutput1, sideOutput2),
-        windowedValueCoder,
+        "stepName", windowedValueCoder,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(sideOutput1, sideOutput2),
         new DoFnOperator.MultiOutputOutputManagerFactory(outputMapping),
@@ -211,7 +211,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<Integer, String, WindowedValue<String>> doFnOperator = new DoFnOperator<>(
         fn,
-        windowedValueCoder,
+        "stepName", windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
         new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<String>>(),
@@ -324,7 +324,7 @@ public class DoFnOperatorTest {
         KV<String, Integer>, KV<String, Integer>, WindowedValue<KV<String, Integer>>> doFnOperator =
         new DoFnOperator<>(
             fn,
-            windowedValueCoder,
+            "stepName", windowedValueCoder,
             outputTag,
             Collections.<TupleTag<?>>emptyList(),
             new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<KV<String, Integer>>>(),
@@ -419,7 +419,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
-        windowedValueCoder,
+        "stepName", windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
         new DoFnOperator.DefaultOutputManagerFactory<String>(),
