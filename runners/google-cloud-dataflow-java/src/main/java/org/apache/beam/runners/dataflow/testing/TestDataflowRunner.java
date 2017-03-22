@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -98,6 +99,44 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return run(pipeline, runner);
   }
 
+  /**
+   * Enforces that a cancel() call on the job is done at most once - as a workaround for
+   * Dataflow service's current bugs with multiple cancellation, where it may sometimes
+   * return an error when cancelling a job that was already cancelled, but still report
+   * the job state as RUNNING, so the handling logic in DataflowPipelineJob.cancel() does not
+   * save the day.
+   */
+  private static class Canceller {
+    private final DataflowPipelineJob job;
+    private final AtomicBoolean cancelled = new AtomicBoolean();
+
+    private Canceller(DataflowPipelineJob job) {
+      this.job = job;
+    }
+
+    public void cancel() {
+      if (!cancelled.compareAndSet(false, true)) {
+        LOG.info("Cancellation already requested for Dataflow job {}", job.getJobId());
+        return;
+      }
+      State state = job.getState();
+      if (state.isTerminal()) {
+        LOG.info("Dataflow job {} already completed in state {}", job.getJobId(), state);
+        return;
+      }
+      LOG.info("Cancelling Dataflow job {}", job.getJobId());
+      try {
+        job.cancel();
+      } catch (Exception ignore) {
+        LOG.info(
+            String.format("Cancellation failed for job %s, error ignored", job.getJobId()),
+            ignore);
+        // The TestDataflowRunner will thrown an AssertionError with the job failure
+        // messages.
+      }
+    }
+  }
+
   DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
     updatePAssertCount(pipeline);
 
@@ -110,8 +149,10 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     assertThat(job, testPipelineOptions.getOnCreateMatcher());
 
+    final Canceller canceller = new Canceller(job);
+
     CancelWorkflowOnError messageHandler = new CancelWorkflowOnError(
-        job, new MonitoringUtil.LoggingHandler());
+        job, new MonitoringUtil.LoggingHandler(), canceller);
 
     try {
       final Optional<Boolean> success;
@@ -134,10 +175,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 Thread.sleep(10000L);
               }
             } finally {
-              if (!job.getState().isTerminal()) {
-                LOG.info("Cancelling Dataflow job {}", job.getJobId());
-                job.cancel();
-              }
+              canceller.cancel();
             }
           }
         });
@@ -149,7 +187,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               "Dataflow job {} took longer than {} seconds to complete, cancelling.",
               job.getJobId(),
               options.getTestTimeoutSeconds());
-          job.cancel();
+          canceller.cancel();
         }
         success = resultFuture.get();
       } else {
@@ -313,30 +351,25 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
     private final StringBuffer errorMessage;
-    private CancelWorkflowOnError(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
+    private final Canceller canceller;
+
+    private CancelWorkflowOnError(
+        DataflowPipelineJob job, JobMessagesHandler messageHandler, Canceller canceller) {
       this.job = job;
       this.messageHandler = messageHandler;
       this.errorMessage = new StringBuffer();
+      this.canceller = canceller;
     }
 
     @Override
     public void process(List<JobMessage> messages) {
       messageHandler.process(messages);
       for (JobMessage message : messages) {
-        if (message.getMessageImportance() != null
-            && message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
-          LOG.info("Dataflow job {} threw exception. Failure message was: {}",
+        if ("JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
+          LOG.info("Dataflow job {} threw an exception. Failure message was: {}",
               job.getJobId(), message.getMessageText());
           errorMessage.append(message.getMessageText());
-        }
-      }
-      if (errorMessage.length() > 0) {
-        LOG.info("Cancelling Dataflow job {}", job.getJobId());
-        try {
-          job.cancel();
-        } catch (Exception ignore) {
-          // The TestDataflowRunner will thrown an AssertionError with the job failure
-          // messages.
+          canceller.cancel();
         }
       }
     }
