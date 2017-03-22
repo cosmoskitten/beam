@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -313,6 +314,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
     private final StringBuffer errorMessage;
+    private final AtomicBoolean haveErrors = new AtomicBoolean();
+
     private CancelWorkflowOnError(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
@@ -322,15 +325,18 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public void process(List<JobMessage> messages) {
       messageHandler.process(messages);
+      boolean shouldCancel = false;
       for (JobMessage message : messages) {
-        if (message.getMessageImportance() != null
-            && message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
-          LOG.info("Dataflow job {} threw exception. Failure message was: {}",
+        if ("JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
+          LOG.info("Dataflow job {} threw an exception. Failure message was: {}",
               job.getJobId(), message.getMessageText());
           errorMessage.append(message.getMessageText());
+          if (haveErrors.compareAndSet(false, true)) {
+            shouldCancel = true;
+          }
         }
       }
-      if (errorMessage.length() > 0) {
+      if (shouldCancel) {
         LOG.info("Cancelling Dataflow job {}", job.getJobId());
         try {
           job.cancel();
