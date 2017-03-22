@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class BatchingParDoTest implements Serializable {
   private static final int BATCH_SIZE = 3;
-  private static final long NUM_ELEMENTS = 10;
+  private static final long NUM_ELEMENTS = 100;
   private static final int ALLOWED_LATENESS = 0;
   private static final int TIMESTAMP_INTERVAL = 1;
   private static final long WINDOW_DURATION = 5;
@@ -180,13 +180,10 @@ public class BatchingParDoTest implements Serializable {
     }
     TestStream<KV<String, String>> stream =
         streamBuilder
-/*
-          .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(WINDOW_DURATION - 1)))
-          .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(WINDOW_DURATION)))
-          .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(WINDOW_DURATION + 1)))
-          .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(NUM_ELEMENTS)))
-*/
-          .advanceWatermarkToInfinity();
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(WINDOW_DURATION - 1)))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(WINDOW_DURATION + 1)))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(NUM_ELEMENTS)))
+            .advanceWatermarkToInfinity();
 
     PCollection<KV<String, String>> inputCollection =
         pipeline
@@ -199,42 +196,52 @@ public class BatchingParDoTest implements Serializable {
             new DoFn<KV<String, String>, Void>() {
               @ProcessElement
               public void processElement(ProcessContext c, BoundedWindow window) {
-                LOGGER.debug("*** ELEMENT: (%s,%s) *** with timestamp %s in window %s",
-                        c.element().getKey(),
-                        c.element().getValue(),
-                        c.timestamp().toString(),
-                        window.toString());
+                LOGGER.debug(
+                    "*** ELEMENT: (%s,%s) *** with timestamp %s in window %s",
+                    c.element().getKey(),
+                    c.element().getValue(),
+                    c.timestamp().toString(),
+                    window.toString());
               }
             }));
 
+    // elements have the same key and collection is divided into windows, so Count.perKey values are the number of elements in windows
     PCollection<KV<String, Long>> countInput =
         inputCollection.apply(
             "Count elements in windows before applying batchingParDo",
             Count.<String, String>perKey());
-    PAssert.that(countInput)
-        .satisfies(
-            new CheckNumElementsInWindows());
+    PAssert.that("Wrong number of elements in windows before BatchingParDo", countInput)
+        .satisfies(new CheckValuesFn(WINDOW_DURATION));
 
     PCollection<KV<String, String>> outputCollection =
         inputCollection
             .apply(batchingParDo)
             .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
-    PAssert.that(outputCollection).satisfies(new CheckAllElementsProcessingFn());
+    PAssert.that("All elements have not been processed", outputCollection)
+        .satisfies(new CheckAllElementsProcessingFn());
 
+    // elements have the same key and collection is divided into windows, so Count.perKey values are the number of elements in windows
     PCollection<KV<String, Long>> countOutput =
         outputCollection.apply(
             "Count elements in windows after applying batchingParDo",
             Count.<String, String>perKey());
 
-    PAssert.that(countOutput)
-        .satisfies(new CheckNumElementsInWindows());
-
-    // test that there is NUM_ELEMENTS / WINDOW_DURATION windows
-/*
-    PAssert.thatSingleton(countOutput.apply("Count windows", Count.<String, Long>perKey()))
-        .isEqualTo(KV.of("key", NUM_ELEMENTS / WINDOW_DURATION));
-*/
+    PAssert.that("Wrong number of windows", countOutput)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
+              @Override
+              public Void apply(Iterable<KV<String, Long>> input) {
+                long size = 0;
+                for (KV<String, Long> element : input) {
+                  size++;
+                }
+                assertEquals(NUM_ELEMENTS / WINDOW_DURATION, size);
+                return null;
+              }
+            });
+    PAssert.that("Wrong number of elements in windows after BatchingParDo", countOutput)
+        .satisfies(new CheckValuesFn(WINDOW_DURATION));
     pipeline.run().waitUntilFinish();
   }
 
@@ -269,14 +276,18 @@ public class BatchingParDoTest implements Serializable {
       return null;
     }
   }
-  private class CheckNumElementsInWindows implements SerializableFunction<Iterable<KV<String, Long>>, Void>{
+
+  private class CheckValuesFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
+    private long num;
+
+    private CheckValuesFn(long num) {
+      this.num = num;
+    }
+
     @Override
     public Void apply(Iterable<KV<String, Long>> input) {
       for (KV<String, Long> element : input) {
-        assertThat(
-          "Wrong number of elements in window",
-          element.getValue(),
-          Matchers.equalTo(WINDOW_DURATION));
+        assertThat(element.getValue(), Matchers.equalTo(num));
       }
       return null;
     }
