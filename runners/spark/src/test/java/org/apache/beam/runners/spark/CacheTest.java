@@ -19,9 +19,6 @@ package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
@@ -45,20 +42,18 @@ public class CacheTest {
   @Test
   public void cacheCandidatesUpdaterTest() throws Exception {
     Pipeline pipeline = pipelineRule.createPipeline();
-    PCollection pcollection = pipeline.apply(Create.of("foo", "bar"));
+    PCollection pCollection = pipeline.apply(Create.of("foo", "bar"));
     // first read
-    pcollection.apply(Count.globally());
+    pCollection.apply(Count.globally());
     // second read
-    pcollection.apply(Count.globally());
+    pCollection.apply(Count.globally());
 
-    Map<PCollection, Long> cacheCandidates = new HashMap<>();
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineRule.getOptions());
-    SparkRunner.CacheCandidatesUpdater updater =
-        new SparkRunner.CacheCandidatesUpdater(cacheCandidates,
-            new TransformTranslator.Translator(),
-            new EvaluationContext(jsc, pipeline));
+    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
+    SparkRunner.CacheVisitor updater =
+        new SparkRunner.CacheVisitor(new TransformTranslator.Translator(), ctxt);
     pipeline.traverseTopologically(updater);
-    assertEquals(2L, (long) cacheCandidates.get(pcollection));
+    assertEquals(2L, (long) ctxt.getCacheCandidates().get(pCollection));
   }
 
 }

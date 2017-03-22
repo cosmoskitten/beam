@@ -21,6 +21,8 @@ package org.apache.beam.runners.spark.translation;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Iterables;
+
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -56,7 +58,7 @@ public class EvaluationContext {
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
-  private Map<PCollection, Long> cacheCandidates;
+  private final Map<PCollection, Long> cacheCandidates = new HashMap<>();
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
@@ -155,6 +157,7 @@ public class EvaluationContext {
       JavaRDD<WindowedValue<T>> rdd =
           getSparkContext().parallelize(CoderHelpers.toByteArrays(elems, windowCoder))
           .map(CoderHelpers.fromByteFunction(windowCoder));
+      // create a BoundedDataset that would create a RDD on demand
       putDataset(transform, new BoundedDataset<>(rdd));
     } else {
       datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
@@ -249,11 +252,8 @@ public class EvaluationContext {
     return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
   }
 
-  /**
-   * Update the cache candidates map used.
-   */
-  public void setCacheCandidates(Map<PCollection, Long> cacheCandidates) {
-    this.cacheCandidates = cacheCandidates;
+  public Map<PCollection, Long> getCacheCandidates() {
+    return this.cacheCandidates;
   }
 
 }

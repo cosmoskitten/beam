@@ -18,13 +18,10 @@
 
 package org.apache.beam.runners.spark;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -100,6 +97,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    */
   private final SparkPipelineOptions mOptions;
 
+  private SparkPipelineTranslator translator;
+
   /**
    * Creates and returns a new SparkRunner with default options. In particular, against a
    * spark instance running in local mode.
@@ -155,22 +154,19 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
 
-    // create the cache candidates map
-    Map<PCollection, Long> cacheCandidates = new HashMap<>();
-
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
       final SparkRunnerStreamingContextFactory contextFactory =
           new SparkRunnerStreamingContextFactory(pipeline, mOptions, checkpointDir);
-      // update cache candidates
-      SparkPipelineTranslator translator = new StreamingTransformTranslator.Translator(
-          new TransformTranslator.Translator());
-      updateCacheCandidates(pipeline, cacheCandidates, translator,
-          contextFactory.getEvaluationContext());
-      contextFactory.setCacheCandidates(cacheCandidates);
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(checkpointDir.getSparkCheckpointDir().toString(),
               contextFactory);
+
+      // update cache candidates
+      translator = new StreamingTransformTranslator.Translator(
+          new TransformTranslator.Translator());
+      updateCacheCandidates(pipeline, translator,
+          contextFactory.getEvaluationContext());
 
       // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
@@ -210,13 +206,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
       final EvaluationContext evaluationContext =
           new EvaluationContext(jsc, pipeline);
-      final SparkPipelineTranslator translator = new TransformTranslator.Translator();
+      translator = new TransformTranslator.Translator();
 
       // update the cache candidates
-      updateCacheCandidates(pipeline, cacheCandidates, translator, evaluationContext);
-
-      // update the evaluation context
-      evaluationContext.setCacheCandidates(cacheCandidates);
+      updateCacheCandidates(pipeline, translator, evaluationContext);
 
       initAccumulators(mOptions, jsc);
 
@@ -277,11 +270,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /**
    * Evaluator that update/populate the cache candidates.
    */
-  private void updateCacheCandidates(Pipeline pipeline, Map<PCollection, Long> cacheCandidates,
+  private void updateCacheCandidates(Pipeline pipeline,
                                      SparkPipelineTranslator translator,
                                      EvaluationContext evaluationContext) {
-     CacheCandidatesUpdater updater =
-         new CacheCandidatesUpdater(cacheCandidates, translator, evaluationContext);
+     CacheVisitor updater =
+         new CacheVisitor(translator, evaluationContext);
      pipeline.traverseTopologically(updater);
   }
 
@@ -333,20 +326,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * Traverses the pipeline to determine the {@link TranslationMode} for this pipeline, and
    * populate the candidates for caching. It's the preparation step of the runner.
    */
-  static class CacheCandidatesUpdater extends Evaluator {
+  static class CacheVisitor extends Evaluator {
 
-    private final Map<PCollection, Long> cacheCandidates;
-
-    public CacheCandidatesUpdater(Map<PCollection, Long> cacheCandidates,
-                                  SparkPipelineTranslator translator,
-                                  EvaluationContext evaluationContext) {
+    public CacheVisitor(SparkPipelineTranslator translator,
+                        EvaluationContext evaluationContext) {
       super(translator, evaluationContext);
-      this.cacheCandidates = cacheCandidates;
-    }
-
-    @VisibleForTesting
-    Map<PCollection, Long> getCacheCandidates() {
-      return cacheCandidates;
     }
 
     @Override
@@ -358,14 +342,15 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // than one transformation, so it won't be evaluated again all the way throughout its lineage.
 
       // update cache candidates with node inputs
+
       for (TaggedPValue input : node.getInputs()) {
         PValue value = input.getValue();
         if (value instanceof PCollection) {
           long count = 1L;
-          if (cacheCandidates.get(value) != null) {
-            count = cacheCandidates.get(value) + 1;
+          if (ctxt.getCacheCandidates().get(value) != null) {
+            count = ctxt.getCacheCandidates().get(value) + 1;
           }
-          cacheCandidates.put((PCollection) value, count);
+          ctxt.getCacheCandidates().put((PCollection) value, count);
         }
       }
     }

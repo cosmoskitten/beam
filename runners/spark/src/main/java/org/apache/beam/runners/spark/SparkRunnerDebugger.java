@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.spark;
 
-import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -30,7 +29,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
@@ -92,11 +90,9 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
       SparkPipelineTranslator streamingTranslator =
           new StreamingTransformTranslator.Translator(translator);
       EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
-      ctxt.setCacheCandidates(new HashMap<PCollection, Long>());
       visitor = new SparkNativePipelineVisitor(streamingTranslator, ctxt);
     } else {
       EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
-      ctxt.setCacheCandidates(new HashMap<PCollection, Long>());
       visitor = new SparkNativePipelineVisitor(translator, ctxt);
     }
 
