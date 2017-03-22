@@ -129,4 +129,20 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   public int hashCode() {
     return coder.hashCode();
   }
+
+  @Override
+  public boolean isCompatibleWith(TypeSerializer<?> other) {
+    if (!(other instanceof CoderTypeSerializer)) {
+      return false;
+    }
+
+    return coder.equals(((CoderTypeSerializer) other).coder);
+  }
+
+  @Override
+  public String toString() {
+    return "CoderTypeSerializer{" +
+        "coder=" + coder +
+        '}';
+  }
 }
