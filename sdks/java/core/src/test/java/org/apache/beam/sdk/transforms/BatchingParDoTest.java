@@ -229,19 +229,6 @@ public class BatchingParDoTest implements Serializable {
             "Count elements in windows after applying batchingParDo",
             Count.<String, String>perKey());
 
-    PAssert.that("Wrong number of windows", countOutput)
-        .satisfies(
-            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-              @Override
-              public Void apply(Iterable<KV<String, Long>> input) {
-                long size = 0;
-                for (KV<String, Long> element : input) {
-                  size++;
-                }
-                assertEquals(NUM_ELEMENTS / WINDOW_DURATION, size);
-                return null;
-              }
-            });
     PAssert.that("Wrong number of elements in windows after BatchingParDo", countOutput)
         .satisfies(new CheckValuesFn(WINDOW_DURATION));
     pipeline.run().waitUntilFinish();
