@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -117,7 +118,7 @@ public class HIFIOWithElasticTest implements Serializable {
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
-    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(Arrays.asList(expectedHashCode));
     pipeline.run().waitUntilFinish();
   }
 
@@ -159,7 +160,7 @@ public class HIFIOWithElasticTest implements Serializable {
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
-    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(Arrays.asList(expectedHashCode));
     pipeline.run().waitUntilFinish();
   }
 
