@@ -301,7 +301,7 @@ public class PAssertTest implements Serializable {
    * Test that we throw an error for false assertion on singleton.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testPAssertEqualsSingletonFalse() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
     PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
@@ -319,7 +319,7 @@ public class PAssertTest implements Serializable {
    * Test that we throw an error for false assertion on singleton.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testPAssertEqualsSingletonFalseDefaultReasonString() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
     PAssert.thatSingleton(pcollection).isEqualTo(44);
@@ -437,7 +437,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyFalseDefaultReasonString() throws Exception {
     PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
     PAssert.that(vals).empty();
@@ -452,7 +452,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testAssertionSiteIsCapturedWithMessage() throws Exception {
     PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
     assertThatCollectionIsEmptyWithMessage(vals);
@@ -471,7 +471,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testAssertionSiteIsCapturedWithoutMessage() throws Exception {
     PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
     assertThatCollectionIsEmptyWithoutMessage(vals);
