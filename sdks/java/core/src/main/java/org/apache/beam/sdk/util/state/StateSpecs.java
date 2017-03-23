@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -46,11 +48,12 @@ public class StateSpecs {
 
   /** Create a simple state spec for values of type {@code T}. */
   public static <T> StateSpec<Object, ValueState<T>> value() {
-    return value(null);
+    return new ValueStateSpec<>(null);
   }
 
   /** Create a simple state spec for values of type {@code T}. */
   public static <T> StateSpec<Object, ValueState<T>> value(Coder<T> valueCoder) {
+    checkArgument(valueCoder != null, "valueCoder should not be null. Consider value() instead");
     return new ValueStateSpec<>(valueCoder);
   }
 
@@ -61,7 +64,7 @@ public class StateSpecs {
   public static <InputT, AccumT, OutputT>
   StateSpec<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>> combiningValue(
       CombineFn<InputT, AccumT, OutputT> combineFn) {
-    return combiningValueInternal(null, combineFn);
+    return new CombiningValueStateSpec<InputT, AccumT, OutputT>(null, combineFn);
   }
 
   /**
@@ -71,6 +74,9 @@ public class StateSpecs {
   public static <InputT, AccumT, OutputT>
       StateSpec<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>> combiningValue(
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+    checkArgument(accumCoder != null,
+        "accumCoder should not be null. "
+            + "Consider using combiningValue(CombineFn<> combineFn) instead.");
     return combiningValueInternal(accumCoder, combineFn);
   }
 
@@ -81,7 +87,7 @@ public class StateSpecs {
   public static <K, InputT, AccumT, OutputT>
   StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> keyedCombiningValue(
       KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
-    return keyedCombiningValueInternal(null, combineFn);
+    return new KeyedCombiningValueStateSpec<K, InputT, AccumT, OutputT>(null, combineFn);
   }
 
   /**
@@ -91,6 +97,9 @@ public class StateSpecs {
   public static <K, InputT, AccumT, OutputT>
       StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> keyedCombiningValue(
           Coder<AccumT> accumCoder, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+    checkArgument(accumCoder != null,
+        "accumCoder should not be null. "
+            + "Consider using keyedCombiningValue(KeyedCombineFn<> combineFn) instead.");
     return keyedCombiningValueInternal(accumCoder, combineFn);
   }
 
@@ -113,6 +122,9 @@ public class StateSpecs {
           keyedCombiningValueWithContext(
               Coder<AccumT> accumCoder,
               KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
+    checkArgument(accumCoder != null,
+        "accumCoder should not be null. Consider using "
+            + "keyedCombiningValueWithContext(KeyedCombineFnWithContext<> combineFn) instead.");
     return new KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>(
         accumCoder, combineFn);
   }
