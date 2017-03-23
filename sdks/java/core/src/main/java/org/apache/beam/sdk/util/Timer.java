@@ -61,13 +61,13 @@ public interface Timer {
 
   /**
    * Sets or resets the time aligned to the smallest multiple of {@code size} since the
-   * {@code offset} greater than the current time in the timer's {@link TimeDomain} at which
-   * this it should fire. If the timer was already set, resets it to the new requested time.
+   * {@code durationFromNow} greater than the current time in the timer's {@link TimeDomain} at
+   * which this it should fire. If the timer was already set, resets it to the new requested time.
    *
    * <p>For {@link TimeDomain#EVENT_TIME}, to prevent more than window GC Time, it provide a simple
    * utility to take min(time to set, GC Time of window).
    */
-  void setForNowAlign(Duration size, Instant offset);
+  void setForNowAlign(Duration size, Duration durationFromNow);
 
   /**
    * Unsets this timer. It is permitted to {@code cancel()} whether or not the timer was actually

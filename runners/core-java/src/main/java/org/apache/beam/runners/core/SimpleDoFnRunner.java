@@ -834,9 +834,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public void setForNowAlign(Duration size, Instant offset) {
+    public void setForNowAlign(Duration size, Duration durationFromNow) {
       Instant now = getCurrentTime();
-      long millisSinceStart = new Duration(offset, now).getMillis() % size.getMillis();
+      long millisSinceStart = now.plus(durationFromNow).getMillis() % size.getMillis();
       Instant target = millisSinceStart == 0 ? now : now.plus(size).minus(millisSinceStart);
       target = minTargetAndGcTime(target);
       setUnderlyingTimer(target);
