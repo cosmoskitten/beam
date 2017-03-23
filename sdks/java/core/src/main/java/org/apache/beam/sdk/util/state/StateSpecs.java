@@ -253,12 +253,6 @@ public class StateSpecs {
 
     @Override
     public ValueState<T> bind(String id, StateBinder<?> visitor) {
-      if (coder == null) {
-        throw new IllegalStateException("Unable to infer a coder for ValueState and no Coder"
-            + " was specified. Please set a coder by either invoking"
-            + " StateSpecs.value(Coder<T> valueCoder) or by registering the coder in the"
-            + " Pipeline's CoderRegistry.");
-      }
       return visitor.bindValue(id, this, coder);
     }
 
@@ -269,6 +263,15 @@ public class StateSpecs {
         if (coders[0] != null) {
           this.coder = (Coder<T>) coders[0];
         }
+      }
+    }
+
+    @Override public void finishSpecifying() {
+      if (coder == null) {
+        throw new IllegalStateException("Unable to infer a coder for ValueState and no Coder"
+            + " was specified. Please set a coder by either invoking"
+            + " StateSpecs.value(Coder<T> valueCoder) or by registering the coder in the"
+            + " Pipeline's CoderRegistry.");
       }
     }
 
@@ -352,14 +355,6 @@ public class StateSpecs {
     @Override
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder<? extends K> visitor) {
-      if (accumCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for"
-            + " KeyedCombiningValueWithContextState and no Coder was specified."
-            + " Please set a coder by either invoking"
-            + " StateSpecs.keyedCombiningValue(Coder<AccumT> accumCoder,"
-            + " KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn)"
-            + " or by registering the coder in the Pipeline's CoderRegistry.");
-      }
       return visitor.bindKeyedCombiningValueWithContext(id, this, accumCoder, combineFn);
     }
 
@@ -370,6 +365,17 @@ public class StateSpecs {
         if (coders[2] != null) {
           this.accumCoder = (Coder<AccumT>) coders[2];
         }
+      }
+    }
+
+    @Override public void finishSpecifying() {
+      if (accumCoder == null) {
+        throw new IllegalStateException("Unable to infer a coder for"
+            + " KeyedCombiningValueWithContextState and no Coder was specified."
+            + " Please set a coder by either invoking"
+            + " StateSpecs.keyedCombiningValue(Coder<AccumT> accumCoder,"
+            + " KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn)"
+            + " or by registering the coder in the Pipeline's CoderRegistry.");
       }
     }
 
@@ -424,15 +430,7 @@ public class StateSpecs {
     @Override
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder<? extends K> visitor) {
-      Coder<AccumT> accumCoder = getAccumCoder();
-      if (accumCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for CombiningState and no"
-            + " Coder was specified. Please set a coder by either invoking"
-            + " StateSpecs.combiningValue(Coder<AccumT> accumCoder,"
-            + " CombineFn<InputT, AccumT, OutputT> combineFn)"
-            + " or by registering the coder in the Pipeline's CoderRegistry.");
-      }
-      return visitor.bindKeyedCombiningValue(id, this, accumCoder, keyedCombineFn);
+      return visitor.bindKeyedCombiningValue(id, this, getAccumCoder(), keyedCombineFn);
     }
 
     @SuppressWarnings("unchecked")
@@ -442,6 +440,16 @@ public class StateSpecs {
         if (coders[2] != null) {
           this.accumCoder = (Coder<AccumT>) coders[2];
         }
+      }
+    }
+
+    @Override public void finishSpecifying() {
+      if (getAccumCoder() == null) {
+        throw new IllegalStateException("Unable to infer a coder for CombiningState and no"
+            + " Coder was specified. Please set a coder by either invoking"
+            + " StateSpecs.combiningValue(Coder<AccumT> accumCoder,"
+            + " CombineFn<InputT, AccumT, OutputT> combineFn)"
+            + " or by registering the coder in the Pipeline's CoderRegistry.");
       }
     }
 
@@ -487,12 +495,6 @@ public class StateSpecs {
 
     @Override
     public BagState<T> bind(String id, StateBinder<?> visitor) {
-      if (elemCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for BagState and no Coder"
-            + " was specified. Please set a coder by either invoking"
-            + " StateSpecs.bag(Coder<T> elemCoder) or by registering the coder in the"
-            + " Pipeline's CoderRegistry.");
-      }
       return visitor.bindBag(id, this, elemCoder);
     }
 
@@ -503,6 +505,15 @@ public class StateSpecs {
         if (coders[0] != null) {
           this.elemCoder = (Coder<T>) coders[0];
         }
+      }
+    }
+
+    @Override public void finishSpecifying() {
+      if (elemCoder == null) {
+        throw new IllegalStateException("Unable to infer a coder for BagState and no Coder"
+            + " was specified. Please set a coder by either invoking"
+            + " StateSpecs.bag(Coder<T> elemCoder) or by registering the coder in the"
+            + " Pipeline's CoderRegistry.");
       }
     }
 
@@ -540,12 +551,6 @@ public class StateSpecs {
 
     @Override
     public MapState<K, V> bind(String id, StateBinder<?> visitor) {
-      if (keyCoder == null || valueCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for MapState and no Coder"
-            + " was specified. Please set a coder by either invoking"
-            + " StateSpecs.map(Coder<K> keyCoder, Coder<V> valueCoder) or by registering the"
-            + " coder in the Pipeline's CoderRegistry.");
-      }
       return visitor.bindMap(id, this, keyCoder, valueCoder);
     }
 
@@ -561,6 +566,15 @@ public class StateSpecs {
         if (coders[1] != null) {
           this.valueCoder = (Coder<V>) coders[1];
         }
+      }
+    }
+
+    @Override public void finishSpecifying() {
+      if (keyCoder == null || valueCoder == null) {
+        throw new IllegalStateException("Unable to infer a coder for MapState and no Coder"
+            + " was specified. Please set a coder by either invoking"
+            + " StateSpecs.map(Coder<K> keyCoder, Coder<V> valueCoder) or by registering the"
+            + " coder in the Pipeline's CoderRegistry.");
       }
     }
 
@@ -601,12 +615,6 @@ public class StateSpecs {
 
     @Override
     public SetState<T> bind(String id, StateBinder<?> visitor) {
-      if (elemCoder == null) {
-        throw new IllegalStateException("Unable to infer a coder for SetState and no Coder"
-            + " was specified. Please set a coder by either invoking"
-            + " StateSpecs.set(Coder<T> elemCoder) or by registering the coder in the"
-            + " Pipeline's CoderRegistry.");
-      }
       return visitor.bindSet(id, this, elemCoder);
     }
 
@@ -617,6 +625,15 @@ public class StateSpecs {
         if (coders[0] != null) {
           this.elemCoder = (Coder<T>) coders[0];
         }
+      }
+    }
+
+    @Override public void finishSpecifying() {
+      if (elemCoder == null) {
+        throw new IllegalStateException("Unable to infer a coder for SetState and no Coder"
+            + " was specified. Please set a coder by either invoking"
+            + " StateSpecs.set(Coder<T> elemCoder) or by registering the coder in the"
+            + " Pipeline's CoderRegistry.");
       }
     }
 
@@ -667,6 +684,10 @@ public class StateSpecs {
 
     @Override
     public void offerCoders(Coder[] coders) {
+    }
+
+    @Override public void finishSpecifying() {
+      // Currently an empty implementation as there are no coders to validate.
     }
 
     @Override

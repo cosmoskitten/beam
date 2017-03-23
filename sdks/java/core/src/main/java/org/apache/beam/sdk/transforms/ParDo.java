@@ -538,7 +538,7 @@ public class ParDo {
     return DisplayData.item("fn", fn.getClass()).withLabel("Transform Function");
   }
 
-  private static void inferStateCodersIfNeeded(
+  private static void finishSpecifyingStateSpecs(
       DoFn<?, ?> fn,
       CoderRegistry coderRegistry,
       Coder<?> inputCoder) {
@@ -548,8 +548,11 @@ public class ParDo {
       try {
         StateSpec<?, ?> stateSpec = (StateSpec<?, ?>) stateDeclaration.field().get(fn);
         stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder));
+        stateSpec.finishSpecifying();
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
+      } catch (Exception e) {
+        throw new Pipeline.PipelineExecutionException(e);
       }
     }
   }
@@ -790,7 +793,7 @@ public class ParDo {
 
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
-      inferStateCodersIfNeeded(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
+      finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
       TupleTag<OutputT> mainOutput = new TupleTag<>();
       return input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
     }
@@ -981,7 +984,7 @@ public class ParDo {
       validateWindowType(input, fn);
 
       // Use coder registry to determine coders for all StateSpec defined in the fn signature.
-      inferStateCodersIfNeeded(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
+      finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
 
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),

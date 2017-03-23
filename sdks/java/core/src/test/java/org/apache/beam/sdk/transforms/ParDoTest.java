@@ -1683,11 +1683,12 @@ public class ParDoTest implements Serializable {
           }
         };
 
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for ValueState and no Coder was specified.");
+
     pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
         .apply(ParDo.of(fn)).setCoder(myIntegerCoder);
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectMessage("Unable to infer a coder for ValueState and no Coder was specified.");
     pipeline.run();
   }
 
@@ -2003,13 +2004,14 @@ public class ParDoTest implements Serializable {
           }
         };
 
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for BagState and no Coder was specified.");
+
     pipeline.apply(
         Create.of(
             KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
         .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectMessage("Unable to infer a coder for BagState and no Coder was specified.");
     pipeline.run();
   }
 
@@ -2131,13 +2133,14 @@ public class ParDoTest implements Serializable {
           }
         };
 
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for SetState and no Coder was specified.");
+
     pipeline.apply(
         Create.of(
             KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
         .apply(ParDo.of(fn)).setCoder(SetCoder.of(myIntegerCoder));
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectMessage("Unable to infer a coder for SetState and no Coder was specified.");
     pipeline.run();
   }
 
@@ -2267,14 +2270,15 @@ public class ParDoTest implements Serializable {
           }
         };
 
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for MapState and no Coder was specified.");
+
     pipeline.apply(
         Create.of(
             KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
             KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
         .apply(ParDo.of(fn)).setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectMessage("Unable to infer a coder for MapState and no Coder was specified.");
     pipeline.run();
   }
 
@@ -2433,12 +2437,13 @@ public class ParDoTest implements Serializable {
           }
         };
 
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Unable to infer a coder for CombiningState and no Coder was specified.");
+
     pipeline
         .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))
         .apply(ParDo.of(fn));
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectMessage("Unable to infer a coder for CombiningState and no Coder was specified.");
     pipeline.run();
   }
 

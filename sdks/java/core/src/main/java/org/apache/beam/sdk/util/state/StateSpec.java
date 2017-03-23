@@ -45,4 +45,10 @@ public interface StateSpec<K, StateT extends State> extends Serializable {
    *               the coder could not be inferred.
    */
   void offerCoders(Coder[] coders);
+
+  /**
+   * Validates that this {@link StateSpec} has been specified correctly and finalizes it.
+   * Automatically invoked when the pipeline is built.
+   */
+  void finishSpecifying();
 }
