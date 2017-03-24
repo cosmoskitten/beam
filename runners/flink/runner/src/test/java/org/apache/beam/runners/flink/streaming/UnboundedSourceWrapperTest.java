@@ -107,8 +107,8 @@ public class UnboundedSourceWrapperTest {
       AbstractStreamOperatorTestHarness<WindowedValue<KV<Integer, Integer>>> testHarness =
           new AbstractStreamOperatorTestHarness<>(
               sourceOperator,
-              numTasks /* parallelism */,
               numTasks /* max parallelism */,
+              numTasks /* parallelism */,
               0 /* subtask index */);
 
       testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -183,8 +183,8 @@ public class UnboundedSourceWrapperTest {
       AbstractStreamOperatorTestHarness<WindowedValue<KV<Integer, Integer>>> testHarness =
           new AbstractStreamOperatorTestHarness<>(
               sourceOperator,
-              numTasks /* parallelism */,
               numTasks /* max parallelism */,
+              numTasks /* parallelism */,
               0 /* subtask index */);
 
       testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -213,7 +213,7 @@ public class UnboundedSourceWrapperTest {
 
                 emittedElements.add(windowedValueStreamRecord.getValue().getValue());
                 count++;
-                if (count >= 1) {
+                if (count >= numElements / 2) {
                   throw new SuccessException();
                 }
               }
@@ -254,12 +254,12 @@ public class UnboundedSourceWrapperTest {
               TestCountingSource.CounterMark>> restoredSourceOperator =
           new StreamSource<>(restoredFlinkWrapper);
 
-
+      // set parallelism to 1 to ensure that our testing operator gets all checkpointed state
       AbstractStreamOperatorTestHarness<WindowedValue<KV<Integer, Integer>>> restoredTestHarness =
           new AbstractStreamOperatorTestHarness<>(
               restoredSourceOperator,
-              numTasks /* parallelism */,
               numTasks /* max parallelism */,
+              1 /* parallelism */,
               0 /* subtask index */);
 
       restoredTestHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -338,8 +338,8 @@ public class UnboundedSourceWrapperTest {
       AbstractStreamOperatorTestHarness<WindowedValue<KV<Integer, Integer>>> testHarness =
           new AbstractStreamOperatorTestHarness<>(
               sourceOperator,
-              numTasks /* parallelism */,
               numTasks /* max parallelism */,
+              numTasks /* parallelism */,
               0 /* subtask index */);
 
       testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -359,11 +359,12 @@ public class UnboundedSourceWrapperTest {
               TestCountingSource.CounterMark>> restoredSourceOperator =
           new StreamSource<>(restoredFlinkWrapper);
 
+      // set parallelism to 1 to ensure that our testing operator gets all checkpointed state
       AbstractStreamOperatorTestHarness<WindowedValue<KV<Integer, Integer>>> restoredTestHarness =
           new AbstractStreamOperatorTestHarness<>(
               restoredSourceOperator,
-              numTasks /* parallelism */,
               numTasks /* max parallelism */,
+              1 /* parallelism */,
               0 /* subtask index */);
 
       restoredTestHarness.setup();
