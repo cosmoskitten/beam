@@ -105,11 +105,12 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
     }
 
     // update metrics
-    MetricUpdates cumulative = metricsContainer.getCumulative();
-    updateCounters(cumulative.counterUpdates());
-    updateDistributions(cumulative.distributionUpdates());
-    // Only update incremental content, let Flink to manage the fault tolerance of Metrics.
-    metricsContainer = new MetricsContainer(stepName);
+    MetricUpdates updates = metricsContainer.getUpdates();
+    if (updates != null) {
+      updateCounters(updates.counterUpdates());
+      updateDistributions(updates.distributionUpdates());
+      metricsContainer.commitUpdates();
+    }
 
   }
 
@@ -126,6 +127,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
         counter = runtimeContext.getMetricGroup().counter(flinkMetricName);
         counterCache.put(flinkMetricName, counter);
       }
+      counter.dec(counter.getCount());
       counter.inc(update);
 
       // update flink accumulator
@@ -134,6 +136,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
         accumulator = new LongCounter();
         runtimeContext.addAccumulator(flinkMetricName, accumulator);
       }
+      accumulator.resetLocal();
       accumulator.add(update);
     }
   }
@@ -153,7 +156,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
             .gauge(flinkMetricName, new DistributionGauge(update));
         distributionGaugeCache.put(flinkMetricName, gauge);
       } else {
-        gauge.combine(update);
+        gauge.update(update);
       }
 
       // update flink accumulator
@@ -163,6 +166,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
         accumulator = new AccumulatorForDistributionData();
         runtimeContext.addAccumulator(flinkMetricName, accumulator);
       }
+      accumulator.resetLocal();
       accumulator.add(update);
     }
   }
@@ -190,8 +194,8 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
       this.data = data;
     }
 
-    void combine(DistributionData newData) {
-      data.combine(newData);
+    void update(DistributionData newData) {
+      data = newData;
     }
 
     @Override
