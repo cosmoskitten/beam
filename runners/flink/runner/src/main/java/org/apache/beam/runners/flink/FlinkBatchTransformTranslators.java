@@ -30,8 +30,6 @@ import java.util.Map;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMergingNonShuffleReduceFunction;
-import org.apache.beam.runners.flink.translation.functions.FlinkMergingPartialReduceFunction;
-import org.apache.beam.runners.flink.translation.functions.FlinkMergingReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMultiOutputPruningFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
@@ -75,6 +73,7 @@ import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DataSource;
@@ -220,48 +219,27 @@ class FlinkBatchTransformTranslators {
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
           inputDataSet.groupBy(new KvKeySelector<InputT, K>(inputCoder.getKeyCoder()));
 
-      FlinkPartialReduceFunction<K, InputT, List<InputT>, ?> partialReduceFunction;
-      FlinkReduceFunction<K, List<InputT>, List<InputT>, ?> reduceFunction;
-
-      if (windowingStrategy.getWindowFn().isNonMerging()) {
-        @SuppressWarnings("unchecked")
-        WindowingStrategy<?, BoundedWindow> boundedStrategy =
-            (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
-
-        partialReduceFunction = new FlinkPartialReduceFunction<>(
-            combineFn,
-            boundedStrategy,
-            Collections.<PCollectionView<?>, WindowingStrategy<?, ?>>emptyMap(),
-            context.getPipelineOptions());
-
-        reduceFunction = new FlinkReduceFunction<>(
-            combineFn,
-            boundedStrategy,
-            Collections.<PCollectionView<?>, WindowingStrategy<?, ?>>emptyMap(),
-            context.getPipelineOptions());
-
-      } else {
-        if (!windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
-          throw new UnsupportedOperationException(
-              "Merging WindowFn with windows other than IntervalWindow are not supported.");
-        }
-
-        @SuppressWarnings("unchecked")
-        WindowingStrategy<?, IntervalWindow> intervalStrategy =
-            (WindowingStrategy<?, IntervalWindow>) windowingStrategy;
-
-        partialReduceFunction = new FlinkMergingPartialReduceFunction<>(
-            combineFn,
-            intervalStrategy,
-            Collections.<PCollectionView<?>, WindowingStrategy<?, ?>>emptyMap(),
-            context.getPipelineOptions());
-
-        reduceFunction = new FlinkMergingReduceFunction<>(
-            combineFn,
-            intervalStrategy,
-            Collections.<PCollectionView<?>, WindowingStrategy<?, ?>>emptyMap(),
-            context.getPipelineOptions());
+      if (!windowingStrategy.getWindowFn().isNonMerging()
+          && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
+        throw new UnsupportedOperationException(
+            "Merging WindowFn with windows other than IntervalWindow are not supported.");
       }
+
+      @SuppressWarnings("unchecked")
+      WindowingStrategy<?, BoundedWindow> boundedStrategy =
+          (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
+
+      FlinkPartialReduceFunction<K, InputT, List<InputT>, ?> partialReduceFunction =
+          new FlinkPartialReduceFunction<>(
+              combineFn, boundedStrategy,
+              Collections.<PCollectionView<?>, WindowingStrategy<?, ?>>emptyMap(),
+              context.getPipelineOptions());
+
+      FlinkReduceFunction<K, List<InputT>, List<InputT>, ?> reduceFunction =
+          new FlinkReduceFunction<>(
+              combineFn, boundedStrategy,
+              Collections.<PCollectionView<?>, WindowingStrategy<?, ?>>emptyMap(),
+              context.getPipelineOptions());
 
       // Partially GroupReduce the values into the intermediate format AccumT (combine)
       GroupCombineOperator<
@@ -448,23 +426,23 @@ class FlinkBatchTransformTranslators {
         context.setOutputDataSet(context.getOutput(transform), outputDataSet);
 
       } else {
-        if (!windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
-          throw new UnsupportedOperationException(
-              "Merging WindowFn with windows other than IntervalWindow are not supported.");
-        }
 
         // for merging windows we can't to a pre-shuffle combine step since
         // elements would not be in their correct windows for side-input access
 
-        WindowingStrategy<?, IntervalWindow> intervalStrategy =
-            (WindowingStrategy<?, IntervalWindow>) windowingStrategy;
+        RichGroupReduceFunction<WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, OutputT>>>
+            reduceFunction;
+        if (!windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
 
-        FlinkMergingNonShuffleReduceFunction<K, InputT, AccumT, OutputT, ?> reduceFunction =
-            new FlinkMergingNonShuffleReduceFunction<>(
-                combineFn,
-                intervalStrategy,
-                sideInputStrategies,
-                context.getPipelineOptions());
+          throw new UnsupportedOperationException(
+              "Merging WindowFn with windows other than IntervalWindow are not supported.");
+        } else {
+          WindowingStrategy<?, IntervalWindow> intervalStrategy =
+              (WindowingStrategy<?, IntervalWindow>) windowingStrategy;
+
+          reduceFunction = new FlinkMergingNonShuffleReduceFunction<>(
+              combineFn, intervalStrategy, sideInputStrategies, context.getPipelineOptions());
+        }
 
         TypeInformation<WindowedValue<KV<K, OutputT>>> reduceTypeInfo =
             context.getTypeInfo(context.getOutput(transform));
