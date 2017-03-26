@@ -73,6 +73,11 @@ import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.apache.kafka.common.serialization.IntegerSerializer;
+import org.apache.kafka.common.serialization.LongDeserializer;
+import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.TopicPartition;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Instant;
@@ -232,6 +237,8 @@ public class KafkaIOTest {
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
         .withKeyCoder(BigEndianIntegerCoder.of())
         .withValueCoder(BigEndianLongCoder.of())
+        .withKeyDeserializer(IntegerDeserializer.class)
+        .withValueDeserializer(LongDeserializer.class)
         .withMaxNumRecords(numElements);
 
     if (timestampFn != null) {
@@ -305,6 +312,8 @@ public class KafkaIOTest {
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 10 partitions
         .withKeyCoder(ByteArrayCoder.of())
         .withValueCoder(BigEndianLongCoder.of())
+        .withKeyDeserializer(ByteArrayDeserializer.class)
+        .withValueDeserializer(LongDeserializer.class)
         .withMaxNumRecords(numElements / 10);
 
     PCollection<Long> input = p
@@ -491,6 +500,8 @@ public class KafkaIOTest {
             topics, 10, numElements, OffsetResetStrategy.LATEST))
         .withKeyCoder(BigEndianIntegerCoder.of())
         .withValueCoder(BigEndianLongCoder.of())
+        .withKeyDeserializer(IntegerDeserializer.class)
+        .withValueDeserializer(LongDeserializer.class)
         .withMaxNumRecords(numElements)
         .withTimestampFn(new ValueAsTimestampFn())
         .makeSource()
@@ -533,8 +544,8 @@ public class KafkaIOTest {
         .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withKeyCoder(BigEndianIntegerCoder.of())
-            .withValueCoder(BigEndianLongCoder.of())
+            .withKeySerializer(IntegerSerializer.class)
+            .withValueSerializer(LongSerializer.class)
             .withProducerFactoryFn(new ProducerFactoryFn()));
 
       p.run();
@@ -566,7 +577,7 @@ public class KafkaIOTest {
         .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withValueCoder(BigEndianLongCoder.of())
+            .withValueSerializer(LongSerializer.class)
             .withProducerFactoryFn(new ProducerFactoryFn())
             .values());
 
@@ -607,8 +618,8 @@ public class KafkaIOTest {
         .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withKeyCoder(BigEndianIntegerCoder.of())
-            .withValueCoder(BigEndianLongCoder.of())
+            .withKeySerializer(IntegerSerializer.class)
+            .withValueSerializer(LongSerializer.class)
             .withProducerFactoryFn(new ProducerFactoryFn()));
 
       try {
@@ -644,7 +655,9 @@ public class KafkaIOTest {
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)) // 10 partitions
         .withKeyCoder(ByteArrayCoder.of())
-        .withValueCoder(BigEndianLongCoder.of());
+        .withValueCoder(BigEndianLongCoder.of())
+        .withKeyDeserializer(ByteArrayDeserializer.class)
+        .withValueDeserializer(LongDeserializer.class);
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -660,7 +673,7 @@ public class KafkaIOTest {
     KafkaIO.Write<Integer, Long> write = KafkaIO.<Integer, Long>write()
         .withBootstrapServers("myServerA:9092,myServerB:9092")
         .withTopic("myTopic")
-        .withValueCoder(BigEndianLongCoder.of())
+        .withValueSerializer(LongSerializer.class)
         .withProducerFactoryFn(new ProducerFactoryFn());
 
     DisplayData displayData = DisplayData.from(write);
@@ -703,8 +716,8 @@ public class KafkaIOTest {
   private static final MockProducer<Integer, Long> MOCK_PRODUCER =
     new MockProducer<Integer, Long>(
       false, // disable synchronous completion of send. see ProducerSendCompletionThread below.
-      new KafkaIO.CoderBasedKafkaSerializer<Integer>(),
-      new KafkaIO.CoderBasedKafkaSerializer<Long>()) {
+      new IntegerSerializer(),
+      new LongSerializer()) {
 
       // override flush() so that it does not complete all the waiting sends, giving a chance to
       // ProducerCompletionThread to inject errors.
