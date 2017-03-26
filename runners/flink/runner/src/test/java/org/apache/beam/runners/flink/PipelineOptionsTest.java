@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -91,6 +92,13 @@ public class PipelineOptionsTest {
         new SerializedPipelineOptions(options).getPipelineOptions().as(FlinkPipelineOptions.class);
 
     assertNull(deserialized.getStateBackend());
+  }
+
+  @Test
+  public void testEnableMetrics() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setEnableMetrics(false);
+    assertFalse(options.getEnableMetrics());
   }
 
   @Test

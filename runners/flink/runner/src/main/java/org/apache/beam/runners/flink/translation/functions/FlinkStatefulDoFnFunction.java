@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -133,7 +134,10 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
         new FlinkAggregatorFactory(runtimeContext),
         windowingStrategy);
 
-    doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+    if ((serializedOptions.getPipelineOptions().as(FlinkPipelineOptions.class))
+        .getEnableMetrics()) {
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+    }
 
     doFnRunner.startBundle();
 

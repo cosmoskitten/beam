@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -107,7 +108,10 @@ public class FlinkDoFnFunction<InputT, OutputT>
         new FlinkAggregatorFactory(runtimeContext),
         windowingStrategy);
 
-    doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+    if ((serializedOptions.getPipelineOptions().as(FlinkPipelineOptions.class))
+        .getEnableMetrics()) {
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+    }
 
     doFnRunner.startBundle();
 
