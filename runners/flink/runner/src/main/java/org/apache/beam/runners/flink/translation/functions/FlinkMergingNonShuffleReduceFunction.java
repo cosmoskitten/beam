@@ -23,6 +23,7 @@ import org.apache.beam.runners.flink.translation.functions.FlinkCombineRunner.No
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -39,12 +40,12 @@ import org.apache.flink.util.Collector;
  * yet be in their correct windows for side-input access.
  */
 public class FlinkMergingNonShuffleReduceFunction<
-    K, InputT, AccumT, OutputT, W extends IntervalWindow>
+    K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends RichGroupReduceFunction<WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, OutputT>>> {
 
   private final CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT> combineFn;
 
-  private final WindowingStrategy<?, W> windowingStrategy;
+  private final WindowingStrategy<Object, W> windowingStrategy;
 
   private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
@@ -52,7 +53,7 @@ public class FlinkMergingNonShuffleReduceFunction<
 
   public FlinkMergingNonShuffleReduceFunction(
       CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn,
-      WindowingStrategy<?, W> windowingStrategy,
+      WindowingStrategy<Object, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
 
@@ -75,10 +76,15 @@ public class FlinkMergingNonShuffleReduceFunction<
     FlinkSideInputReader sideInputReader =
         new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
-    FlinkCombineRunner<K, InputT, AccumT, OutputT, W> reduceRunner =
-        new FlinkCombineRunner<>(new NoShuffleFlinkCombiner<>(combineFn),
-            (WindowingStrategy<Object, W>) windowingStrategy, sideInputReader,
-            new FlinkReduceOutput<>(out), options);
+    FlinkCombineRunner<K, InputT, AccumT, OutputT, W> reduceRunner;
+
+    if (windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
+      reduceRunner = new FlinkCombineRunner<>(new NoShuffleFlinkCombiner<>(combineFn),
+          windowingStrategy, sideInputReader, new FlinkReduceOutput<>(out), options);
+    } else {
+      reduceRunner = new FlinkNonSortedCombineRunner<>(new NoShuffleFlinkCombiner<>(combineFn),
+          windowingStrategy, sideInputReader, new FlinkReduceOutput<>(out), options);
+    }
 
     reduceRunner.combine(elements);
 

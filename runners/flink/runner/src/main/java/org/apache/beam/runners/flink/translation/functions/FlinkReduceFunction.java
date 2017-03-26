@@ -24,6 +24,7 @@ import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -45,7 +46,7 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
   protected final CombineFnBase.PerKeyCombineFn<K, ?, AccumT, OutputT> combineFn;
 
-  protected final WindowingStrategy<?, W> windowingStrategy;
+  protected final WindowingStrategy<Object, W> windowingStrategy;
 
   protected final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
@@ -53,7 +54,7 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
   public FlinkReduceFunction(
       CombineFnBase.PerKeyCombineFn<K, ?, AccumT, OutputT> keyedCombineFn,
-      WindowingStrategy<?, W> windowingStrategy,
+      WindowingStrategy<Object, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
 
@@ -76,12 +77,19 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
     FlinkSideInputReader sideInputReader =
         new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
-    FlinkCombineRunner<K, AccumT, AccumT, OutputT, W> reduceRunner =
-        new FlinkCombineRunner<>(new ReduceFlinkCombiner<>(combineFn),
-            (WindowingStrategy<Object, W>) windowingStrategy, sideInputReader,
-            new FlinkReduceOutput<>(out), options);
+    FlinkCombineRunner<K, AccumT, AccumT, OutputT, W> reduceRunner;
+
+    if (!windowingStrategy.getWindowFn().isNonMerging()
+        && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
+      reduceRunner = new FlinkNonSortedCombineRunner<>(new ReduceFlinkCombiner<>(combineFn),
+          windowingStrategy, sideInputReader, new FlinkReduceOutput<>(out), options);
+    } else {
+      reduceRunner = new FlinkCombineRunner<>(new ReduceFlinkCombiner<>(combineFn),
+          windowingStrategy, sideInputReader, new FlinkReduceOutput<>(out), options);
+    }
 
     reduceRunner.combine(elements);
 
   }
+
 }
