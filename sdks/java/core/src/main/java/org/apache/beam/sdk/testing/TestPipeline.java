@@ -59,8 +59,8 @@ import org.junit.runners.model.Statement;
  * locally or against a remote pipeline runner.
  *
  * <p>It is recommended to tag hand-selected tests for this purpose using the {@link
- * ValidatesRunner} {@link Category} annotation, as each test run against a pipeline runner will
- * utilize resources of that pipeline runner.
+ * NeedsRunner @NeedsRunner} annotation (or its sub-category), as each test run
+ * against a pipeline runner will utilize resources of that pipeline runner.
  *
  * <p>In order to run tests on a pipeline runner, the following conditions must be met:
  *
