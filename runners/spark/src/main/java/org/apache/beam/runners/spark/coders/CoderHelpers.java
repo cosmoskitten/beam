@@ -21,18 +21,20 @@ package org.apache.beam.runners.spark.coders;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
-
 import scala.Tuple2;
 
 /**
@@ -193,18 +195,40 @@ public final class CoderHelpers {
    * @param <V>   The type of the value being deserialized.
    * @return A function that accepts a pair of byte arrays and returns a key-value pair.
    */
-  public static <K, V> PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>>
-      fromByteFunctionIterable(final Coder<K> keyCoder, final Coder<V> valueCoder) {
-    return new PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>>() {
+  public static <K, V> PairFlatMapFunction<Iterator<Tuple2<ByteArray, Iterable<byte[]>>>,
+      K, Iterable<V>> fromByteFunctionIterable(
+          final Coder<K> keyCoder, final Coder<V> valueCoder) {
+    return new PairFlatMapFunction<Iterator<Tuple2<ByteArray, Iterable<byte[]>>>,
+        K, Iterable<V>>() {
       @Override
-      public Tuple2<K, Iterable<V>> call(Tuple2<ByteArray, Iterable<byte[]>> tuple) {
-        return new Tuple2<>(fromByteArray(tuple._1().getValue(), keyCoder),
-          Iterables.transform(tuple._2(), new com.google.common.base.Function<byte[], V>() {
-            @Override
-            public V apply(byte[] bytes) {
-              return fromByteArray(bytes, valueCoder);
-            }
-          }));
+      public Iterable<Tuple2<K, Iterable<V>>> call(
+          Iterator<Tuple2<ByteArray, Iterable<byte[]>>> itr) {
+        final Iterator<Tuple2<K, Iterable<V>>> outputItr =
+            Iterators.transform(
+                itr,
+                new com.google.common.base.Function<
+                    Tuple2<ByteArray, Iterable<byte[]>>, Tuple2<K, Iterable<V>>>() {
+                      @Override
+                      public Tuple2<K, Iterable<V>> apply(Tuple2<ByteArray, Iterable<byte[]>> t2) {
+                        K k = fromByteArray(t2._1().getValue(), keyCoder);
+                        return new Tuple2<>(
+                            k,
+                            Iterables.transform(
+                                t2._2(),
+                                new com.google.common.base.Function<byte[], V>() {
+                                  @Override
+                                  public V apply(byte[] bytes) {
+                                    return fromByteArray(bytes, valueCoder);
+                                  }
+                                }));
+                      }
+                    });
+        return new Iterable<Tuple2<K, Iterable<V>>>() {
+          @Override
+          public Iterator<Tuple2<K, Iterable<V>>> iterator() {
+            return outputItr;
+          }
+        };
       }
     };
   }

@@ -19,6 +19,8 @@
 package org.apache.beam.runners.spark.translation;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Iterators;
+import java.util.Iterator;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -28,11 +30,13 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
+import org.apache.spark.HashPartitioner;
+import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
-
 
 
 /**
@@ -49,18 +53,48 @@ public class GroupCombineFunctions {
       JavaRDD<WindowedValue<KV<K, V>>> rdd,
       Coder<K> keyCoder,
       WindowedValueCoder<V> wvCoder) {
-
-    // Use coders to convert objects in the PCollection to byte arrays, so they
+    // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    return rdd
-        .map(new ReifyTimestampsAndWindowsFunction<K, V>())
-        .map(WindowingHelpers.<KV<K, WindowedValue<V>>>unwindowFunction())
-        .mapToPair(TranslationUtils.<K, WindowedValue<V>>toPairFunction())
-        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
-        .groupByKey()
-        .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder))
-        .map(TranslationUtils.<K, Iterable<WindowedValue<V>>>fromPairFunction())
-        .map(WindowingHelpers.<KV<K, Iterable<WindowedValue<V>>>>windowFunction());
+    JavaPairRDD<ByteArray, byte[]> pairRDD =
+        rdd
+            .map(new ReifyTimestampsAndWindowsFunction<K, V>())
+            .map(WindowingHelpers.<KV<K, WindowedValue<V>>>unwindowFunction())
+            .mapToPair(TranslationUtils.<K, WindowedValue<V>>toPairFunction())
+            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
+    // Use the RDD partitioner, if exists.
+    Partitioner partitioner = new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism());
+
+    // using mapPartitions is a bit clumsy, but allows to preserve the partitioner and so
+    // to avoid unnecessary shuffle downstream.
+    return pairRDD
+        .groupByKey(partitioner)
+        .mapPartitionsToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder), true)
+        .mapPartitions(
+            TranslationUtils.<K, Iterable<WindowedValue<V>>>fromPairFlatMapFunction(),
+            true)
+        .mapPartitions(new FlatMapFunction<Iterator<KV<K, Iterable<WindowedValue<V>>>>,
+        WindowedValue<KV<K, Iterable<WindowedValue<V>>>>>() {
+          @Override
+          public Iterable<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> call(
+              final Iterator<KV<K, Iterable<WindowedValue<V>>>> itr) throws Exception {
+            return new Iterable<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>>() {
+              @Override
+              public Iterator<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> iterator() {
+                return Iterators.transform(
+                    itr,
+                    new com.google.common.base.Function<KV<K, Iterable<WindowedValue<V>>>,
+                        WindowedValue<KV<K, Iterable<WindowedValue<V>>>>>() {
+
+                      @Override
+                      public WindowedValue<KV<K, Iterable<WindowedValue<V>>>> apply(
+                          KV<K, Iterable<WindowedValue<V>>> kv) {
+                        return WindowedValue.valueInGlobalWindow(kv);
+                      }
+                    });
+              }
+            };
+          }
+        }, true);
   }
 
   /**
