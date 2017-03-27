@@ -1075,16 +1075,6 @@ public class BigQueryIO {
   static void clearCreatedTables() {
     StreamingWriteFn.clearCreatedTables();
   }
-  /////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * Status of a BigQuery job or request.
-   */
-  enum Status {
-    SUCCEEDED,
-    FAILED,
-    UNKNOWN,
-  }
 
   /////////////////////////////////////////////////////////////////////////////
 

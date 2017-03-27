@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Created by relax on 3/17/17.
+ * Writes {@TableRow} objects out to a file. Used when doing batch load jobs into BigQuery.
  */
 class TableRowWriter {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);

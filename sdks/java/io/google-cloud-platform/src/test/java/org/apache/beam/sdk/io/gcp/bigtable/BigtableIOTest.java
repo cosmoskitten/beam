@@ -586,7 +586,7 @@ public class BigtableIOTest {
         + "display data", displayData, Matchers.hasItem(hasDisplayItem("rowFilter")));
   }
 
-  /** Tests that a record gets written to the service and messages are loggedBigQueryIO. */
+  /** Tests that a record gets written to the service and messages are logged. */
   @Test
   public void testWriting() throws Exception {
     final String table = "table";

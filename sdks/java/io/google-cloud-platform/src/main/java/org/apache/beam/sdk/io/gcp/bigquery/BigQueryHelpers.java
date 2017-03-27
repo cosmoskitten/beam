@@ -35,7 +35,6 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
 
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -44,7 +43,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 /**
  * A set of helper functions and classes used by {@link BigQueryIO}.
  */
-public class BigQueryHelpers {
+class BigQueryHelpers {
   private static final String RESOURCE_NOT_FOUND_ERROR =
       "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
           + " execution. If the %1$s is created by an earlier stage of the pipeline, this"
@@ -54,6 +53,15 @@ public class BigQueryHelpers {
       "Unable to confirm BigQuery %1$s presence for table \"%2$s\". If the %1$s is created by"
           + " an earlier stage of the pipeline, this validation can be disabled using"
           + " #withoutValidation.";
+
+  /**
+   * Status of a BigQuery job or request.
+   */
+  enum Status {
+    SUCCEEDED,
+    FAILED,
+    UNKNOWN,
+  }
 
   @Nullable
   /**

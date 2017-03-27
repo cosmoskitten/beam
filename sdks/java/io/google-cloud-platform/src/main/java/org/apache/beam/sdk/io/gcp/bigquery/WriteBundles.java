@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Created by relax on 3/17/17.
+ * Writes each bundle of {@TableRow} elements out to a separate file using {@TableRowWriter}.
  */
 class WriteBundles extends DoFn<TableRow, KV<String, Long>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteBundles.class);

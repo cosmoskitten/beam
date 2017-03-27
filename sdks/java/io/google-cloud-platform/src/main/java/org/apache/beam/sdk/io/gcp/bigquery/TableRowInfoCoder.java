@@ -29,7 +29,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 
 /**
- * Created by relax on 3/17/17.
+ * Defines a coder for {@link TableRowInfo} objects.
  */
 @VisibleForTesting
 class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
