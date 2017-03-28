@@ -61,7 +61,7 @@ public class GroupCombineFunctions {
             .map(WindowingHelpers.<KV<K, WindowedValue<V>>>unwindowFunction())
             .mapToPair(TranslationUtils.<K, WindowedValue<V>>toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
-    // Use the RDD partitioner, if exists.
+    // use a default parallelism HashPartitioner.
     Partitioner partitioner = new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism());
 
     // using mapPartitions is a bit clumsy, but allows to preserve the partitioner and so
