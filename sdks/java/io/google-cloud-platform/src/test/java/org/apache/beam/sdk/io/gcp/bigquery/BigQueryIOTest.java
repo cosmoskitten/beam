@@ -26,7 +26,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -103,7 +102,6 @@ import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -152,6 +150,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -702,7 +701,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   private void checkWriteObjectWithValidate(
-      BigQueryIO.Write<TableRow> write, String project, String dataset, String table,
+      BigQueryIO.Write<TableRow, PDone> write, String project, String dataset, String table,
       TableSchema schema, CreateDisposition createDisposition,
       WriteDisposition writeDisposition, String tableDescription, boolean validate) {
     assertEquals(project, write.getTable().get().getProjectId());
@@ -1327,7 +1326,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWrite() {
-    BigQueryIO.Write<TableRow> write =
+    BigQueryIO.Write<TableRow, PDone> write =
             BigQueryIO.writeTableRows().to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
@@ -1391,7 +1390,8 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteDefaultProject() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to("somedataset.sometable");
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
+        .to("somedataset" + ".sometable");
     checkWriteObject(
         write, null, "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY,
@@ -1404,7 +1404,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
         .setTableId("sometable");
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to(table);
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows().to(table);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
@@ -1413,7 +1413,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testBuildWriteWithSchema() {
     TableSchema schema = new TableSchema();
-    BigQueryIO.Write<TableRow> write =
+    BigQueryIO.Write<TableRow, PDone> write =
         BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable").withSchema(schema);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
@@ -1422,7 +1422,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithCreateDispositionNever() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.<TableRow>write()
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_NEVER);
     checkWriteObject(
@@ -1432,7 +1432,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithCreateDispositionIfNeeded() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
     checkWriteObject(
@@ -1442,7 +1442,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionTruncate() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.<TableRow>write()
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
     checkWriteObject(
@@ -1452,7 +1452,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionAppend() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     checkWriteObject(
@@ -1462,7 +1462,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionEmpty() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.<TableRow>write()
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_EMPTY);
     checkWriteObject(
@@ -1473,7 +1473,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testBuildWriteWithWriteWithTableDescription() {
     final String tblDescription = "foo bar table";
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
         .withTableDescription(tblDescription);
     checkWriteObject(
@@ -1493,7 +1493,7 @@ public class BigQueryIOTest implements Serializable {
     TableSchema schema = new TableSchema().set("col1", "type1").set("col2", "type2");
     final String tblDescription = "foo bar table";
 
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
         .to(tableSpec)
         .withSchema(schema)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
@@ -2356,7 +2356,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
         .to(options.getOutputTable())
         .withSchema(NestedValueProvider.of(
             options.getOutputSchema(), new JsonSchemaToTableSchema()))
@@ -2366,19 +2366,6 @@ public class BigQueryIOTest implements Serializable {
         .apply(write);
     // Test that this doesn't throw.
     DisplayData.from(write);
-  }
-
-  @Test
-  public void testTagWithUniqueIdsAndTableProjectNotNullWithNvp() {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
-    bqOptions.setProject("project");
-    TagWithUniqueIdsAndTable<TableRow> tag =
-        new TagWithUniqueIdsAndTable<TableRow>(
-            bqOptions, NestedValueProvider.of(
-                StaticValueProvider.of("data_set.table_name"),
-                new TableSpecToTableRef()), null, null);
-    TableReference table = BigQueryHelpers.parseTableSpec(tag.getTableSpec().get());
-    assertNotNull(table.getProjectId());
   }
 
   private static void testNumFiles(File tempDir, int expectedNumFiles) {

@@ -32,16 +32,18 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 
 /**
 * PTransform that performs streaming BigQuery write. To increase consistency,
 * it leverages BigQuery best effort de-dup mechanism.
  */
-class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
-  private final Write<T> write;
+class StreamWithDeDup<T, ReturnT extends POutput> extends PTransform<PCollection<T>, ReturnT> {
+  private final Write<T, ReturnT> write;
 
   /** Constructor. */
-  StreamWithDeDup(Write<T> write) {
+  StreamWithDeDup(Write<T, ReturnT> write) {
     this.write = write;
   }
 
@@ -51,7 +53,7 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
   }
 
   @Override
-  public WriteResult expand(PCollection<T> input) {
+  public ReturnT expand(PCollection<T> input) {
     // A naive implementation would be to simply stream data directly to BigQuery.
     // However, this could occasionally lead to duplicated data, e.g., when
     // a VM that runs this code is restarted and the code is re-run.
@@ -64,8 +66,7 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
 
     PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged =
         input.apply(ParDo.of(new TagWithUniqueIdsAndTable<T>(
-            input.getPipeline().getOptions().as(BigQueryOptions.class), write.getTable(),
-            write.getTableRefFunction(), write.getFormatFunction())));
+            input.getPipeline().getOptions().as(BigQueryOptions.class), write)));
 
     // To prevent having the same TableRow processed more than once with regenerated
     // different unique ids, this implementation relies on "checkpointing", which is
@@ -85,6 +86,13 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
                     write.getCreateDisposition(),
                     write.getTableDescription(),
                     write.getBigQueryServices())));
-    return WriteResult.in(input.getPipeline());
+
+    // Note that the implementation to return PDone here breaks the
+    // implicit assumption about the job execution order. If a user
+    // implements a PTransform that takes PDone returned here as its
+    // input, the transform may not necessarily be executed after
+    // the BigQueryIO.Write.
+
+    return (ReturnT) PDone.in(input.getPipeline());
   }
 }

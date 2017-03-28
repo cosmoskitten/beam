@@ -70,6 +70,8 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -654,8 +656,8 @@ public class BigQueryIO {
    *   }
    * }}</pre>
    */
-  public static <T> Write<T> write() {
-    return new AutoValue_BigQueryIO_Write.Builder<T>()
+  public static <T> Write<T, PDone> write() {
+    return new AutoValue_BigQueryIO_Write.Builder<T, PDone>()
         .setValidate(true)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
@@ -667,13 +669,14 @@ public class BigQueryIO {
    * A {@link PTransform} that writes a {@link PCollection} containing {@link TableRow TableRows}
    * to a BigQuery table.
    */
-  public static Write<TableRow> writeTableRows() {
+  public static Write<TableRow, PDone> writeTableRows() {
     return BigQueryIO.<TableRow>write().withFormatFunction(IDENTITY_FORMATTER);
   }
 
   /** Implementation of {@link #write}. */
   @AutoValue
-  public abstract static class Write<T> extends PTransform<PCollection<T>, WriteResult> {
+  public abstract static class Write<T, ReturnT extends POutput>
+      extends PTransform<PCollection<T>, ReturnT> {
     @VisibleForTesting
     // Maximum number of files in a single partition.
     static final int MAX_NUM_FILES = 10000;
@@ -702,22 +705,23 @@ public class BigQueryIO {
     abstract boolean getValidate();
     abstract BigQueryServices getBigQueryServices();
 
-    abstract Builder<T> toBuilder();
+    abstract Builder<T, ReturnT> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<T> {
-      abstract Builder<T> setJsonTableRef(ValueProvider<String> jsonTableRef);
-      abstract Builder<T> setTableRefFunction(
+    abstract static class Builder<T, ReturnT extends POutput> {
+      abstract Builder<T, ReturnT> setJsonTableRef(ValueProvider<String> jsonTableRef);
+      abstract Builder<T, ReturnT> setTableRefFunction(
           SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction);
-      abstract Builder<T> setFormatFunction(SerializableFunction<T, TableRow> formatFunction);
-      abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
-      abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
-      abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
-      abstract Builder<T> setTableDescription(String tableDescription);
-      abstract Builder<T> setValidate(boolean validate);
-      abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
+      abstract Builder<T, ReturnT> setFormatFunction(
+          SerializableFunction<T, TableRow> formatFunction);
+      abstract Builder<T, ReturnT> setJsonSchema(ValueProvider<String> jsonSchema);
+      abstract Builder<T, ReturnT> setCreateDisposition(CreateDisposition createDisposition);
+      abstract Builder<T, ReturnT> setWriteDisposition(WriteDisposition writeDisposition);
+      abstract Builder<T, ReturnT> setTableDescription(String tableDescription);
+      abstract Builder<T, ReturnT> setValidate(boolean validate);
+      abstract Builder<T, ReturnT> setBigQueryServices(BigQueryServices bigQueryServices);
 
-      abstract Write<T> build();
+      abstract Write<T, ReturnT> build();
     }
 
     /**
@@ -790,30 +794,33 @@ public class BigQueryIO {
     /** Ensures that methods of the to() family are called at most once. */
     private void ensureToNotCalledYet() {
       checkState(
-          getJsonTableRef() == null && getTable() == null, "to() already called");
+          getJsonTableRef() == null && getTable() == null
+              && getTableRefFunction() == null, "to() already called");
     }
 
     /**
      * Writes to the given table, specified in the format described in
      * {@link BigQueryHelpers#parseTableSpec}.
      */
-    public Write<T> to(String tableSpec) {
+    public Write<T, ReturnT> to(String tableSpec) {
       return to(StaticValueProvider.of(tableSpec));
     }
 
     /** Writes to the given table, specified as a {@link TableReference}. */
-    public Write<T> to(TableReference table) {
+    public Write<T, ReturnT> to(TableReference table) {
       return to(StaticValueProvider.of(BigQueryHelpers.toTableSpec(table)));
     }
 
     /** Same as {@link #to(String)}, but with a {@link ValueProvider}. */
-    public Write<T> to(ValueProvider<String> tableSpec) {
+    public Write<T, ReturnT> to(ValueProvider<String> tableSpec) {
       ensureToNotCalledYet();
       return toBuilder()
           .setJsonTableRef(
               NestedValueProvider.of(
                   NestedValueProvider.of(tableSpec, new TableSpecToTableRef()),
                   new TableRefToJson()))
+          .setTableRefFunction(new TranslateTableSpecFunction<T>(
+              new ConstantTableSpecFunction<T>(tableSpec)))
           .build();
     }
 
@@ -821,7 +828,8 @@ public class BigQueryIO {
      * Writes to table specified by the specified table function. The table is a function of
      * {@link ValueInSingleWindow}, so can be determined by the value or by the window.
      */
-    public Write<T> to(SerializableFunction<ValueInSingleWindow<T>, String> tableSpecFunction) {
+    public Write<T, ReturnT> to(
+        SerializableFunction<ValueInSingleWindow<T>, String> tableSpecFunction) {
       return toTableReference(new TranslateTableSpecFunction<T>(tableSpecFunction));
     }
 
@@ -829,7 +837,7 @@ public class BigQueryIO {
      * Like {@link BigQueryIO.Write#to(SerializableFunction)}, but the function returns a
      * {@link TableReference} instead of a string table specification.
      */
-    private Write<T> toTableReference(
+    private Write<T, ReturnT> toTableReference(
         SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction) {
       ensureToNotCalledYet();
       return toBuilder().setTableRefFunction(tableRefFunction).build();
@@ -838,7 +846,7 @@ public class BigQueryIO {
     /**
      * Formats the user's type into a {@link TableRow} to be written to BigQuery.
      */
-    public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
+    public Write<T, ReturnT> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
@@ -857,6 +865,20 @@ public class BigQueryIO {
       }
     }
 
+    static class ConstantTableSpecFunction<T> implements
+        SerializableFunction<ValueInSingleWindow<T>, String> {
+      private ValueProvider<String> tableSpec;
+
+      ConstantTableSpecFunction(ValueProvider<String> tableSpec) {
+        this.tableSpec = tableSpec;
+      }
+
+      @Override
+      public String apply(ValueInSingleWindow<T> value) {
+        return tableSpec.get();
+      }
+    }
+
     /**
      * Uses the specified schema for rows to be written.
      *
@@ -864,7 +886,7 @@ public class BigQueryIO {
      * exist, and {@link CreateDisposition} is set to
      * {@link CreateDisposition#CREATE_IF_NEEDED}.
      */
-    public Write<T> withSchema(TableSchema schema) {
+    public Write<T, ReturnT> withSchema(TableSchema schema) {
       return toBuilder()
           .setJsonSchema(StaticValueProvider.of(BigQueryHelpers.toJsonString(schema)))
           .build();
@@ -873,34 +895,34 @@ public class BigQueryIO {
     /**
      * Use the specified schema for rows to be written.
      */
-    public Write<T> withSchema(ValueProvider<TableSchema> schema) {
+    public Write<T, ReturnT> withSchema(ValueProvider<TableSchema> schema) {
       return toBuilder()
           .setJsonSchema(NestedValueProvider.of(schema, new TableSchemaToJsonSchema()))
           .build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
-    public Write<T> withCreateDisposition(CreateDisposition createDisposition) {
+    public Write<T, ReturnT> withCreateDisposition(CreateDisposition createDisposition) {
       return toBuilder().setCreateDisposition(createDisposition).build();
     }
 
     /** Specifies what to do with existing data in the table, in case the table already exists. */
-    public Write<T> withWriteDisposition(WriteDisposition writeDisposition) {
+    public Write<T, ReturnT> withWriteDisposition(WriteDisposition writeDisposition) {
       return toBuilder().setWriteDisposition(writeDisposition).build();
     }
 
     /** Specifies the table description. */
-    public Write<T> withTableDescription(String tableDescription) {
+    public Write<T, ReturnT> withTableDescription(String tableDescription) {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
     /** Disables BigQuery table validation. */
-    public Write<T> withoutValidation() {
+    public Write<T, ReturnT> withoutValidation() {
       return toBuilder().setValidate(false).build();
     }
 
     @VisibleForTesting
-    Write<T> withTestServices(BigQueryServices testServices) {
+    Write<T, ReturnT> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
@@ -909,13 +931,8 @@ public class BigQueryIO {
       BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
       // Exactly one of the table and table reference can be configured.
-      checkState(
-          getJsonTableRef() != null || getTableRefFunction() != null,
+      checkState(getTableRefFunction() != null,
           "must set the table reference of a BigQueryIO.Write transform");
-      checkState(
-          getJsonTableRef() == null || getTableRefFunction() == null,
-          "Cannot set both a table reference and a table function for a BigQueryIO.Write"
-              + " transform");
 
       checkArgument(getFormatFunction() != null,
                     "A function must be provided to convert type into a TableRow. "
@@ -929,6 +946,7 @@ public class BigQueryIO {
       // The user specified a table.
       if (getJsonTableRef() != null && getValidate()) {
         TableReference table = getTableWithDefaultProject(options).get();
+        // TODO: This seems wrong - what if the ValueProvider is not accessible?
 
         DatasetService datasetService = getBigQueryServices().getDatasetService(options);
         // Check for destination table presence and emptiness for early failure notification.
@@ -944,24 +962,12 @@ public class BigQueryIO {
         }
       }
 
-      if (input.isBounded() == PCollection.IsBounded.UNBOUNDED || getTableRefFunction() != null) {
+      if (input.isBounded() == PCollection.IsBounded.UNBOUNDED) {
         // We will use BigQuery's streaming write API -- validate supported dispositions.
-        if (getTableRefFunction() != null) {
-          checkArgument(
-              getCreateDisposition() != CreateDisposition.CREATE_NEVER,
-              "CreateDisposition.CREATE_NEVER is not supported when using a tablespec"
-              + " function.");
-        }
-        if (getJsonSchema() == null) {
-          checkArgument(
-              getCreateDisposition() == CreateDisposition.CREATE_NEVER,
-              "CreateDisposition.CREATE_NEVER must be used if jsonSchema is null.");
-        }
-
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
-            "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded PCollection or"
-                + " when using a tablespec function.");
+            "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
+            + " PCollection.");
       } else {
         // We will use a BigQuery load job -- validate the temp location.
         String tempLocation = options.getTempLocation();
@@ -983,13 +989,13 @@ public class BigQueryIO {
     }
 
     @Override
-    public WriteResult expand(PCollection<T> input) {
+    public ReturnT expand(PCollection<T> input) {
       // When writing an Unbounded PCollection, or when a tablespec function is defined, we use
       // StreamWithDeDup and BigQuery's streaming import API.
-      if (input.isBounded() == IsBounded.UNBOUNDED || getTableRefFunction() != null) {
-        return input.apply(new StreamWithDeDup<T>(this));
+      if (input.isBounded() == IsBounded.UNBOUNDED) {
+        return input.apply(new StreamWithDeDup<T, ReturnT>(this));
       } else {
-        return input.apply(new BatchLoadBigQuery<T>(this));
+        return input.apply(new BatchLoadBigQuery<T, ReturnT>(this));
       }
     }
 
@@ -1035,12 +1041,12 @@ public class BigQueryIO {
      *
      * <p>If the table's project is not specified, use the executing project.
      */
-    @Nullable ValueProvider<TableReference> getTableWithDefaultProject(
-        BigQueryOptions bqOptions) {
+    @Nullable ValueProvider<TableReference> getTableWithDefaultProject(BigQueryOptions bqOptions) {
       ValueProvider<TableReference> table = getTable();
       if (table == null) {
         return table;
       }
+
       if (!table.isAccessible()) {
         LOG.info("Using a dynamic value for table input. This must contain a project"
             + " in the table reference: {}", table);
