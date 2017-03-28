@@ -64,6 +64,7 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
+import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
@@ -131,8 +132,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -321,15 +322,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       overridesBuilder
           // Support Splittable DoFn for now only in streaming mode.
-          // The order of the next 3 overrides is important because they are applied in order.
+          // The order of the following overrides is important because they are applied in order.
+
+          // Dataflow runner does not expand single-output ParDo into multi-output ParDo
+          // by default. However, we *do* want to do that for both single-output splittable ParDo.
           .add(
               PTransformOverride.of(
-              PTransformMatchers.splittableParDoMulti(),
-              new ReflectiveCollectionToTupleOverrideFactory(SplittableParDo.class)))
+                  PTransformMatchers.splittableParDoSingle(),
+                  new ReflectiveOneToOneOverrideFactory(ParDoSingleViaMulti.class, this)))
           .add(
               PTransformOverride.of(
-              PTransformMatchers.classEqualTo(SplittableParDo.ProcessElements.class),
-              new ReflectiveCollectionToTupleOverrideFactory(SplittableProcessElements.class)))
+                  PTransformMatchers.splittableParDoMulti(),
+                  new ReflectiveCollectionToTupleOverrideFactory(SplittableParDo.class)))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(SplittableParDo.ProcessElements.class),
+                  new ReflectiveCollectionToTupleOverrideFactory(SplittableProcessElements.class)))
           .add(
               // Streaming Bounded Read is implemented in terms of Streaming Unbounded Read, and
               // must precede it
@@ -406,6 +414,33 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return overridesBuilder.build();
   }
 
+  private static class ParDoSingleViaMulti<InputT, OutputT>
+      extends ForwardingPTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+    private final ParDo.SingleOutput<InputT, OutputT> original;
+
+    public ParDoSingleViaMulti(
+        DataflowRunner ignored, ParDo.SingleOutput<InputT, OutputT> original) {
+      this.original = original;
+    }
+
+    @Override
+    protected PTransform<PCollection<? extends InputT>, PCollection<OutputT>> delegate() {
+      return original;
+    }
+
+    @Override
+    public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+      TupleTag<OutputT> mainOutput = new TupleTag<>();
+      return input.apply(original.withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
+    }
+  }
+
+  private String getUnsupportedMessage(Class<?> unsupported, boolean streaming) {
+    return String.format(
+        "%s is not supported in %s",
+        NameUtils.approximateSimpleName(unsupported), streaming ? "streaming" : "batch");
+  }
+
   private static class ReflectiveOneToOneOverrideFactory<
           InputT extends PValue,
           OutputT extends PValue,
@@ -458,7 +493,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public PCollection<? extends InputT> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-      return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs.entrySet()).getValue();
+      return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
@@ -1431,6 +1466,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       PCollectionTuple res =
           input.apply(
               ParDo.of(underlying.newProcessFn(underlying.getFn()))
+                  .withSideInputs(underlying.getSideInputs())
                   .withOutputTags(underlying.getMainOutputTag(), underlying.getSideOutputTags()));
 
       // 'input' is the output of a GBKIntoKeyedWorkItems, which is globally windowed.

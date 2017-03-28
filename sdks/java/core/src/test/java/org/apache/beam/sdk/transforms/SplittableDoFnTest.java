@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -65,7 +66,7 @@ import org.junit.runners.JUnit4;
  * Tests for <a href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} behavior.
  */
 @RunWith(JUnit4.class)
-public class SplittableDoFnTest {
+public class SplittableDoFnTest implements Serializable {
 
   static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
@@ -139,7 +140,7 @@ public class SplittableDoFnTest {
                 KV.of("ccccc", 3),
                 KV.of("ccccc", 4)));
 
-    p.run().waitUntilFinish();
+    p.run();
   }
 
   @Test
@@ -240,22 +241,18 @@ public class SplittableDoFnTest {
     p.run();
   }
 
-  private static class SDFWithSideInputsAndOutputs extends DoFn<Integer, String> {
+  private static class SDFWithSideInput extends DoFn<Integer, String> {
     private final PCollectionView<String> sideInput;
-    private final TupleTag<String> sideOutput;
 
-    private SDFWithSideInputsAndOutputs(
-        PCollectionView<String> sideInput, TupleTag<String> sideOutput) {
+    private SDFWithSideInput(PCollectionView<String> sideInput) {
       this.sideInput = sideInput;
-      this.sideOutput = sideOutput;
     }
 
     @ProcessElement
     public void process(ProcessContext c, OffsetRangeTracker tracker) {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
       String side = c.sideInput(sideInput);
-      c.output("main:" + side + ":" + c.element());
-      c.sideOutput(sideOutput, "side:" + side + ":" + c.element());
+      c.output(side + ":" + c.element());
     }
 
     @GetInitialRestriction
@@ -266,26 +263,78 @@ public class SplittableDoFnTest {
 
   @Test
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})
-  public void testSideInputsAndOutputs() throws Exception {
-
+  public void testSideInput() throws Exception {
     PCollectionView<String> sideInput =
         p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
-    TupleTag<String> mainOutputTag = new TupleTag<>("main");
-    TupleTag<String> sideOutputTag = new TupleTag<>("side");
+
+    PCollection<String> res =
+        p.apply("input", Create.of(0, 1, 2))
+            .apply(ParDo.of(new SDFWithSideInput(sideInput)).withSideInputs(sideInput));
+
+    PAssert.that(res)
+        .containsInAnyOrder(Arrays.asList("foo:0", "foo:1", "foo:2"));
+
+    p.run();
+  }
+
+  private static class SDFWithSideOutput extends DoFn<Integer, String> {
+    private final TupleTag<String> sideOutput;
+
+    private SDFWithSideOutput(TupleTag<String> sideOutput) {
+      this.sideOutput = sideOutput;
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+      checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
+      c.output("main:" + c.element());
+      c.sideOutput(sideOutput, "side:" + c.element());
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction(Integer value) {
+      return new OffsetRange(0, 1);
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  public void testSideOutput() throws Exception {
+    TupleTag<String> mainOutputTag = new TupleTag<String>("mainOutputTag") {};
+    TupleTag<String> sideOutputTag = new TupleTag<String>("sideOutputTag") {};
 
     PCollectionTuple res =
         p.apply("input", Create.of(0, 1, 2))
             .apply(
-                ParDo.of(new SDFWithSideInputsAndOutputs(sideInput, sideOutputTag))
-                    .withSideInputs(sideInput)
+                ParDo.of(new SDFWithSideOutput(sideOutputTag))
                     .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
-    res.get(mainOutputTag).setCoder(StringUtf8Coder.of());
-    res.get(sideOutputTag).setCoder(StringUtf8Coder.of());
 
-    PAssert.that(res.get(mainOutputTag))
-        .containsInAnyOrder(Arrays.asList("main:foo:0", "main:foo:1", "main:foo:2"));
-    PAssert.that(res.get(sideOutputTag))
-        .containsInAnyOrder(Arrays.asList("side:foo:0", "side:foo:1", "side:foo:2"));
+    PCollection<String> main = res.get(mainOutputTag);
+    PCollection<String> side = res.get(sideOutputTag);
+
+    main.apply(
+        "print main",
+        ParDo.of(
+            new DoFn<String, Void>() {
+              @ProcessElement
+              public void process(ProcessContext c) {
+                System.out.println("WOO main: " + c.element());
+              }
+            }));
+    side.apply(
+        "print side",
+        ParDo.of(
+            new DoFn<String, Void>() {
+              @ProcessElement
+              public void process(ProcessContext c) {
+                System.out.println("WOO side: " + c.element());
+              }
+            }));
+
+//    PAssert.that(main)
+//        .containsInAnyOrder(Arrays.asList("main:0", "main:1", "main:2"));
+//    PAssert.that(side)
+//        .containsInAnyOrder(Arrays.asList("side:0", "side:1", "side:2"));
 
     p.run();
   }
