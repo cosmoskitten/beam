@@ -19,8 +19,6 @@
 package org.apache.beam.runners.spark.translation;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Iterators;
-import java.util.Iterator;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -34,7 +32,6 @@ import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 
@@ -64,37 +61,20 @@ public class GroupCombineFunctions {
     // use a default parallelism HashPartitioner.
     Partitioner partitioner = new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism());
 
-    // using mapPartitions is a bit clumsy, but allows to preserve the partitioner and so
-    // to avoid unnecessary shuffle downstream.
+    // using mapPartitions allows to preserve the partitioner
+    // and avoid unnecessary shuffle downstream.
     return pairRDD
         .groupByKey(partitioner)
-        .mapPartitionsToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder), true)
-        .mapPartitions(
-            TranslationUtils.<K, Iterable<WindowedValue<V>>>fromPairFlatMapFunction(),
+        .mapPartitionsToPair(
+            TranslationUtils.pairFunctionToPairFlatMapFunction(
+                CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
             true)
-        .mapPartitions(new FlatMapFunction<Iterator<KV<K, Iterable<WindowedValue<V>>>>,
-        WindowedValue<KV<K, Iterable<WindowedValue<V>>>>>() {
-          @Override
-          public Iterable<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> call(
-              final Iterator<KV<K, Iterable<WindowedValue<V>>>> itr) throws Exception {
-            return new Iterable<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>>() {
-              @Override
-              public Iterator<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> iterator() {
-                return Iterators.transform(
-                    itr,
-                    new com.google.common.base.Function<KV<K, Iterable<WindowedValue<V>>>,
-                        WindowedValue<KV<K, Iterable<WindowedValue<V>>>>>() {
-
-                      @Override
-                      public WindowedValue<KV<K, Iterable<WindowedValue<V>>>> apply(
-                          KV<K, Iterable<WindowedValue<V>>> kv) {
-                        return WindowedValue.valueInGlobalWindow(kv);
-                      }
-                    });
-              }
-            };
-          }
-        }, true);
+        .mapPartitions(
+            TranslationUtils.<K, Iterable<WindowedValue<V>>>fromPairFlatMapFunction(), true)
+        .mapPartitions(
+            TranslationUtils.functionToFlatMapFunction(
+                WindowingHelpers.<KV<K, Iterable<WindowedValue<V>>>>windowFunction()),
+            true);
   }
 
   /**

@@ -18,12 +18,10 @@
 package org.apache.beam.runners.spark.stateful;
 
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Table;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.runners.core.GroupAlsoByWindowsDoFn;
 import org.apache.beam.runners.core.LateDataUtils;
@@ -37,6 +35,8 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
+import org.apache.beam.runners.spark.translation.TranslationUtils;
+import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.coders.Coder;
@@ -54,6 +54,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Partitioner;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -134,50 +135,36 @@ public class SparkGroupAlsoByWindowViaWindowSet {
     //---- Iterable: Itr
     //---- AccumT: A
     //---- InputT: I
-
-    // serialize the stream because it gets checkpointed.
-    // mapPartitions allows to preserve partitioner which is necessary in order to avoid
-    // StateDStream's shuffle when grouping since this always follows GBK.
     DStream<Tuple2</*K*/ ByteArray, /*Itr<WV<I>>*/ byte[]>> pairDStream =
-        inputDStream.transform(
-            new Function<JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>>,
-                JavaRDD<Tuple2</*K*/ ByteArray, /*Itr<WV<I>>*/ byte[]>>>() {
-
-          @Override
-          public JavaRDD<Tuple2</*K*/ ByteArray, /*Itr<WV<I>>*/ byte[]>> call(
-              JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> rdd) throws Exception {
-            return rdd.mapPartitions(
-                new FlatMapFunction<Iterator<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>>,
-                    Tuple2<ByteArray, byte[]>>() {
-
-              @Override
-              public Iterable<Tuple2<ByteArray, byte[]>> call(
-                  final Iterator<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> itr)
-                  throws Exception {
-                return new Iterable<Tuple2<ByteArray, byte[]>>() {
+        inputDStream
+            .transformToPair(
+                new Function<
+                    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>>,
+                    JavaPairRDD<ByteArray, byte[]>>() {
+                  // we use mapPartitions with the RDD API because its the only available API
+                  // that allows to preserve partitioning.
                   @Override
-                  public Iterator<Tuple2<ByteArray, byte[]>> iterator() {
-                    return Iterators.transform(
-                        itr,
-                        new com.google.common.base.Function<WindowedValue<KV<K,
-                            Iterable<WindowedValue<InputT>>>>, Tuple2<ByteArray, byte[]>>() {
-
-                      @Override
-                      public Tuple2<ByteArray, byte[]> apply(
-                          WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>> wv) {
-                        KV<K, Iterable<WindowedValue<InputT>>> kv = wv.getValue();
-                        ByteArray keyBytes =
-                                new ByteArray(CoderHelpers.toByteArray(kv.getKey(), keyCoder));
-                        byte[] valueBytes = CoderHelpers.toByteArray(kv.getValue(), itrWvCoder);
-                        return new Tuple2<>(keyBytes, valueBytes);
-                      }
-                    });
+                  public JavaPairRDD<ByteArray, byte[]> call(
+                      JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> rdd)
+                      throws Exception {
+                    return rdd.mapPartitions(
+                            TranslationUtils.functionToFlatMapFunction(
+                                WindowingHelpers
+                                    .<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction()),
+                            true)
+                        .mapPartitionsToPair(
+                            TranslationUtils
+                                .<K, Iterable<WindowedValue<InputT>>>toPairFlatMapFunction(),
+                            true)
+                        // move to bytes representation and use coders for deserialization
+                        // because of checkpointing.
+                        .mapPartitionsToPair(
+                            TranslationUtils.pairFunctionToPairFlatMapFunction(
+                                CoderHelpers.toByteFunction(keyCoder, itrWvCoder)),
+                            true);
                   }
-                };
-              }
-            }, true);
-          }
-        }).dstream();
+                })
+            .dstream();
 
     PairDStreamFunctions<ByteArray, byte[]> pairDStreamFunctions =
         DStream.toPairDStreamFunctions(
