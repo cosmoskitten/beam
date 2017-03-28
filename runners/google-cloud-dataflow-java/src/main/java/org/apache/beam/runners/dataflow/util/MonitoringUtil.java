@@ -64,8 +64,6 @@ public final class MonitoringUtil {
           .put("JOB_STATE_UPDATED", State.UPDATED)
           // A DRAINING job is still running - the closest mapping is RUNNING.
           .put("JOB_STATE_DRAINING", State.RUNNING)
-          // A DRAINED job has successfully terminated - the closest mapping is DONE.
-          .put("JOB_STATE_DRAINED", State.DONE)
           .build();
   private static final String JOB_MESSAGE_ERROR = "JOB_MESSAGE_ERROR";
   private static final String JOB_MESSAGE_WARNING = "JOB_MESSAGE_WARNING";

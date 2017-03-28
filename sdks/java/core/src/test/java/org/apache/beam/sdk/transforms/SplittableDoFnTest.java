@@ -141,7 +141,7 @@ public class SplittableDoFnTest implements Serializable {
                 KV.of("ccccc", 3),
                 KV.of("ccccc", 4)));
 
-    p.run().waitUntilFinish();
+    p.run();
   }
 
   @Test
