@@ -33,16 +33,17 @@ import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 
 /**
 * PTransform that performs streaming BigQuery write. To increase consistency,
 * it leverages BigQuery best effort de-dup mechanism.
  */
-class StreamWithDeDup<T> extends PTransform<PCollection<T>, PDone> {
-  private final Write<T> write;
+class StreamWithDeDup<T, ReturnT extends POutput> extends PTransform<PCollection<T>, ReturnT> {
+  private final Write<T, ReturnT> write;
 
   /** Constructor. */
-  StreamWithDeDup(Write<T> write) {
+  StreamWithDeDup(Write<T, ReturnT> write) {
     this.write = write;
   }
 
@@ -52,7 +53,7 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   @Override
-  public PDone expand(PCollection<T> input) {
+  public ReturnT expand(PCollection<T> input) {
     // A naive implementation would be to simply stream data directly to BigQuery.
     // However, this could occasionally lead to duplicated data, e.g., when
     // a VM that runs this code is restarted and the code is re-run.
@@ -65,8 +66,7 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, PDone> {
 
     PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged =
         input.apply(ParDo.of(new TagWithUniqueIdsAndTable<T>(
-            input.getPipeline().getOptions().as(BigQueryOptions.class), write.getTable(),
-            write.getTableRefFunction(), write.getFormatFunction())));
+            input.getPipeline().getOptions().as(BigQueryOptions.class), write)));
 
     // To prevent having the same TableRow processed more than once with regenerated
     // different unique ids, this implementation relies on "checkpointing", which is
@@ -93,6 +93,6 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, PDone> {
     // input, the transform may not necessarily be executed after
     // the BigQueryIO.Write.
 
-    return PDone.in(input.getPipeline());
+    return (ReturnT) PDone.in(input.getPipeline());
   }
 }
