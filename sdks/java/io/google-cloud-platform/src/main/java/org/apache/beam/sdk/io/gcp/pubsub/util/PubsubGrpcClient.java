@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.pubsub.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
