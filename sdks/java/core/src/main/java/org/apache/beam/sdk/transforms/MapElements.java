@@ -26,14 +26,34 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class MapElements<InputT, OutputT>
 extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+  private final SimpleFunction<InputT, OutputT> fn;
+  private final transient TypeDescriptor<OutputT> outputType;
+  private final DisplayData.ItemSpec<?> fnClassDisplayData;
+
+  private MapElements(
+      SimpleFunction<InputT, OutputT> fn, TypeDescriptor<OutputT> outputType, Class<?> fnClass) {
+    this.fn = fn;
+    this.outputType = outputType;
+    this.fnClassDisplayData = DisplayData.item("mapFn", fnClass).withLabel("Map Function");
+  }
+
+  /**
+   * Returns a new {@link MapElements} transform with the given type descriptor for the output
+   * type, but the mapping function yet to be specified using {@link #via(SerializableFunction)}.
+   */
+  public static <OutputT> MapElements<?, OutputT>
+  into(final TypeDescriptor<OutputT> outputType) {
+    return new MapElements<>(null, outputType, null);
+  }
 
   /**
    * For a {@code SerializableFunction<InputT, OutputT>} {@code fn} and output type descriptor,
-   * returns a {@code PTransform} that takes an input {@code PCollection<InputT>} and returns
-   * a {@code PCollection<OutputT>} containing {@code fn.apply(v)} for every element {@code v} in
-   * the input.
+   * returns a {@code PTransform} that takes an input {@code PCollection<InputT>} and returns a
+   * {@code PCollection<OutputT>} containing {@code fn.apply(v)} for every element {@code v} in the
+   * input.
    *
    * <p>Example of use in Java 8:
+   *
    * <pre>{@code
    * PCollection<Integer> wordLengths = words.apply(
    *     MapElements.via((String word) -> word.length())
@@ -43,17 +63,12 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    * <p>In Java 7, the overload {@link #via(SimpleFunction)} is more concise as the output type
    * descriptor need not be provided.
    */
-  public static <InputT, OutputT> MissingOutputTypeDescriptor<InputT, OutputT>
-  via(SerializableFunction<? super InputT, OutputT> fn) {
-
-    // TypeDescriptor interacts poorly with the wildcards needed to correctly express
-    // covariance and contravariance in Java, so instead we cast it to an invariant
-    // function here.
-    @SuppressWarnings("unchecked") // safe covariant cast
-        SerializableFunction<InputT, OutputT> simplerFn =
-        (SerializableFunction<InputT, OutputT>) fn;
-
-    return new MissingOutputTypeDescriptor<>(simplerFn);
+  public <NewInputT> MapElements<NewInputT, OutputT> via(
+      SerializableFunction<NewInputT, OutputT> fn) {
+    return new MapElements<>(
+        SimpleFunction.fromSerializableFunctionWithOutputType(fn, outputType),
+        null,
+        fn.getClass());
   }
 
   /**
@@ -77,37 +92,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    */
   public static <InputT, OutputT> MapElements<InputT, OutputT> via(
       final SimpleFunction<InputT, OutputT> fn) {
-    return new MapElements<>(fn, fn.getClass());
-  }
-
-  /**
-   * An intermediate builder for a {@link MapElements} transform. To complete the transform, provide
-   * an output type descriptor to {@link MissingOutputTypeDescriptor#withOutputType}. See
-   * {@link #via(SerializableFunction)} for a full example of use.
-   */
-  public static final class MissingOutputTypeDescriptor<InputT, OutputT> {
-
-    private final SerializableFunction<InputT, OutputT> fn;
-
-    private MissingOutputTypeDescriptor(SerializableFunction<InputT, OutputT> fn) {
-      this.fn = fn;
-    }
-
-    public MapElements<InputT, OutputT> withOutputType(final TypeDescriptor<OutputT> outputType) {
-      return new MapElements<>(
-          SimpleFunction.fromSerializableFunctionWithOutputType(fn, outputType), fn.getClass());
-    }
-
-  }
-
-  ///////////////////////////////////////////////////////////////////
-
-  private final SimpleFunction<InputT, OutputT> fn;
-  private final DisplayData.ItemSpec<?> fnClassDisplayData;
-
-  private MapElements(SimpleFunction<InputT, OutputT> fn, Class<?> fnClass) {
-    this.fn = fn;
-    this.fnClassDisplayData = DisplayData.item("mapFn", fnClass).withLabel("Map Function");
+    return new MapElements<>(fn, null, fn.getClass());
   }
 
   @Override
