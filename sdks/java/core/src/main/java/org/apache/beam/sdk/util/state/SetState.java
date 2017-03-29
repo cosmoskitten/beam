@@ -31,9 +31,8 @@ public interface SetState<T> extends CombiningState<T, Iterable<T>> {
   ReadableState<Boolean> contains(T t);
 
   /**
-   * Add a value to the buffer if it is not already present.
-   * If this set already contains the element, the call leaves the set
-   * unchanged and returns false.
+   * Ensures a value is a member of the set, returning {@code true} if it was added and {@code
+   * false} otherwise.
    */
   ReadableState<Boolean> addIfAbsent(T t);
 
