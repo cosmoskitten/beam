@@ -17,20 +17,22 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Iterables;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -62,8 +65,42 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
         PCollection<? extends InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
   @Override
+  public PTransformReplacement<PCollection<? extends InputT>, PCollectionTuple>
+  getReplacementTransform(
+      AppliedPTransform<
+          PCollection<? extends InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
+          transform) {
+    Set<TupleTag<?>> sideInputTags = new HashSet<>();
+    for (PCollectionView<?> view : transform.getTransform().getSideInputs()) {
+      sideInputTags.add(view.getTagInternal());
+    }
+    PCollection<? extends InputT> mainInput = null;
+    for (Map.Entry<TupleTag<?>, PValue> input : transform.getInputs().entrySet()) {
+      if (!sideInputTags.contains(input.getKey())) {
+        checkArgument(
+            mainInput == null,
+            "Got two inputs that are not side inputs in %s: %s and %s",
+            ParDoMultiOverrideFactory.class.getSimpleName(),
+            mainInput,
+            input.getValue());
+        checkArgument(
+            input.getValue() instanceof PCollection,
+            "Unexpected input type %s",
+            input.getValue().getClass().getSimpleName());
+        mainInput = (PCollection<InputT>) input.getValue();
+      }
+    }
+    checkArgument(
+        mainInput != null,
+        "No main input found in inputs for %s: Inputs %s, Side Input tags %s",
+        transform,
+        transform.getInputs(),
+        sideInputTags);
+    return PTransformReplacement.of(mainInput, getReplacementTransform(transform.getTransform()));
+  }
+
   @SuppressWarnings("unchecked")
-  public PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
+  private PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
       MultiOutput<InputT, OutputT> transform) {
 
     DoFn<InputT, OutputT> fn = transform.getFn();
@@ -81,12 +118,6 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     } else {
       return transform;
     }
-  }
-
-  @Override
-  public PCollection<? extends InputT> getInput(
-      Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-    return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs.values());
   }
 
   @Override
