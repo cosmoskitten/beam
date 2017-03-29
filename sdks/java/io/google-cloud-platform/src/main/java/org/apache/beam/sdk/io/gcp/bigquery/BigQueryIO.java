@@ -993,7 +993,8 @@ public class BigQueryIO {
       if (input.isBounded() == IsBounded.UNBOUNDED) {
         return rowsWithDestination.apply(new StreamingInserts(this));
       } else {
-        return input.apply(new BatchLoadBigQuery<T>(this));
+
+        return rowsWithDestination.apply(new BatchLoads<T>(this));
       }
     }
 
