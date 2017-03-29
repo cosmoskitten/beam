@@ -210,6 +210,7 @@ class FlinkStreamingTransformTranslators {
       try {
         UnboundedSourceWrapper<T, ?> sourceWrapper =
             new UnboundedSourceWrapper<>(
+                context.getCurrentTransform().getFullName(),
                 context.getPipelineOptions(),
                 transform.getSource(),
                 context.getExecutionEnvironment().getParallelism());
@@ -242,6 +243,7 @@ class FlinkStreamingTransformTranslators {
       try {
         BoundedSourceWrapper<T> sourceWrapper =
             new BoundedSourceWrapper<>(
+                context.getCurrentTransform().getFullName(),
                 context.getPipelineOptions(),
                 transform.getSource(),
                 context.getExecutionEnvironment().getParallelism());
