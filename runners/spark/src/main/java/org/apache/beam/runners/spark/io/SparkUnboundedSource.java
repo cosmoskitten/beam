@@ -118,13 +118,10 @@ public class SparkUnboundedSource {
         WindowedValue.FullWindowedValueCoder.of(
             source.getDefaultOutputCoder(),
             GlobalWindow.Coder.INSTANCE);
-    JavaDStream<WindowedValue<T>> readUnboundedStream = mapWithStateDStream.flatMap(
-        new FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]>() {
-          @Override
-          public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
-            return t2._1();
-          }
-        }).map(CoderHelpers.fromByteFunction(coder));
+    JavaDStream<WindowedValue<T>> readUnboundedStream =
+        mapWithStateDStream
+            .flatMap(new Tuple2byteFlatMapFunction())
+            .map(CoderHelpers.fromByteFunction(coder));
     return new UnboundedDataset<>(readUnboundedStream, Collections.singletonList(id));
   }
 
@@ -144,6 +141,15 @@ public class SparkUnboundedSource {
     long checkpointDurationMillis = options.getCheckpointDurationMillis();
     if (checkpointDurationMillis > 0) {
       dStream.checkpoint(new Duration(checkpointDurationMillis));
+    }
+  }
+
+  private static class Tuple2byteFlatMapFunction
+      implements FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]> {
+
+    @Override
+    public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> pair) throws Exception {
+      return pair._1();
     }
   }
 
