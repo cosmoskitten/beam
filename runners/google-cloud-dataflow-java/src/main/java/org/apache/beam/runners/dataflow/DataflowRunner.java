@@ -98,6 +98,7 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -420,11 +421,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransform<InputT, OutputT> getReplacementTransform(TransformT transform) {
-      return InstanceBuilder.ofType(replacement)
-          .withArg(DataflowRunner.class, runner)
-          .withArg((Class<PTransform<InputT, OutputT>>) transform.getClass(), transform)
-          .build();
+    public PTransformReplacement<InputT, OutputT> getReplacementTransform(
+        AppliedPTransform<InputT, OutputT, TransformT> transform) {
+      PTransform<InputT, OutputT> rep =
+          InstanceBuilder.ofType(replacement)
+              .withArg(DataflowRunner.class, runner)
+              .withArg(
+                  (Class<TransformT>) transform.getTransform().getClass(), transform.getTransform())
+              .build();
+      return PTransformReplacement.of((InputT) Iterables.getOnlyElement(transform.getInputs()
+          .values()), rep);
     }
   }
 
@@ -439,19 +445,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       this.replacement = replacement;
       this.runner = runner;
     }
-    @Override
-    public PTransform<PBegin, PCollection<T>> getReplacementTransform(
-        PTransform<PInput, PCollection<T>> transform) {
-      return InstanceBuilder.ofType(replacement)
-          .withArg(DataflowRunner.class, runner)
-          .withArg(
-              (Class<? super PTransform<PInput, PCollection<T>>>) transform.getClass(), transform)
-          .build();
-    }
 
     @Override
-    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-      return p.begin();
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, PTransform<PInput, PCollection<T>>> transform) {
+      PTransform<PInput, PCollection<T>> original = transform.getTransform();
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(),
+          InstanceBuilder.ofType(replacement)
+              .withArg(DataflowRunner.class, runner)
+              .withArg(
+                  (Class<? super PTransform<PInput, PCollection<T>>>) original.getClass(), original)
+              .build());
     }
 
     @Override
@@ -819,14 +824,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       this.runner = dataflowRunner;
     }
 
-    @Override
-    public PTransform<PCollection<T>, PDone> getReplacementTransform(Write<T> transform) {
-      return new BatchWrite<>(runner, transform);
+
+    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs) {
+      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
-    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
+    public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
+        AppliedPTransform<PCollection<T>, PDone, Write<T>> transform) {
+      return PTransformReplacement.of(
+          getInput(transform.getInputs()), new BatchWrite<>(runner, transform.getTransform()));
     }
 
     @Override
@@ -1309,16 +1316,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       implements PTransformOverrideFactory<
           PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>,
           Combine.GroupedValues<K, InputT, OutputT>> {
-    @Override
-    public PTransform<PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>>
-        getReplacementTransform(GroupedValues<K, InputT, OutputT> transform) {
-      return new CombineGroupedValues<>(transform);
+    public PCollection<KV<K, Iterable<InputT>>> getInput(
+        Map<TupleTag<?>, PValue> inputs) {
+      return (PCollection<KV<K, Iterable<InputT>>>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
-    public PCollection<KV<K, Iterable<InputT>>> getInput(
-        Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-      return (PCollection<KV<K, Iterable<InputT>>>) Iterables.getOnlyElement(inputs.values());
+    public PTransformReplacement<PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>,
+                    GroupedValues<K, InputT, OutputT>>
+                transform) {
+      return PTransformReplacement.of(
+          getInput(transform.getInputs()), new CombineGroupedValues<>(transform.getTransform()));
     }
 
     @Override
@@ -1336,15 +1347,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       this.runner = runner;
     }
 
-    @Override
-    public PTransform<PCollection<T>, PDone> getReplacementTransform(
-        PubsubUnboundedSink<T> transform) {
-      return new StreamingPubsubIOWrite<>(runner, transform);
+
+    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs) {
+      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
-    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
+    public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
+        AppliedPTransform<PCollection<T>, PDone, PubsubUnboundedSink<T>> transform) {
+      return PTransformReplacement.of(
+          getInput(transform.getInputs()),
+          new StreamingPubsubIOWrite<>(runner, transform.getTransform()));
     }
 
     @Override

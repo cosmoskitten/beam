@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.dataflow;
 
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
@@ -25,6 +26,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner.StreamingPCollectionViewW
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -42,9 +44,16 @@ class StreamingViewOverrides {
       extends SingleInputOutputOverrideFactory<
           PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>> {
     @Override
-    public PTransform<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
-        final CreatePCollectionView<ElemT, ViewT> transform) {
-      return new StreamingCreatePCollectionView<>(transform.getView());
+    public PTransformReplacement<PCollection<ElemT>, PCollectionView<ViewT>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>>
+                transform) {
+      PCollection<ElemT> input =
+          (PCollection<ElemT>) Iterables.getOnlyElement(transform.getInputs().values());
+      StreamingCreatePCollectionView<ElemT, ViewT> streamingView =
+          new StreamingCreatePCollectionView<>(transform.getTransform().getView());
+      return PTransformReplacement.of(input, streamingView);
     }
 
     private static class StreamingCreatePCollectionView<ElemT, ViewT>

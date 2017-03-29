@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.collect.Iterables;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDo.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -33,8 +34,14 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
         PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
         GBKIntoKeyedWorkItems<KeyT, InputT>> {
   @Override
-  public PTransform<PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>>
-      getReplacementTransform(GBKIntoKeyedWorkItems<KeyT, InputT> transform) {
-    return new DirectGroupByKey.DirectGroupByKeyOnly<>();
+  public PTransformReplacement<
+          PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>>
+      getReplacementTransform(
+          AppliedPTransform<
+                  PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
+                  GBKIntoKeyedWorkItems<KeyT, InputT>>
+              transform) {
+    return PTransformReplacement.of((PCollection<KV<KeyT, InputT>>) Iterables.getOnlyElement(
+        transform.getInputs().values()), new DirectGroupByKey.DirectGroupByKeyOnly<KeyT, InputT>());
   }
 }

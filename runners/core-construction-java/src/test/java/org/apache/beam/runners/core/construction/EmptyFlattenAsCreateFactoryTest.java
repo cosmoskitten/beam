@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.core.construction;
 
-import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -54,8 +54,13 @@ public class EmptyFlattenAsCreateFactoryTest {
 
   @Test
   public void getInputEmptySucceeds() {
-    assertThat(
-        factory.getInput(Collections.<TupleTag<?>, PValue>emptyMap(), pipeline).size(), equalTo(0));
+    factory.getReplacementTransform(
+        AppliedPTransform.<PCollectionList<Long>, PCollection<Long>, Flatten.PCollections<Long>>of(
+            "nonEmptyInput",
+            Collections.<TupleTag<?>, PValue>emptyMap(),
+            Collections.<TupleTag<?>, PValue>emptyMap(),
+            Flatten.<Long>pCollections(),
+            pipeline));
   }
 
   @Test
@@ -66,7 +71,13 @@ public class EmptyFlattenAsCreateFactoryTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(nonEmpty.expand().toString());
     thrown.expectMessage(EmptyFlattenAsCreateFactory.class.getSimpleName());
-    factory.getInput(nonEmpty.expand(), pipeline);
+    factory.getReplacementTransform(
+        AppliedPTransform.<PCollectionList<Long>, PCollection<Long>, Flatten.PCollections<Long>>of(
+            "nonEmptyInput",
+            nonEmpty.expand(),
+            Collections.<TupleTag<?>, PValue>emptyMap(),
+            Flatten.<Long>pCollections(),
+            pipeline));
   }
 
   @Test
@@ -89,7 +100,17 @@ public class EmptyFlattenAsCreateFactoryTest {
   public void testOverride() {
     PCollectionList<Long> empty = PCollectionList.empty(pipeline);
     PCollection<Long> emptyFlattened =
-        empty.apply(factory.getReplacementTransform(Flatten.<Long>pCollections()));
+        empty.apply(
+            factory
+                .getReplacementTransform(
+                    AppliedPTransform
+                        .<PCollectionList<Long>, PCollection<Long>, Flatten.PCollections<Long>>of(
+                            "nonEmptyInput",
+                            Collections.<TupleTag<?>, PValue>emptyMap(),
+                            Collections.<TupleTag<?>, PValue>emptyMap(),
+                            Flatten.<Long>pCollections(),
+                            pipeline))
+                .getTransform());
     PAssert.that(emptyFlattened).empty();
     pipeline.run();
   }
