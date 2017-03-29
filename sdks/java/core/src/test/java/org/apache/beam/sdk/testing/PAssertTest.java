@@ -20,6 +20,7 @@ package org.apache.beam.sdk.testing;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -27,6 +28,8 @@ import static org.junit.Assert.fail;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -35,9 +38,13 @@ import java.util.Collections;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.testing.PAssert.PAssertionSite;
+import org.apache.beam.sdk.testing.PAssert.PCollectionContentsAssert.MatcherCheckerFn;
+import org.apache.beam.sdk.testing.PAssert.SuccessOrFailure;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
@@ -115,6 +122,35 @@ public class PAssertTest implements Serializable {
         throws Exception {
       observer.update(0L);
     }
+  }
+
+  @Test
+  public void testSuccessOrFailureEncodedDecoded() throws IOException {
+    AssertionError error = null;
+    try {
+      assertEquals(0, 1);
+    } catch (AssertionError e) {
+      error = e;
+    }
+    SuccessOrFailure success = PAssert.SuccessOrFailure.success();
+    SuccessOrFailure failure = PAssert.SuccessOrFailure.failure(error);
+
+    ByteArrayOutputStream sharedOutStream = new ByteArrayOutputStream();
+    AvroCoder<SuccessOrFailure> coder = AvroCoder.of(SuccessOrFailure.class);
+    coder.encode(success, sharedOutStream, null);
+    InputStream sharedInStream = new ByteArrayInputStream(sharedOutStream.toByteArray());
+    SuccessOrFailure res = coder.decode(sharedInStream, null);
+
+    assertEquals("Encode-decode successful SuccessOrFailure",
+        success, res);
+
+    sharedOutStream = new ByteArrayOutputStream();
+    coder.encode(failure, sharedOutStream, null);
+    sharedInStream = new ByteArrayInputStream(sharedOutStream.toByteArray());
+    res = coder.decode(sharedInStream, null);
+    // Should compare strings, because throwables are not directly comparable.
+    assertEquals("Encode-decode failed SuccessOrFailure",
+        failure.assertionError().toString(), res.assertionError().toString());
   }
 
   /**
@@ -449,6 +485,19 @@ public class PAssertTest implements Serializable {
     assertThat(message,
         containsString("CountingInput.BoundedCountingInput/Read(BoundedCountingSource).out"));
     assertThat(message, containsString("Expected: iterable over [] in any order"));
+  }
+
+  @Test
+  public void testAssertionSiteIsCaptured() {
+    // This check should return a failure.
+    SuccessOrFailure res = PAssert.doChecks(
+        PAssertionSite.capture("Captured assertion message."),
+        new Integer(10),
+        new MatcherCheckerFn(SerializableMatchers.contains(new Integer(11))));
+
+    String stacktrace = Throwables.getStackTraceAsString(res.assertionError());
+    assertEquals(res.isSuccess(), false);
+    assertThat(stacktrace, containsString("PAssertionSite.capture"));
   }
 
   @Test

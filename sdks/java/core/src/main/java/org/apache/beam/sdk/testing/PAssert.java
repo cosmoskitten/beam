@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -32,17 +33,21 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -52,7 +57,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -107,7 +111,6 @@ import org.slf4j.LoggerFactory;
 public class PAssert {
 
   private static final Logger LOG = LoggerFactory.getLogger(PAssert.class);
-
   public static final String SUCCESS_COUNTER = "PAssertSuccess";
   public static final String FAILURE_COUNTER = "PAssertFailure";
 
@@ -119,6 +122,42 @@ public class PAssert {
 
   // Do not instantiate.
   private PAssert() {}
+
+  private static final class DefaultConcludeFn extends DoFn<SuccessOrFailure, Void> {
+
+    private Counter successCounter;
+    private Counter failureCounter;
+
+    @StartBundle
+    public void startBundle(Context c) {
+      successCounter = Metrics.counter(PAssert.class, PAssert.SUCCESS_COUNTER);
+      failureCounter = Metrics.counter(PAssert.class, PAssert.FAILURE_COUNTER);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      SuccessOrFailure e = c.element();
+      if (e.isSuccess()) {
+        LOG.error("Success!! incrementah");
+        successCounter.inc();
+      } else {
+        LOG.error("Failure:(");
+        failureCounter.inc();
+        throw e.assertionError();
+      }
+    }
+  }
+
+  private static final PTransform<? super PCollection<SuccessOrFailure>, ? super PCollection<Void>>
+      DEFAULT_CONCLUDE_TRANSFORM = ParDo.of(new DefaultConcludeFn());
+
+  private static PTransform<? super PCollection<SuccessOrFailure>, ? super PCollection<Void>>
+      concludeTransform = DEFAULT_CONCLUDE_TRANSFORM;
+
+  public static void setConcludeTransform(
+      PTransform<? super PCollection<SuccessOrFailure>, ? super PCollection<Void>> transform) {
+    concludeTransform = transform;
+  }
 
   /**
    * Builder interface for assertions applicable to iterables and PCollection contents.
@@ -400,7 +439,69 @@ public class PAssert {
 
   ////////////////////////////////////////////////////////////
 
-  private static class PAssertionSite implements Serializable {
+  /**
+   * Output of {@link PAssert}. Passed to a conclude function to act upon.
+   */
+  @DefaultCoder(AvroCoder.class)
+  public static final class SuccessOrFailure {
+
+    private final boolean isSuccess;
+    @org.apache.avro.reflect.Nullable
+    private final AssertionError assertionError;
+
+    public SuccessOrFailure() {
+      isSuccess = true;
+      assertionError = null;
+    }
+
+    public SuccessOrFailure(
+        boolean isSuccess,
+        @Nullable AssertionError assertionError) {
+      this.isSuccess = isSuccess;
+      this.assertionError = assertionError;
+    }
+
+    public boolean isSuccess() {
+      return isSuccess;
+    }
+
+    @Nullable
+    public AssertionError assertionError() {
+      return assertionError;
+    }
+
+    public static SuccessOrFailure success() {
+      return new SuccessOrFailure(true, null);
+    }
+    public static SuccessOrFailure failure(@Nullable AssertionError e) {
+      return new SuccessOrFailure(false, e);
+    }
+
+    @Override
+    public String toString() {
+      return "SuccessOrFailure{"
+          + (isSuccess ? "success" : "failure")
+          + ", error: "
+          + (assertionError() != null ? assertionError().toString() : "null")
+          + "}";
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof SuccessOrFailure)) {
+        return false;
+      }
+      SuccessOrFailure otherSOF = (SuccessOrFailure) other;
+      return isSuccess == otherSOF.isSuccess()
+          && ((assertionError() == null && otherSOF.assertionError() == null)
+          || Objects.equal(
+              assertionError(), otherSOF.assertionError()));
+    }
+  }
+  ////////////////////////////////////////////////////////////
+
+  /** Track the place where an assertion is defined.*/
+  protected static class PAssertionSite implements Serializable {
     private final String message;
     private final StackTraceElement[] creationStackTrace;
 
@@ -411,6 +512,7 @@ public class PAssert {
     PAssertionSite(String message, StackTraceElement[] creationStackTrace) {
       this.message = message;
       this.creationStackTrace = creationStackTrace;
+      LOG.error("A creation stacktrace: " + creationStackTrace.toString());
     }
 
     public AssertionError wrap(Throwable t) {
@@ -426,7 +528,7 @@ public class PAssert {
    * An {@link IterableAssert} about the contents of a {@link PCollection}. This does not require
    * the runner to support side inputs.
    */
-  private static class PCollectionContentsAssert<T> implements IterableAssert<T> {
+  protected static class PCollectionContentsAssert<T> implements IterableAssert<T> {
     private final PCollection<T> actual;
     private final AssertionWindows rewindowingStrategy;
     private final SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor;
@@ -560,7 +662,8 @@ public class PAssert {
       return this;
     }
 
-    private static class MatcherCheckerFn<T> implements SerializableFunction<T, Void> {
+    /** Check that the passed-in matchers match the existing data. */
+    protected static class MatcherCheckerFn<T> implements SerializableFunction<T, Void> {
       private SerializableMatcher<T> matcher;
 
       public MatcherCheckerFn(SerializableMatcher<T> matcher) {
@@ -690,7 +793,8 @@ public class PAssert {
         SerializableFunction<Iterable<T>, Void> checkerFn) {
       actual.apply(
           "PAssert$" + (assertCount++),
-          new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
+          new GroupThenAssertForSingleton<>(
+              checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
 
@@ -1033,7 +1137,8 @@ public class PAssert {
           .apply("GroupGlobally", new GroupGlobally<T>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
-          .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn, site)));
+          .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn, site)))
+          .apply("VerifyAssertions", concludeTransform);
 
       return PDone.in(input.getPipeline());
     }
@@ -1069,7 +1174,8 @@ public class PAssert {
           .apply("GroupGlobally", new GroupGlobally<Iterable<T>>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
-          .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn, site)));
+          .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn, site)))
+          .apply("VerifyAssertions", concludeTransform);
 
       return PDone.in(input.getPipeline());
     }
@@ -1112,8 +1218,8 @@ public class PAssert {
           .apply("WindowToken", windowToken)
           .apply(
               "RunChecks",
-              ParDo.of(new SideInputCheckerDoFn<>(checkerFn, actual, site)).withSideInputs(actual));
-
+              ParDo.of(new SideInputCheckerDoFn<>(checkerFn, actual, site)).withSideInputs(actual))
+          .apply("VerifyAssertions", concludeTransform);
       return PDone.in(input.getPipeline());
     }
   }
@@ -1125,12 +1231,8 @@ public class PAssert {
    * <p>The input is ignored, but is {@link Integer} to be usable on runners that do not support
    * null values.
    */
-  private static class SideInputCheckerDoFn<ActualT> extends DoFn<Integer, Void> {
+  private static class SideInputCheckerDoFn<ActualT> extends DoFn<Integer, SuccessOrFailure> {
     private final SerializableFunction<ActualT, Void> checkerFn;
-    private final Aggregator<Integer, Integer> success =
-        createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
-    private final Aggregator<Integer, Integer> failure =
-        createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
     private final PCollectionView<ActualT> actual;
     private final PAssertionSite site;
 
@@ -1146,7 +1248,7 @@ public class PAssert {
     @ProcessElement
     public void processElement(ProcessContext c) {
       ActualT actualContents = c.sideInput(actual);
-      doChecks(site, actualContents, checkerFn, success, failure);
+      c.output(doChecks(site, actualContents, checkerFn));
     }
   }
 
@@ -1157,12 +1259,8 @@ public class PAssert {
    *
    * <p>The singleton property is presumed, not enforced.
    */
-  private static class GroupedValuesCheckerDoFn<ActualT> extends DoFn<ActualT, Void> {
+  private static class GroupedValuesCheckerDoFn<ActualT> extends DoFn<ActualT, SuccessOrFailure> {
     private final SerializableFunction<ActualT, Void> checkerFn;
-    private final Aggregator<Integer, Integer> success =
-        createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
-    private final Aggregator<Integer, Integer> failure =
-        createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
     private final PAssertionSite site;
 
     private GroupedValuesCheckerDoFn(
@@ -1173,7 +1271,7 @@ public class PAssert {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      doChecks(site, c.element(), checkerFn, success, failure);
+      c.output(doChecks(site, c.element(), checkerFn));
     }
   }
 
@@ -1185,12 +1283,9 @@ public class PAssert {
    * <p>The singleton property of the input {@link PCollection} is presumed, not enforced. However,
    * each input element must be a singleton iterable, or this will fail.
    */
-  private static class SingletonCheckerDoFn<ActualT> extends DoFn<Iterable<ActualT>, Void> {
+  private static class SingletonCheckerDoFn<ActualT>
+      extends DoFn<Iterable<ActualT>, SuccessOrFailure> {
     private final SerializableFunction<ActualT, Void> checkerFn;
-    private final Aggregator<Integer, Integer> success =
-        createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
-    private final Aggregator<Integer, Integer> failure =
-        createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
     private final PAssertionSite site;
 
     private SingletonCheckerDoFn(
@@ -1202,22 +1297,21 @@ public class PAssert {
     @ProcessElement
     public void processElement(ProcessContext c) {
       ActualT actualContents = Iterables.getOnlyElement(c.element());
-      doChecks(site, actualContents, checkerFn, success, failure);
+      c.output(doChecks(site, actualContents, checkerFn));
     }
   }
 
-  private static <ActualT> void doChecks(
+  protected static <ActualT> SuccessOrFailure doChecks(
       PAssertionSite site,
       ActualT actualContents,
-      SerializableFunction<ActualT, Void> checkerFn,
-      Aggregator<Integer, Integer> successAggregator,
-      Aggregator<Integer, Integer> failureAggregator) {
+      SerializableFunction<ActualT, Void> checkerFn) {
+    SuccessOrFailure result = SuccessOrFailure.success();
     try {
       checkerFn.apply(actualContents);
-      successAggregator.addValue(1);
     } catch (Throwable t) {
-      failureAggregator.addValue(1);
-      throw site.wrap(t);
+      result = SuccessOrFailure.failure(site.wrap(t));
+    } finally {
+      return result;
     }
   }
 
