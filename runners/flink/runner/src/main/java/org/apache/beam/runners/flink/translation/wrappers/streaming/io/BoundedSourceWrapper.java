@@ -20,8 +20,11 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.flink.metrics.ReaderWithMetrics;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -42,6 +45,7 @@ public class BoundedSourceWrapper<OutputT>
 
   private static final Logger LOG = LoggerFactory.getLogger(BoundedSourceWrapper.class);
 
+  private String stepName;
   /**
    * Keep the options so that we can initialize the readers.
    */
@@ -56,7 +60,7 @@ public class BoundedSourceWrapper<OutputT>
   /**
    * Make it a field so that we can access it in {@link #close()}.
    */
-  private transient List<BoundedSource.BoundedReader<OutputT>> readers;
+  private transient List<ReaderWithMetrics<OutputT, BoundedReader<OutputT>>> readers;
 
   /**
    * Initialize here and not in run() to prevent races where we cancel a job before run() is
@@ -66,9 +70,10 @@ public class BoundedSourceWrapper<OutputT>
 
   @SuppressWarnings("unchecked")
   public BoundedSourceWrapper(
-      PipelineOptions pipelineOptions,
+      String stepName, PipelineOptions pipelineOptions,
       BoundedSource<OutputT> source,
       int parallelism) throws Exception {
+    this.stepName = stepName;
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
 
     long desiredBundleSize = source.getEstimatedSizeBytes(pipelineOptions) / parallelism;
@@ -99,26 +104,30 @@ public class BoundedSourceWrapper<OutputT>
         numSubtasks,
         localSources);
 
+    FlinkMetricContainer metricContainer = new FlinkMetricContainer(stepName, getRuntimeContext());
+
     readers = new ArrayList<>();
     // initialize readers from scratch
     for (BoundedSource<OutputT> source : localSources) {
-      readers.add(source.createReader(serializedOptions.getPipelineOptions()));
+      readers.add(
+          new ReaderWithMetrics<>(serializedOptions.getPipelineOptions(),
+              source.createReader(serializedOptions.getPipelineOptions()), metricContainer));
     }
 
    if (readers.size() == 1) {
       // the easy case, we just read from one reader
-      BoundedSource.BoundedReader<OutputT> reader = readers.get(0);
+     ReaderWithMetrics<OutputT, BoundedReader<OutputT>> reader = readers.get(0);
 
       boolean dataAvailable = reader.start();
       if (dataAvailable) {
-        emitElement(ctx, reader);
+        emitElement(ctx, reader.getDelegate());
       }
 
       while (isRunning) {
         dataAvailable = reader.advance();
 
         if (dataAvailable)  {
-          emitElement(ctx, reader);
+          emitElement(ctx, reader.getDelegate());
         } else {
           break;
         }
@@ -130,10 +139,10 @@ public class BoundedSourceWrapper<OutputT>
       int currentReader = 0;
 
       // start each reader and emit data if immediately available
-      for (BoundedSource.BoundedReader<OutputT> reader : readers) {
+      for (ReaderWithMetrics<OutputT, BoundedReader<OutputT>> reader : readers) {
         boolean dataAvailable = reader.start();
         if (dataAvailable) {
-          emitElement(ctx, reader);
+          emitElement(ctx, reader.getDelegate());
         }
       }
 
@@ -141,11 +150,11 @@ public class BoundedSourceWrapper<OutputT>
       // if no reader had data, sleep for bit
       boolean hadData = false;
       while (isRunning && !readers.isEmpty()) {
-        BoundedSource.BoundedReader<OutputT> reader = readers.get(currentReader);
+        ReaderWithMetrics<OutputT, BoundedReader<OutputT>> reader = readers.get(currentReader);
         boolean dataAvailable = reader.advance();
 
         if (dataAvailable) {
-          emitElement(ctx, reader);
+          emitElement(ctx, reader.getDelegate());
           hadData = true;
         } else {
           readers.remove(currentReader);
@@ -174,7 +183,7 @@ public class BoundedSourceWrapper<OutputT>
    */
   private void emitElement(
       SourceContext<WindowedValue<OutputT>> ctx,
-      BoundedSource.BoundedReader<OutputT> reader) {
+      BoundedReader<OutputT> reader) {
     // make sure that reader state update and element emission are atomic
     // with respect to snapshots
     synchronized (ctx.getCheckpointLock()) {
@@ -192,8 +201,8 @@ public class BoundedSourceWrapper<OutputT>
   public void close() throws Exception {
     super.close();
     if (readers != null) {
-      for (BoundedSource.BoundedReader<OutputT> reader: readers) {
-        reader.close();
+      for (ReaderWithMetrics<OutputT, BoundedReader<OutputT>> reader: readers) {
+        reader.getDelegate().close();
       }
     }
   }

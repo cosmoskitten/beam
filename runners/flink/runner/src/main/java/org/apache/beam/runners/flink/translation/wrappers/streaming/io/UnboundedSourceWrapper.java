@@ -22,12 +22,15 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.flink.metrics.ReaderWithMetrics;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -64,6 +67,7 @@ public class UnboundedSourceWrapper<
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
+  private final String stepName;
   /**
    * Keep the options so that we can initialize the localReaders.
    */
@@ -91,7 +95,7 @@ public class UnboundedSourceWrapper<
    * Make it a field so that we can access it in {@link #onProcessingTime(long)} for
    * emitting watermarks.
    */
-  private transient List<UnboundedSource.UnboundedReader<OutputT>> localReaders;
+  private transient List<ReaderWithMetrics<OutputT, UnboundedReader<OutputT>>> localReaders;
 
   /**
    * Flag to indicate whether the source is running.
@@ -131,9 +135,10 @@ public class UnboundedSourceWrapper<
 
   @SuppressWarnings("unchecked")
   public UnboundedSourceWrapper(
-      PipelineOptions pipelineOptions,
+      String stepName, PipelineOptions pipelineOptions,
       UnboundedSource<OutputT, CheckpointMarkT> source,
       int parallelism) throws Exception {
+    this.stepName = stepName;
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
 
     if (source.requiresDeduping()) {
@@ -176,13 +181,16 @@ public class UnboundedSourceWrapper<
 
     pendingCheckpoints = new LinkedHashMap<>();
 
+    FlinkMetricContainer metricContainer = new FlinkMetricContainer(stepName, getRuntimeContext());
+
     if (isRestored) {
       // restore the splitSources from the checkpoint to ensure consistent ordering
       for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored:
           stateForCheckpoint.get()) {
         localSplitSources.add(restored.getKey());
-        localReaders.add(restored.getKey().createReader(
-            serializedOptions.getPipelineOptions(), restored.getValue()));
+        localReaders.add(new ReaderWithMetrics<>(serializedOptions.getPipelineOptions(),
+            restored.getKey().createReader(
+                serializedOptions.getPipelineOptions(), restored.getValue()), metricContainer));
       }
     } else {
       // initialize localReaders and localSources from scratch
@@ -190,10 +198,11 @@ public class UnboundedSourceWrapper<
         if (i % numSubtasks == subtaskIndex) {
           UnboundedSource<OutputT, CheckpointMarkT> source =
               splitSources.get(i);
-          UnboundedSource.UnboundedReader<OutputT> reader =
+          UnboundedReader<OutputT> reader =
               source.createReader(serializedOptions.getPipelineOptions(), null);
           localSplitSources.add(source);
-          localReaders.add(reader);
+          localReaders.add(new ReaderWithMetrics<>(
+              serializedOptions.getPipelineOptions(), reader, metricContainer));
         }
       }
     }
@@ -236,11 +245,11 @@ public class UnboundedSourceWrapper<
       }
     } else if (localReaders.size() == 1) {
       // the easy case, we just read from one reader
-      UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
+      ReaderWithMetrics<OutputT, UnboundedReader<OutputT>> reader = localReaders.get(0);
 
       boolean dataAvailable = reader.start();
       if (dataAvailable) {
-        emitElement(ctx, reader);
+        emitElement(ctx, reader.getDelegate());
       }
 
       setNextWatermarkTimer(this.runtimeContext);
@@ -249,7 +258,7 @@ public class UnboundedSourceWrapper<
         dataAvailable = reader.advance();
 
         if (dataAvailable)  {
-          emitElement(ctx, reader);
+          emitElement(ctx, reader.getDelegate());
         } else {
           Thread.sleep(50);
         }
@@ -262,10 +271,10 @@ public class UnboundedSourceWrapper<
       int currentReader = 0;
 
       // start each reader and emit data if immediately available
-      for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
+      for (ReaderWithMetrics<OutputT, UnboundedReader<OutputT>> reader : localReaders) {
         boolean dataAvailable = reader.start();
         if (dataAvailable) {
-          emitElement(ctx, reader);
+          emitElement(ctx, reader.getDelegate());
         }
       }
 
@@ -273,7 +282,8 @@ public class UnboundedSourceWrapper<
       // if no reader had data, sleep for bit
       boolean hadData = false;
       while (isRunning) {
-        UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(currentReader);
+        UnboundedReader<OutputT> reader =
+            localReaders.get(currentReader).getDelegate();
         boolean dataAvailable = reader.advance();
 
         if (dataAvailable) {
@@ -297,7 +307,7 @@ public class UnboundedSourceWrapper<
    */
   private void emitElement(
       SourceContext<WindowedValue<OutputT>> ctx,
-      UnboundedSource.UnboundedReader<OutputT> reader) {
+      UnboundedReader<OutputT> reader) {
     // make sure that reader state update and element emission are atomic
     // with respect to snapshots
     synchronized (ctx.getCheckpointLock()) {
@@ -315,8 +325,8 @@ public class UnboundedSourceWrapper<
   public void close() throws Exception {
     super.close();
     if (localReaders != null) {
-      for (UnboundedSource.UnboundedReader<OutputT> reader: localReaders) {
-        reader.close();
+      for (ReaderWithMetrics<OutputT, UnboundedReader<OutputT>> reader: localReaders) {
+        reader.getDelegate().close();
       }
     }
   }
@@ -357,7 +367,7 @@ public class UnboundedSourceWrapper<
 
       for (int i = 0; i < localSplitSources.size(); i++) {
         UnboundedSource<OutputT, CheckpointMarkT> source = localSplitSources.get(i);
-        UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
+        UnboundedReader<OutputT> reader = localReaders.get(i).getDelegate();
 
         @SuppressWarnings("unchecked")
         CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
@@ -411,8 +421,8 @@ public class UnboundedSourceWrapper<
       synchronized (context.getCheckpointLock()) {
         // find minimum watermark over all localReaders
         long watermarkMillis = Long.MAX_VALUE;
-        for (UnboundedSource.UnboundedReader<OutputT> reader: localReaders) {
-          Instant watermark = reader.getWatermark();
+        for (ReaderWithMetrics<OutputT, UnboundedReader<OutputT>> reader: localReaders) {
+          Instant watermark = reader.getDelegate().getWatermark();
           if (watermark != null) {
             watermarkMillis = Math.min(watermark.getMillis(), watermarkMillis);
           }

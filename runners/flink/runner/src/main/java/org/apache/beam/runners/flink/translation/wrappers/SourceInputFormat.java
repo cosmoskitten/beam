@@ -19,8 +19,11 @@ package org.apache.beam.runners.flink.translation.wrappers;
 
 import java.io.IOException;
 import java.util.List;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.flink.metrics.ReaderWithMetrics;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -28,6 +31,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -40,18 +44,21 @@ import org.slf4j.LoggerFactory;
  * Wrapper for executing a {@link Source} as a Flink {@link InputFormat}.
  */
 public class SourceInputFormat<T>
-    implements InputFormat<WindowedValue<T>, SourceInputSplit<T>> {
+    extends RichInputFormat<WindowedValue<T>, SourceInputSplit<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
+  private final String stepName;
   private final BoundedSource<T> initialSource;
 
   private transient PipelineOptions options;
   private final SerializedPipelineOptions serializedOptions;
 
-  private transient BoundedSource.BoundedReader<T> reader;
+  private transient ReaderWithMetrics<T, BoundedReader<T>> reader;
   private boolean inputAvailable = false;
 
-  public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options) {
+  public SourceInputFormat(
+      String stepName, BoundedSource<T> initialSource, PipelineOptions options) {
+    this.stepName = stepName;
     this.initialSource = initialSource;
     this.serializedOptions = new SerializedPipelineOptions(options);
   }
@@ -63,7 +70,10 @@ public class SourceInputFormat<T>
 
   @Override
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
-    reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);
+    FlinkMetricContainer metricContainer = new FlinkMetricContainer(stepName, getRuntimeContext());
+    reader = new ReaderWithMetrics<>(
+        options, ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options),
+        metricContainer);
     inputAvailable = reader.start();
   }
 
@@ -126,8 +136,8 @@ public class SourceInputFormat<T>
   @Override
   public WindowedValue<T> nextRecord(WindowedValue<T> t) throws IOException {
     if (inputAvailable) {
-      final T current = reader.getCurrent();
-      final Instant timestamp = reader.getCurrentTimestamp();
+      final T current = reader.getDelegate().getCurrent();
+      final Instant timestamp = reader.getDelegate().getCurrentTimestamp();
       // advance reader to have a record ready next time
       inputAvailable = reader.advance();
       return WindowedValue.of(
@@ -143,7 +153,7 @@ public class SourceInputFormat<T>
   public void close() throws IOException {
     // TODO null check can be removed once FLINK-3796 is fixed
     if (reader != null) {
-      reader.close();
+      reader.getDelegate().close();
     }
   }
 }
