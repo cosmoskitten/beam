@@ -20,10 +20,10 @@ package org.apache.beam.runners.spark.stateful;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -188,13 +188,11 @@ public class StateSpecFunctions {
           throw new RuntimeException("Failed to read from reader.", e);
         }
 
-        Iterable <byte[]> iterable = new Iterable<byte[]>() {
-          @Override
-          public Iterator<byte[]> iterator() {
-            return Iterators.unmodifiableIterator(readValues.iterator());
-          }
-        };
-        return new Tuple2<>(iterable, new Metadata(readValues.size(), lowWatermark, highWatermark));
+        final ArrayList<byte[]> payload =
+            Lists.newArrayList(Iterators.unmodifiableIterator(readValues.iterator()));
+
+        return new Tuple2<>((Iterable<byte[]>) payload,
+                            new Metadata(readValues.size(), lowWatermark, highWatermark));
       }
     };
   }
