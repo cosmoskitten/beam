@@ -88,5 +88,4 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       }
     };
   }
-
 }

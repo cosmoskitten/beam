@@ -20,13 +20,14 @@ package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -55,9 +56,16 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
               PCollection<? extends Integer>, PCollection<Integer>,
               MapElements<Integer, Integer>>() {
             @Override
-            public PTransform<PCollection<? extends Integer>, PCollection<Integer>>
-                getReplacementTransform(MapElements<Integer, Integer> transform) {
-              return transform;
+            public PTransformReplacement<PCollection<? extends Integer>, PCollection<Integer>>
+                getReplacementTransform(
+                    AppliedPTransform<
+                            PCollection<? extends Integer>, PCollection<Integer>,
+                            MapElements<Integer, Integer>>
+                        transform) {
+              return PTransformReplacement.of(
+                  (PCollection<? extends Integer>)
+                      Iterables.getOnlyElement(transform.getInputs().values()),
+                  transform.getTransform());
             }
           };
 
@@ -67,23 +75,6 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
         return input - 1;
       }
     };
-
-  @Test
-  public void testGetInput() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3));
-    assertThat(
-        factory.getInput(input.expand(), pipeline),
-        Matchers.<PCollection<? extends Integer>>equalTo(input));
-  }
-
-  @Test
-  public void testGetInputMultipleInputsFails() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3));
-    PCollection<Integer> otherInput = pipeline.apply("OtherCreate", Create.of(1, 2, 3));
-
-    thrown.expect(IllegalArgumentException.class);
-    factory.getInput(PCollectionList.of(input).and(otherInput).expand(), pipeline);
-  }
 
   @Test
   public void testMapOutputs() {
