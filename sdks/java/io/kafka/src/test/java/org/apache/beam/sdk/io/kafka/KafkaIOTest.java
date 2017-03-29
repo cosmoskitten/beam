@@ -48,7 +48,6 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -78,7 +77,6 @@ import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -278,7 +276,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testUnboundedSource() {
     int numElements = 1000;
 
@@ -292,7 +289,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testUnboundedSourceWithExplicitPartitions() {
     int numElements = 1000;
 
@@ -331,7 +327,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testUnboundedSourceTimestamps() {
 
     int numElements = 1000;
@@ -359,7 +354,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testUnboundedSourceSplits() throws Exception {
 
     int numElements = 1000;

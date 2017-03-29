@@ -118,7 +118,6 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.SourceTestUtils.ExpectedSplitOutcome;
@@ -802,7 +801,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlatten() {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -821,7 +819,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlattenWithoutValidation() {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -841,7 +838,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndSqlDialect() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -860,7 +856,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testReadFromTable() throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -943,7 +938,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -975,7 +969,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testStreamingWrite() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -1104,7 +1097,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testStreamingWriteWithWindowFn() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -1187,7 +1179,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteUnknown() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -1220,7 +1211,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteFailedJobs() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -2013,7 +2003,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testPassThroughThenCleanup() throws Exception {
 
     PCollection<Integer> output = p
@@ -2030,7 +2019,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testPassThroughThenCleanupExecuted() throws Exception {
 
     p.apply(Create.empty(VarIntCoder.of()))
