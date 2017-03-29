@@ -37,8 +37,8 @@ public interface MapState<K, V> extends State {
   /**
    * A deferred read-followed-by-write.
    *
-   * <p>When {@code read()} is called on the result, it forces a read of the map and reconciliation
-   * with any pending modifications.
+   * <p>When {@code read()} is called on the result or state is committed, it forces a read of the
+   * map and reconciliation with any pending modifications.
    *
    * <p>If the specified key is not already associated with a value (or is mapped to {@code null})
    * associates it with the given value and returns {@code null}, else returns the current value.
