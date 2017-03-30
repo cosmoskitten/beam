@@ -214,7 +214,7 @@ public class BigtableIO {
 
       // Set data channel count to one because there is only 1 scanner in this session
       BigtableOptions.Builder clonedBuilder = options.toBuilder()
-          .setDataChannelCount(1);
+          .setUseCachedDataPool(true);
       BigtableOptions optionsWithAgent = clonedBuilder.setUserAgent(getUserAgent()).build();
 
       return new Read(optionsWithAgent, tableId, keyRange, filter, bigtableService);
@@ -448,7 +448,8 @@ public class BigtableIO {
           .setBulkOptions(
               options.getBulkOptions().toBuilder()
                   .setUseBulkApi(true)
-                  .build());
+                  .build())
+          .setUseCachedDataPool(true);
       BigtableOptions optionsWithAgent = clonedBuilder.setUserAgent(getUserAgent()).build();
       return new Write(optionsWithAgent, tableId, bigtableService);
     }
