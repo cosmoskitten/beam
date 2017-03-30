@@ -212,9 +212,8 @@ public class BigtableIO {
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       BigtableOptions options = optionsBuilder.build();
 
-      // Set data channel count to one because there is only 1 scanner in this session
       BigtableOptions.Builder clonedBuilder = options.toBuilder()
-          .setDataChannelCount(1);
+          .setUseCachedDataPool(true);
       BigtableOptions optionsWithAgent =
           clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
 
@@ -449,9 +448,15 @@ public class BigtableIO {
           .setBulkOptions(
               options.getBulkOptions().toBuilder()
                   .setUseBulkApi(true)
+<<<<<<< HEAD
                   .build());
       BigtableOptions optionsWithAgent =
           clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
+=======
+                  .build())
+          .setUseCachedDataPool(true);
+      BigtableOptions optionsWithAgent = clonedBuilder.setUserAgent(getUserAgent()).build();
+>>>>>>> a9503d0cb... BEAM-1269: Update bigtable library dependency. Enable cached data pools for efficiency and remove pegging data channel count to 1.
       return new Write(optionsWithAgent, tableId, bigtableService);
     }
 
