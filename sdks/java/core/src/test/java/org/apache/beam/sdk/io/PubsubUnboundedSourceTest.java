@@ -55,6 +55,7 @@ import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
 import org.apache.beam.sdk.util.PubsubTestClient;
 import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
+import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
@@ -394,5 +395,18 @@ public class PubsubUnboundedSourceTest {
 
     assertThat(readerFromOriginal.subscription, equalTo(createdSubscription));
     assertThat(readerFromDeser.subscription, equalTo(createdSubscription));
+  }
+
+  /**
+   * Tests that checkpoints finalized after the reader is closed succeed.
+   */
+  @Test
+  public void closeWithActiveCheckpoints() throws Exception {
+    setupOneMessage();
+    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    reader.start();
+    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    reader.close();
+    checkpoint.finalizeCheckpoint();
   }
 }
