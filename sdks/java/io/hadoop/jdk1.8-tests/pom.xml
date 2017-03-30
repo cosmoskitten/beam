@@ -32,7 +32,7 @@
   </parent>
   <artifactId>beam-sdks-java-io-hadoop-jdk1.8-tests</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop :: jdk1.8-tests</name>
-  <description>Integration tests and junits which need JDK1.8.</description>
+  <description>Integration tests and junits which need JDK version 1.8.</description>
 
   <build>
     <plugins>
