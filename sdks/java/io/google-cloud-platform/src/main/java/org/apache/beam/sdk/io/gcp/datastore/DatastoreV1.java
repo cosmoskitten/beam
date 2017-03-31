@@ -793,6 +793,10 @@ public class DatastoreV1 {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder.include("options", options);
+        if (numSplits > 0) {
+          builder.add(DisplayData.item("numSplits", numSplits)
+              .withLabel("Number of Query splits requested by the user."));
+        }
       }
     }
 
