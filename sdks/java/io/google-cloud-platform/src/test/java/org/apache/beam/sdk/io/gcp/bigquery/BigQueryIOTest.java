@@ -1259,9 +1259,10 @@ public class BigQueryIOTest implements Serializable {
     extractJob.setStatus(new JobStatus())
         .setStatistics(jobStats);
 
+    FakeDatasetService fakeDatasetService = new FakeDatasetService();
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService())
-        .withDatasetService(mockDatasetService)
+        .withDatasetService(fakeDatasetService)
         .readerReturns(
             toJsonString(new TableRow().set("name", "a").set("number", "1")),
             toJsonString(new TableRow().set("name", "b").set("number", "2")),
@@ -1282,12 +1283,15 @@ public class BigQueryIOTest implements Serializable {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation("mock://tempLocation");
 
-    IOChannelUtils.setIOFactoryInternal("mock", mockIOChannelFactory, true /* override */);
+    /*
+    IOChannelUtils.setIOFactoryInternal("mock", mockIOChannelFactory, true );
     when(mockIOChannelFactory.resolve(anyString(), anyString()))
         .thenReturn("mock://tempLocation/output");
     when(mockDatasetService.getTable(any(TableReference.class)))
         .thenReturn(new Table().setSchema(new TableSchema()));
+    */
 
+    fakeDatasetService.createDataset(p
     Assert.assertThat(
         SourceTestUtils.readFromSource(bqSource, options),
         CoreMatchers.is(expected));
