@@ -272,23 +272,37 @@ public class DatastoreV1Test {
   @Test
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PBegin, PCollection<Entity>> read = DatastoreIO.v1().read().withProjectId(
-        "myProject").withQuery(Query.newBuilder().build());
+    int numSplits = 98;
+    PTransform<PBegin, PCollection<Entity>> read =
+        DatastoreIO.v1().read()
+            .withProjectId(PROJECT_ID)
+            .withQuery(Query.newBuilder().build())
+            .withNumQuerySplits(numSplits);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("DatastoreIO read should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("projectId")));
+        displayData, hasItem(hasDisplayItem("projectId", PROJECT_ID)));
+    assertThat("DatastoreIO read should include the number of query splits requested, "
+            + "in its primitive display data",
+        displayData, hasItem(hasDisplayItem("numQuerySplits", numSplits)));
   }
 
   @Test
   public void testSourcePrimitiveDisplayDataWithGqlQuery() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PBegin, PCollection<Entity>> read = DatastoreIO.v1().read().withProjectId(
-        "myProject").withLiteralGqlQuery(GQL_QUERY);
+    int numSplits = 98;
+    PTransform<PBegin, PCollection<Entity>> read =
+        DatastoreIO.v1().read()
+            .withProjectId(PROJECT_ID)
+            .withLiteralGqlQuery(GQL_QUERY)
+            .withNumQuerySplits(98);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("DatastoreIO read should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("projectId")));
+        displayData, hasItem(hasDisplayItem("projectId", PROJECT_ID)));
+    assertThat("DatastoreIO read should include the number of query splits requested, "
+            + "in its primitive display data",
+        displayData, hasItem(hasDisplayItem("numQuerySplits", numSplits)));
   }
 
   @Test
