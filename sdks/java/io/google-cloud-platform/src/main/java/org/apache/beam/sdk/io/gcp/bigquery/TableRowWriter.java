@@ -57,7 +57,7 @@ class TableRowWriter {
     }
   }
   TableRowWriter(String basename) {
-    this.tempFilePrefix = basename;
+      this.tempFilePrefix = basename;
   }
 
   public final void open(String uId) throws Exception {

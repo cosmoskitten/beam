@@ -28,9 +28,12 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -40,6 +43,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.util.FluentBackoff;
 
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
 
@@ -249,10 +254,28 @@ class FakeJobService implements JobService, Serializable {
     datasetService.insertAll(destination, allRows, null);
   }
 
-  private void runExtractJob(Job job, JobConfigurationExtract extract) {
+  private void runExtractJob(Job job, JobConfigurationExtract extract)
+      throws InterruptedException, IOException {
     TableReference sourceTable = extract.getSourceTable();
-    extract.getDestinationUris().get(0);
-    List<Long> destinationFileCounts = Lists.newArrayList(0L);
+    String destinationUrl = extract.getDestinationUris().get(0);
+
+    // TODO: This writes out JSON, and we should be writing AVRO.
+    List<TableRow> rows = datasetService.getAllRows(
+        sourceTable.getProjectId(), sourceTable.getProjectId(), sourceTable.getDatasetId());
+    OutputStream output = null;
+    long numFiles = 0;
+    for (int i = 0; i < rows.size(); ++i) {
+      if ((i % 5) == 0) {
+        int nonce = ThreadLocalRandom.current().nextInt();
+        String filename = destinationUrl.replace("*", String.format("%012d%s", i, ".avro"));
+        output = Channels.newOutputStream(IOChannelUtils.create(filename, MimeTypes.TEXT));
+        ++numFiles;
+      }
+      TableRowJsonCoder.of().encode(rows.get(i), output, Context.OUTER);
+      output.write("\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    List<Long> destinationFileCounts = Lists.newArrayList(numFiles);
     job.setStatistics(new JobStatistics().setExtract(
         new JobStatistics4().setDestinationUriFileCounts(destinationFileCounts)));
   }
