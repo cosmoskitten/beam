@@ -19,6 +19,7 @@
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -61,10 +62,13 @@ public class ViewOverrideFactoryTest implements Serializable {
     PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
     final PCollectionView<List<Integer>> view =
         PCollectionViews.listView(p, WindowingStrategy.globalDefault(), ints.getCoder());
-    PCollectionView<List<Integer>> afterReplacement =
-        ints.apply(
-            factory.getReplacementTransform(
-                CreatePCollectionView.<Integer, List<Integer>>of(view)));
+    PTransform<PCollection<Integer>, PCollectionView<List<Integer>>> replacementTransform =
+        factory.getReplacementTransform(CreatePCollectionView.<Integer, List<Integer>>of(view));
+    PCollectionView<List<Integer>> afterReplacement = ints.apply(replacementTransform);
+    assertThat(
+        "The CreatePCollectionView replacement should return the same View",
+        afterReplacement,
+        equalTo(view));
 
     PCollection<Set<Integer>> outputViewContents =
         p.apply("CreateSingleton", Create.of(0))
@@ -85,7 +89,7 @@ public class ViewOverrideFactoryTest implements Serializable {
 
   @Test
   public void replacementGetViewReturnsOriginal() {
-    PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
+    final PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
     final PCollectionView<List<Integer>> view =
         PCollectionViews.listView(p, WindowingStrategy.globalDefault(), ints.getCoder());
     PTransform<PCollection<Integer>, PCollectionView<List<Integer>>> replacement =
@@ -96,14 +100,14 @@ public class ViewOverrideFactoryTest implements Serializable {
         new PipelineVisitor.Defaults() {
           @Override
           public void visitPrimitiveTransform(Node node) {
-            assertThat(
-                "WriteView should be the last primtitive in the graph",
-                writeViewVisited.get(),
-                is(false));
             if (node.getTransform() instanceof WriteView) {
-              writeViewVisited.set(true);
+              assertThat(
+                  "There should only be one WriteView primitive in the graph",
+                  writeViewVisited.getAndSet(true),
+                  is(false));
               PCollectionView replacementView = ((WriteView) node.getTransform()).getView();
               assertThat(replacementView, Matchers.<PCollectionView>theInstance(view));
+              assertThat(node.getInputs(), hasSize(1));
             }
           }
         });
