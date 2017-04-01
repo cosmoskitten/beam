@@ -2041,8 +2041,8 @@ public class ParDoTest implements Serializable {
 
     PCollection<KV<Integer, Instant>> output =
         pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-    PAssert.that(output).containsInAnyOrder(KV.of(3, new Instant(0)),
-        KV.of(42, new Instant(Duration.standardSeconds(1).plus(1).getMillis())));
+    PAssert.that(output).containsInAnyOrder(KV.of(3, BoundedWindow.TIMESTAMP_MIN_VALUE),
+        KV.of(42, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1774)));
     pipeline.run();
   }
 
@@ -2351,7 +2351,7 @@ public class ParDoTest implements Serializable {
 
     PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
     PAssert.that(output).containsInAnyOrder(KV.of(3, new Instant(5)),
-        KV.of(42, new Instant(Duration.standardSeconds(1).plus(1).getMillis())));
+        KV.of(42, new Instant(Duration.standardSeconds(1).minus(1).getMillis())));
     pipeline.run();
   }
 
@@ -2390,7 +2390,7 @@ public class ParDoTest implements Serializable {
     PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
     PAssert.that(output).containsInAnyOrder(
         KV.of(3, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))),
-        KV.of(42, BoundedWindow.TIMESTAMP_MAX_VALUE));
+        KV.of(42, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))));
     pipeline.run();
   }
 
