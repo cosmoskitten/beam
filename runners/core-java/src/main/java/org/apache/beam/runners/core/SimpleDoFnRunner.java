@@ -858,14 +858,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private Instant minTargetAndGcTime(Instant target) {
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
-        if (target.isBefore(windowExpiry)) {
-          return target;
-        } else {
+        if (target.isAfter(windowExpiry)) {
           return windowExpiry;
         }
-      } else {
-        return target;
       }
+      return target;
     }
 
     /**
