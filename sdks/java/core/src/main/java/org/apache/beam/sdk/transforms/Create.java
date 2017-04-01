@@ -586,9 +586,10 @@ public class Create<T> {
       throws CannotProvideCoderException {
     checkArgument(
         !Iterables.isEmpty(elems),
-        "Elements must be provided to construct the default Create Coder. To Create an empty "
-            + "PCollection, either call Create.empty(Coder), or call 'withCoder(Coder)' on the "
-            + "result PTransform");
+        "This Create class cannot deduce a Coder because it has zero " +
+           "elements.  Either add elements, or call Create.empty(Coder), or" +
+           " call 'withCoder(Coder)' on the PTransform returned from Create" +
+           " class.");
     // First try to deduce a coder using the types of the elements.
     Class<?> elementClazz = Void.class;
     for (T elem : elems) {
