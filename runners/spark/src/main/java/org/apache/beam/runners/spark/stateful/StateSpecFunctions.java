@@ -37,6 +37,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.metrics.GaugeCell;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -106,6 +108,9 @@ public class StateSpecFunctions {
     return new SerializableFunction3<Source<T>, Option<CheckpointMarkT>,
         State<Tuple2<byte[], Instant>>, Tuple2<Iterable<byte[]>, Metadata>>() {
 
+      static final String READ_METRIC_NAMESPACE = "io";
+      static  final String READ_METRIC_NAME = "readDurationMillis";
+
       @Override
       public Tuple2<Iterable<byte[]>, Metadata> apply(
           Source<T> source,
@@ -114,6 +119,10 @@ public class StateSpecFunctions {
 
         SparkMetricsContainer sparkMetricsContainer = new SparkMetricsContainer();
         MetricsContainer metricsContainer = sparkMetricsContainer.getContainer(stepName);
+
+        final GaugeCell duration =
+            metricsContainer.getGauge(MetricName.named(READ_METRIC_NAMESPACE, READ_METRIC_NAME));
+
         // Add metrics container to the scope of org.apache.beam.sdk.io.Source.Reader methods
         // since they may report metrics.
         try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
@@ -155,7 +164,6 @@ public class StateSpecFunctions {
 
         // read microbatch as a serialized collection.
         final List<byte[]> readValues = new ArrayList<>();
-        final Instant watermark;
         WindowedValue.FullWindowedValueCoder<T> coder =
             WindowedValue.FullWindowedValueCoder.of(
                 source.getDefaultOutputCoder(),
@@ -177,8 +185,14 @@ public class StateSpecFunctions {
 
           // close and checkpoint reader.
           reader.close();
-          LOG.info("Source id {} spent {} msec on reading.", microbatchSource.getId(),
-              stopwatch.stop().elapsed(TimeUnit.MILLISECONDS));
+          final long readDurationMillis = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
+
+          duration.set(readDurationMillis);
+
+          LOG.info(
+              "Source id {} spent {} millis on reading.",
+              microbatchSource.getId(),
+              readDurationMillis);
 
           // if the Source does not supply a CheckpointMark skip updating the state.
           @SuppressWarnings("unchecked")
