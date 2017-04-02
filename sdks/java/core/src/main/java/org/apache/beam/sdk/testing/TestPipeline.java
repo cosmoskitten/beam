@@ -106,7 +106,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
     protected final Pipeline pipeline;
 
-    private boolean runInvoked;
+    protected boolean runAttempted;
 
     private PipelineRunEnforcement(final Pipeline pipeline) {
       this.pipeline = pipeline;
@@ -116,12 +116,14 @@ public class TestPipeline extends Pipeline implements TestRule {
       enableAutoRunIfMissing = enable;
     }
 
-    protected void afterPipelineExecution() {
-      runInvoked = true;
+    protected void beforePipelineExecution() {
+      runAttempted = true;
     }
 
-    protected void afterTestCompletion() {
-      if (!runInvoked && enableAutoRunIfMissing) {
+    protected void afterPipelineExecution() {}
+
+    protected void afterUserCodeFinished() {
+      if (!runAttempted && enableAutoRunIfMissing) {
         pipeline.run().waitUntilFinish();
       }
     }
@@ -174,23 +176,24 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
 
     private void verifyPipelineExecution() {
-      final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
-      if (runVisitedNodes != null && !runVisitedNodes.equals(pipelineNodes)) {
-        final boolean hasDanglingPAssert =
-            FluentIterable.from(pipelineNodes)
-                .filter(Predicates.not(Predicates.in(runVisitedNodes)))
-                .anyMatch(isPAssertNode);
-        if (hasDanglingPAssert) {
-          throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
-        } else {
-          throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
-        }
-      } else if (runVisitedNodes == null && !enableAutoRunIfMissing) {
-        if (!isEmptyPipeline(pipeline)) {
-          throw new PipelineRunMissingException(
-              "The pipeline has not been run (runner: "
-                  + pipeline.getOptions().getRunner().getSimpleName()
-                  + ")");
+      if (!runAttempted && !isEmptyPipeline(pipeline) && !enableAutoRunIfMissing) {
+        throw new PipelineRunMissingException(
+            "The pipeline has not been run (runner: "
+                + pipeline.getOptions().getRunner().getSimpleName()
+                + ")");
+
+      } else {
+        final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
+        if (runVisitedNodes != null && !runVisitedNodes.equals(pipelineNodes)) {
+          final boolean hasDanglingPAssert =
+              FluentIterable.from(pipelineNodes)
+                  .filter(Predicates.not(Predicates.in(runVisitedNodes)))
+                  .anyMatch(isPAssertNode);
+          if (hasDanglingPAssert) {
+            throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
+          } else {
+            throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
+          }
         }
       }
     }
@@ -202,8 +205,8 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
 
     @Override
-    protected void afterTestCompletion() {
-      super.afterTestCompletion();
+    protected void afterUserCodeFinished() {
+      super.afterUserCodeFinished();
       verifyPipelineExecution();
     }
   }
@@ -230,6 +233,8 @@ public class TestPipeline extends Pipeline implements TestRule {
   static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
   private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  //private final ExpectedException expectedException = ExpectedException.none();
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private Optional<? extends PipelineRunEnforcement> enforcement = Optional.absent();
@@ -285,7 +290,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       public void evaluate() throws Throwable {
         setDeducedEnforcementLevel();
         statement.evaluate();
-        enforcement.get().afterTestCompletion();
+        enforcement.get().afterUserCodeFinished();
       }
     };
   }
@@ -301,8 +306,10 @@ public class TestPipeline extends Pipeline implements TestRule {
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
         + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
 
+    final PipelineResult pipelineResult;
     try {
-      return super.run();
+      enforcement.get().beforePipelineExecution();
+      pipelineResult = super.run();
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
       if (cause instanceof AssertionError) {
@@ -310,9 +317,10 @@ public class TestPipeline extends Pipeline implements TestRule {
       } else {
         throw exc;
       }
-    } finally {
-      enforcement.get().afterPipelineExecution();
     }
+
+    enforcement.get().afterPipelineExecution();
+    return pipelineResult;
   }
 
   /**
@@ -474,4 +482,24 @@ public class TestPipeline extends Pipeline implements TestRule {
       empty = false;
     }
   }
+
+//  public void expect(Class<? extends Throwable> type) {
+//    expectedException.expect(type);
+//  }
+//
+//  public void expect(Matcher<?> matcher) {
+//    expectedException.expect(matcher);
+//  }
+//
+//  public void expectCause(Matcher<? extends Throwable> expectedCause) {
+//    expectedException.expectCause(expectedCause);
+//  }
+//
+//  public void expectMessage(Matcher<String> matcher) {
+//    expectedException.expectMessage(matcher);
+//  }
+//
+//  public void expectMessage(String substring) {
+//    expectedException.expectMessage(substring);
+//  }
 }
