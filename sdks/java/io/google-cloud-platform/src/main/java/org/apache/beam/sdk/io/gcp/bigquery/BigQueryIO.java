@@ -64,7 +64,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.Transport;
@@ -521,7 +520,7 @@ public class BigQueryIO {
                 }
               }
               if (extractFiles != null && !extractFiles.isEmpty()) {
-                new GcsUtilFactory().create(options).remove(extractFiles);
+                IOChannelUtils.getFactory(extractFiles.iterator().next()).remove(extractFiles);
               }
             }};
       return input.getPipeline()

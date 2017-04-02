@@ -6,6 +6,7 @@ import static org.junit.Assert.assertEquals;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.List;
@@ -18,7 +19,6 @@ import org.apache.beam.sdk.options.BigQueryOptions;
  * Created by relax on 3/30/17.
  */
 class FakeBigQueryServices implements BigQueryServices {
-  private String[] jsonTableRowReturns = new String[0];
   private JobService jobService;
   private FakeDatasetService datasetService;
 
@@ -29,11 +29,6 @@ class FakeBigQueryServices implements BigQueryServices {
 
   public FakeBigQueryServices withDatasetService(FakeDatasetService datasetService) {
     this.datasetService = datasetService;
-    return this;
-  }
-
-  public FakeBigQueryServices readerReturns(String... jsonTableRowReturns) {
-    this.jsonTableRowReturns = jsonTableRowReturns;
     return this;
   }
 
@@ -65,12 +60,12 @@ class FakeBigQueryServices implements BigQueryServices {
     return new FakeBigQueryReader(rows);
   }
 
-  List<TableRow> rowsFromEncodedQuery(String query) {
-    return (List<TableRow>) BigQueryHelpers.fromJsonString(query, List.class);
+  static List<TableRow> rowsFromEncodedQuery(String query) {
+    return Lists.newArrayList(BigQueryHelpers.fromJsonString(query, TableRow[].class));
   }
 
-  String encodeQuery(List<TableRow> rows) {
-    return BigQueryHelpers.toJsonString(rows);
+  static String encodeQuery(List<TableRow> rows) {
+    return BigQueryHelpers.toJsonString(Iterables.toArray(rows, TableRow.class));
   }
 
   private static class FakeBigQueryReader implements BigQueryJsonReader {
