@@ -3,7 +3,10 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpHeaders;
 import com.google.api.services.bigquery.model.Dataset;
+import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -24,13 +27,13 @@ class FakeDatasetService implements DatasetService, Serializable {
       throws InterruptedException, IOException {
     synchronized (BigQueryIOTest.tables) {
       Map<String, TableContainer> dataset =
-          checkNotNull(
-              BigQueryIOTest.tables.get(tableRef.getProjectId(), tableRef.getDatasetId()),
-              "Tried to get a dataset %s:%s from %s, but no such dataset was set",
-              tableRef.getProjectId(),
-              tableRef.getDatasetId(),
-              tableRef.getTableId(),
-              FakeDatasetService.class.getSimpleName());
+              BigQueryIOTest.tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
+      if (dataset == null) {
+        throwNotFound(
+            "Tried to get a dataset %s:%s from, but no such dataset was set",
+            tableRef.getProjectId(),
+            tableRef.getDatasetId());
+      }
       TableContainer tableContainer = dataset.get(tableRef.getTableId());
       return tableContainer == null ? null : tableContainer.getTable();
     }
@@ -44,27 +47,40 @@ class FakeDatasetService implements DatasetService, Serializable {
   }
 
   private TableContainer getTableContainer(String projectId, String datasetId, String tableId)
-          throws InterruptedException, IOException {
-     synchronized (BigQueryIOTest.tables) {
-       Map<String, TableContainer> dataset =
-           checkNotNull(
-               BigQueryIOTest.tables.get(projectId, datasetId),
-               "Tried to get a dataset %s:%s from %s, but no such dataset was set",
-               projectId,
-               datasetId,
-               FakeDatasetService.class.getSimpleName());
-       return checkNotNull(dataset.get(tableId),
-           "Tried to get a table %s:%s.%s from %s, but no such table was set",
-           projectId,
-           datasetId,
-           tableId,
-           FakeDatasetService.class.getSimpleName());
-     }
+      throws InterruptedException, IOException {
+    synchronized (BigQueryIOTest.tables) {
+      Map<String, TableContainer> dataset = BigQueryIOTest.tables.get(projectId, datasetId);
+      if (dataset == null) {
+        throwNotFound(
+            "Tried to get a dataset %s:%s, but no such dataset was set",
+            projectId,
+            datasetId);
+      }
+      TableContainer tableContainer = dataset.get(tableId);
+      if (tableContainer == null) {
+        throwNotFound(
+            "Tried to get a table %s:%s.%s, but no such table was set",
+            projectId,
+            datasetId,
+            tableId);
+      }
+      return tableContainer;
+    }
   }
 
   @Override
   public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
-    throw new UnsupportedOperationException("Unsupported");
+    synchronized (BigQueryIOTest.tables) {
+      Map<String, TableContainer> dataset =
+          BigQueryIOTest.tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
+      if (dataset == null) {
+        throwNotFound(
+            "Tried to get a dataset %s:%s, but no such table was set",
+            tableRef.getProjectId(),
+            tableRef.getDatasetId());
+      }
+      dataset.remove(tableRef.getTableId());
+    }
   }
 
 
@@ -73,13 +89,13 @@ class FakeDatasetService implements DatasetService, Serializable {
     TableReference tableReference = table.getTableReference();
     synchronized (BigQueryIOTest.tables) {
       Map<String, TableContainer> dataset =
-          checkNotNull(
-              BigQueryIOTest.tables.get(tableReference.getProjectId(),
-                  tableReference.getDatasetId()),
-              "Tried to get a dataset %s:%s from %s, but no such table was set",
-              tableReference.getProjectId(),
-              tableReference.getDatasetId(),
-              FakeDatasetService.class.getSimpleName());
+          BigQueryIOTest.tables.get(tableReference.getProjectId(), tableReference.getDatasetId());
+      if (dataset == null) {
+        throwNotFound(
+            "Tried to get a dataset %s:%s, but no such table was set",
+            tableReference.getProjectId(),
+            tableReference.getDatasetId());
+      }
       TableContainer tableContainer = dataset.get(tableReference.getTableId());
       if (tableContainer == null) {
         tableContainer = new TableContainer(table);
@@ -98,7 +114,16 @@ class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public Dataset getDataset(
       String projectId, String datasetId) throws IOException, InterruptedException {
-    throw new UnsupportedOperationException("Unsupported");
+    synchronized (BigQueryIOTest.tables) {
+      Map<String, TableContainer> dataset = BigQueryIOTest.tables.get(projectId, datasetId);
+      if (dataset == null) {
+        throwNotFound("Tried to get a dataset %s:%s, but no such table was set",
+                    projectId, datasetId);
+      }
+      return new Dataset().setDatasetReference(new DatasetReference()
+          .setDatasetId(datasetId)
+          .setProjectId(projectId));
+    }
   }
 
   @Override
@@ -117,7 +142,9 @@ class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public void deleteDataset(String projectId, String datasetId)
       throws IOException, InterruptedException {
-    throw new UnsupportedOperationException("Unsupported");
+    synchronized (BigQueryIOTest.tables) {
+      BigQueryIOTest.tables.remove(projectId, datasetId);
+    }
   }
 
   @Override
@@ -150,23 +177,16 @@ class FakeDatasetService implements DatasetService, Serializable {
                                      @Nullable String tableDescription)
       throws IOException, InterruptedException {
     synchronized (BigQueryIOTest.tables) {
-      Map<String, TableContainer> dataset =
-          checkNotNull(
-              BigQueryIOTest.tables.get(tableReference.getProjectId(),
-                  tableReference.getDatasetId()),
-              "Tried to get a dataset %s:%s from %s, but no such dataset was set",
-              tableReference.getProjectId(),
-              tableReference.getDatasetId(),
-              tableReference.getTableId(),
-              FakeDatasetService.class.getSimpleName());
-      TableContainer tableContainer = checkNotNull(dataset.get(tableReference.getTableId()),
-          "Tried to patch a table %s:%s.%s from %s, but no such table was set",
-          tableReference.getProjectId(),
-          tableReference.getDatasetId(),
-          tableReference.getTableId(),
-          FakeDatasetService.class.getSimpleName());
+      TableContainer tableContainer = getTableContainer(tableReference.getProjectId(),
+          tableReference.getDatasetId(), tableReference.getTableId());
       tableContainer.getTable().setDescription(tableDescription);
       return tableContainer.getTable();
     }
+  }
+
+  void throwNotFound(String format, Object... args) throws IOException {
+    throw new IOException(
+        new GoogleJsonResponseException.Builder(404,
+            String.format(format, args), new HttpHeaders()).build());
   }
 }
