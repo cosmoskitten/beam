@@ -118,6 +118,12 @@ public class CountingInput {
   /**
    * A {@link PTransform} that will produce a specified number of {@link Long Longs} starting from
    * 0.
+   *
+   * <pre>{@code
+   * Pipeline p = ...
+   * PTransform<PBegin, PCollection<Long>> producer = CountingInput.upTo(10L);
+   * PCollection<Long> bounded = p.apply(producer);
+   * }</pre>
    */
   public static class BoundedCountingInput extends PTransform<PBegin, PCollection<Long>> {
     private final long startIndex;
