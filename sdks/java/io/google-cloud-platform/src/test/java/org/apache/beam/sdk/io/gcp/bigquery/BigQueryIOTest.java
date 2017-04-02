@@ -1273,7 +1273,8 @@ public class BigQueryIOTest implements Serializable {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
 
-    List<TableRow> read = convertBigDecimaslToLong(SourceTestUtils.readFromSource(bqSource, options));
+    List<TableRow> read = convertBigDecimaslToLong(
+        SourceTestUtils.readFromSource(bqSource, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
@@ -1352,7 +1353,8 @@ public class BigQueryIOTest implements Serializable {
                 .setTotalBytesProcessed(100L)
                 .setReferencedTables(ImmutableList.of(queryTable))));
 
-    List<TableRow> read = convertBigDecimaslToLong(SourceTestUtils.readFromSource(bqSource, options));
+    List<TableRow> read = convertBigDecimaslToLong(
+        SourceTestUtils.readFromSource(bqSource, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
