@@ -301,8 +301,9 @@ public class TestPipeline extends Pipeline implements TestRule {
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
         + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
 
+    final PipelineResult pipelineResult;
     try {
-      return super.run();
+      pipelineResult = super.run();
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
       if (cause instanceof AssertionError) {
@@ -310,9 +311,10 @@ public class TestPipeline extends Pipeline implements TestRule {
       } else {
         throw exc;
       }
-    } finally {
-      enforcement.get().afterPipelineExecution();
     }
+
+    enforcement.get().afterPipelineExecution();
+    return pipelineResult;
   }
 
   /**
