@@ -283,17 +283,34 @@ public class BigQueryIOTest implements Serializable {
     String tableId = "sometable";
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject(projectId);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Path baseDir = Files.createTempDirectory(tempFolder, "testValidateReadSetsDefaultProject");
+    bqOptions.setTempLocation(baseDir.toString());
 
     FakeDatasetService fakeDatasetService = new FakeDatasetService();
     fakeDatasetService.createDataset(projectId, datasetId, "", "");
     TableReference tableReference =
         new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId);
-    fakeDatasetService.createTable(new Table().setTableReference(tableReference));
+    fakeDatasetService.createTable(new Table()
+        .setTableReference(tableReference)
+        .setSchema(new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER")))));
 
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService())
         .withDatasetService(fakeDatasetService);
+
+    List<TableRow> expected = ImmutableList.of(
+        new TableRow().set("name", "a").set("number", 1L),
+        new TableRow().set("name", "b").set("number", 2L),
+        new TableRow().set("name", "c").set("number", 3L),
+        new TableRow().set("name", "d").set("number", 4L),
+        new TableRow().set("name", "e").set("number", 5L),
+        new TableRow().set("name", "f").set("number", 6L));
+    fakeDatasetService.insertAll(tableReference, expected, null);
 
     Pipeline p = TestPipeline.create(bqOptions);
 
@@ -301,11 +318,18 @@ public class BigQueryIOTest implements Serializable {
     tableRef.setDatasetId(datasetId);
     tableRef.setTableId(tableId);
 
-    thrown.expect(RuntimeException.class);
-    // Message will be one of following depending on the execution environment.
-    thrown.expectMessage(Matchers.containsString("Unsupported"));
-    p.apply(BigQueryIO.read().from(tableRef)
-        .withTestServices(fakeBqServices));
+    PCollection<KV<String, Long>> output =
+        p.apply(BigQueryIO.read().from(tableRef).withTestServices(fakeBqServices))
+            .apply(ParDo.of(new DoFn<TableRow, KV<String, Long>>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) throws Exception {
+                c.output(KV.of((String) c.element().get("name"),
+                    Long.valueOf((String) c.element().get("number"))));
+              }
+            }));
+    PAssert.that(output).containsInAnyOrder(ImmutableList.of(KV.of("a", 1L), KV.of("b", 2L),
+        KV.of("c", 3L), KV.of("d", 4L), KV.of("e", 5L), KV.of("f", 6L)));
+     p.run();
   }
 
   @Test
@@ -1272,8 +1296,7 @@ public class BigQueryIOTest implements Serializable {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
 
-    List<TableRow> read = convertBigDecimaslToLong(
-        SourceTestUtils.readFromSource(bqSource, options));
+    List<TableRow> read = SourceTestUtils.readFromSource(bqSource, options);
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
@@ -1352,8 +1375,7 @@ public class BigQueryIOTest implements Serializable {
                 .setTotalBytesProcessed(100L)
                 .setReferencedTables(ImmutableList.of(queryTable))));
 
-    List<TableRow> read = convertBigDecimaslToLong(
-        SourceTestUtils.readFromSource(bqSource, options));
+    List<TableRow> read = SourceTestUtils.readFromSource(bqSource, options);
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
