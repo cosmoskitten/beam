@@ -71,10 +71,11 @@ public class StreamingInserts extends
         new ConstantSchemaFunction(write.getSchema());
 
     PCollection<KV<TableDestination, TableRow>> writes = input
-        .apply("CreateTables", ParDo.of(new CreateTables(write.getCreateDisposition(),
-            write.getBigQueryServices(), schemaFunction)));
-    writes.apply(new StreamingWriteTables(write.getBigQueryServices()));
+        .apply("CreateTables", ParDo.of(
+            new CreateTables(write.getCreateDisposition(), schemaFunction)
+                .withTestServices(write.getBigQueryServices())));
 
-    return WriteResult.in(input.getPipeline());
+    return writes.apply(new StreamingWriteTables()
+        .withTestServices(write.getBigQueryServices()));
   }
 }
