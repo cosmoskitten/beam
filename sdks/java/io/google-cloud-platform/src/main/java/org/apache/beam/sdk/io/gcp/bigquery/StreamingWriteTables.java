@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 
 /**
  * This transform takes in key-value pairs of {@link TableRow} entries and the
@@ -37,15 +36,23 @@ import org.apache.beam.sdk.values.PDone;
  * for that table.
  */
 public class StreamingWriteTables extends PTransform<
-    PCollection<KV<TableDestination, TableRow>>, PDone> {
+    PCollection<KV<TableDestination, TableRow>>, WriteResult> {
   private BigQueryServices bigQueryServices;
 
-  public StreamingWriteTables(BigQueryServices bigQueryServices) {
+  public StreamingWriteTables() {
+    this(new BigQueryServicesImpl());
+  }
+
+  private StreamingWriteTables(BigQueryServices bigQueryServices) {
     this.bigQueryServices = bigQueryServices;
   }
 
+  StreamingWriteTables withTestServices(BigQueryServices bigQueryServices) {
+    return new StreamingWriteTables(bigQueryServices);
+  }
+
   @Override
-  public PDone expand(PCollection<KV<TableDestination, TableRow>> input) {
+  public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
     // A naive implementation would be to simply stream data directly to BigQuery.
     // However, this could occasionally lead to duplicated data, e.g., when
     // a VM that runs this code is restarted and the code is re-run.
@@ -74,6 +81,6 @@ public class StreamingWriteTables extends PTransform<
         .apply("StreamingWrite",
             ParDo.of(
                 new StreamingWriteFn(bigQueryServices)));
-    return PDone.in(input.getPipeline());
+    return WriteResult.in(input.getPipeline());
   }
 }
