@@ -17,18 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.fromJsonString;
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.client.util.Base64;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.options.BigQueryOptions;
 
 
@@ -39,12 +44,12 @@ class FakeBigQueryServices implements BigQueryServices {
   private JobService jobService;
   private FakeDatasetService datasetService;
 
-  public FakeBigQueryServices withJobService(JobService jobService) {
+  FakeBigQueryServices withJobService(JobService jobService) {
     this.jobService = jobService;
     return this;
   }
 
-  public FakeBigQueryServices withDatasetService(FakeDatasetService datasetService) {
+  FakeBigQueryServices withDatasetService(FakeDatasetService datasetService) {
     this.datasetService = datasetService;
     return this;
   }
@@ -73,29 +78,44 @@ class FakeBigQueryServices implements BigQueryServices {
   @Override
   public BigQueryJsonReader getReaderFromQuery(
       BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
-    List<TableRow> rows = rowsFromEncodedQuery(queryConfig.getQuery());
-    return new FakeBigQueryReader(rows);
+    try {
+      List<TableRow> rows = rowsFromEncodedQuery(queryConfig.getQuery());
+      return new FakeBigQueryReader(rows);
+    } catch (IOException e) {
+      return null;
+    }
   }
 
-  static List<TableRow> rowsFromEncodedQuery(String query) {
-    return Lists.newArrayList(BigQueryHelpers.fromJsonString(query, TableRow[].class));
+  static List<TableRow> rowsFromEncodedQuery(String query) throws IOException {
+    ListCoder<TableRow> listCoder = ListCoder.of(TableRowJsonCoder.of());
+    ByteArrayInputStream input = new ByteArrayInputStream(Base64.decodeBase64(query));
+    List<TableRow> rows = listCoder.decode(input, Context.OUTER);
+    for (TableRow row : rows) {
+      convertNumbers(row);
+    }
+    return rows;
   }
 
-  static String encodeQuery(List<TableRow> rows) {
-    return BigQueryHelpers.toJsonString(Iterables.toArray(rows, TableRow.class));
+  static String encodeQuery(List<TableRow> rows) throws IOException {
+    ListCoder<TableRow> listCoder = ListCoder.of(TableRowJsonCoder.of());
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    listCoder.encode(rows, output, Context.OUTER);
+    return Base64.encodeBase64String(output.toByteArray());
   }
 
   private static class FakeBigQueryReader implements BigQueryJsonReader {
     private static final int UNSTARTED = -1;
     private static final int CLOSED = Integer.MAX_VALUE;
 
-    private List<String> jsonTableRowReturns;
+    private List<byte[]> serializedTableRowReturns;
     private int currIndex;
 
-    FakeBigQueryReader(List<TableRow> tableRowReturns) {
-      this.jsonTableRowReturns = Lists.newArrayListWithExpectedSize(tableRowReturns.size());
+    FakeBigQueryReader(List<TableRow> tableRowReturns) throws IOException {
+      this.serializedTableRowReturns = Lists.newArrayListWithExpectedSize(tableRowReturns.size());
       for (TableRow tableRow : tableRowReturns) {
-        jsonTableRowReturns.add(BigQueryHelpers.toJsonString(tableRow));
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        TableRowJsonCoder.of().encode(tableRow, output, Context.OUTER);
+        serializedTableRowReturns.add(output.toByteArray());
       }
       this.currIndex = UNSTARTED;
     }
@@ -104,25 +124,43 @@ class FakeBigQueryServices implements BigQueryServices {
     public boolean start() throws IOException {
       assertEquals(UNSTARTED, currIndex);
       currIndex = 0;
-      return currIndex < jsonTableRowReturns.size();
+      return currIndex < serializedTableRowReturns.size();
     }
 
     @Override
     public boolean advance() throws IOException {
-      return ++currIndex < jsonTableRowReturns.size();
+      return ++currIndex < serializedTableRowReturns.size();
     }
 
     @Override
     public TableRow getCurrent() throws NoSuchElementException {
-      if (currIndex >= jsonTableRowReturns.size()) {
+      if (currIndex >= serializedTableRowReturns.size()) {
         throw new NoSuchElementException();
       }
-      return fromJsonString(jsonTableRowReturns.get(currIndex), TableRow.class);
+
+      ByteArrayInputStream input = new ByteArrayInputStream(
+          serializedTableRowReturns.get(currIndex));
+      try {
+        return convertNumbers(TableRowJsonCoder.of().decode(input, Context.OUTER));
+      } catch (IOException e) {
+        return null;
+      }
     }
 
     @Override
     public void close() throws IOException {
       currIndex = CLOSED;
     }
+  }
+
+
+  // Longs tend to get converted back to Integers due to JSON serialization. Convert them back.
+  static TableRow convertNumbers(TableRow tableRow) {
+    for (TableRow.Entry entry : tableRow.entrySet()) {
+      if (entry.getValue() instanceof Integer) {
+        entry.setValue(new Long((Integer) entry.getValue()));
+      }
+    }
+    return tableRow;
   }
 }

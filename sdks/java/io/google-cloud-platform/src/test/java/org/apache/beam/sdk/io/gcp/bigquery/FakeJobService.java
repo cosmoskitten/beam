@@ -135,8 +135,6 @@ class FakeJobService implements JobService, Serializable {
       throws InterruptedException, IOException {
     checkArgument(extractConfig.getDestinationFormat().equals("AVRO"),
         "Only extract to AVRO is supported");
-    checkArgument(extractConfig.getDestinationUris().size() == 1,
-        "Must specify exactly one destination URI.");
     synchronized (allJobs) {
       Job job = new Job();
       job.setJobReference(jobRef);
@@ -234,7 +232,6 @@ class FakeJobService implements JobService, Serializable {
             job.job.setStatus(runJob(job.job));
           }
         } catch (Exception e) {
-          System.out.println("CAUGHT EXCEPTION " + e);
           job.job.getStatus().setState("FAILED").setErrorResult(new ErrorProto());
         }
         return JSON_FACTORY.fromString(JSON_FACTORY.toString(job.job), Job.class);
