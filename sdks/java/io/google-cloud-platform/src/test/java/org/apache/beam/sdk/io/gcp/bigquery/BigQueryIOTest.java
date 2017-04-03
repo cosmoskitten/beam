@@ -461,8 +461,6 @@ public class BigQueryIOTest implements Serializable {
     FakeDatasetService datasetService = new FakeDatasetService();
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService())
-        //    .startJobReturns("done", "done", "done")
-        //    .pollJobReturns(Status.FAILED, Status.FAILED, Status.SUCCEEDED))
         .withDatasetService(datasetService);
 
     datasetService.createDataset("defaultproject", "dataset-id", "", "");
@@ -756,8 +754,6 @@ public class BigQueryIOTest implements Serializable {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService())
         .withDatasetService(datasetService);
-         //   .startJobReturns("done", "done", "done")
-         //   .pollJobReturns(Status.FAILED, Status.FAILED, Status.FAILED));
 
     Pipeline p = TestPipeline.create(bqOptions);
     p.apply(Create.of(
@@ -1052,8 +1048,6 @@ public class BigQueryIOTest implements Serializable {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService())
         .withDatasetService(new FakeDatasetService());
-   // when(mockDatasetService.getDataset(projectId, datasetId)).thenThrow(
-    //    new RuntimeException("Unable to confirm BigQuery dataset presence"));
 
     Pipeline p = TestPipeline.create(options);
 
@@ -1237,7 +1231,6 @@ public class BigQueryIOTest implements Serializable {
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceThroughJsonAPI");
     String jobIdToken = "testJobIdToken";
-    String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
         StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
         baseDir.toString(), fakeBqServices,

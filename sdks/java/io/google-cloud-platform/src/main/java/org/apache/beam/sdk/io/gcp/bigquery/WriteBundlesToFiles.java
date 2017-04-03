@@ -47,6 +47,10 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
   private transient Map<TableDestination, TableRowWriter> writers;
   private final String tempFilePrefix;
 
+  /**
+   * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
+   * and encapsulates the table it is destined to as well as the file byte size.
+   */
   public static class Result implements Serializable {
     public String filename;
     public Long fileByteSize;
@@ -59,6 +63,9 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
     }
   }
 
+  /**
+   * a coder for the {@link Result} class.
+   */
   public static class ResultCoder extends AtomicCoder<Result> {
     private static final ResultCoder INSTANCE = new ResultCoder();
 
