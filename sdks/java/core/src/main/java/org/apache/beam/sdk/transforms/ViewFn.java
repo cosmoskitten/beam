@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -38,7 +39,23 @@ import org.apache.beam.sdk.values.PCollectionView;
  */
 public abstract class ViewFn<PrimitiveViewT, ViewT> implements Serializable {
   /**
+   * Gets the materialization of this {@link ViewFn}.
+   */
+  public abstract Materialization<PrimitiveViewT> getMaterialization();
+
+  /**
    * A function to adapt a primitive view type to a desired view type.
    */
   public abstract ViewT apply(PrimitiveViewT contents);
+
+  /**
+   * How a view should be physically materialized by a {@link PipelineRunner}.
+   *
+   * <p>A {@link PipelineRunner} will support some set of materializations, and will reject
+   * {@link ViewFn ViewFns} that require materializations it does not support. See
+   * {@link Materializations} for known implementations.
+   */
+  public interface Materialization<T> {
+    String getUrn();
+  }
 }
