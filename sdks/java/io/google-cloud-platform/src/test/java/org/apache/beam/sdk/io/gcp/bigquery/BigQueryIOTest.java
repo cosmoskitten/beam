@@ -71,6 +71,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
@@ -122,7 +123,6 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -607,13 +607,11 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testStreamingWriteWithDynamicTables() throws Exception {
     testWriteWithDynamicTables(true);
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testBatchWriteWithDynamicTables() throws Exception {
     testWriteWithDynamicTables(false);
   }
@@ -1625,9 +1623,11 @@ public class BigQueryIOTest implements Serializable {
     TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag =
         new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("singlePartitionTag") {};
 
+    PCollection<WriteBundlesToFiles.Result> filesPCollection =
+        p.apply(Create.of(files).withType(new TypeDescriptor<WriteBundlesToFiles.Result>() {}));
     PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView =
         PCollectionViews.iterableView(
-        p,
+        filesPCollection,
         WindowingStrategy.globalDefault(),
         WriteBundlesToFiles.ResultCoder.of());
 
@@ -1734,11 +1734,6 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
-    PCollection<String> expectedTempTablesPCollection = p.apply(Create.of(expectedTempTables));
-    PCollectionView<Iterable<String>> tempTablesView = PCollectionViews.iterableView(
-        expectedTempTablesPCollection,
-        WindowingStrategy.globalDefault(),
-        StringUtf8Coder.of());
     PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
     PCollectionView<String> jobIdTokenView =
         jobIdTokenCollection.apply(View.<String>asSingleton());
@@ -1847,11 +1842,27 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
+    PCollection<KV<TableDestination, String>> tempTablesPCollection =
+        p.apply(Create.of(tempTables)
+            .withCoder(KvCoder.of(TableDestinationCoder.of(),
+                IterableCoder.of(StringUtf8Coder.of()))))
+            .apply(ParDo.of(new DoFn<KV<TableDestination, Iterable<String>>,
+                KV<TableDestination, String>>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                TableDestination tableDestination = c.element().getKey();
+                for (String tempTable : c.element().getValue()) {
+                  c.output(KV.of(tableDestination, tempTable));
+                }
+              }
+            }));
+
     PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView =
         PCollectionViews.multimapView(
-        p,
+            tempTablesPCollection,
         WindowingStrategy.globalDefault(),
-        KvCoder.of(TableDestinationCoder.of(), StringUtf8Coder.of()));
+        KvCoder.of(TableDestinationCoder.of(),
+            StringUtf8Coder.of()));
 
     PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
     PCollectionView<String> jobIdTokenView =
