@@ -205,7 +205,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   private void checkWriteObjectWithValidate(
-      BigQueryIO.Write<TableRow, PDone> write, String project, String dataset, String table,
+      BigQueryIO.Write<TableRow> write, String project, String dataset, String table,
       TableSchema schema, CreateDisposition createDisposition,
       WriteDisposition writeDisposition, String tableDescription, boolean validate) {
     assertEquals(project, write.getTable().get().getProjectId());
@@ -851,7 +851,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWrite() {
-    BigQueryIO.Write<TableRow, PDone> write =
+    BigQueryIO.Write<TableRow> write =
             BigQueryIO.writeTableRows().to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
@@ -915,7 +915,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteDefaultProject() {
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("somedataset" + ".sometable");
     checkWriteObject(
         write, null, "somedataset", "sometable",
@@ -929,7 +929,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
         .setTableId("sometable");
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows().to(table);
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to(table);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
@@ -938,7 +938,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testBuildWriteWithSchema() {
     TableSchema schema = new TableSchema();
-    BigQueryIO.Write<TableRow, PDone> write =
+    BigQueryIO.Write<TableRow> write =
         BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable").withSchema(schema);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
@@ -947,7 +947,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithCreateDispositionNever() {
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_NEVER);
     checkWriteObject(
@@ -957,7 +957,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithCreateDispositionIfNeeded() {
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
     checkWriteObject(
@@ -967,7 +967,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionTruncate() {
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
     checkWriteObject(
@@ -977,7 +977,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionAppend() {
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     checkWriteObject(
@@ -987,7 +987,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionEmpty() {
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.<TableRow>write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_EMPTY);
     checkWriteObject(
@@ -998,7 +998,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testBuildWriteWithWriteWithTableDescription() {
     final String tblDescription = "foo bar table";
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
         .withTableDescription(tblDescription);
     checkWriteObject(
@@ -1018,7 +1018,7 @@ public class BigQueryIOTest implements Serializable {
     TableSchema schema = new TableSchema().set("col1", "type1").set("col2", "type2");
     final String tblDescription = "foo bar table";
 
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to(tableSpec)
         .withSchema(schema)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
@@ -1980,7 +1980,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
-    BigQueryIO.Write<TableRow, PDone> write = BigQueryIO.writeTableRows()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to(options.getOutputTable())
         .withSchema(NestedValueProvider.of(
             options.getOutputSchema(), new JsonSchemaToTableSchema()))

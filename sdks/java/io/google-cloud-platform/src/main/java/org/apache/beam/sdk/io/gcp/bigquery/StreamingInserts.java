@@ -40,9 +40,8 @@ import org.apache.beam.sdk.values.POutput;
 * PTransform that performs streaming BigQuery write. To increase consistency,
 * it leverages BigQuery best effort de-dup mechanism.
  */
-class StreamingInserts<ReturnT extends POutput>
-    extends PTransform<PCollection<KV<TableDestination, TableRow>>, ReturnT> {
-  private final Write<?, ReturnT> write;
+class StreamingInserts extends PTransform<PCollection<KV<TableDestination, TableRow>>, PDone> {
+  private final Write<?> write;
 
   private static class ConstantSchemaFunction implements
       SerializableFunction<TableDestination, TableSchema> {
@@ -60,7 +59,7 @@ class StreamingInserts<ReturnT extends POutput>
   }
 
   /** Constructor. */
-  StreamingInserts(Write<?, ReturnT> write) {
+  StreamingInserts(Write<?> write) {
     this.write = write;
   }
 
@@ -70,7 +69,7 @@ class StreamingInserts<ReturnT extends POutput>
   }
 
   @Override
-  public ReturnT expand(PCollection<KV<TableDestination, TableRow>> input) {
+  public PDone expand(PCollection<KV<TableDestination, TableRow>> input) {
     // Since BigQueryIO.java does not yet have support for per-table schemas, inject a constant
     // schema function here. If no schema is specified, this function will return null.
     SerializableFunction<TableDestination, TableSchema> schemaFunction =
@@ -112,6 +111,6 @@ class StreamingInserts<ReturnT extends POutput>
     // input, the transform may not necessarily be executed after
     // the BigQueryIO.Write.
 
-    return (ReturnT) PDone.in(input.getPipeline());
+    return PDone.in(input.getPipeline());
   }
 }

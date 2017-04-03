@@ -73,7 +73,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -658,8 +657,8 @@ public class BigQueryIO {
    *   }
    * }}</pre>
    */
-  public static <T> Write<T, PDone> write() {
-    return new AutoValue_BigQueryIO_Write.Builder<T, PDone>()
+  public static <T> Write<T> write() {
+    return new AutoValue_BigQueryIO_Write.Builder<T>()
         .setValidate(true)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
@@ -671,14 +670,13 @@ public class BigQueryIO {
    * A {@link PTransform} that writes a {@link PCollection} containing {@link TableRow TableRows}
    * to a BigQuery table.
    */
-  public static Write<TableRow, PDone> writeTableRows() {
+  public static Write<TableRow> writeTableRows() {
     return BigQueryIO.<TableRow>write().withFormatFunction(IDENTITY_FORMATTER);
   }
 
   /** Implementation of {@link #write}. */
   @AutoValue
-  public abstract static class Write<T, ReturnT extends POutput>
-      extends PTransform<PCollection<T>, ReturnT> {
+  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @VisibleForTesting
     // Maximum number of files in a single partition.
     static final int MAX_NUM_FILES = 10000;
@@ -707,23 +705,23 @@ public class BigQueryIO {
     abstract boolean getValidate();
     abstract BigQueryServices getBigQueryServices();
 
-    abstract Builder<T, ReturnT> toBuilder();
+    abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<T, ReturnT extends POutput> {
-      abstract Builder<T, ReturnT> setJsonTableRef(ValueProvider<String> jsonTableRef);
-      abstract Builder<T, ReturnT> setTableFunction(
+    abstract static class Builder<T> {
+      abstract Builder<T> setJsonTableRef(ValueProvider<String> jsonTableRef);
+      abstract Builder<T> setTableFunction(
           SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
-      abstract Builder<T, ReturnT> setFormatFunction(
+      abstract Builder<T> setFormatFunction(
           SerializableFunction<T, TableRow> formatFunction);
-      abstract Builder<T, ReturnT> setJsonSchema(ValueProvider<String> jsonSchema);
-      abstract Builder<T, ReturnT> setCreateDisposition(CreateDisposition createDisposition);
-      abstract Builder<T, ReturnT> setWriteDisposition(WriteDisposition writeDisposition);
-      abstract Builder<T, ReturnT> setTableDescription(String tableDescription);
-      abstract Builder<T, ReturnT> setValidate(boolean validate);
-      abstract Builder<T, ReturnT> setBigQueryServices(BigQueryServices bigQueryServices);
+      abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
+      abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
+      abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
+      abstract Builder<T> setTableDescription(String tableDescription);
+      abstract Builder<T> setValidate(boolean validate);
+      abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
 
-      abstract Write<T, ReturnT> build();
+      abstract Write<T> build();
     }
 
     /**
@@ -804,17 +802,17 @@ public class BigQueryIO {
      * Writes to the given table, specified in the format described in
      * {@link BigQueryHelpers#parseTableSpec}.
      */
-    public Write<T, ReturnT> to(String tableSpec) {
+    public Write<T> to(String tableSpec) {
       return to(StaticValueProvider.of(tableSpec));
     }
 
     /** Writes to the given table, specified as a {@link TableReference}. */
-    public Write<T, ReturnT> to(TableReference table) {
+    public Write<T> to(TableReference table) {
       return to(StaticValueProvider.of(BigQueryHelpers.toTableSpec(table)));
     }
 
     /** Same as {@link #to(String)}, but with a {@link ValueProvider}. */
-    public Write<T, ReturnT> to(ValueProvider<String> tableSpec) {
+    public Write<T> to(ValueProvider<String> tableSpec) {
       ensureToNotCalledYet();
       String tableDescription = getTableDescription();
       if (tableDescription == null) {
@@ -833,7 +831,7 @@ public class BigQueryIO {
      * Writes to table specified by the specified table function. The table is a function of
      * {@link ValueInSingleWindow}, so can be determined by the value or by the window.
      */
-    public Write<T, ReturnT> to(
+    public Write<T> to(
         SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
       ensureToNotCalledYet();
       return toBuilder().setTableFunction(tableFunction).build();
@@ -843,7 +841,7 @@ public class BigQueryIO {
      * Like {@link BigQueryIO.Write#to(SerializableFunction)}, but the function returns a
      * {@link TableReference} instead of a string table specification.
      */
-    private Write<T, ReturnT> toTableReference(
+    private Write<T> toTableReference(
         SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
       ensureToNotCalledYet();
       return toBuilder().setTableFunction(tableFunction).build();
@@ -852,7 +850,7 @@ public class BigQueryIO {
     /**
      * Formats the user's type into a {@link TableRow} to be written to BigQuery.
      */
-    public Write<T, ReturnT> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
+    public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
@@ -879,7 +877,7 @@ public class BigQueryIO {
      * exist, and {@link CreateDisposition} is set to
      * {@link CreateDisposition#CREATE_IF_NEEDED}.
      */
-    public Write<T, ReturnT> withSchema(TableSchema schema) {
+    public Write<T> withSchema(TableSchema schema) {
       return toBuilder()
           .setJsonSchema(StaticValueProvider.of(BigQueryHelpers.toJsonString(schema)))
           .build();
@@ -888,34 +886,34 @@ public class BigQueryIO {
     /**
      * Use the specified schema for rows to be written.
      */
-    public Write<T, ReturnT> withSchema(ValueProvider<TableSchema> schema) {
+    public Write<T> withSchema(ValueProvider<TableSchema> schema) {
       return toBuilder()
           .setJsonSchema(NestedValueProvider.of(schema, new TableSchemaToJsonSchema()))
           .build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
-    public Write<T, ReturnT> withCreateDisposition(CreateDisposition createDisposition) {
+    public Write<T> withCreateDisposition(CreateDisposition createDisposition) {
       return toBuilder().setCreateDisposition(createDisposition).build();
     }
 
     /** Specifies what to do with existing data in the table, in case the table already exists. */
-    public Write<T, ReturnT> withWriteDisposition(WriteDisposition writeDisposition) {
+    public Write<T> withWriteDisposition(WriteDisposition writeDisposition) {
       return toBuilder().setWriteDisposition(writeDisposition).build();
     }
 
     /** Specifies the table description. */
-    public Write<T, ReturnT> withTableDescription(String tableDescription) {
+    public Write<T> withTableDescription(String tableDescription) {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
     /** Disables BigQuery table validation. */
-    public Write<T, ReturnT> withoutValidation() {
+    public Write<T> withoutValidation() {
       return toBuilder().setValidate(false).build();
     }
 
     @VisibleForTesting
-    Write<T, ReturnT> withTestServices(BigQueryServices testServices) {
+    Write<T> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
@@ -982,7 +980,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public ReturnT expand(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) {
       PCollection<KV<TableDestination, TableRow>> rowsWithDestination =
           input.apply("PrepareWrite", ParDo.of(
               new PrepareWrite<T>(getTableFunction(), getFormatFunction())))
@@ -992,9 +990,9 @@ public class BigQueryIO {
       // When writing an Unbounded PCollection, or when a tablespec function is defined, we use
       // StreamingInserts and BigQuery's streaming import API.
       if (input.isBounded() == IsBounded.UNBOUNDED) {
-        return rowsWithDestination.apply(new StreamingInserts<ReturnT>(this));
+        return rowsWithDestination.apply(new StreamingInserts(this));
       } else {
-        return rowsWithDestination.apply(new BatchLoads<T, ReturnT>(this));
+        return rowsWithDestination.apply(new BatchLoads(this));
       }
     }
 
