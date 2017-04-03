@@ -219,6 +219,8 @@ public abstract class UnboundedSource<
 
     /**
      * Returns a {@link CheckpointMark} representing the progress of this {@code UnboundedReader}.
+     * or null if this {@code UnboundedReader} does not support
+     * checkpoints.
      *
      * <p>All elements read up until this method is called will be processed together as a bundle.
      * (An element is considered 'read' if it could be returned by a call to {@link #getCurrent}.)
