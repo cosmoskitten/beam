@@ -40,7 +40,8 @@ import org.apache.beam.sdk.values.POutput;
 * PTransform that performs streaming BigQuery write. To increase consistency,
 * it leverages BigQuery best effort de-dup mechanism.
  */
-class StreamingInserts extends PTransform<PCollection<KV<TableDestination, TableRow>>, PDone> {
+public class StreamingInserts extends
+    PTransform<PCollection<KV<TableDestination, TableRow>>, PDone> {
   private final Write<?> write;
 
   private static class ConstantSchemaFunction implements
@@ -75,35 +76,10 @@ class StreamingInserts extends PTransform<PCollection<KV<TableDestination, Table
     SerializableFunction<TableDestination, TableSchema> schemaFunction =
         new ConstantSchemaFunction(write.getSchema());
 
-    // A naive implementation would be to simply stream data directly to BigQuery.
-    // However, this could occasionally lead to duplicated data, e.g., when
-    // a VM that runs this code is restarted and the code is re-run.
-
-    // The above risk is mitigated in this implementation by relying on
-    // BigQuery built-in best effort de-dup mechanism.
-
-    // To use this mechanism, each input TableRow is tagged with a generated
-    // unique id, which is then passed to BigQuery and used to ignore duplicates.
-    PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged = input
+    PCollection<KV<TableDestination, TableRow>> writes = input
         .apply("CreateTables", ParDo.of(new CreateTables(write.getCreateDisposition(),
-            write.getBigQueryServices(), schemaFunction)))
-        // We create 50 keys per BigQuery table to generate output on. This is few enough that we
-        // get good batching into BigQuery's insert calls, and enough that we can max out the
-        // streaming insert quota.
-        .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable(50)))
-        .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowJsonCoder.of()))
-        .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds()));
-
-    // To prevent having the same TableRow processed more than once with regenerated
-    // different unique ids, this implementation relies on "checkpointing", which is
-    // achieved as a side effect of having StreamingWriteFn immediately follow a GBK,
-    // performed by Reshuffle.
-    tagged
-        .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
-        .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
-        .apply("StreamingWrite",
-            ParDo.of(
-                new StreamingWriteFn(write.getBigQueryServices())));
+            write.getBigQueryServices(), schemaFunction)));
+    writes.apply(new StreamingWriteTables(write.getBigQueryServices()));
 
     // Note that the implementation to return PDone here breaks the
     // implicit assumption about the job execution order. If a user
