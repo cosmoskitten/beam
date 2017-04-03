@@ -23,6 +23,7 @@ import org.apache.beam.integration.nexmark.NexmarkQueryModel;
 import org.apache.beam.integration.nexmark.NexmarkUtils;
 import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
@@ -63,52 +64,61 @@ public class QueryTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void query0MatchesModel() {
     queryMatchesModel("Query0Test", new Query0(CONFIG), new Query0Model(CONFIG));
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void query1MatchesModel() {
     queryMatchesModel("Query1Test", new Query1(CONFIG), new Query1Model(CONFIG));
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void query2MatchesModel() {
     queryMatchesModel("Query2Test", new Query2(CONFIG), new Query2Model(CONFIG));
   }
 
   @Test
+  @Category({NeedsRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
   public void query3MatchesModel() {
     queryMatchesModel("Query3Test", new Query3(CONFIG), new Query3Model(CONFIG));
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void query4MatchesModel() {
     queryMatchesModel("Query4Test", new Query4(CONFIG), new Query4Model(CONFIG));
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void query5MatchesModel() {
     queryMatchesModel("Query5Test", new Query5(CONFIG), new Query5Model(CONFIG));
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void query6MatchesModel() {
     queryMatchesModel("Query6Test", new Query6(CONFIG), new Query6Model(CONFIG));
   }
 
   @Test
-  @Category({UsesStatefulParDo.class, UsesTimersInParDo.class})
+  @Category(NeedsRunner.class)
   public void query7MatchesModel() {
     queryMatchesModel("Query7Test", new Query7(CONFIG), new Query7Model(CONFIG));
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void query8MatchesModel() {
     queryMatchesModel("Query8Test", new Query8(CONFIG), new Query8Model(CONFIG));
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void query9MatchesModel() {
     queryMatchesModel("Query9Test", new Query9(CONFIG), new Query9Model(CONFIG));
   }
