@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
@@ -86,7 +85,6 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
   public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
     Pipeline p = input.getPipeline();
     BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
-    ValueProvider<TableReference> table = write.getTableWithDefaultProject(options);
 
     final String stepUuid = BigQueryHelpers.randomUUIDString();
 

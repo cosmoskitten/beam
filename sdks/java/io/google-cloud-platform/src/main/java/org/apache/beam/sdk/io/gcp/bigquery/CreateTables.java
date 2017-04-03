@@ -51,11 +51,21 @@ public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
   private static Set<String> createdTables =
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
-  public CreateTables(CreateDisposition createDisposition, BigQueryServices bqServices,
+  public CreateTables(CreateDisposition createDisposition,
+                      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
+    this(createDisposition, new BigQueryServicesImpl(), schemaFunction);
+
+  }
+
+  private CreateTables(CreateDisposition createDisposition, BigQueryServices bqServices,
                       SerializableFunction<TableDestination, TableSchema> schemaFunction) {
     this.createDisposition = createDisposition;
     this.bqServices = bqServices;
     this.schemaFunction = schemaFunction;
+  }
+
+  CreateTables withTestServices(BigQueryServices bqServices) {
+    return new CreateTables(createDisposition, bqServices, schemaFunction);
   }
 
   @ProcessElement

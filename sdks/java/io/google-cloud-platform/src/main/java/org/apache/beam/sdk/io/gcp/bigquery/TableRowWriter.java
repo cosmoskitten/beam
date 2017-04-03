@@ -47,7 +47,7 @@ class TableRowWriter {
   protected String mimeType = MimeTypes.TEXT;
   private CountingOutputStream out;
 
-  public class Result {
+  public static class Result {
     String filename;
     long byteSize;
     public Result(String filename, long byteSize) {
