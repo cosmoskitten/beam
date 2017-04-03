@@ -18,6 +18,7 @@
 set -e
 
 recordcount=1000
+
 # Identify the pod
 cassandra_pods="kubectl get pods -l name=cassandra"
 running_seed="$(kubectl get pods -o json -l name=cassandra -o jsonpath=\
