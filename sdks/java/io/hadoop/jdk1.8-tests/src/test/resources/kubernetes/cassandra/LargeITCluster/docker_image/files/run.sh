@@ -171,6 +171,5 @@ fi
 chmod 700 "${CASSANDRA_DATA}"
 chown -c -R cassandra "${CASSANDRA_DATA}" "${CASSANDRA_CONF_DIR}"
 
-export CLASSPATH=/kubernetes-cassandra.jar
 
 su cassandra -c "$CASSANDRA_HOME/bin/cassandra -f"

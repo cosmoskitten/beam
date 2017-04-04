@@ -45,9 +45,8 @@ RUN set -e && echo 'debconf debconf/frontend select Noninteractive' | debconf-se
         | sed -n 's#.*href="\(http://ftp.[^"]*\)".*#\1#p' \
         | head -n 1 \
     )
-RUN wget -q -O - http://ftp.wayne.edu/apache/cassandra/3.9/apache-cassandra-3.9-bin.tar.gz | tar -xzf - -C /usr/local
-RUN wget -q -O - https://github.com/Yelp/dumb-init/releases/download/v${DI_VERSION}/dumb-init_${DI_VERSION}_amd64 > /sbin/d
-umb-init
+RUN wget -q -O - http://archive.apache.org/dist/cassandra/3.9/apache-cassandra-3.9-bin.tar.gz | tar -xzf - -C /usr/local
+RUN wget -q -O - https://github.com/Yelp/dumb-init/releases/download/v${DI_VERSION}/dumb-init_${DI_VERSION}_amd64 > /sbin/dumb-init
 RUN echo "$DI_SHA  /sbin/dumb-init" | sha256sum -c -
 RUN chmod +x /sbin/dumb-init
 RUN chmod +x /ready-probe.sh
