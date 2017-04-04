@@ -56,7 +56,10 @@ public class SparkSideInputReader implements SideInputReader {
     //--- sideInput window
     WindowingStrategy<?, ?> sideInputWindowStrategy = windowedBroadcastHelper.getKey();
     final BoundedWindow sideInputWindow =
-        sideInputWindowStrategy.getWindowFn().getSideInputWindow(window);
+        sideInputWindowStrategy
+            .getWindowFn()
+            .getDefaultWindowMappingFn()
+            .getSideInputWindow(window);
 
     //--- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.

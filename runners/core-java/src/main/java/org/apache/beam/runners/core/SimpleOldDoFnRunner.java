@@ -389,7 +389,11 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
         }
       }
       return context.sideInput(
-          view, view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window));
+          view,
+          view.getWindowingStrategyInternal()
+              .getWindowFn()
+              .getDefaultWindowMappingFn()
+              .getSideInputWindow(window));
     }
 
     @Override
