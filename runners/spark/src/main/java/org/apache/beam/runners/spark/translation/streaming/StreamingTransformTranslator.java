@@ -433,7 +433,6 @@ public final class StreamingTransformTranslator {
                         @Override
                         public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
                             JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
-                          String stepName = context.getCurrentTransform().getFullName();
                           final Accumulator<NamedAggregators> aggAccum =
                               AggregatorsAccumulator.getInstance();
                           final Accumulator<SparkMetricsContainer> metricsAccum =
