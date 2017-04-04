@@ -652,6 +652,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         BoundedWindow sideInputWindow =
             view.getWindowingStrategyInternal()
                 .getWindowFn()
+                .getDefaultWindowMappingFn()
                 .getSideInputWindow(element.getWindow());
         @SuppressWarnings("unchecked")
         T windowValue = (T) viewValues.get(sideInputWindow);

@@ -516,6 +516,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
               view,
               view.getWindowingStrategyInternal()
                   .getWindowFn()
+                  .getDefaultWindowMappingFn()
                   .getSideInputWindow(mainInputWindow));
         }
 

@@ -228,6 +228,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           view,
           view.getWindowingStrategyInternal()
               .getWindowFn()
+              .getDefaultWindowMappingFn()
               .getSideInputWindow(Iterables.getOnlyElement(element.getWindows())));
     }
 

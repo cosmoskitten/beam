@@ -83,7 +83,10 @@ public class CombineContextFactory {
         }
 
         BoundedWindow sideInputWindow =
-            view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
+            view.getWindowingStrategyInternal()
+                .getWindowFn()
+                .getDefaultWindowMappingFn()
+                .getSideInputWindow(mainInputWindow);
         return sideInputReader.get(view, sideInputWindow);
       }
     };
