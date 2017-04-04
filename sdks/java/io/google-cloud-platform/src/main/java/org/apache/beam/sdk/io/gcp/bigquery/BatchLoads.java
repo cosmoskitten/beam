@@ -86,7 +86,6 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
   public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
     Pipeline p = input.getPipeline();
     BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
-    ValueProvider<TableReference> table = write.getTableWithDefaultProject(options);
 
     final String stepUuid = BigQueryHelpers.randomUUIDString();
 
