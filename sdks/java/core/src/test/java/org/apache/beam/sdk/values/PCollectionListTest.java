@@ -19,8 +19,8 @@ package org.apache.beam.sdk.values;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -28,9 +28,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.testing.EqualsTester;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
-import org.apache.beam.sdk.io.CountingInput.BoundedCountingInput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.hamcrest.Matchers;
@@ -90,7 +90,7 @@ public class PCollectionListTest {
     assertThat(
         fromEmpty.getAll(), contains(unboundedCount, createOne, boundedCount, maxRecordsCount));
 
-    List<TaggedPValue> expansion = fromEmpty.expand();
+    Map<TupleTag<?>, PValue> expansion = fromEmpty.expand();
     // TaggedPValues are stable between expansions
     assertThat(expansion, equalTo(fromEmpty.expand()));
     // TaggedPValues are equivalent between equivalent lists
@@ -106,11 +106,19 @@ public class PCollectionListTest {
     List<PCollection<Long>> expectedList =
         ImmutableList.of(unboundedCount, createOne, boundedCount, maxRecordsCount);
     for (int i = 0; i < expansion.size(); i++) {
-      assertThat(
-          "Index " + i + " should have equal PValue",
-          expansion.get(i).getValue(),
-          Matchers.<PValue>equalTo(expectedList.get(i)));
+      assertThat(expansion.values(), containsInAnyOrder(expectedList.toArray()));
     }
+  }
+
+  @Test
+  public void testExpandWithDuplicates() {
+    Pipeline p = TestPipeline.create();
+    PCollection<Long> createOne = p.apply("CreateOne", Create.of(1L, 2L, 3L));
+
+    PCollectionList<Long> list = PCollectionList.of(createOne).and(createOne).and(createOne);
+    assertThat(
+        list.expand().values(),
+        Matchers.<PValue>containsInAnyOrder(createOne, createOne, createOne));
   }
 
   @Test
@@ -136,29 +144,5 @@ public class PCollectionListTest {
     tester.addEqualityGroup(PCollectionList.empty(TestPipeline.create()));
 
     tester.testEquals();
-  }
-
-  @Test
-  public void testExpansionOrderWithDuplicates() {
-    TestPipeline p = TestPipeline.create();
-    BoundedCountingInput count = CountingInput.upTo(10L);
-    PCollection<Long> firstCount = p.apply("CountFirst", count);
-    PCollection<Long> secondCount = p.apply("CountSecond", count);
-
-    PCollectionList<Long> counts =
-        PCollectionList.of(firstCount).and(secondCount).and(firstCount).and(firstCount);
-
-    ImmutableList<PCollection<Long>> expectedOrder =
-        ImmutableList.of(firstCount, secondCount, firstCount, firstCount);
-    PCollectionList<Long> reconstructed = PCollectionList.empty(p);
-    assertThat(counts.expand(), hasSize(4));
-    for (int i = 0; i < 4; i++) {
-      PValue value = counts.expand().get(i).getValue();
-      assertThat(
-          "Index " + i + " should be equal", value,
-          Matchers.<PValue>equalTo(expectedOrder.get(i)));
-      reconstructed = reconstructed.and((PCollection<Long>) value);
-    }
-    assertThat(reconstructed, equalTo(counts));
   }
 }
