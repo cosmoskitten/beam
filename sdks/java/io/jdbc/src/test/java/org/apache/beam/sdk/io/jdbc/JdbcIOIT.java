@@ -17,33 +17,34 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.postgresql.ds.PGSimpleDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -68,8 +69,9 @@ import org.postgresql.ds.PGSimpleDataSource;
  */
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcIOIT.class);
   private static PGSimpleDataSource dataSource;
-  private static String writeTableName;
+  private static String tableName;
 
   @BeforeClass
   public static void setup() throws SQLException {
@@ -77,16 +79,15 @@ public class JdbcIOIT {
     IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
 
-    // We do dataSource set up in BeforeClass rather than Before since we don't need to create a new
-    // dataSource for each test.
     dataSource = JdbcTestDataSet.getDataSource(options);
+
+    tableName = JdbcTestDataSet.getWriteTableName();
+    JdbcTestDataSet.createDataTable(dataSource, tableName);
   }
 
   @AfterClass
   public static void tearDown() throws SQLException {
-    // Only do write table clean up once for the class since we don't want to clean up after both
-    // read and write tests, only want to do it once after all the tests are done.
-    JdbcTestDataSet.cleanUpDataTable(dataSource, writeTableName);
+    JdbcTestDataSet.cleanUpDataTable(dataSource, tableName);
   }
 
   private static class CreateKVOfNameAndId implements JdbcIO.RowMapper<KV<String, Integer>> {
@@ -99,81 +100,80 @@ public class JdbcIOIT {
   }
 
   private static class PutKeyInColumnOnePutValueInColumnTwo
-      implements JdbcIO.PreparedStatementSetter<KV<Integer, String>> {
+      implements JdbcIO.PreparedStatementSetter<KV<Long, String>> {
     @Override
-    public void setParameters(KV<Integer, String> element, PreparedStatement statement)
+    public void setParameters(KV<Long, String> element, PreparedStatement statement)
                     throws SQLException {
-      statement.setInt(1, element.getKey());
+      statement.setLong(1, element.getKey());
       statement.setString(2, element.getValue());
     }
   }
 
   @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  public TestPipeline pipelineWrite = TestPipeline.create();
+  @Rule
+  public TestPipeline pipelineRead = TestPipeline.create();
 
   /**
-   * Does a test read of a few rows from a postgres database.
-   *
-   * <p>Note that IT read tests must not do any data table manipulation (setup/clean up.)
-   * @throws SQLException
+   * Given a Long as a seed value, constructs a test data row used by the IT for testing writes.
    */
-  @Test
-  public void testRead() throws SQLException {
-    String writeTableName = JdbcTestDataSet.READ_TABLE_NAME;
-
-    PCollection<KV<String, Integer>> output = pipeline.apply(JdbcIO.<KV<String, Integer>>read()
-            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-            .withQuery("select name,id from " + writeTableName)
-            .withRowMapper(new CreateKVOfNameAndId())
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
-
-    // TODO: validate actual contents of rows, not just count.
-    PAssert.thatSingleton(
-        output.apply("Count All", Count.<KV<String, Integer>>globally()))
-        .isEqualTo(1000L);
-
-    List<KV<String, Long>> expectedCounts = new ArrayList<>();
-    for (String scientist : JdbcTestDataSet.SCIENTISTS) {
-      expectedCounts.add(KV.of(scientist, 100L));
+  private static class ConstructTestDataKVFn extends DoFn<Long, KV<Long, String>> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(KV.of(c.element(), "Testval" + c.element()));
     }
-    PAssert.that(output.apply("Count Scientist", Count.<String, Integer>perKey()))
-        .containsInAnyOrder(expectedCounts);
+  }
 
-    pipeline.run().waitUntilFinish();
+  private static class SelectNameFn extends DoFn<KV<String, Integer>, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(c.element().getKey());
+    }
   }
 
   /**
-   * Tests writes to a postgres database.
-   *
-   * <p>Write Tests must clean up their data - in this case, it uses a new table every test run so
-   * that it won't interfere with read tests/other write tests. It uses finally to attempt to
-   * clean up data at the end of the test run.
-   * @throws SQLException
+   * Tests writing then reading data for a postgres database.
    */
   @Test
-  public void testWrite() throws SQLException {
-    writeTableName = JdbcTestDataSet.createWriteDataTable(dataSource);
+  public void testWriteThenRead() {
+    runWrite();
+    runRead();
+  }
 
-    ArrayList<KV<Integer, String>> data = new ArrayList<>();
-    for (int i = 0; i < 1000; i++) {
-      KV<Integer, String> kv = KV.of(i, "Test");
-      data.add(kv);
-    }
-    pipeline.apply(Create.of(data))
-        .apply(JdbcIO.<KV<Integer, String>>write()
+  /**
+   * Writes the test dataset to postgres.
+   */
+  private void runWrite() {
+    pipelineWrite.apply(CountingInput.upTo(JdbcTestDataSet.EXPECTED_ROW_COUNT))
+        .apply(ParDo.of(new ConstructTestDataKVFn()))
+        .apply(JdbcIO.<KV<Long, String>>write()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-            .withStatement(String.format("insert into %s values(?, ?)", writeTableName))
+            .withStatement(String.format("insert into %s values(?, ?)", tableName))
             .withPreparedStatementSetter(new PutKeyInColumnOnePutValueInColumnTwo()));
 
-    pipeline.run().waitUntilFinish();
+    pipelineWrite.run().waitUntilFinish();
+  }
 
-    try (Connection connection = dataSource.getConnection();
-         Statement statement = connection.createStatement();
-         ResultSet resultSet = statement.executeQuery("select count(*) from " + writeTableName)) {
-      resultSet.next();
-      int count = resultSet.getInt(1);
-      Assert.assertEquals(2000, count);
-    }
-    // TODO: Actually verify contents of the rows.
+  /**
+   * Read the test dataset from postgres and validate its contents.
+   */
+  private void runRead() {
+    PCollection<KV<String, Integer>> namesAndIds =
+        pipelineRead.apply(JdbcIO.<KV<String, Integer>>read()
+        .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+        .withQuery(String.format("select name,id from %s;", tableName))
+        .withRowMapper(new CreateKVOfNameAndId())
+        .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+
+    PAssert.thatSingleton(
+        namesAndIds.apply("Count All", Count.<KV<String, Integer>>globally()))
+        .isEqualTo(JdbcTestDataSet.EXPECTED_ROW_COUNT);
+
+    PCollection<String> consolidatedHashcode = namesAndIds
+        .apply(ParDo.of(new SelectNameFn()))
+        .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(JdbcTestDataSet.EXPECTED_HASH_CODE);
+
+    pipelineRead.run().waitUntilFinish();
   }
 }
