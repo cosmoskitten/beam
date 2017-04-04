@@ -29,14 +29,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 
 /**
 * PTransform that performs streaming BigQuery write. To increase consistency,
 * it leverages BigQuery best effort de-dup mechanism.
  */
 public class StreamingInserts extends
-    PTransform<PCollection<KV<TableDestination, TableRow>>, PDone> {
+    PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
   private final Write<?> write;
 
   private static class ConstantSchemaFunction implements
@@ -65,7 +64,7 @@ public class StreamingInserts extends
   }
 
   @Override
-  public PDone expand(PCollection<KV<TableDestination, TableRow>> input) {
+  public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
     // Since BigQueryIO.java does not yet have support for per-table schemas, inject a constant
     // schema function here. If no schema is specified, this function will return null.
     SerializableFunction<TableDestination, TableSchema> schemaFunction =
@@ -82,6 +81,6 @@ public class StreamingInserts extends
     // input, the transform may not necessarily be executed after
     // the BigQueryIO.Write.
 
-    return PDone.in(input.getPipeline());
+    return WriteResult.in(input.getPipeline());
   }
 }

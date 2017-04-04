@@ -72,7 +72,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -676,7 +675,7 @@ public class BigQueryIO {
 
   /** Implementation of {@link #write}. */
   @AutoValue
-  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+  public abstract static class Write<T> extends PTransform<PCollection<T>, WriteResult> {
     @VisibleForTesting
     // Maximum number of files in a single partition.
     static final int MAX_NUM_FILES = 10000;
@@ -980,7 +979,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
+    public WriteResult expand(PCollection<T> input) {
       PCollection<KV<TableDestination, TableRow>> rowsWithDestination =
           input.apply("PrepareWrite", ParDo.of(
               new PrepareWrite<T>(getTableFunction(), getFormatFunction())))

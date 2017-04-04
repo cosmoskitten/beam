@@ -51,7 +51,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
@@ -59,7 +58,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 /**
  * PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery.
  */
-class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>, PDone> {
+class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
   BigQueryIO.Write<?> write;
 
   private static class ConstantSchemaFunction implements
@@ -84,7 +83,7 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
   }
 
   @Override
-  public PDone expand(PCollection<KV<TableDestination, TableRow>> input) {
+  public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
     Pipeline p = input.getPipeline();
     BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
     ValueProvider<TableReference> table = write.getTableWithDefaultProject(options);
@@ -209,6 +208,6 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
             schemaFunction))
             .withSideInputs(jobIdTokenView));
 
-    return PDone.in(input.getPipeline());
+    return WriteResult.in(input.getPipeline());
   }
 }
