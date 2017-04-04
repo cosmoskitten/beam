@@ -37,8 +37,7 @@ import org.apache.beam.sdk.values.KV;
  * Creates any tables needed before performing streaming writes to the tables. This is a
  * side-effect {l@ink DoFn}, and returns the original collection unchanged.
  */
-public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
-    KV<TableDestination, TableRow>> {
+class CreateTables extends DoFn<KV<TableDestination, TableRow>, KV<TableDestination, TableRow>> {
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
   private final SerializableFunction<TableDestination, TableSchema> schemaFunction;
