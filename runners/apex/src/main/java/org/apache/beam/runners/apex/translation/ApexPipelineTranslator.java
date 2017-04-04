@@ -174,4 +174,5 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
       LOG.debug("view {}", view.getName());
     }
   }
+
 }
