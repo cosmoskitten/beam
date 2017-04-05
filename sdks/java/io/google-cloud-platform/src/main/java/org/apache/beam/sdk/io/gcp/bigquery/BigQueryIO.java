@@ -142,7 +142,7 @@ import org.slf4j.LoggerFactory;
  * quotes.apply(BigQueryIO.writeTableRows()
  *     .to("my-project:output.output_table")
  *     .withSchema(schema)
- *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+ *     .withWriteDisposition(BigQueryIO.WriteFiles.WriteDisposition.WRITE_TRUNCATE));
  * }</pre>
  *
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
@@ -161,7 +161,7 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * PCollection<TableRow> quotes = ...
  * quotes.apply(Window.<TableRow>into(CalendarWindows.days(1)))
- *       .apply(BigQueryIO.Write
+ *       .apply(BigQueryIO.WriteFiles
  *         .withSchema(schema)
  *         .to(new SerializableFunction<BoundedWindow, String>() {
  *           public String apply(BoundedWindow window) {
@@ -224,7 +224,7 @@ public class BigQueryIO {
 
   /**
    * A formatting function that maps a TableRow to itself. This allows sending a
-   * {@code PCollection<TableRow>} directly to BigQueryIO.Write.
+   * {@code PCollection<TableRow>} directly to BigQueryIO.WriteFiles.
    */
    static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
       new SerializableFunction<TableRow, TableRow>() {
@@ -911,15 +911,15 @@ public class BigQueryIO {
       // Exactly one of the table and table reference can be configured.
       checkState(
           getJsonTableRef() != null || getTableRefFunction() != null,
-          "must set the table reference of a BigQueryIO.Write transform");
+          "must set the table reference of a BigQueryIO.WriteFiles transform");
       checkState(
           getJsonTableRef() == null || getTableRefFunction() == null,
-          "Cannot set both a table reference and a table function for a BigQueryIO.Write"
+          "Cannot set both a table reference and a table function for a BigQueryIO.WriteFiles"
               + " transform");
 
       checkArgument(getFormatFunction() != null,
                     "A function must be provided to convert type into a TableRow. "
-      + "use BigQueryIO.Write.withFormatFunction to provide a formatting function.");
+      + "use BigQueryIO.WriteFiles.withFormatFunction to provide a formatting function.");
 
       // Require a schema if creating one or more tables.
       checkArgument(
@@ -967,7 +967,7 @@ public class BigQueryIO {
         String tempLocation = options.getTempLocation();
         checkArgument(
             !Strings.isNullOrEmpty(tempLocation),
-            "BigQueryIO.Write needs a GCS temp location to store temp files.");
+            "BigQueryIO.WriteFiles needs a GCS temp location to store temp files.");
         if (getBigQueryServices() == null) {
           try {
             GcsPath.fromUri(tempLocation);

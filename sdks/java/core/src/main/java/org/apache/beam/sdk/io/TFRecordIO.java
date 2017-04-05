@@ -410,7 +410,7 @@ public class TFRecordIO {
        * Returns a transform for writing to TFRecord files that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
-       * <p>See {@link TFRecordIO.Write#to(String) Write.to(String)} for more information.
+       * <p>See {@link TFRecordIO.Write#to(String) WriteFiles.to(String)} for more information.
        *
        * <p>Does not modify this object.
        */
@@ -527,15 +527,15 @@ public class TFRecordIO {
       public PDone expand(PCollection<byte[]> input) {
         if (filenamePrefix == null) {
           throw new IllegalStateException(
-              "need to set the filename prefix of a TFRecordIO.Write transform");
+              "need to set the filename prefix of a TFRecordIO.WriteFiles transform");
         }
-        org.apache.beam.sdk.io.Write<byte[]> write =
-            org.apache.beam.sdk.io.Write.to(
+        WriteFiles<byte[]> write =
+            WriteFiles.to(
                 new TFRecordSink(filenamePrefix, filenameSuffix, shardTemplate, compressionType));
         if (getNumShards() > 0) {
           write = write.withNumShards(getNumShards());
         }
-        return input.apply("Write", write);
+        return input.apply("WriteFiles", write);
       }
 
       @Override

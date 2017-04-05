@@ -54,7 +54,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -124,7 +124,7 @@ class FlinkStreamingTransformTranslators {
   static {
     TRANSLATORS.put(Read.Bounded.class, new BoundedReadSourceTranslator());
     TRANSLATORS.put(Read.Unbounded.class, new UnboundedReadSourceTranslator());
-    TRANSLATORS.put(Write.class, new WriteSinkStreamingTranslator());
+    TRANSLATORS.put(WriteFiles.class, new WriteSinkStreamingTranslator());
     TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
 
     TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoStreamingTranslator());
@@ -175,13 +175,13 @@ class FlinkStreamingTransformTranslators {
 
       // TODO: Implement these. We need Flink support for this.
       LOG.warn(
-          "Translation of TextIO.Write.needsValidation not yet supported. Is: {}.",
+          "Translation of TextIO.WriteFiles.needsValidation not yet supported. Is: {}.",
           needsValidation);
       LOG.warn(
-          "Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.",
+          "Translation of TextIO.WriteFiles.filenameSuffix not yet supported. Is: {}.",
           filenameSuffix);
       LOG.warn(
-          "Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.",
+          "Translation of TextIO.WriteFiles.shardNameTemplate not yet supported. Is: {}.",
           shardNameTemplate);
 
       DataStream<String> dataSink = inputDataStream
@@ -204,10 +204,10 @@ class FlinkStreamingTransformTranslators {
   }
 
   private static class WriteSinkStreamingTranslator<T>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Write<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<WriteFiles<T>> {
 
     @Override
-    public void translateNode(Write<T> transform, FlinkStreamingTranslationContext context) {
+    public void translateNode(WriteFiles<T> transform, FlinkStreamingTranslationContext context) {
       String name = transform.getName();
       PValue input = context.getInput(transform);
 

@@ -89,7 +89,7 @@ import org.apache.beam.sdk.io.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -359,10 +359,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   PTransformMatchers.stateOrTimerParDoSingle(),
                   BatchStatefulParDoOverrides.singleOutputOverrideFactory()))
 
-          // Write uses views internally
+          // WriteFiles uses views internally
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(Write.class), new BatchWriteFactory(this)))
+                  PTransformMatchers.classEqualTo(WriteFiles.class), new BatchWriteFactory(this)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
@@ -823,14 +823,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private class BatchWriteFactory<T>
-      implements PTransformOverrideFactory<PCollection<T>, PDone, Write<T>> {
+      implements PTransformOverrideFactory<PCollection<T>, PDone, WriteFiles<T>> {
     private final DataflowRunner runner;
     private BatchWriteFactory(DataflowRunner dataflowRunner) {
       this.runner = dataflowRunner;
     }
 
     @Override
-    public PTransform<PCollection<T>, PDone> getReplacementTransform(Write<T> transform) {
+    public PTransform<PCollection<T>, PDone> getReplacementTransform(WriteFiles<T> transform) {
       return new BatchWrite<>(runner, transform);
     }
 
@@ -848,17 +848,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /**
    * Specialized implementation which overrides
-   * {@link org.apache.beam.sdk.io.Write Write} to provide Google
+   * {@link WriteFiles WriteFiles} to provide Google
    * Cloud Dataflow specific path validation of {@link FileBasedSink}s.
    */
   private static class BatchWrite<T> extends PTransform<PCollection<T>, PDone> {
     private final DataflowRunner runner;
-    private final Write<T> transform;
+    private final WriteFiles<T> transform;
     /**
      * Builds an instance of this class from the overridden transform.
      */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public BatchWrite(DataflowRunner runner, Write<T> transform) {
+    public BatchWrite(DataflowRunner runner, WriteFiles<T> transform) {
       this.runner = runner;
       this.transform = transform;
     }

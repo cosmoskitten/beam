@@ -161,7 +161,7 @@ class BatchLoadBigQuery<T> extends PTransform<PCollection<T>, WriteResult> {
             write.getTableDescription()))
         .withSideInputs(tempTablesView, jobIdTokenView));
 
-    // Write single partition to final table
+    // WriteFiles single partition to final table
     partitions.get(singlePartitionTag)
         .apply("SinglePartitionGroupByKey", GroupByKey.<Long, List<String>>create())
         .apply("SinglePartitionWriteTables", ParDo.of(new WriteTables(

@@ -31,7 +31,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -60,7 +60,7 @@ public class KafkaIOExamples {
   private static final String ZOOKEEPER = "localhost:2181";  // Default zookeeper to connect (Kafka)
 
   /**
-   * Read/Write String data to Kafka.
+   * Read/WriteFiles String data to Kafka.
    */
   public static class KafkaString {
 
@@ -89,7 +89,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Write String data to Kafka.
+     * WriteFiles String data to Kafka.
      */
     public static class WriteStringToKafka {
 
@@ -105,7 +105,7 @@ public class KafkaIOExamples {
             new FlinkKafkaProducer08<>(options.getKafkaTopic(),
                 new SimpleStringSchema(), getKafkaProps(options));
 
-        words.apply(Write.to(UnboundedFlinkSink.of(kafkaSink)));
+        words.apply(WriteFiles.to(UnboundedFlinkSink.of(kafkaSink)));
 
         p.run();
       }
@@ -114,7 +114,7 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Read/Write Avro data to Kafka.
+   * Read/WriteFiles Avro data to Kafka.
    */
   public static class KafkaAvro {
 
@@ -144,7 +144,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Write Avro data to Kafka.
+     * WriteFiles Avro data to Kafka.
      */
     public static class WriteAvroToKafka {
 
@@ -163,7 +163,7 @@ public class KafkaIOExamples {
             new FlinkKafkaProducer08<>(options.getKafkaAvroTopic(),
                 new AvroSerializationDeserializationSchema<>(MyType.class), getKafkaProps(options));
 
-        words.apply(Write.to(UnboundedFlinkSink.of(kafkaSink)));
+        words.apply(WriteFiles.to(UnboundedFlinkSink.of(kafkaSink)));
 
         p.run();
 

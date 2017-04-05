@@ -189,7 +189,7 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
   }
 
   /**
-   * Creates a Flink sink to write to using the Write API.
+   * Creates a Flink sink to write to using the WriteFiles API.
    * @param flinkSink The Flink sink, e.g. FlinkKafkaProducer09
    * @param <T> The input type of the sink
    * @return A Beam sink wrapping a Flink sink

@@ -30,7 +30,7 @@ import java.util.Collections;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -501,8 +501,8 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void writeWithRunnerDeterminedSharding() {
-    Write<Integer> write =
-        Write.to(
+    WriteFiles<Integer> write =
+        WriteFiles.to(
             new FileBasedSink<Integer>("foo", "bar") {
               @Override
               public FileBasedWriteOperation<Integer> createWriteOperation(
@@ -514,13 +514,13 @@ public class PTransformMatchersTest implements Serializable {
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));
 
-    Write<Integer> withStaticSharding = write.withNumShards(3);
+    WriteFiles<Integer> withStaticSharding = write.withNumShards(3);
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
             .matches(appliedWrite(withStaticSharding)),
         is(false));
 
-    Write<Integer> withCustomSharding =
+    WriteFiles<Integer> withCustomSharding =
         write.withSharding(Sum.integersGlobally().asSingletonView());
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
@@ -528,9 +528,9 @@ public class PTransformMatchersTest implements Serializable {
         is(false));
   }
 
-  private AppliedPTransform<?, ?, ?> appliedWrite(Write<Integer> write) {
-    return AppliedPTransform.<PCollection<Integer>, PDone, Write<Integer>>of(
-        "Write",
+  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer> write) {
+    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer>>of(
+        "WriteFiles",
         Collections.<TaggedPValue>emptyList(),
         Collections.<TaggedPValue>emptyList(),
         write,

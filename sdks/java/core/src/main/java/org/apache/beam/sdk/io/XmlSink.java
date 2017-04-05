@@ -47,10 +47,10 @@ import org.apache.beam.sdk.values.PCollection;
  * will be used in the marshalling of records in an input PCollection to their XML representation
  * and must be able to be bound using JAXB annotations (checked at pipeline construction time).
  *
- * <p>XML Sinks can be written to using the {@link Write} transform:
+ * <p>XML Sinks can be written to using the {@link WriteFiles} transform:
  *
  * <pre>
- * p.apply(Write.to(
+ * p.apply(WriteFiles.to(
  *      XmlSink.ofRecordClass(Type.class)
  *          .withRootElementName(root_element)
  *          .toFilenamePrefix(output_filename)));
@@ -93,7 +93,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>The following will produce XML output with a root element named "words" from a PCollection of
  * WordFrequency objects:
  * <pre>
- * p.apply(Write.to(
+ * p.apply(WriteFiles.to(
  *  XmlSink.ofRecordClass(WordFrequency.class)
  *      .withRootElement("words")
  *      .toFilenamePrefix(output_file)));

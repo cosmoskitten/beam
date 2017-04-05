@@ -129,7 +129,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *    );
  * }</pre>
  *
- * <p>NB: in case of transient failures, Beam runners may execute parts of JdbcIO.Write multiple
+ * <p>NB: in case of transient failures, Beam runners may execute parts of JdbcIO.WriteFiles multiple
  * times for fault tolerance. Because of that, you should avoid using {@code INSERT} statements,
  * since that risks duplicating records in the database, or failing due to primary key conflicts.
  * Consider using <a href="https://en.wikipedia.org/wiki/Merge_(SQL)">MERGE ("upsert")
@@ -146,7 +146,7 @@ public class JdbcIO {
   }
 
   /**
-   * Write data to a JDBC datasource.
+   * WriteFiles data to a JDBC datasource.
    *
    * @param <T> Type of the data to be written.
    */
@@ -244,7 +244,7 @@ public class JdbcIO {
   }
 
   /**
-   * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
+   * An interface used by the JdbcIO WriteFiles to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
   public interface StatementPreparator extends Serializable {
@@ -383,7 +383,7 @@ public class JdbcIO {
   }
 
   /**
-   * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
+   * An interface used by the JdbcIO WriteFiles to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
   public interface PreparedStatementSetter<T> extends Serializable {
