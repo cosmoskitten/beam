@@ -368,7 +368,7 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def size_of_files_in_glob(self, pattern):
+  def size_of_files_in_glob(self, pattern, limit=None):
     """Returns the size of all the files in the glob as a dictionary
 
     Args:
@@ -381,12 +381,20 @@ class GcsIO(object):
     file_sizes = {}
     while True:
       response = self.client.objects.List(request)
-      for item in response.items:
+      items = response.items
+      if limit is not None and (len(file_sizes) + len(response.items)) >= limit:
+        items = response.items[:(
+            len(response.items) + len(file_sizes) - limit)]
+      for item in items:
         if fnmatch.fnmatch(item.name, name_pattern):
           file_name = 'gs://%s/%s' % (item.bucket, item.name)
           file_sizes[file_name] = item.size
+      if len(file_sizes) % 10000 == 0:
+        logging.info("Finished computing size of: %s files", len(file_sizes))
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
+        if limit is not None and len(file_sizes) >= limit:
+          break
       else:
         break
     return file_sizes

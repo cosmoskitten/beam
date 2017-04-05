@@ -747,6 +747,13 @@ class TestGCSIO(unittest.TestCase):
       self.assertEqual(
           self.gcs.size_of_files_in_glob(file_pattern), expected_file_sizes)
 
+    # Check if limits are followed correctly
+    limit = 1
+    for file_pattern, expected_object_names in test_cases:
+      expected_num_items = min(len(expected_object_names), limit)
+      self.assertEqual(
+          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestPipeStream(unittest.TestCase):
