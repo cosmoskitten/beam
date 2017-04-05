@@ -35,6 +35,7 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.value_provider import ValueProvider
 from apache_beam.utils.value_provider import StaticValueProvider
 from apache_beam.utils.value_provider import check_accessible
+
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
 
@@ -181,11 +182,11 @@ class FileBasedSource(iobase.BoundedSource):
         stop_position=stop_position)
 
   @check_accessible(['_pattern'])
-  def estimate_size(self):
+  def estimate_size(self, limit=None):
     pattern = self._pattern.get()
     if self._file_system is None:
       self._file_system = get_filesystem(pattern)
-    match_result = self._file_system.match([pattern])[0]
+    match_result = self._file_system.match([pattern], [limit])[0]
     return sum([f.size_in_bytes for f in match_result.metadata_list])
 
   def read(self, range_tracker):

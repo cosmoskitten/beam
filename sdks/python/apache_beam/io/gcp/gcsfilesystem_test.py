@@ -54,7 +54,8 @@ class GCSFileSystemTest(unittest.TestCase):
     self.assertEqual(
         set(match_result.metadata_list),
         expected_results)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with('gs://bucket/*')
+    gcsio_mock.size_of_files_in_glob.assert_called_once_with(
+        'gs://bucket/*', None)
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiples_error(self, mock_gcsio):
@@ -71,7 +72,8 @@ class GCSFileSystemTest(unittest.TestCase):
     self.assertTrue(
         error.exception.message.startswith('Match operation failed'))
     self.assertEqual(error.exception.exception_details, expected_results)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with('gs://bucket/*')
+    gcsio_mock.size_of_files_in_glob.assert_called_once_with(
+        'gs://bucket/*', None)
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiple_patterns(self, mock_gcsio):

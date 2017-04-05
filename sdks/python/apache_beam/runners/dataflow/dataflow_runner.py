@@ -45,6 +45,8 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils.pipeline_options import StandardOptions
 
+MAX_FILES_TO_STAT = 200000
+
 
 class DataflowRunner(PipelineRunner):
   """A runner that creates job graphs and submits them for remote execution.
@@ -498,7 +500,7 @@ class DataflowRunner(PipelineRunner):
       try:
         source_dict['metadata'] = {
             'estimated_size_bytes': json_value.get_typed_value_descriptor(
-                transform.source.estimate_size())
+                transform.source.estimate_size(limit=MAX_FILES_TO_STAT))
         }
       except Exception:  # pylint: disable=broad-except
         # Size estimation is best effort. So we log the error and continue.
