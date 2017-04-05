@@ -512,7 +512,6 @@ public class PAssert {
     PAssertionSite(String message, StackTraceElement[] creationStackTrace) {
       this.message = message;
       this.creationStackTrace = creationStackTrace;
-      LOG.error("A creation stacktrace: " + creationStackTrace.toString());
     }
 
     public AssertionError wrap(Throwable t) {
