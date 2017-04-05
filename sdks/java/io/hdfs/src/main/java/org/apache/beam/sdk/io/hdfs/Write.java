@@ -29,7 +29,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.hdfs.Sink.WriteOperation;
 import org.apache.beam.sdk.io.hdfs.Sink.Writer;
@@ -104,7 +103,9 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
         Write.class.getSimpleName());
     PipelineOptions options = input.getPipeline().getOptions();
     sink.validate(options);
-    return createWrite(input, sink.createWriteOperation(options));
+    this.writeOperation = sink.createWriteOperation(options);
+    this.writeOperation.setWindowedWrites(windowedWrites);
+    return createWrite(input);
   }
 
   @Override
@@ -240,7 +241,7 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
         } else {
           writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
         }
-        LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
+        LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
       }
       try {
         writer.write(c.element());
@@ -307,7 +308,7 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
       } else {
         writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
       }
-      LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
+      LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
 
       try {
         try {
@@ -402,9 +403,9 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
    * the collection of writer results as a side-input. In this ParDo,
    * {@link WriteOperation#finalize} is called to finalize the write.
    *
-   * <p>If the write of any element in the PCollection fails, {@link Writer#close} will be called
-   * before the exception that caused the write to fail is propagated and the write result will be
-   * discarded.
+   * <p>If the write of any element in the PCollection fails, {@link FileBasedWriter#close} will be
+   * called before the exception that caused the write to fail is propagated and the write result
+   * will be discarded.
    *
    * <p>Since the {@link WriteOperation} is serialized after the initialization ParDo and
    * deserialized in the bundle-writing and finalization phases, any state change to the
@@ -496,7 +497,7 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
                     .withSideInputs(writeOperationView));
       }
     }
-    results.setCoder(writeOperation.getWriterResultCoder());
+    results.setCoder(writeOperation.getFileResultCoder());
 
     if (windowedWrites) {
       // When processing streaming windowed writes, results will arrive multiple times. This
@@ -521,7 +522,7 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
               writeOperation.finalize(results, c.getPipelineOptions());
               LOG.debug("Done finalizing write operation {}", writeOperation);
             }
-          }).withSideInputs(writeOperationView));
+          }));
     } else {
       final PCollectionView<Iterable<WriteT>> resultsView =
           results.apply(View.<WriteT>asIterable());
