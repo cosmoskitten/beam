@@ -40,15 +40,23 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
 
   private static DateTimeFormatter formatter = ISODateTimeFormat.hourMinute();
   private String filenamePrefix;
+  private boolean dynamicSharding;
 
-  public WriteOneFilePerWindow(String filenamePrefix) {
+  public WriteOneFilePerWindow(String filenamePrefix, boolean dynamicSharding) {
     this.filenamePrefix = filenamePrefix;
+    this.dynamicSharding = dynamicSharding;
   }
 
   @Override
   public PDone expand(PCollection<String> input) {
-    return input.apply(
-        TextIO.Write.to(new PerWindowFiles(filenamePrefix)).withWindowedWrites().withNumShards(3));
+    if (dynamicSharding) {
+      return input.apply(
+          TextIO.Write.to(new PerWindowFiles(filenamePrefix)).withWindowedWrites());
+    } else {
+      return input.apply(
+          TextIO.Write.to(new PerWindowFiles(filenamePrefix)).withWindowedWrites().
+              withNumShards(3));
+    }
   }
 
   /**
