@@ -137,10 +137,8 @@ public class PAssert {
     public void processElement(ProcessContext c) {
       SuccessOrFailure e = c.element();
       if (e.isSuccess()) {
-        LOG.error("Success!! increment");
         successCounter.inc();
       } else {
-        LOG.error("Failure message: " + e.assertionError().getMessage());
         failureCounter.inc();
         throw e.assertionError();
       }
@@ -1322,8 +1320,7 @@ public class PAssert {
     @ProcessElement
     public void processElement(ProcessContext c) {
       try {
-        SuccessOrFailure result = doChecks(site, c.element(), checkerFn);
-        c.output(result);
+        c.output(doChecks(site, c.element(), checkerFn));
       } catch (Throwable t) {
         throw t;
       }
