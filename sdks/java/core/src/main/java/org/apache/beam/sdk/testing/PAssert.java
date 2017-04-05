@@ -475,9 +475,14 @@ public class PAssert {
     public static SuccessOrFailure success() {
       return new SuccessOrFailure(true, null, null);
     }
+
     public static SuccessOrFailure failure(@Nullable PAssertionSite site,
-                                           @Nullable String message) {
+        @Nullable String message) {
       return new SuccessOrFailure(false, site, message);
+    }
+
+    public static SuccessOrFailure failure(@Nullable PAssertionSite site) {
+      return new SuccessOrFailure(false, site, null);
     }
 
     @Override
@@ -539,9 +544,9 @@ public class PAssert {
     }
 
     public AssertionError wrap(String message) {
-      AssertionError res =
-              new AssertionError(
-                      this.message == null ? message : this.message);
+      String outputMessage = (this.message == null || this.message.isEmpty())
+          ? message : (this.message + ": " + message);
+      AssertionError res = new AssertionError(outputMessage);
       res.setStackTrace(toStackTraceElementArray(creationStackTrace));
       return res;
     }

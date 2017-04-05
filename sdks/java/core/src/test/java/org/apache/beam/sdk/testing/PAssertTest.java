@@ -134,8 +134,7 @@ public class PAssertTest implements Serializable {
     }
     SuccessOrFailure success = PAssert.SuccessOrFailure.success();
     SuccessOrFailure failure = PAssert.SuccessOrFailure.failure(
-            new PAssertionSite(error.getMessage(), error.getStackTrace()),
-            error.getMessage());
+        new PAssertionSite(error.getMessage(), error.getStackTrace()));
 
     ByteArrayOutputStream sharedOutStream = new ByteArrayOutputStream();
     AvroCoder<SuccessOrFailure> coder = AvroCoder.of(SuccessOrFailure.class);
@@ -146,8 +145,8 @@ public class PAssertTest implements Serializable {
     assertEquals("Encode-decode successful SuccessOrFailure",
         success.isSuccess(), res.isSuccess());
     assertEquals("Encode-decode successful SuccessOrFailure",
-            success.assertionError(),
-            res.assertionError());
+        success.assertionError(),
+        res.assertionError());
 
     sharedOutStream = new ByteArrayOutputStream();
     coder.encode(failure, sharedOutStream, null);
@@ -156,6 +155,9 @@ public class PAssertTest implements Serializable {
     // Should compare strings, because throwables are not directly comparable.
     assertEquals("Encode-decode failed SuccessOrFailure",
         failure.assertionError().toString(), res.assertionError().toString());
+    String resultStacktrace = Throwables.getStackTraceAsString(res.assertionError());
+    String failureStacktrace = Throwables.getStackTraceAsString(failure.assertionError());
+    assertThat(resultStacktrace, is(failureStacktrace));
   }
 
   /**
