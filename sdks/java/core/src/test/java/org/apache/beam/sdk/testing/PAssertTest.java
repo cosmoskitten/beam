@@ -142,7 +142,9 @@ public class PAssertTest implements Serializable {
     SuccessOrFailure res = coder.decode(sharedInStream, null);
 
     assertEquals("Encode-decode successful SuccessOrFailure",
-        success, res);
+        success.isSuccess(), res.isSuccess());
+    assertEquals("Encode-decode successful SuccessOrFailure",
+            success.assertionError(), res.assertionError());
 
     sharedOutStream = new ByteArrayOutputStream();
     coder.encode(failure, sharedOutStream, null);

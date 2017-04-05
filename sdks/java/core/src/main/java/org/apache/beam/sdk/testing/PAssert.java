@@ -478,30 +478,12 @@ public class PAssert {
     }
 
     @Override
-    public int hashCode() {
-      assert false : "hashCode not designed";
-      return 42;
-    }
-
-    @Override
     public String toString() {
       return "SuccessOrFailure{"
           + (isSuccess ? "success" : "failure")
           + ", error: "
           + (assertionError() != null ? assertionError().toString() : "null")
           + "}";
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      if (!(other instanceof SuccessOrFailure)) {
-        return false;
-      }
-      SuccessOrFailure otherSOF = (SuccessOrFailure) other;
-      return isSuccess == otherSOF.isSuccess()
-          && ((assertionError() == null && otherSOF.assertionError() == null)
-          || Objects.equal(
-              assertionError(), otherSOF.assertionError()));
     }
   }
   ////////////////////////////////////////////////////////////
