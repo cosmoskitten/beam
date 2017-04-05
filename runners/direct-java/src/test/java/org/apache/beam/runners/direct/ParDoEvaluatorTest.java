@@ -132,6 +132,7 @@ public class ParDoEvaluatorTest {
   private ParDoEvaluator<Integer> createEvaluator(
       PCollectionView<Integer> singletonView,
       RecorderFn fn,
+      PCollection<Integer> input,
       PCollection<Integer> output) {
     when(
             evaluationContext.createSideInputReader(
@@ -156,8 +157,7 @@ public class ParDoEvaluatorTest {
         evaluationContext,
         stepContext,
         transform,
-        ((PCollection<?>) Iterables.getOnlyElement(transform.getInputs().values()))
-            .getWindowingStrategy(),
+        input.getWindowingStrategy(),
         fn,
         null /* key */,
         ImmutableList.<PCollectionView<?>>of(singletonView),
