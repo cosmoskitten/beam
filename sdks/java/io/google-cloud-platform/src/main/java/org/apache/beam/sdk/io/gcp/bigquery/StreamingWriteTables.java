@@ -40,8 +40,16 @@ public class StreamingWriteTables extends PTransform<
     PCollection<KV<TableDestination, TableRow>>, PDone> {
   private BigQueryServices bigQueryServices;
 
-  public StreamingWriteTables(BigQueryServices bigQueryServices) {
+  public StreamingWriteTables() {
+    this(new BigQueryServicesImpl());
+  }
+
+  private StreamingWriteTables(BigQueryServices bigQueryServices) {
     this.bigQueryServices = bigQueryServices;
+  }
+
+  StreamingWriteTables withTestServices(BigQueryServices bigQueryServices) {
+    return new StreamingWriteTables(bigQueryServices);
   }
 
   @Override

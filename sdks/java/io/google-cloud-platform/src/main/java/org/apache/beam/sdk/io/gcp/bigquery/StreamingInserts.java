@@ -71,9 +71,11 @@ public class StreamingInserts extends
         new ConstantSchemaFunction(write.getSchema());
 
     PCollection<KV<TableDestination, TableRow>> writes = input
-        .apply("CreateTables", ParDo.of(new CreateTables(write.getCreateDisposition(),
-            write.getBigQueryServices(), schemaFunction)));
-    writes.apply(new StreamingWriteTables(write.getBigQueryServices()));
+        .apply("CreateTables", ParDo.of(
+            new CreateTables(write.getCreateDisposition(), schemaFunction)
+                .withTestServices(write.getBigQueryServices())));
+    writes.apply(new StreamingWriteTables()
+        .withTestServices(write.getBigQueryServices()));
 
     // Note that the implementation to return PDone here breaks the
     // implicit assumption about the job execution order. If a user
