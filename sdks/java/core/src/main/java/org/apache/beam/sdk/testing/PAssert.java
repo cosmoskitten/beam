@@ -137,10 +137,10 @@ public class PAssert {
     public void processElement(ProcessContext c) {
       SuccessOrFailure e = c.element();
       if (e.isSuccess()) {
-        LOG.error("Success!! incrementah");
+        LOG.error("Success!! increment");
         successCounter.inc();
       } else {
-        LOG.error("Failure:(");
+        LOG.error("Failure message: " + e.assertionError().getMessage());
         failureCounter.inc();
         throw e.assertionError();
       }
@@ -446,18 +446,21 @@ public class PAssert {
 
     private final boolean isSuccess;
     @org.apache.avro.reflect.Nullable
-    private final AssertionError assertionError;
+    private final PAssertionSite site;
+    @org.apache.avro.reflect.Nullable
+    private final String message;
 
-    public SuccessOrFailure() {
-      isSuccess = true;
-      assertionError = null;
+    private SuccessOrFailure() {
+      this(true, null, null);
     }
 
-    public SuccessOrFailure(
+    private SuccessOrFailure(
         boolean isSuccess,
-        @Nullable AssertionError assertionError) {
+        @Nullable PAssertionSite site,
+        @Nullable String message) {
       this.isSuccess = isSuccess;
-      this.assertionError = assertionError;
+      this.site = site;
+      this.message = message;
     }
 
     public boolean isSuccess() {
@@ -466,14 +469,15 @@ public class PAssert {
 
     @Nullable
     public AssertionError assertionError() {
-      return assertionError;
+      return  site == null ? null : site.wrap(message);
     }
 
     public static SuccessOrFailure success() {
-      return new SuccessOrFailure(true, null);
+      return new SuccessOrFailure(true, null, null);
     }
-    public static SuccessOrFailure failure(@Nullable AssertionError e) {
-      return new SuccessOrFailure(false, e);
+    public static SuccessOrFailure failure(@Nullable PAssertionSite site,
+                                           @Nullable String message) {
+      return new SuccessOrFailure(false, site, message);
     }
 
     @Override
@@ -490,23 +494,78 @@ public class PAssert {
   /** Track the place where an assertion is defined.*/
   protected static class PAssertionSite implements Serializable {
     private final String message;
-    private final StackTraceElement[] creationStackTrace;
+    private final SerializableStackTraceElement[] creationStackTrace;
 
     static PAssertionSite capture(String message) {
       return new PAssertionSite(message, new Throwable().getStackTrace());
     }
 
+    PAssertionSite() {
+      this(null, new StackTraceElement[0]);
+    }
+
     PAssertionSite(String message, StackTraceElement[] creationStackTrace) {
       this.message = message;
-      this.creationStackTrace = creationStackTrace;
+      this.creationStackTrace = toSerializableStackTraceElementArray(creationStackTrace);
+    }
+
+    private SerializableStackTraceElement[] toSerializableStackTraceElementArray(
+            StackTraceElement[] input) {
+      SerializableStackTraceElement[] result = new SerializableStackTraceElement[input.length];
+      for (int i = 0; i < input.length; i++) {
+        result[i] = new SerializableStackTraceElement(
+                input[i].getClassName(),
+                input[i].getMethodName(),
+                input[i].getFileName(),
+                input[i].getLineNumber());
+      }
+      return result;
+    }
+
+    private StackTraceElement[] toStackTraceElementArray(SerializableStackTraceElement[] input) {
+      StackTraceElement[] result = new StackTraceElement[input.length];
+      for (int i = 0; i < input.length; i++) {
+        result[i] = input[i].getStackTraceElement();
+      }
+      return result;
     }
 
     public AssertionError wrap(Throwable t) {
       AssertionError res =
           new AssertionError(
               message.isEmpty() ? t.getMessage() : (message + ": " + t.getMessage()), t);
-      res.setStackTrace(creationStackTrace);
+      res.setStackTrace(toStackTraceElementArray(creationStackTrace));
       return res;
+    }
+
+    public AssertionError wrap(String message) {
+      AssertionError res =
+              new AssertionError(
+                      this.message == null ? message : this.message);
+      res.setStackTrace(toStackTraceElementArray(creationStackTrace));
+      return res;
+    }
+
+    static final class SerializableStackTraceElement implements Serializable {
+      private String declaringClass;
+      private String methodName;
+      private String fileName;
+      private int    lineNumber;
+
+      private SerializableStackTraceElement() {
+        this(null, null, null, 0);
+      }
+
+      SerializableStackTraceElement(String declaringClass, String methodName,
+                                    String fileName, int lineNumber) {
+        this.declaringClass = declaringClass;
+        this.methodName = methodName;
+        this.fileName = fileName;
+        this.lineNumber = lineNumber;
+      }
+      public StackTraceElement getStackTraceElement() {
+        return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
+      }
     }
   }
 
@@ -1257,7 +1316,12 @@ public class PAssert {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      c.output(doChecks(site, c.element(), checkerFn));
+      try {
+        SuccessOrFailure result = doChecks(site, c.element(), checkerFn);
+        c.output(result);
+      } catch (Throwable t) {
+        throw t;
+      }
     }
   }
 
@@ -1295,7 +1359,7 @@ public class PAssert {
     try {
       checkerFn.apply(actualContents);
     } catch (Throwable t) {
-      result = SuccessOrFailure.failure(site.wrap(t));
+      result = SuccessOrFailure.failure(site, t.getMessage());
     } finally {
       return result;
     }

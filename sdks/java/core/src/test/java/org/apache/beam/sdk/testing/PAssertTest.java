@@ -133,7 +133,9 @@ public class PAssertTest implements Serializable {
       error = e;
     }
     SuccessOrFailure success = PAssert.SuccessOrFailure.success();
-    SuccessOrFailure failure = PAssert.SuccessOrFailure.failure(error);
+    SuccessOrFailure failure = PAssert.SuccessOrFailure.failure(
+            new PAssertionSite(error.getMessage(), error.getStackTrace()),
+            error.getMessage());
 
     ByteArrayOutputStream sharedOutStream = new ByteArrayOutputStream();
     AvroCoder<SuccessOrFailure> coder = AvroCoder.of(SuccessOrFailure.class);
@@ -144,7 +146,8 @@ public class PAssertTest implements Serializable {
     assertEquals("Encode-decode successful SuccessOrFailure",
         success.isSuccess(), res.isSuccess());
     assertEquals("Encode-decode successful SuccessOrFailure",
-            success.assertionError(), res.assertionError());
+            success.assertionError(),
+            res.assertionError());
 
     sharedOutStream = new ByteArrayOutputStream();
     coder.encode(failure, sharedOutStream, null);
