@@ -173,7 +173,7 @@ class WriteRename extends DoFn<String, Void> {
         .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
             .withLabel("Table Reference"))
         .add(DisplayData.item("writeDisposition", writeDisposition.toString())
-            .withLabel("Write Disposition"))
+            .withLabel("WriteFiles Disposition"))
         .add(DisplayData.item("createDisposition", createDisposition.toString())
             .withLabel("Create Disposition"));
   }
