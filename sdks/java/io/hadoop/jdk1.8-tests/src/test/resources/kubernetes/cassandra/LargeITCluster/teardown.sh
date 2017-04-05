@@ -19,4 +19,5 @@ set -e
 
 # Delete Cassandra services and statefulset.
 kubectl delete -f cassandra-service.yaml
+kubectl delete -f cassandra-external-service.yaml
 kubectl delete -f cassandra-statefulset.yaml
