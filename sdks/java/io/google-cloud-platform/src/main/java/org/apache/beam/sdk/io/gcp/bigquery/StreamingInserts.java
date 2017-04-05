@@ -74,15 +74,8 @@ public class StreamingInserts extends
         .apply("CreateTables", ParDo.of(
             new CreateTables(write.getCreateDisposition(), schemaFunction)
                 .withTestServices(write.getBigQueryServices())));
-    writes.apply(new StreamingWriteTables()
+
+    return writes.apply(new StreamingWriteTables()
         .withTestServices(write.getBigQueryServices()));
-
-    // Note that the implementation to return PDone here breaks the
-    // implicit assumption about the job execution order. If a user
-    // implements a PTransform that takes PDone returned here as its
-    // input, the transform may not necessarily be executed after
-    // the BigQueryIO.Write.
-
-    return WriteResult.in(input.getPipeline());
   }
 }
