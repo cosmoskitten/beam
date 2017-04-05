@@ -105,7 +105,7 @@ public class KafkaIOExamples {
             new FlinkKafkaProducer08<>(options.getKafkaTopic(),
                 new SimpleStringSchema(), getKafkaProps(options));
 
-        words.apply(WriteFiles.to(UnboundedFlinkSink.of(kafkaSink)));
+        words.apply(UnboundedFlinkSink.of(kafkaSink));
 
         p.run();
       }
@@ -163,7 +163,7 @@ public class KafkaIOExamples {
             new FlinkKafkaProducer08<>(options.getKafkaAvroTopic(),
                 new AvroSerializationDeserializationSchema<>(MyType.class), getKafkaProps(options));
 
-        words.apply(WriteFiles.to(UnboundedFlinkSink.of(kafkaSink)));
+        words.apply(UnboundedFlinkSink.of(kafkaSink));
 
         p.run();
 

@@ -28,18 +28,21 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 /**
  * A wrapper translating Flink sinks implementing the {@link SinkFunction} interface, into
- * unbounded Beam sinks (see {@link UnboundedSource}).
+ * Beam {@link PTransform}).
  * */
-public class UnboundedFlinkSink<T> extends Sink<T> {
+public class UnboundedFlinkSink<T> extends PTransform<PCollection<T>, PDone> {
 
   /* The Flink sink function */
   private final SinkFunction<T> flinkSink;
@@ -53,148 +56,20 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
   }
 
   @Override
-  public void validate(PipelineOptions options) {
+  public PDone expand(PCollection<T> input) {
+    // The Flink translator injects the write to the {@link SinkFunction}
+    return PDone.in(input.getPipeline());
   }
 
-  @Override
-  public WriteOperation<T, ?> createWriteOperation(PipelineOptions options) {
-    return new WriteOperation<T, Object>() {
-      @Override
-      public void initialize(PipelineOptions options) throws Exception {
-
-      }
-
-      @Override
-      public void setWindowedWrites(boolean windowedWrites) {
-      }
-
-      @Override
-      public void finalize(Iterable<Object> writerResults, PipelineOptions options)
-          throws Exception {
-
-      }
-
-      @Override
-      public Coder<Object> getWriterResultCoder() {
-        return new Coder<Object>() {
-          @Override
-          public void encode(Object value, OutputStream outStream, Context context)
-              throws CoderException, IOException {
-
-          }
-
-          @Override
-          public Object decode(InputStream inStream, Context context)
-              throws CoderException, IOException {
-            return null;
-          }
-
-          @Override
-          public List<? extends Coder<?>> getCoderArguments() {
-            return null;
-          }
-
-          @Override
-          public CloudObject asCloudObject() {
-            return null;
-          }
-
-          @Override
-          public void verifyDeterministic() throws NonDeterministicException {
-
-          }
-
-          @Override
-          public boolean consistentWithEquals() {
-            return false;
-          }
-
-          @Override
-          public Object structuralValue(Object value) throws Exception {
-            return null;
-          }
-
-          @Override
-          public boolean isRegisterByteSizeObserverCheap(Object value, Context context) {
-            return false;
-          }
-
-          @Override
-          public void registerByteSizeObserver(Object value,
-                                               ElementByteSizeObserver observer,
-                                               Context context) throws Exception {
-
-          }
-
-          @Override
-          public String getEncodingId() {
-            return null;
-          }
-
-          @Override
-          public Collection<String> getAllowedEncodings() {
-            return null;
-          }
-
-          @Override
-          public TypeDescriptor<Object> getEncodedTypeDescriptor() {
-            return TypeDescriptor.of(Object.class);
-          }
-        };
-      }
-
-      @Override
-      public Writer<T, Object> createWriter(PipelineOptions options) throws Exception {
-        return new Writer<T, Object>() {
-          @Override
-          public void openWindowed(String uId,
-                                   BoundedWindow window,
-                                   PaneInfo paneInfo,
-                                   int shard,
-                                   int numShards) throws Exception {
-          }
-
-          @Override
-          public void openUnwindowed(String uId, int shard, int numShards) throws Exception {
-          }
-
-          @Override
-          public void cleanup() throws Exception {
-
-          }
-
-          @Override
-          public void write(T value) throws Exception {
-
-          }
-
-          @Override
-          public Object close() throws Exception {
-            return null;
-          }
-
-          @Override
-          public WriteOperation<T, Object> getWriteOperation() {
-            return null;
-          }
-
-        };
-      }
-
-      @Override
-      public Sink<T> getSink() {
-        return UnboundedFlinkSink.this;
-      }
-    };
-  }
 
   /**
-   * Creates a Flink sink to write to using the WriteFiles API.
+   * Creates a Flink sink to write to .
    * @param flinkSink The Flink sink, e.g. FlinkKafkaProducer09
    * @param <T> The input type of the sink
-   * @return A Beam sink wrapping a Flink sink
+   * @return A {@link PTransform} wrapping a Flink sink
    */
-  public static <T> Sink<T> of(SinkFunction<T> flinkSink) {
+  public static <T> UnboundedFlinkSink<T> of(SinkFunction<T> flinkSink) {
     return new UnboundedFlinkSink<>(flinkSink);
   }
+
 }

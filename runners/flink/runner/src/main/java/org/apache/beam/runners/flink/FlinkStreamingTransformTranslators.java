@@ -52,9 +52,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -95,6 +93,7 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -124,7 +123,7 @@ class FlinkStreamingTransformTranslators {
   static {
     TRANSLATORS.put(Read.Bounded.class, new BoundedReadSourceTranslator());
     TRANSLATORS.put(Read.Unbounded.class, new UnboundedReadSourceTranslator());
-    TRANSLATORS.put(WriteFiles.class, new WriteSinkStreamingTranslator());
+    TRANSLATORS.put(UnboundedFlinkSink.class, new WriteSinkStreamingTranslator());
     TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
 
     TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoStreamingTranslator());
@@ -204,18 +203,14 @@ class FlinkStreamingTransformTranslators {
   }
 
   private static class WriteSinkStreamingTranslator<T>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<WriteFiles<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<UnboundedFlinkSink<T>> {
 
     @Override
-    public void translateNode(WriteFiles<T> transform, FlinkStreamingTranslationContext context) {
+    public void translateNode(UnboundedFlinkSink<T> transform,
+                              FlinkStreamingTranslationContext context) {
       String name = transform.getName();
       PValue input = context.getInput(transform);
 
-      Sink<T> sink = transform.getSink();
-      if (!(sink instanceof UnboundedFlinkSink)) {
-        throw new UnsupportedOperationException(
-            "At the time, only unbounded Flink sinks are supported.");
-      }
 
       DataStream<WindowedValue<T>> inputDataSet = context.getInputDataStream(input);
 
@@ -224,7 +219,7 @@ class FlinkStreamingTransformTranslators {
         public void flatMap(WindowedValue<T> value, Collector<Object> out) throws Exception {
           out.collect(value.getValue());
         }
-      }).addSink(((UnboundedFlinkSink<Object>) sink).getFlinkSource()).name(name);
+      }).addSink((SinkFunction<Object>) transform.getFlinkSource()).name(name);
     }
   }
 
