@@ -472,7 +472,6 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testReadersStartWhenZeroRecords() throws Exception {
-
     InputFormat mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     EmployeeRecordReader mockReader = Mockito.mock(EmployeeRecordReader.class);
     Mockito.when(
@@ -488,10 +487,9 @@ public class HadoopInputFormatIOTest {
             null, // No key translation required.
             null, // No value translation required.
             new SerializableSplit(mockInputSplit));
-    boundedSource.setInputFormatObj(mockInputFormat);
-    BoundedReader<KV<Text, Employee>> reader = boundedSource.createReader(p.getOptions());
-    assertEquals(false, reader.start());
-    assertEquals(Double.valueOf(1), reader.getFractionConsumed());
+    BoundedReader<KV<Text, Employee>> boundedReader = boundedSource.createReader(p.getOptions());
+    assertEquals(false, boundedReader.start());
+    assertEquals(Double.valueOf(1), boundedReader.getFractionConsumed());
   }
 
   /**
@@ -575,6 +573,7 @@ public class HadoopInputFormatIOTest {
     assertEquals(true, boundedReader.start());
     assertEquals(null, boundedReader.getFractionConsumed());
   }
+
   /**
    * This test validates that reader and its parent source reads the same records.
    */
