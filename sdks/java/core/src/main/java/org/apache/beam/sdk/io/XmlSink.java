@@ -35,7 +35,8 @@ import org.apache.beam.sdk.values.PCollection;
 
 // CHECKSTYLE.OFF: JavadocStyle
 /**
- * A {@link Sink} that outputs records as XML-formatted elements. Writes a {@link PCollection} of
+ * A {@link FileBasedSink} that outputs records as XML-formatted elements. Writes a
+ * {@link PCollection} of
  * records from JAXB-annotated classes to a single file location.
  *
  * <p>Given a PCollection containing records of type T that can be marshalled to XML elements, this
@@ -47,7 +48,7 @@ import org.apache.beam.sdk.values.PCollection;
  * will be used in the marshalling of records in an input PCollection to their XML representation
  * and must be able to be bound using JAXB annotations (checked at pipeline construction time).
  *
- * <p>XML Sinks can be written to using the {@link Write} transform:
+ * <p>XML Sinks can be written to using the {@link WriteFiles} transform:
  *
  * <pre>
  * p.apply(Write.to(
@@ -233,7 +234,7 @@ public class XmlSink {
   }
 
   /**
-   * {@link Sink.WriteOperation} for XML {@link Sink}s.
+   * {@link FileBasedSink.FileBasedWriteOperation} for XML {@link FileBasedSink}s.
    */
   protected static final class XmlWriteOperation<T> extends FileBasedWriteOperation<T> {
     public XmlWriteOperation(XmlSink.Bound<T> sink) {
@@ -265,7 +266,7 @@ public class XmlSink {
   }
 
   /**
-   * A {@link Sink.Writer} that can write objects as XML elements.
+   * A {@link FileBasedWriter} that can write objects as XML elements.
    */
   protected static final class XmlWriter<T> extends FileBasedWriter<T> {
     final Marshaller marshaller;
