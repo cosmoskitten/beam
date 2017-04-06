@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.lang.reflect.ParameterizedType;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -29,18 +32,57 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  */
 public class FlatMapElements<InputT, OutputT>
 extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  private final SimpleFunction<InputT, Iterable<OutputT>> fn;
+  /**
+   * Temporarily stores the argument of {@link #into(TypeDescriptor)} until combined with the
+   * argument of {@link #via(SerializableFunction)} into the fully-specified {@link #fn}. Stays null
+   * if constructed using {@link #via(SimpleFunction)} directly.
+   */
+  @Nullable
   private final transient TypeDescriptor<Iterable<OutputT>> outputType;
+
+  /**
+   * Non-null on a fully specified transform - is null only when constructed using {@link
+   * #into(TypeDescriptor)}, until the fn is specified using {@link #via(SerializableFunction)}.
+   */
+  @Nullable
+  private final SimpleFunction<InputT, Iterable<OutputT>> fn;
   private final DisplayData.ItemSpec<?> fnClassDisplayData;
 
   private FlatMapElements(
-      SimpleFunction<InputT, Iterable<OutputT>> fn,
-      TypeDescriptor<Iterable<OutputT>> outputType,
-      Class<?> fnClass) {
+      @Nullable SimpleFunction<InputT, Iterable<OutputT>> fn,
+      @Nullable TypeDescriptor<Iterable<OutputT>> outputType,
+      @Nullable Class<?> fnClass) {
     this.fn = fn;
     this.outputType = outputType;
     this.fnClassDisplayData = DisplayData.item("flatMapFn", fnClass).withLabel("FlatMap Function");
 
+  }
+
+  /**
+   * For a {@code SimpleFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
+   * return a {@link PTransform} that applies {@code fn} to every element of the input
+   * {@code PCollection<InputT>} and outputs all of the elements to the output
+   * {@code PCollection<OutputT>}.
+   *
+   * <p>This overload is intended primarily for use in Java 7. In Java 8, the overload
+   * {@link #via(SerializableFunction)} supports use of lambda for greater concision.
+   *
+   * <p>Example of use in Java 7:
+   * <pre>{@code
+   * PCollection<String> lines = ...;
+   * PCollection<String> words = lines.apply(FlatMapElements.via(
+   *     new SimpleFunction<String, List<String>>() {
+   *       public Integer apply(String line) {
+   *         return Arrays.asList(line.split(" "));
+   *       }
+   *     });
+   * }</pre>
+   *
+   * <p>To use a Java 8 lambda, see {@link #via(SerializableFunction)}.
+   */
+  public static <InputT, OutputT> FlatMapElements<InputT, OutputT>
+  via(SimpleFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
+    return new FlatMapElements(fn, null, fn.getClass());
   }
 
   /**
@@ -76,35 +118,9 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
         fn.getClass());
   }
 
-  /**
-   * For a {@code SimpleFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
-   * return a {@link PTransform} that applies {@code fn} to every element of the input
-   * {@code PCollection<InputT>} and outputs all of the elements to the output
-   * {@code PCollection<OutputT>}.
-   *
-   * <p>This overload is intended primarily for use in Java 7. In Java 8, the overload
-   * {@link #via(SerializableFunction)} supports use of lambda for greater concision.
-   *
-   * <p>Example of use in Java 7:
-   * <pre>{@code
-   * PCollection<String> lines = ...;
-   * PCollection<String> words = lines.apply(FlatMapElements.via(
-   *     new SimpleFunction<String, List<String>>() {
-   *       public Integer apply(String line) {
-   *         return Arrays.asList(line.split(" "));
-   *       }
-   *     });
-   * }</pre>
-   *
-   * <p>To use a Java 8 lambda, see {@link #via(SerializableFunction)}.
-   */
-  public static <InputT, OutputT> FlatMapElements<InputT, OutputT>
-  via(SimpleFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
-    return new FlatMapElements(fn, null, fn.getClass());
-  }
-
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+    checkNotNull(fn, "Must specify a function on FlatMapElements using .via()");
     return input.apply(
         "FlatMap",
         ParDo.of(
