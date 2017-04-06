@@ -38,7 +38,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Sink;
-import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -77,7 +76,7 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
  * value class V and finally the {@link SerializableFunction} to map from T to {@link KV} of K
  * and V.
  *
- * <p>{@code HDFSFileSink} can be used by {@link WriteFiles} to create write
+ * <p>{@code HDFSFileSink} can be used by {@link Write} to create write
  * transform. See example below.
  *
  * <p>{@code HDFSFileSink} comes with helper methods to write text and Apache Avro. For example:
@@ -86,7 +85,7 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
  * {@code
  * HDFSFileSink<CustomSpecificAvroClass, AvroKey<CustomSpecificAvroClass>, NullWritable> sink =
  *   HDFSFileSink.toAvro(path, AvroCoder.of(CustomSpecificAvroClass.class));
- * avroRecordsPCollection.apply(WriteFiles.to(sink));
+ * avroRecordsPCollection.apply(Write.to(sink));
  * }
  * </pre>
  *
