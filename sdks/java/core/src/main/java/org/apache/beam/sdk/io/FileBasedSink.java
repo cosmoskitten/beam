@@ -570,8 +570,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * @param writerResults the results of writes (FileResult).
      */
     public void finalize(Iterable<FileResult> writerResults,
-                         PipelineOptions options)
-        throws Exception {
+                         PipelineOptions options) throws Exception {
       // Collect names of temporary files and rename them.
       Map<String, String> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames, options);
