@@ -28,8 +28,6 @@ import static org.junit.Assert.fail;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -42,9 +40,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingInput;
-import org.apache.beam.sdk.testing.PAssert.PAssertionSite;
 import org.apache.beam.sdk.testing.PAssert.PCollectionContentsAssert.MatcherCheckerFn;
-import org.apache.beam.sdk.testing.PAssert.SuccessOrFailure;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
@@ -53,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -125,39 +122,41 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  public void testSuccessOrFailureEncodedDecoded() throws IOException {
+  public void testFailureEncodedDecoded() throws IOException {
     AssertionError error = null;
     try {
       assertEquals(0, 1);
     } catch (AssertionError e) {
       error = e;
     }
-    SuccessOrFailure success = PAssert.SuccessOrFailure.success();
-    SuccessOrFailure failure = PAssert.SuccessOrFailure.failure(
+    SuccessOrFailure failure = SuccessOrFailure.failure(
         new PAssertionSite(error.getMessage(), error.getStackTrace()));
-
-    ByteArrayOutputStream sharedOutStream = new ByteArrayOutputStream();
     AvroCoder<SuccessOrFailure> coder = AvroCoder.of(SuccessOrFailure.class);
-    coder.encode(success, sharedOutStream, null);
-    InputStream sharedInStream = new ByteArrayInputStream(sharedOutStream.toByteArray());
-    SuccessOrFailure res = coder.decode(sharedInStream, null);
 
-    assertEquals("Encode-decode successful SuccessOrFailure",
-        success.isSuccess(), res.isSuccess());
-    assertEquals("Encode-decode successful SuccessOrFailure",
-        success.assertionError(),
-        res.assertionError());
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, failure);
+    SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
 
-    sharedOutStream = new ByteArrayOutputStream();
-    coder.encode(failure, sharedOutStream, null);
-    sharedInStream = new ByteArrayInputStream(sharedOutStream.toByteArray());
-    res = coder.decode(sharedInStream, null);
     // Should compare strings, because throwables are not directly comparable.
     assertEquals("Encode-decode failed SuccessOrFailure",
         failure.assertionError().toString(), res.assertionError().toString());
     String resultStacktrace = Throwables.getStackTraceAsString(res.assertionError());
     String failureStacktrace = Throwables.getStackTraceAsString(failure.assertionError());
     assertThat(resultStacktrace, is(failureStacktrace));
+  }
+
+  @Test
+  public void testSuccessEncodedDecoded() throws IOException {
+    SuccessOrFailure success = SuccessOrFailure.success();
+    AvroCoder<SuccessOrFailure> coder = AvroCoder.of(SuccessOrFailure.class);
+
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, success);
+    SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
+
+    assertEquals("Encode-decode successful SuccessOrFailure",
+        success.isSuccess(), res.isSuccess());
+    assertEquals("Encode-decode successful SuccessOrFailure",
+        success.assertionError(),
+        res.assertionError());
   }
 
   /**

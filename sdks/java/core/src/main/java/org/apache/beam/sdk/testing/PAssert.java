@@ -32,13 +32,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
@@ -112,6 +109,10 @@ public class PAssert {
   private static final Logger LOG = LoggerFactory.getLogger(PAssert.class);
   public static final String SUCCESS_COUNTER = "PAssertSuccess";
   public static final String FAILURE_COUNTER = "PAssertFailure";
+  private static final Counter successCounter = Metrics.counter(
+      PAssert.class, PAssert.SUCCESS_COUNTER);
+  private static final Counter failureCounter = Metrics.counter(
+      PAssert.class, PAssert.FAILURE_COUNTER);
 
   private static int assertCount = 0;
 
@@ -122,38 +123,30 @@ public class PAssert {
   // Do not instantiate.
   private PAssert() {}
 
+  /**
+   * A {@link DoFn} that counts the number of successful {@link SuccessOrFailure} in the
+   * input {@link PCollection} and counts them. If a failed {@link SuccessOrFailure} is
+   * encountered, it is counted and immediately raised.
+   */
   private static final class DefaultConcludeFn extends DoFn<SuccessOrFailure, Void> {
-
-    private Counter successCounter;
-    private Counter failureCounter;
-
-    @StartBundle
-    public void startBundle(Context c) {
-      successCounter = Metrics.counter(PAssert.class, PAssert.SUCCESS_COUNTER);
-      failureCounter = Metrics.counter(PAssert.class, PAssert.FAILURE_COUNTER);
-    }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       SuccessOrFailure e = c.element();
       if (e.isSuccess()) {
-        successCounter.inc();
+        PAssert.successCounter.inc();
       } else {
-        failureCounter.inc();
+        PAssert.failureCounter.inc();
         throw e.assertionError();
       }
     }
   }
 
-  private static final PTransform<? super PCollection<SuccessOrFailure>, ? super PCollection<Void>>
-      DEFAULT_CONCLUDE_TRANSFORM = ParDo.of(new DefaultConcludeFn());
-
-  private static PTransform<? super PCollection<SuccessOrFailure>, ? super PCollection<Void>>
-      concludeTransform = DEFAULT_CONCLUDE_TRANSFORM;
-
-  public static void setConcludeTransform(
-      PTransform<? super PCollection<SuccessOrFailure>, ? super PCollection<Void>> transform) {
-    concludeTransform = transform;
+  static class DefaultConcludeTransform
+      extends PTransform<PCollection<SuccessOrFailure>, PCollection<Void>> {
+    public PCollection<Void> expand(PCollection<SuccessOrFailure> input) {
+      return input.apply(ParDo.of(new DefaultConcludeFn()));
+    }
   }
 
   /**
@@ -435,142 +428,6 @@ public class PAssert {
   }
 
   ////////////////////////////////////////////////////////////
-
-  /**
-   * Output of {@link PAssert}. Passed to a conclude function to act upon.
-   */
-  @DefaultCoder(AvroCoder.class)
-  public static final class SuccessOrFailure {
-
-    private final boolean isSuccess;
-    @org.apache.avro.reflect.Nullable
-    private final PAssertionSite site;
-    @org.apache.avro.reflect.Nullable
-    private final String message;
-
-    private SuccessOrFailure() {
-      this(true, null, null);
-    }
-
-    private SuccessOrFailure(
-        boolean isSuccess,
-        @Nullable PAssertionSite site,
-        @Nullable String message) {
-      this.isSuccess = isSuccess;
-      this.site = site;
-      this.message = message;
-    }
-
-    public boolean isSuccess() {
-      return isSuccess;
-    }
-
-    @Nullable
-    public AssertionError assertionError() {
-      return  site == null ? null : site.wrap(message);
-    }
-
-    public static SuccessOrFailure success() {
-      return new SuccessOrFailure(true, null, null);
-    }
-
-    public static SuccessOrFailure failure(@Nullable PAssertionSite site,
-        @Nullable String message) {
-      return new SuccessOrFailure(false, site, message);
-    }
-
-    public static SuccessOrFailure failure(@Nullable PAssertionSite site) {
-      return new SuccessOrFailure(false, site, null);
-    }
-
-    @Override
-    public String toString() {
-      return "SuccessOrFailure{"
-          + (isSuccess ? "success" : "failure")
-          + ", error: "
-          + (assertionError() != null ? assertionError().toString() : "null")
-          + "}";
-    }
-  }
-  ////////////////////////////////////////////////////////////
-
-  /** Track the place where an assertion is defined.*/
-  protected static class PAssertionSite implements Serializable {
-    private final String message;
-    private final SerializableStackTraceElement[] creationStackTrace;
-
-    static PAssertionSite capture(String message) {
-      return new PAssertionSite(message, new Throwable().getStackTrace());
-    }
-
-    PAssertionSite() {
-      this(null, new StackTraceElement[0]);
-    }
-
-    PAssertionSite(String message, StackTraceElement[] creationStackTrace) {
-      this.message = message;
-      this.creationStackTrace = toSerializableStackTraceElementArray(creationStackTrace);
-    }
-
-    private SerializableStackTraceElement[] toSerializableStackTraceElementArray(
-            StackTraceElement[] input) {
-      SerializableStackTraceElement[] result = new SerializableStackTraceElement[input.length];
-      for (int i = 0; i < input.length; i++) {
-        result[i] = new SerializableStackTraceElement(
-                input[i].getClassName(),
-                input[i].getMethodName(),
-                input[i].getFileName(),
-                input[i].getLineNumber());
-      }
-      return result;
-    }
-
-    private StackTraceElement[] toStackTraceElementArray(SerializableStackTraceElement[] input) {
-      StackTraceElement[] result = new StackTraceElement[input.length];
-      for (int i = 0; i < input.length; i++) {
-        result[i] = input[i].getStackTraceElement();
-      }
-      return result;
-    }
-
-    public AssertionError wrap(Throwable t) {
-      AssertionError res =
-          new AssertionError(
-              message.isEmpty() ? t.getMessage() : (message + ": " + t.getMessage()), t);
-      res.setStackTrace(toStackTraceElementArray(creationStackTrace));
-      return res;
-    }
-
-    public AssertionError wrap(String message) {
-      String outputMessage = (this.message == null || this.message.isEmpty())
-          ? message : (this.message + ": " + message);
-      AssertionError res = new AssertionError(outputMessage);
-      res.setStackTrace(toStackTraceElementArray(creationStackTrace));
-      return res;
-    }
-
-    static final class SerializableStackTraceElement implements Serializable {
-      private String declaringClass;
-      private String methodName;
-      private String fileName;
-      private int    lineNumber;
-
-      private SerializableStackTraceElement() {
-        this(null, null, null, 0);
-      }
-
-      SerializableStackTraceElement(String declaringClass, String methodName,
-                                    String fileName, int lineNumber) {
-        this.declaringClass = declaringClass;
-        this.methodName = methodName;
-        this.fileName = fileName;
-        this.lineNumber = lineNumber;
-      }
-      public StackTraceElement getStackTraceElement() {
-        return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
-      }
-    }
-  }
 
   /**
    * An {@link IterableAssert} about the contents of a {@link PCollection}. This does not require
@@ -1186,7 +1043,7 @@ public class PAssert {
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn, site)))
-          .apply("VerifyAssertions", concludeTransform);
+          .apply("VerifyAssertions", new DefaultConcludeTransform());
 
       return PDone.in(input.getPipeline());
     }
@@ -1223,7 +1080,7 @@ public class PAssert {
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn, site)))
-          .apply("VerifyAssertions", concludeTransform);
+          .apply("VerifyAssertions", new DefaultConcludeTransform());
 
       return PDone.in(input.getPipeline());
     }
@@ -1267,7 +1124,7 @@ public class PAssert {
           .apply(
               "RunChecks",
               ParDo.of(new SideInputCheckerDoFn<>(checkerFn, actual, site)).withSideInputs(actual))
-          .apply("VerifyAssertions", concludeTransform);
+          .apply("VerifyAssertions", new DefaultConcludeTransform());
       return PDone.in(input.getPipeline());
     }
   }
