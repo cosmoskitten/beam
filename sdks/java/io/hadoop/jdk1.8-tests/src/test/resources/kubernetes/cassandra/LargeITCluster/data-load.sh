@@ -34,8 +34,7 @@ do
    container_state="$(kubectl get pods -l app=cassandra -o jsonpath="{.items[$i].status.containerStatuses[0].ready}")"
    while ! $container_state; do
       sleep 10s
-      container_state="$(kubectl get pods -l app=cassandra -o jsonpath=\
-      "{.items[$i].status.containerStatuses[0].ready}")"
+      container_state="$(kubectl get pods -l app=cassandra -o jsonpath="{.items[$i].status.containerStatuses[0].ready}")"
       echo "."
    done
    ready_pod="$(kubectl get pods -l app=cassandra -o jsonpath="{.items[$i].metadata.name}")"
@@ -76,7 +75,7 @@ echo "Table creation .............."
 echo "-----------------------------"
 echo "$table_creation_command"
 
-cd ycsb-0.12.0
+cd ../ycsb-0.12.0
 
 echo "Starting to load data on ${external_ip}"
 echo "-----------------------------"
