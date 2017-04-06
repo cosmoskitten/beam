@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.Sink;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -202,12 +202,15 @@ public class WriteWithShardingFactoryTest {
     assertThat(input, Matchers.<PCollection<?>>equalTo(original));
   }
 
-  private static class TestSink extends Sink<Object> {
+  private static class TestSink extends FileBasedSink<Object> {
+    public TestSink() {
+      super("", "");
+    }
     @Override
     public void validate(PipelineOptions options) {}
 
     @Override
-    public WriteOperation<Object, ?> createWriteOperation(PipelineOptions options) {
+    public FileBasedWriteOperation<Object> createWriteOperation(PipelineOptions options) {
       throw new IllegalArgumentException("Should not be used");
     }
   }

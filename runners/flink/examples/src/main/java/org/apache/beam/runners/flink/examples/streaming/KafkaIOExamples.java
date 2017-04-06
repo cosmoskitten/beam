@@ -31,7 +31,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -60,7 +59,7 @@ public class KafkaIOExamples {
   private static final String ZOOKEEPER = "localhost:2181";  // Default zookeeper to connect (Kafka)
 
   /**
-   * Read/WriteFiles String data to Kafka.
+   * Read/Write String data to Kafka.
    */
   public static class KafkaString {
 
@@ -89,7 +88,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * WriteFiles String data to Kafka.
+     * Write String data to Kafka.
      */
     public static class WriteStringToKafka {
 
@@ -114,7 +113,7 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Read/WriteFiles Avro data to Kafka.
+   * Read/Write Avro data to Kafka.
    */
   public static class KafkaAvro {
 
@@ -144,7 +143,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * WriteFiles Avro data to Kafka.
+     * Write Avro data to Kafka.
      */
     public static class WriteAvroToKafka {
 
