@@ -15,6 +15,7 @@
 #    limitations under the License.
 #
 #!/bin/bash
+
 set -e
 
 # Delete Cassandra services and statefulset.
