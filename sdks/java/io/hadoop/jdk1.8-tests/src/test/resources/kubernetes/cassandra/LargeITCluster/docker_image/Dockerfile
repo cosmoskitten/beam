@@ -11,19 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 FROM gcr.io/google_containers/ubuntu-slim:0.6
-ARG BUILD_DATE
-ARG VCS_REF
-ARG CASSANDRA_VERSION
-ARG DEV_CONTAINER
-LABEL \
-    org.label-schema.build-date=$BUILD_DATE \
-    org.label-schema.docker.dockerfile="/Dockerfile" \
-    org.label-schema.license="Apache License 2.0" \
-    org.label-schema.name="k8s-for-greeks/docker-cassandra-k8s" \
-    org.label-schema.url="https://github.com/k8s-for-greeks/" \
-    org.label-schema.vcs-ref=$VCS_REF \
-    org.label-schema.vcs-type="Git" \
-    org.label-schema.vcs-url="https://github.com/k8s-for-greeks/docker-cassandra-k8s"
 ENV CASSANDRA_HOME=/usr/local/apache-cassandra-3.9 \
     CASSANDRA_CONF=/etc/cassandra \
     CASSANDRA_DATA=/cassandra_data \
@@ -39,11 +26,7 @@ RUN set -e && echo 'debconf debconf/frontend select Noninteractive' | debconf-se
         libjemalloc1 \
         localepurge \
         wget \
-        python2.7 && \
-  mirror_url=$( wget -q -O - http://www.apache.org/dyn/closer.cgi/cassandra/ \
-        | sed -n 's#.*href="\(http://ftp.[^"]*\)".*#\1#p' \
-        | head -n 1 \
-    )
+        python2.7
 RUN wget -q -O - http://archive.apache.org/dist/cassandra/3.9/apache-cassandra-3.9-bin.tar.gz | tar -xzf - -C /usr/local
 RUN wget -q -O - https://github.com/Yelp/dumb-init/releases/download/v${DI_VERSION}/dumb-init_${DI_VERSION}_amd64 > /sbin/dumb-init
 RUN echo "$DI_SHA  /sbin/dumb-init" | sha256sum -c -
