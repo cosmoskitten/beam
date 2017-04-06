@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -26,15 +29,51 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class MapElements<InputT, OutputT>
 extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  private final SimpleFunction<InputT, OutputT> fn;
-  private final transient TypeDescriptor<OutputT> outputType;
+  /**
+   * Temporarily stores the argument of {@link #into(TypeDescriptor)} until combined with the
+   * argument of {@link #via(SerializableFunction)} into the fully-specified {@link #fn}. Stays null
+   * if constructed using {@link #via(SimpleFunction)} directly.
+   */
+  @Nullable private final transient TypeDescriptor<OutputT> outputType;
+
+  /**
+   * Non-null on a fully specified transform - is null only when constructed using {@link
+   * #into(TypeDescriptor)}, until the fn is specified using {@link #via(SerializableFunction)}.
+   */
+  @Nullable private final SimpleFunction<InputT, OutputT> fn;
   private final DisplayData.ItemSpec<?> fnClassDisplayData;
 
   private MapElements(
-      SimpleFunction<InputT, OutputT> fn, TypeDescriptor<OutputT> outputType, Class<?> fnClass) {
+      @Nullable SimpleFunction<InputT, OutputT> fn,
+      @Nullable TypeDescriptor<OutputT> outputType,
+      @Nullable Class<?> fnClass) {
     this.fn = fn;
     this.outputType = outputType;
     this.fnClassDisplayData = DisplayData.item("mapFn", fnClass).withLabel("Map Function");
+  }
+
+  /**
+   * For a {@code SimpleFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform} that
+   * takes an input {@code PCollection<InputT>} and returns a {@code PCollection<OutputT>}
+   * containing {@code fn.apply(v)} for every element {@code v} in the input.
+   *
+   * <p>This overload is intended primarily for use in Java 7. In Java 8, the overload
+   * {@link #via(SerializableFunction)} supports use of lambda for greater concision.
+   *
+   * <p>Example of use in Java 7:
+   * <pre>{@code
+   * PCollection<String> words = ...;
+   * PCollection<Integer> wordsPerLine = words.apply(MapElements.via(
+   *     new SimpleFunction<String, Integer>() {
+   *       public Integer apply(String word) {
+   *         return word.length();
+   *       }
+   *     }));
+   * }</pre>
+   */
+  public static <InputT, OutputT> MapElements<InputT, OutputT> via(
+      final SimpleFunction<InputT, OutputT> fn) {
+    return new MapElements<>(fn, null, fn.getClass());
   }
 
   /**
@@ -71,32 +110,9 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
         fn.getClass());
   }
 
-  /**
-   * For a {@code SimpleFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform} that
-   * takes an input {@code PCollection<InputT>} and returns a {@code PCollection<OutputT>}
-   * containing {@code fn.apply(v)} for every element {@code v} in the input.
-   *
-   * <p>This overload is intended primarily for use in Java 7. In Java 8, the overload
-   * {@link #via(SerializableFunction)} supports use of lambda for greater concision.
-   *
-   * <p>Example of use in Java 7:
-   * <pre>{@code
-   * PCollection<String> words = ...;
-   * PCollection<Integer> wordsPerLine = words.apply(MapElements.via(
-   *     new SimpleFunction<String, Integer>() {
-   *       public Integer apply(String word) {
-   *         return word.length();
-   *       }
-   *     }));
-   * }</pre>
-   */
-  public static <InputT, OutputT> MapElements<InputT, OutputT> via(
-      final SimpleFunction<InputT, OutputT> fn) {
-    return new MapElements<>(fn, null, fn.getClass());
-  }
-
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+    checkNotNull(fn, "Must specify a function on MapElements using .via()");
     return input.apply(
         "Map",
         ParDo.of(
