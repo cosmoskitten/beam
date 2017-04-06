@@ -40,7 +40,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for PubsubIO Read and WriteFiles transforms.
+ * Tests for PubsubIO Read and Write transforms.
  */
 @RunWith(JUnit4.class)
 public class PubsubIOTest {

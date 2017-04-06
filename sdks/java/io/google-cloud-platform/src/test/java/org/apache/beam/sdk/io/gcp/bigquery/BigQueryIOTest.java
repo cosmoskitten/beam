@@ -1662,7 +1662,7 @@ public class BigQueryIOTest implements Serializable {
   public void testBigQueryIOGetName() {
     assertEquals("BigQueryIO.Read",
         BigQueryIO.read().from("somedataset.sometable").getName());
-    assertEquals("BigQueryIO.WriteFiles",
+    assertEquals("BigQueryIO.Write",
         BigQueryIO.<TableRow>write().to("somedataset.sometable").getName());
   }
 
