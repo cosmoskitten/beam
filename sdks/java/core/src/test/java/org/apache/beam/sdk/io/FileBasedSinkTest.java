@@ -131,7 +131,7 @@ public class FileBasedSinkTest {
   }
 
   /**
-   * WriteFiles lines to a file.
+   * WriteO lines to a file.
    */
   private void writeFile(List<String> lines, File file) throws Exception {
     try (PrintWriter writer = new PrintWriter(new FileOutputStream(file))) {

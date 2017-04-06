@@ -71,7 +71,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Abstract clas for file-based output. An implementation of FileBasedSink writes file-based
+ * Abstract class for file-based output. An implementation of FileBasedSink writes file-based
  * output and defines the format of output files (how values are written, headers/footers, MIME
  * type, etc.).
  *
@@ -802,7 +802,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * times for fault tolerance.
      *
      * <p></p>The window and paneInfo arguments are populated when windowed writes are requested.
-     * shard and numbShards are populated for the case of static sharding. In cases where the
+     * shard and numShards are populated for the case of static sharding. In cases where the
      * runner is dynamically picking sharding, shard and numShards might both be set to -1.
      */
     public final void openWindowed(String uId,

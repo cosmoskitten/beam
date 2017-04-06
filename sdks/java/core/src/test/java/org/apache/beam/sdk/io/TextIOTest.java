@@ -116,7 +116,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 /**
- * Tests for TextIO Read and WriteFiles transforms.
+ * Tests for TextIO Read and Write transforms.
  */
 // TODO: Change the tests to use ValidatesRunner instead of NeedsRunner
 @RunWith(JUnit4.class)
@@ -558,7 +558,7 @@ public class TextIOTest {
     TextIO.Write.Bound write = TextIO.Write.to(outputPath);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("TextIO.WriteFiles should include the file prefix in its primitive display data",
+    assertThat("TextIO.Write should include the file prefix in its primitive display data",
         displayData, hasItem(hasDisplayItem(hasValue(startsWith(outputPath)))));
   }
 

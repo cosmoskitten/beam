@@ -51,7 +51,7 @@ public class PubsubIOTest {
   public void testPubsubIOGetName() {
     assertEquals("PubsubIO.Read",
         PubsubIO.<String>read().topic("projects/myproject/topics/mytopic").getName());
-    assertEquals("PubsubIO.WriteFiles",
+    assertEquals("PubsubIO.Write",
         PubsubIO.<String>write().topic("projects/myproject/topics/mytopic").getName());
   }
 
@@ -191,7 +191,7 @@ public class PubsubIOTest {
     PubsubIO.Write<?> write = PubsubIO.<String>write().topic("projects/project/topics/topic");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("PubsubIO.WriteFiles should include the topic in its primitive display data",
+    assertThat("PubsubIO.Write should include the topic in its primitive display data",
         displayData, hasItem(hasDisplayItem("topic")));
   }
 }
