@@ -36,8 +36,8 @@ import java.util.Collections;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.PAssert.PCollectionContentsAssert.MatcherCheckerFn;
@@ -131,7 +131,7 @@ public class PAssertTest implements Serializable {
     }
     SuccessOrFailure failure = SuccessOrFailure.failure(
         new PAssertionSite(error.getMessage(), error.getStackTrace()));
-    AvroCoder<SuccessOrFailure> coder = AvroCoder.of(SuccessOrFailure.class);
+    SerializableCoder<SuccessOrFailure> coder = SerializableCoder.of(SuccessOrFailure.class);
 
     byte[] encoded = CoderUtils.encodeToByteArray(coder, failure);
     SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
@@ -147,7 +147,7 @@ public class PAssertTest implements Serializable {
   @Test
   public void testSuccessEncodedDecoded() throws IOException {
     SuccessOrFailure success = SuccessOrFailure.success();
-    AvroCoder<SuccessOrFailure> coder = AvroCoder.of(SuccessOrFailure.class);
+    SerializableCoder<SuccessOrFailure> coder = SerializableCoder.of(SuccessOrFailure.class);
 
     byte[] encoded = CoderUtils.encodeToByteArray(coder, success);
     SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);

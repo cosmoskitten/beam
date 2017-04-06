@@ -27,7 +27,7 @@ import java.io.Serializable;
  */
 public class PAssertionSite implements Serializable {
   private final String message;
-  private final SerializableStackTraceElement[] creationStackTrace;
+  private final StackTraceElement[] creationStackTrace;
 
   static PAssertionSite capture(String message) {
     return new PAssertionSite(message, new Throwable().getStackTrace());
@@ -39,35 +39,14 @@ public class PAssertionSite implements Serializable {
 
   PAssertionSite(String message, StackTraceElement[] creationStackTrace) {
     this.message = message;
-    this.creationStackTrace = toSerializableStackTraceElementArray(creationStackTrace);
-  }
-
-  private SerializableStackTraceElement[] toSerializableStackTraceElementArray(
-      StackTraceElement[] input) {
-    SerializableStackTraceElement[] result = new SerializableStackTraceElement[input.length];
-    for (int i = 0; i < input.length; i++) {
-      result[i] = new SerializableStackTraceElement(
-          input[i].getClassName(),
-          input[i].getMethodName(),
-          input[i].getFileName(),
-          input[i].getLineNumber());
-    }
-    return result;
-  }
-
-  private StackTraceElement[] toStackTraceElementArray(SerializableStackTraceElement[] input) {
-    StackTraceElement[] result = new StackTraceElement[input.length];
-    for (int i = 0; i < input.length; i++) {
-      result[i] = input[i].getStackTraceElement();
-    }
-    return result;
+    this.creationStackTrace = creationStackTrace;
   }
 
   public AssertionError wrap(Throwable t) {
     AssertionError res =
         new AssertionError(
             message.isEmpty() ? t.getMessage() : (message + ": " + t.getMessage()), t);
-    res.setStackTrace(toStackTraceElementArray(creationStackTrace));
+    res.setStackTrace(creationStackTrace);
     return res;
   }
 
@@ -75,29 +54,7 @@ public class PAssertionSite implements Serializable {
     String outputMessage = (this.message == null || this.message.isEmpty())
         ? message : (this.message + ": " + message);
     AssertionError res = new AssertionError(outputMessage);
-    res.setStackTrace(toStackTraceElementArray(creationStackTrace));
+    res.setStackTrace(creationStackTrace);
     return res;
-  }
-
-  static final class SerializableStackTraceElement implements Serializable {
-    private String declaringClass;
-    private String methodName;
-    private String fileName;
-    private int    lineNumber;
-
-    private SerializableStackTraceElement() {
-      this(null, null, null, 0);
-    }
-
-    SerializableStackTraceElement(String declaringClass, String methodName,
-        String fileName, int lineNumber) {
-      this.declaringClass = declaringClass;
-      this.methodName = methodName;
-      this.fileName = fileName;
-      this.lineNumber = lineNumber;
-    }
-    public StackTraceElement getStackTraceElement() {
-      return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
-    }
   }
 }

@@ -18,15 +18,16 @@
 package org.apache.beam.sdk.testing;
 
 import com.google.common.base.MoreObjects;
+import java.io.Serializable;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 
 /**
  * Output of {@link PAssert}. Passed to a conclude function to act upon.
  */
-@DefaultCoder(AvroCoder.class)
-public final class SuccessOrFailure {
+@DefaultCoder(SerializableCoder.class)
+public final class SuccessOrFailure implements Serializable {
   // TODO Add a SerializableThrowable. instead of relying on PAssertionSite.(BEAM-1898)
 
   private final boolean isSuccess;

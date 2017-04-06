@@ -142,7 +142,14 @@ public class PAssert {
     }
   }
 
-  static class DefaultConcludeTransform
+  /**
+   * Default transform to check that a PAssert was successful. This transform
+   * relies on two {@link Counter} objects from the Metrics API to count the number of
+   * successful and failed asserts.
+   * Runners that do not support the Metrics API should replace this transform with
+   * their own implementation.
+   */
+  public static class DefaultConcludeTransform
       extends PTransform<PCollection<SuccessOrFailure>, PCollection<Void>> {
     public PCollection<Void> expand(PCollection<SuccessOrFailure> input) {
       return input.apply(ParDo.of(new DefaultConcludeFn()));
