@@ -67,7 +67,8 @@ import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 
 /**
- * A {@link Sink} for writing records to a Hadoop filesystem using a Hadoop file-based output
+ * A {@link Sink} for writing records to a Hadoop filesystem using a Hadoop file-based
+ * output
  * format.
  *
  * <p>To write a {@link org.apache.beam.sdk.values.PCollection} of elements of type T to Hadoop

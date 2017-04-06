@@ -38,13 +38,11 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.Sink;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -54,9 +52,6 @@ import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -199,12 +194,23 @@ public class WriteWithShardingFactoryTest {
     assertThat(shards, containsInAnyOrder(13));
   }
 
-  private static class TestSink extends Sink<Object> {
+  @Test
+  public void getInputSucceeds() {
+    PCollection<String> original = p.apply(Create.of("foo"));
+    PCollection<?> input = factory.getInput(original.expand(), p);
+    assertThat(input, Matchers.<PCollection<?>>equalTo(original));
+  }
+
+  private static class TestSink extends FileBasedSink<Object> {
+    public TestSink() {
+      super("", "");
+    }
+
     @Override
     public void validate(PipelineOptions options) {}
 
     @Override
-    public WriteOperation<Object, ?> createWriteOperation(PipelineOptions options) {
+    public FileBasedWriteOperation<Object> createWriteOperation(PipelineOptions options) {
       throw new IllegalArgumentException("Should not be used");
     }
   }

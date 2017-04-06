@@ -848,7 +848,7 @@ public class TextIOTest {
   @Test
   public void testTextIOGetName() {
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").getName());
-    assertEquals("TextIO.WriteFiles", TextIO.Write.to("somefile").getName());
+    assertEquals("TextIO.Write", TextIO.Write.to("somefile").getName());
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").toString());
   }
 
