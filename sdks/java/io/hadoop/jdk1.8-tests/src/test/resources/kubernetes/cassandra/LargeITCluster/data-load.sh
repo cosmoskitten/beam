@@ -20,8 +20,9 @@
 
 set -e
 recordcount=1000
+# Temporary set up cassandra single node cluster 
+kubectl create -f cassandra-svc-temp.yaml
 
-running_seed="$(kubectl get pods -l app=cassandra -o jsonpath="{.items[0].metadata.name}")"
 num_of_replicas=$(kubectl get statefulset cassandra --output=jsonpath={.spec.replicas})
 
 echo "Script to load data on $num_of_replicas replicas"
@@ -42,6 +43,8 @@ do
    i=$((i+1))
 done
 
+temp_running_seed="$(kubectl get pods -l name=cassandra-temp -o jsonpath="{.items[0].metadata.name}")"
+
 # After starting the service, it takes couple of minutes to generate the external IP for the
 # service. Hence, wait for sometime and identify external IP of the pod
 external_ip="$(kubectl get svc cassandra-external -o jsonpath=\
@@ -50,8 +53,7 @@ echo "Waiting for the Cassandra service to come up ........"
 while [ -z "$external_ip" ]
 do
    sleep 10s
-   external_ip="$(kubectl get svc cassandra-external -o jsonpath=\
-   '{.status.loadBalancer.ingress[0].ip}')"
+   external_ip="$(kubectl get svc cassandra-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
    echo "."
 done
 echo "External IP - $external_ip"
@@ -60,7 +62,7 @@ echo "Loading data"
 # Create keyspace
 keyspace_creation_command="drop keyspace if exists ycsb;create keyspace ycsb WITH REPLICATION = {\
 'class' : 'SimpleStrategy', 'replication_factor': 3 };"
-kubectl exec -ti $running_seed -- cqlsh -e "$keyspace_creation_command"
+kubectl exec -ti $temp_running_seed -- cqlsh $external_ip -e "$keyspace_creation_command"
 echo "Keyspace creation............"
 echo "-----------------------------"
 echo "$keyspace_creation_command"
@@ -70,7 +72,7 @@ echo
 table_creation_command="use ycsb;drop table if exists usertable;create table usertable (\
 y_id varchar primary key,field0 varchar,field1 varchar,field2 varchar,field3 varchar,\
 field4 varchar,field5 varchar,field6 varchar,field7 varchar,field8 varchar,field9 varchar);"
-kubectl exec -ti $running_seed -- cqlsh -e "$table_creation_command"
+kubectl exec -ti $temp_running_seed -- cqlsh $external_ip -e "$table_creation_command"
 echo "Table creation .............."
 echo "-----------------------------"
 echo "$table_creation_command"
@@ -84,3 +86,7 @@ echo "-----------------------------"
 ./bin/ycsb load cassandra-cql -p hosts=${external_ip} -p dataintegrity=true -p recordcount=\
 ${recordcount} -p insertorder=ordered -p fieldlength=20 -P workloads/workloadd \
 -s > workloada_load_res.txt
+
+# Delete cassandra sinle node set up
+cd ../LargeITCluster
+kubectl delete -f cassandra-svc-temp.yaml
