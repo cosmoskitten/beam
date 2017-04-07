@@ -16,30 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.io.hadoop;
+package org.apache.beam.runners.dataflow;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 
-/**
- * Templated Avro key output format.
- */
-public class TemplatedAvroKeyOutputFormat<T> extends AvroKeyOutputFormat<T>
-    implements ShardNameTemplateAware {
+/** A {@link DataflowRunner} marker class for creating a {@link PCollectionView}. */
+public class CreateDataflowView<ElemT, ViewT>
+    extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
+  public static <ElemT, ViewT> CreateDataflowView<ElemT, ViewT> of(PCollectionView<ViewT> view) {
+    return new CreateDataflowView<>(view);
+  }
 
-  @Override
-  public void checkOutputSpecs(JobContext job) {
-    // don't fail if the output already exists
+  private final PCollectionView<ViewT> view;
+
+  private CreateDataflowView(PCollectionView<ViewT> view) {
+    this.view = view;
   }
 
   @Override
-  protected OutputStream getAvroFileOutputStream(TaskAttemptContext context) throws IOException {
-    Path path = ShardNameTemplateHelper.getDefaultWorkFile(this, context);
-    return path.getFileSystem(context.getConfiguration()).create(path);
+  public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
+    return view;
   }
 
+  public PCollectionView<ViewT> getView() {
+    return view;
+  }
 }
