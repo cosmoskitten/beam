@@ -72,6 +72,16 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     return key;
   }
 
+  @Nullable
+  public Instant getWatermarkHold() {
+    for (State state : this.inMemoryState.values()) {
+      if (state instanceof WatermarkHoldState) {
+        return ((WatermarkHoldState<?>) state).read();
+      }
+    }
+    return null;
+  }
+
   /**
    * Interface common to all in-memory state cells. Includes ability to see whether a cell has been
    * cleared and the ability to create a clone of the contents.
