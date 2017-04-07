@@ -45,13 +45,15 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
+<<<<<<< HEAD
 import java.util.Map.Entry;
 <<<<<<< HEAD
 import java.util.NoSuchElementException;
 =======
 >>>>>>> HadoopInputFormatIO with junits
+=======
+>>>>>>> Moved populateDisplayData, added test for GetFractionConsumed for bad data, changed test for populateDisplayData
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -951,6 +953,7 @@ public class HadoopInputFormatIO {
 >>>>>>> HadoopInputFormatIO with junits
       }
     }
+<<<<<<< HEAD
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
@@ -1002,6 +1005,8 @@ public class HadoopInputFormatIO {
 =======
 >>>>>>> Resolved most of the code review comments.
     }
+=======
+>>>>>>> Moved populateDisplayData, added test for GetFractionConsumed for bad data, changed test for populateDisplayData
   }
 
   /**
@@ -1154,6 +1159,23 @@ public class HadoopInputFormatIO {
 
 =======
 >>>>>>> Modification in HadoopInputFormat and added unit test to test splitIntoBundles if get splits returns split list having null values.
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      Configuration hadoopConfig = getConfiguration().getHadoopConfiguration();
+      if (hadoopConfig != null) {
+        builder.addIfNotNull(DisplayData.item("mapreduce.job.inputformat.class",
+            hadoopConfig.get("mapreduce.job.inputformat.class"))
+            .withLabel("InputFormat Class"));
+        builder.addIfNotNull(DisplayData.item("key.class",
+            hadoopConfig.get("key.class"))
+            .withLabel("Key Class"));
+        builder.addIfNotNull(DisplayData.item("value.class",
+            hadoopConfig.get("value.class"))
+            .withLabel("Value Class"));
+      }
+    }
+
     @Override
     public List<BoundedSource<KV<K, V>>> splitIntoBundles(long desiredBundleSizeBytes,
         PipelineOptions options) throws Exception {
