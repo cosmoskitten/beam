@@ -20,12 +20,30 @@ cimport cython
 from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
-
 cdef type SideOutputValue, TimestampedValue
 
 
 cdef class Receiver(object):
   cpdef receive(self, WindowedValue windowed_value)
+
+
+cdef class Method(object):
+  cdef public object args
+  cdef public object defaults
+  cdef object _method_value
+
+
+cdef class DoFnSignature(object):
+  cdef public Method process_method
+  cdef public Method start_bundle_method
+  cdef public Method finish_bundle_method
+  cdef public object do_fn
+
+
+cdef class DoFnInvoker(object):
+  cpdef invoke_process(self, WindowedValue element, process_output_fn)
+  cpdef invoke_start_bundle(self, process_output_fn)
+  cpdef invoke_finish_bundle(self, process_output_fn)
 
 
 cdef class DoFnRunner(Receiver):
@@ -47,11 +65,9 @@ cdef class DoFnRunner(Receiver):
 
   cdef Receiver main_receivers
 
-  cpdef process(self, WindowedValue element)
-  cdef _dofn_invoker(self, WindowedValue element)
-  cdef _dofn_simple_invoker(self, WindowedValue element)
-  cdef _dofn_per_window_invoker(self, WindowedValue element)
+  cdef DoFnInvoker do_fn_invoker
 
+  cpdef process(self, WindowedValue element)
   @cython.locals(windowed_value=WindowedValue)
   cpdef _process_outputs(self, WindowedValue element, results)
 
