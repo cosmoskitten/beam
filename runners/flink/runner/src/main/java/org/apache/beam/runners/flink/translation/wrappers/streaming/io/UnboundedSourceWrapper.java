@@ -24,8 +24,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedReadDeduplicator.CachedIdDeduplicator;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedReadDeduplicator.NeverDeduplicator;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -64,6 +68,8 @@ public class UnboundedSourceWrapper<
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
+  public static final String DEDUPLICATE_OPERATOR_STATE_NAME = "deduplicate";
+
   /**
    * Keep the options so that we can initialize the localReaders.
    */
@@ -92,6 +98,8 @@ public class UnboundedSourceWrapper<
    * emitting watermarks.
    */
   private transient List<UnboundedSource.UnboundedReader<OutputT>> localReaders;
+
+  private transient List<UnboundedReadDeduplicator> deduplicators;
 
   /**
    * Flag to indicate whether the source is running.
@@ -124,10 +132,19 @@ public class UnboundedSourceWrapper<
   private transient ListState<KV<? extends
       UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>> stateForCheckpoint;
 
+  private transient ListState<List<byte[]>> deduplicateState;
+
   /**
    * false if checkpointCoder is null or no restore state by starting first.
    */
-  private transient boolean isRestored = false;
+  private transient boolean isCheckpointRestored = false;
+
+  /**
+   * false if not requiresDeduping or no restore state by starting first.
+   */
+  private transient boolean isDeduplicateRestored = false;
+
+  private final boolean requiresDeduping;
 
   @SuppressWarnings("unchecked")
   public UnboundedSourceWrapper(
@@ -136,9 +153,7 @@ public class UnboundedSourceWrapper<
       int parallelism) throws Exception {
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
 
-    if (source.requiresDeduping()) {
-      LOG.warn("Source {} requires deduping but Flink runner doesn't support this yet.", source);
-    }
+    requiresDeduping = source.requiresDeduping();
 
     Coder<CheckpointMarkT> checkpointMarkCoder = source.getCheckpointMarkCoder();
     if (checkpointMarkCoder == null) {
@@ -173,17 +188,20 @@ public class UnboundedSourceWrapper<
 
     localSplitSources = new ArrayList<>();
     localReaders = new ArrayList<>();
+    deduplicators = new ArrayList<>();
 
     pendingCheckpoints = new LinkedHashMap<>();
 
-    if (isRestored) {
+    if (isCheckpointRestored) {
+
       // restore the splitSources from the checkpoint to ensure consistent ordering
-      for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored:
+      for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored :
           stateForCheckpoint.get()) {
         localSplitSources.add(restored.getKey());
         localReaders.add(restored.getKey().createReader(
             serializedOptions.getPipelineOptions(), restored.getValue()));
       }
+
     } else {
       // initialize localReaders and localSources from scratch
       for (int i = 0; i < splitSources.size(); i++) {
@@ -194,6 +212,24 @@ public class UnboundedSourceWrapper<
               source.createReader(serializedOptions.getPipelineOptions(), null);
           localSplitSources.add(source);
           localReaders.add(reader);
+        }
+      }
+
+    }
+
+    // restore deduplication ids.
+    if (isDeduplicateRestored && requiresDeduping) {
+      for (List<byte[]> recordIds : deduplicateState.get()) {
+        deduplicators.add(CachedIdDeduplicator.create(recordIds));
+      }
+    } else {
+      if (requiresDeduping) {
+        for (int i = 0; i < localReaders.size(); i++) {
+          deduplicators.add(CachedIdDeduplicator.create());
+        }
+      } else {
+        for (int i = 0; i < localReaders.size(); i++) {
+          deduplicators.add(NeverDeduplicator.create());
         }
       }
     }
@@ -240,7 +276,7 @@ public class UnboundedSourceWrapper<
 
       boolean dataAvailable = reader.start();
       if (dataAvailable) {
-        emitElement(ctx, reader);
+        emitElement(ctx, reader, deduplicators.get(0));
       }
 
       setNextWatermarkTimer(this.runtimeContext);
@@ -249,7 +285,7 @@ public class UnboundedSourceWrapper<
         dataAvailable = reader.advance();
 
         if (dataAvailable)  {
-          emitElement(ctx, reader);
+          emitElement(ctx, reader, deduplicators.get(0));
         } else {
           Thread.sleep(50);
         }
@@ -262,10 +298,11 @@ public class UnboundedSourceWrapper<
       int currentReader = 0;
 
       // start each reader and emit data if immediately available
-      for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
+      for (int i = 0; i < numReaders; i++) {
+        UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
         boolean dataAvailable = reader.start();
         if (dataAvailable) {
-          emitElement(ctx, reader);
+          emitElement(ctx, reader, deduplicators.get(i));
         }
       }
 
@@ -277,7 +314,7 @@ public class UnboundedSourceWrapper<
         boolean dataAvailable = reader.advance();
 
         if (dataAvailable) {
-          emitElement(ctx, reader);
+          emitElement(ctx, reader, deduplicators.get(currentReader));
           hadData = true;
         }
 
@@ -297,17 +334,20 @@ public class UnboundedSourceWrapper<
    */
   private void emitElement(
       SourceContext<WindowedValue<OutputT>> ctx,
-      UnboundedSource.UnboundedReader<OutputT> reader) {
+      UnboundedSource.UnboundedReader<OutputT> reader, UnboundedReadDeduplicator deduplicator) {
     // make sure that reader state update and element emission are atomic
     // with respect to snapshots
     synchronized (ctx.getCheckpointLock()) {
 
-      OutputT item = reader.getCurrent();
-      Instant timestamp = reader.getCurrentTimestamp();
+      if (deduplicator.shouldOutput(reader.getCurrentRecordId())) {
+        OutputT item = reader.getCurrent();
+        Instant timestamp = reader.getCurrentTimestamp();
 
-      WindowedValue<OutputT> windowedValue =
-          WindowedValue.of(item, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
-      ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
+        WindowedValue<OutputT> windowedValue =
+            WindowedValue.of(item, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+        ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
+      }
+
     }
   }
 
@@ -341,64 +381,79 @@ public class UnboundedSourceWrapper<
       LOG.debug("snapshotState() called on closed source");
     } else {
 
-      if (checkpointCoder == null) {
-        // no checkpoint coder available in this source
-        return;
+      if (checkpointCoder != null) {
+        stateForCheckpoint.clear();
+
+        long checkpointId = functionSnapshotContext.getCheckpointId();
+
+        // we checkpoint the sources along with the CheckpointMarkT to ensure
+        // than we have a correct mapping of checkpoints to sources when
+        // restoring
+        List<CheckpointMarkT> checkpointMarks = new ArrayList<>(localSplitSources.size());
+
+        for (int i = 0; i < localSplitSources.size(); i++) {
+          UnboundedSource<OutputT, CheckpointMarkT> source = localSplitSources.get(i);
+          UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
+
+          @SuppressWarnings("unchecked")
+          CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
+          checkpointMarks.add(mark);
+          KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv =
+              KV.of(source, mark);
+          stateForCheckpoint.add(kv);
+        }
+
+        // cleanup old pending checkpoints and add new checkpoint
+        int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
+        if (diff >= 0) {
+          for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator();
+               diff >= 0;
+               diff--) {
+            iterator.next();
+            iterator.remove();
+          }
+        }
+        pendingCheckpoints.put(checkpointId, checkpointMarks);
       }
 
-      stateForCheckpoint.clear();
-
-      long checkpointId = functionSnapshotContext.getCheckpointId();
-
-      // we checkpoint the sources along with the CheckpointMarkT to ensure
-      // than we have a correct mapping of checkpoints to sources when
-      // restoring
-      List<CheckpointMarkT> checkpointMarks = new ArrayList<>(localSplitSources.size());
-
-      for (int i = 0; i < localSplitSources.size(); i++) {
-        UnboundedSource<OutputT, CheckpointMarkT> source = localSplitSources.get(i);
-        UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
-
-        @SuppressWarnings("unchecked")
-        CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
-        checkpointMarks.add(mark);
-        KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv =
-            KV.of(source, mark);
-        stateForCheckpoint.add(kv);
-      }
-
-      // cleanup old pending checkpoints and add new checkpoint
-      int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
-      if (diff >= 0) {
-        for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator();
-             diff >= 0;
-             diff--) {
-          iterator.next();
-          iterator.remove();
+      if (requiresDeduping) {
+        deduplicateState.clear();
+        for (UnboundedReadDeduplicator deduplicator : deduplicators) {
+          deduplicateState.add(((CachedIdDeduplicator) deduplicator).getAllRecordIds());
         }
       }
-      pendingCheckpoints.put(checkpointId, checkpointMarks);
 
     }
   }
 
   @Override
   public void initializeState(FunctionInitializationContext context) throws Exception {
-    if (checkpointCoder == null) {
-      // no checkpoint coder available in this source
-      return;
+    if (checkpointCoder != null) {
+      OperatorStateStore stateStore = context.getOperatorStateStore();
+      CoderTypeInformation<
+          KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>>
+          typeInformation = (CoderTypeInformation) new CoderTypeInformation<>(checkpointCoder);
+      stateForCheckpoint = stateStore.getOperatorState(
+          new ListStateDescriptor<>(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
+              typeInformation.createSerializer(new ExecutionConfig())));
+      if (context.isRestored()) {
+        isCheckpointRestored = true;
+      }
     }
 
-    OperatorStateStore stateStore = context.getOperatorStateStore();
-    CoderTypeInformation<
-        KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>>
-        typeInformation = (CoderTypeInformation) new CoderTypeInformation<>(checkpointCoder);
-    stateForCheckpoint = stateStore.getOperatorState(
-        new ListStateDescriptor<>(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
-            typeInformation.createSerializer(new ExecutionConfig())));
+    if (requiresDeduping) {
+      OperatorStateStore stateStore = context.getOperatorStateStore();
+      CoderTypeInformation<List<byte[]>>
+          typeInformation = new CoderTypeInformation<>(ListCoder.of(ByteArrayCoder.of()));
+      deduplicateState = stateStore.getOperatorState(
+          new ListStateDescriptor<>(DEDUPLICATE_OPERATOR_STATE_NAME,
+              typeInformation.createSerializer(new ExecutionConfig())));
+      if (context.isRestored()) {
+        isDeduplicateRestored = true;
+      }
+    }
 
     if (context.isRestored()) {
-      isRestored = true;
       LOG.info("Having restore state in the UnbounedSourceWrapper.");
     } else {
       LOG.info("No restore state for UnbounedSourceWrapper.");

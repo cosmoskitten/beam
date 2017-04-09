@@ -54,6 +54,7 @@ public class TestCountingSource
   private final boolean dedup;
   private final boolean throwOnFirstSnapshot;
   private final boolean allowSplitting;
+  private final boolean nullCheckpointCoder;
 
   /**
    * We only allow an exception to be thrown from getCheckpointMark
@@ -67,36 +68,46 @@ public class TestCountingSource
   }
 
   public TestCountingSource(int numMessagesPerShard) {
-    this(numMessagesPerShard, 0, false, false, true);
+    this(numMessagesPerShard, 0, false, false, true, false);
   }
 
   public TestCountingSource withDedup() {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, allowSplitting,
+        nullCheckpointCoder);
+  }
+
+  public TestCountingSource withNullCheckpointCoder() {
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, allowSplitting, true);
   }
 
   private TestCountingSource withShardNumber(int shardNumber) {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, allowSplitting,
+        nullCheckpointCoder);
   }
 
   public TestCountingSource withThrowOnFirstSnapshot(boolean throwOnFirstSnapshot) {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, allowSplitting,
+        nullCheckpointCoder);
   }
 
   public TestCountingSource withoutSplitting() {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, false);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, false, nullCheckpointCoder);
   }
 
   private TestCountingSource(int numMessagesPerShard, int shardNumber, boolean dedup,
-                             boolean throwOnFirstSnapshot, boolean allowSplitting) {
+                             boolean throwOnFirstSnapshot, boolean allowSplitting,
+                             boolean nullCheckpointCoder) {
     this.numMessagesPerShard = numMessagesPerShard;
     this.shardNumber = shardNumber;
     this.dedup = dedup;
     this.throwOnFirstSnapshot = throwOnFirstSnapshot;
     this.allowSplitting = allowSplitting;
+    this.nullCheckpointCoder = nullCheckpointCoder;
   }
 
   public int getShardNumber() {
@@ -131,6 +142,9 @@ public class TestCountingSource
 
   @Override
   public Coder<CounterMark> getCheckpointMarkCoder() {
+    if (nullCheckpointCoder) {
+      return null;
+    }
     return DelegateCoder.of(
         VarIntCoder.of(),
         new DelegateCoder.CodingFunction<CounterMark, Integer>() {

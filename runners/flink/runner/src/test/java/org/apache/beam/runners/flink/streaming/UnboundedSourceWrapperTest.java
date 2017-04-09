@@ -31,7 +31,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -336,12 +335,7 @@ public class UnboundedSourceWrapperTest {
       final int numElements = 20;
       PipelineOptions options = PipelineOptionsFactory.create();
 
-      TestCountingSource source = new TestCountingSource(numElements) {
-        @Override
-        public Coder<CounterMark> getCheckpointMarkCoder() {
-          return null;
-        }
-      };
+      TestCountingSource source = new TestCountingSource(numElements).withNullCheckpointCoder();
       UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
           new UnboundedSourceWrapper<>(options, source, numSplits);
 
@@ -380,6 +374,160 @@ public class UnboundedSourceWrapperTest {
       restoredFlinkWrapper.initializeState(initializationContext);
 
       assertEquals(Math.max(1, numSplits / numTasks), flinkWrapper.getLocalSplitSources().size());
+
+    }
+
+    @Test
+    public void testDeduplicate() throws Exception {
+      final int numElements = 20;
+      final Object checkpointLock = new Object();
+      PipelineOptions options = PipelineOptionsFactory.create();
+
+      // this source will emit exactly NUM_ELEMENTS across all parallel readers,
+      // afterwards it will stall. We check whether we also receive NUM_ELEMENTS
+      // elements later.
+      TestCountingSource source =
+          new TestCountingSource(numElements).withNullCheckpointCoder().withDedup();
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
+          new UnboundedSourceWrapper<>(options, source, numSplits);
+
+      StreamSource<
+          WindowedValue<KV<Integer, Integer>>,
+          UnboundedSourceWrapper<
+              KV<Integer, Integer>,
+              TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
+
+      OperatorStateStore backend = mock(OperatorStateStore.class);
+
+      TestingListState<List<byte[]>> deduplicateState = new TestingListState<>();
+
+      when(backend.getOperatorState(Matchers.any(ListStateDescriptor.class)))
+          .thenReturn(deduplicateState);
+
+      StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+
+      when(initializationContext.getOperatorStateStore()).thenReturn(backend);
+      when(initializationContext.isRestored()).thenReturn(false, true);
+
+      flinkWrapper.initializeState(initializationContext);
+
+      setupSourceOperator(sourceOperator, numTasks);
+
+      final Set<KV<Integer, Integer>> emittedElements = new HashSet<>();
+
+      boolean readFirstBatchOfElements = false;
+
+      try {
+        sourceOperator.open();
+        sourceOperator.run(checkpointLock,
+            new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
+              private int count = 0;
+
+              @Override
+              public void emitWatermark(Watermark watermark) {
+              }
+
+              @Override
+              public void emitLatencyMarker(LatencyMarker latencyMarker) {
+              }
+
+              @Override
+              public void collect(
+                  StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
+
+                emittedElements.add(windowedValueStreamRecord.getValue().getValue());
+                count++;
+                if (count >= numElements / 2) {
+                  throw new SuccessException();
+                }
+              }
+
+              @Override
+              public void close() {
+
+              }
+            });
+      } catch (SuccessException e) {
+        // success
+        readFirstBatchOfElements = true;
+      }
+
+      assertTrue("Did not successfully read first batch of elements.", readFirstBatchOfElements);
+
+      // draw a snapshot
+      flinkWrapper.snapshotState(new StateSnapshotContextSynchronousImpl(0, 0));
+
+      // test snapshot deduplicate
+      assertEquals(flinkWrapper.getLocalSplitSources().size(),
+          deduplicateState.getList().size());
+
+      // create a completely new source but restore from the snapshot
+      // CheckpointMarkCoder is null, it will init again.
+      // but it will restore the deduplication ids.
+      TestCountingSource restoredSource =
+          new TestCountingSource(numElements).withNullCheckpointCoder().withDedup();
+      UnboundedSourceWrapper<
+          KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =
+          new UnboundedSourceWrapper<>(options, restoredSource, numSplits);
+
+      assertEquals(numSplits, restoredFlinkWrapper.getSplitSources().size());
+
+      StreamSource<
+          WindowedValue<KV<Integer, Integer>>,
+          UnboundedSourceWrapper<
+              KV<Integer, Integer>,
+              TestCountingSource.CounterMark>> restoredSourceOperator =
+          new StreamSource<>(restoredFlinkWrapper);
+
+      setupSourceOperator(restoredSourceOperator, numTasks);
+
+      // restore snapshot
+      restoredFlinkWrapper.initializeState(initializationContext);
+
+      boolean readSecondBatchOfElements = false;
+
+      // run again and verify that we see the other elements
+      try {
+        restoredSourceOperator.open();
+        restoredSourceOperator.run(checkpointLock,
+            new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
+              private int count = 0;
+
+              @Override
+              public void emitWatermark(Watermark watermark) {
+              }
+
+              @Override
+              public void emitLatencyMarker(LatencyMarker latencyMarker) {
+              }
+
+              @Override
+              public void collect(
+                  StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
+                emittedElements.add(windowedValueStreamRecord.getValue().getValue());
+                count++;
+                if (count >= numElements / 2) {
+                  throw new SuccessException();
+                }
+              }
+
+              @Override
+              public void close() {
+
+              }
+            });
+      } catch (SuccessException e) {
+        // success
+        readSecondBatchOfElements = true;
+      }
+
+      assertEquals(Math.max(1, numSplits / numTasks), flinkWrapper.getLocalSplitSources().size());
+
+      assertTrue("Did not successfully read second batch of elements.", readSecondBatchOfElements);
+
+      // verify that we saw all NUM_ELEMENTS elements
+      // Duplicate data have been de-duplicated.
+      assertTrue(emittedElements.size() == numElements);
 
     }
 
