@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.metrics;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import org.apache.beam.sdk.metrics.CounterData;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeData;
@@ -107,15 +108,15 @@ public class SparkMetricResults extends MetricResults {
         }
       };
 
-  private static final Function<MetricUpdate<Long>, MetricResult<Long>>
+  private static final Function<MetricUpdate<CounterData>, MetricResult<Long>>
       TO_COUNTER_RESULT =
-      new Function<MetricUpdate<Long>, MetricResult<Long>>() {
+      new Function<MetricUpdate<CounterData>, MetricResult<Long>>() {
         @Override
-        public MetricResult<Long> apply(MetricUpdate<Long> metricResult) {
+        public MetricResult<Long> apply(MetricUpdate<CounterData> metricResult) {
           if (metricResult != null) {
             MetricKey key = metricResult.getKey();
             return new SparkMetricResult<>(key.metricName(), key.stepName(),
-                metricResult.getUpdate());
+                metricResult.getUpdate().extractResult());
           } else {
             return null;
           }
