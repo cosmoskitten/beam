@@ -245,11 +245,9 @@ public class JdbcIO {
       }
     }
 
-    Connection getConnection() throws Exception {
+    DataSource buildDatasource() throws Exception{
       if (getDataSource() != null) {
-        return (getUsername() != null)
-            ? getDataSource().getConnection(getUsername(), getPassword())
-            : getDataSource().getConnection();
+        return getDataSource();
       } else {
         BasicDataSource basicDataSource = new BasicDataSource();
         basicDataSource.setDriverClassName(getDriverClassName());
@@ -259,9 +257,10 @@ public class JdbcIO {
         if (getConnectionProperties() != null) {
           basicDataSource.setConnectionProperties(getConnectionProperties());
         }
-        return basicDataSource.getConnection();
+        return basicDataSource;
       }
     }
+
   }
 
   /**
@@ -368,6 +367,7 @@ public class JdbcIO {
     /** A {@link DoFn} executing the SQL query to read from the database. */
     static class ReadFn<T> extends DoFn<String, T> {
       private JdbcIO.Read<T> spec;
+      private DataSource dataSource;
       private Connection connection;
 
       private ReadFn(Read<T> spec) {
@@ -376,7 +376,11 @@ public class JdbcIO {
 
       @Setup
       public void setup() throws Exception {
-        connection = spec.getDataSourceConfiguration().getConnection();
+        dataSource = spec.getDataSourceConfiguration().buildDatasource();
+        connection =  (spec.getDataSourceConfiguration().getUsername() != null)
+            ? dataSource.getConnection(spec.getDataSourceConfiguration().getUsername(),
+                spec.getDataSourceConfiguration().getPassword())
+            : dataSource.getConnection();
       }
 
       @ProcessElement
@@ -396,8 +400,9 @@ public class JdbcIO {
 
       @Teardown
       public void teardown() throws Exception {
-        if (connection != null) {
-          connection.close();
+        connection.close();
+        if (dataSource instanceof BasicDataSource) {
+          ((BasicDataSource) dataSource).close();
         }
       }
     }
@@ -462,6 +467,7 @@ public class JdbcIO {
 
       private final Write<T> spec;
 
+      private DataSource dataSource;
       private Connection connection;
       private PreparedStatement preparedStatement;
       private int batchCount;
@@ -472,7 +478,11 @@ public class JdbcIO {
 
       @Setup
       public void setup() throws Exception {
-        connection = spec.getDataSourceConfiguration().getConnection();
+        dataSource = spec.getDataSourceConfiguration().buildDatasource();
+        connection =  (spec.getDataSourceConfiguration().getUsername() != null)
+            ? dataSource.getConnection(spec.getDataSourceConfiguration().getUsername(),
+                spec.getDataSourceConfiguration().getPassword())
+            : dataSource.getConnection();
         connection.setAutoCommit(false);
         preparedStatement = connection.prepareStatement(spec.getStatement());
       }
@@ -515,6 +525,9 @@ public class JdbcIO {
         } finally {
           if (connection != null) {
             connection.close();
+          }
+          if (dataSource instanceof BasicDataSource) {
+            ((BasicDataSource) dataSource).close();
           }
         }
       }
