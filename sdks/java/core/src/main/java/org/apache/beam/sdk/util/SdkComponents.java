@@ -64,10 +64,7 @@ public class SdkComponents {
     if (existing != null) {
       return existing;
     }
-    String name = pTransform.getFullName();
-    if (name.isEmpty()) {
-      name = uniqify("unnamed_ptransform", transformIds.values());
-    }
+    String name = String.format("%s-%s", PTransform.class.getSimpleName(), transformIds.size());
     transformIds.put(pTransform, name);
     return name;
   }
