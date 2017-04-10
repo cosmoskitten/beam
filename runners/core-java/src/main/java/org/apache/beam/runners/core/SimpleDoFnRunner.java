@@ -843,12 +843,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public void setForNowAlign(Duration size, Duration durationFromNow) {
-      Instant now = getCurrentTime();
-      long millisSinceStart = now.plus(durationFromNow).getMillis() % size.getMillis();
-      Instant target = millisSinceStart == 0 ? now : now.plus(size).minus(millisSinceStart);
-      target = minTargetAndGcTime(target);
-      setUnderlyingTimer(target);
+    public AlignTimer align(Duration period) {
+      return new TimerInternalsAlignTimer(period);
     }
 
     /**
@@ -914,5 +910,32 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
               String.format("Timer created for unknown time domain %s", spec.getTimeDomain()));
       }
     }
+
+    public class TimerInternalsAlignTimer implements AlignTimer {
+
+      private Duration period;
+      private Duration offset;
+
+      TimerInternalsAlignTimer(Duration period) {
+        this.period = period;
+        this.offset = Duration.ZERO;
+      }
+
+      @Override
+      public void setForNow() {
+        Instant now = getCurrentTime();
+        long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
+        Instant target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
+        target = minTargetAndGcTime(target);
+        setUnderlyingTimer(target);
+      }
+
+      @Override
+      public AlignTimer offset(Duration offset) {
+        this.offset = offset;
+        return this;
+      }
+    }
+
   }
 }

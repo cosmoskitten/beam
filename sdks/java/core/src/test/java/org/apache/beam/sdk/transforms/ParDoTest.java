@@ -2029,7 +2029,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowAlign(Duration.standardSeconds(1), Duration.millis(1));
+            timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setForNow();
             context.output(KV.of(3, context.timestamp()));
           }
 
@@ -2332,7 +2332,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowAlign(Duration.standardSeconds(1), Duration.millis(1));
+            timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setForNow();
             context.output(KV.of(3, context.timestamp()));
           }
 
@@ -2369,7 +2369,7 @@ public class ParDoTest implements Serializable {
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
             // This aligned time will exceed the END_OF_GLOBAL_WINDOW
-            timer.setForNowAlign(Duration.standardDays(1), Duration.millis(0));
+            timer.align(Duration.standardDays(1)).setForNow();
             context.output(KV.of(3, context.timestamp()));
           }
 

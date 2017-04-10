@@ -60,18 +60,35 @@ public interface Timer {
   void setForNowPlus(Duration durationFromNow);
 
   /**
-   * Sets or resets the time aligned to the smallest multiple of {@code size} since the
-   * {@code durationFromNow} greater than the current time in the timer's {@link TimeDomain} at
-   * which this it should fire. If the timer was already set, resets it to the new requested time.
-   *
-   * <p>For {@link TimeDomain#EVENT_TIME}, to prevent more than window GC Time, it provide a simple
-   * utility to take min(time to set, GC Time of window).
+   * return a {@link AlignTimer} that aligns a timestamp to the next boundary of {@code period}.
    */
-  void setForNowAlign(Duration size, Duration durationFromNow);
+  AlignTimer align(Duration period);
 
   /**
    * Unsets this timer. It is permitted to {@code cancel()} whether or not the timer was actually
    * set.
    */
   void cancel();
+
+  /**
+   * Sets or resets the time aligned to the smallest multiple of {@code period} since the
+   * {@code offset} greater than the current time in the timer's {@link TimeDomain} at
+   * which this it should fire. If the timer was already set, resets it to the new requested time.
+   *
+   * <p>For {@link TimeDomain#EVENT_TIME}, to prevent more than window GC Time, it provide a simple
+   * utility to take min(time to set, GC Time of window).
+   */
+  interface AlignTimer {
+
+    /**
+     * Sets or resets the time relative to the current time in the timer's {@link TimeDomain}.
+     */
+    void setForNow();
+
+    /**
+     * Set the align offset.
+     */
+    AlignTimer offset(Duration offset);
+  }
+
 }
