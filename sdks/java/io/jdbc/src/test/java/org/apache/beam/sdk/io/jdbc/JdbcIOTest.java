@@ -126,7 +126,7 @@ public class JdbcIOTest implements Serializable {
   @Test
   public void testDataSourceConfigurationDataSource() throws Exception {
     JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(dataSource);
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -136,7 +136,7 @@ public class JdbcIOTest implements Serializable {
     JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
         "org.apache.derby.jdbc.ClientDriver",
         "jdbc:derby://localhost:" + port + "/target/beam");
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -148,7 +148,7 @@ public class JdbcIOTest implements Serializable {
         "jdbc:derby://localhost:" + port + "/target/beam")
         .withUsername("sa")
         .withPassword("sa");
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -160,7 +160,7 @@ public class JdbcIOTest implements Serializable {
         "jdbc:derby://localhost:" + port + "/target/beam")
         .withUsername("sa")
         .withPassword(null);
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -172,7 +172,7 @@ public class JdbcIOTest implements Serializable {
         "jdbc:derby://localhost:" + port + "/target/beam")
         .withUsername(null)
         .withPassword(null);
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -266,6 +266,7 @@ public class JdbcIOTest implements Serializable {
               .withStatement(String.format("insert into %s values(?, ?)", tableName))
               .withPreparedStatementSetter(
                   new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
+                @Override
                 public void setParameters(
                     KV<Integer, String> element, PreparedStatement statement) throws Exception {
                   statement.setInt(1, element.getKey());
@@ -303,6 +304,7 @@ public class JdbcIOTest implements Serializable {
                 "jdbc:derby://localhost:" + port + "/target/beam"))
             .withStatement("insert into BEAM values(?, ?)")
             .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
+              @Override
               public void setParameters(KV<Integer, String> element, PreparedStatement statement)
                   throws Exception {
                 statement.setInt(1, element.getKey());
