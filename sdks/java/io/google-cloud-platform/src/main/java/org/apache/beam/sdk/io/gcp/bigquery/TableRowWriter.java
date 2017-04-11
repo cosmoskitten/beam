@@ -55,6 +55,7 @@ class TableRowWriter {
       this.byteSize = byteSize;
     }
   }
+
   TableRowWriter(String basename) {
       this.tempFilePrefix = basename;
   }

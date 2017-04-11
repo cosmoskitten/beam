@@ -68,6 +68,9 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
    */
   public static class ResultCoder extends AtomicCoder<Result> {
     private static final ResultCoder INSTANCE = new ResultCoder();
+    private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
+    private static final VarLongCoder longCoder = VarLongCoder.of();
+    private static final TableDestinationCoder tableDestinationCoder = TableDestinationCoder.of();
 
     public static ResultCoder of() {
       return INSTANCE;
@@ -87,18 +90,15 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
     @Override
     public Result decode(InputStream inStream, Context context)
         throws IOException {
-      return new Result(stringCoder.decode(inStream, context.nested()),
-          longCoder.decode(inStream, context.nested()),
-          tableDestinationCoder.decode(inStream, context.nested()));
+      String filename = stringCoder.decode(inStream, context.nested());
+      long fileByteSize = longCoder.decode(inStream, context.nested());
+      TableDestination tableDestination = tableDestinationCoder.decode(inStream, context.nested());
+      return new Result(filename, fileByteSize, tableDestination);
     }
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
     }
-
-    StringUtf8Coder stringCoder = StringUtf8Coder.of();
-    VarLongCoder longCoder = VarLongCoder.of();
-    TableDestinationCoder tableDestinationCoder = TableDestinationCoder.of();
   }
 
   WriteBundlesToFiles(String tempFilePrefix) {

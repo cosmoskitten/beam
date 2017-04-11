@@ -840,7 +840,7 @@ public class BigQueryIOTest implements Serializable {
             BigQueryIO.writeTableRows().to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -892,7 +892,7 @@ public class BigQueryIOTest implements Serializable {
         null,
         CreateDisposition.CREATE_IF_NEEDED,
         WriteDisposition.WRITE_EMPTY,
-        null,
+        "",
         false);
   }
 
@@ -903,7 +903,7 @@ public class BigQueryIOTest implements Serializable {
     checkWriteObject(
         write, null, "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY,
-        null);
+        "");
   }
 
   @Test
@@ -915,7 +915,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to(table);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -925,7 +925,7 @@ public class BigQueryIOTest implements Serializable {
         BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable").withSchema(schema);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -935,7 +935,7 @@ public class BigQueryIOTest implements Serializable {
         .withCreateDisposition(CreateDisposition.CREATE_NEVER);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_NEVER, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_NEVER, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -945,7 +945,7 @@ public class BigQueryIOTest implements Serializable {
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -955,7 +955,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_TRUNCATE, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_TRUNCATE, "");
   }
 
   @Test
@@ -965,7 +965,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND, "");
   }
 
   @Test
@@ -975,7 +975,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_EMPTY);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -1698,8 +1698,7 @@ public class BigQueryIOTest implements Serializable {
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testWriteTables");
 
-    List<KV<ShardedKey<TableDestination>, Iterable<List<String>>>> partitions =
-        Lists.newArrayList();
+    List<KV<ShardedKey<TableDestination>, List<String>>> partitions = Lists.newArrayList();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.table%05d", i);
       TableDestination tableDestination = new TableDestination(tableName, tableName);
@@ -1720,7 +1719,7 @@ public class BigQueryIOTest implements Serializable {
           filesPerPartition.add(filename);
         }
         partitions.add(KV.of(ShardedKey.of(tableDestination, j),
-            (Iterable<List<String>>) Collections.singleton(filesPerPartition)));
+            filesPerPartition));
 
         List<String> expectedTables = expectedTempTables.get(tableDestination);
         if (expectedTables == null) {
@@ -1747,10 +1746,10 @@ public class BigQueryIOTest implements Serializable {
         CreateDisposition.CREATE_IF_NEEDED,
         null);
 
-    DoFnTester<KV<ShardedKey<TableDestination>, Iterable<List<String>>>,
+    DoFnTester<KV<ShardedKey<TableDestination>, List<String>>,
         KV<TableDestination, String>> tester = DoFnTester.of(writeTables);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
-    for (KV<ShardedKey<TableDestination>, Iterable<List<String>>> partition : partitions) {
+    for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
       tester.processElement(partition);
     }
 
