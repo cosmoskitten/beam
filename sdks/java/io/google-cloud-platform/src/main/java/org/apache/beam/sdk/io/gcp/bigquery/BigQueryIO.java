@@ -667,6 +667,7 @@ public class BigQueryIO {
   public static <T> Write<T> write() {
     return new AutoValue_BigQueryIO_Write.Builder<T>()
         .setValidate(true)
+        .setTableDescription("")
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
@@ -707,7 +708,8 @@ public class BigQueryIO {
     @Nullable abstract ValueProvider<String> getJsonSchema();
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
-    @Nullable abstract String getTableDescription();
+    /** Table description. Default is empty. */
+    abstract String getTableDescription();
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
     abstract BigQueryServices getBigQueryServices();
@@ -822,9 +824,6 @@ public class BigQueryIO {
     public Write<T> to(ValueProvider<String> tableSpec) {
       ensureToNotCalledYet();
       String tableDescription = getTableDescription();
-      if (tableDescription == null) {
-        tableDescription = "";
-      }
       return toBuilder()
           .setJsonTableRef(
               NestedValueProvider.of(
@@ -928,7 +927,7 @@ public class BigQueryIO {
     public void validate(PCollection<T> input) {
       BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
-      // Exactly one of the table and table reference can be configured.
+      // We must have a destination to write to!
       checkState(getTableFunction() != null,
           "must set the table reference of a BigQueryIO.Write transform");
 
@@ -1030,8 +1029,8 @@ public class BigQueryIO {
             .withLabel("Table WriteDisposition"))
           .addIfNotDefault(DisplayData.item("validation", getValidate())
             .withLabel("Validation Enabled"), true)
-          .addIfNotNull(DisplayData.item("tableDescription", getTableDescription())
-            .withLabel("Table Description"));
+          .addIfNotDefault(DisplayData.item("tableDescription", getTableDescription())
+            .withLabel("Table Description"), "");
     }
 
     /** Returns the table schema. */

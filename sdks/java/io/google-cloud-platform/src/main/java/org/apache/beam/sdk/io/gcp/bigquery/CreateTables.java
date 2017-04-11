@@ -21,10 +21,12 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -35,7 +37,7 @@ import org.apache.beam.sdk.values.KV;
 
 /**
  * Creates any tables needed before performing streaming writes to the tables. This is a
- * side-effect {l@ink DoFn}, and returns the original collection unchanged.
+ * side-effect {@link DoFn}, and returns the original collection unchanged.
  */
 public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
     KV<TableDestination, TableRow>> {
@@ -44,9 +46,10 @@ public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
   private final SerializableFunction<TableDestination, TableSchema> schemaFunction;
 
 
-  /** The list of tables created so far, so we don't try the creation
-   each time.
-   * TODO: We should put a bound on memory usage of this. Use guava cache instead.
+  /**
+   * The list of tables created so far, so we don't try the creation each time.
+   *
+   * <p>TODO: We should put a bound on memory usage of this. Use guava cache instead.
    */
   private static Set<String> createdTables =
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
@@ -102,6 +105,10 @@ public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
     }
   }
 
+  /**
+   * This method is used by the testing fake to clear static state.
+   */
+  @VisibleForTesting
   static void clearCreatedTables() {
     synchronized (createdTables) {
       createdTables.clear();
