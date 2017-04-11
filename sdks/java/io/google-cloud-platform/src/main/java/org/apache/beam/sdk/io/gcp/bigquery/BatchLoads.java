@@ -34,7 +34,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -163,10 +163,10 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
     // specified in multiPartitionsTag.
     PCollection<KV<TableDestination, String>> tempTables = partitions.get(multiPartitionsTag)
         .setCoder(partitionsCoder)
-        // What's this GroupByKey for? Is this so we have a deterministic temp tables? If so, maybe
-        // Reshuffle is better here.
-        .apply("MultiPartitionsGroupByKey",
-            GroupByKey.<ShardedKey<TableDestination>, List<String>>create())
+        // Reshuffle will distribute this among multiple workers, and also guard against
+        // reexecution of the WritePartitions step once WriteTables has begun.
+        .apply("MultiPartitionsReshuffle",
+            Reshuffle.<ShardedKey<TableDestination>, List<String>>of())
         .apply("MultiPartitionsWriteTables", ParDo.of(new WriteTables(
             false,
             write.getBigQueryServices(),
@@ -194,8 +194,10 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
     // Write single partition to final table
     partitions.get(singlePartitionTag)
         .setCoder(partitionsCoder)
-        .apply("SinglePartitionGroupByKey",
-            GroupByKey.<ShardedKey<TableDestination>, List<String>>create())
+        // Reshuffle will distribute this among multiple workers, and also guard against
+        // reexecution of the WritePartitions step once WriteTables has begun.
+        .apply("SinglePartitionsReshuffle",
+            Reshuffle.<ShardedKey<TableDestination>, List<String>>of())
         .apply("SinglePartitionWriteTables", ParDo.of(new WriteTables(
             true,
             write.getBigQueryServices(),
