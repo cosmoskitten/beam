@@ -582,7 +582,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           options.getTemplateLocation(), options.getDataflowJobFile());
       checkArgument(fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
           String.format(
-              "Location must be local or on Cloud Storage, got {}.", fileLocation));
+              "Location must be local or on Cloud Storage, got %s.", fileLocation));
       String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
       try (PrintWriter printWriter = new PrintWriter(
           Channels.newOutputStream(IOChannelUtils.create(fileLocation, MimeTypes.TEXT)))) {

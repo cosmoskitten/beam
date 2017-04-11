@@ -895,7 +895,6 @@ public class DataflowPipelineTranslator {
             WindowingStrategy<?, ?> strategy = context.getOutput(transform).getWindowingStrategy();
             byte[] serializedBytes = serializeToByteArray(strategy);
             String serializedJson = byteArrayToJsonString(serializedBytes);
-            assert Arrays.equals(serializedBytes, jsonStringToByteArray(serializedJson));
             stepContext.addInput(PropertyNames.SERIALIZED_FN, serializedJson);
           }
         });
