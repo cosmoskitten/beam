@@ -231,7 +231,7 @@ public class SplittableDoFnTest {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
       String side = c.sideInput(sideInput);
       c.output("main:" + side + ":" + c.element());
-      c.sideOutput(sideOutput, "side:" + side + ":" + c.element());
+      c.output(sideOutput, "side:" + side + ":" + c.element());
     }
 
     @GetInitialRestriction

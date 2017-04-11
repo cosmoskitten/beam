@@ -138,7 +138,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      * Adds the given element to the side output {@code PCollection} with the
      * given tag.
      *
-     * <p>Once passed to {@code sideOutput} the element should not be modified
+     * <p>Once passed to {@code output} the element should not be modified
      * in any way.
      *
      * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags withOutputTags}
@@ -165,7 +165,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      * Adds the given element to the specified side output {@code PCollection},
      * with the given timestamp.
      *
-     * <p>Once passed to {@code sideOutputWithTimestamp} the element should not be
+     * <p>Once passed to {@code outputWithTimestamp} the element should not be
      * modified in any way.
      *
      * <p>If invoked from {@link OldDoFn#processElement processElement}, the timestamp

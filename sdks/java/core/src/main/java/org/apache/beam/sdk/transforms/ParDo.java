@@ -193,7 +193,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * generates them. Within the {@link DoFn}, an element is added to the
  * main output {@link PCollection} as normal, using
  * {@link DoFn.Context#output}, while an element is added to a side output
- * {@link PCollection} using {@link DoFn.Context#sideOutput}. For example:
+ * {@link PCollection} using {@link DoFn.Context#output}. For example:
  *
  * <pre>{@code
  * PCollection<String> words = ...;
@@ -223,15 +223,15 @@ import org.apache.beam.sdk.values.TypedPValue;
  *                 c.output(word);
  *               } else {
  *                 // Emit this long word's length to a side output.
- *                 c.sideOutput(wordLengthsAboveCutOffTag, word.length());
+ *                 c.output(wordLengthsAboveCutOffTag, word.length());
  *               }
  *               if (word.startsWith("MARKER")) {
  *                 // Emit this word to a different side output.
- *                 c.sideOutput(markedWordsTag, word);
+ *                 c.output(markedWordsTag, word);
  *               }
  *               if (word.startsWith("SPECIAL")) {
  *                 // Emit this word to the unconsumed side output.
- *                 c.sideOutput(specialWordsTag, word);
+ *                 c.output(specialWordsTag, word);
  *               }
  *             }})
  *             // Specify the main and consumed side output tags of the

@@ -162,12 +162,12 @@ public class DoFnAdapters {
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
+    public <T> void output(TupleTag<T> tag, T output) {
       context.sideOutput(tag, output);
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       context.sideOutputWithTimestamp(tag, output, timestamp);
     }
 
@@ -255,12 +255,12 @@ public class DoFnAdapters {
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
+    public <T> void output(TupleTag<T> tag, T output) {
       context.sideOutput(tag, output);
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       context.sideOutputWithTimestamp(tag, output, timestamp);
     }
 

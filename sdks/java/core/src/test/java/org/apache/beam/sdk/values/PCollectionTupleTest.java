@@ -91,7 +91,7 @@ public final class PCollectionTupleTest implements Serializable {
         .of(new DoFn<Integer, Integer>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
-            c.sideOutput(sideOutputTag, c.element());
+            c.output(sideOutputTag, c.element());
           }})
         .withOutputTags(emptyOutputTag, TupleTagList.of(sideOutputTag)));
     assertNotNull("outputs.getPipeline()", outputs.getPipeline());

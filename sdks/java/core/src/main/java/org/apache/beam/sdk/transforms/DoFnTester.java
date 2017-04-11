@@ -563,12 +563,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       throwUnsupportedOutputFromBundleMethods();
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
+    public <T> void output(TupleTag<T> tag, T output) {
       throwUnsupportedOutputFromBundleMethods();
     }
 
@@ -683,21 +683,21 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
     @Override
     public void output(OutputT output) {
-      sideOutput(mainOutputTag, output);
+      output(mainOutputTag, output);
     }
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      sideOutputWithTimestamp(mainOutputTag, output, timestamp);
+      outputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      sideOutputWithTimestamp(tag, output, element.getTimestamp());
+    public <T> void output(TupleTag<T> tag, T output) {
+      outputWithTimestamp(tag, output, element.getTimestamp());
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       getMutableOutput(tag)
           .add(ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
     }

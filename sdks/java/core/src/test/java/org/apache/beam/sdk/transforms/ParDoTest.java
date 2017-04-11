@@ -198,7 +198,7 @@ public class ParDoTest implements Serializable {
     private void outputToAll(Context c, String value) {
       c.output(value);
       for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-        c.sideOutput(sideOutputTupleTag,
+        c.output(sideOutputTupleTag,
                      sideOutputTupleTag.getId() + ": " + value);
       }
     }
@@ -213,7 +213,7 @@ public class ParDoTest implements Serializable {
       }
       c.output(value);
       for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-        c.sideOutput(sideOutputTupleTag,
+        c.output(sideOutputTupleTag,
                      sideOutputTupleTag.getId() + ": " + value);
       }
     }
@@ -506,7 +506,7 @@ public class ParDoTest implements Serializable {
             .of(new DoFn<Integer, Void>(){
                 @ProcessElement
                 public void processElement(ProcessContext c) {
-                  c.sideOutput(sideOutputTag, c.element());
+                  c.output(sideOutputTag, c.element());
                 }})
             .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
@@ -549,12 +549,12 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(ProcessContext c) {
               TupleTag<String> specialSideTag = new TupleTag<String>(){};
-              c.sideOutput(specialSideTag, "side");
-              c.sideOutput(specialSideTag, "side");
-              c.sideOutput(specialSideTag, "side");
+              c.output(specialSideTag, "side");
+              c.output(specialSideTag, "side");
+              c.output(specialSideTag, "side");
 
               for (int i = 0; i < 998; i++) {
-                c.sideOutput(new TupleTag<String>(){}, "side");
+                c.output(new TupleTag<String>(){}, "side");
               }
             }}));
     pipeline.run();
@@ -565,7 +565,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(ProcessContext c) {
               for (int i = 0; i < 1000; i++) {
-                c.sideOutput(new TupleTag<String>(){}, "side");
+                c.output(new TupleTag<String>(){}, "side");
               }
             }}));
 
@@ -647,7 +647,7 @@ public class ParDoTest implements Serializable {
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     final TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    final TupleTag<Void> sideOutputTag = new TupleTag<Void>("sideOutput"){};
+    final TupleTag<Void> sideOutputTag = new TupleTag<Void>("output"){};
 
     PCollectionView<Integer> sideInput1 = pipeline
         .apply("CreateSideInput1", Create.of(11))
@@ -685,7 +685,7 @@ public class ParDoTest implements Serializable {
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     final TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    final TupleTag<Void> sideOutputTag = new TupleTag<Void>("sideOutput"){};
+    final TupleTag<Void> sideOutputTag = new TupleTag<Void>("output"){};
 
     PCollectionView<Integer> sideInput1 = pipeline
         .apply("CreateSideInput1", Create.of(11))
@@ -899,8 +899,8 @@ public class ParDoTest implements Serializable {
           @ProcessElement
           public void processElement(ProcessContext cxt) {
             cxt.output(cxt.element());
-            cxt.sideOutput(sideOutOne, Long.toString(cxt.element()));
-            cxt.sideOutput(sideOutTwo, Long.valueOf(cxt.element()).intValue());
+            cxt.output(sideOutOne, Long.toString(cxt.element()));
+            cxt.output(sideOutTwo, Long.valueOf(cxt.element()).intValue());
           }
         };
 
@@ -1026,7 +1026,7 @@ public class ParDoTest implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(1);
-      c.sideOutput(sideTag, new TestDummy());
+      c.output(sideTag, new TestDummy());
      }
   }
 
@@ -1038,7 +1038,7 @@ public class ParDoTest implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TestDummy());
-      c.sideOutput(sideTag, 1);
+      c.output(sideTag, 1);
      }
   }
 
@@ -1282,7 +1282,7 @@ public class ParDoTest implements Serializable {
                   public void processElement(ProcessContext context) {
                     TestDummy element = context.element();
                     context.output(element);
-                    context.sideOutput(sideOutputTag, element);
+                    context.output(sideOutputTag, element);
                   }
                 })
             .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
@@ -1342,7 +1342,7 @@ public class ParDoTest implements Serializable {
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public void processElement(ProcessContext c) {
-                c.sideOutputWithTimestamp(
+                c.outputWithTimestamp(
                     sideOutputTag, c.element(), new Instant(c.element().longValue()));
               }
             }).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)))
@@ -1934,7 +1934,7 @@ public class ParDoTest implements Serializable {
             if (currentValue % 2 == 0) {
               c.output(currentValue);
             } else {
-              c.sideOutput(oddTag, currentValue);
+              c.output(oddTag, currentValue);
             }
             state.write(currentValue + 1);
           }

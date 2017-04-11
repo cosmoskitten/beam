@@ -494,7 +494,7 @@ class BatchViewOverrides {
        */
       private void outputMetadataRecordForSize(
           ProcessContext c, KV<KV<K, W>, WindowedValue<V>> value, long uniqueKeyCount) {
-        c.sideOutput(outputForSize,
+        c.output(outputForSize,
             KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(),
                 value.getKey().getValue())),
                 KV.of(value.getKey().getValue(), uniqueKeyCount)));
@@ -503,7 +503,7 @@ class BatchViewOverrides {
       /** This outputs records which will be used to construct the entry set. */
       private void outputMetadataRecordForEntrySet(
           ProcessContext c, KV<KV<K, W>, WindowedValue<V>> value) {
-        c.sideOutput(outputForEntrySet,
+        c.output(outputForEntrySet,
             KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(),
                 value.getKey().getValue())),
                 KV.of(value.getKey().getValue(), value.getKey().getKey())));

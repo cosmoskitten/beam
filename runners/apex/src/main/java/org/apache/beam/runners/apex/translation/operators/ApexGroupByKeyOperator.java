@@ -393,7 +393,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
     public <T> void sideOutput(TupleTag<T> tag, T output) {
       // ignore the side output, this can happen when a user does not register
       // side outputs but then outputs using a freshly created TupleTag.
-      throw new RuntimeException("sideOutput() is not available when grouping by window.");
+      throw new RuntimeException("output() is not available when grouping by window.");
     }
 
     @Override

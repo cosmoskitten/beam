@@ -267,7 +267,7 @@ public class ParDoTranslatorTest {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
     final TupleTag<String> mainOutputTag = new TupleTag<>("main");
-    final TupleTag<Void> sideOutputTag = new TupleTag<>("sideOutput");
+    final TupleTag<Void> sideOutputTag = new TupleTag<>("output");
 
     PCollectionView<Integer> sideInput1 = pipeline
         .apply("CreateSideInput1", Create.of(11))
@@ -335,7 +335,7 @@ public class ParDoTranslatorTest {
       }
       c.output(value);
       for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-        c.sideOutput(sideOutputTupleTag,
+        c.output(sideOutputTupleTag,
                      sideOutputTupleTag.getId() + ": " + value);
       }
     }

@@ -300,7 +300,7 @@ public class ProcessBundleHandlerTest {
 
   private static class TestDoFn extends DoFn<String, String> {
     private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
-    private static final TupleTag<String> sideOutput = new TupleTag<>("sideOutput");
+    private static final TupleTag<String> sideOutput = new TupleTag<>("output");
 
     @StartBundle
     public void startBundle(Context context) {
@@ -310,7 +310,7 @@ public class ProcessBundleHandlerTest {
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output("MainOutput" + context.element());
-      context.sideOutput(sideOutput, "SideOutput" + context.element());
+      context.output(sideOutput, "SideOutput" + context.element());
     }
 
     @FinishBundle
@@ -321,7 +321,7 @@ public class ProcessBundleHandlerTest {
 
   /**
    * Create a DoFn that has 3 inputs (inputATarget1, inputATarget2, inputBTarget) and 2 outputs
-   * (mainOutput, sideOutput). Validate that inputs are fed to the {@link DoFn} and that outputs
+   * (mainOutput, output). Validate that inputs are fed to the {@link DoFn} and that outputs
    * are directed to the correct consumers.
    */
   @Test

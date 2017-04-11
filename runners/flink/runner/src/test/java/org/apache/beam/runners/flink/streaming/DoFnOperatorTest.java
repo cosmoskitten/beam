@@ -553,13 +553,13 @@ public class DoFnOperatorTest {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       if (c.element().equals("one")) {
-        c.sideOutput(sideOutput1, "side: one");
+        c.output(sideOutput1, "side: one");
       } else if (c.element().equals("two")) {
-        c.sideOutput(sideOutput2, "side: two");
+        c.output(sideOutput2, "side: two");
       } else {
         c.output("got: " + c.element());
-        c.sideOutput(sideOutput1, "got: " + c.element());
-        c.sideOutput(sideOutput2, "got: " + c.element());
+        c.output(sideOutput1, "got: " + c.element());
+        c.output(sideOutput2, "got: " + c.element());
       }
     }
   }
