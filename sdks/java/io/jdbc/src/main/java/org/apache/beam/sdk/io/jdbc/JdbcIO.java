@@ -377,10 +377,11 @@ public class JdbcIO {
       @Setup
       public void setup() throws Exception {
         dataSource = spec.getDataSourceConfiguration().buildDatasource();
-        connection =  (spec.getDataSourceConfiguration().getUsername() != null)
-            ? dataSource.getConnection(spec.getDataSourceConfiguration().getUsername(),
-                spec.getDataSourceConfiguration().getPassword())
-            : dataSource.getConnection();
+        connection =  (dataSource instanceof BasicDataSource
+            || spec.getDataSourceConfiguration().getUsername() == null)
+            ? dataSource.getConnection()
+            : dataSource.getConnection(spec.getDataSourceConfiguration().getUsername(),
+                spec.getDataSourceConfiguration().getPassword());
       }
 
       @ProcessElement
