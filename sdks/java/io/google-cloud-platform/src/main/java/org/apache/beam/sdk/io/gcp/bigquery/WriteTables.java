@@ -99,9 +99,8 @@ class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
     TableDestination tableDestination = c.element().getKey().getKey();
     Integer partition = c.element().getKey().getShardNumber();
     List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
-    // Job ID must be different for each partition of each table.
-    String jobIdPrefix = String.format(
-        c.sideInput(jobIdToken) + "_0x%08x_%05d", tableDestination.hashCode(), partition);
+    String jobIdPrefix = BigQueryHelpers.createJobId(
+        c.sideInput(jobIdToken), tableDestination, partition);
 
     TableReference ref = tableDestination.getTableReference();
     if (!singlePartition) {

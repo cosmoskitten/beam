@@ -154,9 +154,14 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
       latestPartition.addBytes(fileResult.fileByteSize);
     }
 
+    // Now that we've figured out which tables and partitions to write out, emit this information
+    // to the next stage.
     for (Map.Entry<TableDestination, DestinationData> entry : currentResults.entrySet()) {
       TableDestination tableDestination = entry.getKey();
       DestinationData destinationData = entry.getValue();
+      // In the fast-path case where we only output one table, the transform loads it directly
+      // to the final table. In this case, we output on a special TupleTag so the enclosing
+      // transform knows to skip the rename step.
       TupleTag<KV<ShardedKey<TableDestination>, List<String>>> outputTag =
           (destinationData.getPartitions().size() == 1) ? singlePartitionTag : multiPartitionsTag;
       for (int i = 0; i < destinationData.getPartitions().size(); ++i) {
