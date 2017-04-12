@@ -51,10 +51,10 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
    * and encapsulates the table it is destined to as well as the file byte size.
    */
-  public static class Result implements Serializable {
-    public String filename;
-    public Long fileByteSize;
-    public TableDestination tableDestination;
+  public static final class Result implements Serializable {
+    public final String filename;
+    public final Long fileByteSize;
+    public final TableDestination tableDestination;
 
     public Result(String filename, Long fileByteSize, TableDestination tableDestination) {
       this.filename = filename;
@@ -107,6 +107,8 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
 
   @StartBundle
   public void startBundle(Context c) {
+    // This must be done each bundle, as by default the {@link DoFn} might be reused between
+    // bundles.
     this.writers = Maps.newHashMap();
   }
 

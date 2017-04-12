@@ -61,7 +61,6 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelFactory;
@@ -988,8 +987,8 @@ public class BigQueryIO {
     @Override
     public WriteResult expand(PCollection<T> input) {
       PCollection<KV<TableDestination, TableRow>> rowsWithDestination =
-          input.apply("PrepareWrite", ParDo.of(
-              new PrepareWrite<T>(getTableFunction(), getFormatFunction())))
+          input.apply("PrepareWrite", new PrepareWrite<T>(
+              getTableFunction(), getFormatFunction()))
               .setCoder(KvCoder.of(TableDestinationCoder.of(), TableRowJsonCoder.of()));
 
 
