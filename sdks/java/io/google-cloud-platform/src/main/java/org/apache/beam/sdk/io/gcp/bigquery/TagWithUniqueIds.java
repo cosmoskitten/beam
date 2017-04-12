@@ -28,10 +28,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * Fn that tags each table row with a unique id and destination table.
- * To avoid calling UUID.randomUUID() for each element, which can be costly,
- * a randomUUID is generated only once per bucket of data. The actual unique
- * id is created by concatenating this randomUUID with a sequential number.
+ * Fn that tags each table row with a unique id and destination table. To avoid calling
+ * UUID.randomUUID() for each element, which can be costly, a randomUUID is generated only once per
+ * bucket of data. The actual unique id is created by concatenating this randomUUID with a
+ * sequential number.
  */
 @VisibleForTesting
 class TagWithUniqueIds
@@ -51,8 +51,9 @@ class TagWithUniqueIds
     String uniqueId = randomUUID + sequenceNo++;
     // We output on keys 0-50 to ensure that there's enough batching for
     // BigQuery.
-    context.output(KV.of(context.element().getKey(),
-        new TableRowInfo(context.element().getValue(), uniqueId)));
+    context.output(
+        KV.of(
+            context.element().getKey(), new TableRowInfo(context.element().getValue(), uniqueId)));
   }
 
   @Override
