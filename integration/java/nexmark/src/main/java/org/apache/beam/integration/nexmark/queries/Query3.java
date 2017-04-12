@@ -39,6 +39,10 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -88,9 +92,16 @@ public class Query3 extends NexmarkQuery {
   }
 
   private PCollection<NameCityStateId> applyTyped(PCollection<Event> events) {
+    int numEventsInPane = 30;
 
+    PCollection<Event> eventsWindowed =
+        events.apply(
+            Window.<Event>into(new GlobalWindows())
+                .triggering(Repeatedly.forever((AfterPane.elementCountAtLeast(numEventsInPane))))
+                .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO));
     PCollection<KV<Long, Auction>> auctionsBySellerId =
-        events
+        eventsWindowed
             // Only want the new auction events.
             .apply(JUST_NEW_AUCTIONS)
 
@@ -110,7 +121,7 @@ public class Query3 extends NexmarkQuery {
             .apply("AuctionBySeller", AUCTION_BY_SELLER);
 
     PCollection<KV<Long, Person>> personsById =
-        events
+        eventsWindowed
             // Only want the new people events.
             .apply(JUST_NEW_PERSONS)
 
