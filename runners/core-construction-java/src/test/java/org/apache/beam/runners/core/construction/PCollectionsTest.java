@@ -76,13 +76,16 @@ public class PCollectionsTest {
         longs.apply(Window.<Long>into(FixedWindows.of(Duration.standardMinutes(10L))));
     PCollection<KV<String, Iterable<String>>> groupedStrings =
         pipeline
-            .apply(Create.of(KV.of("foo", "spam"), KV.of("bar", "ham"), KV.of("baz", "eggs")))
+            .apply(
+                "kvs", Create.of(KV.of("foo", "spam"), KV.of("bar", "ham"), KV.of("baz", "eggs")))
             .apply(GroupByKey.<String, String>create());
     PCollection<Long> coderLongs =
         pipeline.apply(CountingInput.upTo(10L)).setCoder(BigEndianLongCoder.of());
     PCollection<Integer> allCustomInts =
         pipeline
-            .apply(Create.of(1, 2).withCoder(new AutoValue_PCollectionsTest_CustomIntCoder()))
+            .apply(
+                "intsWithCustomCoder",
+                Create.of(1, 2).withCoder(new AutoValue_PCollectionsTest_CustomIntCoder()))
             .apply(
                 Window.<Integer>into(new CustomWindows())
                     .triggering(
