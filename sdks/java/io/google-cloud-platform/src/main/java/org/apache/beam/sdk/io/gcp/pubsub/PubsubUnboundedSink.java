@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.IOMetrics;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -236,8 +237,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     private transient PubsubClient pubsubClient;
 
     private final Counter batchCounter = Metrics.counter(WriterFn.class, "batches");
-    private final Counter elementCounter = Metrics.counter(WriterFn.class, "elements");
-    private final Counter byteCounter = Metrics.counter(WriterFn.class, "bytes");
+    private final Counter elementCounter = IOMetrics.elementsWritten();
+    private final Counter byteCounter = IOMetrics.bytesWritten();
 
     WriterFn(
         PubsubClientFactory pubsubFactory, ValueProvider<TopicPath> topic,
