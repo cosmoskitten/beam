@@ -21,4 +21,7 @@ package org.apache.beam.sdk.metrics;
 /**
  * Marker interface for all user-facing metrics.
  */
-public interface Metric { }
+public interface Metric {
+
+  MetricName getName();
+}
