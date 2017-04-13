@@ -23,7 +23,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.ByteIterator;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 /**
  * A class representing a key consisting of an array of bytes. Arbitrary-length
@@ -109,7 +109,7 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
    * size.
    */
   @Override
-  public int compareTo(@Nullable ByteKey other) {
+  public int compareTo(@Nonnull ByteKey other) {
     checkNotNull(other, "other");
     ByteIterator thisIt = value.iterator();
     ByteIterator otherIt = other.value.iterator();
