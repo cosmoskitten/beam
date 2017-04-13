@@ -47,7 +47,7 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
   /**
    * Creates a new {@link ByteKey} backed by a copy of the data in the specified {@link ByteBuffer}.
    */
-  public static ByteKey copyOf(ByteBuffer value) {
+  public static ByteKey copyFrom(ByteBuffer value) {
     return new ByteKey(ByteString.copyFrom(value));
   }
 

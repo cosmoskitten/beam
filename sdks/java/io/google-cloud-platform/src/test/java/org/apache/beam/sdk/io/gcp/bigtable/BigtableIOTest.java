@@ -149,7 +149,7 @@ public class BigtableIOTest {
   }
 
   private static ByteKey makeByteKey(ByteString key) {
-    return ByteKey.copyOf(key.asReadOnlyByteBuffer());
+    return ByteKey.copyFrom(key.asReadOnlyByteBuffer());
   }
 
   @Test

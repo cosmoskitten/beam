@@ -665,7 +665,7 @@ public class BigtableIO {
   private BigtableIO() {}
 
   private static ByteKey makeByteKey(ByteString key) {
-    return ByteKey.copyOf(key.asReadOnlyByteBuffer());
+    return ByteKey.copyFrom(key.asReadOnlyByteBuffer());
   }
 
   static class BigtableSource extends BoundedSource<Row> {
