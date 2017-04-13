@@ -36,7 +36,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSche
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.IOMetrics;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -74,7 +74,7 @@ class StreamingWriteFn
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
-  private Counter byteCounter = Metrics.counter(StreamingWriteFn.class, "ByteCount");
+  private Counter byteCounter = IOMetrics.bytesWritten();
 
   /** Constructor. */
   StreamingWriteFn(@Nullable ValueProvider<TableSchema> schema,
