@@ -22,19 +22,17 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-parent</artifactId>
+    <artifactId>beam-integration-java-parent</artifactId>
     <version>0.7.0-SNAPSHOT</version>
-    <relativePath>../../../pom.xml</relativePath>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-integration-java</artifactId>
+  <artifactId>beam-integration-java-nexmark</artifactId>
   <name>Apache Beam :: Integration Tests :: Java :: Nexmark</name>
 
   <packaging>jar</packaging>
 
   <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <flink.version>1.2.0</flink.version>
     <spark.version>1.6.3</spark.version>
     <apex.codehaus.jackson.version>1.9.3</apex.codehaus.jackson.version>
