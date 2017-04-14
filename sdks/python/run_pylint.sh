@@ -47,6 +47,7 @@ done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
 echo "Running pylint:"
-pylint apache_beam --ignore-patterns="$FILES_TO_IGNORE"
+# Re-enable the context manager check once https://github.com/PyCQA/pylint/issues/782 is fixed
+pylint apache_beam --ignore-patterns="$FILES_TO_IGNORE" --disable="not-context-manager"
 echo "Running pep8:"
 pep8 apache_beam --exclude="$FILES_TO_IGNORE"

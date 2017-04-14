@@ -160,7 +160,7 @@ class _TextSource(filebasedsource.FileBasedSource):
         # followed by a new line character. Since such a record is at the last
         # position of a file, it should not be a part of the considered range.
         # We do this check to ignore such records.
-        if len(record) == 0 and num_bytes_to_next_record < 0:
+        if len(record) == 0 and num_bytes_to_next_record < 0:  # pylint: disable=len-as-condition
           break
 
         # Record separator must be larger than zero bytes.
@@ -351,7 +351,7 @@ class ReadFromText(PTransform):
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
   """
-  def __init__(
+  def __init__(  # pylint: disable=super-on-old-class
       self,
       file_pattern=None,
       min_bundle_size=0,
