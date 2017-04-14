@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDo.GBKIntoKeyedWorkItems;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.values.KV;
@@ -41,7 +41,8 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
                   PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
                   GBKIntoKeyedWorkItems<KeyT, InputT>>
               transform) {
-    return PTransformReplacement.of((PCollection<KV<KeyT, InputT>>) Iterables.getOnlyElement(
-        transform.getInputs().values()), new DirectGroupByKey.DirectGroupByKeyOnly<KeyT, InputT>());
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform),
+        new DirectGroupByKey.DirectGroupByKeyOnly<KeyT, InputT>());
   }
 }

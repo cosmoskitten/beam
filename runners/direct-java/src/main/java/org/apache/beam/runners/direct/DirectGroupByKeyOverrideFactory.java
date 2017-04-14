@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -36,7 +36,7 @@ final class DirectGroupByKeyOverrideFactory<K, V>
                   PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupByKey<K, V>>
               transform) {
     return PTransformReplacement.of(
-        (PCollection<KV<K, V>>) Iterables.getOnlyElement(transform.getInputs().values()),
+        PTransformReplacements.getSingletonMainInput(transform),
         new DirectGroupByKey<>(transform.getTransform()));
   }
 }

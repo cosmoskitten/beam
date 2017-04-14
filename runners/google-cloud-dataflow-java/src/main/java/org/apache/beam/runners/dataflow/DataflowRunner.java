@@ -61,6 +61,7 @@ import java.util.TreeSet;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
@@ -391,30 +392,29 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class ReflectiveOneToOneOverrideFactory<
-          InputT extends PValue,
-          OutputT extends PValue,
-          TransformT extends PTransform<InputT, OutputT>>
-      extends SingleInputOutputOverrideFactory<InputT, OutputT, TransformT> {
-    private final Class<PTransform<InputT, OutputT>> replacement;
+          InputT, OutputT, TransformT extends PTransform<PCollection<InputT>, PCollection<OutputT>>>
+      extends SingleInputOutputOverrideFactory<
+          PCollection<InputT>, PCollection<OutputT>, TransformT> {
+    private final Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement;
     private final DataflowRunner runner;
 
     private ReflectiveOneToOneOverrideFactory(
-        Class<PTransform<InputT, OutputT>> replacement, DataflowRunner runner) {
+        Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement,
+        DataflowRunner runner) {
       this.replacement = replacement;
       this.runner = runner;
     }
 
     @Override
-    public PTransformReplacement<InputT, OutputT> getReplacementTransform(
-        AppliedPTransform<InputT, OutputT, TransformT> transform) {
-      PTransform<InputT, OutputT> rep =
+    public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
+        AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, TransformT> transform) {
+      PTransform<PCollection<InputT>, PCollection<OutputT>> rep =
           InstanceBuilder.ofType(replacement)
               .withArg(DataflowRunner.class, runner)
               .withArg(
                   (Class<TransformT>) transform.getTransform().getClass(), transform.getTransform())
               .build();
-      return PTransformReplacement.of((InputT) Iterables.getOnlyElement(transform.getInputs()
-          .values()), rep);
+      return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform), rep);
     }
   }
 
@@ -809,16 +809,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       this.runner = dataflowRunner;
     }
 
-
-    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs) {
-      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
-    }
-
     @Override
     public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
         AppliedPTransform<PCollection<T>, PDone, Write<T>> transform) {
       return PTransformReplacement.of(
-          getInput(transform.getInputs()), new BatchWrite<>(runner, transform.getTransform()));
+          PTransformReplacements.getSingletonMainInput(transform),
+          new BatchWrite<>(runner, transform.getTransform()));
     }
 
     @Override
@@ -1301,11 +1297,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       implements PTransformOverrideFactory<
           PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>,
           Combine.GroupedValues<K, InputT, OutputT>> {
-    public PCollection<KV<K, Iterable<InputT>>> getInput(
-        Map<TupleTag<?>, PValue> inputs) {
-      return (PCollection<KV<K, Iterable<InputT>>>) Iterables.getOnlyElement(inputs.values());
-    }
-
     @Override
     public PTransformReplacement<PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>>
         getReplacementTransform(
@@ -1314,7 +1305,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                     GroupedValues<K, InputT, OutputT>>
                 transform) {
       return PTransformReplacement.of(
-          getInput(transform.getInputs()), new CombineGroupedValues<>(transform.getTransform()));
+          PTransformReplacements.getSingletonMainInput(transform),
+          new CombineGroupedValues<>(transform.getTransform()));
     }
 
     @Override
@@ -1332,16 +1324,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       this.runner = runner;
     }
 
-
-    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs) {
-      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
-    }
-
     @Override
     public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
         AppliedPTransform<PCollection<T>, PDone, PubsubUnboundedSink<T>> transform) {
       return PTransformReplacement.of(
-          getInput(transform.getInputs()),
+          PTransformReplacements.getSingletonMainInput(transform),
           new StreamingPubsubIOWrite<>(runner, transform.getTransform()));
     }
 

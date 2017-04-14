@@ -18,10 +18,10 @@
 
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -50,7 +50,7 @@ class ViewOverrideFactory<ElemT, ViewT>
               PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>>
           transform) {
     return PTransformReplacement.of(
-        (PCollection<ElemT>) Iterables.getOnlyElement(transform.getInputs().values()),
+        PTransformReplacements.getSingletonMainInput(transform),
         new GroupAndWriteView<>(transform.getTransform()));
   }
 

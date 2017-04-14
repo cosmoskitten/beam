@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow;
 
 import java.util.List;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
-import org.apache.beam.runners.core.construction.ParDos;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.DisplayData;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -48,7 +48,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                   SingleOutput<InputT, OutputT>>
               transform) {
     return PTransformReplacement.of(
-        ParDos.getMainInput(transform.getInputs(), transform.getTransform()),
+        PTransformReplacements.getSingletonMainInput(transform),
         new ParDoSingle<>(transform.getTransform()));
   }
 

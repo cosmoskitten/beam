@@ -18,17 +18,20 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
@@ -54,13 +57,15 @@ public class EmptyFlattenAsCreateFactoryTest {
 
   @Test
   public void getInputEmptySucceeds() {
-    factory.getReplacementTransform(
-        AppliedPTransform.<PCollectionList<Long>, PCollection<Long>, Flatten.PCollections<Long>>of(
-            "nonEmptyInput",
-            Collections.<TupleTag<?>, PValue>emptyMap(),
-            Collections.<TupleTag<?>, PValue>emptyMap(),
-            Flatten.<Long>pCollections(),
-            pipeline));
+    PTransformReplacement<PCollectionList<Long>, PCollection<Long>> replacement =
+        factory.getReplacementTransform(
+            AppliedPTransform.<PCollectionList<Long>, PCollection<Long>, PCollections<Long>>of(
+                "nonEmptyInput",
+                Collections.<TupleTag<?>, PValue>emptyMap(),
+                Collections.<TupleTag<?>, PValue>emptyMap(),
+                Flatten.<Long>pCollections(),
+                pipeline));
+    assertThat(replacement.getInput().getAll(), emptyIterable());
   }
 
   @Test

@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
@@ -1413,7 +1414,7 @@ class BatchViewOverrides {
                 transform) {
       GloballyAsSingletonView<ElemT, ViewT> combine = transform.getTransform();
       return PTransformReplacement.of(
-          (PCollection<ElemT>) Iterables.getOnlyElement(transform.getInputs().values()),
+          PTransformReplacements.getSingletonMainInput(transform),
           new BatchCombineGloballyAsSingletonView<>(
               runner, combine.getCombineFn(), combine.getFanout(), combine.getInsertDefault()));
     }

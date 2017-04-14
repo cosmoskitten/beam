@@ -18,12 +18,11 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.ParDos;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -222,28 +221,29 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   }
 
   private static class ReflectiveOneToOneOverrideFactory<
-      InputT extends PValue,
-      OutputT extends PValue,
-      TransformT extends PTransform<InputT, OutputT>>
-      extends SingleInputOutputOverrideFactory<InputT, OutputT, TransformT> {
-    private final Class<PTransform<InputT, OutputT>> replacement;
+          InputT, OutputT, TransformT extends PTransform<PCollection<InputT>, PCollection<OutputT>>>
+      extends SingleInputOutputOverrideFactory<
+          PCollection<InputT>, PCollection<OutputT>, TransformT> {
+    private final Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement;
     private final FlinkRunner runner;
 
     private ReflectiveOneToOneOverrideFactory(
-        Class<PTransform<InputT, OutputT>> replacement, FlinkRunner runner) {
+        Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement,
+        FlinkRunner runner) {
       this.replacement = replacement;
       this.runner = runner;
     }
 
     @Override
-    public PTransformReplacement<InputT, OutputT> getReplacementTransform(
-        AppliedPTransform<InputT, OutputT, TransformT> transform) {
+    public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
+        AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, TransformT> transform) {
       return PTransformReplacement.of(
-          (InputT) Iterables.getOnlyElement(transform.getInputs().values()),
+          PTransformReplacements.getSingletonMainInput(transform),
           InstanceBuilder.ofType(replacement)
               .withArg(FlinkRunner.class, runner)
               .withArg(
-                  (Class<PTransform<InputT, OutputT>>) transform.getTransform().getClass(),
+                  (Class<PTransform<PCollection<InputT>, PCollection<OutputT>>>)
+                      transform.getTransform().getClass(),
                   transform.getTransform())
               .build());
     }
@@ -262,9 +262,9 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
             AppliedPTransform<
                     PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
                 transform) {
-      PCollection<InputT> mainInput =
-          ParDos.getMainInput(transform.getInputs(), transform.getTransform());
-      return PTransformReplacement.of(mainInput, new SplittableParDo<>(transform.getTransform()));
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          new SplittableParDo<>(transform.getTransform()));
     }
 
     @Override

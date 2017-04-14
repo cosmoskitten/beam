@@ -20,58 +20,50 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Utilities for interacting with {@link ParDos}.
  */
-public class ParDos {
-  public static <InputT> PCollection<InputT> getMainInput(
-      Map<TupleTag<?>, PValue> inputs, ParDo.SingleOutput<InputT, ?> parDo) {
-    return getMainInput(inputs, parDo.getSideInputs());
+public class PTransformReplacements {
+  /**
+   * Gets the singleton input of an {@link AppliedPTransform}, ignoring any additional inputs
+   * returned by {@link PTransform#getAdditionalInputs()}.
+   */
+  public static <T> PCollection<T> getSingletonMainInput(
+      AppliedPTransform<? extends PCollection<? extends T>, ?, ?> application) {
+    return getSingletonMainInput(
+        application.getInputs(), application.getTransform().getAdditionalInputs().keySet());
   }
 
-  public static <InputT> PCollection<InputT> getMainInput(
-      Map<TupleTag<?>, PValue> inputs, ParDo.MultiOutput<InputT, ?> parDo) {
-    return getMainInput(inputs, parDo.getSideInputs());
-  }
-
-  private static <InputT> PCollection<InputT> getMainInput(
-      Map<TupleTag<?>, PValue> inputs, List<PCollectionView<?>> sideInputs) {
-    Set<TupleTag<?>> sideInputTags = new HashSet<>();
-    for (PCollectionView<?> view : sideInputs) {
-      sideInputTags.add(view.getTagInternal());
-    }
-    PCollection<InputT> mainInput = null;
+  private static <T> PCollection<T> getSingletonMainInput(
+      Map<TupleTag<?>, PValue> inputs, Set<TupleTag<?>> ignoredTags) {
+    PCollection<T> mainInput = null;
     for (Map.Entry<TupleTag<?>, PValue> input : inputs.entrySet()) {
-      if (!sideInputTags.contains(input.getKey())) {
+      if (!ignoredTags.contains(input.getKey())) {
         checkArgument(
             mainInput == null,
-            "Got multiple inputs that are not side inputs for a %s Main Input: %s and %s",
-            ParDo.class.getSimpleName(),
+            "Got multiple inputs that are not additional inputs for a "
+                + "singleton main input: %s and %s",
             mainInput,
             input.getValue());
         checkArgument(
             input.getValue() instanceof PCollection,
             "Unexpected input type %s",
-            input.getValue().getClass().getSimpleName());
-        mainInput = (PCollection<InputT>) input.getValue();
+            input.getValue().getClass());
+        mainInput = (PCollection<T>) input.getValue();
       }
     }
     checkArgument(
         mainInput != null,
         "No main input found in inputs: Inputs %s, Side Input tags %s",
         inputs,
-        sideInputTags);
+        ignoredTags);
     return mainInput;
   }
-
 }

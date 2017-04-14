@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Map;
-import org.apache.beam.runners.core.construction.ParDos;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.sdk.coders.Coder;
@@ -94,7 +94,7 @@ public class BatchStatefulParDoOverrides {
                     SingleOutput<KV<K, InputT>, OutputT>>
                 transform) {
       return PTransformReplacement.of(
-          ParDos.getMainInput(transform.getInputs(), transform.getTransform()),
+          PTransformReplacements.getSingletonMainInput(transform),
           new StatefulSingleOutputParDo<>(transform.getTransform()));
     }
 
@@ -117,7 +117,7 @@ public class BatchStatefulParDoOverrides {
                     MultiOutput<KV<K, InputT>, OutputT>>
                 transform) {
       return PTransformReplacement.of(
-          ParDos.getMainInput(transform.getInputs(), transform.getTransform()),
+          PTransformReplacements.getSingletonMainInput(transform),
           new StatefulMultiOutputParDo<>(transform.getTransform()));
     }
 

@@ -21,11 +21,11 @@ package org.apache.beam.runners.direct;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -57,7 +57,7 @@ class WriteWithShardingFactory<InputT>
       AppliedPTransform<PCollection<InputT>, PDone, Write<InputT>> transform) {
 
     return PTransformReplacement.of(
-        (PCollection<InputT>) Iterables.getOnlyElement(transform.getInputs().values()),
+        PTransformReplacements.getSingletonMainInput(transform),
         transform.getTransform().withSharding(new LogElementShardsWithDrift<InputT>()));
   }
 

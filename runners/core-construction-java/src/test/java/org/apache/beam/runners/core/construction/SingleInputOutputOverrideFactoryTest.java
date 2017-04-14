@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
@@ -63,8 +62,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
                             MapElements<Integer, Integer>>
                         transform) {
               return PTransformReplacement.of(
-                  (PCollection<? extends Integer>)
-                      Iterables.getOnlyElement(transform.getInputs().values()),
+                  PTransformReplacements.getSingletonMainInput(transform),
                   transform.getTransform());
             }
           };

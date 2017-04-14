@@ -55,7 +55,8 @@ public interface PTransformOverrideFactory<
 
   /**
    * A {@link PTransform} that replaces an {@link AppliedPTransform}, and the input required to
-   * do so.
+   * do so. The input must be constructed from the expanded form, as the transform may not have
+   * originally been applied within this process or from within a Java SDK.
    */
   @AutoValue
   abstract class PTransformReplacement<InputT extends PInput, OutputT extends POutput> {

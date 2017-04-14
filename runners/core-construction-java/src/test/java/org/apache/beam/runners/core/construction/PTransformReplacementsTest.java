@@ -22,8 +22,10 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -32,7 +34,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -40,58 +41,44 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link ParDos}.
+ * Tests for {@link PTransformReplacements}.
  */
 @RunWith(JUnit4.class)
-public class ParDosTest {
+public class PTransformReplacementsTest {
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();
   private PCollection<Long> mainInput = pipeline.apply(CountingInput.unbounded());
   private PCollectionView<String> sideInput =
       pipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
 
+  private PCollection<Long> output = mainInput.apply(ParDo.of(new TestDoFn()));
+
   @Test
   public void getMainInputSingleOutputSingleInput() {
-    PCollection<Long> input =
-        ParDos.getMainInput(mainInput.expand(), ParDo.of(new TestDoFn()));
+    AppliedPTransform<PCollection<Long>, ?, ?> application =
+        AppliedPTransform.of(
+            "application",
+            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), mainInput),
+            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), output),
+            ParDo.of(new TestDoFn()),
+            pipeline);
+    PCollection<Long> input = PTransformReplacements.getSingletonMainInput(application);
     assertThat(input, equalTo(mainInput));
   }
 
   @Test
   public void getMainInputSingleOutputSideInputs() {
-    ImmutableMap<TupleTag<?>, PValue> inputs =
-        ImmutableMap.<TupleTag<?>, PValue>builder().putAll(mainInput.expand())
-            .put(sideInput.getTagInternal(), sideInput.getPCollection())
-            .build();
-    PCollection<Long> input =
-        ParDos.getMainInput(
-            inputs, ParDo.of(new TestDoFn()).withSideInputs(sideInput));
-    assertThat(input, equalTo(mainInput));
-  }
-
-  @Test
-  public void getMainInputMultiOutputSingleInput() {
-    PCollection<Long> input =
-        ParDos.getMainInput(
-            mainInput.expand(),
-            ParDo.of(new TestDoFn())
-                .withOutputTags(new TupleTag<Long>(), TupleTagList.of(new TupleTag<Object>())));
-    assertThat(input, equalTo(mainInput));
-  }
-
-  @Test
-  public void getMainInputMultiOutputSideInputs() {
-    ImmutableMap<TupleTag<?>, PValue> inputs =
-        ImmutableMap.<TupleTag<?>, PValue>builder()
-            .putAll(mainInput.expand())
-            .put(sideInput.getTagInternal(), sideInput.getPCollection())
-            .build();
-    PCollection<Long> input =
-        ParDos.getMainInput(
-            inputs,
-            ParDo.of(new TestDoFn())
-                .withOutputTags(new TupleTag<Long>(), TupleTagList.of(new TupleTag<Object>()))
-                .withSideInputs(sideInput));
+    AppliedPTransform<PCollection<Long>, ?, ?> application =
+        AppliedPTransform.of(
+            "application",
+            ImmutableMap.<TupleTag<?>, PValue>builder()
+                .put(new TupleTag<Long>(), mainInput)
+                .put(sideInput.getTagInternal(), sideInput.getPCollection())
+                .build(),
+            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), output),
+            ParDo.of(new TestDoFn()).withSideInputs(sideInput),
+            pipeline);
+    PCollection<Long> input = PTransformReplacements.getSingletonMainInput(application);
     assertThat(input, equalTo(mainInput));
   }
 
@@ -105,16 +92,19 @@ public class ParDosTest {
             .put(new TupleTag<Long>(), notInParDo)
             .put(sideInput.getTagInternal(), sideInput.getPCollection())
             .build();
+    AppliedPTransform<PCollection<Long>, ?, ?> application =
+        AppliedPTransform.of(
+            "application",
+            inputs,
+            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), output),
+            ParDo.of(new TestDoFn()).withSideInputs(sideInput),
+            pipeline);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("multiple inputs");
-    thrown.expectMessage("not side inputs");
+    thrown.expectMessage("not additional inputs");
     thrown.expectMessage(mainInput.toString());
     thrown.expectMessage(notInParDo.toString());
-    ParDos.getMainInput(
-        inputs,
-        ParDo.of(new TestDoFn())
-            .withSideInputs(sideInput)
-            .withOutputTags(new TupleTag<Long>(), TupleTagList.of(new TupleTag<Object>())));
+    PTransformReplacements.getSingletonMainInput(application);
   }
 
   @Test
@@ -123,13 +113,16 @@ public class ParDosTest {
         ImmutableMap.<TupleTag<?>, PValue>builder()
             .put(sideInput.getTagInternal(), sideInput.getPCollection())
             .build();
+    AppliedPTransform<PCollection<Long>, ?, ?> application =
+        AppliedPTransform.of(
+            "application",
+            inputs,
+            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), output),
+            ParDo.of(new TestDoFn()).withSideInputs(sideInput),
+            pipeline);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("No main input");
-    ParDos.getMainInput(
-        inputs,
-        ParDo.of(new TestDoFn())
-            .withSideInputs(sideInput)
-            .withOutputTags(new TupleTag<Long>(), TupleTagList.of(new TupleTag<Object>())));
+    PTransformReplacements.getSingletonMainInput(application);
   }
 
   private static class TestDoFn extends DoFn<Long, Long> {
