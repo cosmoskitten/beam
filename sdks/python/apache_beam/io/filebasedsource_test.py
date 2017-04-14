@@ -118,7 +118,7 @@ def write_prepared_pattern(data, suffixes=None):
   if suffixes is None:
     suffixes = [''] * len(data)
   temp_dir = tempfile.mkdtemp()
-  assert len(data) > 0
+  assert data, 'Data (%s) seems to be empty' % data
   for i, d in enumerate(data):
     file_name = _write_prepared_data(d, temp_dir, prefix='mytemp',
                                      suffix=suffixes[i])
