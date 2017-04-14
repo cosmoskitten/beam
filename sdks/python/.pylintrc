@@ -123,6 +123,8 @@ disable =
   unused-argument,
   unused-wildcard-import,
   wildcard-import,
+  # Re-enable the context manager check once https://github.com/PyCQA/pylint/issues/782 is fixed
+  not-context-manager,
 
 
 [REPORTS]

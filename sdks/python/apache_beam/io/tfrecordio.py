@@ -178,7 +178,7 @@ class _TFRecordSource(filebasedsource.FileBasedSource):
 class ReadFromTFRecord(PTransform):
   """Transform for reading TFRecord sources."""
 
-  def __init__(self,
+  def __init__(self,  # pylint: disable=super-on-old-class
                file_pattern,
                coder=coders.BytesCoder(),
                compression_type=CompressionTypes.AUTO,
@@ -235,7 +235,7 @@ class _TFRecordSink(fileio.FileSink):
 class WriteToTFRecord(PTransform):
   """Transform for writing to TFRecord sinks."""
 
-  def __init__(self,
+  def __init__(self,  # pylint: disable=super-on-old-class
                file_path_prefix,
                coder=coders.BytesCoder(),
                file_name_suffix='',

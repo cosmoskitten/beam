@@ -39,7 +39,7 @@ __all__ = ['ReadFromAvro', 'WriteToAvro']
 class ReadFromAvro(PTransform):
   """A ``PTransform`` for reading avro files."""
 
-  def __init__(self, file_pattern=None, min_bundle_size=0, validate=True):
+  def __init__(self, file_pattern=None, min_bundle_size=0, validate=True):  # pylint: disable=super-on-old-class
     """Initializes ``ReadFromAvro``.
 
     Uses source '_AvroSource' to read a set of Avro files defined by a given
