@@ -31,12 +31,13 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
-
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -46,7 +47,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -108,6 +108,25 @@ public class FileSystems {
    */
   public static List<MatchResult> match(List<String> specs) throws IOException {
     return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
+  }
+
+  public static Metadata matchSingleFileSpec(String spec) throws IOException {
+    List<MatchResult> matches = FileSystems.match(Collections.singletonList(spec));
+    MatchResult matchResult = Iterables.getOnlyElement(matches);
+    if (matchResult.status() != Status.OK) {
+      throw new IOException(
+          String.format("Error matching file spec %s: status %s", spec, matchResult.status()));
+    }
+    Metadata[] metadata = matchResult.metadata();
+    if (metadata.length != 1) {
+      throw new IOException(
+        String.format(
+            "Expecting spec %s to match exactly one file, but matched %s: %s",
+            spec,
+            metadata.length,
+            Arrays.toString(metadata)));
+    }
+    return metadata[0];
   }
 
   /**
@@ -403,6 +422,18 @@ public class FileSystems {
     for (FileSystemRegistrar registrar : registrars) {
       SCHEME_TO_REGISTRAR.put(registrar.getScheme().toLowerCase(), registrar);
     }
+  }
+
+  /**
+   * Registers a {@link FileSystemRegistrar} in the global registry.
+   *
+   * <p>File systems should be auto-detected and loaded using the service loader. For an example,
+   * see {@link LocalFileSystemRegistrar}. However, in some scenarios (particularly testing)
+   * manual registration may be needed. This method supports such cases.
+   */
+  @VisibleForTesting
+  public static void loadFileSystemRegistrar(FileSystemRegistrar registrar) {
+    SCHEME_TO_REGISTRAR.put(registrar.getScheme().toLowerCase(), registrar);
   }
 
   /**

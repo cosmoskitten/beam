@@ -44,7 +44,9 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.JAXBCoder;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -175,13 +177,13 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
   private XmlSource(String fileOrPattern, long minBundleSize, String rootElement,
       String recordElement, Class<T> recordClass) {
-    super(fileOrPattern, minBundleSize);
+    super(StaticValueProvider.of(fileOrPattern), minBundleSize);
     this.rootElement = rootElement;
     this.recordElement = recordElement;
     this.recordClass = recordClass;
   }
 
-  private XmlSource(String fileOrPattern, long minBundleSize, long startOffset, long endOffset,
+  private XmlSource(Metadata fileOrPattern, long minBundleSize, long startOffset, long endOffset,
       String rootElement, String recordElement, Class<T> recordClass) {
     super(fileOrPattern, minBundleSize, startOffset, endOffset);
     this.rootElement = rootElement;
@@ -190,7 +192,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   @Override
-  protected FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
+  protected FileBasedSource<T> createForSubrangeOfFile(Metadata fileName, long start, long end) {
     return new XmlSource<T>(
         fileName, getMinBundleSize(), start, end, rootElement, recordElement, recordClass);
   }

@@ -1223,6 +1223,7 @@ public class TextIOTest {
    * This tests a few corner cases that should not crash.
    */
   @Test
+  @Ignore("this should not actually pass")
   @Category(NeedsRunner.class)
   public void testGoodWildcards() throws Exception {
     GcsOptions options = TestPipeline.testingPipelineOptions().as(GcsOptions.class);

@@ -39,6 +39,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -655,7 +656,7 @@ public class TFRecordIO {
   static class TFRecordSource extends FileBasedSource<byte[]> {
     @VisibleForTesting
     TFRecordSource(String fileSpec) {
-      super(fileSpec, 1L);
+      super(StaticValueProvider.of(fileSpec), 1L);
     }
 
     @VisibleForTesting
@@ -663,13 +664,13 @@ public class TFRecordIO {
       super(fileSpec, Long.MAX_VALUE);
     }
 
-    private TFRecordSource(String fileName, long start, long end) {
+    private TFRecordSource(Metadata fileName, long start, long end) {
       super(fileName, Long.MAX_VALUE, start, end);
     }
 
     @Override
     protected FileBasedSource<byte[]> createForSubrangeOfFile(
-        String fileName,
+        Metadata fileName,
         long start,
         long end) {
       checkArgument(start == 0, "TFRecordSource is not splittable");
@@ -709,6 +710,12 @@ public class TFRecordIO {
 
       private TFRecordReader(TFRecordSource source) {
         super(source);
+      }
+
+      @Override
+      public boolean allowsDynamicSplitting() {
+        /* TFRecords cannot be dynamically split. */
+        return false;
       }
 
       @Override

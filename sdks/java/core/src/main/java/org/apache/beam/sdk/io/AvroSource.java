@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -34,7 +33,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.zip.Inflater;
@@ -52,6 +50,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.util.AvroUtils;
@@ -81,15 +80,6 @@ import org.apache.commons.compress.utils.CountingInputStream;
  * {@code
  * AvroSource<MyType> source = AvroSource.from(file.toPath()).withSchema(MyType.class);
  * PCollection<MyType> records = Read.from(mySource);
- * }
- * </pre>
- *
- * <p>The {@link AvroSource#readFromFileWithClass(String, Class)} method is a convenience method
- * that returns a read transform. For example:
- *
- * <pre>
- * {@code
- * PCollection<MyType> records = AvroSource.readFromFileWithClass(file.toPath(), MyType.class));
  * }
  * </pre>
  *
@@ -165,15 +155,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   private transient Schema readSchema;
 
   /**
-   * Creates a {@link Read} transform that will read from an {@link AvroSource} that is configured
-   * to read records of the given type from a file pattern.
-   */
-  public static <T> Read.Bounded<T> readFromFileWithClass(String filePattern, Class<T> clazz) {
-    return Read.from(new AvroSource<>(filePattern, DEFAULT_MIN_BUNDLE_SIZE,
-        ReflectData.get().getSchema(clazz).toString(), clazz, null, null));
-  }
-
-  /**
    * Creates an {@link AvroSource} that reads from the given file name or pattern ("glob"). The
    * returned source can be further configured by calling {@link #withSchema} to return a type other
    * than {@link GenericRecord}.
@@ -237,7 +218,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     this.fileSchemaString = null;
   }
 
-  private AvroSource(String fileName, long minBundleSize, long startOffset, long endOffset,
+  private AvroSource(Metadata fileName, long minBundleSize, long startOffset, long endOffset,
       String schema, Class<T> type, String codec, byte[] syncMarker, String fileSchema) {
     super(fileName, minBundleSize, startOffset, endOffset);
     this.readSchemaString = internSchemaString(schema);
@@ -255,7 +236,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @Override
-  public BlockBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
+  public BlockBasedSource<T> createForSubrangeOfFile(Metadata fileName, long start, long end) {
     byte[] syncMarker = this.syncMarker;
     String codec = this.codec;
     String readSchemaString = this.readSchemaString;
@@ -267,9 +248,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     if (codec == null || syncMarker == null || fileSchemaString == null) {
       AvroMetadata metadata;
       try {
-        Collection<String> files = FileBasedSource.expandFilePattern(fileName);
-        checkArgument(files.size() <= 1, "More than 1 file matched %s");
-        metadata = AvroUtils.readMetadataFromFile(fileName);
+        metadata = AvroUtils.readMetadataFromFile(fileName.resourceId());
       } catch (IOException e) {
         throw new RuntimeException("Error reading metadata from file " + fileName, e);
       }
@@ -389,7 +368,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     switch (getMode()) {
       case SINGLE_FILE_OR_SUBRANGE:
         return new AvroSource<>(
-            getFileOrPatternSpec(),
+            getSingleFileMetadata(),
             getMinBundleSize(),
             getStartOffset(),
             getEndOffset(),

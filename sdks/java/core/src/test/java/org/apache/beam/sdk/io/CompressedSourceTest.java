@@ -56,8 +56,10 @@ import org.apache.beam.sdk.io.CompressedSource.CompressedReader;
 import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.CompressedSource.DecompressingChannelFactory;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -567,15 +569,15 @@ public class CompressedSourceTest {
    */
   private static class ByteSource extends FileBasedSource<Byte> {
     public ByteSource(String fileOrPatternSpec, long minBundleSize) {
-      super(fileOrPatternSpec, minBundleSize);
+      super(StaticValueProvider.of(fileOrPatternSpec), minBundleSize);
     }
 
-    public ByteSource(String fileName, long minBundleSize, long startOffset, long endOffset) {
+    public ByteSource(Metadata fileName, long minBundleSize, long startOffset, long endOffset) {
       super(fileName, minBundleSize, startOffset, endOffset);
     }
 
     @Override
-    protected FileBasedSource<Byte> createForSubrangeOfFile(String fileName, long start, long end) {
+    protected ByteSource createForSubrangeOfFile(Metadata fileName, long start, long end) {
       return new ByteSource(fileName, getMinBundleSize(), start, end);
     }
 
