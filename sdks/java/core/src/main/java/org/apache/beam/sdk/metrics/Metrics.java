@@ -34,28 +34,44 @@ public class Metrics {
    * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
    */
   public static Counter counter(String namespace, String name) {
-    return new DelegatingCounter(MetricName.named(namespace, name));
+    return counter(MetricName.named(namespace, name));
   }
 
   /**
    * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
    */
   public static Counter counter(Class<?> namespace, String name) {
-    return new DelegatingCounter(MetricName.named(namespace, name));
+    return counter(MetricName.named(namespace, name));
+  }
+
+  private static Counter counter(MetricName metricName) {
+    if (MetricsEnvironment.isMetricsSupported()) {
+      return new DelegatingCounter(metricName);
+    } else {
+      return new EmptyCounter();
+    }
   }
 
   /**
    * Create a metric that records various statistics about the distribution of reported values.
    */
   public static Distribution distribution(String namespace, String name) {
-    return new DelegatingDistribution(MetricName.named(namespace, name));
+    return distribution(MetricName.named(namespace, name));
   }
 
   /**
    * Create a metric that records various statistics about the distribution of reported values.
    */
   public static Distribution distribution(Class<?> namespace, String name) {
-    return new DelegatingDistribution(MetricName.named(namespace, name));
+    return distribution(MetricName.named(namespace, name));
+  }
+
+  private static Distribution distribution(MetricName metricName) {
+    if (MetricsEnvironment.isMetricsSupported()) {
+      return new DelegatingDistribution(metricName);
+    } else {
+      return new EmptyDistribution();
+    }
   }
 
   /**
@@ -63,7 +79,7 @@ public class Metrics {
    * value.
    */
   public static Gauge gauge(String namespace, String name) {
-    return new DelegatingGauge(MetricName.named(namespace, name));
+    return gauge(MetricName.named(namespace, name));
   }
 
   /**
@@ -71,7 +87,15 @@ public class Metrics {
    * value.
    */
   public static Gauge gauge(Class<?> namespace, String name) {
-    return new DelegatingGauge(MetricName.named(namespace, name));
+    return gauge(MetricName.named(namespace, name));
+  }
+
+  private static Gauge gauge(MetricName metricName) {
+    if (MetricsEnvironment.isMetricsSupported()) {
+      return new DelegatingGauge(metricName);
+    } else {
+      return new EmptyGauge();
+    }
   }
 
   /** Implementation of {@link Counter} that delegates to the instance for the current context. */
@@ -106,6 +130,15 @@ public class Metrics {
     }
   }
 
+  /** Implementation of {@link Counter} that does nothing. */
+  private static class EmptyCounter implements Counter, Serializable {
+
+    @Override public void inc() {}
+    @Override public void inc(long n) {}
+    @Override public void dec() {}
+    @Override public void dec(long n) {}
+  }
+
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
    */
@@ -123,6 +156,11 @@ public class Metrics {
         container.getDistribution(name).update(value);
       }
     }
+  }
+  /** Implementation of {@link Distribution} that does nothing. */
+  private static class EmptyDistribution implements Distribution, Serializable {
+
+    @Override public void update(long value) {}
   }
 
   /**
@@ -142,5 +180,11 @@ public class Metrics {
         container.getGauge(name).set(value);
       }
     }
+  }
+
+  /** Implementation of {@link Gauge} that does nothing. */
+  private static class EmptyGauge implements Gauge, Serializable {
+
+    @Override public void set(long value) {}
   }
 }

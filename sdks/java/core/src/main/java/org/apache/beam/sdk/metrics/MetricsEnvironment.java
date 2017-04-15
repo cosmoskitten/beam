@@ -43,7 +43,7 @@ public class MetricsEnvironment {
 
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainer.class);
 
-  private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
+  private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(true);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
   private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD =
@@ -68,6 +68,11 @@ public class MetricsEnvironment {
   /** Called by the run to indicate whether metrics reporting is supported. */
   public static void setMetricsSupported(boolean supported) {
     METRICS_SUPPORTED.set(supported);
+  }
+
+  /** Returns whether metrics reporting is supported. */
+  static boolean isMetricsSupported() {
+    return METRICS_SUPPORTED.get();
   }
 
   /**

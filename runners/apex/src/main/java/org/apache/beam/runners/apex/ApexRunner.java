@@ -46,6 +46,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -116,6 +117,8 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   @Override
   public ApexRunnerResult run(final Pipeline pipeline) {
+    MetricsEnvironment.setMetricsSupported(false);
+
     pipeline.replaceAll(getOverrides());
 
     final ApexPipelineTranslator translator = new ApexPipelineTranslator(options);

@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.CoreMatchers;
+import org.hamcrest.collection.IsEmptyIterable;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
@@ -179,6 +180,22 @@ public class MetricsTest implements Serializable {
         distributionAttemptedMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L)));
   }
 
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class})
+  @Test
+  public void testDisabledMetrics() {
+    MetricsEnvironment.setMetricsSupported(false);
+
+    PipelineResult result = runPipelineWithMetrics();
+
+    // query to get all metrics
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder().build());
+
+    assertThat(metrics.counters(), IsEmptyIterable.<MetricResult<Long>>emptyIterable());
+    assertThat(metrics.distributions(),
+        IsEmptyIterable.<MetricResult<DistributionResult>>emptyIterable());
+    assertThat(metrics.gauges(), IsEmptyIterable.<MetricResult<GaugeResult>>emptyIterable());
+  }
+
   private PipelineResult runPipelineWithMetrics() {
     final Counter count = Metrics.counter(MetricsTest.class, "count");
     final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
@@ -272,5 +289,10 @@ public class MetricsTest implements Serializable {
 
     assertThat(metrics.counters(), hasItem(
         attemptedMetricsResult("io", "elementsRead", "Read(UnboundedCountingSource)", 1000L)));
+  }
+
+  @After
+  public void cleanup() {
+    MetricsEnvironment.setMetricsSupported(true);
   }
 }

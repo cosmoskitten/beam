@@ -42,7 +42,6 @@ import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingC
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarksListener;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -141,8 +140,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     final SparkPipelineTranslator translator;
 
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
-
-    MetricsEnvironment.setMetricsSupported(true);
 
     // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
