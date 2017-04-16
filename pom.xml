@@ -241,7 +241,7 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <properties>
-        <beam.javadoc_opts>-Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
+        <beam.javadoc_opts>-encoding utf8 -Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
       </properties>
     </profile>
 
@@ -280,6 +280,7 @@
                   <includes>
                     <include>**/package-info.java</include>
                   </includes>
+                  <encoding>UTF-8</encoding>
                 </configuration>
               </execution>
             </executions>
@@ -1030,8 +1031,8 @@
             </dependency>
           </dependencies>
           <configuration>
-            <configLocation>beam/checkstyle.xml</configLocation>
-            <suppressionsLocation>beam/suppressions.xml</suppressionsLocation>
+            <configLocation>./sdks/java/build-tools/src/main/resources/beam/checkstyle.xml</configLocation>
+            <suppressionsLocation>./sdks/java/build-tools/src/main/resources/beam/suppressions.xml</suppressionsLocation>
             <consoleOutput>true</consoleOutput>
             <failOnViolation>true</failOnViolation>
             <includeResources>false</includeResources>
