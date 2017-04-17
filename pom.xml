@@ -1520,8 +1520,6 @@
           <execution>
             <goals><goal>analyze-only</goal></goals>
             <configuration>
-              <!-- Ignore runtime-only dependencies in analysis -->
-              <ignoreNonCompile>true</ignoreNonCompile>
               <failOnWarning>true</failOnWarning>
             </configuration>
           </execution>

@@ -30,6 +30,28 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Common</name>
   <description>Library to add shared Hadoop classes among Beam IOs.</description>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>analyze-only</goal>
+            </goals>
+            <configuration>
+              <ignoredUnusedDeclaredDependencies>
+                <ignoredUnusedDeclaredDependency>org.apache.hadoop:hadoop-client:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.hamcrest:hamcrest-all:jar</ignoredUnusedDeclaredDependency>
+              </ignoredUnusedDeclaredDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
