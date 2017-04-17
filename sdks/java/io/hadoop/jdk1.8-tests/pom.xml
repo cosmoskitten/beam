@@ -72,14 +72,39 @@
           </dependency>
         </dependencies>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>analyze-only</goal>
+            </goals>
+            <configuration>
+              <ignoredUnusedDeclaredDependencies>
+                <ignoredUnusedDeclaredDependency>io.netty:netty-transport-native-epoll:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-google-cloud-dataflow-java:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-direct-java:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-spark:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.logging.log4j:log4j-core:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.spark:spark-streaming_2.10:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.spark:spark-core_2.10:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.elasticsearch.client:transport:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.hamcrest:hamcrest-all:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.mockito:mockito-all:jar</ignoredUnusedDeclaredDependency>
+              </ignoredUnusedDeclaredDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
+
   <!--The dataflow-runner and spark-runner profiles support using those runners
     during an integration test. These are not the long-term way we want to support
     using runners in ITs (e.g. it is annoying to add to all IO modules.) We cannot
     create a dependency IO -> Runners since the runners depend on IO (e.g. kafka
     depends on spark.) -->
-
   <profiles>
     <!-- Include the Apache Spark runner -P spark-runner -->
     <profile>
@@ -125,7 +150,6 @@
   </profiles>
 
   <properties>
-    <log4j.core.version>2.6.2</log4j.core.version>
     <hadoop.common.version>2.7.0</hadoop.common.version>
     <guava.version>19.0</guava.version>
     <transport.netty4.client.version>5.0.0</transport.netty4.client.version>
@@ -171,20 +195,9 @@
     <!-- test dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-common</artifactId>
       <scope>test</scope>
       <classifier>tests</classifier>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-core</artifactId>
-      <version>2.6.2</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>

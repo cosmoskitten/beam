@@ -43,16 +43,6 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
@@ -91,6 +81,31 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>analyze-only</goal>
+            </goals>
+            <configuration>
+              <ignoredUnusedDeclaredDependencies>
+                <ignoredUnusedDeclaredDependency>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.auto.value:auto-value:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.guava:guava-testlib:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.http-client:google-http-client-protobuf:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-sdks-common-fn-api:test-jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.codehaus.woodstox:stax2-api:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.codehaus.woodstox:woodstox-core-asl:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.slf4j:slf4j-jdk14:jar</ignoredUnusedDeclaredDependency>
+              </ignoredUnusedDeclaredDependencies>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

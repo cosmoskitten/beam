@@ -63,11 +63,6 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <excludedGroups>
@@ -77,11 +72,6 @@
             <beamUseDummyRunner>true</beamUseDummyRunner>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
       </plugin>
 
       <!-- Coverage analysis for unit tests. -->
@@ -130,6 +120,29 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>analyze-only</goal>
+            </goals>
+            <configuration>
+              <ignoredUnusedDeclaredDependencies>
+                <ignoredUnusedDeclaredDependency>com.google.http-client:google-http-client-protobuf</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-sdks-common-fn-api:test-jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.http-client:google-http-client-jackson</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.auto.value:auto-value</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.codehaus.woodstox:woodstox-core-asl</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.tukaani:xz</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.slf4j:slf4j-jdk14</ignoredUnusedDeclaredDependency>
+              </ignoredUnusedDeclaredDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
@@ -154,19 +167,7 @@
       <artifactId>google-http-client</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>gcsio</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>util</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
-    <!-- Required by com.google.apis:google-api-services-datastore-protobuf, but 
+    <!-- Required by com.google.apis:google-api-services-datastore-protobuf, but
       the version they depend on differs from our api-client versions -->
     <dependency>
       <groupId>com.google.http-client</groupId>
@@ -178,22 +179,6 @@
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-protobuf</artifactId>
       <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.oauth-client</groupId>
-      <artifactId>google-oauth-client</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>gcsio</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>util</artifactId>
     </dependency>
 
     <dependency>

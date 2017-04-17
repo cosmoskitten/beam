@@ -30,6 +30,30 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: Elasticsearch</name>
   <description>IO to read and write on Elasticsearch.</description>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>analyze-only</goal>
+            </goals>
+            <configuration>
+              <ignoredUnusedDeclaredDependencies>
+                <ignoredUnusedDeclaredDependency>commons-io:commons-io:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.auto.value:auto-value:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-direct-java:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.slf4j:slf4j-jdk14:jar</ignoredUnusedDeclaredDependency>
+              </ignoredUnusedDeclaredDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -90,7 +114,6 @@
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <!-- compile dependencies -->

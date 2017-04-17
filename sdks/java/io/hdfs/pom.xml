@@ -41,6 +41,24 @@
           </systemPropertyVariables>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>analyze-only</goal>
+            </goals>
+            <configuration>
+              <ignoredUnusedDeclaredDependencies>
+                <ignoredUnusedDeclaredDependency>com.google.auto.value:auto-value:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-direct-java:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.hadoop:hadoop-client:jar</ignoredUnusedDeclaredDependency>
+              </ignoredUnusedDeclaredDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 

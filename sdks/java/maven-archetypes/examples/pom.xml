@@ -91,6 +91,32 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>analyze-only</goal>
+            </goals>
+            <configuration>
+              <ignoredUnusedDeclaredDependencies>
+                <ignoredUnusedDeclaredDependency>com.google.api-client:google-api-client:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.apis:google-api-services-bigquery:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.apis:google-api-services-pubsub:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.guava:guava:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>com.google.http-client:google-http-client:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>joda-time:joda-time:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-direct-java:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-runners-google-cloud-dataflow-java:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-sdks-java-core:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-sdks-java-io-google-cloud-platform:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.slf4j:slf4j-api:jar</ignoredUnusedDeclaredDependency>
+              </ignoredUnusedDeclaredDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
