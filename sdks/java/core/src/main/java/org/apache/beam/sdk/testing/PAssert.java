@@ -157,6 +157,46 @@ public class PAssert {
   }
 
   /**
+   * Track the place where an assertion is defined.
+   * This is necessary because the stack trace of a Throwable is a transient attribute, and can't
+   * be serialized. {@link PAssertionSite} helps track the stack trace
+   * of the place where an assertion is issued.
+   */
+  public static class PAssertionSite implements Serializable {
+    private final String message;
+    private final StackTraceElement[] creationStackTrace;
+
+    static PAssertionSite capture(String message) {
+      return new PAssertionSite(message, new Throwable().getStackTrace());
+    }
+
+    PAssertionSite() {
+      this(null, new StackTraceElement[0]);
+    }
+
+    PAssertionSite(String message, StackTraceElement[] creationStackTrace) {
+      this.message = message;
+      this.creationStackTrace = creationStackTrace;
+    }
+
+    public AssertionError wrap(Throwable t) {
+      AssertionError res =
+          new AssertionError(
+              message.isEmpty() ? t.getMessage() : (message + ": " + t.getMessage()), t);
+      res.setStackTrace(creationStackTrace);
+      return res;
+    }
+
+    public AssertionError wrap(String message) {
+      String outputMessage = (this.message == null || this.message.isEmpty())
+          ? message : (this.message + ": " + message);
+      AssertionError res = new AssertionError(outputMessage);
+      res.setStackTrace(creationStackTrace);
+      return res;
+    }
+  }
+
+  /**
    * Builder interface for assertions applicable to iterables and PCollection contents.
    */
   public interface IterableAssert<T> {

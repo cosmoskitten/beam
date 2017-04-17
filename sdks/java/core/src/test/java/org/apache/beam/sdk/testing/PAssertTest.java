@@ -130,7 +130,7 @@ public class PAssertTest implements Serializable {
       error = e;
     }
     SuccessOrFailure failure = SuccessOrFailure.failure(
-        new PAssertionSite(error.getMessage(), error.getStackTrace()));
+        new PAssert.PAssertionSite(error.getMessage(), error.getStackTrace()));
     SerializableCoder<SuccessOrFailure> coder = SerializableCoder.of(SuccessOrFailure.class);
 
     byte[] encoded = CoderUtils.encodeToByteArray(coder, failure);
@@ -497,7 +497,7 @@ public class PAssertTest implements Serializable {
   public void testAssertionSiteIsCaptured() {
     // This check should return a failure.
     SuccessOrFailure res = PAssert.doChecks(
-        PAssertionSite.capture("Captured assertion message."),
+        PAssert.PAssertionSite.capture("Captured assertion message."),
         new Integer(10),
         new MatcherCheckerFn(SerializableMatchers.contains(new Integer(11))));
 
