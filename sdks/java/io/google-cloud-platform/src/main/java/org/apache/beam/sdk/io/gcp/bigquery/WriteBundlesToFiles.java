@@ -52,6 +52,7 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
    * and encapsulates the table it is destined to as well as the file byte size.
    */
   public static final class Result implements Serializable {
+    private static final long serialVersionUID = 42L;
     public final String filename;
     public final Long fileByteSize;
     public final TableDestination tableDestination;
@@ -67,6 +68,7 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
    * a coder for the {@link Result} class.
    */
   public static class ResultCoder extends AtomicCoder<Result> {
+    private static final long serialVersionUID = 42L;
     private static final ResultCoder INSTANCE = new ResultCoder();
     private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
     private static final VarLongCoder longCoder = VarLongCoder.of();

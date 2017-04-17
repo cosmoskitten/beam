@@ -55,10 +55,12 @@ import org.apache.beam.sdk.values.TupleTagList;
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
 class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
+  private static final long serialVersionUID = 42L;
   BigQueryIO.Write<?> write;
 
   private static class ConstantSchemaFunction
       implements SerializableFunction<TableDestination, TableSchema> {
+    private static final long serialVersionUID = 42L;
     private final @Nullable ValueProvider<String> jsonSchema;
 
     ConstantSchemaFunction(ValueProvider<String> jsonSchema) {

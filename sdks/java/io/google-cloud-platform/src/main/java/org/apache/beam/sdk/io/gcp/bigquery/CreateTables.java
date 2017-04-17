@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.KV;
  */
 public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
     KV<TableDestination, TableRow>> {
+  private static final long serialVersionUID = 42L;
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
   private final SerializableFunction<TableDestination, TableSchema> schemaFunction;

@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class StreamingWriteTables extends PTransform<
     PCollection<KV<TableDestination, TableRow>>, WriteResult> {
+  private static final long serialVersionUID = 42L;
   private BigQueryServices bigQueryServices;
 
   public StreamingWriteTables() {

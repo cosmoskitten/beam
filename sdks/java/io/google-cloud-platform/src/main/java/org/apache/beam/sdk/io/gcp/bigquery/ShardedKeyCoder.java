@@ -40,6 +40,8 @@ import org.apache.beam.sdk.util.PropertyNames;
 @VisibleForTesting
 class ShardedKeyCoder<KeyT>
     extends StandardCoder<ShardedKey<KeyT>> {
+  private static final long serialVersionUID = 42L;
+
   public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
     return new ShardedKeyCoder<>(keyCoder);
   }

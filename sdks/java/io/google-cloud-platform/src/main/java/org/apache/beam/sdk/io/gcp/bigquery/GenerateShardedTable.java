@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.KV;
  */
 class GenerateShardedTable extends DoFn<KV<TableDestination, TableRow>,
     KV<ShardedKey<String>, TableRow>> {
+  private static final long serialVersionUID = 42L;
   private final int numShards;
 
   GenerateShardedTable(int numShards) {

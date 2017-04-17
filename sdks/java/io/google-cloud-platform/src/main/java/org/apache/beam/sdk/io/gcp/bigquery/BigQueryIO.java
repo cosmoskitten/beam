@@ -273,6 +273,7 @@ public class BigQueryIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<TableRow>> {
+    private static final long serialVersionUID = 42L;
     @Nullable abstract ValueProvider<String> getJsonTableRef();
     @Nullable abstract ValueProvider<String> getQuery();
     abstract boolean getValidate();
@@ -684,6 +685,7 @@ public class BigQueryIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, WriteResult> {
+    private static final long serialVersionUID = 42L;
     @VisibleForTesting
     // Maximum number of files in a single partition.
     static final int MAX_NUM_FILES = 10000;

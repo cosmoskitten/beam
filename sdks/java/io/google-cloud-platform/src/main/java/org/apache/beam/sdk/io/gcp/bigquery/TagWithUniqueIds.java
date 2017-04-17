@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.KV;
 @VisibleForTesting
 class TagWithUniqueIds
     extends DoFn<KV<ShardedKey<String>, TableRow>, KV<ShardedKey<String>, TableRowInfo>> {
-
+  private static final long serialVersionUID = 42L;
   private transient String randomUUID;
   private transient long sequenceNo = 0L;
 

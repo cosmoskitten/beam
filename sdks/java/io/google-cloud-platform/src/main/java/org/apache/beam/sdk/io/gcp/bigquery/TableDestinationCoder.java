@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /** A coder for {@link TableDestination} objects. */
 public class TableDestinationCoder extends AtomicCoder<TableDestination> {
+  private static final long serialVersionUID = 0L;
   private static final TableDestinationCoder INSTANCE = new TableDestinationCoder();
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
 

@@ -40,6 +40,8 @@ import org.apache.beam.sdk.values.KV;
 @VisibleForTesting
 class StreamingWriteFn
     extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
+  private static final long serialVersionUID = 42L;
+
   private final BigQueryServices bqServices;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */

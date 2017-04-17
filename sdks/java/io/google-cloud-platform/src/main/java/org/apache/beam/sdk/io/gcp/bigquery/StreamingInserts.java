@@ -36,10 +36,12 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class StreamingInserts extends
     PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
+  private static final long serialVersionUID = 42L;
   private final Write<?> write;
 
   private static class ConstantSchemaFunction implements
       SerializableFunction<TableDestination, TableSchema> {
+    private static final long serialVersionUID = 42L;
     private final @Nullable String jsonSchema;
 
     ConstantSchemaFunction(TableSchema schema) {
