@@ -144,7 +144,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
                 .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
                 .build()).counters();
         for (MetricResult<Long> counter : counterResults) {
-          successAssertions += counter.attempted().longValue();
+          successAssertions++;
         }
         Integer expectedAssertions = testSparkPipelineOptions.getExpectedAssertions() != null
             ? testSparkPipelineOptions.getExpectedAssertions() : expectedNumberOfAssertions;
@@ -161,7 +161,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
                 .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.FAILURE_COUNTER))
                 .build()).counters();
         for (MetricResult<Long> counter : failCounterResults) {
-          failedAssertions += counter.attempted().longValue();
+          failedAssertions++;
         }
         assertThat(
             String.format("Found %d failed assertions.", failedAssertions),

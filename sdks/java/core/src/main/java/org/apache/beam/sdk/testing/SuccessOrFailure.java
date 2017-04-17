@@ -31,9 +31,9 @@ public final class SuccessOrFailure implements Serializable {
   // TODO Add a SerializableThrowable. instead of relying on PAssertionSite.(BEAM-1898)
 
   private final boolean isSuccess;
-  @org.apache.avro.reflect.Nullable
+  @Nullable
   private final PAssertionSite site;
-  @org.apache.avro.reflect.Nullable
+  @Nullable
   private final String message;
 
   private SuccessOrFailure() {
