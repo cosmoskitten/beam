@@ -180,12 +180,6 @@
 
   <build>
     <plugins>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-
       <!-- Integration Tests -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -244,7 +238,17 @@
               <goal>analyze-only</goal>
             </goals>
             <configuration>
+              <ignoredUnusedDeclaredDependencies>
+                <ignoredUnusedDeclaredDependency>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-sdks-common-fn-api:test-jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.apache.beam:beam-sdks-java-core:jar</ignoredUnusedDeclaredDependency>
+                <ignoredUnusedDeclaredDependency>org.mockito:mockito-all:jar</ignoredUnusedDeclaredDependency>
+              </ignoredUnusedDeclaredDependencies>
               <ignoredUsedUndeclaredDependencies>
+                <ignoredUsedUndeclaredDependency>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>org.apache.beam:beam-sdks-common-fn-api:test-jar</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>org.apache.beam:beam-sdks-java-core:jar</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>org.mockito:mockito-all:jar</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>org.apache.apex:apex-api:jar:3.5.0</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>org.apache.commons:commons-lang3::3.1</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>commons-io:commons-io:jar:2.4</ignoredUsedUndeclaredDependency>
