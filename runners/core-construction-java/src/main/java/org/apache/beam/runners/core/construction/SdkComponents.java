@@ -70,7 +70,7 @@ class SdkComponents {
    * unique ID for the {@link AppliedPTransform}. Multiple registrations of the same
    * {@link AppliedPTransform} will return the same unique ID.
    */
-  public String registerPTransform(
+  String registerPTransform(
       AppliedPTransform<?, ?, ?> pTransform, List<AppliedPTransform<?, ?, ?>> children)
       throws IOException {
     String name = registerPTransform(pTransform);
@@ -89,7 +89,7 @@ class SdkComponents {
    * will not be added to the components produced by this {@link SdkComponents} until it is
    * translated via {@link #registerPTransform(AppliedPTransform, List)}.
    */
-  public String registerPTransform(AppliedPTransform<?, ?, ?> pTransform) {
+  String registerPTransform(AppliedPTransform<?, ?, ?> pTransform) {
     String existing = transformIds.get(pTransform);
     if (existing != null) {
       return existing;
