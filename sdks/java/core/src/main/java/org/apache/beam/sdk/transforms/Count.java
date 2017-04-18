@@ -74,21 +74,9 @@ public class Count {
    * Returns a {@link PerElement Count.PerElement} {@link PTransform} that counts the number of
    * occurrences of each element in its input {@link PCollection}.
    *
-   * <p>See {@link PerElement Count.PerElement} for more details.
-   */
-  public static <T> PTransform<PCollection<T>, PCollection<KV<T, Long>>> perElement() {
-    return new PerElement<>();
-  }
-
-  /**
-   * {@code Count.PerElement<T>} takes a {@code PCollection<T>} and returns a
-   * {@code PCollection<KV<T, Long>>} representing a map from each distinct element of the input
-   * {@code PCollection} to the number of times that element occurs in the input. Each key in the
-   * output {@code PCollection} is unique.
-   *
-   * <p>This transform compares two values of type {@code T} by first encoding each element using
-   * the input {@code PCollection}'s {@code Coder}, then comparing the encoded bytes. Because of
-   * this, the input coder must be deterministic.
+   * <p>The returned transform compares two values of type {@code T} by first encoding each
+   * element using the input {@code PCollection}'s {@code Coder}, then comparing the encoded
+   * bytes. Because of this, the input coder must be deterministic.
    * (See {@link org.apache.beam.sdk.coders.Coder#verifyDeterministic()} for more detail).
    * Performing the comparison in this manner admits efficient parallel evaluation.
    *
@@ -101,6 +89,18 @@ public class Count {
    * PCollection<KV<String, Long>> wordCounts =
    *     words.apply(Count.<String>perElement());
    * } </pre>
+   */
+  public static <T> PTransform<PCollection<T>, PCollection<KV<T, Long>>> perElement() {
+    return new PerElement<>();
+  }
+
+  /**
+   * {@code Count.PerElement<T>} takes a {@code PCollection<T>} and returns a
+   * {@code PCollection<KV<T, Long>>} representing a map from each distinct element of the input
+   * {@code PCollection} to the number of times that element occurs in the input. Each key in the
+   * output {@code PCollection} is unique.
+   *
+   * <p>See {@link Count#perElement()} for more detail.
    *
    * @param <T> the type of the elements of the input {@code PCollection}, and the type of the keys
    * of the output {@code PCollection}
