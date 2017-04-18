@@ -1453,13 +1453,3 @@ class Create(PTransform):
         return self._total_size
 
     return _CreateSource(serialized_values, coder)
-
-
-def Read(*args, **kwargs):
-  from apache_beam import io
-  return io.Read(*args, **kwargs)
-
-
-def Write(*args, **kwargs):
-  from apache_beam import io
-  return io.Write(*args, **kwargs)
