@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.examples.streaming;
 
 import java.io.IOException;
 import org.apache.beam.runners.flink.FlinkRunner;
-import org.apache.beam.runners.flink.examples.streaming.KafkaWindowedWordCountExample.ExtractWordsFn;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSocketSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
