@@ -381,10 +381,8 @@ public class Pipeline {
    * <p>Typically invoked by {@link PipelineRunner} subclasses.
    */
   public void traverseTopologically(PipelineVisitor visitor) {
-    // Ensure all nodes are fully specified before visiting the pipeline
-    Set<PValue> visitedValues =
-        // Visit all the transforms, which should implicitly visit all the values.
-        transforms.visit(visitor);
+    // Visit all the transforms, which should implicitly visit all the values.
+    transforms.visit(visitor);
   }
 
   /**
