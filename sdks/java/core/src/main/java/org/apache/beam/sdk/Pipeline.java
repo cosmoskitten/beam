@@ -381,7 +381,6 @@ public class Pipeline {
    * <p>Typically invoked by {@link PipelineRunner} subclasses.
    */
   public void traverseTopologically(PipelineVisitor visitor) {
-    // Visit all the transforms, which should implicitly visit all the values.
     transforms.visit(visitor);
   }
 
