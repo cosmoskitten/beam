@@ -193,7 +193,9 @@ public class ResumeFromCheckpointStreamingTest {
             .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
             .build()).counters();
     for (MetricResult<Long> counter : counterResults) {
-      successAssertions++;
+      if (counter.attempted().longValue() > 0) {
+        successAssertions++;
+      }
     }
     assertThat(
         String.format(
@@ -207,7 +209,9 @@ public class ResumeFromCheckpointStreamingTest {
             .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.FAILURE_COUNTER))
             .build()).counters();
     for (MetricResult<Long> counter : failCounterResults) {
-      failedAssertions++;
+      if (counter.attempted().longValue() > 0) {
+        failedAssertions++;
+      }
     }
     assertThat(
         String.format("Found %d failed assertions.", failedAssertions),
