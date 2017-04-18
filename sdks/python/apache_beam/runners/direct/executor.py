@@ -295,7 +295,7 @@ class TransformExecutor(ExecutorService.CallableTask):
         result.metric_updates = metrics_container.get_cumulative()
 
       if self._evaluation_context.has_cache:
-        for uncommitted_bundle in result.output_bundles:
+        for uncommitted_bundle in result.uncommitted_output_bundles:
           self._evaluation_context.append_to_cache(
               self._applied_transform, uncommitted_bundle.tag,
               uncommitted_bundle.get_elements_iterable())
