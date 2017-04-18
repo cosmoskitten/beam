@@ -1,20 +1,20 @@
 /*
-* Licensed to the Apache Software Foundation (ASF) under one
-* or more contributor license agreements.  See the NOTICE file
-* distributed with this work for additional information
-* regarding copyright ownership.  The ASF licenses this file
-* to you under the Apache License, Version 2.0 (the
-* "License"); you may not use this file except in compliance
-* with the License.  You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
@@ -31,20 +31,22 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
-
+import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Creates any tables needed before performing streaming writes to the tables. This is a
- * side-effect {@link DoFn}, and returns the original collection unchanged.
+ * Creates any tables needed before performing streaming writes to the tables. This is a side-effect
+ * {@link DoFn}, and returns the original collection unchanged.
  */
-public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
-    KV<TableDestination, TableRow>> {
+public class CreateTables
+    extends PTransform<
+        PCollection<KV<TableDestination, TableRow>>, PCollection<KV<TableDestination, TableRow>>> {
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
   private final SerializableFunction<TableDestination, TableSchema> schemaFunction;
-
 
   /**
    * The list of tables created so far, so we don't try the creation each time.
@@ -54,14 +56,16 @@ public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
   private static Set<String> createdTables =
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
-  public CreateTables(CreateDisposition createDisposition,
-                      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
+  public CreateTables(
+      CreateDisposition createDisposition,
+      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
     this(createDisposition, new BigQueryServicesImpl(), schemaFunction);
-
   }
 
-  private CreateTables(CreateDisposition createDisposition, BigQueryServices bqServices,
-                      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
+  private CreateTables(
+      CreateDisposition createDisposition,
+      BigQueryServices bqServices,
+      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
     this.createDisposition = createDisposition;
     this.bqServices = bqServices;
     this.schemaFunction = schemaFunction;
@@ -71,11 +75,20 @@ public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
     return new CreateTables(createDisposition, bqServices, schemaFunction);
   }
 
-  @ProcessElement
-  public void processElement(ProcessContext context) throws InterruptedException, IOException {
-    BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-    possibleCreateTable(options, context.element().getKey());
-    context.output(context.element());
+  @Override
+  public PCollection<KV<TableDestination, TableRow>> expand(
+      PCollection<KV<TableDestination, TableRow>> input) {
+    return input.apply(
+        ParDo.of(
+            new DoFn<KV<TableDestination, TableRow>, KV<TableDestination, TableRow>>() {
+              @ProcessElement
+              public void processElement(ProcessContext context)
+                  throws InterruptedException, IOException {
+                BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
+                possibleCreateTable(options, context.element().getKey());
+                context.output(context.element());
+              }
+            }));
   }
 
   private void possibleCreateTable(BigQueryOptions options, TableDestination tableDestination)
@@ -83,8 +96,7 @@ public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
     String tableSpec = tableDestination.getTableSpec();
     TableReference tableReference = tableDestination.getTableReference();
     String tableDescription = tableDestination.getTableDescription();
-    if (createDisposition != createDisposition.CREATE_NEVER
-        && !createdTables.contains(tableSpec)) {
+    if (createDisposition != createDisposition.CREATE_NEVER && !createdTables.contains(tableSpec)) {
       synchronized (createdTables) {
         // Another thread may have succeeded in creating the table in the meanwhile, so
         // check again. This check isn't needed for correctness, but we add it to prevent
@@ -105,9 +117,7 @@ public class CreateTables extends DoFn<KV<TableDestination, TableRow>,
     }
   }
 
-  /**
-   * This method is used by the testing fake to clear static state.
-   */
+  /** This method is used by the testing fake to clear static state. */
   @VisibleForTesting
   static void clearCreatedTables() {
     synchronized (createdTables) {
