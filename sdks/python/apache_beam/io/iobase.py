@@ -35,8 +35,11 @@ import logging
 import random
 import uuid
 
+from google.protobuf import wrappers_pb2
+
 from apache_beam import pvalue
 from apache_beam import coders
+from apache_beam.internal import pickler
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import core
@@ -44,6 +47,8 @@ from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils import proto_utils
+from apache_beam.utils import urns
 
 
 # Encapsulates information about a bundle of a source generated when method
@@ -185,6 +190,41 @@ class BoundedSource(HasDisplayData):
     more efficiently than pickling.
     """
     return coders.registry.get_coder(object)
+
+  _known_urns = {}
+
+  @classmethod
+  def register_urn(cls, urn, parameter_type, constructor):
+    cls._known_urns[urn] = parameter_type, constructor
+
+  @classmethod
+  def from_runner_api(cls, fn_proto, context):
+    parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
+    return constructor(
+        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
+        context)
+
+  def to_runner_api(self, context):
+    urn, typed_param = self.to_runner_api_parameter(context)
+    from apache_beam.runners.api import beam_runner_api_pb2
+    return beam_runner_api_pb2.SdkFunctionSpec(
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=urn,
+            parameter=proto_utils.pack_Any(typed_param)))
+
+  @staticmethod
+  def from_runner_api_parameter(fn_parameter, unused_context):
+    return pickler.loads(fn_parameter.value)
+
+  def to_runner_api_parameter(self, context):
+    return (urns.PICKLED_SOURCE,
+            wrappers_pb2.BytesValue(value=pickler.dumps(self)))
+
+
+BoundedSource.register_urn(
+    urns.PICKLED_SOURCE,
+    wrappers_pb2.BytesValue,
+    BoundedSource.from_runner_api_parameter)
 
 
 class RangeTracker(object):
@@ -811,6 +851,23 @@ class Read(ptransform.PTransform):
     return {'source': DisplayDataItem(self.source.__class__,
                                       label='Read Source'),
             'source_dd': self.source}
+
+  def to_runner_api_parameter(self, context):
+    # Avoid circular imports.
+    from apache_beam.runners.api import beam_runner_api_pb2
+    ptransform.PTransform.register_urn(
+        urns.READ_TRANSFORM,
+        beam_runner_api_pb2.ReadPayload,
+        Read.from_runner_api_parameter)
+    return (
+        urns.READ_TRANSFORM,
+        beam_runner_api_pb2.ReadPayload(
+            source=self.source.to_runner_api(context),
+            is_bounded=True))
+
+  @staticmethod
+  def from_runner_api_parameter(proto, context):
+    return Read(BoundedSource.from_runner_api(proto.source, context))
 
 
 class Write(ptransform.PTransform):

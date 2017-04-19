@@ -20,9 +20,15 @@
 
 import logging
 
+from google.protobuf import wrappers_pb2
+
 from apache_beam import pvalue
+from apache_beam.internal import pickler
+from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import proto_utils
+from apache_beam.utils import urns
 
 
 def _dict_printable_fields(dict_object, skip_fields):
@@ -57,6 +63,13 @@ class NativeSource(HasDisplayData):
         name=self.__class__.__name__,
         vals=', '.join(_dict_printable_fields(self.__dict__,
                                               _minor_fields)))
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.SdkFunctionSpec(
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=urns.PICKLED_SOURCE,
+            parameter=proto_utils.pack_Any(
+                wrappers_pb2.BytesValue(value=pickler.dumps(self)))))
 
 
 class NativeSourceReader(object):
