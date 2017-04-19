@@ -72,7 +72,7 @@ SourceBundle = namedtuple(
     'weight source start_position stop_position')
 
 
-class BoundedSource(HasDisplayData):
+class BoundedSource(HasDisplayData, urns.RunnerApiFn):
   """A source that reads a finite amount of input records.
 
   This class defines following operations which can be used to read the source
@@ -191,40 +191,7 @@ class BoundedSource(HasDisplayData):
     """
     return coders.registry.get_coder(object)
 
-  _known_urns = {}
-
-  @classmethod
-  def register_urn(cls, urn, parameter_type, constructor):
-    cls._known_urns[urn] = parameter_type, constructor
-
-  @classmethod
-  def from_runner_api(cls, fn_proto, context):
-    parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
-    return constructor(
-        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
-        context)
-
-  def to_runner_api(self, context):
-    urn, typed_param = self.to_runner_api_parameter(context)
-    from apache_beam.runners.api import beam_runner_api_pb2
-    return beam_runner_api_pb2.SdkFunctionSpec(
-        spec=beam_runner_api_pb2.FunctionSpec(
-            urn=urn,
-            parameter=proto_utils.pack_Any(typed_param)))
-
-  @staticmethod
-  def from_runner_api_parameter(fn_parameter, unused_context):
-    return pickler.loads(fn_parameter.value)
-
-  def to_runner_api_parameter(self, context):
-    return (urns.PICKLED_SOURCE,
-            wrappers_pb2.BytesValue(value=pickler.dumps(self)))
-
-
-BoundedSource.register_urn(
-    urns.PICKLED_SOURCE,
-    wrappers_pb2.BytesValue,
-    BoundedSource.from_runner_api_parameter)
+  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_SOURCE)
 
 
 class RangeTracker(object):
