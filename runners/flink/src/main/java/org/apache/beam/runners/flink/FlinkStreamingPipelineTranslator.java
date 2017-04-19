@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.collect.ImmutableList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SplittableParDo;
@@ -32,7 +33,9 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -112,8 +115,59 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
                         flinkRunner)))
             .build();
 
+    generateDummyOperatorForLonelySource(pipeline);
     pipeline.replaceAll(transformOverrides);
     super.translate(pipeline);
+  }
+
+  /**
+   * StreamExecutionEnvironment does not allow a lonely Source to execute.
+   * So generate a dummy operator after the source if we only have lonely source.
+   */
+  private void generateDummyOperatorForLonelySource(Pipeline pipeline) {
+
+    final Map<PValue, Boolean> sources = new HashMap<>();
+
+    pipeline.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {
+
+      @Override
+      public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+
+        // find source
+        if (!node.isRootNode()) {
+          if (node.getInputs().size() == 0) {
+            for (PValue value : node.getOutputs().values()) {
+              sources.put(value, false);
+            }
+          }
+        }
+
+        // update source not lonely
+        if (!node.isRootNode()) {
+          for (PValue value : node.getInputs().values()) {
+            if (sources.containsKey(value)) {
+              sources.put(value, true);
+            }
+          }
+        }
+      }
+    });
+
+    // add dummy parDo
+    for (Map.Entry<PValue, Boolean> entry : sources.entrySet()) {
+      if (!entry.getValue()) {
+        PCollection<?> pCollection = (PCollection) entry.getKey();
+        pCollection.apply(ParDo.of(new EmptyDoFn<>()));
+      }
+    }
+
+  }
+
+  public static class EmptyDoFn<T> extends DoFn<T, Void> {
+
+    @DoFn.ProcessElement
+    public void processElement(ProcessContext context) {}
+
   }
 
   // --------------------------------------------------------------------------------------------
