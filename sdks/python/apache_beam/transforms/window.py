@@ -380,7 +380,7 @@ class SlidingWindows(NonMergingWindowFn):
     period: Period of the windows as seconds.
     offset: Offset of this window as seconds since Unix epoch. Windows start at
       t=N * period + offset where t=0 is the epoch. The offset must be a value
-      in range [0, period). If it is not it will be normalized to this range.
+      in range [0, size). If it is not it will be normalized to this range.
   """
 
   def __init__(self, size, period, offset=0):
@@ -392,9 +392,11 @@ class SlidingWindows(NonMergingWindowFn):
 
   def assign(self, context):
     timestamp = context.timestamp
-    start = timestamp - (timestamp - self.offset) % self.period
-    return [IntervalWindow(Timestamp.of(s), Timestamp.of(s) + self.size)
-            for s in range(start, start - self.size, -self.period)]
+    start = timestamp - ((timestamp - self.offset) % self.period)
+    return [
+        IntervalWindow(Timestamp(micros=s), Timestamp(micros=s) + self.size)
+        for s in range(start.micros, timestamp.micros - self.size.micros,
+                       -self.period.micros)]
 
   def __eq__(self, other):
     if type(self) == type(other) == SlidingWindows:
