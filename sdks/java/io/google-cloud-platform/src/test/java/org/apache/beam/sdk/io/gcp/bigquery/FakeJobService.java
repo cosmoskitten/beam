@@ -95,6 +95,7 @@ class FakeJobService implements JobService, Serializable {
 
   private static final com.google.common.collect.Table<String, String, JobInfo> allJobs =
       HashBasedTable.create();
+  private static int numExtractJobCalls = 0;
 
   private static final com.google.common.collect.Table<String, String, List<String>>
       filesForLoadJobs = HashBasedTable.create();
@@ -136,6 +137,8 @@ class FakeJobService implements JobService, Serializable {
     checkArgument(extractConfig.getDestinationFormat().equals("AVRO"),
         "Only extract to AVRO is supported");
     synchronized (allJobs) {
+      ++numExtractJobCalls;
+
       Job job = new Job();
       job.setJobReference(jobRef);
       job.setConfiguration(new JobConfiguration().setExtract(extractConfig));
@@ -143,6 +146,10 @@ class FakeJobService implements JobService, Serializable {
       job.setStatus(new JobStatus().setState("PENDING"));
       allJobs.put(jobRef.getProjectId(), jobRef.getJobId(), new JobInfo(job));
     }
+  }
+
+  public int getNumExtractJobCalls() {
+    return numExtractJobCalls;
   }
 
   @Override
