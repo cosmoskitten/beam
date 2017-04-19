@@ -326,7 +326,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   new ReflectiveRootOverrideFactory(StreamingUnboundedRead.class, this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(Write.class),
+                  PTransformMatchers.writeWithRunnerDeterminedSharding(),
                   new StreamingShardedWriteFactory(options)))
           .add(
               PTransformOverride.of(
@@ -1300,7 +1300,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  private class StreamingShardedWriteFactory<T>
+  @VisibleForTesting
+  static class StreamingShardedWriteFactory<T>
       implements PTransformOverrideFactory<PCollection<T>, PDone, Write<T>> {
     DataflowPipelineWorkerPoolOptions options;
 
@@ -1311,21 +1312,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
         AppliedPTransform<PCollection<T>, PDone, Write<T>> transform) {
-      Write<T> innerTransform = transform.getTransform();
-      if (innerTransform.getNumShards() == null && innerTransform.getSharding() == null) {
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
-            innerTransform.withNumShards(options.getMaxNumWorkers() * 2));
-      } else {
-        return PTransformReplacement.of(
-            PTransformReplacements.getSingletonMainInput(transform),
-            transform.getTransform());
-      }
+            transform.getTransform().withNumShards(options.getMaxNumWorkers() * 2));
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
-      return null;
+      return Collections.emptyMap();
     }
   }
 
