@@ -57,6 +57,9 @@ public class Count {
   /**
    * Returns a {@link PTransform} that counts the number of elements in
    * its input {@link PCollection}.
+   *
+   * <p>Note, it's not applied to a {@link GlobalWindow},
+   * use {@code Combine.globally(new Count.CountFn<String>()).withoutDefaults()} instead.
    */
   public static <T> PTransform<PCollection<T>, PCollection<Long>> globally() {
     return Combine.globally(new CountFn<T>());
@@ -127,7 +130,7 @@ public class Count {
   /**
    * A {@link CombineFn} that counts elements.
    */
-  private static class CountFn<T> extends CombineFn<T, long[], Long> {
+  public static class CountFn<T> extends CombineFn<T, long[], Long> {
     // Note that the long[] accumulator always has size 1, used as
     // a box for a mutable long.
 
