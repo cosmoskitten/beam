@@ -59,7 +59,7 @@ public class Count {
    * its input {@link PCollection}.
    */
   public static <T> PTransform<PCollection<T>, PCollection<Long>> globally() {
-    return Combine.globally(new CountFn<T>());
+    return Combine.globally(new CountFn<T>()).withoutDefaults();
   }
 
   /**
