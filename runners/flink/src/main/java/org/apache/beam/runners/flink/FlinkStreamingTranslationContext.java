@@ -80,6 +80,10 @@ class FlinkStreamingTranslationContext {
     }
   }
 
+  public int getDataStreamsSize() {
+    return dataStreams.size();
+  }
+
   /**
    * Sets the AppliedPTransform which carries input/output.
    * @param currentTransform

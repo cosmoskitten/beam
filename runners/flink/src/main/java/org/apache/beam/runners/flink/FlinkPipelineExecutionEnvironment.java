@@ -62,6 +62,8 @@ class FlinkPipelineExecutionEnvironment {
    */
   private StreamExecutionEnvironment flinkStreamEnv;
 
+  private FlinkPipelineTranslator translator;
+
   /**
    * Creates a {@link FlinkPipelineExecutionEnvironment} with the user-specified parameters in the
    * provided {@link FlinkPipelineOptions}.
@@ -89,7 +91,6 @@ class FlinkPipelineExecutionEnvironment {
     optimizer.translate(pipeline);
     TranslationMode translationMode = optimizer.getTranslationMode();
 
-    FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
       this.flinkStreamEnv = createStreamExecutionEnvironment();
       translator = new FlinkStreamingPipelineTranslator(flinkRunner, flinkStreamEnv, options);
@@ -110,6 +111,7 @@ class FlinkPipelineExecutionEnvironment {
     if (flinkBatchEnv != null) {
       return flinkBatchEnv.execute(jobName);
     } else if (flinkStreamEnv != null) {
+      ((FlinkStreamingPipelineTranslator) translator).checkGenerateDummyOperator();
       return flinkStreamEnv.execute(jobName);
     } else {
       throw new IllegalStateException("The Pipeline has not yet been translated.");

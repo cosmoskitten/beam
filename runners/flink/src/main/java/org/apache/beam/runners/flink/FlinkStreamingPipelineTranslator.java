@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +42,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,6 +141,25 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
       }
     }
     return CompositeBehavior.ENTER_TRANSFORM;
+  }
+
+  /**
+   * StreamExecutionEnvironment does not allow only a Source.
+   * So generate a dummy operator after the source if we only have a source.
+   * For pass MetricsTest.testBoundedSourceMetrics test.
+   */
+  void checkGenerateDummyOperator() {
+    int size = streamingContext.getDataStreamsSize();
+    checkArgument(size != 0);
+    if (size == 1) {
+      PValue output = streamingContext.getOutput(null);
+      streamingContext.getInputDataStream(output).flatMap(new FlatMapFunction<Object, Object>() {
+        @Override
+        public void flatMap(Object o, Collector<Object> collector) throws Exception {
+          // It is a dummy operator, do nothing.
+        }
+      });
+    }
   }
 
   @Override
