@@ -92,7 +92,7 @@ class OutputTimeFn(object):
       raise ValueError('Invalid OutputTimeFn: %s.' % output_time_fn)
 
 
-class WindowFn(object):
+class WindowFn(urns.RunnerApiFn):
   """An abstract windowing function defining a basic assign and merge."""
 
   __metaclass__ = abc.ABCMeta
@@ -150,39 +150,7 @@ class WindowFn(object):
     # By default, just return the input timestamp.
     return input_timestamp
 
-  _known_urns = {}
-
-  @classmethod
-  def register_urn(cls, urn, parameter_type, constructor):
-    cls._known_urns[urn] = parameter_type, constructor
-
-  @classmethod
-  def from_runner_api(cls, fn_proto, context):
-    parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
-    return constructor(
-        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
-        context)
-
-  def to_runner_api(self, context):
-    urn, typed_param = self.to_runner_api_parameter(context)
-    return beam_runner_api_pb2.SdkFunctionSpec(
-        spec=beam_runner_api_pb2.FunctionSpec(
-            urn=urn,
-            parameter=proto_utils.pack_Any(typed_param)))
-
-  @staticmethod
-  def from_runner_api_parameter(fn_parameter, unused_context):
-    return pickler.loads(fn_parameter.value)
-
-  def to_runner_api_parameter(self, context):
-    return (urns.PICKLED_WINDOW_FN,
-            wrappers_pb2.BytesValue(value=pickler.dumps(self)))
-
-
-WindowFn.register_urn(
-    urns.PICKLED_WINDOW_FN,
-    wrappers_pb2.BytesValue,
-    WindowFn.from_runner_api_parameter)
+  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_WINDOW_FN)
 
 
 class BoundedWindow(object):
@@ -315,15 +283,12 @@ class GlobalWindows(NonMergingWindowFn):
   def __ne__(self, other):
     return not self == other
 
-  @staticmethod
-  def from_runner_api_parameter(unused_fn_parameter, unused_context):
-    return GlobalWindows()
-
   def to_runner_api_parameter(self, context):
     return urns.GLOBAL_WINDOWS_FN, None
 
-WindowFn.register_urn(
-    urns.GLOBAL_WINDOWS_FN, None, GlobalWindows.from_runner_api_parameter)
+  @urns.RunnerApiFn.register_urn(urns.GLOBAL_WINDOWS_FN, None)
+  def from_runner_api_parameter(unused_fn_parameter, unused_context):
+    return GlobalWindows()
 
 
 class FixedWindows(NonMergingWindowFn):
@@ -361,21 +326,16 @@ class FixedWindows(NonMergingWindowFn):
   def __ne__(self, other):
     return not self == other
 
-  @staticmethod
-  def from_runner_api_parameter(fn_parameter, unused_context):
-    return FixedWindows(
-        size=Duration(micros=fn_parameter['size']),
-        offset=Timestamp(micros=fn_parameter['offset']))
-
   def to_runner_api_parameter(self, context):
     return (urns.FIXED_WINDOWS_FN,
             proto_utils.pack_Struct(size=self.size.micros,
                                     offset=self.offset.micros))
 
-WindowFn.register_urn(
-    urns.FIXED_WINDOWS_FN,
-    struct_pb2.Struct,
-    FixedWindows.from_runner_api_parameter)
+  @urns.RunnerApiFn.register_urn(urns.FIXED_WINDOWS_FN, struct_pb2.Struct)
+  def from_runner_api_parameter(fn_parameter, unused_context):
+    return FixedWindows(
+        size=Duration(micros=fn_parameter['size']),
+        offset=Timestamp(micros=fn_parameter['offset']))
 
 
 class SlidingWindows(NonMergingWindowFn):
@@ -417,13 +377,6 @@ class SlidingWindows(NonMergingWindowFn):
               and self.offset == other.offset
               and self.period == other.period)
 
-  @staticmethod
-  def from_runner_api_parameter(fn_parameter, unused_context):
-    return SlidingWindows(
-        size=Duration(micros=fn_parameter['size']),
-        offset=Timestamp(micros=fn_parameter['offset']),
-        period=Duration(micros=fn_parameter['period']))
-
   def to_runner_api_parameter(self, context):
     return (urns.SLIDING_WINDOWS_FN,
             proto_utils.pack_Struct(
@@ -431,10 +384,12 @@ class SlidingWindows(NonMergingWindowFn):
                 offset=self.offset.micros,
                 period=self.period.micros))
 
-WindowFn.register_urn(
-    urns.SLIDING_WINDOWS_FN,
-    struct_pb2.Struct,
-    SlidingWindows.from_runner_api_parameter)
+  @urns.RunnerApiFn.register_urn(urns.SLIDING_WINDOWS_FN, struct_pb2.Struct)
+  def from_runner_api_parameter(fn_parameter, unused_context):
+    return SlidingWindows(
+        size=Duration(micros=fn_parameter['size']),
+        offset=Timestamp(micros=fn_parameter['offset']),
+        period=Duration(micros=fn_parameter['period']))
 
 
 class Sessions(WindowFn):
@@ -484,15 +439,10 @@ class Sessions(WindowFn):
     if type(self) == type(other) == Sessions:
       return self.gap_size == other.gap_size
 
-  @staticmethod
+  @urns.RunnerApiFn.register_urn(urns.SESSION_WINDOWS_FN, struct_pb2.Struct)
   def from_runner_api_parameter(fn_parameter, unused_context):
     return Sessions(gap_size=Duration(micros=fn_parameter['gap_size']))
 
   def to_runner_api_parameter(self, context):
     return (urns.SESSION_WINDOWS_FN,
             proto_utils.pack_Struct(gap_size=self.gap_size.micros))
-
-WindowFn.register_urn(
-    urns.SESSION_WINDOWS_FN,
-    struct_pb2.Struct,
-    Sessions.from_runner_api_parameter)
