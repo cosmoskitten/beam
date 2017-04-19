@@ -35,6 +35,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.json.GenericJson;
@@ -1758,10 +1759,14 @@ public class BigQueryIOTest implements Serializable {
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
     assertEquals(1, sources.size());
+    // Simulate a repeated call to split(), like a Dataflow worker will sometimes do.
+    sources = bqSource.split(200, options);
+    assertEquals(1, sources.size());
     BoundedSource<TableRow> actual = sources.get(0);
     assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
 
-    Mockito.verify(mockJobService)
+    // Verify that despite the repeated split() call, an extract job is only started once.
+    Mockito.verify(mockJobService, times(1))
         .startExtractJob(Mockito.<JobReference>any(), Mockito.<JobConfigurationExtract>any());
   }
 
