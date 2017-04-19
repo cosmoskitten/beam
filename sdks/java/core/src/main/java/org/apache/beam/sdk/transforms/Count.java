@@ -28,6 +28,8 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Combine.Globally;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -57,8 +59,10 @@ public class Count {
   /**
    * Returns a {@link PTransform} that counts the number of elements in
    * its input {@link PCollection}.
+   *
+   * <p>Note, apply {@code .withoutDefaults()} is it's not applied to a {@link GlobalWindow}.
    */
-  public static <T> PTransform<PCollection<T>, PCollection<Long>> globally() {
+  public static <T> Globally<T, Long> globally() {
     return Combine.globally(new CountFn<T>());
   }
 
