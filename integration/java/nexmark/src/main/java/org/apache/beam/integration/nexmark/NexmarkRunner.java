@@ -1033,7 +1033,7 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
       if (c.element().hashCode() % 2 == 0) {
         c.output(c.element());
       } else {
-        c.sideOutput(SIDE, c.element());
+        c.output(SIDE, c.element());
       }
     }
   }
