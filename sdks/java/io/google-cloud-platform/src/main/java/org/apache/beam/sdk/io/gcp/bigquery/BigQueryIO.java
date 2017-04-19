@@ -913,6 +913,7 @@ public class BigQueryIO {
       // We must have a destination to write to!
       checkState(getTableFunction() != null,
           "must set the table reference of a BigQueryIO.Write transform");
+
       checkArgument(getFormatFunction() != null,
                     "A function must be provided to convert type into a TableRow. "
       + "use BigQueryIO.Write.withFormatFunction to provide a formatting function.");
