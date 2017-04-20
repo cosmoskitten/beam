@@ -74,8 +74,8 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    * when implementing {@link BlockBasedSource#createForSubrangeOfFile}. See documentation in
    * {@link FileBasedSource}.
    */
-  public BlockBasedSource(Metadata fileName, long minBundleSize, long startOffset, long endOffset) {
-    super(fileName, minBundleSize, startOffset, endOffset);
+  public BlockBasedSource(Metadata metadata, long minBundleSize, long startOffset, long endOffset) {
+    super(metadata, minBundleSize, startOffset, endOffset);
   }
 
   /**
@@ -83,7 +83,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    */
   @Override
   protected abstract BlockBasedSource<T> createForSubrangeOfFile(
-      Metadata fileName, long start, long end);
+      Metadata metadata, long start, long end);
 
   /**
    * Creates a {@code BlockBasedReader}.

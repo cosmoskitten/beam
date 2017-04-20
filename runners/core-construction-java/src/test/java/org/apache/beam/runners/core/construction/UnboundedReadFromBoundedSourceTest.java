@@ -305,13 +305,13 @@ public class UnboundedReadFromBoundedSourceTest {
     }
 
     public UnsplittableSource(
-        Metadata fileName, long minBundleSize, long startOffset, long endOffset) {
-      super(fileName, minBundleSize, startOffset, endOffset);
+        Metadata metadata, long minBundleSize, long startOffset, long endOffset) {
+      super(metadata, minBundleSize, startOffset, endOffset);
     }
 
     @Override
-    protected UnsplittableSource createForSubrangeOfFile(Metadata fileName, long start, long end) {
-      return new UnsplittableSource(fileName, getMinBundleSize(), start, end);
+    protected UnsplittableSource createForSubrangeOfFile(Metadata metadata, long start, long end) {
+      return new UnsplittableSource(metadata, getMinBundleSize(), start, end);
     }
 
     @Override

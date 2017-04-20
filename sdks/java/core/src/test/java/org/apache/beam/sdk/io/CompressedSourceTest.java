@@ -572,13 +572,13 @@ public class CompressedSourceTest {
       super(StaticValueProvider.of(fileOrPatternSpec), minBundleSize);
     }
 
-    public ByteSource(Metadata fileName, long minBundleSize, long startOffset, long endOffset) {
-      super(fileName, minBundleSize, startOffset, endOffset);
+    public ByteSource(Metadata metadata, long minBundleSize, long startOffset, long endOffset) {
+      super(metadata, minBundleSize, startOffset, endOffset);
     }
 
     @Override
-    protected ByteSource createForSubrangeOfFile(Metadata fileName, long start, long end) {
-      return new ByteSource(fileName, getMinBundleSize(), start, end);
+    protected ByteSource createForSubrangeOfFile(Metadata metadata, long start, long end) {
+      return new ByteSource(metadata, getMinBundleSize(), start, end);
     }
 
     @Override

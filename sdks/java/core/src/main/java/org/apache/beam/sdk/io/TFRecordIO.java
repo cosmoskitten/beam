@@ -453,17 +453,17 @@ public class TFRecordIO {
       super(fileSpec, Long.MAX_VALUE);
     }
 
-    private TFRecordSource(Metadata fileName, long start, long end) {
-      super(fileName, Long.MAX_VALUE, start, end);
+    private TFRecordSource(Metadata metadata, long start, long end) {
+      super(metadata, Long.MAX_VALUE, start, end);
     }
 
     @Override
     protected FileBasedSource<byte[]> createForSubrangeOfFile(
-        Metadata fileName,
+        Metadata metadata,
         long start,
         long end) {
       checkArgument(start == 0, "TFRecordSource is not splittable");
-      return new TFRecordSource(fileName, start, end);
+      return new TFRecordSource(metadata, start, end);
     }
 
     @Override

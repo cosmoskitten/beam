@@ -66,8 +66,8 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   @Override
-  protected FileBasedSource<T> createForSubrangeOfFile(Metadata fileName, long start, long end) {
-    return new XmlSource<T>(spec.from(fileName.toString()), fileName, start, end);
+  protected FileBasedSource<T> createForSubrangeOfFile(Metadata metadata, long start, long end) {
+    return new XmlSource<T>(spec.from(metadata.toString()), metadata, start, end);
   }
 
   @Override

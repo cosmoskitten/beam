@@ -874,8 +874,8 @@ public class TextIO {
       super(fileSpec, 1L);
     }
 
-    private TextSource(Metadata fileName, long start, long end) {
-      super(fileName, 1L, start, end);
+    private TextSource(Metadata metadata, long start, long end) {
+      super(metadata, 1L, start, end);
     }
 
     @Override

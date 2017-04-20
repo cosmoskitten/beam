@@ -320,12 +320,12 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * CompressedSource#createForSubrangeOfFile}.
    */
   private CompressedSource(FileBasedSource<T> sourceDelegate,
-      DecompressingChannelFactory channelFactory, Metadata filePatternOrSpec, long minBundleSize,
+      DecompressingChannelFactory channelFactory, Metadata metadata, long minBundleSize,
       long startOffset, long endOffset) {
-    super(filePatternOrSpec, minBundleSize, startOffset, endOffset);
+    super(metadata, minBundleSize, startOffset, endOffset);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
-    boolean splittable = false;
+    boolean splittable;
     try {
       splittable = isSplittable();
     } catch (Exception e) {
@@ -333,7 +333,8 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     }
     checkArgument(
         splittable || startOffset == 0,
-        "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
+        "CompressedSources must start reading at offset 0. Requested offset: %s",
+        startOffset);
   }
 
   /**
