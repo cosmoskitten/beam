@@ -352,9 +352,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * source for a single file.
    */
   @Override
-  protected FileBasedSource<T> createForSubrangeOfFile(Metadata fileName, long start, long end) {
-    return new CompressedSource<>(sourceDelegate.createForSubrangeOfFile(fileName, start, end),
-        channelFactory, fileName, sourceDelegate.getMinBundleSize(), start, end);
+  protected FileBasedSource<T> createForSubrangeOfFile(Metadata metadata, long start, long end) {
+    return new CompressedSource<>(sourceDelegate.createForSubrangeOfFile(metadata, start, end),
+        channelFactory, metadata, sourceDelegate.getMinBundleSize(), start, end);
   }
 
   /**

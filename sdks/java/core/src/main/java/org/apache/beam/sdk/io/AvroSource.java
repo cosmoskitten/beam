@@ -242,7 +242,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @Override
-  public BlockBasedSource<T> createForSubrangeOfFile(Metadata fileName, long start, long end) {
+  public BlockBasedSource<T> createForSubrangeOfFile(Metadata fileMetadata, long start, long end) {
     byte[] syncMarker = this.syncMarker;
     String codec = this.codec;
     String readSchemaString = this.readSchemaString;
@@ -254,9 +254,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     if (codec == null || syncMarker == null || fileSchemaString == null) {
       AvroMetadata metadata;
       try {
-        metadata = AvroUtils.readMetadataFromFile(fileName.resourceId());
+        metadata = AvroUtils.readMetadataFromFile(fileMetadata.resourceId());
       } catch (IOException e) {
-        throw new RuntimeException("Error reading metadata from file " + fileName, e);
+        throw new RuntimeException("Error reading metadata from file " + fileMetadata, e);
       }
       codec = metadata.getCodec();
       syncMarker = metadata.getSyncMarker();
@@ -272,7 +272,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // readSchemaString. This allows for Java to have an efficient serialization since it
     // will only encode the schema once while just storing pointers to the encoded version
     // within this source.
-    return new AvroSource<>(fileName, getMinBundleSize(), start, end, readSchemaString, type,
+    return new AvroSource<>(fileMetadata, getMinBundleSize(), start, end, readSchemaString, type,
         codec, syncMarker, fileSchemaString);
   }
 

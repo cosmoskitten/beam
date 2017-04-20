@@ -254,8 +254,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       checkArgument(!expandedFiles.isEmpty(),
           "Unable to find any files matching %s", fileOrPatternSpec.get());
       List<FileBasedSource<T>> splitResults = new ArrayList<>(expandedFiles.size());
-      for (Metadata file: expandedFiles) {
-        FileBasedSource<T> split = createForSubrangeOfFile(file, 0, file.sizeBytes());
+      for (Metadata metadata : expandedFiles) {
+        FileBasedSource<T> split = createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
         verify(split.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
             "%s.createForSubrangeOfFile must return a source in mode %s",
             split,
