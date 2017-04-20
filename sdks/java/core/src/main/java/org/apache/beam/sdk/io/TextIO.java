@@ -880,10 +880,10 @@ public class TextIO {
 
     @Override
     protected FileBasedSource<String> createForSubrangeOfFile(
-        Metadata fileName,
+        Metadata metadata,
         long start,
         long end) {
-      return new TextSource(fileName, start, end);
+      return new TextSource(metadata, start, end);
     }
 
     @Override
