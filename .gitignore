@@ -19,6 +19,8 @@ build/
 dist/
 distribute-*
 env/
+sdks/python/LICENSE
+sdks/python/NOTICE
 
 # Ignore IntelliJ files.
 .idea/
