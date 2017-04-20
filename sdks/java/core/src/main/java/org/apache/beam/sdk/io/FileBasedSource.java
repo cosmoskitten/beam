@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -31,7 +32,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -105,7 +105,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    *        implies {@code #getMaxEndOffSet()}.
    */
   protected FileBasedSource(
-      @Nonnull Metadata fileMetadata, long minBundleSize, long startOffset, long endOffset) {
+      Metadata fileMetadata, long minBundleSize, long startOffset, long endOffset) {
     super(startOffset, endOffset, minBundleSize);
     mode = Mode.SINGLE_FILE_OR_SUBRANGE;
     this.singleFileMetadata = checkNotNull(fileMetadata, "fileMetadata");
@@ -201,7 +201,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       checkState(fileOrPatternSpec.isAccessible(),
                  "Size estimation should be done at execution time.");
       String pattern = fileOrPatternSpec.get();
-     long totalSize = 0;
+      long totalSize = 0;
       List<MatchResult> inputs =
           FileSystems.match(Collections.singletonList(pattern));
       MatchResult result = Iterables.getOnlyElement(inputs);
@@ -256,6 +256,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       List<FileBasedSource<T>> splitResults = new ArrayList<>(expandedFiles.size());
       for (Metadata file: expandedFiles) {
         FileBasedSource<T> split = createForSubrangeOfFile(file, 0, file.sizeBytes());
+        verify(split.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
+            "%s.createForSubrangeOfFile must return a source in mode %s",
+            split,
+            Mode.SINGLE_FILE_OR_SUBRANGE);
         // The split is NOT in FILEPATTERN mode, so we can call its split without fear
         // of recursion. This will break a single file into multiple splits when the file is
         // splittable and larger than the desired bundle size.

@@ -425,18 +425,6 @@ public class FileSystems {
   }
 
   /**
-   * Registers a {@link FileSystemRegistrar} in the global registry.
-   *
-   * <p>File systems should be auto-detected and loaded using the service loader. For an example,
-   * see {@link LocalFileSystemRegistrar}. However, in some scenarios (particularly testing)
-   * manual registration may be needed. This method supports such cases.
-   */
-  @VisibleForTesting
-  public static void loadFileSystemRegistrar(FileSystemRegistrar registrar) {
-    SCHEME_TO_REGISTRAR.put(registrar.getScheme().toLowerCase(), registrar);
-  }
-
-  /**
    * Sets the default configuration in workers.
    *
    * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.

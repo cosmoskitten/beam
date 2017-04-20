@@ -79,6 +79,11 @@ public class AvroUtils {
     }
   }
 
+  @Deprecated  // to be deleted
+  public static AvroMetadata readMetadataFromFile(String filename) throws IOException {
+    return readMetadataFromFile(FileSystems.matchSingleFileSpec(filename).resourceId());
+  }
+
   /**
    * Reads the {@link AvroMetadata} from the header of an Avro file.
    *
