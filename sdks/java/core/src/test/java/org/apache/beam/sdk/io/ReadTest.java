@@ -152,7 +152,7 @@ public class ReadTest implements Serializable{
 
   private abstract static class CustomBoundedSource extends BoundedSource<String> {
     @Override
-    public List<? extends BoundedSource<String>> splitIntoBundles(
+    public List<? extends BoundedSource<String>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       return null;
     }

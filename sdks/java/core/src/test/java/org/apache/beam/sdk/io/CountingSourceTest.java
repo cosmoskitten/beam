@@ -110,7 +110,7 @@ public class CountingSourceTest {
 
     BoundedSource<Long> initial = CountingSource.upTo(numElements);
     List<? extends BoundedSource<Long>> splits =
-        initial.splitIntoBundles(splitSizeBytes, p.getOptions());
+        initial.split(splitSizeBytes, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     // Assemble all the splits into one flattened PCollection, also verify their sizes.

@@ -1142,7 +1142,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       SubscriptionPath subscription = subscriptionPath;
       if (subscription == null) {
         if (checkpoint == null) {
-          // This reader has never been started and there was no call to #splitIntoBundles; create
+          // This reader has never been started and there was no call to #split; create
           // a single random subscription, which will be kept in the checkpoint.
           subscription = outer.createRandomSubscription(options);
         } else {

@@ -424,7 +424,7 @@ public class HBaseIO {
 
         @Override
         public List<? extends BoundedSource<Result>>
-            splitIntoBundles(long desiredBundleSizeBytes, PipelineOptions options)
+        split(long desiredBundleSizeBytes, PipelineOptions options)
                 throws Exception {
             LOG.debug("desiredBundleSize {} bytes", desiredBundleSizeBytes);
             long estimatedSizeBytes = getEstimatedSizeBytes(options);

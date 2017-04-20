@@ -518,8 +518,8 @@ public class HadoopInputFormatIOTest {
     // Validate if estimated size is equal to the size of records.
     assertEquals(referenceRecords.size(), estimatedSize);
     List<BoundedSource<KV<Text, Employee>>> boundedSourceList =
-        hifSource.splitIntoBundles(0, p.getOptions());
-    // Validate if splitIntoBundles() has split correctly.
+        hifSource.split(0, p.getOptions());
+    // Validate if split() has split correctly.
     assertEquals(TestEmployeeDataSet.NUMBER_OF_SPLITS, boundedSourceList.size());
     List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
@@ -640,7 +640,7 @@ public class HadoopInputFormatIOTest {
   /**
    * This test validates behavior of {@link HadoopInputFormatBoundedSource#createReader()
    * createReader()} method when {@link HadoopInputFormatBoundedSource#splitIntoBundles()
-   * splitIntoBundles()} is not called.
+   * split()} is not called.
    */
   @Test
   public void testCreateReaderIfSplitIntoBundlesNotCalled() throws Exception {
@@ -843,6 +843,6 @@ public class HadoopInputFormatIOTest {
         inputFormatValueClass,
         keyCoder,
         valueCoder);
-    return boundedSource.splitIntoBundles(0, p.getOptions());
+    return boundedSource.split(0, p.getOptions());
   }
 }

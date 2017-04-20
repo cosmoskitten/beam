@@ -1127,7 +1127,7 @@ public class TextIOTest {
 
     FileBasedSource<String> source = TextIO.Read.from(largeTxt.getPath()).getSource();
     List<? extends FileBasedSource<String>> splits =
-        source.splitIntoBundles(desiredBundleSize, options);
+        source.split(desiredBundleSize, options);
 
     // At least 2 splits and they are equal to reading the whole file.
     assertThat(splits, hasSize(greaterThan(1)));
@@ -1144,7 +1144,7 @@ public class TextIOTest {
 
     FileBasedSource<String> source = TextIO.Read.from(largeGz.getPath()).getSource();
     List<? extends FileBasedSource<String>> splits =
-        source.splitIntoBundles(desiredBundleSize, options);
+        source.split(desiredBundleSize, options);
 
     // Exactly 1 split, even in AUTO mode, since it is a gzip file.
     assertThat(splits, hasSize(equalTo(1)));
@@ -1162,7 +1162,7 @@ public class TextIOTest {
     FileBasedSource<String> source =
         TextIO.Read.from(largeTxt.getPath()).withCompressionType(GZIP).getSource();
     List<? extends FileBasedSource<String>> splits =
-        source.splitIntoBundles(desiredBundleSize, options);
+        source.split(desiredBundleSize, options);
 
     // Exactly 1 split, even though splittable text file, since using GZIP mode.
     assertThat(splits, hasSize(equalTo(1)));
@@ -1180,7 +1180,7 @@ public class TextIOTest {
     FileBasedSource<String> source =
         TextIO.Read.from(largeGz.getPath()).withCompressionType(GZIP).getSource();
     List<? extends FileBasedSource<String>> splits =
-        source.splitIntoBundles(desiredBundleSize, options);
+        source.split(desiredBundleSize, options);
 
     // Exactly 1 split using .gz extension and using GZIP mode.
     assertThat(splits, hasSize(equalTo(1)));

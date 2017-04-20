@@ -239,9 +239,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   }
 
   @Override
-  public final List<? extends FileBasedSource<T>> splitIntoBundles(
+  public final List<? extends FileBasedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-    // This implementation of method splitIntoBundles is provided to simplify subclasses. Here we
+    // This implementation of method split is provided to simplify subclasses. Here we
     // split a FileBasedSource based on a file pattern to FileBasedSources based on full single
     // files. For files that can be efficiently seeked, we further split FileBasedSources based on
     // those files to FileBasedSources based on sub ranges of single files.
@@ -256,10 +256,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       List<FileBasedSource<T>> splitResults = new ArrayList<>(expandedFiles.size());
       for (Metadata file: expandedFiles) {
         FileBasedSource<T> split = createForSubrangeOfFile(file, 0, file.sizeBytes());
-        // The split is NOT in FILEPATTERN mode, so we can call its splitIntoBundles without fear
+        // The split is NOT in FILEPATTERN mode, so we can call its split without fear
         // of recursion. This will break a single file into multiple splits when the file is
         // splittable and larger than the desired bundle size.
-        splitResults.addAll(split.splitIntoBundles(desiredBundleSizeBytes, options));
+        splitResults.addAll(split.split(desiredBundleSizeBytes, options));
       }
       LOG.info(
           "Splitting filepattern {} into bundles of size {} took {} ms "
@@ -274,7 +274,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       if (isSplittable()) {
         @SuppressWarnings("unchecked")
         List<FileBasedSource<T>> splits =
-            (List<FileBasedSource<T>>) super.splitIntoBundles(desiredBundleSizeBytes, options);
+            (List<FileBasedSource<T>>) super.split(desiredBundleSizeBytes, options);
         return splits;
       } else {
         LOG.debug("The source for file {} is not split into sub-range based sources since "
@@ -299,7 +299,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    */
   protected boolean isSplittable() throws Exception {
     if (mode == Mode.FILEPATTERN) {
-      // splitIntoBundles will expand file pattern and return single file or subrange sources that
+      // split will expand file pattern and return single file or subrange sources that
       // may or may not be splittable.
       return true;
     }

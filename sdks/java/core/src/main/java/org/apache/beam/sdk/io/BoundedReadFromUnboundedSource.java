@@ -186,7 +186,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @Override
-    public List<? extends BoundedSource<ValueWithRecordId<T>>> splitIntoBundles(
+    public List<? extends BoundedSource<ValueWithRecordId<T>>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       List<UnboundedToBoundedSourceAdapter<T>> result = new ArrayList<>();
       int numInitialSplits = numInitialSplits(getMaxNumRecords());

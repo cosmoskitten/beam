@@ -381,7 +381,7 @@ public class MongoDbGridFSIO {
       }
 
       @Override
-      public List<? extends BoundedSource<ObjectId>> splitIntoBundles(long desiredBundleSizeBytes,
+      public List<? extends BoundedSource<ObjectId>> split(long desiredBundleSizeBytes,
           PipelineOptions options) throws Exception {
         Mongo mongo = spec.connectionConfiguration().setupMongo();
         try {

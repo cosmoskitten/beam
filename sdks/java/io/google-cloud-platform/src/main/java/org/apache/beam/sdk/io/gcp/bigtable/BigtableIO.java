@@ -724,7 +724,7 @@ public class BigtableIO {
     }
 
     @Override
-    public List<BigtableSource> splitIntoBundles(
+    public List<BigtableSource> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       // Update the desiredBundleSizeBytes in order to limit the
       // number of splits to maximumNumberOfSplits.

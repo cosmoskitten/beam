@@ -103,7 +103,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
   @Override
   public List<? extends BoundedSource<T>>
-      splitIntoBundles(long desiredBundleSizeBytes,
+  split(long desiredBundleSizeBytes,
                        PipelineOptions options) throws Exception {
     List<MicrobatchSource<T, CheckpointMarkT>> result = new ArrayList<>();
     List<? extends UnboundedSource<T, CheckpointMarkT>> splits =
