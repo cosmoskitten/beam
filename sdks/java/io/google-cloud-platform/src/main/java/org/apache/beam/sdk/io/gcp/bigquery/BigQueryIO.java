@@ -190,7 +190,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Per-table schemas can also be provided using {@link BigQueryIO.Write#withSchemaFromView}.
  * This allows you the schemas to be calculated based on a previous pipeline stage or statically
- * via a {@link Create} transform. This method expects to receive a
+ * via a {@link org.apache.beam.sdk.transforms.Create} transform. This method expects to receive a
  * map-valued {@link PCollectionView}, mapping table specifi  cations (project:dataset.table-id),
  * to JSON formatted {@link TableSchema} objects. All destination tables must be present in this
  * map, or the pipeline will fail to create tables. Care should be taken if the map value is based
