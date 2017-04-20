@@ -19,7 +19,6 @@ import math
 import random
 import unittest
 
-import google3
 from apache_beam import coders
 from apache_beam.runners.worker.opcounters import OperationCounters
 from apache_beam.transforms.window import GlobalWindows

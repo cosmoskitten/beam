@@ -18,8 +18,6 @@ import logging
 import time
 import unittest
 
-import google3
-
 from apache_beam.runners.worker import sideinputs
 
 
