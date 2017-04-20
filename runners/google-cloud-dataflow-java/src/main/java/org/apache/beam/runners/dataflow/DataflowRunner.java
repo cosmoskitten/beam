@@ -1348,6 +1348,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static class StreamingShardedWriteFactory<T>
       implements PTransformOverrideFactory<PCollection<T>, PDone, Write<T>> {
+    // If the user has specified neither numWorkers or maxNumWorkers, then we default to 10
+    // shards.
+    final static int DEFAULT_NUM_SHARDS = 10;
+
     DataflowPipelineWorkerPoolOptions options;
 
     StreamingShardedWriteFactory(PipelineOptions options) {
@@ -1357,9 +1361,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
         AppliedPTransform<PCollection<T>, PDone, Write<T>> transform) {
-        return PTransformReplacement.of(
-            PTransformReplacements.getSingletonMainInput(transform),
-            transform.getTransform().withNumShards(options.getMaxNumWorkers() * 2));
+      int numShards = Math.max(options.getMaxNumWorkers() * 2, options.getNumWorkers() * 2);
+      if (numShards == 0) {
+        numShards = DEFAULT_NUM_SHARDS;
+      }
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          transform.getTransform().withNumShards(numShards));
     }
 
     @Override
