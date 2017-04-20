@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.gearpump.translators.CreateGearpumpPCollectionViewTranslator;
 import org.apache.beam.runners.gearpump.translators.CreatePCollectionViewTranslator;
@@ -110,10 +111,6 @@ public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
     List<PTransformOverride> overrides =
         ImmutableList.<PTransformOverride>builder()
             .add(PTransformOverride.of(
-                PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
-                new ReflectiveOneToOneOverrideFactory(
-                    StreamingCombineGloballyAsSingletonView.class)))
-            .add(PTransformOverride.of(
                 PTransformMatchers.classEqualTo(View.AsMap.class),
                 new ReflectiveOneToOneOverrideFactory(StreamingViewAsMap.class)))
             .add(PTransformOverride.of(
@@ -128,6 +125,10 @@ public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
             .add(PTransformOverride.of(
                 PTransformMatchers.classEqualTo(View.AsIterable.class),
                 new ReflectiveOneToOneOverrideFactory(StreamingViewAsIterable.class)))
+            .add(PTransformOverride.of(
+                PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+                new ReflectiveOneToOneOverrideFactory(
+                    StreamingCombineGloballyAsSingletonView.class)))
             .build();
 
     pipeline.replaceAll(overrides);
@@ -188,24 +189,27 @@ public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
 
   // The following codes are forked from DataflowRunner for View translator
   private static class ReflectiveOneToOneOverrideFactory<
-      InputT extends PValue,
-      OutputT extends PValue,
-      TransformT extends PTransform<InputT, OutputT>>
-      extends SingleInputOutputOverrideFactory<InputT, OutputT, TransformT> {
-    private final Class<PTransformReplacement<InputT, OutputT>> replacement;
+          InputT, OutputT, TransformT extends PTransform<PCollection<InputT>, PCollection<OutputT>>>
+      extends SingleInputOutputOverrideFactory<
+          PCollection<InputT>, PCollection<OutputT>, TransformT> {
+    private final Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement;
 
     private ReflectiveOneToOneOverrideFactory(
-        Class<PTransformReplacement<InputT, OutputT>> replacement) {
+        Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement) {
       this.replacement = replacement;
     }
 
     @Override
-    public PTransformReplacement<InputT, OutputT> getReplacementTransform(
-        AppliedPTransform<InputT, OutputT, TransformT> appliedPTransform) {
-      PTransform<InputT, OutputT> transform = appliedPTransform.getTransform();
-      return InstanceBuilder.ofType(replacement)
-          .withArg((Class<PTransform<InputT, OutputT>>) transform.getClass(), transform)
-          .build();
+    public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
+        AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, TransformT> transform) {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          InstanceBuilder.ofType(replacement)
+              .withArg(
+                  (Class<PTransform<PCollection<InputT>, PCollection<OutputT>>>)
+                      transform.getTransform().getClass(),
+                  transform.getTransform())
+              .build());
     }
   }
 
