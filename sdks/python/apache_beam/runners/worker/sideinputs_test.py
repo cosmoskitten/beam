@@ -20,7 +20,7 @@ import unittest
 
 import google3
 
-from dataflow_worker import sideinputs
+from apache_beam.runners.worker import sideinputs
 
 
 def strip_windows(iterator):
