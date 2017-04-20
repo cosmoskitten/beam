@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.api.services.bigquery.model.TableRow;
@@ -29,9 +28,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link Coder} that encodes BigQuery {@link TableRow} objects in their native JSON format.
  */
-public class TableRowJsonCoder extends AtomicCoder<TableRow> {
+public class TableRowJsonCoder extends CustomCoder<TableRow> {
 
-  @JsonCreator
   public static TableRowJsonCoder of() {
     return INSTANCE;
   }
@@ -85,4 +83,10 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   public TypeDescriptor<TableRow> getEncodedTypeDescriptor() {
     return TYPE_DESCRIPTOR;
   }
+
+  @Override
+  public String getEncodingId() {
+    return "";
+  }
+
 }
