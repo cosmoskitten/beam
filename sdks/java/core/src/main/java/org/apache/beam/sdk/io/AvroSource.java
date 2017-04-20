@@ -235,6 +235,12 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     super.validate();
   }
 
+  @Deprecated // Added to let DataflowRunner migrate off of this; to be deleted.
+  public BlockBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end)
+      throws IOException {
+    return createForSubrangeOfFile(FileSystems.matchSingleFileSpec(fileName), start, end);
+  }
+
   @Override
   public BlockBasedSource<T> createForSubrangeOfFile(Metadata fileName, long start, long end) {
     byte[] syncMarker = this.syncMarker;
