@@ -20,7 +20,6 @@ import sys
 import threading
 import unittest
 
-import google3
 from apache_beam.runners.worker import logger
 
 
