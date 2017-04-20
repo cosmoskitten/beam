@@ -54,6 +54,9 @@ class DirectRunner(PipelineRunner):
     except NotImplementedError:
       return transform.expand(pcoll)
 
+  def apply_GroupByKeya(self, transform, pcoll):
+    raise Exception('GABW!!!')
+
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
