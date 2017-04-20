@@ -21,7 +21,7 @@ import threading
 import unittest
 
 import google3
-from dataflow_worker import logger
+from apache_beam.runners.worker import logger
 
 
 class PerThreadLoggingContextTest(unittest.TestCase):
