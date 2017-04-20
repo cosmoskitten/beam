@@ -110,6 +110,15 @@ public class FileSystems {
     return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
   }
 
+  /**
+   * Returns the {@link Metadata} for a single file resource. Expects a resource specification
+   * {@code spec} that matches a single result.
+   *
+   * @param spec a resource specification that matches exactly one result.
+   * @return the {@link Metadata} for the specified resource.
+   * @throws IOException in the event of an error in the inner call to {@link #match},
+   * or if the given spec does not match exactly 1 result.
+   */
   public static Metadata matchSingleFileSpec(String spec) throws IOException {
     List<MatchResult> matches = FileSystems.match(Collections.singletonList(spec));
     MatchResult matchResult = Iterables.getOnlyElement(matches);
