@@ -457,7 +457,6 @@ public class GroupByKeyTest {
    */
   static class DeterministicKeyCoder extends CustomCoder<BadEqualityKey> {
 
-    @JsonCreator
     public static DeterministicKeyCoder of() {
       return INSTANCE;
     }
