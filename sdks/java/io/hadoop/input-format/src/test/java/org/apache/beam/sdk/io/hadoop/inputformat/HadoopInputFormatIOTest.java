@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.EmployeeInputFormat.NewObjectsE
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableSplit;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -638,12 +639,14 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#createReader()
-   * createReader()} method when {@link HadoopInputFormatBoundedSource#splitIntoBundles()
-   * split()} is not called.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource#createReader(PipelineOptions)}
+   * createReader()} method when
+   * {@link HadoopInputFormatBoundedSource#split(long, PipelineOptions)}
+   * is not called.
    */
   @Test
-  public void testCreateReaderIfSplitIntoBundlesNotCalled() throws Exception {
+  public void testCreateReaderIfSplitNotCalled() throws Exception {
     HadoopInputFormatBoundedSource<Text, Employee> hifSource = getTestHIFSource(
         EmployeeInputFormat.class,
         Text.class,
@@ -658,7 +661,7 @@ public class HadoopInputFormatIOTest {
   /**
    * This test validates behavior of
    * {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary() computeSplits()} when Hadoop
-   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns empty list.
+   * InputFormat's {@link InputFormat#getSplits(JobContext)} returns empty list.
    */
   @Test
   public void testComputeSplitsIfGetSplitsReturnsEmptyList() throws Exception {

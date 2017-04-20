@@ -234,7 +234,7 @@ public class CountingSourceTest {
 
     UnboundedSource<Long, ?> initial = CountingSource.unbounded();
     List<? extends UnboundedSource<Long, ?>> splits =
-        initial.generateInitialSplits(numSplits, p.getOptions());
+        initial.split(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;
@@ -262,7 +262,7 @@ public class CountingSourceTest {
     UnboundedCountingSource initial =
         CountingSource.createUnbounded().withRate(elementsPerPeriod, period);
     List<? extends UnboundedSource<Long, ?>> splits =
-        initial.generateInitialSplits(numSplits, p.getOptions());
+        initial.split(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;

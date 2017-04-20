@@ -406,7 +406,7 @@ public class CreateTest {
   }
 
   @Test
-  public void testSourceSplitIntoBundles() throws Exception {
+  public void testSourceSplit() throws Exception {
     CreateSource<Integer> source =
         CreateSource.fromIterable(
             ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), BigEndianIntegerCoder.of());
@@ -417,7 +417,7 @@ public class CreateTest {
   }
 
   @Test
-  public void testSourceSplitIntoBundlesVoid() throws Exception {
+  public void testSourceSplitVoid() throws Exception {
     CreateSource<Void> source =
         CreateSource.fromIterable(
             Lists.<Void>newArrayList(null, null, null, null, null), VoidCoder.of());
@@ -427,7 +427,7 @@ public class CreateTest {
   }
 
   @Test
-  public void testSourceSplitIntoBundlesEmpty() throws Exception {
+  public void testSourceSplitEmpty() throws Exception {
     CreateSource<Integer> source =
         CreateSource.fromIterable(ImmutableList.<Integer>of(), BigEndianIntegerCoder.of());
     PipelineOptions options = PipelineOptionsFactory.create();

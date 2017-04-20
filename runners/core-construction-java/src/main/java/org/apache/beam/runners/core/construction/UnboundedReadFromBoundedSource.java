@@ -130,7 +130,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @Override
-    public List<BoundedToUnboundedSourceAdapter<T>> generateInitialSplits(
+    public List<BoundedToUnboundedSourceAdapter<T>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       try {
         long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;

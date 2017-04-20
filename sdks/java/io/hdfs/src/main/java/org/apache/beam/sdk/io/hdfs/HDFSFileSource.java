@@ -296,8 +296,8 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
     long size = 0;
 
     try {
-      // If this source represents a split from split, then return the size of the split,
-      // rather then the entire input
+      // If this source represents a split from split,
+      // then return the size of the split, rather then the entire input
       if (serializableSplit() != null) {
         return serializableSplit().getSplit().getLength();
       }

@@ -26,6 +26,7 @@ import threading
 import time
 import traceback
 
+from apache_beam import error
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -148,6 +149,66 @@ class DataflowRunner(PipelineRunner):
     result._job = response
     runner.last_error_msg = last_error_msg
 
+  @staticmethod
+  def group_by_key_input_visitor():
+    # Imported here to avoid circular dependencies.
+    from apache_beam.pipeline import PipelineVisitor
+
+    class GroupByKeyInputVisitor(PipelineVisitor):
+      """A visitor that replaces `Any` element type for input `PCollection` of
+      a `GroupByKey` or `GroupByKeyOnly` with a `KV` type.
+
+      TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
+      we could directly replace the coder instead of mutating the element type.
+      """
+
+      def visit_transform(self, transform_node):
+        # Imported here to avoid circular dependencies.
+        # pylint: disable=wrong-import-order, wrong-import-position
+        from apache_beam import GroupByKey, GroupByKeyOnly
+        if isinstance(transform_node.transform, (GroupByKey, GroupByKeyOnly)):
+          pcoll = transform_node.inputs[0]
+          input_type = pcoll.element_type
+          # If input_type is not specified, then treat it as `Any`.
+          if not input_type:
+            input_type = typehints.Any
+
+          if not isinstance(input_type, typehints.TupleHint.TupleConstraint):
+            if isinstance(input_type, typehints.AnyTypeConstraint):
+              # `Any` type needs to be replaced with a KV[Any, Any] to
+              # force a KV coder as the main output coder for the pcollection
+              # preceding a GroupByKey.
+              pcoll.element_type = typehints.KV[typehints.Any, typehints.Any]
+            else:
+              # TODO: Handle other valid types,
+              # e.g. Union[KV[str, int], KV[str, float]]
+              raise ValueError(
+                  "Input to GroupByKey must be of Tuple or Any type. "
+                  "Found %s for %s" % (input_type, pcoll))
+
+    return GroupByKeyInputVisitor()
+
+  @staticmethod
+  def flatten_input_visitor():
+    # Imported here to avoid circular dependencies.
+    from apache_beam.pipeline import PipelineVisitor
+
+    class FlattenInputVisitor(PipelineVisitor):
+      """A visitor that replaces the element type for input ``PCollections``s of
+       a ``Flatten`` transform with that of the output ``PCollection``.
+      """
+
+      def visit_transform(self, transform_node):
+        # Imported here to avoid circular dependencies.
+        # pylint: disable=wrong-import-order, wrong-import-position
+        from apache_beam import Flatten
+        if isinstance(transform_node.transform, Flatten):
+          output_pcoll = transform_node.outputs[None]
+          for input_pcoll in transform_node.inputs:
+            input_pcoll.element_type = output_pcoll.element_type
+
+    return FlattenInputVisitor()
+
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
@@ -159,6 +220,14 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
     self.job = apiclient.Job(pipeline.options)
+
+    # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
+    # here.
+    pipeline.visit(self.group_by_key_input_visitor())
+
+    # Dataflow runner requires output type of the Flatten to be the same as the
+    # inputs, hence we enforce that here.
+    pipeline.visit(self.flatten_input_visitor())
 
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowRunner, self).run(pipeline)
@@ -373,7 +442,7 @@ class DataflowRunner(PipelineRunner):
         transform_node.full_label + (
             '/Do' if transform_node.side_inputs else ''),
         transform_node,
-        transform_node.transform.side_output_tags)
+        transform_node.transform.output_tags)
     fn_data = self._pardo_fn_data(transform_node, lookup_label)
     step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))
     step.add_property(
@@ -384,7 +453,7 @@ class DataflowRunner(PipelineRunner):
     # Add side inputs if any.
     step.add_property(PropertyNames.NON_PARALLEL_INPUTS, si_dict)
 
-    # Generate description for main output and side outputs. The output names
+    # Generate description for the outputs. The output names
     # will be 'out' for main output and 'out_<tag>' for a tagged output.
     # Using 'out' as a tag will not clash with the name for main since it will
     # be transformed into 'out_out' internally.
@@ -397,8 +466,8 @@ class DataflowRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
          PropertyNames.ENCODING: step.encoding,
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
-    for side_tag in transform.side_output_tags:
-      # The assumption here is that side outputs will have the same typehint
+    for side_tag in transform.output_tags:
+      # The assumption here is that all outputs will have the same typehint
       # and coder as the main output. This is certainly the case right now
       # but conceivably it could change in the future.
       outputs.append(
@@ -479,6 +548,11 @@ class DataflowRunner(PipelineRunner):
             'estimated_size_bytes': json_value.get_typed_value_descriptor(
                 transform.source.estimate_size())
         }
+      except error.RuntimeValueProviderError:
+        # Size estimation is best effort, and this error is by value provider.
+        logging.info(
+            'Could not estimate size of source %r due to ' + \
+            'RuntimeValueProviderError', transform.source)
       except Exception:  # pylint: disable=broad-except
         # Size estimation is best effort. So we log the error and continue.
         logging.info(

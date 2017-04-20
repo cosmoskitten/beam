@@ -326,7 +326,7 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testSplitIntoBundles() throws Exception {
+  public void testSplit() throws Exception {
     ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
     PipelineOptions options = PipelineOptionsFactory.create();
     ElasticsearchIO.Read read =

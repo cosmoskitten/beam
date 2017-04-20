@@ -186,7 +186,7 @@ public class ReadTest implements Serializable{
   private abstract static class CustomUnboundedSource
       extends UnboundedSource<String, NoOpCheckpointMark> {
     @Override
-    public List<? extends UnboundedSource<String, NoOpCheckpointMark>> generateInitialSplits(
+    public List<? extends UnboundedSource<String, NoOpCheckpointMark>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       return null;
     }

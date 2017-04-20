@@ -191,7 +191,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
       List<UnboundedToBoundedSourceAdapter<T>> result = new ArrayList<>();
       int numInitialSplits = numInitialSplits(getMaxNumRecords());
       List<? extends UnboundedSource<T, ?>> splits =
-          getSource().generateInitialSplits(numInitialSplits, options);
+          getSource().split(numInitialSplits, options);
       int numSplits = splits.size();
       long[] numRecords = splitNumRecords(getMaxNumRecords(), numSplits);
       for (int i = 0; i < numSplits; i++) {
