@@ -163,14 +163,6 @@ class Duration(object):
       return 'Duration(%s%d.%06d)' % (sign, int_part, frac_part)
     return 'Duration(%s%d)' % (sign, int_part)
 
-  def __float__(self):
-    # Note that the returned value may have lost precision.
-    return float(self.micros) / 1000000
-
-  def __int__(self):
-    # Note that the returned value may have lost precision.
-    return self.micros / 1000000
-
   def __cmp__(self, other):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
