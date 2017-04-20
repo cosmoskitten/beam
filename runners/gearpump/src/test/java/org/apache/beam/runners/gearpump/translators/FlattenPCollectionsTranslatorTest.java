@@ -57,7 +57,7 @@ public class FlattenPCollectionsTranslatorTest {
   @Test
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testTranslateWithEmptyCollection() {
-    PValue mockOutput = mock(PValue.class);
+    PCollection mockOutput = mock(PCollection.class);
     TranslationContext translationContext = mock(TranslationContext.class);
 
     when(translationContext.getInputs()).thenReturn(Collections.EMPTY_MAP);
@@ -74,10 +74,9 @@ public class FlattenPCollectionsTranslatorTest {
     TranslationContext translationContext = mock(TranslationContext.class);
 
     Map<TupleTag<?>, PValue> inputs = new HashMap<>();
-    PValue mockInput = mock(PValue.class);
     TupleTag tag = mock(TupleTag.class);
-    inputs.put(tag, mockInput);
     PCollection mockCollection = mock(PCollection.class);
+    inputs.put(tag, mockCollection);
 
     when(translationContext.getInputs()).thenReturn(inputs);
     when(translationContext.getInputStream(mockCollection)).thenReturn(javaStream);
@@ -100,15 +99,13 @@ public class FlattenPCollectionsTranslatorTest {
     TranslationContext translationContext = mock(TranslationContext.class);
 
     Map<TupleTag<?>, PValue> inputs = new HashMap<>();
-    PValue mockInput1 = mock(PValue.class);
     TupleTag tag1 = mock(TupleTag.class);
-    inputs.put(tag1, mockInput1);
     PCollection mockCollection1 = mock(PCollection.class);
+    inputs.put(tag1, mockCollection1);
 
-    PValue mockInput2 = mock(PValue.class);
     TupleTag tag2 = mock(TupleTag.class);
-    inputs.put(tag2, mockInput2);
     PCollection mockCollection2 = mock(PCollection.class);
+    inputs.put(tag2, mockCollection2);
 
     when(translationContext.getInputs()).thenReturn(inputs);
     when(translationContext.getInputStream(mockCollection1)).thenReturn(javaStream1);
@@ -128,14 +125,12 @@ public class FlattenPCollectionsTranslatorTest {
     TranslationContext translationContext = mock(TranslationContext.class);
 
     Map<TupleTag<?>, PValue> inputs = new HashMap<>();
-    PValue mockInput1 = mock(PValue.class);
     TupleTag tag1 = mock(TupleTag.class);
-    inputs.put(tag1, mockInput1);
     PCollection mockCollection1 = mock(PCollection.class);
+    inputs.put(tag1, mockCollection1);
 
-    PValue mockInput2 = mock(PValue.class);
     TupleTag tag2 = mock(TupleTag.class);
-    inputs.put(tag2, mockInput2);
+    inputs.put(tag2, mockCollection1);
 
     when(translationContext.getInputs()).thenReturn(inputs);
     when(translationContext.getInputStream(mockCollection1)).thenReturn(javaStream1);
