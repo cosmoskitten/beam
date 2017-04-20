@@ -160,6 +160,7 @@ class SerialEvaluationState(TransformEvaluationState):
   """
 
   def __init__(self, executor_service, scheduled):
+    raise Exception('wtf')
     super(SerialEvaluationState, self).__init__(executor_service, scheduled)
     self.serial_queue = collections.deque()
     self.currently_evaluating = None
@@ -228,7 +229,6 @@ class _CompletionCallback(object):
     self._timers = timers
 
   def handle_result(self, transform_executor, input_committed_bundle, transform_result):
-    print 'COMPLETIONCALLBACK.handle_result'
     output_committed_bundles = self._evaluation_context.handle_result(
         input_committed_bundle, self._timers, transform_result)
     for output_committed_bundle in output_committed_bundles:
@@ -292,7 +292,7 @@ class TransformExecutor(ExecutorService.CallableTask):
                          for side_input in self._applied_ptransform.side_inputs]
 
     try:
-      print 'EVALLLL'
+      print '[!] Running evaluator for %s (input bundle: %s).' % (self._applied_ptransform, list(self._input_bundle.get_elements_iterable()))
       evaluator = self._transform_evaluator_registry.for_application(
           self._applied_ptransform, self._input_bundle,
           side_input_values, scoped_metrics_container)
@@ -479,16 +479,12 @@ class _ExecutorServiceParallelExecutor(object):
 
     def call(self):
       try:
-        print 'YO'
         update = self._executor.all_updates.poll()
-        print 'YO', update
         while update:
-          print 'UPDATEE', update
+          # print 'UPDATEE', update
           if update.committed_bundle:
-            print 'UPDATE', update
             self._executor.schedule_consumers(update.committed_bundle)
           elif update.unprocessed_bundle:
-            print 'update.unprocessed_bundle', update.unprocessed_bundle.pcollection
             self._executor.schedule_unprocessed_bundle(
                 update.transform_executor._applied_ptransform,
                 update.unprocessed_bundle)
@@ -511,7 +507,6 @@ class _ExecutorServiceParallelExecutor(object):
             _ExecutorServiceParallelExecutor.VisibleExecutorUpdate(
                 sys.exc_info()))
       finally:
-        print 'SHUTDOWN?', self._should_shutdown()
         if not self._should_shutdown():
           self._executor.executor_service.submit(self)
 
@@ -538,7 +533,6 @@ class _ExecutorServiceParallelExecutor(object):
         return False
       else:
         if self._executor.evaluation_context.is_done():
-          print 'EXECTURO DONE'
           self._executor.visible_updates.offer(
               _ExecutorServiceParallelExecutor.VisibleExecutorUpdate())
         else:
@@ -609,11 +603,9 @@ class _ExecutorServiceParallelExecutor(object):
       # roots.
       for applied_ptransform in self._executor.root_nodes:
         if not self._executor.evaluation_context.is_done(applied_ptransform):
-          print 'SCHEDULE_CONSUMPTION', applied_ptransform
           if not self._executor.root_nodes_to_pending_bundles[applied_ptransform]:
             logging.warning('Root node %s not completed, but has no pending bundles.', applied_ptransform)
           for bundle in self._executor.root_nodes_to_pending_bundles[applied_ptransform]:
-            print 'SCHEDULE', applied_ptransform, bundle
             self._executor.schedule_consumption(
                 applied_ptransform, bundle,
                 self._executor.default_completion_callback)

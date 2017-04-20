@@ -150,6 +150,7 @@ class TransformEvaluatorRegistry(object):
     Returns:
       True if executor should execute applied_ptransform serially.
     """
+    return False
     return isinstance(applied_ptransform.transform,
                       (core.GroupByKeyOnly, _NativeWrite))
 
@@ -321,7 +322,7 @@ class _TestStreamEvaluator(_TransformEvaluator):
 
 
 
-    print 'FINISH_BUNDLE', self.current_index, event, unprocessed_bundle
+    print '[!] TestStream finish_bundle', self.current_index, event, unprocessed_bundle
 
     return TransformResult(
         self._applied_ptransform, bundles, unprocessed_bundle, None, None,
@@ -480,6 +481,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
 
   def process_element(self, element):
+    print '[!] GBK process_element', element
     assert not self.state.completed
     if (isinstance(element, WindowedValue)
         and isinstance(element.value, collections.Iterable)
