@@ -115,8 +115,7 @@ class WriteTables
       ref.setTableId(jobIdPrefix);
     }
 
-    TableSchema schema =
-        (schemaFunctionCopy != null) ? schemaFunctionCopy.apply(tableDestination) : null;
+    TableSchema schema = schemaFunctionCopy.apply(tableDestination);
     load(
         bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
         bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
