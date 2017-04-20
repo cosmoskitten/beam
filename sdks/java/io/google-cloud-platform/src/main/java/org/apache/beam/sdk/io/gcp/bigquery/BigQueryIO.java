@@ -42,6 +42,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -580,6 +581,7 @@ public class BigQueryIO {
                 })
             .withOutputTags(filesTag, TupleTagList.of(tableSchemaTag)));
         final PCollectionView<TableSchema> schemaView = tuple.get(tableSchemaTag)
+            .setCoder(StringDelegateCoder.of(TableSchema.class))
             .apply(View.<TableSchema>asSingleton());
         rows = tuple.get(filesTag)
             .apply(WithKeys.of(new SerializableFunction<String, String>() {
