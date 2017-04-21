@@ -97,8 +97,8 @@ class SdkHarnessRunner(maptask_executor_runner.MapTaskExecutorRunner):
     super(SdkHarnessRunner, self).__init__()
     self._last_uid = -1
 
-  def _set_metrics_support(self):
-    MetricsEnvironment.set_metrics_supported(False)
+  def has_metrics_support(self):
+    return False
 
   def _next_uid(self):
     self._last_uid += 1

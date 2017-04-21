@@ -33,15 +33,13 @@ class MapTaskExecutorRunner(PipelineRunner):
   def __init__(self):
     self.executors = []
 
-  def _set_metrics_support(self):
-    """Set whether this runner supports metrics or not.
-
-    Can be set to False by subclass runners.
+  def has_metrics_support(self):
+    """Returns whether this runner supports metrics or not.
     """
-    MetricsEnvironment.set_metrics_supported(True)
+    return False
 
   def run(self, pipeline):
-    self._set_metrics_support()
+    MetricsEnvironment.set_metrics_supported(self.has_metrics_support())
     # List of map tasks  Each map task is a list of
     # (stage_name, operation_specs.WorkerOperation) instructions.
     self.map_tasks = []
