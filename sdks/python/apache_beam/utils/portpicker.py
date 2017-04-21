@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import contextlib
 import socket
 
 def pick_unused_port():
@@ -24,6 +25,7 @@ def pick_unused_port():
   but before the caller has a chance to bind it again, but that's the
   best we can do for libraries expecting a port number.
   """
-  with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+  with contextlib.closing(
+      socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
     s.bind(('localhost', 0))
     return s.getsockname()[1]
