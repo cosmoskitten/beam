@@ -25,10 +25,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.Serializer;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -42,7 +50,16 @@ import org.junit.runners.Parameterized.Parameters;
 public class CloudObjectsTest {
   @Parameters(name = "{index}: {0}")
   public static Iterable<Coder<?>> data() {
-    return ImmutableList.<Coder<?>>builder().add(new RecordCoder()).build();
+    return ImmutableList.<Coder<?>>builder()
+        .add(new RecordCoder())
+        .add(GlobalWindow.Coder.INSTANCE)
+        .add(IntervalWindow.getCoder())
+        .add(LengthPrefixCoder.of(VarLongCoder.of()))
+        .add(IterableCoder.of(VarLongCoder.of()))
+        .add(KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))
+        .add(VarLongCoder.of())
+        .add(ByteArrayCoder.of())
+        .build();
   }
 
   @Parameter(0)
@@ -51,7 +68,7 @@ public class CloudObjectsTest {
   @Test
   public void toAndFromCloudObject() throws Exception {
     CloudObject cloudObject = CloudObjects.asCloudObject(coder);
-    Coder<?> reconstructed = CloudObjects.coderFromCloudObject(cloudObject);
+    Coder<?> reconstructed = Serializer.deserialize(cloudObject, Coder.class);
 
     assertEquals(coder.getClass(), reconstructed.getClass());
     assertEquals(coder, reconstructed);
