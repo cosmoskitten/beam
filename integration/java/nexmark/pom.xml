@@ -29,7 +29,6 @@
 
   <artifactId>beam-integration-java-nexmark</artifactId>
   <name>Apache Beam :: Integration Tests :: Java :: Nexmark</name>
-
   <packaging>jar</packaging>
 
   <properties>
