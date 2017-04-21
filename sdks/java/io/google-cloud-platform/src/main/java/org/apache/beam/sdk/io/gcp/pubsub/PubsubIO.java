@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -456,7 +457,7 @@ public class PubsubIO {
   }
 
   public static <T> Read<T> read() {
-    return new Read<>();
+    return new AutoValue_PubsubIO_Read.Builder<T>().build();
   }
 
   public static <T> Write<T> write() {
@@ -468,51 +469,46 @@ public class PubsubIO {
    * returns a {@link PCollection} of {@link String Strings} containing the items from
    * the stream.
    */
-  public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-
-    /** The Cloud Pub/Sub topic to read from. */
+  @AutoValue
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable
-    private final ValueProvider<PubsubTopic> topic;
+    abstract ValueProvider<PubsubTopic> getTopicProvider();
 
-    /** The Cloud Pub/Sub subscription to read from. */
     @Nullable
-    private final ValueProvider<PubsubSubscription> subscription;
+    abstract ValueProvider<PubsubSubscription> getSubscriptionProvider();
 
     /** The name of the message attribute to read timestamps from. */
     @Nullable
-    private final String timestampLabel;
+    abstract String getTimestampLabel();
 
     /** The name of the message attribute to read unique message IDs from. */
     @Nullable
-    private final String idLabel;
+    abstract String getIdLabel();
 
     /** The coder used to decode each record. */
     @Nullable
-    private final Coder<T> coder;
+    abstract Coder<T> getCoder();
 
     /** User function for parsing PubsubMessage object. */
-    SimpleFunction<PubsubMessage, T> parseFn;
+    @Nullable
+    abstract SimpleFunction<PubsubMessage, T> getParseFn();
 
-    private Read() {
-      this(null, null, null, null, null, null, null);
-    }
+    abstract Builder<T> toBuilder();
 
-    private Read(String name, ValueProvider<PubsubSubscription> subscription,
-        ValueProvider<PubsubTopic> topic, String timestampLabel, Coder<T> coder,
-        String idLabel,
-        SimpleFunction<PubsubMessage, T> parseFn) {
-      super(name);
-      this.subscription = subscription;
-      this.topic = topic;
-      this.timestampLabel = timestampLabel;
-      this.coder = coder;
-      this.idLabel = idLabel;
-      this.parseFn = parseFn;
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
+      abstract Builder<T> setSubscriptionProvider(ValueProvider<PubsubSubscription> subscription);
+      abstract Builder<T> setTimestampLabel(String timestampLabel);
+      abstract Builder<T> setIdLabel(String idLabel);
+      abstract Builder<T> setCoder(Coder<T> coder);
+      abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
+
+      abstract Read<T> build();
     }
 
     /**
-     * Returns a transform that's like this one but reading from the
-     * given subscription.
+     * Reads from the given subscription.
      *
      * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format
      * of the {@code subscription} string.
@@ -535,9 +531,12 @@ public class PubsubIO {
         // Validate.
         PubsubSubscription.fromPath(subscription.get());
       }
-      return new Read<>(
-          name, NestedValueProvider.of(subscription, new SubscriptionTranslator()),
-          null /* reset topic to null */, timestampLabel, coder, idLabel, parseFn);
+      return toBuilder()
+          .setSubscriptionProvider(
+              NestedValueProvider.of(subscription, new SubscriptionTranslator()))
+          /* reset topic to null */
+          .setTopicProvider(null)
+          .build();
     }
 
     /**
@@ -563,9 +562,11 @@ public class PubsubIO {
         // Validate.
         PubsubTopic.fromPath(topic.get());
       }
-      return new Read<>(name, null /* reset subscription to null */,
-          NestedValueProvider.of(topic, new TopicTranslator()),
-          timestampLabel, coder, idLabel, parseFn);
+      return toBuilder()
+          .setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()))
+          /* reset subscription to null */
+          .setSubscriptionProvider(null)
+          .build();
     }
 
     /**
@@ -599,9 +600,7 @@ public class PubsubIO {
      * @see <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 3339</a>
      */
     public Read<T> timestampLabel(String timestampLabel) {
-      return new Read<>(
-          name, subscription, topic, timestampLabel, coder, idLabel,
-          parseFn);
+      return toBuilder().setTimestampLabel(timestampLabel).build();
     }
 
     /**
@@ -615,9 +614,7 @@ public class PubsubIO {
      * be delivered, and deduplication of the stream will be strictly best effort.
      */
     public Read<T> idLabel(String idLabel) {
-      return new Read<>(
-          name, subscription, topic, timestampLabel, coder, idLabel,
-          parseFn);
+      return toBuilder().setIdLabel(idLabel).build();
     }
 
     /**
@@ -627,9 +624,7 @@ public class PubsubIO {
      * <p>Does not modify this object.
      */
     public Read<T> withCoder(Coder<T> coder) {
-      return new Read<>(
-          name, subscription, topic, timestampLabel, coder, idLabel,
-          parseFn);
+      return toBuilder().setCoder(coder).build();
     }
 
     /**
@@ -639,48 +634,60 @@ public class PubsubIO {
      * {@link PCollection#setCoder(Coder)}.
      */
     public Read<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
-      return new Read<T>(
-          name, subscription, topic, timestampLabel, coder, idLabel,
-          parseFn);
+      return toBuilder().setParseFn(parseFn).build();
     }
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      if (topic == null && subscription == null) {
-        throw new IllegalStateException("Need to set either the topic or the subscription for "
-            + "a PubsubIO.Read transform");
+      if (getTopicProvider() == null && getSubscriptionProvider() == null) {
+        throw new IllegalStateException(
+            "Need to set either the topic or the subscription for " + "a PubsubIO.Read transform");
       }
-      if (topic != null && subscription != null) {
-        throw new IllegalStateException("Can't set both the topic and the subscription for "
-            + "a PubsubIO.Read transform");
+      if (getTopicProvider() != null && getSubscriptionProvider() != null) {
+        throw new IllegalStateException(
+            "Can't set both the topic and the subscription for " + "a PubsubIO.Read transform");
       }
-      if (coder == null) {
-        throw new IllegalStateException("PubsubIO.Read requires that a coder be set using "
-            + "the withCoder method.");
+      if (getCoder() == null) {
+        throw new IllegalStateException(
+            "PubsubIO.Read requires that a coder be set using " + "the withCoder method.");
       }
 
-      @Nullable ValueProvider<ProjectPath> projectPath =
-          topic == null ? null : NestedValueProvider.of(topic, new ProjectPathTranslator());
-      @Nullable ValueProvider<TopicPath> topicPath =
-          topic == null ? null : NestedValueProvider.of(topic, new TopicPathTranslator());
-      @Nullable ValueProvider<SubscriptionPath> subscriptionPath =
-          subscription == null
+      @Nullable
+      ValueProvider<ProjectPath> projectPath =
+          getTopicProvider() == null
               ? null
-              : NestedValueProvider.of(subscription, new SubscriptionPathTranslator());
-      PubsubUnboundedSource<T> source = new PubsubUnboundedSource<T>(
-              FACTORY, projectPath, topicPath, subscriptionPath,
-              coder, timestampLabel, idLabel, parseFn);
+              : NestedValueProvider.of(getTopicProvider(), new ProjectPathTranslator());
+      @Nullable
+      ValueProvider<TopicPath> topicPath =
+          getTopicProvider() == null
+              ? null
+              : NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator());
+      @Nullable
+      ValueProvider<SubscriptionPath> subscriptionPath =
+          getSubscriptionProvider() == null
+              ? null
+              : NestedValueProvider.of(getSubscriptionProvider(), new SubscriptionPathTranslator());
+      PubsubUnboundedSource<T> source =
+          new PubsubUnboundedSource<T>(
+              FACTORY,
+              projectPath,
+              topicPath,
+              subscriptionPath,
+              getCoder(),
+              getTimestampLabel(),
+              getIdLabel(),
+              getParseFn());
       return input.getPipeline().apply(source);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      populateCommonDisplayData(builder, timestampLabel, idLabel, topic);
+      populateCommonDisplayData(builder, getTimestampLabel(), getIdLabel(), getTopicProvider());
 
-      if (subscription != null) {
-        String subscriptionString = subscription.isAccessible()
-            ? subscription.get().asPath() : subscription.toString();
+      if (getSubscriptionProvider() != null) {
+        String subscriptionString = getSubscriptionProvider().isAccessible()
+            ? getSubscriptionProvider().get().asPath() : getSubscriptionProvider().toString();
         builder.add(DisplayData.item("subscription", subscriptionString)
             .withLabel("Pubsub Subscription"));
       }
@@ -688,72 +695,8 @@ public class PubsubIO {
 
     @Override
     protected Coder<T> getDefaultOutputCoder() {
-      return coder;
+      return getCoder();
     }
-
-    /**
-     * Get the topic being read from.
-     */
-    @Nullable
-    public PubsubTopic getTopic() {
-      return topic == null ? null : topic.get();
-    }
-
-    /**
-     * Get the {@link ValueProvider} for the topic being read from.
-     */
-    public ValueProvider<PubsubTopic> getTopicProvider() {
-      return topic;
-    }
-
-    /**
-     * Get the subscription being read from.
-     */
-    @Nullable
-    public PubsubSubscription getSubscription() {
-      return subscription == null ? null : subscription.get();
-    }
-
-    /**
-     * Get the {@link ValueProvider} for the subscription being read from.
-     */
-    public ValueProvider<PubsubSubscription> getSubscriptionProvider() {
-      return subscription;
-    }
-
-    /**
-     * Get the timestamp label.
-     */
-    @Nullable
-    public String getTimestampLabel() {
-      return timestampLabel;
-    }
-
-    /**
-     * Get the id label.
-     */
-    @Nullable
-    public String getIdLabel() {
-      return idLabel;
-    }
-
-
-    /**
-     * Get the {@link Coder} used for the transform's output.
-     */
-    @Nullable
-    public Coder<T> getCoder() {
-      return coder;
-    }
-
-    /**
-     * Get the parse function used for PubSub attributes.
-     */
-    @Nullable
-    public SimpleFunction<PubsubMessage, T> getPubSubMessageParseFn() {
-      return parseFn;
-    }
-
   }
 
   /////////////////////////////////////////////////////////////////////////////
