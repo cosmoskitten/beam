@@ -86,6 +86,8 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -854,29 +856,30 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // ================================================================================
 
   /**
-   * Suppress application of {@link PubsubUnboundedSource#expand} in streaming mode so that we
-   * can instead defer to Windmill's implementation.
+   * Suppress application of {@link PubsubUnboundedSource#expand} in streaming mode so that we can
+   * instead defer to Windmill's implementation.
    */
-  private static class StreamingPubsubIORead<T> extends PTransform<PBegin, PCollection<T>> {
-    private final PubsubUnboundedSource<T> transform;
+  private static class StreamingPubsubIORead<T>
+      extends PTransform<PBegin, PCollection<PubsubIO.PubsubMessage>> {
+    private final PubsubUnboundedSource transform;
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
     public StreamingPubsubIORead(
-        DataflowRunner runner, PubsubUnboundedSource<T> transform) {
+        DataflowRunner runner, PubsubUnboundedSource transform) {
       this.transform = transform;
     }
 
-    PubsubUnboundedSource<T> getOverriddenTransform() {
+    PubsubUnboundedSource getOverriddenTransform() {
       return transform;
     }
 
     @Override
-    public PCollection<T> expand(PBegin input) {
-      return PCollection.<T>createPrimitiveOutputInternal(
+    public PCollection<PubsubIO.PubsubMessage> expand(PBegin input) {
+      return PCollection.<PubsubIO.PubsubMessage>createPrimitiveOutputInternal(
           input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-          .setCoder(transform.getElementCoder());
+          .setCoder(new PubsubMessageCoder());
     }
 
     @Override
@@ -898,7 +901,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       checkArgument(
           context.getPipelineOptions().isStreaming(),
           "StreamingPubsubIORead is only for streaming pipelines.");
-      PubsubUnboundedSource<T> overriddenTransform = transform.getOverriddenTransform();
+      PubsubUnboundedSource overriddenTransform = transform.getOverriddenTransform();
       StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
       stepContext.addInput(PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider() != null) {
@@ -928,12 +931,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       if (overriddenTransform.getIdLabel() != null) {
         stepContext.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
-      }
-      if (overriddenTransform.getWithAttributesParseFn() != null) {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
-            byteArrayToJsonString(
-                serializeToByteArray(overriddenTransform.getWithAttributesParseFn())));
       }
       stepContext.addOutput(context.getOutput(transform));
     }
