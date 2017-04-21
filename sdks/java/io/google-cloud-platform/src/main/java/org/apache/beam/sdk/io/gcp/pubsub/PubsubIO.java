@@ -30,6 +30,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -459,6 +460,14 @@ public class PubsubIO {
    /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
   public static <T> Read<T> read() {
     return new AutoValue_PubsubIO_Read.Builder<T>().build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads UTF-8 encoded strings from a Google Cloud
+   * Pub/Sub stream.
+   */
+  public static Read<String> readStrings() {
+    return PubsubIO.<String>read().withCoder(StringUtf8Coder.of());
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */

@@ -82,6 +82,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Users should use {@link PubsubIO#read} instead.
+ *
  * A PTransform which streams messages from Pubsub.
  * <ul>
  * <li>The underlying implementation in an {@link UnboundedSource} which receives messages
