@@ -446,7 +446,7 @@ public class ParDo {
     Map<String, DoFnSignature.StateDeclaration> stateDeclarations = signature.stateDeclarations();
     for (DoFnSignature.StateDeclaration stateDeclaration : stateDeclarations.values()) {
       try {
-        StateSpec<?, ?> stateSpec = (StateSpec<?, ?>) stateDeclaration.field().get(fn);
+        StateSpec<?> stateSpec = (StateSpec<?>) stateDeclaration.field().get(fn);
         stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder));
         stateSpec.finishSpecifying();
       } catch (IllegalAccessException e) {
@@ -738,7 +738,7 @@ public class ParDo {
       // SplittableDoFn should be forbidden on the runner-side.
       validateWindowType(input, fn);
 
-      // Use coder registry to determine coders for all StateSpec defined in the fn signature.
+      // Use coder registry to determine coders for all KeyedStateSpec defined in the fn signature.
       finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
 
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(

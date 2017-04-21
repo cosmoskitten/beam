@@ -162,7 +162,7 @@ public class EvaluationContextTest {
         context.getExecutionContext(createdProducer,
             StructuralKey.of("foo", StringUtf8Coder.of()));
 
-    StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
+    StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     DirectStepContext stepContext = fooContext.getOrCreateStepContext("s1", "s1");
     stepContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
@@ -195,7 +195,7 @@ public class EvaluationContextTest {
         context.getExecutionContext(createdProducer,
             StructuralKey.of("foo", StringUtf8Coder.of()));
 
-    StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
+    StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     fooContext
         .getOrCreateStepContext("s1", "s1")
@@ -222,7 +222,7 @@ public class EvaluationContextTest {
     DirectExecutionContext fooContext =
         context.getExecutionContext(createdProducer, myKey);
 
-    StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
+    StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     fooContext
         .getOrCreateStepContext("s1", "s1")
@@ -279,9 +279,9 @@ public class EvaluationContextTest {
     DirectExecutionContext fooContext =
         context.getExecutionContext(downstreamProducer, myKey);
 
-    StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
+    StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    CopyOnAccessInMemoryStateInternals<Object> state =
+    CopyOnAccessInMemoryStateInternals<?> state =
         fooContext.getOrCreateStepContext("s1", "s1").stateInternals();
     BagState<Integer> bag = state.state(StateNamespaces.global(), intBag);
     bag.add(1);
@@ -301,7 +301,7 @@ public class EvaluationContextTest {
     DirectExecutionContext afterResultContext =
         context.getExecutionContext(downstreamProducer, myKey);
 
-    CopyOnAccessInMemoryStateInternals<Object> afterResultState =
+    CopyOnAccessInMemoryStateInternals<?> afterResultState =
         afterResultContext.getOrCreateStepContext("s1", "s1").stateInternals();
     assertThat(afterResultState.state(StateNamespaces.global(), intBag).read(), contains(1, 2, 4));
   }
