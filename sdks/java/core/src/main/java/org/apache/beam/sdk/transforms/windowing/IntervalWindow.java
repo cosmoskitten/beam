@@ -195,6 +195,11 @@ public class IntervalWindow extends BoundedWindow
     }
 
     @Override
+    public Object structuralValue(IntervalWindow value) {
+      return value;
+    }
+
+    @Override
     protected CloudObject initializeCloudObject() {
       return CloudObject.forClassName("kind:interval_window");
     }

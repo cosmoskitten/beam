@@ -74,6 +74,11 @@ public class GlobalWindow extends BoundedWindow {
     }
 
     @Override
+    public Object structuralValue(GlobalWindow value) {
+      return value;
+    }
+
+    @Override
     protected CloudObject initializeCloudObject() {
       return CloudObject.forClassName("kind:global_window");
     }
