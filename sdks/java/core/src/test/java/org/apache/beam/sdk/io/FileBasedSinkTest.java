@@ -109,7 +109,8 @@ public class FileBasedSinkTest {
     }
     FileResult result = writer.close();
 
-    assertEquals(expectedFilename, result.getFilename());
+    assertEquals(expectedFilename,
+        result.getDestinationFile(writer.getWriteOperation().getSink().getFileNamePolicy()));
     assertFileContains(expected, expectedFilename);
   }
 
@@ -222,7 +223,8 @@ public class FileBasedSinkTest {
     List<FileResult> fileResults = new ArrayList<>();
     // Create temporary output bundles and output File objects.
     for (int i = 0; i < numFiles; i++) {
-      fileResults.add(new FileResult(temporaryFiles.get(i).toString(), null));
+      fileResults.add(new FileResult(temporaryFiles.get(i).toString(),
+          WriteFiles.UNKNOWN_SHARDNUM, WriteFiles.UNKNOWN_NUMSHARDS, null, null));
     }
 
     writeOp.finalize(fileResults, options);
@@ -392,9 +394,9 @@ public class FileBasedSinkTest {
     // More than one shard does.
     try {
       Iterable<FileResult> results = Lists.newArrayList(
-          new FileResult("temp1", "file1"),
-          new FileResult("temp2", "file1"),
-          new FileResult("temp3", "file1"));
+          new FileResult("temp1",1, 1, null, null),
+          new FileResult("temp2", 1, 1, null, null),
+          new FileResult("temp3", 1, 1, null, null));
 
       writeOp.buildOutputFilenames(results);
       fail("Should have failed.");
@@ -528,7 +530,8 @@ public class FileBasedSinkTest {
     writer.write("b");
     final FileResult result = writer.close();
 
-    assertEquals(expectedFilename, result.getFilename());
+    assertEquals(expectedFilename, result.getDestinationFile(
+        writeOp.getSink().getFileNamePolicy()));
     assertFileContains(expected, expectedFilename);
   }
 
