@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
@@ -468,6 +470,14 @@ public class PubsubIO {
    */
   public static Read<String> readStrings() {
     return PubsubIO.<String>read().withCoder(StringUtf8Coder.of());
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads binary encoded protos of the given type
+   * from a Google Cloud Pub/Sub stream.
+   */
+  public static <T extends Message> Read<T> readProtos(Class<T> messageClass) {
+    return PubsubIO.<T>read().withCoder(ProtoCoder.of(messageClass));
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
