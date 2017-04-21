@@ -27,7 +27,7 @@ from concurrent import futures
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.runners.api import beam_fn_api_pb2
-from apache_beam.runners.worker import sdk_harness
+from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.data_plane import GrpcClientDataChannelFactory
 from apache_beam.utils import portpicker
 
@@ -82,7 +82,7 @@ class SdkHarnessTest(unittest.TestCase):
     server.start()
 
     channel = grpc.insecure_channel("localhost:%s" % test_port)
-    harness = sdk_harness.SdkHarness(channel)
+    harness = sdk_worker.SdkHarness(channel)
     harness.run()
     self.assertEqual(
         harness.worker.fns,
