@@ -35,6 +35,10 @@ public class PubsubMessageCoder extends CustomCoder<PubsubIO.PubsubMessage> {
   private static final Coder<Map<String, String>> ATTRIBUTES_CODER = MapCoder.of(
       StringUtf8Coder.of(), StringUtf8Coder.of());
 
+  public static PubsubMessageCoder of() {
+    return new PubsubMessageCoder();
+  }
+
   @Override
   public void encode(PubsubIO.PubsubMessage value, OutputStream outStream, Context context)
       throws IOException {
