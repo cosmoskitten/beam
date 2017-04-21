@@ -51,6 +51,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.WindowedContext;
+import org.apache.beam.sdk.io.TextIO.Read.Bound;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -735,6 +737,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     private String id;
 
     private BoundedWindow window;
+    private Coder<BoundedWindow> windowCoder;
     private PaneInfo paneInfo;
     private int shard = -1;
     private int numShards = -1;
@@ -806,13 +809,14 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      */
     public final void openWindowed(String uId,
                                    BoundedWindow window,
+                                   Coder<BoundedWindow> windowCoder,
                                    PaneInfo paneInfo,
                                    int shard,
                                    int numShards) throws Exception {
       if (!getWriteOperation().windowedWrites) {
         throw new IllegalStateException("openWindowed called a non-windowed sink.");
       }
-      open(uId, window, paneInfo, shard, numShards);
+      open(uId, window, windowCoder, paneInfo, shard, numShards);
     }
 
     /**
@@ -830,16 +834,18 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       if (getWriteOperation().windowedWrites) {
         throw new IllegalStateException("openUnwindowed called a windowed sink.");
       }
-      open(uId, null, null, shard, numShards);
+      open(uId, null, null, null, shard, numShards);
     }
 
     private void open(String uId,
                       @Nullable BoundedWindow window,
+                      @Nullable Coder<BoundedWindow> windowCoder,
                       @Nullable PaneInfo paneInfo,
                       int shard,
                       int numShards) throws Exception {
       this.id = uId;
       this.window = window;
+      this.windowCoder = windowCoder;
       this.paneInfo = paneInfo;
       this.shard = shard;
       this.numShards = numShards;
@@ -915,16 +921,18 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    * Result of a single bundle write. Contains the filename of the bundle.
    */
   public static final class FileResult {
-    private final String filename;
-    private final String destinationFilename;
+    private final String tempFilename;
+    private int shard;
+    private int numShards;
+    private BoundedWindow window;
 
-    public FileResult(String filename, String destinationFilename) {
-      this.filename = filename;
+    public FileResult(String tempFilename, String destinationFilename) {
+      this.tempFilename = tempFilename;
       this.destinationFilename = destinationFilename;
     }
 
-    public String getFilename() {
-      return filename;
+    public String getTempFilename() {
+      return tempFilename;
     }
 
     public String getDestinationFilename() {

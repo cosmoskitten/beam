@@ -29,6 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
@@ -304,9 +305,12 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    */
   private class WriteShardedBundles extends DoFn<KV<Integer, Iterable<T>>, FileResult> {
     private final PCollectionView<Integer> numShardsView;
+    Coder<BoundedWindow> windowCoder;
 
-    WriteShardedBundles(PCollectionView<Integer> numShardsView) {
+    WriteShardedBundles(PCollectionView<Integer> numShardsView,
+                        Coder<? extends BoundedWindow> windowCoder) {
       this.numShardsView = numShardsView;
+      this.windowCoder = (Coder<BoundedWindow>) windowCoder;
     }
 
     @ProcessElement
@@ -317,8 +321,8 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       LOG.info("Opening writer for write operation {}", writeOperation);
       FileBasedWriter<T> writer = writeOperation.createWriter(c.getPipelineOptions());
       if (windowedWrites) {
-        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey(),
-            numShards);
+        writer.openWindowed(UUID.randomUUID().toString(), window, windowCoder, c.pane(), c.element()
+                .getKey(), numShards);
       } else {
         writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
       }
@@ -442,7 +446,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     // FileBasedWriteOperation PCollection as a side input), so this will happen after the
     // initial ParDo.
     PCollection<FileResult> results;
-    final PCollectionView<Integer> numShardsView;
+    PCollectionView<Integer> numShardsView;
     if (computeNumShards == null && numShardsProvider == null) {
       if (windowedWrites) {
         throw new IllegalStateException("When doing windowed writes, numShards must be set"
@@ -453,23 +457,28 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
           .apply("WriteBundles",
               ParDo.of(new WriteBundles()));
     } else {
+      numShardsView = null;
+      List<PCollectionView<?>> sideInputs = Lists.newArrayList();
       if (computeNumShards != null) {
         numShardsView = input.apply(computeNumShards);
-        results  = input
-            .apply("ApplyShardLabel", ParDo.of(
-                new ApplyShardingKey<T>(numShardsView, null)).withSideInputs(numShardsView))
-            .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
-            .apply("WriteShardedBundles",
-                ParDo.of(new WriteShardedBundles(numShardsView))
-                    .withSideInputs(numShardsView));
-      } else {
-        numShardsView = null;
-        results = input
-            .apply("ApplyShardLabel", ParDo.of(new ApplyShardingKey<T>(null, numShardsProvider)))
-            .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
-            .apply("WriteShardedBundles",
-                ParDo.of(new WriteShardedBundles(null)));
+        sideInputs.add(numShardsView);
       }
+
+      PCollection<KV<Integer, Iterable<T>>> sharded =
+          input
+              .apply("ApplyShardLabel", ParDo.of(
+                  new ApplyShardingKey<T>(numShardsView,
+                      (numShardsView != null) ? null : numShardsProvider)).withSideInputs(sideInputs))
+              .apply("GroupIntoShards", GroupByKey.<Integer, T>create());
+      Coder<? extends BoundedWindow> shardedWindowCoder =
+           sharded.getWindowingStrategy().getWindowFn()
+              .windowCoder();
+
+      results  = sharded
+          .apply("WriteShardedBundles",
+              ParDo.of(new WriteShardedBundles(
+                  numShardsView, shardedCoder)).withSideInputs(sideInputs));
+
     }
     results.setCoder(writeOperation.getFileResultCoder());
 
@@ -480,7 +489,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       // we aggregate the result set using a singleton GroupByKey, so the DoFn will be triggered
       // whenever new data arrives.
       PCollection<KV<Void, FileResult>> keyedResults =
-          results.apply("AttachSingletonKey", WithKeys.<Void, FileResult>of((Void) null));
+          results.apply("AttachSi ngletonKey", WithKeys.<Void, FileResult>of((Void) null));
       keyedResults.setCoder(KvCoder.of(VoidCoder.of(), writeOperation.getFileResultCoder()));
 
       // Is the continuation trigger sufficient?
