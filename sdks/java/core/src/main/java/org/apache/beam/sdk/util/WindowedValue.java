@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.MoreObjects;
@@ -60,10 +61,9 @@ public abstract class WindowedValue<T> {
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane) {
     checkNotNull(pane);
+    checkArgument(windows.size() > 0);
 
-    if (windows.size() == 0 && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
-      return valueInEmptyWindows(value, pane);
-    } else if (windows.size() == 1) {
+    if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), pane);
     } else {
       return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
@@ -116,30 +116,6 @@ public abstract class WindowedValue<T> {
     } else {
       return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING);
     }
-  }
-
-  /**
-   * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
-   * and pane.
-   *
-   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
-   *     it at any point, and benign runner implementation details could cause silent data loss.
-   */
-  @Deprecated
-  public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
-    return new ValueInEmptyWindows<>(value, PaneInfo.NO_FIRING);
-  }
-
-  /**
-   * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
-   * and the specified pane.
-   *
-   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
-   *     it at any point, and benign runner implementation details could cause silent data loss.
-   */
-  @Deprecated
-  public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
-    return new ValueInEmptyWindows<>(value, pane);
   }
 
   /**
