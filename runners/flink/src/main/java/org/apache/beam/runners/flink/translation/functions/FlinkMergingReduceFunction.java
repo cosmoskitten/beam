@@ -26,8 +26,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.PerKeyCombineFnRunner;
-import org.apache.beam.runners.core.PerKeyCombineFnRunners;
+import org.apache.beam.runners.core.GlobalCombineFnRunner;
+import org.apache.beam.runners.core.GlobalCombineFnRunners;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -50,11 +50,11 @@ public class FlinkMergingReduceFunction<K, AccumT, OutputT, W extends IntervalWi
     extends FlinkReduceFunction<K, AccumT, OutputT, W> {
 
   public FlinkMergingReduceFunction(
-      CombineFnBase.PerKeyCombineFn<K, ?, AccumT, OutputT> keyedCombineFn,
+      CombineFnBase.GlobalCombineFn<?, AccumT, OutputT> combineFn,
       WindowingStrategy<?, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
-    super(keyedCombineFn, windowingStrategy, sideInputs, pipelineOptions);
+    super(combineFn, windowingStrategy, sideInputs, pipelineOptions);
   }
 
   @Override
@@ -67,8 +67,8 @@ public class FlinkMergingReduceFunction<K, AccumT, OutputT, W extends IntervalWi
     FlinkSideInputReader sideInputReader =
         new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
-    PerKeyCombineFnRunner<K, ?, AccumT, OutputT> combineFnRunner =
-        PerKeyCombineFnRunners.create(combineFn);
+    GlobalCombineFnRunner<?, AccumT, OutputT> globalCombineFnRunner =
+        GlobalCombineFnRunners.create(combineFn);
 
     @SuppressWarnings("unchecked")
     OutputTimeFn<? super BoundedWindow> outputTimeFn =
@@ -122,16 +122,21 @@ public class FlinkMergingReduceFunction<K, AccumT, OutputT, W extends IntervalWi
       if (nextWindow.equals(currentWindow)) {
         // continue accumulating and merge windows
 
-        accumulator = combineFnRunner.mergeAccumulators(
-            key, ImmutableList.of(accumulator, nextValue.getValue().getValue()),
-            options, sideInputReader, currentValue.getWindows());
+        accumulator =
+            globalCombineFnRunner.mergeAccumulators(
+                ImmutableList.of(accumulator, nextValue.getValue().getValue()),
+                options,
+                sideInputReader,
+                currentValue.getWindows());
 
         windowTimestamps.add(nextValue.getTimestamp());
       } else {
         out.collect(
             WindowedValue.of(
-                KV.of(key, combineFnRunner.extractOutput(key, accumulator,
-                    options, sideInputReader, currentValue.getWindows())),
+                KV.of(
+                    key,
+                    globalCombineFnRunner.extractOutput(
+                        accumulator, options, sideInputReader, currentValue.getWindows())),
                 outputTimeFn.merge(currentWindow, windowTimestamps),
                 currentWindow,
                 PaneInfo.NO_FIRING));
@@ -148,8 +153,10 @@ public class FlinkMergingReduceFunction<K, AccumT, OutputT, W extends IntervalWi
     // emit the final accumulator
     out.collect(
         WindowedValue.of(
-            KV.of(key, combineFnRunner.extractOutput(key, accumulator,
-                options, sideInputReader, currentValue.getWindows())),
+            KV.of(
+                key,
+                globalCombineFnRunner.extractOutput(
+                    accumulator, options, sideInputReader, currentValue.getWindows())),
             outputTimeFn.merge(currentWindow, windowTimestamps),
             currentWindow,
             PaneInfo.NO_FIRING));

@@ -190,8 +190,7 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      Combine.KeyedCombineFn<K, InputT, List<InputT>, List<InputT>> combineFn =
-          new Concatenate<InputT>().asKeyedFn();
+      Combine.CombineFn<InputT, List<InputT>, List<InputT>> combineFn = new Concatenate<>();
 
       KvCoder<K, InputT> inputCoder =
           (KvCoder<K, InputT>) context.getInput(transform).getCoder();
@@ -202,7 +201,6 @@ class FlinkBatchTransformTranslators {
         accumulatorCoder =
             combineFn.getAccumulatorCoder(
                 context.getInput(transform).getPipeline().getCoderRegistry(),
-                inputCoder.getKeyCoder(),
                 inputCoder.getValueCoder());
       } catch (CannotProvideCoderException e) {
         throw new RuntimeException(e);
@@ -366,8 +364,8 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT> combineFn =
-          (CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT>) transform.getFn();
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn =
+          (CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT>) transform.getFn();
 
       KvCoder<K, InputT> inputCoder =
           (KvCoder<K, InputT>) context.getInput(transform).getCoder();
@@ -378,7 +376,6 @@ class FlinkBatchTransformTranslators {
         accumulatorCoder =
             combineFn.getAccumulatorCoder(
                 context.getInput(transform).getPipeline().getCoderRegistry(),
-                inputCoder.getKeyCoder(),
                 inputCoder.getValueCoder());
       } catch (CannotProvideCoderException e) {
         throw new RuntimeException(e);

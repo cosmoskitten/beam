@@ -24,8 +24,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.PerKeyCombineFnRunner;
-import org.apache.beam.runners.core.PerKeyCombineFnRunners;
+import org.apache.beam.runners.core.GlobalCombineFnRunner;
+import org.apache.beam.runners.core.GlobalCombineFnRunners;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
@@ -54,7 +54,7 @@ public class FlinkMergingNonShuffleReduceFunction<
     K, InputT, AccumT, OutputT, W extends IntervalWindow>
     extends RichGroupReduceFunction<WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, OutputT>>> {
 
-  private final CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT> combineFn;
+  private final CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
 
   private final WindowingStrategy<?, W> windowingStrategy;
 
@@ -63,12 +63,12 @@ public class FlinkMergingNonShuffleReduceFunction<
   private final SerializedPipelineOptions serializedOptions;
 
   public FlinkMergingNonShuffleReduceFunction(
-      CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn,
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn,
       WindowingStrategy<?, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
 
-    this.combineFn = keyedCombineFn;
+    this.combineFn = combineFn;
 
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
@@ -87,8 +87,8 @@ public class FlinkMergingNonShuffleReduceFunction<
     FlinkSideInputReader sideInputReader =
         new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
-    PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> combineFnRunner =
-        PerKeyCombineFnRunners.create(combineFn);
+    GlobalCombineFnRunner<InputT, AccumT, OutputT> globalCombineFnRunner =
+        GlobalCombineFnRunners.create(combineFn);
 
     @SuppressWarnings("unchecked")
     OutputTimeFn<? super BoundedWindow> outputTimeFn =
@@ -128,9 +128,11 @@ public class FlinkMergingNonShuffleReduceFunction<
         (IntervalWindow) Iterables.getOnlyElement(currentValue.getWindows());
     InputT firstValue = currentValue.getValue().getValue();
     AccumT accumulator =
-        combineFnRunner.createAccumulator(key, options, sideInputReader, currentValue.getWindows());
-    accumulator = combineFnRunner.addInput(key, accumulator, firstValue,
-        options, sideInputReader, currentValue.getWindows());
+        globalCombineFnRunner.createAccumulator(
+            options, sideInputReader, currentValue.getWindows());
+    accumulator =
+        globalCombineFnRunner.addInput(
+            accumulator, firstValue, options, sideInputReader, currentValue.getWindows());
 
     // we use this to keep track of the timestamps assigned by the OutputTimeFn
     Instant windowTimestamp =
@@ -145,8 +147,9 @@ public class FlinkMergingNonShuffleReduceFunction<
         // continue accumulating and merge windows
 
         InputT value = nextValue.getValue().getValue();
-        accumulator = combineFnRunner.addInput(key, accumulator, value,
-            options, sideInputReader, currentValue.getWindows());
+        accumulator =
+            globalCombineFnRunner.addInput(
+                accumulator, value, options, sideInputReader, currentValue.getWindows());
 
         windowTimestamp = outputTimeFn.combine(
             windowTimestamp,
@@ -156,8 +159,10 @@ public class FlinkMergingNonShuffleReduceFunction<
         // emit the value that we currently have
         out.collect(
             WindowedValue.of(
-                KV.of(key, combineFnRunner.extractOutput(key, accumulator,
-                    options, sideInputReader, currentValue.getWindows())),
+                KV.of(
+                    key,
+                    globalCombineFnRunner.extractOutput(
+                        accumulator, options, sideInputReader, currentValue.getWindows())),
                 windowTimestamp,
                 currentWindow,
                 PaneInfo.NO_FIRING));
@@ -165,10 +170,12 @@ public class FlinkMergingNonShuffleReduceFunction<
         currentWindow = nextWindow;
         currentValue = nextValue;
         InputT value = nextValue.getValue().getValue();
-        accumulator = combineFnRunner.createAccumulator(key,
-            options, sideInputReader, currentValue.getWindows());
-        accumulator = combineFnRunner.addInput(key, accumulator, value,
-            options, sideInputReader, currentValue.getWindows());
+        accumulator =
+            globalCombineFnRunner.createAccumulator(
+                options, sideInputReader, currentValue.getWindows());
+        accumulator =
+            globalCombineFnRunner.addInput(
+                accumulator, value, options, sideInputReader, currentValue.getWindows());
         windowTimestamp = outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow);
       }
 
@@ -177,8 +184,10 @@ public class FlinkMergingNonShuffleReduceFunction<
     // emit the final accumulator
     out.collect(
         WindowedValue.of(
-            KV.of(key, combineFnRunner.extractOutput(key, accumulator,
-                options, sideInputReader, currentValue.getWindows())),
+            KV.of(
+                key,
+                globalCombineFnRunner.extractOutput(
+                    accumulator, options, sideInputReader, currentValue.getWindows())),
             windowTimestamp,
             currentWindow,
             PaneInfo.NO_FIRING));
