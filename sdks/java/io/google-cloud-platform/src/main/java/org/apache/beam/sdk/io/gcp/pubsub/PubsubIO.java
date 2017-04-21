@@ -464,8 +464,14 @@ public class PubsubIO {
   }
 
    /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
-  public static <T> Read<T> read() {
+  private static <T> Read<T> read() {
     return new AutoValue_PubsubIO_Read.Builder<T>().build();
+  }
+
+   /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
+  public static Read<PubsubMessage> readPubsubMessages() {
+    return PubsubIO.<PubsubMessage>read()
+        .withCoderAndParseFn(PubsubMessageCoder.of(), new IdentityMessageFn());
   }
 
   /**
@@ -488,8 +494,13 @@ public class PubsubIO {
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
-  public static <T> Write<T> write() {
+  private static <T> Write<T> write() {
     return new AutoValue_PubsubIO_Write.Builder<T>().build();
+  }
+
+  /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
+  public static Write<PubsubMessage> writePubsubMessages() {
+    return PubsubIO.<PubsubMessage>write().withFormatFn(new IdentityMessageFn());
   }
 
   /**
@@ -966,6 +977,13 @@ public class PubsubIO {
       } catch (CoderException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }
+    }
+  }
+
+  private static class IdentityMessageFn extends SimpleFunction<PubsubMessage, PubsubMessage> {
+    @Override
+    public PubsubMessage apply(PubsubMessage input) {
+      return input;
     }
   }
 }
