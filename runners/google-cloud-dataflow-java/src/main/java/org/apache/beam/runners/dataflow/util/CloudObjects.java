@@ -19,27 +19,44 @@
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.Structs;
+import org.apache.beam.sdk.util.WindowedValue;
 
 /** Utilities for converting an object to a {@link CloudObject}. */
 public class CloudObjects {
   private CloudObjects() {}
 
   static final Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
-      CODER_TRANSLATORS = populateCoderInitializers();
+      CODER_TRANSLATORS = defaultCoderTranslators();
 
   private static Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
-      populateCoderInitializers() {
-    ImmutableMap.Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
-        ImmutableMap.builder();
-    // TODO: Implement
-    return builder.build();
+      defaultCoderTranslators() {
+    return ImmutableMap.<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>builder()
+        .put(GlobalWindow.Coder.class, CloudObjectTranslators.globalWindow())
+        .put(IntervalWindow.IntervalWindowCoder.class, CloudObjectTranslators.intervalWindow())
+        .put(ByteArrayCoder.class, CloudObjectTranslators.bytes())
+        .put(VarLongCoder.class, CloudObjectTranslators.varInt())
+        .put(LengthPrefixCoder.class, CloudObjectTranslators.lengthPrefix())
+        .put(IterableCoder.class, CloudObjectTranslators.stream())
+        .put(KvCoder.class, CloudObjectTranslators.pair())
+        .put(WindowedValue.FullWindowedValueCoder.class, CloudObjectTranslators.windowedValue())
+        .build();
   }
 
   public static CloudObject asCloudObject(Coder<?> coder) {
@@ -66,19 +83,12 @@ public class CloudObjects {
     return result;
   }
 
-  public static Coder<?> coderFromCloudObject(CloudObject cloudObject) {
-    if (cloudObject.getClassName().equals(CustomCoder.class.getName())) {
-      return customCoderFromCloudObject(cloudObject);
+  public static void addComponentCodersToCloudObject(
+      CloudObject target, List<Coder<?>> components) {
+    List<CloudObject> componentCoders = new ArrayList<>();
+    for (Coder<?> coder : components) {
+      componentCoders.add(asCloudObject(coder));
     }
-    throw new IllegalArgumentException(
-        String.format("Unknown Cloud Object Class Name %s", cloudObject.getClassName()));
-  }
-
-  private static Coder<?> customCoderFromCloudObject(CloudObject cloudObject) {
-    String type = Structs.getString(cloudObject, "type");
-    String serializedCoder = Structs.getString(cloudObject, "serialized_coder");
-    return (CustomCoder<?>)
-        SerializableUtils.deserializeFromByteArray(
-            StringUtils.jsonStringToByteArray(serializedCoder), type);
+    Structs.addList(target, PropertyNames.COMPONENT_ENCODINGS, componentCoders);
   }
 }
