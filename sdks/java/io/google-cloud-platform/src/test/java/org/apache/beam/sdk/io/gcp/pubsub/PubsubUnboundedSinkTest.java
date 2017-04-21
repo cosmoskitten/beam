@@ -115,7 +115,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
               RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(ImmutableList.of(DATA)))
        .apply(ParDo.of(new Stamp(ATTRIBUTES)))
-       .setCoder(PubsubMessageCoder.of())
+       .setCoder(PubsubMessageWithAttributesCoder.of())
        .apply(sink);
       p.run();
     }
@@ -145,7 +145,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
               Duration.standardSeconds(2), RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
-       .setCoder(PubsubMessageCoder.of())
+       .setCoder(PubsubMessageWithAttributesCoder.of())
        .apply(sink);
       p.run();
     }
@@ -182,7 +182,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
               RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
-       .setCoder(PubsubMessageCoder.of())
+       .setCoder(PubsubMessageWithAttributesCoder.of())
        .apply(sink);
       p.run();
     }

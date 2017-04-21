@@ -28,15 +28,15 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-/** The coder for PubsubMessage. */
-public class PubsubMessageCoder extends CustomCoder<PubsubIO.PubsubMessage> {
+/** A coder for PubsubMessage including attributes. */
+public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubIO.PubsubMessage> {
   private static final Coder<byte[]> PAYLOAD_CODER =
       NullableCoder.of(ByteArrayCoder.of());
   private static final Coder<Map<String, String>> ATTRIBUTES_CODER = MapCoder.of(
       StringUtf8Coder.of(), StringUtf8Coder.of());
 
-  public static PubsubMessageCoder of() {
-    return new PubsubMessageCoder();
+  public static PubsubMessageWithAttributesCoder of() {
+    return new PubsubMessageWithAttributesCoder();
   }
 
   @Override

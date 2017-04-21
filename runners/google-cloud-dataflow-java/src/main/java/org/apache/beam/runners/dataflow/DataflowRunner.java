@@ -21,6 +21,8 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
+import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.clouddebugger.v2.Clouddebugger;
@@ -85,7 +87,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageCoder;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -103,6 +105,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -857,7 +860,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * Suppress application of {@link PubsubUnboundedSource#expand} in streaming mode so that we can
    * instead defer to Windmill's implementation.
    */
-  private static class StreamingPubsubIORead<T>
+  private static class StreamingPubsubIORead
       extends PTransform<PBegin, PCollection<PubsubIO.PubsubMessage>> {
     private final PubsubUnboundedSource transform;
 
@@ -877,7 +880,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public PCollection<PubsubIO.PubsubMessage> expand(PBegin input) {
       return PCollection.<PubsubIO.PubsubMessage>createPrimitiveOutputInternal(
           input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-          .setCoder(new PubsubMessageCoder());
+          .setCoder(new PubsubMessageWithAttributesCoder());
     }
 
     @Override
@@ -887,15 +890,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator<>());
+          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator());
     }
   }
 
   /** Rewrite {@link StreamingPubsubIORead} to the appropriate internal node. */
-  private static class StreamingPubsubIOReadTranslator<T>
-      implements TransformTranslator<StreamingPubsubIORead<T>> {
+  private static class StreamingPubsubIOReadTranslator
+      implements TransformTranslator<StreamingPubsubIORead> {
     @Override
-    public void translate(StreamingPubsubIORead<T> transform, TranslationContext context) {
+    public void translate(StreamingPubsubIORead transform, TranslationContext context) {
       checkArgument(
           context.getPipelineOptions().isStreaming(),
           "StreamingPubsubIORead is only for streaming pipelines.");
@@ -930,7 +933,26 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (overriddenTransform.getIdLabel() != null) {
         stepContext.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
+      // In both cases, the transform needs to read PubsubMessage. However, in case it needs
+      // the attributes, we supply an identity "parse fn" so the worker will read PubsubMessage's
+      // from Windmill and simply pass them around; and in case it doesn't need attributes,
+      // we're already implicitly using a "Coder" that interprets the data as a PubsubMessage's
+      // payload.
+      if (overriddenTransform.getNeedsAttributes()) {
+        stepContext.addInput(
+            PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
+            byteArrayToJsonString(
+                serializeToByteArray(new IdentityMessageFn())));
+      }
       stepContext.addOutput(context.getOutput(transform));
+    }
+  }
+
+  private static class IdentityMessageFn
+      extends SimpleFunction<PubsubIO.PubsubMessage, PubsubIO.PubsubMessage> {
+    @Override
+    public PubsubIO.PubsubMessage apply(PubsubIO.PubsubMessage input) {
+      return input;
     }
   }
 

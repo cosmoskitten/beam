@@ -465,13 +465,33 @@ public class PubsubIO {
 
    /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
   private static <T> Read<T> read() {
-    return new AutoValue_PubsubIO_Read.Builder<T>().build();
+    return new AutoValue_PubsubIO_Read.Builder<T>().setNeedsAttributes(false).build();
   }
 
-   /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
-  public static Read<PubsubMessage> readPubsubMessages() {
-    return PubsubIO.<PubsubMessage>read()
-        .withCoderAndParseFn(PubsubMessageCoder.of(), new IdentityMessageFn());
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will only contain a {@link PubsubMessage#getMessage() payload}, but no {@link
+   * PubsubMessage#getAttributeMap() attributes}.
+   */
+  public static Read<PubsubMessage> readPubsubMessagesWithoutAttributes() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setCoder(PubsubMessagePayloadOnlyCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(false)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will contain both a {@link PubsubMessage#getMessage() payload} and {@link
+   * PubsubMessage#getAttributeMap() attributes}.
+   */
+  public static Read<PubsubMessage> readPubsubMessagesWithAttributes() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setCoder(PubsubMessageWithAttributesCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(true)
+        .build();
   }
 
   /**
@@ -544,6 +564,8 @@ public class PubsubIO {
     @Nullable
     abstract SimpleFunction<PubsubMessage, T> getParseFn();
 
+    abstract boolean getNeedsAttributes();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -559,6 +581,8 @@ public class PubsubIO {
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
+
+      abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
 
       abstract Read<T> build();
     }
@@ -712,8 +736,16 @@ public class PubsubIO {
               topicPath,
               subscriptionPath,
               getTimestampLabel(),
-              getIdLabel());
-      return input.getPipeline().apply(source).apply(MapElements.via(getParseFn()));
+              getIdLabel(),
+              getNeedsAttributes());
+      return input
+          .getPipeline()
+          .apply(source)
+          .setCoder(
+              getNeedsAttributes()
+                  ? PubsubMessageWithAttributesCoder.of()
+                  : PubsubMessagePayloadOnlyCoder.of())
+          .apply(MapElements.via(getParseFn()));
     }
 
     @Override
