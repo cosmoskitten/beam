@@ -833,7 +833,7 @@ public class PubsubIO {
      * function translates the input type T to a PubsubMessage object, which is used by the sink
      * to separately set the PubSub message's payload and attributes.
      */
-    public Write<T> withAttributesFromFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
+    public Write<T> withFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
       return toBuilder().setFormatFn(formatFn).build();
     }
 
