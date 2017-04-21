@@ -42,7 +42,6 @@ import org.joda.time.Instant;
 public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends AbstractFlinkCombineRunner<K, InputT, AccumT, OutputT, W> {
 
-
   @Override
   public void combine(
       FlinkCombiner<K, InputT, AccumT, OutputT> flinkCombiner,

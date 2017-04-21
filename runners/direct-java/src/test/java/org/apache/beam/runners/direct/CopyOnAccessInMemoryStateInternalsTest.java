@@ -40,7 +40,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
@@ -255,15 +254,14 @@ public class CopyOnAccessInMemoryStateInternalsTest {
   public void testKeyedAccumulatorCombiningStateWithUnderlying() throws Exception {
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    KeyedCombineFn<String, Long, long[], Long> sumLongFn = Sum.ofLongs().asKeyedFn();
+    CombineFn<Long, long[], Long> sumLongFn = Sum.ofLongs();
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
     CoderRegistry reg = pipeline.getCoderRegistry();
-    StateTag<String, CombiningState<Long, long[], Long>> stateTag =
-        StateTags.keyedCombiningValue(
+    StateTag<Object, CombiningState<Long, long[], Long>> stateTag =
+        StateTags.combiningValue(
             "summer",
-            sumLongFn.getAccumulatorCoder(
-                reg, StringUtf8Coder.of(), reg.getDefaultCoder(Long.class)),
+            sumLongFn.getAccumulatorCoder(reg, reg.getDefaultCoder(Long.class)),
             sumLongFn);
     GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(0L));
