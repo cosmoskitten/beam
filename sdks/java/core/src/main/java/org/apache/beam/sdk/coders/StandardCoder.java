@@ -67,22 +67,10 @@ public abstract class StandardCoder<T> implements Coder<T> {
   }
 
   /**
-   * Returns the list of {@link Coder Coders} that are components of this {@link Coder}.
-   */
-  public List<? extends Coder<?>> getComponents() {
-    List<? extends Coder<?>> coderArguments = getCoderArguments();
-    if (coderArguments == null) {
-      return Collections.emptyList();
-    } else {
-      return coderArguments;
-    }
-  }
-
-  /**
    * {@inheritDoc}
    *
    * @return {@code true} if the two {@link StandardCoder} instances have the
-   * same class and equal components.
+   * same class and equal arguments.
    */
   @Override
   public boolean equals(Object o) {
@@ -90,12 +78,12 @@ public abstract class StandardCoder<T> implements Coder<T> {
       return false;
     }
     StandardCoder<?> that = (StandardCoder<?>) o;
-    return this.getComponents().equals(that.getComponents());
+    return this.getCoderArguments().equals(that.getCoderArguments());
   }
 
   @Override
   public int hashCode() {
-    return getClass().hashCode() * 31 + getComponents().hashCode();
+    return getClass().hashCode() * 31 + getCoderArguments().hashCode();
   }
 
   @Override
@@ -104,7 +92,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
     String s = getClass().getName();
     builder.append(s.substring(s.lastIndexOf('.') + 1));
 
-    List<? extends Coder<?>> componentCoders = getComponents();
+    List<? extends Coder<?>> componentCoders = getCoderArguments();
     if (!componentCoders.isEmpty()) {
       builder.append('(');
       boolean first = true;
@@ -140,7 +128,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
   public final CloudObject asCloudObject() {
     CloudObject result = initializeCloudObject();
 
-    List<? extends Coder<?>> components = getComponents();
+    List<? extends Coder<?>> components = getCoderArguments();
     if (!components.isEmpty()) {
       List<CloudObject> cloudComponents = new ArrayList<>(components.size());
       for (Coder<?> coder : components) {

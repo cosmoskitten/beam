@@ -88,7 +88,7 @@ public class Coders {
         coder.getClass().getName());
     StandardCoder<?> stdCoder = (StandardCoder<?>) coder;
     List<String> componentIds = new ArrayList<>();
-    for (Coder<?> componentCoder : stdCoder.getComponents()) {
+    for (Coder<?> componentCoder : stdCoder.getCoderArguments()) {
       componentIds.add(components.registerCoder(componentCoder));
     }
     return RunnerApi.Coder.newBuilder()
