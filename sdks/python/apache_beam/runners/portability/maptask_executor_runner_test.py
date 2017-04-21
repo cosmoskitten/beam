@@ -19,10 +19,10 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.runners.portability import maptask_executor_runner
 
 
-class WorkerRunnerBaseTest(unittest.TestCase):
+class MapTaskExecutorRunnerTest(unittest.TestCase):
 
   def create_pipeline(self):
-    return beam.Pipeline(runner=worker_runner_base.WorkerRunnerBase())
+    return beam.Pipeline(runner=maptask_executor_runner.MapTaskExecutorRunner())
 
   def test_assert_that(self):
     with self.assertRaises(BeamAssertException):

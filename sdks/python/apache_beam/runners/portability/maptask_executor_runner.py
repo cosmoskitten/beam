@@ -14,6 +14,7 @@ from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operation_specs as maptask
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
@@ -23,7 +24,7 @@ from apache_beam.utils import profiler
 from apache_beam.utils.counters import CounterFactory
 
 
-class WorkerRunnerBase(PipelineRunner):
+class MapTaskExecutorRunner(PipelineRunner):
   """Beam runner translating a pipeline into map tasks that are then executed.
 
   Primarily intended for testing and profiling the worker code paths.
@@ -42,7 +43,7 @@ class WorkerRunnerBase(PipelineRunner):
   def run(self, pipeline):
     self._set_metrics_support()
     # List of map tasks  Each map task is a list of
-    # (stage_name, maptask.WorkerOperation) instructions.
+    # (stage_name, operation_specs.WorkerOperation) instructions.
     self.map_tasks = []
 
     # Map of pvalues to
@@ -57,7 +58,7 @@ class WorkerRunnerBase(PipelineRunner):
     self.dependencies = collections.defaultdict(set)
 
     # Visit the graph, building up the map_tasks and their metadata.
-    super(WorkerRunnerBase, self).run(pipeline)
+    super(MapTaskExecutorRunner, self).run(pipeline)
 
     # Now run the tasks in topological order.
     def compute_depth_map(deps):
@@ -109,7 +110,7 @@ class WorkerRunnerBase(PipelineRunner):
       counter_factory = CounterFactory()
       state_sampler = statesampler.StateSampler('%s-' % ix, counter_factory)
       map_executor = operations.SimpleMapTaskExecutor(
-          maptask.MapTask(
+          operation_specs.MapTask(
               all_operations, 'S%02d' % ix, system_names, stage_names),
           counter_factory,
           state_sampler)
@@ -128,7 +129,7 @@ class WorkerRunnerBase(PipelineRunner):
       source = iobase.SourceBundle(1.0, source, None, None)
     output = transform_node.outputs[None]
     element_coder = self._get_coder(output)
-    read_op = maptask.WorkerRead(source, output_coders=[element_coder])
+    read_op = operation_specs.WorkerRead(source, output_coders=[element_coder])
     self.outputs[output] = len(self.map_tasks), 0, 0
     self.map_tasks.append([(transform_node.full_label, read_op)])
     return len(self.map_tasks) - 1
@@ -155,7 +156,7 @@ class WorkerRunnerBase(PipelineRunner):
 
       output_buffer = OutputBuffer(input_element_coder)
 
-      fusion_break_write = maptask.WorkerInMemoryWrite(
+      fusion_break_write = operation_specs.WorkerInMemoryWrite(
           output_buffer=output_buffer,
           write_windowed_values=True,
           input=(producer_index, output_index),
@@ -166,7 +167,7 @@ class WorkerRunnerBase(PipelineRunner):
       original_map_task_index = map_task_index
       map_task_index, producer_index, output_index = len(self.map_tasks), 0, 0
 
-      fusion_break_read = maptask.WorkerRead(
+      fusion_break_read = operation_specs.WorkerRead(
           output_buffer.source_bundle(),
           output_coders=[input_element_coder])
       self.map_tasks.append(
@@ -178,9 +179,10 @@ class WorkerRunnerBase(PipelineRunner):
       label = self.side_input_labels[side_input]
       output_buffer = self.run_side_write(
           side_input.pvalue, '%s/%s' % (transform_node.full_label, label))
-      return maptask.WorkerSideInputSource(output_buffer.source(), label)
+      return operation_specs.WorkerSideInputSource(
+          output_buffer.source(), label)
 
-    do_op = maptask.WorkerDoFn(  #
+    do_op = operation_specs.WorkerDoFn(  #
         serialized_fn=pickler.dumps(DataflowRunner._pardo_fn_data(
             transform_node,
             lambda side_input: self.side_input_labels[side_input])),
@@ -210,7 +212,7 @@ class WorkerRunnerBase(PipelineRunner):
 
     windowed_element_coder = self._get_coder(pcoll)
     output_buffer = OutputBuffer(windowed_element_coder)
-    write_sideinput_op = maptask.WorkerInMemoryWrite(
+    write_sideinput_op = operation_specs.WorkerInMemoryWrite(
         output_buffer=output_buffer,
         write_windowed_values=True,
         input=(producer_index, output_index),
@@ -227,7 +229,7 @@ class WorkerRunnerBase(PipelineRunner):
     windowed_ungrouped_element_coder = self._get_coder(transform_node.inputs[0])
 
     output_buffer = GroupingOutputBuffer(grouped_element_coder)
-    shuffle_write = maptask.WorkerInMemoryWrite(
+    shuffle_write = operation_specs.WorkerInMemoryWrite(
         output_buffer=output_buffer,
         write_windowed_values=False,
         input=(producer_index, output_index),
@@ -247,7 +249,7 @@ class WorkerRunnerBase(PipelineRunner):
     for input in transform_node.inputs:
       map_task_index, producer_index, output_index = self.outputs[input]
       element_coder = self._get_coder(input)
-      flatten_write = maptask.WorkerInMemoryWrite(output_buffer=output_buffer,
+      flatten_write = operation_specs.WorkerInMemoryWrite(output_buffer=output_buffer,
                                                   write_windowed_values=True,
                                                   input=(producer_index,
                                                          output_index),
@@ -268,7 +270,7 @@ class WorkerRunnerBase(PipelineRunner):
   def run_PartialGroupByKeyCombineValues(self, transform_node):
     element_coder = self._get_coder(transform_node.outputs[None])
     _, producer_index, output_index = self.outputs[transform_node.inputs[0]]
-    combine_op = maptask.WorkerPartialGroupByKey(
+    combine_op = operation_specs.WorkerPartialGroupByKey(
         combine_fn=pickler.dumps((transform_node.transform.combine_fn, (), {},
                                   ())),
         output_coders=[element_coder],
@@ -285,7 +287,7 @@ class WorkerRunnerBase(PipelineRunner):
     transform = transform_node.transform
     element_coder = self._get_coder(transform_node.outputs[None])
     _, producer_index, output_index = self.outputs[transform_node.inputs[0]]
-    combine_op = maptask.WorkerCombineFn(serialized_fn=pickler.dumps(
+    combine_op = operation_specs.WorkerCombineFn(serialized_fn=pickler.dumps(
         (transform.combine_fn, (), {}, ())),
                                          phase=phase,
                                          output_coders=[element_coder],
