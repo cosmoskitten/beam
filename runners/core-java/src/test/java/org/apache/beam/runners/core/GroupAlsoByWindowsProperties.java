@@ -571,7 +571,7 @@ public class GroupAlsoByWindowsProperties {
   }
 
   private static final class CachingStateInternalsFactory<K> implements StateInternalsFactory<K> {
-    private final LoadingCache<K, StateInternals<K>> stateInternalsCache;
+    private final LoadingCache<K, StateInternals> stateInternalsCache;
 
     private CachingStateInternalsFactory() {
       this.stateInternalsCache = CacheBuilder.newBuilder().build(new StateInternalsLoader<K>());
@@ -579,7 +579,7 @@ public class GroupAlsoByWindowsProperties {
 
     @Override
     @SuppressWarnings("unchecked")
-    public StateInternals<K> stateInternalsForKey(K key) {
+    public StateInternals stateInternalsForKey(K key) {
       try {
         return stateInternalsCache.get(key);
       } catch (Exception exc) {
@@ -588,9 +588,9 @@ public class GroupAlsoByWindowsProperties {
     }
   }
 
-  private static class StateInternalsLoader<K> extends CacheLoader<K, StateInternals<K>> {
+  private static class StateInternalsLoader<K> extends CacheLoader<K, StateInternals> {
     @Override
-    public StateInternals<K> load(K key) throws Exception {
+    public StateInternals load(K key) throws Exception {
       return InMemoryStateInternals.forKey(key);
     }
   }
@@ -687,7 +687,7 @@ public class GroupAlsoByWindowsProperties {
         }
 
         @Override
-        public StateInternals<?> stateInternals() {
+        public StateInternals stateInternals() {
           throw new UnsupportedOperationException();
         }
 

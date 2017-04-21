@@ -34,11 +34,11 @@ class DirectExecutionContext
     extends BaseExecutionContext<DirectStepContext> {
   private final Clock clock;
   private final StructuralKey<?> key;
-  private final CopyOnAccessInMemoryStateInternals<Object> existingState;
+  private final CopyOnAccessInMemoryStateInternals existingState;
   private final TransformWatermarks watermarks;
 
   public DirectExecutionContext(Clock clock, StructuralKey<?> key,
-      CopyOnAccessInMemoryStateInternals<Object> existingState, TransformWatermarks watermarks) {
+                                CopyOnAccessInMemoryStateInternals existingState, TransformWatermarks watermarks) {
     this.clock = clock;
     this.key = key;
     this.existingState = existingState;
@@ -55,7 +55,7 @@ class DirectExecutionContext
    */
   public class DirectStepContext
       extends BaseExecutionContext.StepContext {
-    private CopyOnAccessInMemoryStateInternals<Object> stateInternals;
+    private CopyOnAccessInMemoryStateInternals<?> stateInternals;
     private DirectTimerInternals timerInternals;
 
     public DirectStepContext(
@@ -64,7 +64,7 @@ class DirectExecutionContext
     }
 
     @Override
-    public CopyOnAccessInMemoryStateInternals<Object> stateInternals() {
+    public CopyOnAccessInMemoryStateInternals<?> stateInternals() {
       if (stateInternals == null) {
         stateInternals = CopyOnAccessInMemoryStateInternals.withUnderlying(key, existingState);
       }
@@ -84,7 +84,7 @@ class DirectExecutionContext
      * Commits the state of this step, and returns the committed state. If the step has not
      * accessed any state, return null.
      */
-    public CopyOnAccessInMemoryStateInternals<?> commitState() {
+    public CopyOnAccessInMemoryStateInternals commitState() {
       if (stateInternals != null) {
         return stateInternals.commit();
       }

@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -490,7 +489,7 @@ public abstract class DoFnSignature {
   }
 
   /**
-   * Describes a state declaration; a field of type {@link StateSpec} annotated with
+   * Describes a state declaration; a field of type {@link KeyedStateSpec} annotated with
    * {@link DoFn.StateId}.
    */
   @AutoValue

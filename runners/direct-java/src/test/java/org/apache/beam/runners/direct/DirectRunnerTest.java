@@ -40,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
+import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -524,6 +525,7 @@ public class DirectRunnerTest implements Serializable {
   }
 
   private static class LongNoDecodeCoder extends CustomCoder<Long> {
+
     @Override
     public void encode(
         Long value, OutputStream outStream, Context context) throws IOException {
