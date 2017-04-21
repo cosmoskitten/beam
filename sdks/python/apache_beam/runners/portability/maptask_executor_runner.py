@@ -4,8 +4,6 @@ import collections
 import logging
 import time
 
-import google3
-
 import apache_beam as beam
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
@@ -16,13 +14,13 @@ from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.runners.worker import operation_specs as maptask
+from apache_beam.runners.worker import operations
+from apache_beam.runners.worker import statesampler
 from apache_beam.typehints import typehints
 from apache_beam.utils import pipeline_options
 from apache_beam.utils import profiler
 from apache_beam.utils.counters import CounterFactory
-from dataflow_worker import operation_specs as maptask
-from dataflow_worker import operations
-from dataflow_worker import statesampler
 
 
 class WorkerRunnerBase(PipelineRunner):
