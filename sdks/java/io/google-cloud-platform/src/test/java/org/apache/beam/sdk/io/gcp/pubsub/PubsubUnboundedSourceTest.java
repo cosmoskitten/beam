@@ -96,7 +96,7 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource source =
         new PubsubUnboundedSource(
             clock, factory, null, null, StaticValueProvider.of(SUBSCRIPTION),
-            TIMESTAMP_LABEL, ID_LABEL);
+            TIMESTAMP_LABEL, ID_LABEL, true /* needsAttributes */);
     primSource = new PubsubSource(source);
   }
 
@@ -336,9 +336,10 @@ public class PubsubUnboundedSourceTest {
             factory,
             StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),
-            null,
-            null,
-            null);
+            null /* subscription */,
+            null /* timestampLabel */,
+            null /* idLabel */,
+            false /* needsAttributes */);
     assertThat(source.getSubscription(), nullValue());
 
     assertThat(source.getSubscription(), nullValue());
@@ -365,9 +366,10 @@ public class PubsubUnboundedSourceTest {
             factory,
             StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),
-            null,
-            null,
-            null);
+            null /* subscription */,
+            null /* timestampLabel */,
+            null /* idLabel */,
+            false /* needsAttributes */);
     assertThat(source.getSubscription(), nullValue());
 
     assertThat(source.getSubscription(), nullValue());

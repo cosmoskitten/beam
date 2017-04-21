@@ -17,42 +17,32 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Map;
 import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.MapCoder;
-import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.util.StreamUtils;
 
-/** The coder for PubsubMessage. */
-public class PubsubMessageCoder extends AtomicCoder<PubsubIO.PubsubMessage> {
-  private static final Coder<byte[]> PAYLOAD_CODER =
-      NullableCoder.of(ByteArrayCoder.of());
-  private static final Coder<Map<String, String>> ATTRIBUTES_CODER = MapCoder.of(
-      StringUtf8Coder.of(), StringUtf8Coder.of());
-
-  public static PubsubMessageCoder of() {
-    return new PubsubMessageCoder();
+/** A coder for PubsubMessage treating the raw bytes being decoded as the message's payload. */
+public class PubsubMessagePayloadOnlyCoder extends AtomicCoder<PubsubIO.PubsubMessage> {
+  public static PubsubMessagePayloadOnlyCoder of() {
+    return new PubsubMessagePayloadOnlyCoder();
   }
 
   @Override
   public void encode(PubsubIO.PubsubMessage value, OutputStream outStream, Context context)
       throws IOException {
-    PAYLOAD_CODER.encode(
-        value.getMessage(),
-        outStream,
-        context.nested());
-    ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream, context);
+    checkState(context.isWholeStream, "Expected to only be used in a whole-stream context");
+    outStream.write(value.getMessage());
   }
 
   @Override
   public PubsubIO.PubsubMessage decode(InputStream inStream, Context context) throws IOException {
-    byte[] payload = PAYLOAD_CODER.decode(inStream, context.nested());
-    Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream, context);
-    return new PubsubIO.PubsubMessage(payload, attributes);
+    checkState(context.isWholeStream, "Expected to only be used in a whole-stream context");
+    return new PubsubIO.PubsubMessage(
+        StreamUtils.getBytes(inStream), ImmutableMap.<String, String>of());
   }
 }

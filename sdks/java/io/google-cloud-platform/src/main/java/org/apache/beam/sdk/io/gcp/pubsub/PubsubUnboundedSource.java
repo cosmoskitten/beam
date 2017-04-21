@@ -1163,7 +1163,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public Coder<PubsubIO.PubsubMessage> getDefaultOutputCoder() {
-      return new PubsubMessageCoder();
+      return new PubsubMessageWithAttributesCoder();
     }
 
     @Override
@@ -1289,6 +1289,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   @Nullable
   private final String idLabel;
 
+  /** Whether this source should load the attributes of the PubsubMessage, or only the payload. */
+  private final boolean needsAttributes;
+
   @VisibleForTesting
   PubsubUnboundedSource(
       Clock clock,
@@ -1297,7 +1300,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
       @Nullable String timestampLabel,
-      @Nullable String idLabel) {
+      @Nullable String idLabel,
+      boolean needsAttributes) {
     checkArgument((topic == null) != (subscription == null),
                   "Exactly one of topic and subscription must be given");
     checkArgument((topic == null) == (project == null),
@@ -1309,6 +1313,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     this.subscription = subscription;
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
+    this.needsAttributes = needsAttributes;
   }
 
   /**
@@ -1320,8 +1325,17 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
       @Nullable String timestampLabel,
-      @Nullable String idLabel) {
-    this(null, pubsubFactory, project, topic, subscription, timestampLabel, idLabel);
+      @Nullable String idLabel,
+      boolean needsAttributes) {
+    this(
+        null,
+        pubsubFactory,
+        project,
+        topic,
+        subscription,
+        timestampLabel,
+        idLabel,
+        needsAttributes);
   }
 
   /**
@@ -1378,6 +1392,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   @Nullable
   public String getIdLabel() {
     return idLabel;
+  }
+
+  public boolean getNeedsAttributes() {
+    return needsAttributes;
   }
 
   @Override
