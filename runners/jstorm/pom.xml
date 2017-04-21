@@ -56,15 +56,7 @@
                   <groups>
                     org.apache.beam.sdk.testing.ValidatesRunner
                   </groups>
-                  <excludedGroups>
-                    org.apache.beam.sdk.testing.UsesStatefulParDo,
-                    org.apache.beam.sdk.testing.UsesTimersInParDo,
-                    org.apache.beam.sdk.testing.UsesSplittableParDo,
-                    org.apache.beam.sdk.testing.UsesCommittedMetrics
-                  </excludedGroups>
                   <parallel>none</parallel>
-                  <forkCount>1</forkCount>
-                  <reuseForks>false</reuseForks>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
                     <dependency>org.apache.beam:beam-sdks-java-core</dependency>
@@ -75,9 +67,6 @@
                         "--runner=org.apache.beam.runners.jstorm.JStormRunner"
                       ]
                     </beamTestPipelineOptions>
-                    <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
-                    <spark.ui.enabled>false</spark.ui.enabled>
-                    <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
                   </systemPropertyVariables>
                 </configuration>
               </execution>
@@ -102,6 +91,7 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
       <exclusions>
+        <!-- jstorm uses logback binding -->
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-jdk14</artifactId>
@@ -113,6 +103,7 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-java</artifactId>
       <exclusions>
+        <!-- jstorm uses logback binding -->
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-jdk14</artifactId>
@@ -124,6 +115,7 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-construction-java</artifactId>
       <exclusions>
+        <!-- jstorm uses logback binding -->
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-jdk14</artifactId>
@@ -149,6 +141,7 @@
       <classifier>tests</classifier>
       <scope>test</scope>
       <exclusions>
+        <!-- jstorm uses logback binding -->
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-jdk14</artifactId>
