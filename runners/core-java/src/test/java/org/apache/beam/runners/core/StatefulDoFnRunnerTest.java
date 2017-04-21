@@ -139,7 +139,7 @@ public class StatefulDoFnRunnerTest {
     timerInternals.advanceInputWatermark(new Instant(1L));
 
     MyDoFn fn = new MyDoFn();
-    StateTag<Object, ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
+    StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
 
     DoFnRunner<KV<String, Integer>, Integer> runner = DoFnRunners.defaultStatefulDoFnRunner(
         fn,
@@ -237,7 +237,7 @@ public class StatefulDoFnRunnerTest {
     public final String stateId = "foo";
 
     @StateId(stateId)
-    public final StateSpec<Object, ValueState<Integer>> intState =
+    public final StateSpec<ValueState<Integer>> intState =
         StateSpecs.value(VarIntCoder.of());
 
     @ProcessElement

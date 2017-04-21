@@ -501,7 +501,7 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
         }
 
         @Override
-        public StateInternals<?> stateInternals() {
+        public StateInternals stateInternals() {
           return context.stepContext.stateInternals();
         }
 
