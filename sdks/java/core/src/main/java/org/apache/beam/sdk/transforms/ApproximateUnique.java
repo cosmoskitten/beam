@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.transforms.ApproximateQuantiles.QuantileState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -281,8 +282,7 @@ public class ApproximateUnique {
       final Coder<V> coder = ((KvCoder<K, V>) inputCoder).getValueCoder();
 
       return input.apply(
-          Combine.perKey(new ApproximateUniqueCombineFn<>(
-              sampleSize, coder).<K>asKeyedFn()));
+          Combine.<K, V, Long>perKey(new ApproximateUniqueCombineFn<>(sampleSize, coder)));
     }
 
     @Override
