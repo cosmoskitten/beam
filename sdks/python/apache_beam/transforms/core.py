@@ -1098,6 +1098,7 @@ class GroupAlsoByWindow(ParDo):
   def __init__(self, windowing):
     super(GroupAlsoByWindow, self).__init__(
         GroupAlsoByWindowDoFn(windowing))
+    self.windowing = windowing
 
 
 class GroupAlsoByWindowDoFn(DoFn):
