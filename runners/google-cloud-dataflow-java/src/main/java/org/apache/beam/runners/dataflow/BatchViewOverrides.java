@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -155,9 +154,11 @@ class BatchViewOverrides {
               && !previousWindowStructuralValue.get().equals(currentWindowStructuralValue)) {
             // Construct the transformed map containing all the elements since we
             // are at a window boundary.
-            c.output(IsmRecord.of(
-                ImmutableList.of(previousWindow.get()),
-                valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
+            c.output(
+                IsmRecord.of(
+                    ImmutableList.of(previousWindow.get()),
+                    WindowedValue.valueInGlobalWindow(
+                        new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
             map = new HashMap<>();
           }
 
@@ -176,9 +177,11 @@ class BatchViewOverrides {
         // The last value for this hash is guaranteed to be at a window boundary
         // so we output a transformed map containing all the elements since the last
         // window boundary.
-        c.output(IsmRecord.of(
-            ImmutableList.of(previousWindow.get()),
-            valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
+        c.output(
+            IsmRecord.of(
+                ImmutableList.of(previousWindow.get()),
+                WindowedValue.valueInGlobalWindow(
+                    new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
       }
     }
 
@@ -635,7 +638,7 @@ class BatchViewOverrides {
                 Iterable<WindowedValue<V>>,
                 Iterable<V>>>>of(
                 ImmutableList.of(previousWindow.get()),
-                valueInEmptyWindows(
+                WindowedValue.valueInGlobalWindow(
                     new TransformedMap<>(
                         IterableWithWindowedValuesToIterable.<V>of(), resultMap))));
             multimap = HashMultimap.create();
@@ -656,7 +659,7 @@ class BatchViewOverrides {
             Iterable<WindowedValue<V>>,
             Iterable<V>>>>of(
             ImmutableList.of(previousWindow.get()),
-            valueInEmptyWindows(
+            WindowedValue.valueInGlobalWindow(
                 new TransformedMap<>(IterableWithWindowedValuesToIterable.<V>of(), resultMap))));
       }
     }
