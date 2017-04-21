@@ -70,7 +70,7 @@ public class StateSpecFunctions {
    * A {@link org.apache.spark.streaming.StateSpec} function to support reading from
    * an {@link UnboundedSource}.
    *
-   * <p>This StateSpec function expects the following:
+   * <p>This KeyedStateSpec function expects the following:
    * <ul>
    * <li>Key: The (partitioned) Source to read from.</li>
    * <li>Value: An optional {@link UnboundedSource.CheckpointMark} to start from.</li>

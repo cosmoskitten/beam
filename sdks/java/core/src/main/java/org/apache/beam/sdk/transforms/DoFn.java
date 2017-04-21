@@ -47,7 +47,6 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -393,15 +392,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for declaring and dereferencing state cells.
    *
-   * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
-   * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
-   * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
-   * annotate it with {@link StateId}. See the following code for an example:
+   * <p>To declare a state cell, create a field of type {@link KeyedStateSpec} annotated with a
+   * {@link StateId}. To use the cell during processing, add a parameter of the appropriate {@link
+   * State} subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer}
+   * method, and annotate it with {@link StateId}. See the following code for an example:
    *
    * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
    *
    *  {@literal @StateId("my-state-id")}
-   *  {@literal private final StateSpec<K, ValueState<MyState>>} myStateSpec =
+   *  {@literal private final KeyedStateSpec<K, ValueState<MyState>>} myStateSpec =
    *       StateSpecs.value(new MyStateCoder());
    *
    *  {@literal @ProcessElement}

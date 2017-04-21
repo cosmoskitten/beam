@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util.state;
 
-import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -26,23 +25,22 @@ import org.apache.beam.sdk.coders.Coder;
  * A specification of a persistent state cell. This includes information necessary to encode the
  * value and details about the intended access pattern.
  *
- * @param <K> The type of key that must be used with the state tag. Contravariant: methods should
- *            accept values of type {@code StateSpec<? super K, StateT>}.
  * @param <StateT> The type of state being described.
  */
 @Experimental(Kind.STATE)
-public interface StateSpec<K, StateT extends State> extends Serializable {
+public interface StateSpec<StateT extends State> {
 
   /**
    * Use the {@code binder} to create an instance of {@code StateT} appropriate for this address.
    */
-  StateT bind(String id, StateBinder<? extends K> binder);
+  StateT bind(String id, StateBinder binder);
 
   /**
-   * Given {code coders} are inferred from type arguments defined for this class.
-   * Coders which are already set should take precedence over offered coders.
-   * @param coders Array of coders indexed by the type arguments order. Entries might be null if
-   *               the coder could not be inferred.
+   * Given {code coders} are inferred from type arguments defined for this class. Coders which are
+   * already set should take precedence over offered coders.
+   *
+   * @param coders Array of coders indexed by the type arguments order. Entries might be null if the
+   *     coder could not be inferred.
    */
   void offerCoders(Coder[] coders);
 
