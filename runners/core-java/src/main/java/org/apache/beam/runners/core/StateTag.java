@@ -30,10 +30,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.KeyedStateSpec;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
 
@@ -65,22 +65,22 @@ public interface StateTag<K, StateT extends State> extends Serializable {
   /**
    * The specification for the state stored in the referenced cell.
    */
-  StateSpec<K, StateT> getSpec();
+  KeyedStateSpec<K, StateT> getSpec();
 
   /**
-   * Bind this state tag. See {@link StateSpec#bind}.
+   * Bind this state tag. See {@link KeyedStateSpec#bind}.
    *
-   * @deprecated Use the {@link StateSpec#bind} method via {@link #getSpec} for now.
+   * @deprecated Use the {@link KeyedStateSpec#bind} method via {@link #getSpec} for now.
    */
   @Deprecated
   StateT bind(StateBinder<? extends K> binder);
 
   /**
-   * Visitor for binding a {@link StateSpec} and to the associated {@link State}.
+   * Visitor for binding a {@link KeyedStateSpec} and to the associated {@link State}.
    *
    * @param <K> the type of key this binder embodies.
    * @deprecated for migration only; runners should reference the top level {@link StateBinder}
-   * and move towards {@link StateSpec} rather than {@link StateTag}.
+   * and move towards {@link KeyedStateSpec} rather than {@link StateTag}.
    */
   @Deprecated
   public interface StateBinder<K> {
@@ -113,7 +113,7 @@ public interface StateTag<K, StateT extends State> extends Serializable {
             combineFn);
 
     /**
-     * Bind to a watermark {@link StateSpec}.
+     * Bind to a watermark {@link KeyedStateSpec}.
      *
      * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps added to
      * the returned {@link WatermarkHoldState} are to be combined.

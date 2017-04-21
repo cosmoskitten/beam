@@ -133,7 +133,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     ParDo.of(
                             new DoFn<KV<String, Integer>, Integer>() {
                               @StateId(stateId)
-                              private final StateSpec<Object, ValueState<String>> spec =
+                              private final StateSpec<ValueState<String>> spec =
                                   StateSpecs.value(StringUtf8Coder.of());
 
                               @ProcessElement
@@ -247,7 +247,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                         .of(
                             new DoFn<KV<String, Integer>, Integer>() {
                               @StateId(stateId)
-                              private final StateSpec<Object, ValueState<String>> spec =
+                              private final StateSpec<ValueState<String>> spec =
                                   StateSpecs.value(StringUtf8Coder.of());
 
                               @ProcessElement

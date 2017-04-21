@@ -237,7 +237,7 @@ public class StatefulDoFnRunnerTest {
     public final String stateId = "foo";
 
     @StateId(stateId)
-    public final StateSpec<Object, ValueState<Integer>> intState =
+    public final StateSpec<ValueState<Integer>> intState =
         StateSpecs.value(VarIntCoder.of());
 
     @ProcessElement

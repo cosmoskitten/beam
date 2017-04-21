@@ -30,8 +30,8 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.util.state.KeyedStateSpec;
 import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.joda.time.Instant;
 
 /**
@@ -254,9 +254,9 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       for (Map.Entry<String, DoFnSignature.StateDeclaration> entry :
           signature.stateDeclarations().entrySet()) {
         try {
-          StateSpec<?, ?> spec = (StateSpec<?, ?>) entry.getValue().field().get(fn);
+          KeyedStateSpec<?, ?> spec = (KeyedStateSpec<?, ?>) entry.getValue().field().get(fn);
           State state = stateInternals.state(StateNamespaces.window(windowCoder, window),
-              StateTags.tagForSpec(entry.getKey(), (StateSpec) spec));
+              StateTags.tagForSpec(entry.getKey(), (KeyedStateSpec) spec));
           state.clear();
         } catch (IllegalAccessException e) {
           throw new RuntimeException(e);

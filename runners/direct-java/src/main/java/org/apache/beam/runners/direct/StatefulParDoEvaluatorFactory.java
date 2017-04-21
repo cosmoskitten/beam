@@ -49,7 +49,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.KeyedStateSpec;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -178,12 +178,13 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
                 StateTag<Object, ?> tag;
                 try {
                   tag =
-                      StateTags.tagForSpec(stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
+                      StateTags.tagForSpec(
+                          stateDecl.id(), (KeyedStateSpec) stateDecl.field().get(doFn));
                 } catch (IllegalAccessException e) {
                   throw new RuntimeException(
                       String.format(
                           "Error accessing %s for %s",
-                          StateSpec.class.getName(), doFn.getClass().getName()),
+                          KeyedStateSpec.class.getName(), doFn.getClass().getName()),
                       e);
                 }
                 stepContext.stateInternals().state(namespace, tag).clear();

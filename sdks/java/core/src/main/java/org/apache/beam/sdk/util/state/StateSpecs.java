@@ -33,7 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 
 /**
- * Static utility methods for creating {@link StateSpec} instances.
+ * Static utility methods for creating {@link KeyedStateSpec} instances.
  */
 @Experimental(Kind.STATE)
 public class StateSpecs {
@@ -43,12 +43,12 @@ public class StateSpecs {
   private StateSpecs() {}
 
   /** Create a simple state spec for values of type {@code T}. */
-  public static <T> StateSpec<Object, ValueState<T>> value() {
+  public static <T> StateSpec<ValueState<T>> value() {
     return new ValueStateSpec<>(null);
   }
 
   /** Create a simple state spec for values of type {@code T}. */
-  public static <T> StateSpec<Object, ValueState<T>> value(Coder<T> valueCoder) {
+  public static <T> StateSpec<ValueState<T>> value(Coder<T> valueCoder) {
     checkArgument(valueCoder != null, "valueCoder should not be null. Consider value() instead");
     return new ValueStateSpec<>(valueCoder);
   }
@@ -58,7 +58,7 @@ public class StateSpecs {
    * {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-  StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> combining(
+  StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
       CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new CombiningStateSpec<InputT, AccumT, OutputT>(null, combineFn);
   }
@@ -68,7 +68,7 @@ public class StateSpecs {
    * {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-      StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> combining(
+  StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     checkArgument(accumCoder != null,
         "accumCoder should not be null. "
@@ -81,7 +81,7 @@ public class StateSpecs {
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
-  StateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombining(
+  KeyedStateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombining(
       KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return new KeyedCombiningStateSpec<K, InputT, AccumT, OutputT>(null, combineFn);
   }
@@ -91,7 +91,7 @@ public class StateSpecs {
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
-      StateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombining(
+  KeyedStateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombining(
           Coder<AccumT> accumCoder, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     checkArgument(accumCoder != null,
         "accumCoder should not be null. "
@@ -104,7 +104,7 @@ public class StateSpecs {
    * merge multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
-  StateSpec<K, CombiningState<InputT, AccumT, OutputT>>
+  KeyedStateSpec<K, CombiningState<InputT, AccumT, OutputT>>
   keyedCombiningWithContext(KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
     return new KeyedCombiningWithContextStateSpec<K, InputT, AccumT, OutputT>(null, combineFn);
   }
@@ -114,7 +114,7 @@ public class StateSpecs {
    * merge multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
-      StateSpec<K, CombiningState<InputT, AccumT, OutputT>>
+  KeyedStateSpec<K, CombiningState<InputT, AccumT, OutputT>>
   keyedCombiningWithContext(
               Coder<AccumT> accumCoder,
               KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
@@ -133,7 +133,7 @@ public class StateSpecs {
    * only be used to initialize static values.
    */
   public static <InputT, AccumT, OutputT>
-      StateSpec<Object, CombiningState<InputT, AccumT, OutputT>>
+  StateSpec<CombiningState<InputT, AccumT, OutputT>>
   combiningFromInputInternal(
               Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     try {
@@ -150,13 +150,13 @@ public class StateSpecs {
   }
 
   private static <InputT, AccumT, OutputT>
-      StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> combiningInternal(
+  StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new CombiningStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
   }
 
   private static <K, InputT, AccumT, OutputT>
-      StateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombiningInternal(
+  KeyedStateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombiningInternal(
           Coder<AccumT> accumCoder, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return new KeyedCombiningStateSpec<K, InputT, AccumT, OutputT>(accumCoder, combineFn);
   }
@@ -165,7 +165,7 @@ public class StateSpecs {
    * Create a state spec that is optimized for adding values frequently, and occasionally retrieving
    * all the values that have been added.
    */
-  public static <T> StateSpec<Object, BagState<T>> bag() {
+  public static <T> StateSpec<BagState<T>> bag() {
     return bag(null);
   }
 
@@ -173,49 +173,46 @@ public class StateSpecs {
    * Create a state spec that is optimized for adding values frequently, and occasionally retrieving
    * all the values that have been added.
    */
-  public static <T> StateSpec<Object, BagState<T>> bag(Coder<T> elemCoder) {
+  public static <T> StateSpec<BagState<T>> bag(Coder<T> elemCoder) {
     return new BagStateSpec<>(elemCoder);
   }
 
   /**
    * Create a state spec that supporting for {@link java.util.Set} like access patterns.
    */
-  public static <T> StateSpec<Object, SetState<T>> set() {
+  public static <T> StateSpec<SetState<T>> set() {
     return set(null);
   }
 
   /**
    * Create a state spec that supporting for {@link java.util.Set} like access patterns.
    */
-  public static <T> StateSpec<Object, SetState<T>> set(Coder<T> elemCoder) {
+  public static <T> StateSpec<SetState<T>> set(Coder<T> elemCoder) {
     return new SetStateSpec<>(elemCoder);
   }
 
   /**
    * Create a state spec that supporting for {@link java.util.Map} like access patterns.
    */
-  public static <K, V> StateSpec<Object, MapState<K, V>> map() {
+  public static <K, V> StateSpec<MapState<K, V>> map() {
     return new MapStateSpec<>(null, null);
   }
 
-  /**
-   * Create a state spec that supporting for {@link java.util.Map} like access patterns.
-   */
-  public static <K, V> StateSpec<Object, MapState<K, V>> map(Coder<K> keyCoder,
-                                                             Coder<V> valueCoder) {
+  /** Create a state spec that supporting for {@link java.util.Map} like access patterns. */
+  public static <K, V> StateSpec<MapState<K, V>> map(Coder<K> keyCoder, Coder<V> valueCoder) {
     return new MapStateSpec<>(keyCoder, valueCoder);
   }
 
   /** Create a state spec for holding the watermark. */
   public static <W extends BoundedWindow>
-      StateSpec<Object, WatermarkHoldState<W>> watermarkStateInternal(
+  StateSpec<WatermarkHoldState<W>> watermarkStateInternal(
           OutputTimeFn<? super W> outputTimeFn) {
     return new WatermarkStateSpecInternal<W>(outputTimeFn);
   }
 
   public static <K, InputT, AccumT, OutputT>
-      StateSpec<Object, BagState<AccumT>> convertToBagSpecInternal(
-          StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> combiningSpec) {
+  StateSpec<BagState<AccumT>> convertToBagSpecInternal(
+          KeyedStateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> combiningSpec) {
     if (combiningSpec instanceof KeyedCombiningStateSpec) {
       // Checked above; conversion to a bag spec depends on the provided spec being one of those
       // created via the factory methods in this class.
@@ -229,7 +226,7 @@ public class StateSpecs {
           (KeyedCombiningWithContextStateSpec<K, InputT, AccumT, OutputT>) combiningSpec;
       return typedSpec.asBagSpec();
     } else {
-      throw new IllegalArgumentException("Unexpected StateSpec " + combiningSpec);
+      throw new IllegalArgumentException("Unexpected KeyedStateSpec " + combiningSpec);
     }
   }
 
@@ -238,7 +235,7 @@ public class StateSpecs {
    *
    * <p>Includes the coder for {@code T}.
    */
-  private static class ValueStateSpec<T> implements StateSpec<Object, ValueState<T>> {
+  private static class ValueStateSpec<T> implements StateSpec<ValueState<T>> {
 
     @Nullable
     private Coder<T> coder;
@@ -298,7 +295,7 @@ public class StateSpecs {
    */
   private static class CombiningStateSpec<InputT, AccumT, OutputT>
       extends KeyedCombiningStateSpec<Object, InputT, AccumT, OutputT>
-      implements StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> {
+      implements StateSpec<CombiningState<InputT, AccumT, OutputT>> {
 
     @Nullable
     private Coder<AccumT> accumCoder;
@@ -335,7 +332,7 @@ public class StateSpecs {
    * <p>Includes the {@link KeyedCombineFnWithContext} and the coder for the accumulator type.
    */
   private static class KeyedCombiningWithContextStateSpec<K, InputT, AccumT, OutputT>
-      implements StateSpec<K, CombiningState<InputT, AccumT, OutputT>> {
+      implements KeyedStateSpec<K, CombiningState<InputT, AccumT, OutputT>> {
 
     @Nullable
     private Coder<AccumT> accumCoder;
@@ -395,7 +392,7 @@ public class StateSpecs {
       return Objects.hash(getClass(), accumCoder);
     }
 
-    private StateSpec<Object, BagState<AccumT>> asBagSpec() {
+    private StateSpec<BagState<AccumT>> asBagSpec() {
       return new BagStateSpec<AccumT>(accumCoder);
     }
   }
@@ -406,7 +403,7 @@ public class StateSpecs {
    * <p>Includes the {@link KeyedCombineFn} and the coder for the accumulator type.
    */
   private static class KeyedCombiningStateSpec<K, InputT, AccumT, OutputT>
-      implements StateSpec<K, CombiningState<InputT, AccumT, OutputT>> {
+      implements KeyedStateSpec<K, CombiningState<InputT, AccumT, OutputT>> {
 
     @Nullable
     private Coder<AccumT> accumCoder;
@@ -469,7 +466,7 @@ public class StateSpecs {
       return Objects.hash(getClass(), accumCoder);
     }
 
-    private StateSpec<Object, BagState<AccumT>> asBagSpec() {
+    private StateSpec<BagState<AccumT>> asBagSpec() {
       return new BagStateSpec<AccumT>(accumCoder);
     }
   }
@@ -480,7 +477,7 @@ public class StateSpecs {
    *
    * <p>Includes the coder for the element type {@code T}</p>
    */
-  private static class BagStateSpec<T> implements StateSpec<Object, BagState<T>> {
+  private static class BagStateSpec<T> implements StateSpec<BagState<T>> {
 
     @Nullable
     private Coder<T> elemCoder;
@@ -533,7 +530,7 @@ public class StateSpecs {
     }
   }
 
-  private static class MapStateSpec<K, V> implements StateSpec<Object, MapState<K, V>> {
+  private static class MapStateSpec<K, V> implements StateSpec<MapState<K, V>> {
 
     @Nullable
     private Coder<K> keyCoder;
@@ -600,7 +597,7 @@ public class StateSpecs {
    *
    * <p>Includes the coder for the element type {@code T}</p>
    */
-  private static class SetStateSpec<T> implements StateSpec<Object, SetState<T>> {
+  private static class SetStateSpec<T> implements StateSpec<SetState<T>> {
 
     @Nullable
     private Coder<T> elemCoder;
@@ -660,7 +657,7 @@ public class StateSpecs {
    * are combined.
    */
   private static class WatermarkStateSpecInternal<W extends BoundedWindow>
-      implements StateSpec<Object, WatermarkHoldState<W>> {
+      implements StateSpec<WatermarkHoldState<W>> {
 
     /**
      * When multiple output times are added to hold the watermark, this determines how they are

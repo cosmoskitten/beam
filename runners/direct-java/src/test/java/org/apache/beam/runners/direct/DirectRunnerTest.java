@@ -546,8 +546,9 @@ public class DirectRunnerTest implements Serializable {
   private static class IdentityDoFn extends DoFn<KV<String, String>, String> {
     private final Aggregator<Long, Long> counter = createAggregator("counter", Sum.ofLongs());
     private static final String STATE_ID = "state";
+
     @StateId(STATE_ID)
-    private static final StateSpec<Object, ValueState<String>> stateSpec =
+    private static final StateSpec<ValueState<String>> stateSpec =
         StateSpecs.value(StringUtf8Coder.of());
 
     @ProcessElement

@@ -32,11 +32,11 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.KeyedStateSpec;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateBinder;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
@@ -55,25 +55,25 @@ public class StateTags {
     return new StateBinder<K>() {
       @Override
       public <T> ValueState<T> bindValue(
-          String id, StateSpec<? super K, ValueState<T>> spec, Coder<T> coder) {
+          String id, KeyedStateSpec<? super K, ValueState<T>> spec, Coder<T> coder) {
         return binder.bindValue(tagForSpec(id, spec), coder);
       }
 
       @Override
       public <T> BagState<T> bindBag(
-          String id, StateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder) {
+          String id, KeyedStateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder) {
         return binder.bindBag(tagForSpec(id, spec), elemCoder);
       }
 
       @Override
       public <T> SetState<T> bindSet(
-          String id, StateSpec<? super K, SetState<T>> spec, Coder<T> elemCoder) {
+          String id, KeyedStateSpec<? super K, SetState<T>> spec, Coder<T> elemCoder) {
         return binder.bindSet(tagForSpec(id, spec), elemCoder);
       }
 
       @Override
       public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-          String id, StateSpec<? super K, MapState<KeyT, ValueT>> spec,
+          String id, KeyedStateSpec<? super K, MapState<KeyT, ValueT>> spec,
           Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
         return binder.bindMap(tagForSpec(id, spec), mapKeyCoder, mapValueCoder);
       }
@@ -82,7 +82,7 @@ public class StateTags {
       public <InputT, AccumT, OutputT>
       CombiningState<InputT, AccumT, OutputT> bindCombining(
               String id,
-              StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
+              KeyedStateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
               CombineFn<InputT, AccumT, OutputT> combineFn) {
         return binder.bindCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
@@ -92,7 +92,7 @@ public class StateTags {
       public <InputT, AccumT, OutputT>
       CombiningState<InputT, AccumT, OutputT> bindKeyedCombining(
               String id,
-              StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
+              KeyedStateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
               KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
         return binder.bindKeyedCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
@@ -102,7 +102,7 @@ public class StateTags {
       public <InputT, AccumT, OutputT>
       CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningWithContext(
               String id,
-              StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
+              KeyedStateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
               KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
         return binder.bindKeyedCombiningValueWithContext(
@@ -112,7 +112,7 @@ public class StateTags {
       @Override
       public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
           String id,
-          StateSpec<? super K, WatermarkHoldState<W>> spec,
+          KeyedStateSpec<? super K, WatermarkHoldState<W>> spec,
           OutputTimeFn<? super W> outputTimeFn) {
         return binder.bindWatermark(tagForSpec(id, spec), outputTimeFn);
       }
@@ -138,7 +138,7 @@ public class StateTags {
 
   /** Create a state tag for the given id and spec. */
   public static <K, StateT extends State> StateTag<K, StateT> tagForSpec(
-      String id, StateSpec<K, StateT> spec) {
+      String id, KeyedStateSpec<K, StateT> spec) {
     return new SimpleStateTag<>(new StructuredId(id), spec);
   }
 
@@ -317,10 +317,10 @@ public class StateTags {
   private static class SimpleStateTag<K, StateT extends State>
       implements StateTag<K, StateT>, SystemStateTag<K, StateT> {
 
-    private final StateSpec<K, StateT> spec;
+    private final KeyedStateSpec<K, StateT> spec;
     private final StructuredId id;
 
-    public SimpleStateTag(StructuredId id, StateSpec<K, StateT> spec) {
+    public SimpleStateTag(StructuredId id, KeyedStateSpec<K, StateT> spec) {
       this.id = id;
       this.spec = spec;
     }
@@ -338,7 +338,7 @@ public class StateTags {
     }
 
     @Override
-    public StateSpec<K, StateT> getSpec() {
+    public KeyedStateSpec<K, StateT> getSpec() {
       return spec;
     }
 

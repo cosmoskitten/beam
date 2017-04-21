@@ -45,7 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.KeyedStateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -446,7 +446,7 @@ public class ParDo {
     Map<String, DoFnSignature.StateDeclaration> stateDeclarations = signature.stateDeclarations();
     for (DoFnSignature.StateDeclaration stateDeclaration : stateDeclarations.values()) {
       try {
-        StateSpec<?, ?> stateSpec = (StateSpec<?, ?>) stateDeclaration.field().get(fn);
+        KeyedStateSpec<?, ?> stateSpec = (KeyedStateSpec<?, ?>) stateDeclaration.field().get(fn);
         stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder));
         stateSpec.finishSpecifying();
       } catch (IllegalAccessException e) {
@@ -738,7 +738,7 @@ public class ParDo {
       // SplittableDoFn should be forbidden on the runner-side.
       validateWindowType(input, fn);
 
-      // Use coder registry to determine coders for all StateSpec defined in the fn signature.
+      // Use coder registry to determine coders for all KeyedStateSpec defined in the fn signature.
       finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
 
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(

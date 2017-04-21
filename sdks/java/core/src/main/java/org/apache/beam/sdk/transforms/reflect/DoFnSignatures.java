@@ -58,8 +58,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.state.KeyedStateSpec;
 import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
@@ -1173,7 +1173,7 @@ public class DoFnSignatures {
     Map<String, DoFnSignature.StateDeclaration> declarations = new HashMap<>();
 
     for (Field field : declaredFieldsWithAnnotation(DoFn.StateId.class, fnClazz, DoFn.class)) {
-      // StateSpec fields may generally be private, but will be accessed via the signature
+      // KeyedStateSpec fields may generally be private, but will be accessed via the signature
       field.setAccessible(true);
       String id = field.getAnnotation(DoFn.StateId.class).value();
 
@@ -1188,11 +1188,12 @@ public class DoFnSignatures {
       }
 
       Class<?> stateSpecRawType = field.getType();
-      if (!(stateSpecRawType.equals(StateSpec.class))) {
+      if (!(TypeDescriptor.of(stateSpecRawType)
+          .isSubtypeOf(TypeDescriptor.of(KeyedStateSpec.class)))) {
         errors.throwIllegalArgument(
                 "%s annotation on non-%s field [%s] that has class %s",
             DoFn.StateId.class.getSimpleName(),
-            StateSpec.class.getSimpleName(),
+            KeyedStateSpec.class.getSimpleName(),
             field.toString(),
             stateSpecRawType.getName());
         continue;
@@ -1208,14 +1209,27 @@ public class DoFnSignatures {
 
       Type stateSpecType = field.getGenericType();
 
+      // A type descriptor for whatever type the @StateId-annotated class has, which
+      // must be some subtype of KeyedStateSpec
+      TypeDescriptor<? extends KeyedStateSpec<?, ?>> keyedStateSpecSubclassTypeDescriptor =
+          (TypeDescriptor) TypeDescriptor.of(stateSpecType);
+
+      // A type descriptor for KeyedStateSpec, with the generic type parameters filled
+      // in according to the specialization of the subclass (or just straight params)
+      TypeDescriptor<KeyedStateSpec<?, ?>> keyedStateSpecTypeDescriptor =
+          (TypeDescriptor)
+      keyedStateSpecSubclassTypeDescriptor.getSupertype(KeyedStateSpec.class);
+
+      // The type of the state, which may still have free type variables from the
+      // context
+      Type unresolvedStateType =
+          ((ParameterizedType) keyedStateSpecTypeDescriptor.getType()).getActualTypeArguments()[1];
+
+
       // By static typing this is already a well-formed State subclass
       TypeDescriptor<? extends State> stateType =
           (TypeDescriptor<? extends State>)
-              TypeDescriptor.of(fnClazz)
-                  .resolveType(
-                      TypeDescriptor.of(
-                              ((ParameterizedType) stateSpecType).getActualTypeArguments()[1])
-                          .getType());
+              TypeDescriptor.of(fnClazz).resolveType(unresolvedStateType);
 
       declarations.put(id, DoFnSignature.StateDeclaration.create(id, field, stateType));
     }
