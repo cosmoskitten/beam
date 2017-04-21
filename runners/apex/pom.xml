@@ -212,8 +212,8 @@
                 org.apache.beam.sdk.testing.UsesStatefulParDo,
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
                 org.apache.beam.sdk.testing.UsesSplittableParDo,
-                org.apache.beam.sdk.testing.UsesAttemptedMetrics,
-                org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                org.apache.beam.sdk.testing.UsesMetricsAttempted,
+                org.apache.beam.sdk.testing.UsesMetricsCommitted,
                 org.apache.beam.sdk.testing.UsesTestStream
               </excludedGroups>
               <parallel>none</parallel>
