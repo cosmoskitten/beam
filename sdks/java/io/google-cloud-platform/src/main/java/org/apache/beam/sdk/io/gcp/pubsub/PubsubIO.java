@@ -473,8 +473,8 @@ public class PubsubIO {
   }
 
   /**
-   * Returns A {@link PTransform} that continuously reads binary encoded protos of the given type
-   * from a Google Cloud Pub/Sub stream.
+   * Returns A {@link PTransform} that continuously reads binary encoded protobuf messages of the
+   * given type from a Google Cloud Pub/Sub stream.
    */
   public static <T extends Message> Read<T> readProtos(Class<T> messageClass) {
     return PubsubIO.<T>read().withCoder(ProtoCoder.of(messageClass));
@@ -483,6 +483,22 @@ public class PubsubIO {
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
   public static <T> Write<T> write() {
     return new AutoValue_PubsubIO_Write.Builder<T>().build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that writes UTF-8 encoded strings to a Google Cloud Pub/Sub
+   * stream.
+   */
+  public static Write<String> writeStrings() {
+    return PubsubIO.<String>write().withCoder(StringUtf8Coder.of());
+  }
+
+  /**
+   * Returns A {@link PTransform} that writes binary encoded protobuf messages of a given type
+   * to a Google Cloud Pub/Sub stream.
+   */
+  public static <T extends Message> Write<T> writeProtos(Class<T> messageClass) {
+    return PubsubIO.<T>write().withCoder(ProtoCoder.of(messageClass));
   }
 
   /** Implementation of {@link #read}. */
