@@ -178,5 +178,11 @@
       <artifactId>slf4j-api</artifactId>
       <scope>runtime</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-gcp-core</artifactId>
+      <scope>runtime</scope>
+    </dependency>
   </dependencies>
 </project>

@@ -152,6 +152,7 @@
   <modules>
     <!-- sdks/java/build-tools has project-wide configuration. To make these available
       in all modules, link it directly to the parent pom.xml. -->
+    <module>.test-infra/maven/enforcer-rules</module>
     <module>sdks/java/build-tools</module>
     <module>sdks</module>
     <module>runners</module>
@@ -161,8 +162,8 @@
   </modules>
 
   <profiles>
-    <!-- A global profile defined for all modules for release-level verification. 
-      Optional processes such as building source and javadoc should be limited 
+    <!-- A global profile defined for all modules for release-level verification.
+      Optional processes such as building source and javadoc should be limited
       to this profile. -->
     <profile>
       <id>release</id>
@@ -474,7 +475,7 @@
         <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
 	    <version>${project.version}</version>
       </dependency>
-	
+
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-core-construction-java</artifactId>
@@ -706,13 +707,13 @@
         <artifactId>google-auth-library-credentials</artifactId>
         <version>${google-auth.version}</version>
       </dependency>
-  
+
       <dependency>
         <groupId>com.google.auth</groupId>
         <artifactId>google-auth-library-oauth2-http</artifactId>
         <version>${google-auth.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -782,7 +783,7 @@
         <artifactId>google-api-services-storage</artifactId>
         <version>${storage.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -838,7 +839,7 @@
         <artifactId>google-api-services-dataflow</artifactId>
         <version>${dataflow.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -852,7 +853,7 @@
         <artifactId>google-api-services-clouddebugger</artifactId>
         <version>${clouddebugger.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -947,7 +948,7 @@
         <artifactId>byte-buddy</artifactId>
         <version>1.6.8</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.springframework</groupId>
         <artifactId>spring-expression</artifactId>
@@ -1048,7 +1049,7 @@
           <artifactId>maven-antrun-plugin</artifactId>
           <version>1.8</version>
         </plugin>
-        
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
@@ -1310,7 +1311,7 @@
           </configuration>
         </plugin>
 
-        <!-- This plugin's configuration tells the m2e plugin how to import this 
+        <!-- This plugin's configuration tells the m2e plugin how to import this
           Maven project into the Eclipse environment. -->
         <plugin>
           <groupId>org.eclipse.m2e</groupId>
@@ -1534,6 +1535,74 @@
             </execution>
           </executions>
         </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>1.4.1</version>
+          <executions>
+            <execution>
+              <id>enforce</id>
+              <goals>
+                <goal>enforce</goal>
+              </goals>
+              <configuration>
+                <rules>
+                  <enforceBytecodeVersion>
+                    <maxJdkVersion>1.7</maxJdkVersion>
+                    <excludes>
+                      <!--
+                        Supplied by the user JDK and compiled with matching
+                        version. Is not shaded, so safe to ignore.
+                      -->
+                      <exclude>jdk.tools:jdk.tools</exclude>
+                    </excludes>
+                  </enforceBytecodeVersion>
+                  <requireJavaVersion>
+                    <version>[1.7,)</version>
+                  </requireJavaVersion>
+                  <requireMavenVersion>
+                    <!-- Keep aligned with preqrequisite section below. -->
+                    <version>[3.2,)</version>
+                  </requireMavenVersion>
+                  <bannedDependencies>
+                    <excludes>
+                      <exclude>com.google.protobuf:protobuf-lite</exclude>
+                    </excludes>
+                  </bannedDependencies>
+                </rules>
+              </configuration>
+            </execution>
+            <execution>
+              <id>verify-dependencies</id>
+              <phase>verify</phase>
+              <goals>
+                <goal>enforce</goal>
+              </goals>
+              <configuration>
+                <rules>
+                  <bannedClasses implementation="org.apache.beam.maven.enforcer.rules.BannedClasses">
+                    <excludes>
+                      <exclude>com/google/**</exclude>
+                      <exclude>org/apache/maven/**</exclude>
+                    </excludes>
+                  </bannedClasses>
+                </rules>
+              </configuration>
+            </execution>
+          </executions>
+          <dependencies>
+            <dependency>
+              <groupId>org.codehaus.mojo</groupId>
+              <artifactId>extra-enforcer-rules</artifactId>
+              <version>1.0-beta-6</version>
+            </dependency>
+            <dependency>
+              <groupId>org.apache.beam</groupId>
+              <artifactId>beam-maven-enforcer-rules</artifactId>
+              <version>0.7.0-SNAPSHOT</version>
+            </dependency>
+          </dependencies>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -1556,48 +1625,21 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>1.4.1</version>
+        <!-- Do no execute this plugin in the parent pom as this leads to cirular dependecy issue
+         with custom rules.
+         -->
         <executions>
           <execution>
             <id>enforce</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <enforceBytecodeVersion>
-                  <maxJdkVersion>1.7</maxJdkVersion>
-                  <excludes>
-                    <!--
-                      Supplied by the user JDK and compiled with matching
-                      version. Is not shaded, so safe to ignore.
-                    -->
-                    <exclude>jdk.tools:jdk.tools</exclude>
-                  </excludes>
-                </enforceBytecodeVersion>
-                <requireJavaVersion>
-                  <version>[1.7,)</version>
-                </requireJavaVersion>
-                <requireMavenVersion>
-                  <!-- Keep aligned with preqrequisite section below. -->
-                  <version>[3.2,)</version>
-                </requireMavenVersion>
-                <bannedDependencies>
-                  <excludes>
-                    <exclude>com.google.protobuf:protobuf-lite</exclude>
-                  </excludes>
-                </bannedDependencies>
-              </rules>
-            </configuration>
+            <phase>none</phase>
+          </execution>
+          <execution>
+            <id>verify-dependencies</id>
+            <phase>none</phase>
           </execution>
         </executions>
-        <dependencies>
-          <dependency>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>extra-enforcer-rules</artifactId>
-            <version>1.0-beta-6</version>
-          </dependency>
-        </dependencies>
+        <!-- Child poms should not inherit this as this disables the plugin. -->
+        <inherited>false</inherited>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
