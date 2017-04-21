@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
@@ -484,7 +485,7 @@ public class PubsubIO {
   public static <T extends Message> Read<T> readProtos(Class<T> messageClass) {
     return PubsubIO.<T>read().withCoderAndParseFn(
         ProtoCoder.of(messageClass),
-        new ParsePayloadAsBinaryProto(messageClass));
+        new ParsePayloadAsBinaryProto<>(messageClass));
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
@@ -497,7 +498,7 @@ public class PubsubIO {
    * stream.
    */
   public static Write<String> writeStrings() {
-    return PubsubIO.<String>write().withCoder(StringUtf8Coder.of());
+    return PubsubIO.<String>write().withFormatFn(new FormatPayloadAsUtf8());
   }
 
   /**
@@ -505,7 +506,7 @@ public class PubsubIO {
    * to a Google Cloud Pub/Sub stream.
    */
   public static <T extends Message> Write<T> writeProtos(Class<T> messageClass) {
-    return PubsubIO.<T>write().withCoder(ProtoCoder.of(messageClass));
+    return PubsubIO.<T>write().withFormatFn(new FormatPayloadAsBinaryProto<>(messageClass));
   }
 
   /** Implementation of {@link #read}. */
@@ -665,7 +666,7 @@ public class PubsubIO {
      * {@link PCollection#setCoder(Coder)}.
      */
     public Read<T> withCoderAndParseFn(Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
-      return toBuilder().setParseFn(parseFn).build();
+      return toBuilder().setCoder(coder).setParseFn(parseFn).build();
     }
 
     @Override
@@ -744,10 +745,6 @@ public class PubsubIO {
     @Nullable
     abstract String getIdLabel();
 
-    /** The input type Coder. */
-    @Nullable
-    abstract Coder<T> getCoder();
-
     /** The format function for input PubsubMessage objects. */
     @Nullable
     abstract SimpleFunction<T, PubsubMessage> getFormatFn();
@@ -761,8 +758,6 @@ public class PubsubIO {
       abstract Builder<T> setTimestampLabel(String timestampLabel);
 
       abstract Builder<T> setIdLabel(String idLabel);
-
-      abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setFormatFn(SimpleFunction<T, PubsubMessage> formatFn);
 
@@ -815,14 +810,6 @@ public class PubsubIO {
     }
 
     /**
-     * Uses the given {@link Coder} to encode each of the elements of the input {@link PCollection}
-     * into an output record.
-     */
-    public Write<T> withCoder(Coder<T> coder) {
-      return toBuilder().setCoder(coder).build();
-    }
-
-    /**
      * Used to write a PubSub message together with PubSub attributes. The user-supplied format
      * function translates the input type T to a PubsubMessage object, which is used by the sink
      * to separately set the PubSub message's payload and attributes.
@@ -841,13 +828,11 @@ public class PubsubIO {
           input.apply(ParDo.of(new PubsubBoundedWriter()));
           return PDone.in(input.getPipeline());
         case UNBOUNDED:
-          return input.apply(new PubsubUnboundedSink<T>(
+          return input.apply(MapElements.via(getFormatFn())).apply(new PubsubUnboundedSink(
               FACTORY,
               NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
-              getCoder(),
               getTimestampLabel(),
               getIdLabel(),
-              getFormatFn(),
               100 /* numShards */));
       }
       throw new RuntimeException(); // cases are exhaustive.
@@ -886,19 +871,12 @@ public class PubsubIO {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
-        byte[] payload = null;
-        Map<String, String> attributes = null;
-        if (getFormatFn() != null) {
-          PubsubMessage message = getFormatFn().apply(c.element());
-          payload = message.getMessage();
-          attributes = message.getAttributeMap();
-        } else {
-          payload = CoderUtils.encodeToByteArray(getCoder(), c.element());
-        }
+        byte[] payload;
+        PubsubMessage message = getFormatFn().apply(c.element());
+        payload = message.getMessage();
+        Map<String, String> attributes = message.getAttributeMap();
         // NOTE: The record id is always null.
-        OutgoingMessage message =
-            new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null);
-        output.add(message);
+        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
 
         if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
           publish();
@@ -956,6 +934,36 @@ public class PubsubIO {
     public T apply(PubsubMessage input) {
       try {
         return CoderUtils.decodeFromByteArray(coder, input.getMessage());
+      } catch (CoderException e) {
+        throw new RuntimeException("Could not decode Pubsub message", e);
+      }
+    }
+  }
+
+  private static class FormatPayloadAsUtf8 extends SimpleFunction<String, PubsubMessage> {
+    @Override
+    public PubsubMessage apply(String input) {
+      return new PubsubMessage(
+          input.getBytes(StandardCharsets.UTF_8), ImmutableMap.<String, String>of());
+    }
+  }
+
+  private static class FormatPayloadAsBinaryProto<T extends Message>
+      extends SimpleFunction<T, PubsubMessage> {
+    private ProtoCoder<T> coder;
+
+    public FormatPayloadAsBinaryProto(Class<T> messageClass) {
+      // TODO: Stop using ProtoCoder and instead parse the payload directly.
+      // We should not be relying on the fact that ProtoCoder's wire format is identical to
+      // the protobuf wire format, as the wire format is not part of a coder's API.
+      this.coder = ProtoCoder.of(messageClass);
+    }
+
+    @Override
+    public PubsubMessage apply(T input) {
+      try {
+        return new PubsubMessage(
+            CoderUtils.encodeToByteArray(coder, input), ImmutableMap.<String, String>of());
       } catch (CoderException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }
