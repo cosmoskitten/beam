@@ -192,7 +192,7 @@ abstract class PubsubClient implements Closeable {
       this.projectId = splits[1];
       this.subscriptionName = splits[3];
     }
-
+B
     public String getPath() {
       return String.format("projects/%s/subscriptions/%s", projectId, subscriptionName);
     }
