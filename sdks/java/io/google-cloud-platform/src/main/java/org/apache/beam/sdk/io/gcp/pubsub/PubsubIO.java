@@ -461,6 +461,7 @@ public class PubsubIO {
     return new AutoValue_PubsubIO_Read.Builder<T>().build();
   }
 
+  /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
   public static <T> Write<T> write() {
     return new AutoValue_PubsubIO_Write.Builder<T>().build();
   }
@@ -700,10 +701,7 @@ public class PubsubIO {
   private PubsubIO() {}
 
 
-  /**
-   * A {@link PTransform} that writes an unbounded {@link PCollection} of {@link String Strings}
-   * to a Cloud Pub/Sub stream.
-   */
+  /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
@@ -743,7 +741,7 @@ public class PubsubIO {
     }
 
     /**
-     * Creates a transform that publishes to the specified topic.
+     * Publishes to the specified topic.
      *
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
      * {@code topic} string.
@@ -762,9 +760,9 @@ public class PubsubIO {
     }
 
     /**
-     * Creates a transform that writes to Pub/Sub, adds each record's timestamp to the published
-     * messages in an attribute with the specified name. The value of the attribute will be a number
-     * representing the number of milliseconds since the Unix epoch. For example, if using the Joda
+     * Writes to Pub/Sub and adds each record's timestamp to the published messages in an attribute
+     * with the specified name. The value of the attribute will be a number representing the number
+     * of milliseconds since the Unix epoch. For example, if using the Joda
      * time classes, {@link Instant#Instant(long)} can be used to parse this value.
      *
      * <p>If the output from this sink is being read by another Beam pipeline, then
@@ -776,9 +774,8 @@ public class PubsubIO {
     }
 
     /**
-     * Creates a transform that writes to Pub/Sub, adding each record's unique identifier to the
-     * published messages in an attribute with the specified name. The value of the attribute is an
-     * opaque string.
+     * Writes to Pub/Sub, adding each record's unique identifier to the published messages in an
+     * attribute with the specified name. The value of the attribute is an opaque string.
      *
      * <p>If the the output from this sink is being read by another Beam pipeline, then
      * {@link PubsubIO.Read#withIdLabel(String)} can be used to ensure that* the other source reads
@@ -789,12 +786,8 @@ public class PubsubIO {
     }
 
     /**
-     * Returns a new transform that's like this one
-     * but that uses the given {@link Coder} to encode each of
-     * the elements of the input {@link PCollection} into an
-     * output record.
-     *
-     * <p>Does not modify this object.
+     * Uses the given {@link Coder} to encode each of the elements of the input {@link PCollection}
+     * into an output record.
      */
     public Write<T> withCoder(Coder<T> coder) {
       return toBuilder().setCoder(coder).build();
