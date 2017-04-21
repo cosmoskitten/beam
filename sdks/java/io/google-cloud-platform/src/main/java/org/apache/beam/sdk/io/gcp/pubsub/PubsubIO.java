@@ -456,6 +456,7 @@ public class PubsubIO {
     }
   }
 
+   /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
   public static <T> Read<T> read() {
     return new AutoValue_PubsubIO_Read.Builder<T>().build();
   }
@@ -464,11 +465,7 @@ public class PubsubIO {
     return new AutoValue_PubsubIO_Write.Builder<T>().build();
   }
 
-  /**
-   * A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream and
-   * returns a {@link PCollection} of {@link String Strings} containing the items from
-   * the stream.
-   */
+  /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable
@@ -498,10 +495,15 @@ public class PubsubIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
+
       abstract Builder<T> setSubscriptionProvider(ValueProvider<PubsubSubscription> subscription);
+
       abstract Builder<T> setTimestampLabel(String timestampLabel);
+
       abstract Builder<T> setIdLabel(String idLabel);
+
       abstract Builder<T> setCoder(Coder<T> coder);
+
       abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
 
       abstract Read<T> build();
@@ -516,8 +518,6 @@ public class PubsubIO {
      * <p>Multiple readers reading from the same subscription will each receive
      * some arbitrary portion of the data.  Most likely, separate readers should
      * use their own subscriptions.
-     *
-     * <p>Does not modify this object.
      */
     public Read<T> fromSubscription(String subscription) {
       return fromSubscription(StaticValueProvider.of(subscription));
@@ -540,7 +540,7 @@ public class PubsubIO {
     }
 
     /**
-     * Creates and returns a transform for reading from a Cloud Pub/Sub topic. Mutually exclusive
+     * Reads from the given Cloud Pub/Sub topic. Mutually exclusive
      * with {@link #fromSubscription(String)}.
      *
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
@@ -570,9 +570,8 @@ public class PubsubIO {
     }
 
     /**
-     * Creates and returns a transform reading from Cloud Pub/Sub where record timestamps are
-     * expected to be provided as Pub/Sub message attributes. The {@code timestampLabel}
-     * parameter specifies the name of the attribute that contains the timestamp.
+     * When reading from Cloud Pub/Sub where record timestamps are provided as Pub/Sub message
+     * attributes, specifies the name of the attribute that contains the timestamp.
      *
      * <p>The timestamp value is expected to be represented in the attribute as either:
      *
@@ -604,10 +603,9 @@ public class PubsubIO {
     }
 
     /**
-     * Creates and returns a transform for reading from Cloud Pub/Sub where unique record
-     * identifiers are expected to be provided as Pub/Sub message attributes. The {@code idLabel}
-     * parameter specifies the attribute name. The value of the attribute can be any string
-     * that uniquely identifies this record.
+     * When reading from Cloud Pub/Sub where unique record identifiers are provided as Pub/Sub
+     * message attributes, specifies the name of the attribute containing the unique identifier.
+     * The value of the attribute can be any string that uniquely identifies this record.
      *
      * <p>Pub/Sub cannot guarantee that no duplicate data will be delivered on the Pub/Sub stream.
      * If {@code idLabel} is not provided, Beam cannot guarantee that no duplicate data will
@@ -618,18 +616,15 @@ public class PubsubIO {
     }
 
     /**
-     * Returns a transform that's like this one but that uses the given
-     * {@link Coder} to decode each record into a value of type {@code T}.
-     *
-     * <p>Does not modify this object.
+     * Uses the given {@link Coder} to decode each record into a value of type {@code T}.
      */
     public Read<T> withCoder(Coder<T> coder) {
       return toBuilder().setCoder(coder).build();
     }
 
     /**
-     * Causes the source to return a PubsubMessage that includes Pubsub attributes.
-     * The user must supply a parsing function to transform the PubsubMessage into an output type.
+     * Causes the source to return a PubsubMessage that includes Pubsub attributes, and uses the
+     * given parsing function to transform the PubsubMessage into an output type.
      * A Coder for the output type T must be registered or set on the output via
      * {@link PCollection#setCoder(Coder)}.
      */
