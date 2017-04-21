@@ -664,7 +664,7 @@ public class PubsubIO {
      * A Coder for the output type T must be registered or set on the output via
      * {@link PCollection#setCoder(Coder)}.
      */
-    public Read<T> withParseFnFromAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
+    public Read<T> withParseFn(SimpleFunction<PubsubMessage, T> parseFn) {
       return toBuilder().setParseFn(parseFn).build();
     }
 
