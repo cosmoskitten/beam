@@ -38,19 +38,11 @@ from apache_beam.utils import counters
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
-from apache_beam.runners.worker.data_plane import GrpcClientDataChannelFactory
-
-
 try:
   from apache_beam.runners.worker import statesampler
 except ImportError:
-  # No compiler.
-  def no_op(): yield
-  class fake_statesampler:
-    class FakeStateSampler(object):
-      def scoped_state(name):
-        return contextlib.contextmanager(no_op())
-  statesampler = fake_statesampler()
+  from apache_beam.runners.worker import statesampler_fake as statesampler
+from apache_beam.runners.worker.data_plane import GrpcClientDataChannelFactory
 
 
 DATA_INPUT_URN = 'urn:org.apache.beam:source:runner:0.1'
