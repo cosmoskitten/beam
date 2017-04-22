@@ -15,14 +15,20 @@
 # limitations under the License.
 #
 
-import contextlib
-
-
-def no_op(): yield
-
 
 class StateSampler(object):
+
   def __init__(*args, **kwargs):
     pass
+
   def scoped_state(self, name):
-    return contextlib.contextmanager(no_op)
+    return _FakeScopedState()
+
+
+class _FakeScopedState(object):
+
+  def __enter__(self):
+    pass
+
+  def __exit__(self, *unused_args):
+    pass
