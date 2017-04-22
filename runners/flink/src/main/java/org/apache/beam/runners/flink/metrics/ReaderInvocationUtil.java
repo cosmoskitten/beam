@@ -32,13 +32,16 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT>> {
 
+  private final String stepName;
   private final FlinkMetricContainer container;
   private final Boolean enableMetrics;
 
   public ReaderInvocationUtil(
+      String stepName,
       PipelineOptions options,
       FlinkMetricContainer container) {
     FlinkPipelineOptions flinkPipelineOptions = options.as(FlinkPipelineOptions.class);
+    this.stepName = stepName;
     enableMetrics = flinkPipelineOptions.getEnableMetrics();
     this.container = container;
   }
@@ -46,9 +49,8 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
   public boolean invokeStart(ReaderT reader) throws IOException {
     if (enableMetrics) {
       try (Closeable ignored =
-               MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
+               MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
         boolean result = reader.start();
-        container.updateMetrics();
         return result;
       }
     } else {
@@ -59,10 +61,8 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
   public boolean invokeAdvance(ReaderT reader) throws IOException {
     if (enableMetrics) {
       try (Closeable ignored =
-               MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
-        boolean result = reader.advance();
-        container.updateMetrics();
-        return result;
+               MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+        return reader.advance();
       }
     } else {
       return reader.advance();
