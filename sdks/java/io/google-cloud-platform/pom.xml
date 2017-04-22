@@ -139,7 +139,6 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <!-- grpc-all does not obey IWYU, so we need to exclude from compile
