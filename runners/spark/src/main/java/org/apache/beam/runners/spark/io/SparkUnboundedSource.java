@@ -25,7 +25,6 @@ import java.util.Collections;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.stateful.StateSpecFunctions;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsContainers;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -191,7 +191,7 @@ public class SparkUnboundedSource {
     public scala.Option<RDD<BoxedUnit>> compute(Time validTime) {
       // compute parent.
       scala.Option<RDD<Metadata>> parentRDDOpt = parent.getOrCompute(validTime);
-      final Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
+      final Accumulator<MetricsContainers> metricsAccum = MetricsAccumulator.getInstance();
       long count = 0;
       SparkWatermarks sparkWatermark = null;
       Instant globalLowWatermarkForBatch = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -212,7 +212,7 @@ public class SparkUnboundedSource {
                   ? partitionHighWatermark : globalHighWatermarkForBatch;
           // Update metrics reported in the read
           final Gauge gauge = Metrics.gauge(NAMESPACE, READ_DURATION_MILLIS);
-          final MetricsContainer container = metadata.getMetricsContainer().getContainer(stepName);
+          final MetricsContainer container = metadata.getMetricsContainers().getContainer(stepName);
           try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(container)) {
             final long readDurationMillis = metadata.getReadDurationMillis();
             if (readDurationMillis > maxReadDuration) {
@@ -221,7 +221,7 @@ public class SparkUnboundedSource {
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
-          metricsAccum.value().update(metadata.getMetricsContainer());
+          metricsAccum.value().updateAll(metadata.getMetricsContainers());
         }
 
         sparkWatermark =
@@ -261,20 +261,19 @@ public class SparkUnboundedSource {
     private final Instant lowWatermark;
     private final Instant highWatermark;
     private final long readDurationMillis;
-    private final SparkMetricsContainer metricsContainer;
+    private final MetricsContainers metricsContainers;
 
     public Metadata(
         long numRecords,
         Instant lowWatermark,
         Instant highWatermark,
         final long readDurationMillis,
-        SparkMetricsContainer metricsContainer) {
+        MetricsContainers metricsContainer) {
       this.numRecords = numRecords;
       this.readDurationMillis = readDurationMillis;
-      this.metricsContainer = metricsContainer;
+      this.metricsContainers = metricsContainer;
       this.lowWatermark = lowWatermark;
       this.highWatermark = highWatermark;
-      metricsContainer.materialize();
     }
 
     long getNumRecords() {
@@ -293,8 +292,8 @@ public class SparkUnboundedSource {
       return readDurationMillis;
     }
 
-    SparkMetricsContainer getMetricsContainer() {
-      return metricsContainer;
+    MetricsContainers getMetricsContainers() {
+      return metricsContainers;
     }
   }
 
