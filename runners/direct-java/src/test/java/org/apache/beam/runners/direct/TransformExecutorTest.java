@@ -69,7 +69,6 @@ public class TransformExecutorTest {
   private RegisteringCompletionCallback completionCallback;
   private TransformExecutorService transformEvaluationState;
   private BundleFactory bundleFactory;
-  @Mock private DirectMetrics metrics;
   @Mock private EvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
 
@@ -94,8 +93,6 @@ public class TransformExecutorTest {
     DirectGraph graph = DirectGraphs.getGraph(p);
     createdProducer = graph.getProducer(created);
     downstreamProducer = graph.getProducer(downstream);
-
-    when(evaluationContext.getMetrics()).thenReturn(metrics);
   }
 
   @Test
