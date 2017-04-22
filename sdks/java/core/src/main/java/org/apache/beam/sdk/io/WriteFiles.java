@@ -53,7 +53,6 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -496,7 +495,8 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
           input
               .apply("ApplyShardLabel", ParDo.of(
                   new ApplyShardingKey<T>(numShardsView,
-                      (numShardsView != null) ? null : numShardsProvider)).withSideInputs(sideInputs))
+                      (numShardsView != null) ? null : numShardsProvider))
+                  .withSideInputs(sideInputs))
               .apply("GroupIntoShards", GroupByKey.<Integer, T>create());
       shardedWindowCoder =
           (Coder<BoundedWindow>) sharded.getWindowingStrategy().getWindowFn().windowCoder();
