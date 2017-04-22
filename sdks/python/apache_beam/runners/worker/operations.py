@@ -29,6 +29,7 @@ from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.worker import logger
+from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
 from apache_beam.transforms import combiners
@@ -44,6 +45,7 @@ try:
   import cython
 except ImportError:
   class FakeCython(object):
+    @staticmethod
     def cast(type, value):
       return value
   globals()['cython'] = FakeCython()
