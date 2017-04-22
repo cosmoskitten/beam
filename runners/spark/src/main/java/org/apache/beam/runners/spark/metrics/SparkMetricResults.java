@@ -21,6 +21,8 @@ package org.apache.beam.runners.spark.metrics;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeData;
@@ -31,7 +33,10 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsContainers;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 
 
@@ -40,15 +45,69 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
  */
 public class SparkMetricResults extends MetricResults {
 
-  @Override
-  public MetricQueryResults queryMetrics(MetricsFilter filter) {
-    return new SparkMetricQueryResults(filter);
+  private final Map<MetricKey, MetricUpdate<Long>> counters = new HashMap<>();
+  private final Map<MetricKey, MetricUpdates.MetricUpdate<DistributionData>> distributions =
+      new HashMap<>();
+  private final Map<MetricKey, MetricUpdates.MetricUpdate<GaugeData>> gauges = new HashMap<>();
+
+  public SparkMetricResults(MetricsContainers metricsContainers) {
+    for (MetricsContainer container : metricsContainers.asMap().values()) {
+      MetricUpdates cumulative = container.getCumulative();
+      mergeCounters(cumulative.counterUpdates());
+      mergeDistributions(cumulative.distributionUpdates());
+      mergeGauges(cumulative.gaugeUpdates());
+    }
   }
 
-  private static class SparkMetricQueryResults implements MetricQueryResults {
+  @Override
+  public MetricQueryResults queryMetrics(MetricsFilter filter) {
+
+    return new QueryResults(filter, counters.values(), distributions.values(), gauges.values());
+  }
+
+  private void mergeCounters(
+      Iterable<MetricUpdates.MetricUpdate<Long>> updates) {
+    for (MetricUpdates.MetricUpdate<Long> update : updates) {
+      MetricKey key = update.getKey();
+      MetricUpdates.MetricUpdate<Long> current = counters.get(key);
+      counters.put(key, current != null
+          ? MetricUpdates.MetricUpdate.create(key, current.getUpdate() + update.getUpdate())
+          : update);
+    }
+  }
+
+  private void mergeDistributions(
+      Iterable<MetricUpdates.MetricUpdate<DistributionData>> updates) {
+    for (MetricUpdates.MetricUpdate<DistributionData> update : updates) {
+      MetricKey key = update.getKey();
+      MetricUpdates.MetricUpdate<DistributionData> current = distributions.get(key);
+      distributions.put(key, current != null
+          ? MetricUpdates.MetricUpdate.create(key, current.getUpdate().combine(update.getUpdate()))
+          : update);
+    }
+  }
+
+  private void mergeGauges(
+      Iterable<MetricUpdates.MetricUpdate<GaugeData>> updates) {
+    for (MetricUpdates.MetricUpdate<GaugeData> update : updates) {
+      MetricKey key = update.getKey();
+      MetricUpdates.MetricUpdate<GaugeData> current = gauges.get(key);
+      gauges.put(
+          key,
+          current != null
+              ? MetricUpdates.MetricUpdate.create(
+              key,
+              current.getUpdate().combine(update.getUpdate()))
+              : update);
+    }
+  }
+
+  private class QueryResults implements MetricQueryResults {
     private final MetricsFilter filter;
 
-    SparkMetricQueryResults(MetricsFilter filter) {
+    public QueryResults(MetricsFilter filter, Iterable<MetricUpdates.MetricUpdate<Long>> counters,
+        Iterable<MetricUpdates.MetricUpdate<DistributionData>> distributions,
+        Iterable<MetricUpdates.MetricUpdate<GaugeData>> gauges) {
       this.filter = filter;
     }
 
@@ -56,7 +115,7 @@ public class SparkMetricResults extends MetricResults {
     public Iterable<MetricResult<Long>> counters() {
       return
           FluentIterable
-              .from(SparkMetricsContainer.getCounters())
+              .from(counters.values())
               .filter(matchesFilter(filter))
               .transform(TO_COUNTER_RESULT)
               .toList();
@@ -66,7 +125,7 @@ public class SparkMetricResults extends MetricResults {
     public Iterable<MetricResult<DistributionResult>> distributions() {
       return
           FluentIterable
-              .from(SparkMetricsContainer.getDistributions())
+              .from(distributions.values())
               .filter(matchesFilter(filter))
               .transform(TO_DISTRIBUTION_RESULT)
               .toList();
@@ -76,30 +135,33 @@ public class SparkMetricResults extends MetricResults {
     public Iterable<MetricResult<GaugeResult>> gauges() {
       return
           FluentIterable
-              .from(SparkMetricsContainer.getGauges())
+              .from(gauges.values())
               .filter(matchesFilter(filter))
               .transform(TO_GAUGE_RESULT)
               .toList();
     }
 
-    private Predicate<MetricUpdate<?>> matchesFilter(final MetricsFilter filter) {
-      return new Predicate<MetricUpdate<?>>() {
+    private Predicate<MetricUpdates.MetricUpdate<?>> matchesFilter(final MetricsFilter filter) {
+      return new Predicate<MetricUpdates.MetricUpdate<?>>() {
         @Override
-        public boolean apply(MetricUpdate<?> metricResult) {
+        public boolean apply(MetricUpdates.MetricUpdate<?> metricResult) {
           return MetricFiltering.matches(filter, metricResult.getKey());
         }
       };
     }
   }
 
-  private static final Function<MetricUpdate<DistributionData>, MetricResult<DistributionResult>>
+  private static final
+  Function<MetricUpdates.MetricUpdate<DistributionData>, MetricResult<DistributionResult>>
       TO_DISTRIBUTION_RESULT =
-      new Function<MetricUpdate<DistributionData>, MetricResult<DistributionResult>>() {
+      new Function<MetricUpdates.MetricUpdate<DistributionData>,
+          MetricResult<DistributionResult>>() {
         @Override
-        public MetricResult<DistributionResult> apply(MetricUpdate<DistributionData> metricResult) {
+        public MetricResult<DistributionResult>
+        apply(MetricUpdates.MetricUpdate<DistributionData> metricResult) {
           if (metricResult != null) {
             MetricKey key = metricResult.getKey();
-            return new SparkMetricResult<>(key.metricName(), key.stepName(),
+            return new AttemptedMetricResult<>(key.metricName(), key.stepName(),
                 metricResult.getUpdate().extractResult());
           } else {
             return null;
@@ -107,14 +169,14 @@ public class SparkMetricResults extends MetricResults {
         }
       };
 
-  private static final Function<MetricUpdate<Long>, MetricResult<Long>>
+  private static final Function<MetricUpdates.MetricUpdate<Long>, MetricResult<Long>>
       TO_COUNTER_RESULT =
-      new Function<MetricUpdate<Long>, MetricResult<Long>>() {
+      new Function<MetricUpdates.MetricUpdate<Long>, MetricResult<Long>>() {
         @Override
-        public MetricResult<Long> apply(MetricUpdate<Long> metricResult) {
+        public MetricResult<Long> apply(MetricUpdates.MetricUpdate<Long> metricResult) {
           if (metricResult != null) {
             MetricKey key = metricResult.getKey();
-            return new SparkMetricResult<>(key.metricName(), key.stepName(),
+            return new AttemptedMetricResult<>(key.metricName(), key.stepName(),
                 metricResult.getUpdate());
           } else {
             return null;
@@ -122,14 +184,14 @@ public class SparkMetricResults extends MetricResults {
         }
       };
 
-  private static final Function<MetricUpdate<GaugeData>, MetricResult<GaugeResult>>
+  private static final Function<MetricUpdates.MetricUpdate<GaugeData>, MetricResult<GaugeResult>>
       TO_GAUGE_RESULT =
-      new Function<MetricUpdate<GaugeData>, MetricResult<GaugeResult>>() {
+      new Function<MetricUpdates.MetricUpdate<GaugeData>, MetricResult<GaugeResult>>() {
         @Override
-        public MetricResult<GaugeResult> apply(MetricUpdate<GaugeData> metricResult) {
+        public MetricResult<GaugeResult> apply(MetricUpdates.MetricUpdate<GaugeData> metricResult) {
           if (metricResult != null) {
             MetricKey key = metricResult.getKey();
-            return new SparkMetricResult<>(key.metricName(), key.stepName(),
+            return new AttemptedMetricResult<>(key.metricName(), key.stepName(),
                 metricResult.getUpdate().extractResult());
           } else {
             return null;
@@ -137,12 +199,12 @@ public class SparkMetricResults extends MetricResults {
         }
       };
 
-  private static class SparkMetricResult<T> implements MetricResult<T> {
+  private static class AttemptedMetricResult<T> implements MetricResult<T> {
     private final MetricName name;
     private final String step;
     private final T result;
 
-    SparkMetricResult(MetricName name, String step, T result) {
+    AttemptedMetricResult(MetricName name, String step, T result) {
       this.name = name;
       this.step = step;
       this.result = result;
@@ -160,7 +222,7 @@ public class SparkMetricResults extends MetricResults {
 
     @Override
     public T committed() {
-      throw new UnsupportedOperationException("Spark runner does not currently support committed"
+      throw new UnsupportedOperationException("This runner does not currently support committed"
           + " metrics results. Please use 'attempted' instead.");
     }
 

@@ -25,11 +25,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
-import org.apache.beam.runners.spark.metrics.SparkMetricResults;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.AccumulatedMetricsResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -44,7 +45,6 @@ public abstract class SparkPipelineResult implements PipelineResult {
   protected final Future pipelineExecution;
   protected JavaSparkContext javaSparkContext;
   protected PipelineResult.State state;
-  private final SparkMetricResults metricResults = new SparkMetricResults();
 
   SparkPipelineResult(final Future<?> pipelineExecution, final JavaSparkContext javaSparkContext) {
     this.pipelineExecution = pipelineExecution;
@@ -118,7 +118,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return metricResults;
+    return new AccumulatedMetricsResults(MetricsAccumulator.getInstance().value());
   }
 
   @Override
