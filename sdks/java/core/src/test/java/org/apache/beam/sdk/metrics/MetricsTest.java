@@ -56,7 +56,7 @@ public class MetricsTest implements Serializable {
   private static final String NAME = "name";
   private static final MetricName METRIC_NAME = MetricName.named(NS, NAME);
   private static final String NAMESPACE = MetricsTest.class.getName();
-  private static final MetricName ELEMENTS_READ = IOMetrics.elementsRead().getName();
+  private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();

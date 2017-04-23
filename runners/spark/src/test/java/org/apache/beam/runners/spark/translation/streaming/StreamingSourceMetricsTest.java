@@ -29,11 +29,11 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Source;
-import org.apache.beam.sdk.metrics.IOMetrics;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,7 +43,7 @@ import org.junit.Test;
  * Verify metrics support for {@link Source Sources} in streaming pipelines.
  */
 public class StreamingSourceMetricsTest implements Serializable {
-  private static final MetricName ELEMENTS_READ = IOMetrics.elementsRead().getName();
+  private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
 
   // Force streaming pipeline using pipeline rule.
   @Rule
