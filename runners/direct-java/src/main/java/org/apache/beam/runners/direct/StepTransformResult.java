@@ -26,7 +26,6 @@ import java.util.Set;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
-import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -48,20 +47,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
     return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
-  @Override
-  public TransformResult<InputT> withLogicalMetricUpdates(MetricUpdates metricUpdates) {
-    return new AutoValue_StepTransformResult(
-        getTransform(),
-        getOutputBundles(),
-        getUnprocessedElements(),
-        getAggregatorChanges(),
-        metricUpdates,
-        getWatermarkHold(),
-        getState(),
-        getTimerUpdate(),
-        getOutputTypes());
-  }
-
   /**
    * A builder for creating instances of {@link StepTransformResult}.
    */
@@ -69,7 +54,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
     private final AppliedPTransform<?, ?, ?> transform;
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElementsBuilder;
-    private MetricUpdates metricUpdates;
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
     private AggregatorContainer.Mutator aggregatorChanges;
@@ -83,7 +67,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
       this.producedOutputs = EnumSet.noneOf(OutputType.class);
       this.unprocessedElementsBuilder = ImmutableList.builder();
       this.timerUpdate = TimerUpdate.builder(null).build();
-      this.metricUpdates = MetricUpdates.EMPTY;
     }
 
     public StepTransformResult<InputT> build() {
@@ -92,7 +75,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
           bundlesBuilder.build(),
           unprocessedElementsBuilder.build(),
           aggregatorChanges,
-          metricUpdates,
           watermarkHold,
           state,
           timerUpdate,
@@ -101,11 +83,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
 
     public Builder<InputT> withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
       this.aggregatorChanges = aggregatorChanges;
-      return this;
-    }
-
-    public Builder<InputT> withMetricUpdates(MetricUpdates metricUpdates) {
-      this.metricUpdates = metricUpdates;
       return this;
     }
 
