@@ -82,14 +82,13 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
     Pipeline p = input.getPipeline();
     BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
 
-    final String stepUuid = BigQueryHelpers.randomUUIDString();
-
     String tempLocation = options.getTempLocation();
     String tempFilePrefix;
     try {
       IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
       tempFilePrefix =
-          factory.resolve(factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
+          factory.resolve(factory.resolve(tempLocation, "BigQueryWriteTemp"),
+              BigQueryHelpers.randomUUIDString());
     } catch (IOException e) {
       throw new RuntimeException(
           String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
@@ -106,7 +105,7 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
                     new SimpleFunction<String, String>() {
                       @Override
                       public String apply(String input) {
-                        return stepUuid;
+                        return BigQueryHelpers.randomUUIDString();
                       }
                     }))
             .apply(View.<String>asSingleton());
