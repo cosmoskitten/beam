@@ -20,7 +20,6 @@ package org.apache.beam.dsls.sql.schema;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -67,23 +66,23 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
 
       switch (value.getDataType().getFieldsType().get(idx)) {
       case INTEGER:
-      case SMALLINT:
-      case TINYINT:
         intCoder.encode(value.getInteger(idx), outStream, nested);
         break;
+      case SMALLINT:
+      case TINYINT:
+        intCoder.encode((int) value.getShort(idx), outStream, nested);
+        break;
       case DOUBLE:
-      case FLOAT:
         doubleCoder.encode(value.getDouble(idx), outStream, nested);
+        break;
+      case FLOAT:
+        doubleCoder.encode((double) value.getFloat(idx), outStream, nested);
         break;
       case BIGINT:
         longCoder.encode(value.getLong(idx), outStream, nested);
         break;
       case VARCHAR:
         stringCoder.encode(value.getString(idx), outStream, nested);
-        break;
-      case TIME:
-      case TIMESTAMP:
-        longCoder.encode(value.getDate(idx).getTime(), outStream, nested);
         break;
 
       default:
@@ -108,23 +107,23 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
 
       switch (type.getFieldsType().get(idx)) {
       case INTEGER:
-      case SMALLINT:
-      case TINYINT:
         record.addField(idx, intCoder.decode(inStream, context));
         break;
+      case SMALLINT:
+      case TINYINT:
+        record.addField(idx, intCoder.decode(inStream, context).shortValue());
+        break;
       case DOUBLE:
-      case FLOAT:
         record.addField(idx, doubleCoder.decode(inStream, context));
+        break;
+      case FLOAT:
+        record.addField(idx, doubleCoder.decode(inStream, context).floatValue());
         break;
       case BIGINT:
         record.addField(idx, longCoder.decode(inStream, context));
         break;
       case VARCHAR:
         record.addField(idx, stringCoder.decode(inStream, context));
-        break;
-      case TIME:
-      case TIMESTAMP:
-        record.addField(idx, new Date(longCoder.decode(inStream, context)));
         break;
 
       default:
