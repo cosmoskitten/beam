@@ -17,19 +17,12 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.beam.sdk.metrics.DistributionData;
-import org.apache.beam.sdk.metrics.GaugeData;
-import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsContainers;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper class for holding a {@link MetricsContainer} and forwarding Beam metrics to
@@ -37,279 +30,30 @@ import org.apache.flink.metrics.Gauge;
  */
 public class FlinkMetricContainer {
 
-  private static final String METRIC_KEY_SEPARATOR = "__";
-  static final String COUNTER_PREFIX = "__counter";
-  static final String DISTRIBUTION_PREFIX = "__distribution";
-  static final String GAUGE_PREFIX = "__gauge";
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkMetricContainer.class);
 
-  private final MetricsContainer metricsContainer;
-  private final RuntimeContext runtimeContext;
-  private final Map<String, Counter> flinkCounterCache;
-  private final Map<String, FlinkDistributionGauge> flinkDistributionGaugeCache;
-  private final Map<String, FlinkGauge> flinkGaugeCache;
+  public static final String ACCUMULATOR_NAME = "__metricscontainers";
 
-  public FlinkMetricContainer(String stepName, RuntimeContext runtimeContext) {
-    metricsContainer = new MetricsContainer(stepName);
-    this.runtimeContext = runtimeContext;
-    flinkCounterCache = new HashMap<>();
-    flinkDistributionGaugeCache = new HashMap<>();
-    flinkGaugeCache = new HashMap<>();
-  }
+  private final MetricsAccumulator metricsAccumulator;
 
-  public MetricsContainer getMetricsContainer() {
-    return metricsContainer;
-  }
-
-  public void updateMetrics() {
-    // update metrics
-    MetricUpdates updates = metricsContainer.getUpdates();
-    if (updates != null) {
-      updateCounters(updates.counterUpdates());
-      updateDistributions(updates.distributionUpdates());
-      updateGauge(updates.gaugeUpdates());
-      metricsContainer.commitUpdates();
-    }
-  }
-
-  private void updateCounters(Iterable<MetricUpdates.MetricUpdate<Long>> updates) {
-
-    for (MetricUpdates.MetricUpdate<Long> metricUpdate : updates) {
-
-      String flinkMetricName = getFlinkMetricNameString(COUNTER_PREFIX, metricUpdate.getKey());
-      Long update = metricUpdate.getUpdate();
-
-      // update flink metric
-      Counter counter = flinkCounterCache.get(flinkMetricName);
-      if (counter == null) {
-        counter = runtimeContext.getMetricGroup().counter(flinkMetricName);
-        flinkCounterCache.put(flinkMetricName, counter);
-      }
-      counter.dec(counter.getCount());
-      counter.inc(update);
-
-      // update flink accumulator
-      Accumulator<Long, Long> accumulator = runtimeContext.getAccumulator(flinkMetricName);
-      if (accumulator == null) {
-        accumulator = new LongCounter(update);
-        runtimeContext.addAccumulator(flinkMetricName, accumulator);
-      } else {
-        accumulator.resetLocal();
-        accumulator.add(update);
-      }
-    }
-  }
-
-  private void updateDistributions(Iterable<MetricUpdates.MetricUpdate<DistributionData>> updates) {
-
-    for (MetricUpdates.MetricUpdate<DistributionData> metricUpdate : updates) {
-
-      String flinkMetricName =
-          getFlinkMetricNameString(DISTRIBUTION_PREFIX, metricUpdate.getKey());
-      DistributionData update = metricUpdate.getUpdate();
-
-      // update flink metric
-      FlinkDistributionGauge gauge = flinkDistributionGaugeCache.get(flinkMetricName);
-      if (gauge == null) {
-        gauge = runtimeContext.getMetricGroup()
-            .gauge(flinkMetricName, new FlinkDistributionGauge(update));
-        flinkDistributionGaugeCache.put(flinkMetricName, gauge);
-      } else {
-        gauge.update(update);
-      }
-
-      // update flink accumulator
-      Accumulator<DistributionData, DistributionData> accumulator =
-          runtimeContext.getAccumulator(flinkMetricName);
-      if (accumulator == null) {
-        accumulator = new FlinkDistributionDataAccumulator(update);
-        runtimeContext.addAccumulator(flinkMetricName, accumulator);
-      } else {
-        accumulator.resetLocal();
-        accumulator.add(update);
-      }
-    }
-  }
-
-  private void updateGauge(Iterable<MetricUpdates.MetricUpdate<GaugeData>> updates) {
-    for (MetricUpdates.MetricUpdate<GaugeData> metricUpdate : updates) {
-
-      String flinkMetricName =
-          getFlinkMetricNameString(GAUGE_PREFIX, metricUpdate.getKey());
-      GaugeData update = metricUpdate.getUpdate();
-
-      // update flink metric
-      FlinkGauge gauge = flinkGaugeCache.get(flinkMetricName);
-      if (gauge == null) {
-        gauge = runtimeContext.getMetricGroup()
-            .gauge(flinkMetricName, new FlinkGauge(update));
-        flinkGaugeCache.put(flinkMetricName, gauge);
-      } else {
-        gauge.update(update);
-      }
-
-      // update flink accumulator
-      Accumulator<GaugeData, GaugeData> accumulator =
-          runtimeContext.getAccumulator(flinkMetricName);
-      if (accumulator == null) {
-        accumulator = new FlinkGaugeAccumulator(update);
-        runtimeContext.addAccumulator(flinkMetricName, accumulator);
-      }
-      accumulator.resetLocal();
-      accumulator.add(update);
-    }
-  }
-
-  private static String getFlinkMetricNameString(String prefix, MetricKey key) {
-    return prefix
-        + METRIC_KEY_SEPARATOR + key.stepName()
-        + METRIC_KEY_SEPARATOR + key.metricName().namespace()
-        + METRIC_KEY_SEPARATOR + key.metricName().name();
-  }
-
-  static MetricKey parseMetricKey(String flinkMetricName) {
-    String[] arr = flinkMetricName.split(METRIC_KEY_SEPARATOR);
-    return MetricKey.create(arr[2], MetricName.named(arr[3], arr[4]));
-  }
-
-  /**
-   * Flink {@link Gauge} for {@link DistributionData}.
-   */
-  public static class FlinkDistributionGauge implements Gauge<DistributionData> {
-
-    DistributionData data;
-
-    FlinkDistributionGauge(DistributionData data) {
-      this.data = data;
-    }
-
-    void update(DistributionData data) {
-      this.data = data;
-    }
-
-    @Override
-    public DistributionData getValue() {
-      return data;
-    }
-  }
-
-  /**
-   * Flink {@link Gauge} for {@link GaugeData}.
-   */
-  public static class FlinkGauge implements Gauge<GaugeData> {
-
-    GaugeData data;
-
-    FlinkGauge(GaugeData data) {
-      this.data = data;
-    }
-
-    void update(GaugeData update) {
-      this.data = data.combine(update);
-    }
-
-    @Override
-    public GaugeData getValue() {
-      return data;
-    }
-  }
-
-  /**
-   * Flink {@link Accumulator} for {@link GaugeData}.
-   */
-  public static class FlinkDistributionDataAccumulator implements
-      Accumulator<DistributionData, DistributionData> {
-
-    private static final long serialVersionUID = 1L;
-
-    private DistributionData data;
-
-    public FlinkDistributionDataAccumulator(DistributionData data) {
-      this.data = data;
-    }
-
-    @Override
-    public void add(DistributionData value) {
-      if (data == null) {
-        this.data = value;
-      } else {
-        this.data = this.data.combine(value);
-      }
-    }
-
-    @Override
-    public DistributionData getLocalValue() {
-      return data;
-    }
-
-    @Override
-    public void resetLocal() {
-      data = null;
-    }
-
-    @Override
-    public void merge(Accumulator<DistributionData, DistributionData> other) {
-      data = data.combine(other.getLocalValue());
-    }
-
-    @Override
-    public Accumulator<DistributionData, DistributionData> clone() {
+  public FlinkMetricContainer(RuntimeContext runtimeContext) {
+    Accumulator<MetricsContainers, MetricsContainers> metricsAccumulator =
+        runtimeContext.getAccumulator(ACCUMULATOR_NAME);
+    if (metricsAccumulator == null) {
+      metricsAccumulator = new MetricsAccumulator();
       try {
-        super.clone();
-      } catch (CloneNotSupportedException e) {
-        throw new RuntimeException(e);
+        runtimeContext.addAccumulator(ACCUMULATOR_NAME, metricsAccumulator);
+      } catch (Exception e) {
+        LOG.error("Failed to create metrics accumulator.", e);
       }
-
-      return new FlinkDistributionDataAccumulator(
-          DistributionData.create(data.sum(), data.count(), data.min(), data.max()));
     }
+    this.metricsAccumulator = (MetricsAccumulator) metricsAccumulator;
   }
 
-  /**
-   * Flink {@link Accumulator} for {@link GaugeData}.
-   */
-  public static class FlinkGaugeAccumulator implements Accumulator<GaugeData, GaugeData> {
-
-    private GaugeData data;
-
-    public FlinkGaugeAccumulator(GaugeData data) {
-      this.data = data;
-    }
-
-    @Override
-    public void add(GaugeData value) {
-      if (data == null) {
-        this.data = value;
-      } else {
-        this.data = this.data.combine(value);
-      }
-    }
-
-    @Override
-    public GaugeData getLocalValue() {
-      return data;
-    }
-
-    @Override
-    public void resetLocal() {
-      this.data = null;
-    }
-
-    @Override
-    public void merge(Accumulator<GaugeData, GaugeData> other) {
-      data = data.combine(other.getLocalValue());
-    }
-
-    @Override
-    public Accumulator<GaugeData, GaugeData> clone() {
-      try {
-        super.clone();
-      } catch (CloneNotSupportedException e) {
-        throw new RuntimeException(e);
-      }
-
-      return new FlinkGaugeAccumulator(
-          GaugeData.create(data.value()));
-    }
+  MetricsContainer getMetricsContainer(String stepName) {
+    return
+        metricsAccumulator != null
+            ? metricsAccumulator.getLocalValue().getContainer(stepName)
+            : null;
   }
-
 }
