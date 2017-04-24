@@ -20,6 +20,7 @@ package org.apache.beam.sdk.metrics;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import sun.jvm.hotspot.oops.CounterData;
 
 /**
  * Tracks the current value (and delta) for a Counter metric for a specific context and bundle.
@@ -30,7 +31,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * indirection.
  */
 @Experimental(Kind.METRICS)
-public class CounterCell implements MetricCell<Long> {
+public class CounterCell implements MetricCell<Counter, Long> {
 
   private final DirtyState dirty = new DirtyState();
   private final AtomicLong value = new AtomicLong();
@@ -41,10 +42,23 @@ public class CounterCell implements MetricCell<Long> {
    */
   CounterCell() {}
 
-  /** Increment the counter by the given amount. */
-  private void add(long n) {
+  /**
+   * Increment the counter by the given amount.
+   * @param n value to increment by. Can be negative to decrement.
+   */
+  public void update(long n) {
     value.addAndGet(n);
     dirty.afterModification();
+  }
+
+  @Override
+  public void update(Long n) {
+    throw new UnsupportedOperationException("CounterCell.update(Long n) should not be used"
+    + " as it performs unnecessary boxing/unboxing. Use CounterCell.update(long n) instead.");
+  }
+
+  @Override public void update(MetricCell<Counter, Long> other) {
+    update((long) other.getCumulative());
   }
 
   @Override
@@ -55,13 +69,5 @@ public class CounterCell implements MetricCell<Long> {
   @Override
   public Long getCumulative() {
     return value.get();
-  }
-
-  public void inc() {
-    add(1);
-  }
-
-  public void inc(long n) {
-    add(n);
   }
 }
