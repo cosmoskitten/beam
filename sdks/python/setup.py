@@ -103,7 +103,7 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-  'google-apitools>=0.5.8,<1.0.0',
+  'google-apitools==0.5.8',
   'proto-google-cloud-datastore-v1==0.90.0',
   'googledatastore==7.0.1',
   # GCP packages required by tests
