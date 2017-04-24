@@ -920,7 +920,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   /**
    * Result of a single bundle write. Contains the filename of the bundle.
    */
-  public static final class FileResult implements Comparable<FileResult> {
+  public static final class FileResult {
     private final String tempFilename;
     private int shard;
     private int numShards;
@@ -962,11 +962,6 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
 
     public PaneInfo getPaneInfo() {
       return paneInfo;
-    }
-
-    @Override
-    public int compareTo(FileResult other) {
-      return getTempFilename().compareTo(other.getTempFilename());
     }
 
     public String getDestinationFile(FilenamePolicy policy) {
