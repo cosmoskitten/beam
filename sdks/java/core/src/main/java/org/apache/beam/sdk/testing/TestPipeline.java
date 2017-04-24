@@ -257,12 +257,11 @@ public class TestPipeline extends Pipeline implements TestRule {
   }
 
   public static TestPipeline fromOptions(PipelineOptions options) {
-    return new TestPipeline(PipelineRunner.fromOptions(options), options);
+    return new TestPipeline(options);
   }
 
-  private TestPipeline(
-      final PipelineRunner<? extends PipelineResult> runner, final PipelineOptions options) {
-    super(runner, options);
+  private TestPipeline(final PipelineOptions options) {
+    super(options);
   }
 
   @Override
@@ -316,7 +315,6 @@ public class TestPipeline extends Pipeline implements TestRule {
    * Runs this {@link TestPipeline}, unwrapping any {@code AssertionError} that is raised during
    * testing.
    */
-  @Override
   public PipelineResult run() {
     checkState(
         enforcement.isPresent(),
