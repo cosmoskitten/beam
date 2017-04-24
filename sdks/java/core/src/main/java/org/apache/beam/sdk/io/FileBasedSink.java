@@ -37,6 +37,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -608,8 +609,13 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       // writerResults won't contain destination filenames, so we dynamically generate them here.
       if (unshardedFiles.size() > 0) {
         checkArgument(outputFilenames.isEmpty());
-        // Sort files for idempotence.
-        unshardedFiles = Ordering.natural().sortedCopy(unshardedFiles);
+        // Sort files for idempotence. Sort by temporary filename.
+        unshardedFiles = Ordering.from(new Comparator<FileResult>() {
+          @Override
+          public int compare(FileResult first, FileResult second) {
+            return first.getTempFilename().compareTo(second.getTempFilename());
+          }
+        }).sortedCopy(unshardedFiles);
         FilenamePolicy filenamePolicy = getSink().fileNamePolicy;
         for (int i = 0; i < unshardedFiles.size(); i++) {
           FileResult result = unshardedFiles.get(i);
