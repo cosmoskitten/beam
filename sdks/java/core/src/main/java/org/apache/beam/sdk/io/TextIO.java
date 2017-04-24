@@ -1089,8 +1089,7 @@ public class TextIO {
     }
 
     @Override
-    public FileBasedSink.FileBasedWriteOperation<String> createWriteOperation(
-        PipelineOptions options) {
+    public FileBasedSink.FileBasedWriteOperation<String> createWriteOperation() {
       return new TextWriteOperation(this, header, footer);
     }
 

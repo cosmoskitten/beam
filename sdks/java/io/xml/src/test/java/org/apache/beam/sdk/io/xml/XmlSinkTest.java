@@ -74,7 +74,7 @@ public class XmlSinkTest {
             .withRecordClass(Bird.class)
             .withRootElement("birds")
             .createSink()
-            .createWriteOperation(options);
+            .createWriteOperation();
     XmlWriter<Bird> writer = writeOp.createWriter(options);
 
     List<Bird> bundle =
@@ -134,7 +134,7 @@ public class XmlSinkTest {
             .withRootElement(testRootElement)
             .toFilenamePrefix(testFilePrefix)
             .createSink();
-    XmlWriteOperation<Bird> writeOp = sink.createWriteOperation(options);
+    XmlWriteOperation<Bird> writeOp = sink.createWriteOperation();
     Path outputPath = new File(testFilePrefix).toPath();
     Path tempPath = new File(writeOp.getTemporaryDirectory()).toPath();
     assertEquals(outputPath.getParent(), tempPath.getParent());
@@ -154,7 +154,7 @@ public class XmlSinkTest {
             .withRootElement(testRootElement)
             .toFilenamePrefix(testFilePrefix)
             .createSink()
-            .createWriteOperation(options);
+            .createWriteOperation();
     XmlWriter<Bird> writer = writeOp.createWriter(options);
     Path outputPath = new File(testFilePrefix).toPath();
     Path tempPath = new File(writer.getWriteOperation().getTemporaryDirectory()).toPath();
