@@ -36,7 +36,10 @@ class BundleFactory(object):
     self._stacked = stacked
 
   def create_bundle(self, output_pcollection):
-    return Bundle(output_pcollection, self._stacked)
+    return Bundle(output_pcollection, None, stacked=self._stacked)
+
+  def create_keyed_bundle(self, output_pcollection, key):
+    return Bundle(output_pcollection, key, stacked=self._stacked)
 
   def create_empty_committed_bundle(self, output_pcollection):
     bundle = self.create_bundle(output_pcollection)
@@ -105,9 +108,10 @@ class Bundle(object):
         yield WindowedValue(v, self._initial_windowed_value.timestamp,
                             self._initial_windowed_value.windows)
 
-  def __init__(self, pcollection, stacked=True):
+  def __init__(self, pcollection, key, stacked=True):
     assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
     self._pcollection = pcollection
+    self.key = key
     self._elements = []
     self._stacked = stacked
     self._committed = False
