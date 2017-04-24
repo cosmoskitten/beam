@@ -436,7 +436,7 @@ public class KafkaIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
           "Kafka bootstrap servers should be set");
       checkArgument(getTopics().size() > 0 || getTopicPartitions().size() > 0,
@@ -1249,7 +1249,7 @@ public class KafkaIO {
     }
 
     @Override
-    public void validate(PCollection<KV<K, V>> input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
           "Kafka bootstrap servers should be set");
       checkNotNull(getTopic(), "Kafka topic should be set");

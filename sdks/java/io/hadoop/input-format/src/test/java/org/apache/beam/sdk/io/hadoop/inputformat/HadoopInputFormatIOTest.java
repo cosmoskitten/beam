@@ -22,7 +22,6 @@ import static org.junit.Assert.assertThat;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInput
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableSplit;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -280,7 +280,7 @@ public class HadoopInputFormatIOTest {
   public void testReadValidationFailsMissingConfiguration() {
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read();
     thrown.expect(NullPointerException.class);
-    read.validate(input);
+    read.validate(PipelineOptionsFactory.create());
   }
 
   /**
@@ -351,7 +351,7 @@ public class HadoopInputFormatIOTest {
         serConf.getHadoopConfiguration().getClass("mapreduce.job.inputformat.class",
             InputFormat.class), serConf.getHadoopConfiguration()
             .getClass("key.class", Object.class)));
-    read.validate(input);
+    read.validate(PipelineOptionsFactory.create());
   }
 
   /**
@@ -382,7 +382,7 @@ public class HadoopInputFormatIOTest {
             serConf.getHadoopConfiguration().getClass("value.class", Object.class));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(expectedMessage);
-    read.validate(input);
+    read.validate(PipelineOptionsFactory.create());
   }
 
   @Test

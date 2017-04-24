@@ -451,7 +451,6 @@ public class Pipeline {
     transforms.pushNode(uniqueName, input, transform);
     try {
       transforms.finishSpecifyingInput();
-      transform.validate(input);
       OutputT output = transform.expand(input);
       transforms.setOutput(output);
 
@@ -510,6 +509,7 @@ public class Pipeline {
               "Unrecognized value for stable unique names: " + options.getStableUniqueNames());
       }
     }
+    this.traverseTopologically(new ValidateVisitor(options));
   }
 
   /**
@@ -555,5 +555,25 @@ public class Pipeline {
    */
   private String buildName(String namePrefix, String name) {
     return namePrefix.isEmpty() ? name : namePrefix + "/" + name;
+  }
+
+  private static class ValidateVisitor extends PipelineVisitor.Defaults {
+
+    private final PipelineOptions options;
+
+    public ValidateVisitor(PipelineOptions options) {
+      this.options = options;
+    }
+
+    @Override
+    public CompositeBehavior enterCompositeTransform(Node node) {
+      node.getTransform().validate(options);
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
+
+    @Override
+    public void visitPrimitiveTransform(Node node) {
+      node.getTransform().validate(options);
+    }
   }
 }

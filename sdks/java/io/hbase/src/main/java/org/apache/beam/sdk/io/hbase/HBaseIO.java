@@ -259,7 +259,7 @@ public class HBaseIO {
         }
 
         @Override
-        public void validate(PBegin input) {
+        public void validate(PipelineOptions options) {
             checkArgument(serializableConfiguration != null,
                     "Configuration not provided");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
@@ -584,7 +584,7 @@ public class HBaseIO {
         }
 
         @Override
-        public void validate(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+        public void validate(PipelineOptions options) {
             checkArgument(serializableConfiguration != null, "Configuration not specified");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(

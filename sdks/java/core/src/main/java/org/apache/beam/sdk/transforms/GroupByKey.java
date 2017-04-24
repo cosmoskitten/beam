@@ -21,6 +21,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -183,21 +184,6 @@ public class GroupByKey<K, V>
     }
   }
 
-  @Override
-  public void validate(PCollection<KV<K, V>> input) {
-    applicableTo(input);
-
-    // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
-    // the key coder is deterministic.
-    Coder<K> keyCoder = getKeyCoder(input.getCoder());
-    try {
-      keyCoder.verifyDeterministic();
-    } catch (NonDeterministicException e) {
-      throw new IllegalStateException(
-          "the keyCoder of a GroupByKey must be deterministic", e);
-    }
-  }
-
   public WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {
     WindowFn<?, ?> inputWindowFn = inputStrategy.getWindowFn();
     if (!inputWindowFn.isNonMerging()) {
@@ -215,6 +201,18 @@ public class GroupByKey<K, V>
 
   @Override
   public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+    applicableTo(input);
+
+    // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
+    // the key coder is deterministic.
+    Coder<K> keyCoder = getKeyCoder(input.getCoder());
+    try {
+      keyCoder.verifyDeterministic();
+    } catch (NonDeterministicException e) {
+      throw new IllegalStateException(
+          "the keyCoder of a GroupByKey must be deterministic", e);
+    }
+
     // This primitive operation groups by the combination of key and window,
     // merging windows as needed, using the windows assigned to the
     // key/value input elements and the window merge operation of the
