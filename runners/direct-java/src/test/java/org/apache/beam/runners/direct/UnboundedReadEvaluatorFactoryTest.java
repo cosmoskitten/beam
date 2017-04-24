@@ -306,7 +306,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> shard =
         WindowedValue.valueInGlobalWindow(
-            UnboundedSourceShard.unstarted(source, NeverDeduplicator.create()));
+            UnboundedSourceShard.unstarted("0", source, NeverDeduplicator.create()));
     CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> inputBundle =
         bundleFactory
             .<UnboundedSourceShard<Long, TestCheckpointMark>>createRootBundle()
@@ -350,7 +350,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> shard =
         WindowedValue.valueInGlobalWindow(
-            UnboundedSourceShard.unstarted(source, NeverDeduplicator.create()));
+            UnboundedSourceShard.unstarted("0", source, NeverDeduplicator.create()));
     CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> inputBundle =
         bundleFactory
             .<UnboundedSourceShard<Long, TestCheckpointMark>>createRootBundle()
@@ -397,7 +397,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> shard =
         WindowedValue.valueInGlobalWindow(
-            UnboundedSourceShard.unstarted(source, NeverDeduplicator.create()));
+            UnboundedSourceShard.unstarted("0", source, NeverDeduplicator.create()));
     CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> inputBundle =
         bundleFactory
             .<UnboundedSourceShard<Long, TestCheckpointMark>>createRootBundle()
