@@ -288,6 +288,7 @@ public class HadoopInputFormatIO {
 
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
+      validateTransform();
       // Get the key and value coders based on the key and value classes.
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       Coder<K> keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
@@ -315,10 +316,10 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Validates inputs provided by the pipeline user before reading the data.
+     * Validates construction of this transform
      */
-    @Override
-    public void validate(PBegin input) {
+    @VisibleForTesting
+    void validateTransform() {
       checkNotNull(getConfiguration(), "getConfiguration()");
       // Validate that the key translation input type must be same as key class of InputFormat.
       validateTranslationFunction(getinputFormatKeyClass(), getKeyTranslationFunction(),
