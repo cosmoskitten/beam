@@ -20,7 +20,7 @@ package org.apache.beam.sdk.testing;
 
 /**
  * Category tag for validation tests which utilize {@link org.apache.beam.sdk.metrics.Distribution}.
- * Tests tagged with {@link UsesMetricsDistribution} should be run for runners which support
+ * Tests tagged with {@link UsesDistributionMetrics} should be run for runners which support
  * distributions.
  */
-public class UsesMetricsDistribution {}
+public class UsesDistributionMetrics {}

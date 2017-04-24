@@ -33,9 +33,9 @@ import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCommittedMetrics;
-import org.apache.beam.sdk.testing.UsesMetricsCounter;
-import org.apache.beam.sdk.testing.UsesMetricsDistribution;
-import org.apache.beam.sdk.testing.UsesMetricsGauge;
+import org.apache.beam.sdk.testing.UsesCounterMetrics;
+import org.apache.beam.sdk.testing.UsesDistributionMetrics;
+import org.apache.beam.sdk.testing.UsesGaugeMetrics;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -124,8 +124,8 @@ public class MetricsTest implements Serializable {
     assertThat(cell.getCumulative(), CoreMatchers.equalTo(42L));
   }
 
-  @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesMetricsCounter.class,
-      UsesMetricsDistribution.class, UsesMetricsGauge.class})
+  @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,
+      UsesDistributionMetrics.class, UsesGaugeMetrics.class})
   @Test
   public void committedMetricsReportToQuery() {
     PipelineResult result = runPipelineWithMetrics();
@@ -154,8 +154,8 @@ public class MetricsTest implements Serializable {
   }
 
 
-  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesMetricsCounter.class,
-      UsesMetricsDistribution.class, UsesMetricsGauge.class})
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class,
+      UsesDistributionMetrics.class, UsesGaugeMetrics.class})
   @Test
   public void attemptedMetricsReportToQuery() {
     PipelineResult result = runPipelineWithMetrics();
@@ -237,7 +237,7 @@ public class MetricsTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesMetricsCounter.class})
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
   public void testBoundedSourceMetrics() {
     long numElements = 1000;
 
@@ -258,7 +258,7 @@ public class MetricsTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesMetricsCounter.class})
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
   public void testUnboundedSourceMetrics() {
     long numElements = 1000;
 

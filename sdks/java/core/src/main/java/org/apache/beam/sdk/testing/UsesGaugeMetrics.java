@@ -20,6 +20,6 @@ package org.apache.beam.sdk.testing;
 
 /**
  * Category tag for validation tests which utilize {@link org.apache.beam.sdk.metrics.Gauge}.
- * Tests tagged with {@link UsesMetricsGauge} should be run for runners which support gauges.
+ * Tests tagged with {@link UsesGaugeMetrics} should be run for runners which support gauges.
  */
-public class UsesMetricsGauge {}
+public class UsesGaugeMetrics {}
