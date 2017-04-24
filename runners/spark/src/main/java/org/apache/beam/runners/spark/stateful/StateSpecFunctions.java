@@ -112,8 +112,8 @@ public class StateSpecFunctions {
           scala.Option<CheckpointMarkT> startCheckpointMark,
           State<Tuple2<byte[], Instant>> state) {
 
-        MetricsContainers sparkMetricsContainer = new MetricsContainers();
-        MetricsContainer metricsContainer = sparkMetricsContainer.getContainer(stepName);
+        MetricsContainers metricsContainers = new MetricsContainers();
+        MetricsContainer metricsContainer = metricsContainers.getContainer(stepName);
 
         // Add metrics container to the scope of org.apache.beam.sdk.io.Source.Reader methods
         // since they may report metrics.
@@ -211,7 +211,7 @@ public class StateSpecFunctions {
                 lowWatermark,
                 highWatermark,
                 readDurationMillis,
-                sparkMetricsContainer));
+                metricsContainers));
 
         } catch (IOException e) {
           throw new RuntimeException(e);
