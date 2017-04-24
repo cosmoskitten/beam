@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.gcp.coder;
+package org.apache.beam.runners.dataflow.util;
 
 import org.apache.beam.sdk.util.CloudObject;
 
@@ -26,6 +26,4 @@ import org.apache.beam.sdk.util.CloudObject;
  */
 public interface CloudObjectTranslator<T> {
   CloudObject toCloudObject(T target);
-
-  T fromCloudObject(CloudObject cloudObject);
 }

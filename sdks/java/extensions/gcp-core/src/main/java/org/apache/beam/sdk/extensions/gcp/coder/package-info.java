@@ -16,26 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.gcp.coder;
-
-import java.util.Map;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.CloudObject;
-
 /**
- * A way to register {@link CloudObjectTranslator CloudObjectInitializers} for a type of
- * {@link Coder}.
+ * Defines utilities for translating {@link org.apache.beam.sdk.coders.Coder} instances to and from
+ * {@link org.apache.beam.sdk.util.CloudObject} instances.
  */
-public interface CoderCloudObjectTranslatorRegistrar {
-  /**
-   * Gets a mapping from Java Class to a {@link CloudObjectTranslator} specialized for that class.
-   */
-  Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> getJavaClasses();
-
-  /**
-   * Gets a mapping from a {@link CloudObject} class (as returned by {@link
-   * CloudObject#getClassName()}) to a {@link CloudObjectTranslator} that can translate from that
-   * class.
-   */
-  Map<String, CloudObjectTranslator<? extends Coder>> getCloudObjectClasses();
-}
+package org.apache.beam.sdk.extensions.gcp.coder;

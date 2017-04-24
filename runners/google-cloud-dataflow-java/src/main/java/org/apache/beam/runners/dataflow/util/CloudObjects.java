@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.gcp.coder;
+package org.apache.beam.runners.dataflow.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
@@ -40,22 +39,19 @@ import org.apache.beam.sdk.util.Structs;
 public class CloudObjects {
   private CloudObjects() {}
 
-  static Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> coderInitializers =
-      populateCoderInitializers();
+  static final Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
+      CODER_TRANSLATORS = populateCoderInitializers();
 
   private static Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
       populateCoderInitializers() {
     ImmutableMap.Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
         ImmutableMap.builder();
-    for (CoderCloudObjectTranslatorRegistrar registrar :
-        ServiceLoader.load(CoderCloudObjectTranslatorRegistrar.class)) {
-      builder.putAll(registrar.getJavaClasses());
-    }
+    // TODO: Implement
     return builder.build();
   }
 
   public static CloudObject asCloudObject(Coder<?> coder) {
-    if (coderInitializers.containsKey(coder.getClass())) {
+    if (CODER_TRANSLATORS.containsKey(coder.getClass())) {
       // TODO: Make this cast less dangerous
       return asCloudObject((StandardCoder<?>) coder);
     } else if (coder instanceof CustomCoder) {
@@ -81,12 +77,20 @@ public class CloudObjects {
    * Convert the provided {@link StandardCoder} to a {@link CloudObject}.
    */
   private static CloudObject asCloudObject(StandardCoder<?> coder) {
-    CloudObject result = initializeCloudObject(coder);
+    CloudObject result;
+    CloudObjectTranslator<StandardCoder<?>> initializer =
+        (CloudObjectTranslator<StandardCoder<?>>) CODER_TRANSLATORS.get(coder);
+    if (initializer != null) {
+      result = initializer.toCloudObject(coder);
+    } else {
+      result = CloudObject.forClass(coder.getClass());
+    }
+
     List<? extends Coder<?>> components = coder.getComponents();
     if (!components.isEmpty()) {
       List<CloudObject> cloudComponents = new ArrayList<>(components.size());
       for (Coder<?> component : components) {
-        cloudComponents.add(component.asCloudObject());
+        cloudComponents.add(asCloudObject(component));
       }
       Structs.addList(result, PropertyNames.COMPONENT_ENCODINGS, cloudComponents);
     }
@@ -103,15 +107,5 @@ public class CloudObjects {
           result, PropertyNames.ALLOWED_ENCODINGS, Lists.newArrayList(allowedEncodings));
     }
     return result;
-  }
-
-  private static <CoderT extends Coder<?>> CloudObject initializeCloudObject(CoderT coder) {
-    CloudObjectTranslator<CoderT> initializer =
-        (CloudObjectTranslator<CoderT>) coderInitializers.get(coder);
-    if (initializer != null) {
-      return initializer.toCloudObject(coder);
-    } else {
-      return CloudObject.forClass(coder.getClass());
-    }
   }
 }
