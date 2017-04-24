@@ -120,7 +120,7 @@ public class MetricsAccumulator {
   }
 
   /**
-   * Spark Listener which checkpoints {@link SparkMetricsContainer} values for fault-tolerance.
+   * Spark Listener which checkpoints {@link MetricsContainers} values for fault-tolerance.
    */
   public static class AccumulatorCheckpointingSparkListener extends JavaStreamingListener {
     @Override
