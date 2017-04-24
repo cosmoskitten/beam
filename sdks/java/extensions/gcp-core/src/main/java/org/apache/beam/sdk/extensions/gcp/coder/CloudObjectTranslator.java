@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp.coder;
+
+import org.apache.beam.sdk.util.CloudObject;
 
 /**
  * An translator that takes an object and creates a {@link CloudObject} which can be converted back

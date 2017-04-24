@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp.coder;
 
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.CloudObject;
 
 /**
  * A way to register {@link CloudObjectTranslator CloudObjectInitializers} for a type of

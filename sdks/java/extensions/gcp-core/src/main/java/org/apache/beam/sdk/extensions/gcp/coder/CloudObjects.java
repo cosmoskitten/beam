@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp.coder;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -30,10 +30,13 @@ import java.util.ServiceLoader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.util.Structs;
 
-/**
- * Utilities for converting an object to a {@link CloudObject}.
- */
+/** Utilities for converting an object to a {@link CloudObject}. */
 public class CloudObjects {
   private CloudObjects() {}
 
@@ -46,7 +49,7 @@ public class CloudObjects {
         ImmutableMap.builder();
     for (CoderCloudObjectTranslatorRegistrar registrar :
         ServiceLoader.load(CoderCloudObjectTranslatorRegistrar.class)) {
-      builder.putAll(registrar.getInitializers());
+      builder.putAll(registrar.getJavaClasses());
     }
     return builder.build();
   }
