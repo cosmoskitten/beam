@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -273,6 +274,7 @@ public class Pipeline {
     // pipeline.
     LOG.debug("Running {} via {}", this, runner);
     try {
+      validate(options);
       return runner.run(this);
     } catch (UserCodeException e) {
       // This serves to replace the stack with one that ends here and
@@ -417,6 +419,7 @@ public class Pipeline {
   private final TransformHierarchy transforms = new TransformHierarchy(this);
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
+  private final List<String> unstableNames = new ArrayList<>();
 
   protected Pipeline(PipelineRunner<?> runner, PipelineOptions options) {
     this.runner = runner;
@@ -441,25 +444,7 @@ public class Pipeline {
     boolean nameIsUnique = uniqueName.equals(buildName(namePrefix, name));
 
     if (!nameIsUnique) {
-      switch (getOptions().getStableUniqueNames()) {
-        case OFF:
-          break;
-        case WARNING:
-          LOG.warn(
-              "Transform {} does not have a stable unique name. "
-                  + "This will prevent updating of pipelines.",
-              uniqueName);
-          break;
-        case ERROR:
-          throw new IllegalStateException(
-              "Transform "
-                  + uniqueName
-                  + " does not have a stable unique name. "
-                  + "This will prevent updating of pipelines.");
-        default:
-          throw new IllegalArgumentException(
-              "Unrecognized value for stable unique names: " + getOptions().getStableUniqueNames());
-      }
+      unstableNames.add(uniqueName);
     }
 
     LOG.debug("Adding {} to {}", transform, this);
@@ -500,6 +485,30 @@ public class Pipeline {
       transforms.replaceOutputs(originalToReplacement);
     } finally {
       transforms.popNode();
+    }
+  }
+
+  private void validate(PipelineOptions options) {
+    for (String uniqueName : unstableNames) {
+      switch (options.getStableUniqueNames()) {
+        case OFF:
+          break;
+        case WARNING:
+          LOG.warn(
+              "Transform {} does not have a stable unique name. "
+                  + "This will prevent updating of pipelines.",
+              uniqueName);
+          break;
+        case ERROR:
+          throw new IllegalStateException(
+              "Transform "
+                  + uniqueName
+                  + " does not have a stable unique name. "
+                  + "This will prevent updating of pipelines.");
+        default:
+          throw new IllegalArgumentException(
+              "Unrecognized value for stable unique names: " + options.getStableUniqueNames());
+      }
     }
   }
 
