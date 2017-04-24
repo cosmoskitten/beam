@@ -18,8 +18,11 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -45,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.Reshuffle;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -74,6 +79,26 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
 
   BatchLoads(BigQueryIO.Write<?> write) {
     this.write = write;
+  }
+
+  @Override
+  public void validate(PipelineOptions options) {
+    // We will use a BigQuery load job -- validate the temp location.
+    String tempLocation = options.getTempLocation();
+    checkArgument(
+        !Strings.isNullOrEmpty(tempLocation),
+        "BigQueryIO.Write needs a GCS temp location to store temp files.");
+    if (write.getBigQueryServices() == null) {
+      try {
+        GcsPath.fromUri(tempLocation);
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException(
+            String.format(
+                "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
+                tempLocation),
+            e);
+      }
+    }
   }
 
   @Override
