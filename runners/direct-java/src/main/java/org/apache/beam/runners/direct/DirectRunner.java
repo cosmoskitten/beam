@@ -37,6 +37,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.metrics.AccumulatedMetricResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -374,7 +375,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
     @Override
     public MetricResults metrics() {
-      return evaluationContext.getMetrics();
+      return new AccumulatedMetricResults(
+          evaluationContext.getAttemptedMetrics(),
+          evaluationContext.getCommittedMetrics());
     }
 
     /**

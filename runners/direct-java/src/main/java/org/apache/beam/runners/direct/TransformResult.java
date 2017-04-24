@@ -22,7 +22,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
-import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -67,11 +66,6 @@ public interface TransformResult<InputT> {
   @Nullable AggregatorContainer.Mutator getAggregatorChanges();
 
   /**
-   * Returns the logical metric updates.
-   */
-  MetricUpdates getLogicalMetricUpdates();
-
-  /**
    * Returns the Watermark Hold for the transform at the time this result was produced.
    *
    * <p>If the transform does not set any watermark hold, returns
@@ -101,10 +95,4 @@ public interface TransformResult<InputT> {
    * {@link OutputType#BUNDLE}, as empty bundles may be dropped when the transform is committed.
    */
   Set<OutputType> getOutputTypes();
-
-  /**
-   * Returns a new TransformResult based on this one but overwriting any existing logical metric
-   * updates with {@code metricUpdates}.
-   */
-  TransformResult<InputT> withLogicalMetricUpdates(MetricUpdates metricUpdates);
 }

@@ -41,6 +41,7 @@ import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.metrics.MetricsContainers;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -97,7 +98,9 @@ class EvaluationContext {
 
   private final AggregatorContainer mergedAggregators;
 
-  private final DirectMetrics metrics;
+  private MetricsContainers attemptedMetrics = new MetricsContainers();
+
+  private MetricsContainers committedMetrics = new MetricsContainers();
 
   private final Set<PValue> keyedPValues;
 
@@ -127,7 +130,6 @@ class EvaluationContext {
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedAggregators = AggregatorContainer.create();
-    this.metrics = new DirectMetrics();
 
     this.callbackExecutor =
         WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
@@ -159,7 +161,6 @@ class EvaluationContext {
       TransformResult<?> result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
-    metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
 
     // Update watermarks and timers
     EnumSet<OutputType> outputTypes = EnumSet.copyOf(result.getOutputTypes());
@@ -376,11 +377,6 @@ class EvaluationContext {
     return mergedAggregators;
   }
 
-  /** Returns the metrics container for this pipeline. */
-  public DirectMetrics getMetrics() {
-    return metrics;
-  }
-
   @VisibleForTesting
   void forceRefresh() {
     watermarkManager.refreshAll();
@@ -425,5 +421,13 @@ class EvaluationContext {
 
   Clock getClock() {
     return clock;
+  }
+
+  MetricsContainers getAttemptedMetrics() {
+    return attemptedMetrics;
+  }
+
+  MetricsContainers getCommittedMetrics() {
+    return committedMetrics;
   }
 }
