@@ -29,7 +29,7 @@ import org.apache.beam.sdk.util.SideInputReader;
 
 /**
  * Static utility methods that provide {@link GlobalCombineFnRunner} implementations for different
- * keyed combine functions.
+ * combine functions.
  */
 public class GlobalCombineFnRunners {
   /** Returns a {@link GlobalCombineFnRunner} from a {@link GlobalCombineFn}. */

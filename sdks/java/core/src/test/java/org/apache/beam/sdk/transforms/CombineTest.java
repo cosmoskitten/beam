@@ -910,14 +910,10 @@ public class CombineTest implements Serializable {
   }
 
   /**
-   * A KeyedCombineFn that exercises the full generality of [Keyed]CombineFn.
-   *
-   * <p>The net result of applying this CombineFn is a sorted list of all
-   * characters occurring in the key and the decimal representations of
-   * each value.
+   * A {@link CombineFn} that results in a sorted list of all characters occurring in the key and
+   * the decimal representations of each value.
    */
-  public static class TestCombineFn
-      extends CombineFn<Integer, TestCombineFn.Accumulator, String> {
+  public static class TestCombineFn extends CombineFn<Integer, TestCombineFn.Accumulator, String> {
 
     // Not serializable.
     static class Accumulator {
@@ -987,15 +983,10 @@ public class CombineTest implements Serializable {
   }
 
   /**
-   * A {@link CombineFnWithContext} that exercises the full generality
-   * of [Keyed]CombineFnWithContext.
-   *
-   * <p>The net result of applying this CombineFn is a sorted list of all
-   * characters occurring in the key and the decimal representations of
-   * main and side inputs values.
+   * A {@link CombineFnWithContext} that produces a sorted list of all characters occurring in the
+   * key and the decimal representations of main and side inputs values.
    */
-  public class TestCombineFnWithContext
-      extends CombineFnWithContext<Integer, Accumulator, String> {
+  public class TestCombineFnWithContext extends CombineFnWithContext<Integer, Accumulator, String> {
     private final PCollectionView<Integer> view;
 
     public TestCombineFnWithContext(PCollectionView<Integer> view) {

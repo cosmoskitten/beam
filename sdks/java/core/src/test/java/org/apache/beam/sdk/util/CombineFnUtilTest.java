@@ -71,10 +71,6 @@ public class CombineFnUtilTest {
     CombineFnWithContext<Integer, int[], Integer> fnWithContext =
         CombineFnUtil.toFnWithContext(Sum.ofIntegers());
     assertTrue(fnWithContext == CombineFnUtil.toFnWithContext(fnWithContext));
-
-    CombineFnWithContext<Integer, int[], Integer> keyedFnWithContext =
-        CombineFnUtil.toFnWithContext(Sum.ofIntegers());
-    assertTrue(keyedFnWithContext == CombineFnUtil.toFnWithContext(keyedFnWithContext));
   }
 
   @Test
@@ -88,13 +84,5 @@ public class CombineFnUtilTest {
       accum = fnWithContext.addInput(accum, i, nullContext);
     }
     assertEquals(10, fnWithContext.extractOutput(accum, nullContext).intValue());
-
-    CombineFnWithContext<Integer, int[], Integer> keyedFnWithContext =
-        CombineFnUtil.toFnWithContext(Sum.ofIntegers());
-    accum = keyedFnWithContext.createAccumulator(nullContext);
-    for (Integer i : inputs) {
-      accum = keyedFnWithContext.addInput(accum, i, nullContext);
-    }
-    assertEquals(10, keyedFnWithContext.extractOutput(accum, nullContext).intValue());
   }
 }
