@@ -169,7 +169,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals<K> {
                   Coder<AccumT> accumCoder,
                   CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
             throw new UnsupportedOperationException(
-                "bindKeyedCombiningValueWithContext is not supported.");
+                "bindCombiningValueWithContext is not supported.");
           }
 
           @Override

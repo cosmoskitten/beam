@@ -2050,7 +2050,7 @@ public class Combine {
    * <p>By default, the {@code Coder} of the keys of the output {@code PCollection<KV<K, OutputT>>}
    * is that of the keys of the input {@code PCollection<KV<K, InputT>>}, and the {@code Coder} of
    * the values of the output {@code PCollection<KV<K, OutputT>>} is inferred from the concrete type
-   * of the {@code KeyedCombineFn<K, InputT, AccumT, OutputT>}'s output type {@code OutputT}.
+   * of the {@code CombineFn<InputT, AccumT, OutputT>}'s output type {@code OutputT}.
    *
    * <p>Each output element has the same timestamp and is in the same window as its corresponding
    * input element, and the output {@code PCollection} has the same {@link
@@ -2098,7 +2098,7 @@ public class Combine {
     }
 
     /**
-     * Returns the KeyedCombineFn used by this Combine operation.
+     * Returns the {@link GlobalCombineFn} used by this Combine operation.
      */
     public GlobalCombineFn<? super InputT, ?, OutputT> getFn() {
       return fn;
