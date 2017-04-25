@@ -251,38 +251,6 @@ public class CopyOnAccessInMemoryStateInternalsTest {
   }
 
   @Test
-  public void testKeyedAccumulatorCombiningStateWithUnderlying() throws Exception {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
-        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    CombineFn<Long, long[], Long> sumLongFn = Sum.ofLongs();
-
-    StateNamespace namespace = new StateNamespaceForTest("foo");
-    CoderRegistry reg = pipeline.getCoderRegistry();
-    StateTag<Object, CombiningState<Long, long[], Long>> stateTag =
-        StateTags.combiningValue(
-            "summer",
-            sumLongFn.getAccumulatorCoder(reg, reg.getDefaultCoder(Long.class)),
-            sumLongFn);
-    GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
-    assertThat(underlyingValue.read(), equalTo(0L));
-
-    underlyingValue.add(1L);
-    assertThat(underlyingValue.read(), equalTo(1L));
-
-    CopyOnAccessInMemoryStateInternals<String> internals =
-        CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
-    GroupingState<Long, Long> copyOnAccessState = internals.state(namespace, stateTag);
-    assertThat(copyOnAccessState.read(), equalTo(1L));
-
-    copyOnAccessState.add(4L);
-    assertThat(copyOnAccessState.read(), equalTo(5L));
-    assertThat(underlyingValue.read(), equalTo(1L));
-
-    GroupingState<Long, Long> reReadUnderlyingValue = underlying.state(namespace, stateTag);
-    assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
-  }
-
-  @Test
   public void testWatermarkHoldStateWithUnderlying() {
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
