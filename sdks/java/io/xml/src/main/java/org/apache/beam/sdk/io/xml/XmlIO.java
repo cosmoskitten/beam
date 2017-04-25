@@ -21,9 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.nio.charset.Charset;
-
 import javax.annotation.Nullable;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -449,6 +447,9 @@ public class XmlIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
+    abstract String getOutputDirectory();
+
+    @Nullable
     abstract String getFilenamePrefix();
 
     @Nullable
@@ -464,7 +465,9 @@ public class XmlIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setFilenamePrefix(String baseOutputFilename);
+      abstract Builder<T> setOutputDirectory(String outputDirectory);
+
+      abstract Builder<T> setFilenamePrefix(String prefix);
 
       abstract Builder<T> setRecordClass(Class<T> recordClass);
 
@@ -476,12 +479,20 @@ public class XmlIO {
     }
 
     /**
+     * Writes files to the given path output directory.
+     */
+    public Write<T> toOutputDirectory(String outputDirectory) {
+      return toBuilder().setOutputDirectory(outputDirectory).build();
+    }
+
+    /**
      * Writes to files with the given path prefix.
      *
      * <p>Output files will have the name {@literal {filenamePrefix}-0000i-of-0000n.xml} where n is
-     * the number of output bundles.
+     * the number of output bundles inside the directory identified by
+     * {@link #getOutputDirectory()}.
      */
-    public Write<T> toFilenamePrefix(String filenamePrefix) {
+    public Write<T> withFilenamePrefix(String filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
 

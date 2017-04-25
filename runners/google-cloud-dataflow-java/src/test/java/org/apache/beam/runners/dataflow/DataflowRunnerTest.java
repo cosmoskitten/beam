@@ -70,6 +70,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.TextIO.Read;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -321,8 +322,8 @@ public class DataflowRunnerTest {
     ValueProvider<String> getInput();
     void setInput(ValueProvider<String> value);
 
-    ValueProvider<String> getOutput();
-    void setOutput(ValueProvider<String> value);
+    ValueProvider<ResourceId> getOutputDirectory();
+    void setOutput(ValueProvider<ResourceId> value);
   }
 
   @Test
@@ -332,7 +333,7 @@ public class DataflowRunnerTest {
     Pipeline p = buildDataflowPipeline(dataflowOptions);
     p
         .apply(TextIO.Read.from(options.getInput()).withoutValidation())
-        .apply(TextIO.Write.to(options.getOutput()).withoutValidation());
+        .apply(TextIO.Write.to(options.getOutputDirectory()));
   }
 
   /**
