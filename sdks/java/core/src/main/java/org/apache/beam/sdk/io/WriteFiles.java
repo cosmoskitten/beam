@@ -254,7 +254,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       // Lazily initialize the Writer
       if (writer == null) {
         LOG.info("Opening writer for write operation {}", writeOperation);
-        writer = writeOperation.createWriter(c.getPipelineOptions());
+        writer = writeOperation.createWriter();
 
         if (windowedWrites) {
           writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), UNKNOWN_SHARDNUM,
@@ -318,7 +318,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       // In a sharded write, single input element represents one shard. We can open and close
       // the writer in each call to processElement.
       LOG.info("Opening writer for write operation {}", writeOperation);
-      FileBasedWriter<T> writer = writeOperation.createWriter(c.getPipelineOptions());
+      FileBasedWriter<T> writer = writeOperation.createWriter();
       if (windowedWrites) {
         writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey(),
             numShards);
@@ -494,7 +494,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
             public void processElement(ProcessContext c) throws Exception {
               LOG.info("Finalizing write operation {}.", writeOperation);
               List<FileResult> results = Lists.newArrayList(c.element().getValue());
-              writeOperation.finalize(results, c.getPipelineOptions());
+              writeOperation.finalize(results);
               LOG.debug("Done finalizing write operation {}", writeOperation);
             }
           }));
@@ -540,7 +540,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                     "Creating {} empty output shards in addition to {} written for a total of {}.",
                     extraShardsNeeded, results.size(), minShardsNeeded);
                 for (int i = 0; i < extraShardsNeeded; ++i) {
-                  FileBasedWriter<T> writer = writeOperation.createWriter(c.getPipelineOptions());
+                  FileBasedWriter<T> writer = writeOperation.createWriter();
                   writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM,
                       UNKNOWN_NUMSHARDS);
                   FileResult emptyWrite = writer.close();
@@ -548,7 +548,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                 }
                 LOG.debug("Done creating extra shards.");
               }
-              writeOperation.finalize(results, c.getPipelineOptions());
+              writeOperation.finalize(results);
               LOG.debug("Done finalizing write operation {}", writeOperation);
             }
           }).withSideInputs(sideInputs.build()));

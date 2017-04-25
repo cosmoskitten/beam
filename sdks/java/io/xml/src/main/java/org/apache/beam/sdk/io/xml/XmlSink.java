@@ -24,19 +24,28 @@ import java.nio.channels.WritableByteChannel;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Marshaller;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.ShardNameTemplate;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.MimeTypes;
 
 /** Implementation of {@link XmlIO#write}. */
 class XmlSink<T> extends FileBasedSink<T> {
-  protected static final String XML_EXTENSION = "xml";
+  private static final String XML_EXTENSION = ".xml";
 
   private final XmlIO.Write<T> spec;
 
+  private static DefaultFilenamePolicy makeFilenamePolicy(XmlIO.Write<?> spec) {
+    return DefaultFilenamePolicy.constructUsingStandardParameters(
+        spec.getFilenamePrefix(), ShardNameTemplate.INDEX_OF_MAX, XML_EXTENSION);
+  }
+
   XmlSink(XmlIO.Write<T> spec) {
-    super(spec.getFilenamePrefix(), XML_EXTENSION);
+    super(spec.getFilenamePrefix(), makeFilenamePolicy(spec));
     this.spec = spec;
   }
 
@@ -78,7 +87,7 @@ class XmlSink<T> extends FileBasedSink<T> {
      * Creates a {@link XmlWriter} with a marshaller for the type it will write.
      */
     @Override
-    public XmlWriter<T> createWriter(PipelineOptions options) throws Exception {
+    public XmlWriter<T> createWriter() throws Exception {
       JAXBContext context;
       Marshaller marshaller;
       context = JAXBContext.newInstance(getSink().spec.getRecordClass());
@@ -98,7 +107,7 @@ class XmlSink<T> extends FileBasedSink<T> {
     }
 
     @VisibleForTesting
-    String getTemporaryDirectory() {
+    ResourceId getTemporaryDirectory() {
       return this.tempDirectory.get();
     }
   }
@@ -111,7 +120,7 @@ class XmlSink<T> extends FileBasedSink<T> {
     private OutputStream os = null;
 
     public XmlWriter(XmlWriteOperation<T> writeOperation, Marshaller marshaller) {
-      super(writeOperation);
+      super(writeOperation, MimeTypes.TEXT);
       this.marshaller = marshaller;
     }
 

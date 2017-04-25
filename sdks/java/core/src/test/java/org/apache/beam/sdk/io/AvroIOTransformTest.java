@@ -45,11 +45,13 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Suite;
 
@@ -242,10 +244,16 @@ public class AvroIOTransformTest {
   /**
    * Tests for AvroIO Write transforms, using classes generated from {@code user.avsc}.
    */
-  @RunWith(Parameterized.class)
+  @RunWith(JUnit4.class)
   public static class AvroIOWriteTransformTest extends AvroIOTransformTest {
 
     private static final String WRITE_TRANSFORM_NAME = "AvroIO.Write";
+    private static File avroFile;
+
+    @Before
+    public void before() throws IOException {
+      avroFile = tmpFolder.newFile("file.avro");
+    }
 
     private List<AvroGeneratedUser> readAvroFile(final File avroFile) throws IOException {
       final DatumReader<AvroGeneratedUser> userDatumReader =
@@ -260,43 +268,9 @@ public class AvroIOTransformTest {
       return users;
     }
 
-    @Parameterized.Parameters(name = "{0}_with_{1}")
-    public static Iterable<Object[]> data() throws IOException {
-
-      final String generatedClass = "GeneratedClass";
-      final String fromSchema = "SchemaObject";
-      final String fromSchemaString = "SchemaString";
-
-      return
-          ImmutableList.<Object[]>builder()
-              .add(
-                  new Object[] {
-                      AvroIO.Write.withSchema(AvroGeneratedUser.class),
-                      generatedClass
-                  },
-                  new Object[] {
-                      AvroIO.Write.withSchema(SCHEMA),
-                      fromSchema
-                  },
-
-                  new Object[] {
-                      AvroIO.Write.withSchema(SCHEMA_STRING),
-                      fromSchemaString
-                  })
-              .build();
-    }
-
-    @SuppressWarnings("DefaultAnnotationParam")
-    @Parameterized.Parameter(0)
-    public AvroIO.Write.Bound writeTransform;
-
-    @Parameterized.Parameter(1)
-    public String testAlias;
-
     private <T> void runTestWrite(final AvroIO.Write.Bound<T> writeBuilder)
         throws Exception {
 
-      final File avroFile = tmpFolder.newFile("file.avro");
       final AvroGeneratedUser[] users = generateAvroObjects();
       final AvroIO.Write.Bound<T> write = writeBuilder.to(avroFile.getPath());
 
@@ -314,8 +288,20 @@ public class AvroIOTransformTest {
 
     @Test
     @Category(NeedsRunner.class)
-    public void testWrite() throws Exception {
-      runTestWrite(writeTransform);
+    public void testWriteWithSchemaFromClass() throws Exception {
+      runTestWrite(AvroIO.Write.to(avroFile.getPath()).withSchema(AvroGeneratedUser.class));
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testWriteWithSchemaString() throws Exception {
+      runTestWrite(AvroIO.Write.to(avroFile.getPath()).withSchema(SCHEMA_STRING));
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testWriteWithSchemaObject() throws Exception {
+      runTestWrite(AvroIO.Write.to(avroFile.getPath()).withSchema(SCHEMA));
     }
 
     // TODO: for Write only, test withSuffix, withNumShards,
