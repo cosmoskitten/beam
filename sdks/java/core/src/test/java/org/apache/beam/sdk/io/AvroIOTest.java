@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -34,6 +35,8 @@ import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -53,9 +56,9 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroIO.Write.Bound;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -281,33 +284,31 @@ public class AvroIOTest {
   }
 
   private static class WindowedFilenamePolicy extends FilenamePolicy {
-    String outputFilePrefix;
+    final String outputFilePrefix;
 
     WindowedFilenamePolicy(String outputFilePrefix) {
       this.outputFilePrefix = outputFilePrefix;
     }
 
     @Override
-    public ValueProvider<String> getBaseOutputFilenameProvider() {
-      return StaticValueProvider.of(outputFilePrefix);
-    }
-
-    @Override
-    public String windowedFilename(WindowedContext input) {
+    public ResourceId windowedFilename(ResourceId outputDirectory,
+        WindowedContext input, String extension) {
       String filename = outputFilePrefix + "-" + input.getWindow().toString() +  "-"
           + input.getShardNumber() + "-of-" + (input.getNumShards() - 1) + "-pane-"
           + input.getPaneInfo().getIndex();
       if (input.getPaneInfo().isLast()) {
         filename += "-final";
       }
-      return filename;
+      filename += extension;
+      return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
-    public String unwindowedFilename(Context input) {
+    public ResourceId unwindowedFilename(ResourceId outputDirectory,
+        Context input, String extension) {
       String filename = outputFilePrefix + input.getShardNumber() + "-of-"
-          + (input.getNumShards() - 1);
-      return filename;
+          + (input.getNumShards() - 1) + extension;
+      return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
@@ -323,8 +324,8 @@ public class AvroIOTest {
   @Test
   @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testWindowedAvroIOWrite() throws Throwable {
-    File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
-    final String outputFilePrefix = baseOutputFile.getAbsolutePath();
+    Path baseDir = Files.createTempDirectory(tmpFolder.getRoot().toPath(), "testwrite");
+    String baseFilename = baseDir.resolve("prefix").toString();
 
     Instant base = new Instant(0);
     ArrayList<GenericClass> allElements = new ArrayList<>();
@@ -352,7 +353,6 @@ public class AvroIOTest {
           secondWindowTimestamps.get(random.nextInt(secondWindowTimestamps.size()))));
     }
 
-
     TimestampedValue<GenericClass>[] firstWindowArray =
         firstWindowElements.toArray(new TimestampedValue[100]);
     TimestampedValue<GenericClass>[] secondWindowArray =
@@ -367,10 +367,12 @@ public class AvroIOTest {
         Arrays.copyOfRange(secondWindowArray, 1, secondWindowArray.length))
         .advanceWatermarkToInfinity();
 
+    FilenamePolicy policy = new WindowedFilenamePolicy(baseFilename);
     windowedAvroWritePipeline
         .apply(values)
         .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
-        .apply(AvroIO.Write.to(new WindowedFilenamePolicy(outputFilePrefix))
+        .apply(AvroIO.Write.to(baseFilename)
+            .withFilenamePolicy(policy)
             .withWindowedWrites()
             .withNumShards(2)
             .withSchema(GenericClass.class));
@@ -384,7 +386,7 @@ public class AvroIOTest {
         IntervalWindow intervalWindow = new IntervalWindow(
             windowStart, Duration.standardMinutes(1));
         expectedFiles.add(
-            new File(outputFilePrefix + "-" + intervalWindow.toString() + "-" + shard
+            new File(baseFilename + "-" + intervalWindow.toString() + "-" + shard
                 + "-of-1" + "-pane-0-final"));
       }
     }
@@ -445,7 +447,7 @@ public class AvroIOTest {
   @Test
   @SuppressWarnings("unchecked")
   @Category(NeedsRunner.class)
-  public void testMetdata() throws Exception {
+  public void testMetadata() throws Exception {
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -484,7 +486,8 @@ public class AvroIOTest {
     p.apply(Create.of(ImmutableList.copyOf(expectedElements))).apply(write);
     p.run();
 
-    String shardNameTemplate = write.getShardNameTemplate();
+    String shardNameTemplate = firstNonNull(
+        write.getShardNameTemplate(), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE);
 
     assertTestOutputs(expectedElements, numShards, outputFilePrefix, shardNameTemplate);
   }
@@ -497,7 +500,7 @@ public class AvroIOTest {
     for (int i = 0; i < numShards; i++) {
       expectedFiles.add(
           new File(
-              FileBasedSink.constructName(
+              DefaultFilenamePolicy.constructName(
                   outputFilePrefix, shardNameTemplate, "" /* no suffix */, i, numShards)));
     }
 
