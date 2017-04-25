@@ -74,6 +74,7 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.TextIO.TextSource;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -81,7 +82,6 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -323,14 +323,14 @@ public class TextIOTest {
       final String header,
       final String footer,
       int numShards,
-      Path rootLocation,
-      String outputName,
+      Path baseDirectory,
+      String outputPrefix,
       String shardNameTemplate)
       throws Exception {
     List<File> expectedFiles = new ArrayList<>();
     if (numShards == 0) {
       String pattern =
-          resolve(rootLocation.toAbsolutePath().toString(), outputName + "*");
+          resolve(baseDirectory.toAbsolutePath().toString(), outputPrefix + "*");
       for (String expected : IOChannelUtils.getFactory(pattern).match(pattern)) {
         expectedFiles.add(new File(expected));
       }
@@ -338,8 +338,9 @@ public class TextIOTest {
       for (int i = 0; i < numShards; i++) {
         expectedFiles.add(
             new File(
-                rootLocation.toString(),
-                FileBasedSink.constructName(outputName, shardNameTemplate, "", i, numShards)));
+                baseDirectory.toString(),
+                DefaultFilenamePolicy.constructName(
+                    outputPrefix, shardNameTemplate, "", i, numShards)));
       }
     }
 
@@ -463,8 +464,9 @@ public class TextIOTest {
 
     final WritableByteChannelFactory writableByteChannelFactory =
         new DrunkWritableByteChannelFactory();
-    TextIO.Write.Bound write = TextIO.Write.to(baseDir.resolve(outputName).toString())
-        .withoutSharding().withWritableByteChannelFactory(writableByteChannelFactory);
+    TextIO.Write.Bound write =
+        TextIO.Write.to(baseDir.resolve(outputName).toString())
+            .withoutSharding().withWritableByteChannelFactory(writableByteChannelFactory);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "DRUNK"));
 
@@ -478,13 +480,13 @@ public class TextIOTest {
       drunkElems.add(elem);
     }
     assertOutputFiles(drunkElems.toArray(new String[0]), null, null, 1, baseDir,
-        outputName + writableByteChannelFactory.getFilenameSuffix(), write.getShardNameTemplate());
+        outputName, write.getShardNameTemplate() + ".drunk");
   }
 
   @Test
   public void testWriteDisplayData() {
     TextIO.Write.Bound write = TextIO.Write
-        .to("foo")
+        .to("/tmp/foo")
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
         .withNumShards(100)
@@ -493,7 +495,7 @@ public class TextIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem("filePrefix", "/tmp/foo"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("fileHeader", "myHeader"));
     assertThat(displayData, hasDisplayItem("fileFooter", "myFooter"));
@@ -528,12 +530,8 @@ public class TextIOTest {
   @Category(ValidatesRunner.class)
   @Ignore("[BEAM-436] DirectRunner ValidatesRunner tempLocation configuration insufficient")
   public void testPrimitiveWriteDisplayData() throws IOException {
-    PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
-    String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
-    String outputPath = IOChannelUtils.getFactory(tempRoot).resolve(tempRoot, "foobar");
-
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-
+    String outputPath = "/foo";
     TextIO.Write.Bound write = TextIO.Write.to(outputPath);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
@@ -541,28 +539,13 @@ public class TextIOTest {
         displayData, hasItem(hasDisplayItem(hasValue(startsWith(outputPath)))));
   }
 
-  @Test
-  public void testUnsupportedFilePattern() throws IOException {
-    p.enableAbandonedNodeEnforcement(false);
-    // Windows doesn't like resolving paths with * in them.
-    String filename = tempFolder.resolve("output@5").toString();
-
-    PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(LINES_ARRAY))
-            .withCoder(StringUtf8Coder.of()));
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Output name components are not allowed to contain");
-    input.apply(TextIO.Write.to(filename));
-  }
-
   /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getInput();
     void setInput(ValueProvider<String> value);
 
-    ValueProvider<String> getOutput();
-    void setOutput(ValueProvider<String> value);
+    ValueProvider<ResourceId> getOutput();
+    void setOutput(ValueProvider<ResourceId> value);
   }
 
   @Test
