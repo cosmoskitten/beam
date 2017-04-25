@@ -27,9 +27,8 @@ import org.apache.beam.sdk.util.SideInputReader;
 /**
  * An interface that runs a {@link GlobalCombineFn} with unified APIs.
  *
- * <p>Different keyed combine functions have their own implementations.
- * For example, the implementation can skip allocating {@code Combine.Context},
- * if the keyed combine function doesn't use it.
+ * <p>Different combine functions have their own implementations. For example, the implementation
+ * can skip allocating {@code Combine.Context}, if the combine function doesn't use it.
  */
 public interface GlobalCombineFnRunner<InputT, AccumT, OutputT> extends Serializable {
   /**
