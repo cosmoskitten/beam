@@ -37,10 +37,13 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -74,9 +77,9 @@ public class TFRecordIO {
    */
   public static Write write() {
     return new AutoValue_TFRecordIO_Write.Builder()
-        .setFilenameSuffix("")
+        .setShardTemplate(null)
+        .setFilenameSuffix(null)
         .setNumShards(0)
-        .setShardTemplate(Write.DEFAULT_SHARD_TEMPLATE)
         .setCompressionType(CompressionType.NONE)
         .build();
   }
@@ -213,7 +216,7 @@ public class TFRecordIO {
 
     @Override
     protected Coder<byte[]> getDefaultOutputCoder() {
-      return DEFAULT_BYTE_ARRAY_CODER;
+      return ByteArrayCoder.of();
     }
   }
 
@@ -222,20 +225,17 @@ public class TFRecordIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
-    private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
-
-    /** The prefix of each file written, combined with suffix and shardTemplate. */
-    @Nullable
-    abstract ValueProvider<String> getFilenamePrefix();
+    /** The directory to which files will be written. */
+    @Nullable abstract ValueProvider<ResourceId> getOutputPrefix();
 
     /** The suffix of each file written, combined with prefix and shardTemplate. */
-    abstract String getFilenameSuffix();
+    @Nullable abstract String getFilenameSuffix();
 
     /** Requested number of shards. 0 for automatic. */
     abstract int getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
-    abstract String getShardTemplate();
+    @Nullable abstract String getShardTemplate();
 
     /** Option to indicate the output sink's compression type. Default is NONE. */
     abstract CompressionType getCompressionType();
@@ -244,13 +244,13 @@ public class TFRecordIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setFilenamePrefix(ValueProvider<String> filenamePrefix);
+      abstract Builder setOutputPrefix(ValueProvider<ResourceId> outputPrefix);
+
+      abstract Builder setShardTemplate(String shardTemplate);
 
       abstract Builder setFilenameSuffix(String filenameSuffix);
 
       abstract Builder setNumShards(int numShards);
-
-      abstract Builder setShardTemplate(String shardTemplate);
 
       abstract Builder setCompressionType(CompressionType compressionType);
 
@@ -258,25 +258,47 @@ public class TFRecordIO {
     }
 
     /**
-     * Writes to TFRecord file(s) with the given prefix. This can be a local filename
-     * (if running locally), or a Google Cloud Storage filename of
-     * the form {@code "gs://<bucket>/<filepath>"}
-     * (if running locally or using remote execution).
+     * Writes TFRecord file(s) with the given output prefix. The {@code prefix} will be used as a
+     * to generate a {@link ResourceId} using any supported {@link FileSystem}.
      *
-     * <p>The files written will begin with this prefix, followed by
-     * a shard identifier (see {@link #withNumShards(int)}, and end
-     * in a common extension, if given by {@link #withSuffix(String)}.
+     * <p>In addition to their prefix, created files will have a shard identifier (see
+     * {@link #withNumShards(int)}), and end in a common suffix, if given by
+     * {@link #withSuffix(String)}.
+     *
+     * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
      */
-    public Write to(String filenamePrefix) {
-      validateOutputComponent(filenamePrefix);
-      return to(StaticValueProvider.of(filenamePrefix));
+    public Write to(String outputPrefix) {
+      try {
+        return to(FileSystems.matchNewResource(outputPrefix, false /* isDirectory */));
+      } catch (Exception e) {
+        return to(FileSystems.matchNewResource(outputPrefix, true /* isDirectory */));
+      }
     }
 
     /**
-     * Like {@link #to(String)}, but with a {@link ValueProvider}.
+     * Writes TFRecord file(s) with a prefix given by the specified resource.
+     *
+     * <p>In addition to their prefix, created files will have a shard identifier (see
+     * {@link #withNumShards(int)}), and end in a common suffix, if given by
+     * {@link #withSuffix(String)}.
+     *
+     * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
      */
-    public Write to(ValueProvider<String> filenamePrefix) {
-      return toBuilder().setFilenamePrefix(filenamePrefix).build();
+    public Write to(ResourceId outputResource) {
+      return to(StaticValueProvider.of(outputResource));
+    }
+
+    /**
+     * Writes TFRecord file(s) with a prefix given by the specified resource.
+     *
+     * <p>In addition to their prefix, created files will have a shard identifier (see
+     * {@link #withNumShards(int)}), and end in a common suffix, if given by
+     * {@link #withSuffix(String)}.
+     *
+     * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
+     */
+    public Write to(ValueProvider<ResourceId> outputResource) {
+      return toBuilder().setOutputPrefix(outputResource).build();
     }
 
     /**
@@ -284,9 +306,8 @@ public class TFRecordIO {
      *
      * @see ShardNameTemplate
      */
-    public Write withSuffix(String nameExtension) {
-      validateOutputComponent(nameExtension);
-      return toBuilder().setFilenameSuffix(nameExtension).build();
+    public Write withSuffix(String suffix) {
+      return toBuilder().setFilenameSuffix(suffix).build();
     }
 
     /**
@@ -301,7 +322,7 @@ public class TFRecordIO {
      * @see ShardNameTemplate
      */
     public Write withNumShards(int numShards) {
-      checkArgument(numShards >= 0);
+      checkArgument(numShards >= 0, "Number of shards %s must be >= 0", numShards);
       return toBuilder().setNumShards(numShards).build();
     }
 
@@ -341,16 +362,14 @@ public class TFRecordIO {
 
     @Override
     public PDone expand(PCollection<byte[]> input) {
-      if (getFilenamePrefix() == null) {
-        throw new IllegalStateException(
-            "need to set the filename prefix of a TFRecordIO.Write transform");
-     }
+      checkState(getOutputPrefix() != null,
+          "need to set the output prefix of a TFRecordIO.Write transform");
       org.apache.beam.sdk.io.WriteFiles<byte[]> write =
           org.apache.beam.sdk.io.WriteFiles.to(
               new TFRecordSink(
-                  getFilenamePrefix(),
-                  getFilenameSuffix(),
+                  getOutputPrefix(),
                   getShardTemplate(),
+                  getFilenameSuffix(),
                   getCompressionType()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
@@ -362,20 +381,23 @@ public class TFRecordIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      String prefixString = getFilenamePrefix().isAccessible()
-          ? getFilenamePrefix().get() : getFilenamePrefix().toString();
+      String outputPrefixString = null;
+      if (getOutputPrefix().isAccessible()) {
+        ResourceId dir = getOutputPrefix().get();
+        outputPrefixString = dir.toString();
+      } else {
+        outputPrefixString = getOutputPrefix().toString();
+      }
       builder
-          .addIfNotNull(DisplayData.item("filePrefix", prefixString)
+          .add(DisplayData.item("filePrefix", outputPrefixString)
               .withLabel("Output File Prefix"))
-          .addIfNotDefault(DisplayData.item("fileSuffix", getFilenameSuffix())
-              .withLabel("Output File Suffix"), "")
-          .addIfNotDefault(DisplayData.item("shardNameTemplate", getShardTemplate())
-                  .withLabel("Output Shard Name Template"),
-              DEFAULT_SHARD_TEMPLATE)
+          .addIfNotNull(DisplayData.item("fileSuffix", getFilenameSuffix())
+              .withLabel("Output File Suffix"))
+          .addIfNotNull(DisplayData.item("shardNameTemplate", getShardTemplate())
+                  .withLabel("Output Shard Name Template"))
           .addIfNotDefault(DisplayData.item("numShards", getNumShards())
               .withLabel("Maximum Output Shards"), 0)
-          .add(DisplayData
-              .item("compressionType", getCompressionType().toString())
+          .add(DisplayData.item("compressionType", getCompressionType().toString())
               .withLabel("Compression Type"));
     }
 
@@ -425,13 +447,6 @@ public class TFRecordIO {
   // Pattern which matches old-style shard output patterns, which are now
   // disallowed.
   private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
-
-  private static void validateOutputComponent(String partialFilePattern) {
-    checkArgument(
-        !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
-        "Output name components are not allowed to contain @* or @N patterns: "
-            + partialFilePattern);
-  }
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -551,12 +566,22 @@ public class TFRecordIO {
   @VisibleForTesting
   static class TFRecordSink extends FileBasedSink<byte[]> {
     @VisibleForTesting
-    TFRecordSink(ValueProvider<String> baseOutputFilename,
-                 String extension,
-                 String fileNameTemplate,
-                 TFRecordIO.CompressionType compressionType) {
-      super(baseOutputFilename, extension, fileNameTemplate,
+    TFRecordSink(ValueProvider<ResourceId> outputPrefix,
+        @Nullable String shardTemplate,
+        @Nullable String suffix,
+        TFRecordIO.CompressionType compressionType) {
+      super(
+          NestedValueProvider.of(outputPrefix, new ExtractDirectory()),
+          DefaultFilenamePolicy.constructUsingStandardParameters(
+              outputPrefix, shardTemplate, suffix),
           writableByteChannelFactory(compressionType));
+    }
+
+    private static class ExtractDirectory implements SerializableFunction<ResourceId, ResourceId> {
+      @Override
+      public ResourceId apply(ResourceId input) {
+        return input.getCurrentDirectory();
+      }
     }
 
     @Override
@@ -589,7 +614,7 @@ public class TFRecordIO {
       }
 
       @Override
-      public FileBasedWriter<byte[]> createWriter(PipelineOptions options) throws Exception {
+      public FileBasedWriter<byte[]> createWriter() throws Exception {
         return new TFRecordWriter(this);
       }
     }
@@ -603,8 +628,7 @@ public class TFRecordIO {
       private TFRecordCodec codec;
 
       private TFRecordWriter(FileBasedWriteOperation<byte[]> writeOperation) {
-        super(writeOperation);
-        this.mimeType = MimeTypes.BINARY;
+        super(writeOperation, MimeTypes.BINARY);
       }
 
       @Override
