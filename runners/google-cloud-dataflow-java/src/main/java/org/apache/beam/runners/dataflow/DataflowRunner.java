@@ -86,10 +86,13 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -841,11 +844,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      FileBasedSink<T> sink = transform.getSink();
-      if (sink.getBaseOutputFilenameProvider().isAccessible()) {
+      ValueProvider<ResourceId> outputDirectory =
+          transform.getSink().getBaseOutputDirectoryProvider();
+      if (outputDirectory.isAccessible()) {
         PathValidator validator = runner.options.getPathValidator();
-        validator.validateOutputFilePrefixSupported(
-            sink.getBaseOutputFilenameProvider().get());
+        validator.validateOutputResourceSupported(
+            outputDirectory.get().resolve("some-file", StandardResolveOptions.RESOLVE_FILE));
       }
       return transform.expand(input);
     }
