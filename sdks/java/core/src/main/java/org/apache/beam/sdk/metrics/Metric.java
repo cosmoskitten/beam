@@ -23,5 +23,8 @@ package org.apache.beam.sdk.metrics;
  */
 public interface Metric {
 
+  /**
+   * The {@link MetricName} given to this metric.
+   */
   MetricName getName();
 }

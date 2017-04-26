@@ -51,7 +51,9 @@ public class SourceMetrics {
 
   /**
    * Counter of elements read by a source split.
-   * Only report a fixed set of Split IDs as not to overload metrics backends.
+   *
+   * <p>Should only be used when there is a small, fixed set of split IDs so as not to overload
+   * metrics backends.</p>
    */
   public static Counter elementsReadBySplit(String splitId) {
     return Metrics.counter(SOURCE_SPLITS_NAMESPACE, renderName(splitId, ELEMENTS_READ));
@@ -66,7 +68,9 @@ public class SourceMetrics {
 
   /**
    * Counter of bytes read by a source split.
-   * Only report a fixed set of Split IDs as not to overload metrics backends.
+   *
+   * <p>Should only be used when there is a small, fixed set of split IDs so as not to overload
+   * metrics backends.</p>
    */
   public static Counter bytesReadBySplit(String splitId) {
     return Metrics.counter(SOURCE_SPLITS_NAMESPACE, renderName(splitId, BYTES_READ));
@@ -81,7 +85,9 @@ public class SourceMetrics {
 
   /**
    * Gauge for source split backlog in bytes.
-   * Only report a fixed set of Split IDs as not to overload metrics backends.
+   *
+   * <p>Should only be used when there is a small, fixed set of split IDs so as not to overload
+   * metrics backends.</p>
    */
   public static Gauge backlogBytesOfSplit(String splitId) {
     return Metrics.gauge(SOURCE_SPLITS_NAMESPACE, renderName(splitId, BACKLOG_BYTES));
@@ -96,7 +102,9 @@ public class SourceMetrics {
 
   /**
    * Gauge for source split backlog in elements.
-   * Only report a fixed set of Split IDs as not to overload metrics backends.
+   *
+   * <p>Should only be used when there is a small, fixed set of split IDs so as not to overload
+   * metrics backends.</p>
    */
   public static Gauge backlogElementsOfSplit(String splitId) {
     return Metrics.gauge(SOURCE_SPLITS_NAMESPACE, renderName(splitId, BACKLOG_ELEMENTS));
