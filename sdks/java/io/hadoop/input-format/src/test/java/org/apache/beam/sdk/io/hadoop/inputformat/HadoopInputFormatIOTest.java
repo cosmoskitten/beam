@@ -272,15 +272,15 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate()
-   * Read.validate()} function when Read transform is created without calling
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#validateTransform()
+   * Read.validateTransform()} function when Read transform is created without calling
    * {@link HadoopInputFormatIO.Read#withConfiguration() withConfiguration()}.
    */
   @Test
   public void testReadValidationFailsMissingConfiguration() {
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read();
     thrown.expect(NullPointerException.class);
-    read.validate(PipelineOptionsFactory.create());
+    read.validateTransform();
   }
 
   /**
@@ -328,8 +328,8 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate()
-   * Read.validate()} function when myKeyTranslate's (simple function provided by user for key
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#validateTransform()
+   * Read.validateTransform()} function when myKeyTranslate's (simple function provided by user for key
    * translation) input type is not same as Hadoop InputFormat's keyClass(Which is property set in
    * configuration as "key.class").
    */
@@ -351,12 +351,12 @@ public class HadoopInputFormatIOTest {
         serConf.getHadoopConfiguration().getClass("mapreduce.job.inputformat.class",
             InputFormat.class), serConf.getHadoopConfiguration()
             .getClass("key.class", Object.class)));
-    read.validate(PipelineOptionsFactory.create());
+    read.validateTransform();
   }
 
   /**
-   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate()
-   * Read.validate()} function when myValueTranslate's (simple function provided by user for value
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#validateTransform()
+   * Read.validateTransform()} function when myValueTranslate's (simple function provided by user for value
    * translation) input type is not same as Hadoop InputFormat's valueClass(Which is property set in
    * configuration as "value.class").
    */
@@ -382,7 +382,7 @@ public class HadoopInputFormatIOTest {
             serConf.getHadoopConfiguration().getClass("value.class", Object.class));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(expectedMessage);
-    read.validate(PipelineOptionsFactory.create());
+    read.validateTransform();
   }
 
   @Test
