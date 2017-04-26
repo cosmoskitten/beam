@@ -90,7 +90,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.0.0</version>
           <executions>
             <execution>
               <id>bundle-and-repackage</id>
@@ -120,7 +119,7 @@
                     <pattern>org.apache.beam.runners</pattern>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
-                      org.apache.beam.runners.direct.util
+                      org.apache.beam.runners.direct.repackaged.runners.util
                     </shadedPattern>
                   </relocation>
                 </relocations>
