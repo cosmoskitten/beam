@@ -66,7 +66,8 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Gauge;
-import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.SinkMetrics;
+import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -742,12 +743,12 @@ public class KafkaIO {
     private Instant curTimestamp;
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
-    private final Counter messagesConsumed = Metrics.counter("io", "messagesConsumed");
-    private final Counter bytesConsumed = Metrics.counter("io", "bytesConsumed");
-    private final Counter messagesConsumedPerSplit;
-    private final Counter bytesConsumedPerSplit;
-    private final Gauge backlogBytesPerSplit;
-    private final Gauge backlogMessagesPerSplit;
+    private final Counter elementsRead = SourceMetrics.elementsRead();
+    private final Counter bytesRead = SourceMetrics.bytesRead();
+    private final Counter elementsReadBySplit;
+    private final Counter bytesReadBySplit;
+    private final Gauge backlogBytesOfSplit;
+    private final Gauge backlogElementsOfSplit;
 
     private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
     private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
@@ -873,10 +874,12 @@ public class KafkaIO {
         }
       }
 
-      messagesConsumedPerSplit = Metrics.counter("io.splits", source.id + ".messagesConsumed");
-      bytesConsumedPerSplit = Metrics.counter("io.splits", source.id + ".bytesConsumed");
-      backlogBytesPerSplit = Metrics.gauge("io.splits", source.id + ".backlog.bytes");
-      backlogMessagesPerSplit = Metrics.gauge("io.splits", source.id + ".backlog.messages");
+      String splitId = String.valueOf(source.id);
+
+      elementsReadBySplit = SourceMetrics.elementsReadBySplit(splitId);
+      bytesReadBySplit = SourceMetrics.bytesReadBySplit(splitId);
+      backlogBytesOfSplit = SourceMetrics.backlogBytesOfSplit(splitId);
+      backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId);
     }
 
     private void consumerPollLoop() {
@@ -996,8 +999,8 @@ public class KafkaIO {
         if (curBatch.hasNext()) {
           PartitionState pState = curBatch.next();
 
-          messagesConsumed.inc();
-          messagesConsumedPerSplit.inc();
+          elementsRead.inc();
+          elementsReadBySplit.inc();
 
           if (!pState.recordIter.hasNext()) { // -- (c)
             pState.recordIter = Collections.emptyIterator(); // drop ref
@@ -1046,8 +1049,8 @@ public class KafkaIO {
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
               + (rawRecord.value() == null ? 0 : rawRecord.value().length);
           pState.recordConsumed(offset, recordSize);
-          bytesConsumed.inc(recordSize);
-          bytesConsumedPerSplit.inc(recordSize);
+          bytesRead.inc(recordSize);
+          bytesReadBySplit.inc(recordSize);
           return true;
 
         } else { // -- (b)
@@ -1100,12 +1103,12 @@ public class KafkaIO {
       if (splitBacklogBytes < 0) {
         splitBacklogBytes = UnboundedReader.BACKLOG_UNKNOWN;
       }
-      backlogBytesPerSplit.set(splitBacklogBytes);
+      backlogBytesOfSplit.set(splitBacklogBytes);
       long splitBacklogMessages = getSplitBacklogMessageCount();
       if (splitBacklogMessages < 0) {
         splitBacklogMessages = UnboundedReader.BACKLOG_UNKNOWN;
       }
-      backlogMessagesPerSplit.set(splitBacklogMessages);
+      backlogElementsOfSplit.set(splitBacklogMessages);
     }
 
     @Override
@@ -1410,7 +1413,7 @@ public class KafkaIO {
           new ProducerRecord<K, V>(spec.getTopic(), kv.getKey(), kv.getValue()),
           new SendCallback());
 
-      messagesProduced.inc();
+      elementsWritten.inc();
     }
 
     @FinishBundle
@@ -1435,7 +1438,7 @@ public class KafkaIO {
     private transient Exception sendException = null;
     private transient long numSendFailures = 0;
 
-    private final Counter messagesProduced = Metrics.counter("io", "messagesProduced");
+    private final Counter elementsWritten = SinkMetrics.elementsWritten();
 
     KafkaWriter(Write<K, V> spec) {
       this.spec = spec;
