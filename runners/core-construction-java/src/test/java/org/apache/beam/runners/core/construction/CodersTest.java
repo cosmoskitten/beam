@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
@@ -52,7 +51,6 @@ import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
@@ -78,7 +76,6 @@ public class CodersTest {
    * Tests that all known coders are present in the parameters that will be used by
    * {@link ToFromProtoTest}.
    */
-  @RunWith(JUnit4.class)
   public static class ValidateKnownCodersPresentTest {
     @Test
     public void validateKnownCoders() {
@@ -92,11 +89,20 @@ public class CodersTest {
       }
       Set<Class<? extends StandardCoder>> missingKnownCoders = new HashSet<>(knownCoderClasses);
       missingKnownCoders.removeAll(knownCoderTests);
-      checkState(
-          missingKnownCoders.isEmpty(),
-          "Missing validation of known coder %s in %s",
+      assertThat(
+          String.format(
+              "Missing validation of known coder %s in %s",
+              missingKnownCoders, CodersTest.class.getSimpleName()),
           missingKnownCoders,
-          CodersTest.class.getSimpleName());
+          Matchers.empty());
+    }
+
+    @Test
+    public void validateCoderTranslators() {
+      assertThat(
+          "Every Known Coder must have a Known Translator",
+          Coders.KNOWN_CODER_URNS.keySet(),
+          equalTo(Coders.KNOWN_TRANSLATORS.keySet()));
     }
   }
 
