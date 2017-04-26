@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 /**
  * AccumT container for the current values associated with {@link Aggregator Aggregators}.
  */
-public class AggregatorContainer {
+class AggregatorContainer {
 
   private static class AggregatorInfo<InputT, AccumT, OutputT>
       implements Aggregator<InputT, OutputT> {
