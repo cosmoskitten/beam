@@ -90,7 +90,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.0.0</version>
           <executions>
             <execution>
               <id>bundle-and-repackage</id>
@@ -101,6 +100,7 @@
               <configuration>
                 <artifactSet>
                   <includes>
+                    <include>com.google.guava:guava</include>
                     <include>org.apache.beam:beam-runners-core-java</include>
                     <include>org.apache.beam:beam-runners-core-construction-java</include>
                   </includes>
@@ -120,7 +120,21 @@
                     <pattern>org.apache.beam.runners</pattern>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
-                      org.apache.beam.runners.direct.util
+                      org.apache.beam.runners.direct.repackaged.runners.util
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.common</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.com.google.common
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.thirdparty</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.com.google.thirdparty
                     </shadedPattern>
                   </relocation>
                 </relocations>
