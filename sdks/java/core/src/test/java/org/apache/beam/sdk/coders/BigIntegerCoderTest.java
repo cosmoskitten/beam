@@ -98,14 +98,4 @@ public class BigIntegerCoderTest {
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
   }
-
-  /**
-   * This is a change-detector test. If this test fails, then the encoding id of
-   * {@link BigIntegerCoder} must change.
-   */
-  @Test
-  public void testCoderIdDependencies() {
-    assertThat(VarIntCoder.of().getEncodingId(), equalTo(""));
-    assertThat(ByteArrayCoder.of().getEncodingId(), equalTo(""));
-  }
 }

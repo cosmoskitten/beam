@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -129,16 +128,6 @@ public class DelegateCoderTest implements Serializable {
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
       return Collections.emptyList();
-    }
-
-    @Override
-    public String getEncodingId() {
-      return TEST_ENCODING_ID;
-    }
-
-    @Override
-    public Collection<String> getAllowedEncodings() {
-      return Collections.singletonList(TEST_ALLOWED_ENCODING);
     }
   }
 
