@@ -139,6 +139,7 @@ public class WindowingStrategies implements Serializable {
         return TimestampCombiner.END_OF_WINDOW;
       case LATEST_IN_PANE:
         return TimestampCombiner.LATEST;
+      case UNRECOGNIZED:
       default:
         // Whether or not it is proto that cannot recognize it (due to the version of the
         // generated code we link to) or the switch hasn't been updated to handle it,

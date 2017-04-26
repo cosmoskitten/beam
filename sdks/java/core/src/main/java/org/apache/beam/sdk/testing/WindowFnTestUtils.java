@@ -324,9 +324,9 @@ public class WindowFnTestUtils {
     }
   }
 
-  private static Instant assignOutputTime(TimestampCombiner timestampCombiner, Instant inputTimestamp,
-      BoundedWindow window) {
-    switch(timestampCombiner) {
+  private static Instant assignOutputTime(
+      TimestampCombiner timestampCombiner, Instant inputTimestamp, BoundedWindow window) {
+    switch (timestampCombiner) {
       case EARLIEST:
       case LATEST:
         return inputTimestamp;
