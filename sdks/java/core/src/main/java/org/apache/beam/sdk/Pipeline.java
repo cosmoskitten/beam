@@ -19,6 +19,7 @@ package org.apache.beam.sdk;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 import java.util.ArrayList;
@@ -27,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -523,26 +523,23 @@ public class Pipeline {
   }
 
   private void validate(PipelineOptions options) {
-    for (String uniqueName : unstableNames) {
-      switch (options.getStableUniqueNames()) {
-        case OFF:
-          break;
-        case WARNING:
-          LOG.warn(
-              "Transform {} does not have a stable unique name. "
-                  + "This will prevent updating of pipelines.",
-              uniqueName);
-          break;
-        case ERROR:
-          throw new IllegalStateException(
-              "Transform "
-                  + uniqueName
-                  + " does not have a stable unique name. "
-                  + "This will prevent updating of pipelines.");
-        default:
-          throw new IllegalArgumentException(
-              "Unrecognized value for stable unique names: " + options.getStableUniqueNames());
-      }
+    switch (options.getStableUniqueNames()) {
+      case OFF:
+        break;
+      case WARNING:
+        LOG.warn(
+            "The following transforms do not have stable unique names: {}",
+            Joiner.on(", ").join(unstableNames));
+        break;
+      case ERROR:
+        throw new IllegalStateException(
+            String.format(
+                "Pipeline update will not be possible"
+                    + " because the following transforms do not have stable unique names.: %s.",
+                Joiner.on(", ").join(unstableNames)));
+      default:
+        throw new IllegalArgumentException(
+            "Unrecognized value for stable unique names: " + options.getStableUniqueNames());
     }
     this.traverseTopologically(new ValidateVisitor(options));
   }
