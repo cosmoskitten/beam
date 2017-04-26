@@ -143,11 +143,46 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   public void startBundle() {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeStartBundle(context);
+      invoker.invokeStartBundle(startBundleContext(context));
     } catch (Throwable t) {
       // Exception in user code.
       throw wrapUserCodeException(t);
     }
+  }
+
+  private DoFn<InputT, OutputT>.Context startBundleContext(
+      final DoFn<InputT, OutputT>.Context delegate) {
+    return fn.new Context() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return delegate.getPipelineOptions();
+      }
+
+      @Override
+      public void output(OutputT output) {
+        throw new UnsupportedOperationException("Output is not supported within startBundle");
+      }
+
+      @Override
+      public void outputWithTimestamp(OutputT output, Instant timestamp) {
+        throw new UnsupportedOperationException("Output is not supported within startBundle");
+      }
+
+      @Override
+      protected Aggregator createAggregator(String name, CombineFn combiner) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        throw new UnsupportedOperationException("Output is not supported within startBundle");
+      }
+
+      @Override
+      public <T> void output(TupleTag<T> tag, T output) {
+        throw new UnsupportedOperationException("Output is not supported within startBundle");
+      }
+    };
   }
 
   @Override
