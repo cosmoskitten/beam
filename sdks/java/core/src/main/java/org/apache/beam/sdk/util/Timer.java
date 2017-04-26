@@ -49,20 +49,9 @@ public interface Timer {
    *
    * <p>For {@link TimeDomain#PROCESSING_TIME}, the behavior is be unpredictable, since processing
    * time timers are ignored after a window has expired. Instead, it is recommended to use
-   * {@link #setForNowPlus(Duration)}.
+   * {@link #setRelative()}.
    */
-  void set(Instant instant);
-
-  /**
-   * Sets or resets the time relative to the current time in the timer's {@link TimeDomain} at which
-   * this it should fire. If the timer was already set, resets it to the new requested time.
-   */
-  void setForNowPlus(Duration durationFromNow);
-
-  /**
-   * return a {@link AlignTimer} that aligns a timestamp to the next boundary of {@code period}.
-   */
-  AlignTimer align(Duration period);
+  void set(Instant absoluteTime);
 
   /**
    * Unsets this timer. It is permitted to {@code cancel()} whether or not the timer was actually
@@ -71,24 +60,19 @@ public interface Timer {
   void cancel();
 
   /**
-   * Sets or resets the time aligned to the smallest multiple of {@code period} since the
-   * {@code offset} greater than the current time in the timer's {@link TimeDomain} at
-   * which this it should fire. If the timer was already set, resets it to the new requested time.
-   *
-   * <p>For {@link TimeDomain#EVENT_TIME}, to prevent more than window GC Time, it provide a simple
-   * utility to take min(time to set, GC Time of window).
+   * Sets the timer relative to the current time, according to any offset and alignment specified.
+   * Using {@link #offset(Duration)} and {@link #align(Duration)}.
    */
-  interface AlignTimer {
+  void setRelative();
 
-    /**
-     * Sets or resets the time relative to the current time in the timer's {@link TimeDomain}.
-     */
-    void setForNow();
+  /**
+   * Set the align offset.
+   */
+  Timer offset(Duration offset);
 
-    /**
-     * Set the align offset.
-     */
-    AlignTimer offset(Duration offset);
-  }
+  /**
+   * Aligns a timestamp to the next boundary of {@code period}.
+   */
+  Timer align(Duration period);
 
 }

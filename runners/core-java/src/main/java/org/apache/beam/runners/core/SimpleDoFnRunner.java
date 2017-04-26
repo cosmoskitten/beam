@@ -812,6 +812,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final StateNamespace namespace;
     private final String timerId;
     private final TimerSpec spec;
+    private Duration period = Duration.ZERO;
+    private Duration offset = Duration.ZERO;
 
     public TimerInternalsTimer(
         BoundedWindow window,
@@ -836,15 +838,29 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public void setForNowPlus(Duration durationFromNow) {
-      Instant target = getCurrentTime().plus(durationFromNow);
-      verifyTargetTime(target);
+    public void setRelative() {
+      Instant target;
+      Instant now = getCurrentTime();
+      if (period.equals(Duration.ZERO)) {
+        target = now.plus(offset);
+      } else {
+        long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
+        target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
+      }
+      target = minTargetAndGcTime(target);
       setUnderlyingTimer(target);
     }
 
     @Override
-    public AlignTimer align(Duration period) {
-      return new TimerInternalsAlignTimer(period);
+    public Timer offset(Duration offset) {
+      this.offset = offset;
+      return this;
+    }
+
+    @Override
+    public Timer align(Duration period) {
+      this.period = period;
+      return this;
     }
 
     /**
@@ -879,7 +895,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       if (!TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         throw new IllegalStateException(
             "Cannot only set relative timers in processing time domain."
-                + " Use #setForNowPlus(Duration)");
+                + " Use #setRelative()");
       }
     }
 
@@ -908,32 +924,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         default:
           throw new IllegalStateException(
               String.format("Timer created for unknown time domain %s", spec.getTimeDomain()));
-      }
-    }
-
-    public class TimerInternalsAlignTimer implements AlignTimer {
-
-      private Duration period;
-      private Duration offset;
-
-      TimerInternalsAlignTimer(Duration period) {
-        this.period = period;
-        this.offset = Duration.ZERO;
-      }
-
-      @Override
-      public void setForNow() {
-        Instant now = getCurrentTime();
-        long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
-        Instant target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
-        target = minTargetAndGcTime(target);
-        setUnderlyingTimer(target);
-      }
-
-      @Override
-      public AlignTimer offset(Duration offset) {
-        this.offset = offset;
-        return this;
       }
     }
 
