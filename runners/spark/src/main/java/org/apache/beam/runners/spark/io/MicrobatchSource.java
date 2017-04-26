@@ -201,13 +201,13 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
    */
   public class Reader extends BoundedSource.BoundedReader<T> {
     private long recordsRead = 0L;
-    private Instant endTime;
+    private Instant readEndTime;
     private final FluentBackoff backoffFactory;
-    private final UnboundedSource.UnboundedReader<T> reader;
+    private final UnboundedSource.UnboundedReader<T> unboundedReader;
     private boolean started;
 
-    private Reader(UnboundedSource.UnboundedReader<T> reader) {
-      this.reader = reader;
+    private Reader(final UnboundedSource.UnboundedReader<T> unboundedReader) {
+      this.unboundedReader = unboundedReader;
       backoffFactory =
           FluentBackoff.DEFAULT
               .withInitialBackoff(Duration.millis(10))
@@ -215,42 +215,52 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
               .withMaxCumulativeBackoff(maxReadTime.minus(1));
     }
 
+    private boolean startIfNeeded() throws IOException {
+      return !started && ((started = true) && unboundedReader.start());
+    }
+
+    private void prepareForNewBatchReading() {
+      readEndTime = Instant.now().plus(maxReadTime);
+      recordsRead = 0L;
+    }
+
     @Override
     public boolean start() throws IOException {
-      LOG.debug("MicrobatchReader-{}: Starting a microbatch read from an unbounded source with a "
-          + "max read time of {} msec, and max number of records {}.", splitId, maxReadTime,
-              maxNumRecords);
-      endTime = Instant.now().plus(maxReadTime);
-      // Since reader is reused in microbatches only start it if it has not already been started.
-      if (!started) {
-        started = true;
-        if (reader.start()) {
-          recordsRead++;
-          return true;
-        }
-      }
-      return advanceWithBackoff();
+      LOG.debug(
+          "MicrobatchReader-{}: Starting a microbatch read from an unbounded source with a max "
+              + "read time of {} millis, and max number of records {}.",
+          splitId,
+          maxReadTime,
+          maxNumRecords);
+
+      prepareForNewBatchReading();
+
+      // either start a new read, or continue an existing one
+      return startIfNeeded() || advanceWithBackoff();
     }
 
     @Override
     public boolean advance() throws IOException {
+      final boolean advanced;
       if (recordsRead >= maxNumRecords) {
         finalizeCheckpoint();
-        return false;
+        advanced = false;
+      } else {
+        advanced = advanceWithBackoff();
       }
-      return advanceWithBackoff();
+      return advanced;
     }
 
     private boolean advanceWithBackoff() throws IOException {
       // Try reading from the source with exponential backoff
-      BackOff backoff = backoffFactory.backoff();
+      final BackOff backoff = backoffFactory.backoff();
       long nextSleep = backoff.nextBackOffMillis();
       while (nextSleep != BackOff.STOP) {
-        if (endTime != null && Instant.now().isAfter(endTime)) {
+        if (readEndTime != null && Instant.now().isAfter(readEndTime)) {
           finalizeCheckpoint();
           return false;
         }
-        if (reader.advance()) {
+        if (unboundedReader.advance()) {
           recordsRead++;
           return true;
         }
@@ -262,24 +272,24 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     }
 
     private void finalizeCheckpoint() throws IOException {
-      reader.getCheckpointMark().finalizeCheckpoint();
+      unboundedReader.getCheckpointMark().finalizeCheckpoint();
       LOG.debug("MicrobatchReader-{}: finalized CheckpointMark successfully after "
           + "reading {} records.", splitId, recordsRead);
     }
 
     @Override
     public T getCurrent() throws NoSuchElementException {
-      return reader.getCurrent();
+      return unboundedReader.getCurrent();
     }
 
     @Override
     public Instant getCurrentTimestamp() throws NoSuchElementException {
-      return reader.getCurrentTimestamp();
+      return unboundedReader.getCurrentTimestamp();
     }
 
     @Override
     public void close() throws IOException {
-      reader.close();
+      unboundedReader.close();
     }
 
     @Override
@@ -289,11 +299,11 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
     @SuppressWarnings("unchecked")
     public CheckpointMarkT getCheckpointMark() {
-      return (CheckpointMarkT) reader.getCheckpointMark();
+      return (CheckpointMarkT) unboundedReader.getCheckpointMark();
     }
 
     public Instant getWatermark() {
-      return reader.getWatermark();
+      return unboundedReader.getWatermark();
     }
   }
 
