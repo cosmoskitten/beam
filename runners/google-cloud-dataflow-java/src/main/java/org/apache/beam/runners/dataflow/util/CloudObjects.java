@@ -43,8 +43,8 @@ public class CloudObjects {
       populateCoderTranslators() {
     ImmutableMap.Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
         ImmutableMap.builder();
-    for (CoderCloudObjectTranslatorRegistrar coderRegistrar :
-        ServiceLoader.load(CoderCloudObjectTranslatorRegistrar.class)) {
+    for (CoderCloudObjectTranslatorRegistrar coderRegistrar : ServiceLoader.load(
+        CoderCloudObjectTranslatorRegistrar.class)) {
       builder.putAll(coderRegistrar.classesToTranslators());
     }
     return builder.build();
@@ -75,6 +75,10 @@ public class CloudObjects {
     throw new IllegalArgumentException(
         String.format(
             "Non-Custom %s with no registered %s", Coder.class, CloudObjectTranslator.class));
+  }
+
+  public static Coder<?> fromCloudObject(CloudObject cloudObject) {
+    throw new UnsupportedOperationException("Not yet implemented");
   }
 
   private static CloudObject customCoderAsCloudObject(CustomCoder<?> coder) {
