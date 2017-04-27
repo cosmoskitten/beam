@@ -93,8 +93,7 @@ import org.joda.time.Instant;
 public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
   /** Information accessible to all methods in this {@code DoFn}. */
-  public abstract class Context {
-
+  private abstract class Context {
     /**
      * Returns the {@code PipelineOptions} specified with the
      * {@link org.apache.beam.sdk.runners.PipelineRunner}
@@ -103,6 +102,53 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      */
     public abstract PipelineOptions getPipelineOptions();
 
+    /**
+     * Creates an {@link Aggregator} in the {@link DoFn} context with the specified name and
+     * aggregation logic specified by {@link CombineFn}. This is to be overridden by a particular
+     * runner context with an implementation that delivers the values as appropriate.
+     *
+     * <p>The aggregators declared on the {@link DoFn} will be wired up to aggregators allocated via
+     * this method.
+     *
+     * @param name the name of the aggregator
+     * @param combiner the {@link CombineFn} to use in the aggregator
+     * @return an aggregator for the provided name and {@link CombineFn} in this context
+     */
+    @Experimental(Kind.AGGREGATOR)
+    protected abstract <AggInputT, AggOutputT>
+        Aggregator<AggInputT, AggOutputT> createAggregator(
+            String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
+
+    /**
+     * Sets up {@link Aggregator}s created by the {@link DoFn} so they are usable within this
+     * context.
+     *
+     * <p>This method should be called by runners before the {@link StartBundle @StartBundle}
+     * method.
+     */
+    @Experimental(Kind.AGGREGATOR)
+    protected final void setupDelegateAggregators() {
+      for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
+        setupDelegateAggregator(aggregator);
+      }
+
+      aggregatorsAreFinal = true;
+    }
+
+    private <AggInputT, AggOutputT> void setupDelegateAggregator(
+        DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
+
+      Aggregator<AggInputT, AggOutputT> delegate = createAggregator(
+          aggregator.getName(), aggregator.getCombineFn());
+
+      aggregator.setDelegate(delegate);
+    }
+  }
+
+  /**
+   * Information accessible when running a {@link DoFn.ProcessElement} method.
+   */
+  public abstract class ElementContext extends Context {
     /**
      * Adds the given element to the main output {@code PCollection}.
      *
@@ -209,54 +255,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      */
     public abstract <T> void outputWithTimestamp(
         TupleTag<T> tag, T output, Instant timestamp);
-
-    /**
-     * Creates an {@link Aggregator} in the {@link DoFn} context with the specified name and
-     * aggregation logic specified by {@link CombineFn}. This is to be overridden by a particular
-     * runner context with an implementation that delivers the values as appropriate.
-     *
-     * <p>The aggregators declared on the {@link DoFn} will be wired up to aggregators allocated via
-     * this method.
-     *
-     * @param name the name of the aggregator
-     * @param combiner the {@link CombineFn} to use in the aggregator
-     * @return an aggregator for the provided name and {@link CombineFn} in this context
-     */
-    @Experimental(Kind.AGGREGATOR)
-    protected abstract <AggInputT, AggOutputT>
-        Aggregator<AggInputT, AggOutputT> createAggregator(
-            String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
-
-    /**
-     * Sets up {@link Aggregator}s created by the {@link DoFn} so they are usable within this
-     * context.
-     *
-     * <p>This method should be called by runners before the {@link StartBundle @StartBundle}
-     * method.
-     */
-    @Experimental(Kind.AGGREGATOR)
-    protected final void setupDelegateAggregators() {
-      for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
-        setupDelegateAggregator(aggregator);
-      }
-
-      aggregatorsAreFinal = true;
-    }
-
-    private <AggInputT, AggOutputT> void setupDelegateAggregator(
-        DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
-
-      Aggregator<AggInputT, AggOutputT> delegate = createAggregator(
-          aggregator.getName(), aggregator.getCombineFn());
-
-      aggregator.setDelegate(delegate);
-    }
   }
 
   /**
    * Information accessible when running a {@link DoFn.ProcessElement} method.
    */
-  public abstract class ProcessContext extends Context {
+  public abstract class ProcessContext extends ElementContext {
 
     /**
      * Returns the input element to be processed.
@@ -308,7 +312,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Information accessible when running a {@link DoFn.OnTimer} method.
    */
-  public abstract class OnTimerContext extends Context {
+  public abstract class OnTimerContext extends ElementContext {
 
     /**
      * Returns the timestamp of the current timer.
@@ -327,8 +331,42 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
+   * Information available when running a {@link DoFn.FinishBundle} method.
+   */
+  public abstract class FinishBundleContext extends Context {
+    /**
+     * Adds the given element to the main output {@code PCollection}.
+     *
+     * <p>Once passed to {@code output} the element should not be modified in any way.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from {@link StartBundle}
+     * or {@link FinishBundle} methods.
+     *
+     * @see ParDo.SingleOutput#withOutputTags
+     */
+    public abstract void output(
+        OutputT output, Instant timestamp, BoundedWindow window);
+
+    /**
+     * Adds the given element to the output {@code PCollection} with the given tag.
+     *
+     * <p>Once passed to {@code output} the element should not be modified in any way.
+     *
+     * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags} to specify the
+     * tags of outputs that it consumes.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from {@link StartBundle}
+     * or {@link FinishBundle} methods.
+     *
+     * @see ParDo.SingleOutput#withOutputTags
+     */
+    public abstract <T> void output(
+        TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window);
+  }
+
+  /**
    * Returns the allowed timestamp skew duration, which is the maximum duration that timestamps can
-   * be shifted backward in {@link DoFn.Context#outputWithTimestamp}.
+   * be shifted backward in {@link DoFn.ProcessContext#outputWithTimestamp}.
    *
    * <p>The default value is {@code Duration.ZERO}, in which case timestamps can only be shifted
    * forward to future. For infinite skew, return {@code Duration.millis(Long.MAX_VALUE)}.

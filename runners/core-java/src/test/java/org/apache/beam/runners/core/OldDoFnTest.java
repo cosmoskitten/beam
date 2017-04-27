@@ -22,9 +22,13 @@ import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
+import org.apache.beam.runners.core.OldDoFn.ProcessContext;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DelegatingAggregator;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
@@ -103,41 +107,60 @@ public class OldDoFnTest implements Serializable {
       @Override
       public void processElement(ProcessContext c) throws Exception { }
     };
-    OldDoFn<String, String>.Context context = createContext(fn);
+    ProcessContext context = createContext(fn);
     context.setupDelegateAggregators();
 
     thrown.expect(isA(IllegalStateException.class));
     fn.createAggregator("anyAggregate", Max.ofIntegers());
   }
 
-  private OldDoFn<String, String>.Context createContext(OldDoFn<String, String> fn) {
+  private ProcessContext createContext(OldDoFn<String, String> fn) {
     return fn.new Context() {
-      @Override
+      private <AggInputT, AggOutputT> void setupDelegateAggregator(
+          DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
+
+        Aggregator<AggInputT, AggOutputT> delegate = createAggregatorInternal(
+            aggregator.getName(), aggregator.getCombineFn());
+
+        aggregator.setDelegate(delegate);
+      }
+
+      /**
+       * Sets up {@link Aggregator}s created by the {@link OldDoFn} so they are
+       * usable within this context.
+       *
+       * <p>This method should be called by runners before {@link OldDoFn#startBundle}
+       * is executed.
+       */
+      @Experimental(Kind.AGGREGATOR)
+      protected final void setupDelegateAggregators() {
+        for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
+          setupDelegateAggregator(aggregator);
+        }
+
+        aggregatorsAreFinal = true;
+      }
+
       public PipelineOptions getPipelineOptions() {
         throw new UnsupportedOperationException();
       }
 
-      @Override
       public void output(String output) {
         throw new UnsupportedOperationException();
       }
 
-      @Override
       public void outputWithTimestamp(String output, Instant timestamp) {
         throw new UnsupportedOperationException();
       }
 
-      @Override
       public <T> void output(TupleTag<T> tag, T output) {
         throw new UnsupportedOperationException();
       }
 
-      @Override
       public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
         throw new UnsupportedOperationException();
       }
 
-      @Override
       public <AggInputT, AggOutputT>
       Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
               String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {

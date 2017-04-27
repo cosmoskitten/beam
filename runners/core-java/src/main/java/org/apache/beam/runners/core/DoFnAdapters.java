@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.AggregatorRetriever;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -78,27 +79,6 @@ public class DoFnAdapters {
     }
 
     @Override
-    public void setup() throws Exception {
-      this.invoker.invokeSetup();
-    }
-
-    @Override
-    public void startBundle(Context c) throws Exception {
-      fn.prepareForProcessing();
-      invoker.invokeStartBundle(new ContextAdapter<>(fn, c));
-    }
-
-    @Override
-    public void finishBundle(Context c) throws Exception {
-      invoker.invokeFinishBundle(new ContextAdapter<>(fn, c));
-    }
-
-    @Override
-    public void teardown() throws Exception {
-      this.invoker.invokeTeardown();
-    }
-
-    @Override
     public void processElement(ProcessContext c) throws Exception {
       ProcessContextAdapter<InputT, OutputT> adapter = new ProcessContextAdapter<>(fn, c);
       invoker.invokeProcessElement(adapter);
@@ -131,16 +111,17 @@ public class DoFnAdapters {
   }
 
   /**
-   * Wraps an {@link OldDoFn.Context} as a {@link DoFnInvoker.ArgumentProvider} inside a {@link
-   * DoFn.StartBundle} or {@link DoFn.FinishBundle} method, which means the extra context is
+   * Wraps an {@link OldDoFn.ProcessContext} as a {@link DoFnInvoker.ArgumentProvider} inside a
+   * {@link DoFn.StartBundle} or {@link DoFn.FinishBundle} method, which means the extra context is
    * unavailable.
    */
-  private static class ContextAdapter<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
+  private static class ContextAdapter<InputT, OutputT> extends DoFn<InputT, OutputT>.ElementContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
 
-    private OldDoFn<InputT, OutputT>.Context context;
+    private OldDoFn<InputT, OutputT>.ProcessContext context;
 
-    private ContextAdapter(DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.Context context) {
+    private ContextAdapter(
+        DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.ProcessContext context) {
       fn.super();
       this.context = context;
       super.setupDelegateAggregators();
@@ -201,6 +182,16 @@ public class DoFnAdapters {
     public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Timers are not supported for OldDoFn");
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("FinishBundle is not supported for OldDoFn");
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return getPipelineOptions();
     }
 
     @Override
@@ -308,6 +299,16 @@ public class DoFnAdapters {
     @Override
     public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("Timers are not supported for OldDoFn");
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("FinishBundleContext is not supported in OldDoFn");
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return getPipelineOptions();
     }
 
     @Override
