@@ -19,7 +19,6 @@
 package org.apache.beam.runners.dataflow.util;
 
 import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -79,7 +78,7 @@ public class CloudObjectsTest {
       }
       Set<Class<? extends Coder>> missing = new HashSet<>();
       missing.addAll(defaultCoderTranslators);
-      missing.removeAll(testedClasses)O
+      missing.removeAll(testedClasses);
       assertThat(missing, emptyIterable());
     }
 
@@ -91,6 +90,11 @@ public class CloudObjectsTest {
     }
   }
 
+
+  /**
+   * Tests that all of the registered coders in {@link DefaultCoderCloudObjectTranslatorRegistrar}
+   * can be serialized and deserialized with {@link CloudObjects}.
+   */
   @RunWith(Parameterized.class)
   public static class DefaultCoders {
     @Parameters(name = "{index}: {0}")
