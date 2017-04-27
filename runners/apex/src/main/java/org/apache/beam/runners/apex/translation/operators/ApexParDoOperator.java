@@ -361,8 +361,6 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
           doFn,
           doFnRunner,
-          stepContext,
-          new NoOpAggregatorFactory(),
           windowingStrategy,
           cleanupTimer,
           stateCleaner);
