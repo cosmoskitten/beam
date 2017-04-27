@@ -38,14 +38,14 @@ class NoOpOldDoFn<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
   /**
    * Returns a new NoOp Context.
    */
-  public OldDoFn<InputT, OutputT>.Context context() {
+  public ProcessContext context() {
     return new NoOpDoFnContext();
   }
 
   /**
    * A {@link OldDoFn.Context} that does nothing and returns exclusively null.
    */
-  private class NoOpDoFnContext extends OldDoFn<InputT, OutputT>.Context {
+  private class NoOpDoFnContext {
     @Override
     public PipelineOptions getPipelineOptions() {
       return null;

@@ -77,155 +77,11 @@ import org.joda.time.Instant;
  */
 @Deprecated
 public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDisplayData {
-  /**
-   * Information accessible to all methods in this {@code OldDoFn}.
-   * Used primarily to output elements.
-   */
-  public abstract class Context {
-
-    /**
-     * Returns the {@code PipelineOptions} specified with the
-     * {@link org.apache.beam.sdk.runners.PipelineRunner}
-     * invoking this {@code OldDoFn}.  The {@code PipelineOptions} will
-     * be the default running via {@link DoFnTester}.
-     */
-    public abstract PipelineOptions getPipelineOptions();
-
-    /**
-     * Adds the given element to the main output {@code PCollection}.
-     *
-     * <p>Once passed to {@code output} the element should be considered
-     * immutable and not be modified in any way. It may be cached or retained
-     * by a Beam runner or later steps in the pipeline, or used in
-     * other unspecified ways.
-     *
-     * <p>If invoked from {@link OldDoFn#processElement processElement}, the output
-     * element will have the same timestamp and be in the same windows
-     * as the input element passed to {@link OldDoFn#processElement processElement}.
-     *
-     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
-     * this will attempt to use the
-     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
-     * of the input {@code PCollection} to determine what windows the element
-     * should be in, throwing an exception if the {@code WindowFn} attempts
-     * to access any information about the input element. The output element
-     * will have a timestamp of negative infinity.
-     */
-    public abstract void output(OutputT output);
-
-    /**
-     * Adds the given element to the main output {@code PCollection},
-     * with the given timestamp.
-     *
-     * <p>Once passed to {@code outputWithTimestamp} the element should not be
-     * modified in any way.
-     *
-     * <p>If invoked from {@link OldDoFn#processElement processElement}, the timestamp
-     * must not be older than the input element's timestamp minus
-     * {@link OldDoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
-     * be in the same windows as the input element.
-     *
-     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
-     * this will attempt to use the
-     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
-     * of the input {@code PCollection} to determine what windows the element
-     * should be in, throwing an exception if the {@code WindowFn} attempts
-     * to access any information about the input element except for the
-     * timestamp.
-     */
-    public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
-
-    /**
-     * Adds the given element to the output {@code PCollection} with the
-     * given tag.
-     *
-     * <p>Once passed to {@code output} the element should not be modified
-     * in any way.
-     *
-     * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags withOutputTags}
-     * to specify the tags of outputs that it consumes. Outputs that are not consumed, e.g., outputs
-     * for monitoring purposes only, don't necessarily need to be specified.
-     *
-     * <p>The output element will have the same timestamp and be in the same
-     * windows as the input element passed to {@link OldDoFn#processElement processElement}.
-     *
-     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
-     * this will attempt to use the
-     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
-     * of the input {@code PCollection} to determine what windows the element
-     * should be in, throwing an exception if the {@code WindowFn} attempts
-     * to access any information about the input element. The output element
-     * will have a timestamp of negative infinity.
-     *
-     * @see ParDo.SingleOutput#withOutputTags
-     */
-    public abstract <T> void output(TupleTag<T> tag, T output);
-
-    /**
-     * Adds the given element to the specified output {@code PCollection}, with the given timestamp.
-     *
-     * <p>Once passed to {@code outputWithTimestamp} the element should not be modified in any way.
-     *
-     * <p>If invoked from {@link OldDoFn#processElement processElement}, the timestamp must not be
-     * older than the input element's timestamp minus {@link OldDoFn#getAllowedTimestampSkew
-     * getAllowedTimestampSkew}. The output element will be in the same windows as the input
-     * element.
-     *
-     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
-     * this will attempt to use the {@link org.apache.beam.sdk.transforms.windowing.WindowFn} of the
-     * input {@code PCollection} to determine what windows the element should be in, throwing an
-     * exception if the {@code WindowFn} attempts to access any information about the input element
-     * except for the timestamp.
-     *
-     * @see ParDo.SingleOutput#withOutputTags
-     */
-    public abstract <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
-
-    /**
-     * Creates an {@link Aggregator} in the {@link OldDoFn} context with the
-     * specified name and aggregation logic specified by {@link CombineFn}.
-     *
-     * <p>For internal use only.
-     *
-     * @param name the name of the aggregator
-     * @param combiner the {@link CombineFn} to use in the aggregator
-     * @return an aggregator for the provided name and {@link CombineFn} in this
-     *         context
-     */
-    @Experimental(Kind.AGGREGATOR)
-    public abstract <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
-        createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
-
-    /**
-     * Sets up {@link Aggregator}s created by the {@link OldDoFn} so they are
-     * usable within this context.
-     *
-     * <p>This method should be called by runners before {@link OldDoFn#startBundle}
-     * is executed.
-     */
-    @Experimental(Kind.AGGREGATOR)
-    protected final void setupDelegateAggregators() {
-      for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
-        setupDelegateAggregator(aggregator);
-      }
-
-      aggregatorsAreFinal = true;
-    }
-
-    private <AggInputT, AggOutputT> void setupDelegateAggregator(
-        DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
-
-      Aggregator<AggInputT, AggOutputT> delegate = createAggregatorInternal(
-          aggregator.getName(), aggregator.getCombineFn());
-
-      aggregator.setDelegate(delegate);
-    }
-  }
 
   /**
    * Information accessible when running {@link OldDoFn#processElement}.
    */
-  public abstract class ProcessContext extends Context {
+  public abstract class ProcessContext {
 
     /**
      * Returns the input element to be processed.
@@ -285,12 +141,117 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      */
     @Experimental
     public abstract WindowingInternals<InputT, OutputT> windowingInternals();
+
+    /**
+     * Returns the {@code PipelineOptions} specified with the
+     * {@link PipelineRunner}
+     * invoking this {@code OldDoFn}.  The {@code PipelineOptions} will
+     * be the default running via {@link DoFnTester}.
+     */
+    public abstract PipelineOptions getPipelineOptions();
+
+    /**
+     * Adds the given element to the main output {@code PCollection}.
+     *
+     * <p>Once passed to {@code output} the element should be considered
+     * immutable and not be modified in any way. It may be cached or retained
+     * by a Beam runner or later steps in the pipeline, or used in
+     * other unspecified ways.
+     *
+     * <p>If invoked from {@link OldDoFn#processElement processElement}, the output
+     * element will have the same timestamp and be in the same windows
+     * as the input element passed to {@link OldDoFn#processElement processElement}.
+     */
+    public abstract void output(OutputT output);
+
+    /**
+     * Adds the given element to the main output {@code PCollection},
+     * with the given timestamp.
+     *
+     * <p>Once passed to {@code outputWithTimestamp} the element should not be
+     * modified in any way.
+     *
+     * <p>If invoked from {@link OldDoFn#processElement processElement}, the timestamp
+     * must not be older than the input element's timestamp minus
+     * {@link OldDoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
+     * be in the same windows as the input element.
+     */
+    public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
+
+    /**
+     * Adds the given element to the output {@code PCollection} with the
+     * given tag.
+     *
+     * <p>Once passed to {@code output} the element should not be modified
+     * in any way.
+     *
+     * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags withOutputTags}
+     * to specify the tags of outputs that it consumes. Outputs that are not consumed, e.g., outputs
+     * for monitoring purposes only, don't necessarily need to be specified.
+     *
+     * <p>The output element will have the same timestamp and be in the same
+     * windows as the input element passed to {@link OldDoFn#processElement processElement}.
+     *
+     * @see ParDo.SingleOutput#withOutputTags
+     */
+    public abstract <T> void output(TupleTag<T> tag, T output);
+
+    /**
+     * Adds the given element to the specified output {@code PCollection}, with the given timestamp.
+     *
+     * <p>Once passed to {@code outputWithTimestamp} the element should not be modified in any way.
+     *
+     * <p>If invoked from {@link OldDoFn#processElement processElement}, the timestamp must not be
+     * older than the input element's timestamp minus {@link OldDoFn#getAllowedTimestampSkew
+     * getAllowedTimestampSkew}. The output element will be in the same windows as the input
+     * element.
+     *
+     * @see ParDo.SingleOutput#withOutputTags
+     */
+    public abstract <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
+
+    /**
+     * Creates an {@link Aggregator} in the {@link OldDoFn} context with the
+     * specified name and aggregation logic specified by {@link CombineFn}.
+     *
+     * <p>For internal use only.
+     *
+     * @param name the name of the aggregator
+     * @param combiner the {@link CombineFn} to use in the aggregator
+     * @return an aggregator for the provided name and {@link CombineFn} in this
+     *         context
+     */
+    @Experimental(Kind.AGGREGATOR)
+    public abstract <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+        createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
+
+    /**
+     * Sets up {@link Aggregator}s created by the {@link OldDoFn} so they are
+     * usable within this context.
+     */
+    @Experimental(Kind.AGGREGATOR)
+    protected final void setupDelegateAggregators() {
+      for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
+        setupDelegateAggregator(aggregator);
+      }
+
+      aggregatorsAreFinal = true;
+    }
+
+    private <AggInputT, AggOutputT> void setupDelegateAggregator(
+        DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
+
+      Aggregator<AggInputT, AggOutputT> delegate = createAggregatorInternal(
+          aggregator.getName(), aggregator.getCombineFn());
+
+      aggregator.setDelegate(delegate);
+    }
   }
 
   /**
    * Returns the allowed timestamp skew duration, which is the maximum
    * duration that timestamps can be shifted backward in
-   * {@link OldDoFn.Context#outputWithTimestamp}.
+   * {@link OldDoFn.ProcessContext#outputWithTimestamp}.
    *
    * <p>The default value is {@code Duration.ZERO}, in which case
    * timestamps can only be shifted forward to future.  For infinite
@@ -333,25 +294,6 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
   private boolean aggregatorsAreFinal;
 
   /**
-   * Prepares this {@link DoFn} instance for processing bundles.
-   *
-   * <p>{@link #setup()} will be called at most once per {@link DoFn} instance, and before any other
-   * {@link DoFn} method is called.
-   *
-   * <p>By default, does nothing.
-   */
-  public void setup() throws Exception {
-  }
-
-  /**
-   * Prepares this {@code OldDoFn} instance for processing a batch of elements.
-   *
-   * <p>By default, does nothing.
-   */
-  public void startBundle(Context c) throws Exception {
-  }
-
-  /**
    * Processes one input element.
    *
    * <p>The current element of the input {@code PCollection} is returned by
@@ -368,26 +310,6 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
    * @see ProcessContext
    */
   public abstract void processElement(ProcessContext c) throws Exception;
-
-  /**
-   * Finishes processing this batch of elements.
-   *
-   * <p>By default, does nothing.
-   */
-  public void finishBundle(Context c) throws Exception {
-  }
-
-  /**
-   * Cleans up this {@link DoFn}.
-   *
-   * <p>{@link #teardown()} will be called before the {@link PipelineRunner} discards a {@link DoFn}
-   * instance, including due to another {@link DoFn} method throwing an {@link Exception}. No other
-   * {@link DoFn} methods will be called after a call to {@link #teardown()}.
-   *
-   * <p>By default, does nothing.
-   */
-  public void teardown() throws Exception {
-  }
 
   /////////////////////////////////////////////////////////////////////////////
 

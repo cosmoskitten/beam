@@ -28,9 +28,12 @@ import java.util.Set;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.ExecutionContext.StepContext;
 import org.apache.beam.runners.core.OldDoFn.RequiresWindowAccess;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DelegatingAggregator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -85,13 +88,7 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
 
   @Override
   public void startBundle() {
-    // This can contain user code. Wrap it in case it throws an exception.
-    try {
-      fn.startBundle(context);
-    } catch (Throwable t) {
-      // Exception in user code.
-      throw wrapUserCodeException(t);
-    }
+    // No method in OldDoFn
   }
 
   @Override
@@ -128,13 +125,7 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
 
   @Override
   public void finishBundle() {
-    // This can contain user code. Wrap it in case it throws an exception.
-    try {
-      fn.finishBundle(context);
-    } catch (Throwable t) {
-      // Exception in user code.
-      throw wrapUserCodeException(t);
-    }
+    // No such method in OldDoFn
   }
 
   /**
@@ -159,7 +150,7 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
    * @param <InputT> the type of the {@link OldDoFn} (main) input elements
    * @param <OutputT> the type of the {@link OldDoFn} (main) output elements
    */
-  private static class DoFnContext<InputT, OutputT> extends OldDoFn<InputT, OutputT>.Context {
+  private static class DoFnContext<InputT, OutputT> {
     private static final int MAX_SIDE_OUTPUTS = 1000;
 
     final PipelineOptions options;
@@ -186,7 +177,6 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
                        StepContext stepContext,
                        AggregatorFactory aggregatorFactory,
                        WindowFn<?, ?> windowFn) {
-      fn.super();
       this.options = options;
       this.fn = fn;
       this.sideInputReader = sideInputReader;
@@ -202,12 +192,11 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
       this.stepContext = stepContext;
       this.aggregatorFactory = aggregatorFactory;
       this.windowFn = windowFn;
-      super.setupDelegateAggregators();
+      setupDelegateAggregators();
     }
 
     //////////////////////////////////////////////////////////////////////////////
 
-    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }
@@ -308,33 +297,50 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
     // Following implementations of output, outputWithTimestamp, and output
     // are only accessible in OldDoFn.startBundle and OldDoFn.finishBundle, and will be shadowed by
     // ProcessContext's versions in OldDoFn.processElement.
-    @Override
     public void output(OutputT output) {
       outputWindowedValue(output, null, null, PaneInfo.NO_FIRING);
     }
 
-    @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       outputWindowedValue(output, timestamp, null, PaneInfo.NO_FIRING);
     }
 
-    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "TupleTag passed to output cannot be null");
       outputWindowedValue(tag, output, null, null, PaneInfo.NO_FIRING);
     }
 
-    @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "TupleTag passed to outputWithTimestamp cannot be null");
       outputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
     }
 
-    @Override
     public <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       checkNotNull(combiner, "Combiner passed to createAggregatorInternal cannot be null");
       return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
+    }
+
+    /**
+     * Sets up {@link Aggregator}s created by the {@link OldDoFn} so they are
+     * usable within this context.
+     */
+    @Experimental(Kind.AGGREGATOR)
+    protected final void setupDelegateAggregators() {
+      for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
+        setupDelegateAggregator(aggregator);
+      }
+
+      aggregatorsAreFinal = true;
+    }
+
+    private <AggInputT, AggOutputT> void setupDelegateAggregator(
+        DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
+
+      Aggregator<AggInputT, AggOutputT> delegate = createAggregatorInternal(
+          aggregator.getName(), aggregator.getCombineFn());
+
+      aggregator.setDelegate(delegate);
     }
   }
 
@@ -347,7 +353,6 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
    */
   private static class DoFnProcessContext<InputT, OutputT>
       extends OldDoFn<InputT, OutputT>.ProcessContext {
-
 
     final OldDoFn<InputT, OutputT> fn;
     final DoFnContext<InputT, OutputT> context;

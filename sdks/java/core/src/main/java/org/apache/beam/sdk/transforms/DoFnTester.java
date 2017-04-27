@@ -34,8 +34,11 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -219,10 +222,49 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     if (state == State.UNINITIALIZED) {
       initializeState();
     }
-    TestContext context = new TestContext();
-    context.setupDelegateAggregators();
+    TestFinishBundleContext context = new TestFinishBundleContext();
     try {
-      fnInvoker.invokeStartBundle(context);
+      fnInvoker.invokeStartBundle(new ArgumentProvider() {
+        @Override
+        public BoundedWindow window() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ProcessContext processContext(DoFn doFn) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public OnTimerContext onTimerContext(DoFn doFn) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public FinishBundleContext finishBundleContext(DoFn doFn) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public PipelineOptions pipelineOptions() {
+          return options;
+        }
+
+        @Override
+        public RestrictionTracker<?> restrictionTracker() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public org.apache.beam.sdk.util.state.State state(String stateId) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Timer timer(String timerId) {
+          throw new UnsupportedOperationException();
+        }
+      });
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
@@ -282,6 +324,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       startBundle();
     }
     try {
+      final DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext =
+          new TestFinishBundleContext();
       final DoFn<InputT, OutputT>.ProcessContext processContext =
           createProcessContext(
               ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
@@ -293,12 +337,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
-              throw new UnsupportedOperationException(
-                  "Not expected to access DoFn.Context from @ProcessElement");
-            }
-
-            @Override
             public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
               return processContext;
             }
@@ -307,6 +345,16 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException(
                   "DoFnTester doesn't support timers yet.");
+            }
+
+            @Override
+            public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+              return finishBundleContext;
+            }
+
+            @Override
+            public PipelineOptions pipelineOptions() {
+              return options;
             }
 
             @Override
@@ -346,7 +394,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         "Must be inside bundle to call finishBundle, but was: %s",
         state);
     try {
-      fnInvoker.invokeFinishBundle(new TestContext());
+      fnInvoker.invokeFinishBundle(new TestFinishBundleContext());
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
@@ -503,23 +551,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return resultElems;
   }
 
-  /**
-   * Returns the value of the provided {@link Aggregator}.
-   */
-  public <AggregateT> AggregateT getAggregatorValue(Aggregator<?, AggregateT> agg) {
-    return extractAggregatorValue(agg.getName(), agg.getCombineFn());
-  }
-
-  private <AccumT, AggregateT> AggregateT extractAggregatorValue(
-      String name, CombineFn<?, AccumT, AggregateT> combiner) {
-    @SuppressWarnings("unchecked")
-    AccumT accumulator = (AccumT) accumulators.get(name);
-    if (accumulator == null) {
-      accumulator = combiner.createAccumulator();
-    }
-    return combiner.extractOutput(accumulator);
-  }
-
   private <T> List<ValueInSingleWindow<T>> getImmutableOutput(TupleTag<T> tag) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     List<ValueInSingleWindow<T>> elems = (List) outputs.get(tag);
@@ -541,8 +572,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return mainOutputTag;
   }
 
-  private class TestContext extends DoFn<InputT, OutputT>.Context {
-    TestContext() {
+  private class TestFinishBundleContext extends DoFn<InputT, OutputT>.FinishBundleContext {
+    TestFinishBundleContext() {
       fn.super();
     }
 
@@ -552,22 +583,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public void output(OutputT output) {
+    public void output(OutputT output, Instant timestamp, BoundedWindow window) {
       throwUnsupportedOutputFromBundleMethods();
     }
 
     @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      throwUnsupportedOutputFromBundleMethods();
-    }
-
-    @Override
-    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      throwUnsupportedOutputFromBundleMethods();
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output) {
+    public <T> void output(
+        TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
       throwUnsupportedOutputFromBundleMethods();
     }
 
@@ -630,12 +652,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   private class TestProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
-    private final TestContext context;
+    private final TestFinishBundleContext context;
     private final ValueInSingleWindow<InputT> element;
 
     private TestProcessContext(ValueInSingleWindow<InputT> element) {
       fn.super();
-      this.context = new TestContext();
+      this.context = new TestFinishBundleContext();
       this.element = element;
     }
 

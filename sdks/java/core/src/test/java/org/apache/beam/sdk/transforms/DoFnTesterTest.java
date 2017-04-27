@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -29,6 +28,8 @@ import static org.junit.Assert.assertTrue;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -194,12 +195,12 @@ public class DoFnTesterTest {
     }
 
     @StartBundle
-    public void startBundle(Context context) {
+    public void startBundle() {
       ++numStartBundleCalls;
     }
 
     @FinishBundle
-    public void finishBundle(Context context) {
+    public void finishBundle() {
       ++numFinishBundleCalls;
     }
   }
@@ -271,36 +272,6 @@ public class DoFnTesterTest {
       // peekOutputElements() and takeOutputElements() also return nothing.
       assertTrue(tester.peekOutputElements().isEmpty());
       assertTrue(tester.takeOutputElements().isEmpty());
-    }
-  }
-
-  @Test
-  public void getAggregatorValuesShouldGetValueOfCounter() throws Exception {
-    CounterDoFn counterDoFn = new CounterDoFn();
-    try (DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn)) {
-      tester.processBundle(1L, 2L, 4L, 8L);
-      assertThat(tester.getAggregatorValue(counterDoFn.agg), equalTo(15L));
-    }
-  }
-
-  @Test
-  public void getAggregatorValuesWithEmptyCounterShouldSucceed() throws Exception {
-    CounterDoFn counterDoFn = new CounterDoFn();
-    try (DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn)) {
-      tester.processBundle();
-      // empty bundle
-      assertThat(tester.getAggregatorValue(counterDoFn.agg), equalTo(0L));
-    }
-  }
-
-  @Test
-  public void getAggregatorValuesInStartFinishBundleShouldGetValues() throws Exception {
-    CounterDoFn fn = new CounterDoFn();
-    try (DoFnTester<Long, String> tester = DoFnTester.of(fn)) {
-      tester.processBundle(1L, 2L, 3L, 4L);
-
-      assertThat(tester.getAggregatorValue(fn.startBundleCalls), equalTo(1L));
-      assertThat(tester.getAggregatorValue(fn.finishBundleCalls), equalTo(1L));
     }
   }
 
@@ -403,15 +374,13 @@ public class DoFnTesterTest {
   }
 
   /**
-   * A {@link DoFn} that adds values to an aggregator and converts input to String in
+   * A {@link DoFn} that adds values to a {@link Counter} and converts input to String in
    * {@link DoFn.ProcessElement @ProcessElement}.
    */
   private static class CounterDoFn extends DoFn<Long, String> {
-    Aggregator<Long, Long> agg = createAggregator("ctr", Sum.ofLongs());
-    Aggregator<Long, Long> startBundleCalls =
-        createAggregator("startBundleCalls", Sum.ofLongs());
-    Aggregator<Long, Long> finishBundleCalls =
-        createAggregator("finishBundleCalls", Sum.ofLongs());
+    Counter ctr = Metrics.counter(CounterDoFn.class.getName(), "ctr");
+    Counter startBundleCalls = Metrics.counter(CounterDoFn.class.getName(), "startBundleCalls");
+    Counter finishBundleCalls = Metrics.counter(CounterDoFn.class.getName(), "finishBundleCalls");
 
     private enum LifecycleState {
       UNINITIALIZED,
@@ -428,25 +397,25 @@ public class DoFnTesterTest {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       checkState(state == LifecycleState.SET_UP, "Wrong state: %s", state);
       state = LifecycleState.INSIDE_BUNDLE;
-      startBundleCalls.addValue(1L);
+      startBundleCalls.inc();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       checkState(state == LifecycleState.INSIDE_BUNDLE, "Wrong state: %s", state);
-      agg.addValue(c.element());
+      ctr.inc(c.element());
       Instant instant = new Instant(1000L * c.element());
       c.outputWithTimestamp(c.element().toString(), instant);
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle() {
       checkState(state == LifecycleState.INSIDE_BUNDLE, "Wrong state: %s", state);
       state = LifecycleState.SET_UP;
-      finishBundleCalls.addValue(1L);
+      finishBundleCalls.inc();
     }
 
     @Teardown
