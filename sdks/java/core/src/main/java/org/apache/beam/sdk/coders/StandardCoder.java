@@ -50,7 +50,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *       expensive.</li>
  *   <li>{@link #getEncodingId} and {@link #getAllowedEncodings}: by default, the encoding id
  *       is the empty string, so only the canonical name of the subclass will be used for
- *       compatibility checks, and no other encoding ids al
+ *       compatibility checks, and no other encoding ids are allowed.</li>
  * </ul>
  */
 public abstract class StandardCoder<T> implements Coder<T> {

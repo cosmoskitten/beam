@@ -44,10 +44,10 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 class CloudObjectTranslators {
   private CloudObjectTranslators() {}
 
-  private static CloudObject addComponents(CloudObject base, List<Coder<?>> components) {
+  private static CloudObject addComponents(CloudObject base, List<? extends Coder<?>> components) {
     if (!components.isEmpty()) {
       List<CloudObject> cloudComponents = new ArrayList<>(components.size());
-      for (Coder<?> component : components) {
+      for (Coder component : components) {
         cloudComponents.add(CloudObjects.asCloudObject(component));
       }
       Structs.addList(base, PropertyNames.COMPONENT_ENCODINGS, cloudComponents);
@@ -73,19 +73,24 @@ class CloudObjectTranslators {
    * Returns a {@link CloudObjectTranslator} that produces a {@link CloudObject} that is of kind
    * "pair".
    */
-  public static CloudObjectTranslator<KvCoder<?, ?>> pair() {
-    return new CloudObjectTranslator<KvCoder<?, ?>>() {
+  public static CloudObjectTranslator<KvCoder> pair() {
+    return new CloudObjectTranslator<KvCoder>() {
       @Override
-      public CloudObject toCloudObject(KvCoder<?, ?> target) {
+      public CloudObject toCloudObject(KvCoder target) {
         CloudObject result = CloudObject.forClassName(CloudObjectKinds.KIND_PAIR);
         Structs.addBoolean(result, PropertyNames.IS_PAIR_LIKE, true);
         return addComponents(
-            result, ImmutableList.of(target.getKeyCoder(), target.getValueCoder()));
+            result, ImmutableList.<Coder<?>>of(target.getKeyCoder(), target.getValueCoder()));
       }
 
       @Override
-      public KvCoder<?, ?> fromCloudObject(CloudObject object) {
+      public KvCoder fromCloudObject(CloudObject object) {
         return KvCoder.of(getComponents(object));
+      }
+
+      @Override
+      public Class<KvCoder> getSupportedClass() {
+        return KvCoder.class;
       }
 
       @Override
@@ -99,10 +104,10 @@ class CloudObjectTranslators {
    * Returns a {@link CloudObjectTranslator} that produces a {@link CloudObject} that is of kind
    * "stream".
    */
-  public static CloudObjectTranslator<IterableCoder<?>> stream() {
-    return new CloudObjectTranslator<IterableCoder<?>>() {
+  public static CloudObjectTranslator<IterableCoder> stream() {
+    return new CloudObjectTranslator<IterableCoder>() {
       @Override
-      public CloudObject toCloudObject(IterableCoder<?> target) {
+      public CloudObject toCloudObject(IterableCoder target) {
         CloudObject result = CloudObject.forClassName(CloudObjectKinds.KIND_STREAM);
         Structs.addBoolean(result, PropertyNames.IS_STREAM_LIKE, true);
         return addComponents(
@@ -110,8 +115,13 @@ class CloudObjectTranslators {
       }
 
       @Override
-      public IterableCoder<?> fromCloudObject(CloudObject object) {
+      public IterableCoder fromCloudObject(CloudObject object) {
         return IterableCoder.of(getComponents(object));
+      }
+
+      @Override
+      public Class<? extends IterableCoder> getSupportedClass() {
+        return IterableCoder.class;
       }
 
       @Override
@@ -125,18 +135,23 @@ class CloudObjectTranslators {
    * Returns a {@link CloudObjectTranslator} that produces a {@link CloudObject} that is of kind
    * "length_prefix".
    */
-  static CloudObjectTranslator<LengthPrefixCoder<?>> lengthPrefix() {
-    return new CloudObjectTranslator<LengthPrefixCoder<?>>() {
+  static CloudObjectTranslator<LengthPrefixCoder> lengthPrefix() {
+    return new CloudObjectTranslator<LengthPrefixCoder>() {
       @Override
-      public CloudObject toCloudObject(LengthPrefixCoder<?> target) {
+      public CloudObject toCloudObject(LengthPrefixCoder target) {
         return addComponents(
             CloudObject.forClassName(CloudObjectKinds.KIND_LENGTH_PREFIX),
             Collections.<Coder<?>>singletonList(target.getValueCoder()));
       }
 
       @Override
-      public LengthPrefixCoder<?> fromCloudObject(CloudObject object) {
+      public LengthPrefixCoder fromCloudObject(CloudObject object) {
         return LengthPrefixCoder.of(getComponents(object));
+      }
+
+      @Override
+      public Class<? extends LengthPrefixCoder> getSupportedClass() {
+        return LengthPrefixCoder.class;
       }
 
       @Override
@@ -165,6 +180,11 @@ class CloudObjectTranslators {
       }
 
       @Override
+      public Class<? extends GlobalWindow.Coder> getSupportedClass() {
+        return GlobalWindow.Coder.class;
+      }
+
+      @Override
       public String cloudObjectClassName() {
         return CloudObjectKinds.KIND_GLOBAL_WINDOW;
       }
@@ -190,6 +210,11 @@ class CloudObjectTranslators {
       }
 
       @Override
+      public Class<? extends IntervalWindowCoder> getSupportedClass() {
+        return IntervalWindowCoder.class;
+      }
+
+      @Override
       public String cloudObjectClassName() {
         return CloudObjectKinds.KIND_INTERVAL_WINDOW;
       }
@@ -200,19 +225,24 @@ class CloudObjectTranslators {
    * Returns a {@link CloudObjectTranslator} that produces a {@link CloudObject} that is of kind
    * "windowed_value".
    */
-  static CloudObjectTranslator<FullWindowedValueCoder<?>> windowedValue() {
-    return new CloudObjectTranslator<FullWindowedValueCoder<?>>() {
+  static CloudObjectTranslator<FullWindowedValueCoder> windowedValue() {
+    return new CloudObjectTranslator<FullWindowedValueCoder>() {
       @Override
-      public CloudObject toCloudObject(FullWindowedValueCoder<?> target) {
+      public CloudObject toCloudObject(FullWindowedValueCoder target) {
         CloudObject result = CloudObject.forClassName(CloudObjectKinds.KIND_WINDOWED_VALUE);
         Structs.addBoolean(result, PropertyNames.IS_WRAPPER, true);
         return addComponents(
-            result, ImmutableList.of(target.getValueCoder(), target.getWindowCoder()));
+            result, ImmutableList.<Coder<?>>of(target.getValueCoder(), target.getWindowCoder()));
       }
 
       @Override
-      public FullWindowedValueCoder<?> fromCloudObject(CloudObject object) {
+      public FullWindowedValueCoder fromCloudObject(CloudObject object) {
         return FullWindowedValueCoder.of(getComponents(object));
+      }
+
+      @Override
+      public Class<? extends FullWindowedValueCoder> getSupportedClass() {
+        return FullWindowedValueCoder.class;
       }
 
       @Override
@@ -237,6 +267,11 @@ class CloudObjectTranslators {
       @Override
       public ByteArrayCoder fromCloudObject(CloudObject object) {
         return ByteArrayCoder.of();
+      }
+
+      @Override
+      public Class<? extends ByteArrayCoder> getSupportedClass() {
+        return ByteArrayCoder.class;
       }
 
       @Override
@@ -265,6 +300,11 @@ class CloudObjectTranslators {
       }
 
       @Override
+      public Class<? extends VarLongCoder> getSupportedClass() {
+        return VarLongCoder.class;
+      }
+
+      @Override
       public String cloudObjectClassName() {
         return CloudObject.forClass(VarLongCoder.class).getClassName();
       }
@@ -273,10 +313,10 @@ class CloudObjectTranslators {
 
   private static final String CODER_FIELD = "serialized_coder";
   private static final String TYPE_FIELD = "type";
-  public static CloudObjectTranslator<? extends CustomCoder<?>> custom() {
-    return new CloudObjectTranslator<CustomCoder<?>>() {
+  public static CloudObjectTranslator<? extends CustomCoder> custom() {
+    return new CloudObjectTranslator<CustomCoder>() {
       @Override
-      public CloudObject toCloudObject(CustomCoder<?> target) {
+      public CloudObject toCloudObject(CustomCoder target) {
         CloudObject cloudObject = CloudObject.forClass(CustomCoder.class);
         Structs.addString(cloudObject, TYPE_FIELD, target.getClass().getName());
         Structs.addString(
@@ -287,12 +327,17 @@ class CloudObjectTranslators {
       }
 
       @Override
-      public CustomCoder<?> fromCloudObject(CloudObject cloudObject) {
+      public CustomCoder fromCloudObject(CloudObject cloudObject) {
         String serializedCoder = Structs.getString(cloudObject, CODER_FIELD);
         String type = Structs.getString(cloudObject, TYPE_FIELD);
         return (CustomCoder<?>)
             SerializableUtils.deserializeFromByteArray(
                 StringUtils.jsonStringToByteArray(serializedCoder), type);
+      }
+
+      @Override
+      public Class<? extends CustomCoder> getSupportedClass() {
+        return CustomCoder.class;
       }
 
       @Override
@@ -302,7 +347,7 @@ class CloudObjectTranslators {
     };
   }
 
-  public static <T extends Coder<?>> CloudObjectTranslator<T> atomic(final Class<T> coderClass) {
+  public static <T extends Coder> CloudObjectTranslator<T> atomic(final Class<T> coderClass) {
     // Make sure that the instance will be instantiable from the class.
     InstanceBuilder.ofType(coderClass).fromFactoryMethod("of").build();
     return new CloudObjectTranslator<T>() {
@@ -314,6 +359,11 @@ class CloudObjectTranslators {
       @Override
       public T fromCloudObject(CloudObject cloudObject) {
         return InstanceBuilder.ofType(coderClass).fromFactoryMethod("of").build();
+      }
+
+      @Override
+      public Class<? extends T> getSupportedClass() {
+        return coderClass;
       }
 
       @Override

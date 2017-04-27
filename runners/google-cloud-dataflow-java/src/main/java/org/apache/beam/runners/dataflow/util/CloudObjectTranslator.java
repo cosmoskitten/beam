@@ -21,7 +21,7 @@ package org.apache.beam.runners.dataflow.util;
 import org.apache.beam.sdk.util.CloudObject;
 
 /**
- * An translator that takes an object and creates a {@link CloudObject} which can be converted back
+ * A translator that takes an object and creates a {@link CloudObject} which can be converted back
  * to the original object.
  */
 public interface CloudObjectTranslator<T> {
@@ -36,7 +36,12 @@ public interface CloudObjectTranslator<T> {
   T fromCloudObject(CloudObject cloudObject);
 
   /**
-   * Gets the class name that will represent any {@link CloudObject} created by this {@link
+   * Gets the class this {@link CloudObjectTranslator} is capable of converting.
+   */
+  Class<? extends T> getSupportedClass();
+
+  /**
+   * Gets the class name that will represent the {@link CloudObject} created by this {@link
    * CloudObjectTranslator}.
    */
   String cloudObjectClassName();
