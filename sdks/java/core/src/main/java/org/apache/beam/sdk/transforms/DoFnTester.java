@@ -502,16 +502,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return resultElems;
   }
 
-  private <AccumT, AggregateT> AggregateT extractAggregatorValue(
-      String name, CombineFn<?, AccumT, AggregateT> combiner) {
-    @SuppressWarnings("unchecked")
-    AccumT accumulator = (AccumT) accumulators.get(name);
-    if (accumulator == null) {
-      accumulator = combiner.createAccumulator();
-    }
-    return combiner.extractOutput(accumulator);
-  }
-
   private <T> List<ValueInSingleWindow<T>> getImmutableOutput(TupleTag<T> tag) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     List<ValueInSingleWindow<T>> elems = (List) outputs.get(tag);
