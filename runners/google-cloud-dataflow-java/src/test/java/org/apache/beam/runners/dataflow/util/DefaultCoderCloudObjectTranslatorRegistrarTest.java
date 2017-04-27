@@ -18,26 +18,13 @@
 
 package org.apache.beam.runners.dataflow.util;
 
-import org.apache.beam.sdk.util.CloudObject;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
- * An translator that takes an object and creates a {@link CloudObject} which can be converted back
- * to the original object.
+ * Tests for {@link DefaultCoderCloudObjectTranslatorRegistrar}.
  */
-public interface CloudObjectTranslator<T> {
-  /**
-   * Converts the provided object into an equivalent {@link CloudObject}.
-   */
-  CloudObject toCloudObject(T target);
+@RunWith(JUnit4.class)
+public class DefaultCoderCloudObjectTranslatorRegistrarTest {
 
-  /**
-   * Converts back into the original object from a provided {@link CloudObject}.
-   */
-  T fromCloudObject(CloudObject cloudObject);
-
-  /**
-   * Gets the class name that will represent any {@link CloudObject} created by this {@link
-   * CloudObjectTranslator}.
-   */
-  String cloudObjectClassName();
 }

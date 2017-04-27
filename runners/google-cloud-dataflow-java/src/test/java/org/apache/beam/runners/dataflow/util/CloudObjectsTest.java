@@ -18,19 +18,33 @@
 
 package org.apache.beam.runners.dataflow.util;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
+import java.util.HashSet;
+import java.util.Set;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.Serializer;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
@@ -38,46 +52,83 @@ import org.junit.runners.Parameterized.Parameters;
 /**
  * Tests for {@link CloudObjects}.
  */
-@RunWith(Parameterized.class)
+@RunWith(Enclosed.class)
 public class CloudObjectsTest {
-  @Parameters(name = "{index}: {0}")
-  public static Iterable<Coder<?>> data() {
-    return ImmutableList.<Coder<?>>builder().add(new RecordCoder()).build();
-  }
-
-  @Parameter(0)
-  public Coder<?> coder;
-
-  @Test
-  public void toAndFromCloudObject() throws Exception {
-    CloudObject cloudObject = CloudObjects.asCloudObject(coder);
-    Coder<?> reconstructed = CloudObjects.coderFromCloudObject(cloudObject);
-
-    assertEquals(coder.getClass(), reconstructed.getClass());
-    assertEquals(coder, reconstructed);
-  }
-
-  static class Record implements Serializable {}
-
-  private static class RecordCoder extends CustomCoder<Record> {
-    @Override
-    public void encode(Record value, OutputStream outStream, Context context)
-        throws CoderException, IOException {}
-
-    @Override
-    public Record decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
-      return new Record();
+  @RunWith(JUnit4.class)
+  public static class DefaultsPresentTest {
+    @Test
+    public void defaultCodersAllTested() {
+      Set<Class<? extends Coder>> defaultCoderTranslators =
+          new DefaultCoderCloudObjectTranslatorRegistrar().classesToTranslators().keySet();
+      Set<Class<? extends Coder>> testedClasses = new HashSet<>();
+      for (Coder<?> tested : DefaultCoders.data()) {
+        if (tested instanceof CustomCoder) {
+          testedClasses.add(CustomCoder.class);
+        } else {
+          testedClasses.add(tested.getClass());
+        }
+      }
+      assertThat(testedClasses, equalTo(defaultCoderTranslators));
     }
 
-    @Override
-    public boolean equals(Object other) {
-      return other != null && getClass().equals(other.getClass());
+    @Test
+    public void defaultCodersIncludesCustomCoder() {
+      Set<Class<? extends Coder>> defaultCoders =
+          new DefaultCoderCloudObjectTranslatorRegistrar().classesToTranslators().keySet();
+      assertThat(defaultCoders, hasItem(CustomCoder.class));
+    }
+  }
+
+  @RunWith(Parameterized.class)
+  public static class DefaultCoders {
+    @Parameters(name = "{index}: {0}")
+    public static Iterable<Coder<?>> data() {
+      return ImmutableList.<Coder<?>>builder()
+          .add(new ObjectCoder())
+          .add(GlobalWindow.Coder.INSTANCE)
+          .add(IntervalWindow.getCoder())
+          .add(LengthPrefixCoder.of(VarLongCoder.of()))
+          .add(IterableCoder.of(VarLongCoder.of()))
+          .add(KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))
+          .add(VarLongCoder.of())
+          .add(ByteArrayCoder.of())
+          .build();
     }
 
-    @Override
-    public int hashCode() {
-      return getClass().hashCode();
+    @Parameter(0) public Coder<?> coder;
+
+    @Test
+    public void toAndFromCloudObject() throws Exception {
+      CloudObject cloudObject = CloudObjects.asCloudObject(coder);
+      Coder<?> reconstructed = Serializer.deserialize(cloudObject, Coder.class);
+      Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
+
+      assertEquals(coder.getClass(), reconstructed.getClass());
+      assertEquals(coder.getClass(), fromCloudObject.getClass());
+      assertEquals(coder, reconstructed);
+      assertEquals(coder, fromCloudObject);
+    }
+
+    private static class ObjectCoder extends CustomCoder<Object> {
+      @Override
+      public void encode(Object value, OutputStream outStream, Context context)
+          throws CoderException, IOException {
+      }
+
+      @Override
+      public Object decode(InputStream inStream, Context context) throws CoderException, IOException {
+        return new Object();
+      }
+
+      @Override
+      public boolean equals(Object other) {
+        return other != null && getClass().equals(other.getClass());
+      }
+
+      @Override
+      public int hashCode() {
+        return getClass().hashCode();
+      }
     }
   }
 }
