@@ -33,7 +33,11 @@ import org.apache.beam.sdk.coders.IterableLikeCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
+import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
+import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.CloudObject;
@@ -43,6 +47,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.values.TupleTag;
 
 /** Utilities for creating {@link CloudObjectTranslator} instances for {@link Coder Coders}. */
 class CloudObjectTranslators {
@@ -429,6 +434,115 @@ class CloudObjectTranslators {
       @Override
       public String cloudObjectClassName() {
         return CloudObject.forClass(MapCoder.class).getClassName();
+      }
+    };
+  }
+
+  public static CloudObjectTranslator<NullableCoder<?>> nullable() {
+    return new CloudObjectTranslator<NullableCoder<?>>() {
+      @Override
+      public CloudObject toCloudObject(NullableCoder<?> target) {
+        CloudObject base = CloudObject.forClass(NullableCoder.class);
+        return addComponents(base, Collections.<Coder<?>>singletonList(target.getValueCoder()));
+      }
+
+      @Override
+      public NullableCoder<?> fromCloudObject(CloudObject cloudObject) {
+        List<Coder<?>> componentList = getComponents(cloudObject);
+        checkArgument(
+            componentList.size() == 1,
+            "Expected 1 component for %s, got %s",
+            NullableCoder.class.getSimpleName(),
+            componentList.size());
+        return NullableCoder.of(componentList.get(0));
+      }
+
+      @Override
+      public String cloudObjectClassName() {
+        return CloudObject.forClass(NullableCoder.class).getClassName();
+      }
+    };
+  }
+
+  public static CloudObjectTranslator<UnionCoder> union() {
+    return new CloudObjectTranslator<UnionCoder>() {
+      @Override
+      public CloudObject toCloudObject(UnionCoder target) {
+        return addComponents(CloudObject.forClass(UnionCoder.class), target.getElementCoders());
+      }
+
+      @Override
+      public UnionCoder fromCloudObject(CloudObject cloudObject) {
+        List<Coder<?>> elementCoders = getComponents(cloudObject);
+        return UnionCoder.of(elementCoders);
+      }
+
+      @Override
+      public String cloudObjectClassName() {
+        return CloudObject.forClass(UnionCoder.class).getClassName();
+      }
+    };
+  }
+
+  public static CloudObjectTranslator<CoGbkResultCoder> coGroupByKeyResult() {
+    return new CloudObjectTranslator<CoGbkResultCoder>() {
+      @Override
+      public CloudObject toCloudObject(CoGbkResultCoder target) {
+        CloudObject base = CloudObject.forClass(CoGbkResultCoder.class);
+        Structs.addObject(
+            base, PropertyNames.CO_GBK_RESULT_SCHEMA, toCloudObject(target.getSchema()));
+        return addComponents(base, Collections.singletonList(target.getUnionCoder()));
+      }
+
+      private CloudObject toCloudObject(CoGbkResultSchema schema) {
+        CloudObject result = CloudObject.forClass(CoGbkResultSchema.class);
+        List<CloudObject> tags = new ArrayList<>(schema.getTupleTagList().size());
+        for (TupleTag<?> tag : schema.getTupleTagList().getAll()) {
+          CloudObject tagCloudObject = CloudObject.forClass(TupleTag.class);
+          Structs.addString(tagCloudObject, PropertyNames.VALUE, tag.getId());
+          tags.add(tagCloudObject);
+        }
+        Structs.addList(result, PropertyNames.TUPLE_TAGS, tags);
+        return result;
+      }
+
+      @Override
+      public CoGbkResultCoder fromCloudObject(CloudObject cloudObject) {
+        List<Coder<?>> components = getComponents(cloudObject);
+        checkArgument(
+            components.size() == 1,
+            "Expected 1 component for %s, got %s",
+            CoGbkResultCoder.class.getSimpleName(),
+            components.size());
+        checkArgument(
+            components.get(0) instanceof UnionCoder,
+            "Expected only component to be a %s, got %s",
+            UnionCoder.class.getSimpleName(),
+            components.get(0).getClass().getName());
+        return CoGbkResultCoder.of(
+            schemaFromCloudObject(
+                CloudObject.fromSpec(
+                    Structs.getObject(cloudObject, PropertyNames.CO_GBK_RESULT_SCHEMA))),
+            (UnionCoder) components.get(0));
+      }
+
+      private CoGbkResultSchema schemaFromCloudObject(CloudObject cloudObject) {
+        List<TupleTag<?>> tags = new ArrayList<>();
+        List<Map<String, Object>> serializedTags =
+            Structs.getListOfMaps(
+                cloudObject,
+                PropertyNames.TUPLE_TAGS,
+                Collections.<Map<String, Object>>emptyList());
+        for (Map<String, Object> serializedTag : serializedTags) {
+          TupleTag<?> tag = new TupleTag<>(Structs.getString(serializedTag, PropertyNames.VALUE));
+          tags.add(tag);
+        }
+        return CoGbkResultSchema.of(tags);
+      }
+
+      @Override
+      public String cloudObjectClassName() {
+        return CloudObject.forClass(CoGbkResultSchema.class).getClassName();
       }
     };
   }
