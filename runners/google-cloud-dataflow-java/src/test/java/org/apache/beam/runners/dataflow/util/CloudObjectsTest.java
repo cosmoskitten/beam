@@ -28,8 +28,10 @@ import com.google.common.collect.ImmutableList.Builder;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -37,7 +39,10 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CloudObject;
@@ -112,7 +117,9 @@ public class CloudObjectsTest {
                       KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()),
                       IntervalWindow.getCoder()))
               .add(VarLongCoder.of())
-              .add(ByteArrayCoder.of());
+              .add(ByteArrayCoder.of())
+              .add(SerializableCoder.of(Record.class))
+              .add(AvroCoder.of(Record.class));
       for (Class<? extends Coder> atomicCoder :
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());
@@ -126,15 +133,14 @@ public class CloudObjectsTest {
     @Test
     public void toAndFromCloudObject() throws Exception {
       CloudObject cloudObject = CloudObjects.asCloudObject(coder);
-      Coder<?> reconstructed = Serializer.deserialize(cloudObject, Coder.class);
       Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
 
-      assertEquals(coder.getClass(), reconstructed.getClass());
       assertEquals(coder.getClass(), fromCloudObject.getClass());
-      assertEquals(coder, reconstructed);
       assertEquals(coder, fromCloudObject);
     }
   }
+
+  private static class Record implements Serializable {}
 
   private static class ObjectCoder extends CustomCoder<Object> {
     @Override
