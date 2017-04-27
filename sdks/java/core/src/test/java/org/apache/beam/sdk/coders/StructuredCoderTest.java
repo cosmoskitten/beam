@@ -152,8 +152,8 @@ public class StructuredCoderTest {
   }
 
   /**
-   * Tests that {@link StructuredCoder#structuralValue()} is correct whenever a subclass has a correct
-   * {@link Coder#consistentWithEquals()}.
+   * Tests that {@link StructuredCoder#structuralValue()} is correct whenever a subclass has a
+   * correct {@link Coder#consistentWithEquals()}.
    */
   @Test
   public void testStructuralValue() throws Exception {
