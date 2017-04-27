@@ -190,7 +190,8 @@ public class ResumeFromCheckpointStreamingTest {
     long successAssertions = 0;
     Iterable<MetricResult<Long>> counterResults = res.metrics().queryMetrics(
         MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
+            .addNameFilter(
+                MetricNameFilter.named(PAssertWithoutFlatten.class, PAssert.SUCCESS_COUNTER))
             .build()).counters();
     for (MetricResult<Long> counter : counterResults) {
       if (counter.attempted().longValue() > 0) {
@@ -206,7 +207,8 @@ public class ResumeFromCheckpointStreamingTest {
     long failedAssertions = 0;
     Iterable<MetricResult<Long>> failCounterResults = res.metrics().queryMetrics(
         MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.FAILURE_COUNTER))
+            .addNameFilter(MetricNameFilter.named(
+                PAssertWithoutFlatten.class, PAssert.FAILURE_COUNTER))
             .build()).counters();
     for (MetricResult<Long> counter : failCounterResults) {
       if (counter.attempted().longValue() > 0) {
@@ -340,8 +342,10 @@ public class ResumeFromCheckpointStreamingTest {
     }
 
     private static class AssertDoFn<T> extends DoFn<Iterable<T>, Void> {
-      private final Counter success = Metrics.counter(PAssert.class, PAssert.SUCCESS_COUNTER);
-      private final Counter failure = Metrics.counter(PAssert.class, PAssert.FAILURE_COUNTER);
+      private final Counter success =
+          Metrics.counter(PAssertWithoutFlatten.class, PAssert.SUCCESS_COUNTER);
+      private final Counter failure =
+          Metrics.counter(PAssertWithoutFlatten.class, PAssert.FAILURE_COUNTER);
       private final T[] expected;
 
       AssertDoFn(T[] expected) {

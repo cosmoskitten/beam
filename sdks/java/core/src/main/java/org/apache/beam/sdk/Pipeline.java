@@ -18,6 +18,8 @@
 package org.apache.beam.sdk;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
@@ -28,6 +30,10 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -36,6 +42,7 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -266,6 +273,35 @@ public class Pipeline {
   }
 
   /**
+   * Verifies all {{@link PAssert PAsserts}} in the pipeline have been executed and were successful.
+   *
+   * <p>Note this only runs for runners which support Metrics. Runners which do not should verify
+   * this in some other way. See: https://issues.apache.org/jira/browse/BEAM-2001</p>
+   */
+  private void verifyPAssertsSucceeded(PipelineResult pipelineResult) {
+    if (MetricsEnvironment.isMetricsSupported()) {
+      long expectedNumberOfAssertions = (long) PAssert.countAsserts(this);
+
+      long successfulAssertions = 0;
+      Iterable<MetricResult<Long>> successCounterResults =
+          pipelineResult.metrics().queryMetrics(
+              MetricsFilter.builder()
+                  .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
+                  .build())
+              .counters();
+      for (MetricResult<Long> counter : successCounterResults) {
+        if (counter.attempted() > 0) {
+          successfulAssertions++;
+        }
+      }
+
+      assertThat(String
+          .format("Expected %d successful assertions, but found %d.", expectedNumberOfAssertions,
+              successfulAssertions), successfulAssertions, is(expectedNumberOfAssertions));
+    }
+  }
+
+  /**
    * Runs the {@link Pipeline} using its {@link PipelineRunner}.
    */
   public PipelineResult run() {
@@ -273,7 +309,9 @@ public class Pipeline {
     // pipeline.
     LOG.debug("Running {} via {}", this, runner);
     try {
-      return runner.run(this);
+      PipelineResult pipelineResult = runner.run(this);
+      verifyPAssertsSucceeded(pipelineResult);
+      return pipelineResult;
     } catch (UserCodeException e) {
       // This serves to replace the stack with one that ends here and
       // is caused by the caught UserCodeException, thereby splicing
