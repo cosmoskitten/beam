@@ -82,6 +82,8 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
               .put(ProtoCoder.class, new ProtoCoderCloudObjectTranslator())
               .put(SerializableCoder.class, new SerializableCoderCloudObjectTranslator())
               .put(CustomCoder.class, CloudObjectTranslators.custom())
+              // TODO: ListCoder, SetCoder, NullableCoder, MapCoder,  UnionCoder, CoGbkResultCoder,
+              // ElementAndRestrictionCoder
               .build();
   @VisibleForTesting
   static final ImmutableSet<Class<? extends Coder>> KNOWN_ATOMIC_CODERS =
