@@ -111,7 +111,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
 
     try {
-      Optional<Boolean> success = Optional.absent();
+      Optional<Boolean> result = Optional.absent();
 
       if (options.isStreaming()) {
         // In streaming, there are infinite retries, so rather than timeout
@@ -148,24 +148,26 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         }
 
         if (messageHandler.hasSeenError()) {
-          success = Optional.of(false);
+          result = Optional.of(false);
         }
       } else {
         job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
-        success = checkForPAssertSuccess(job);
+        result = checkForPAssertSuccess(job);
       }
 
-      if (!success.isPresent()) {
+      if (!result.isPresent()) {
         if (options.isStreaming()) {
           LOG.warn(
-              "The dataflow did not output a success or failure metric."
+              "Dataflow job {} did not output a success or failure metric."
                   + " In rare situations, some PAsserts may not have run."
-                  + " This is a known limitation of Dataflow in streaming.");
+                  + " This is a known limitation of Dataflow in streaming.",
+              job.getJobId());
         } else {
           throw new IllegalStateException(
-              "The dataflow did not output a success or failure metric.");
+              String.format(
+                  "Dataflow job %s did not output a success or failure metric.", job.getJobId()));
         }
-      } else if (!success.get()) {
+      } else if (!result.get()) {
         throw new AssertionError(
             Strings.isNullOrEmpty(messageHandler.getErrorMessage())
                 ? String.format(
