@@ -59,7 +59,7 @@ public abstract class CustomCoder<T> extends StandardCoder<T>
       @JsonProperty(value = "encoding_id", required = false) String encodingId,
       @JsonProperty("type") String type,
       @JsonProperty("serialized_coder") String serializedCoder) {
-    return O
+    return (CustomCoder<?>) SerializableUtils.deserializeFromByteArray(
         StringUtils.jsonStringToByteArray(serializedCoder),
         type);
   }

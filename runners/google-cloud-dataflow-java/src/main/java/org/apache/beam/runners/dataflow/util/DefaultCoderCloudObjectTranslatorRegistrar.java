@@ -29,6 +29,7 @@ import org.apache.beam.runners.dataflow.internal.IsmFormat.FooterCoder;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmShardCoder;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.KeyPrefixCoder;
 import org.apache.beam.runners.dataflow.util.RandomAccessData.RandomAccessDataCoder;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -44,12 +45,14 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
@@ -75,6 +78,9 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
               .put(IterableCoder.class, CloudObjectTranslators.stream())
               .put(KvCoder.class, CloudObjectTranslators.pair())
               .put(FullWindowedValueCoder.class, CloudObjectTranslators.windowedValue())
+              .put(AvroCoder.class, new AvroCoderCloudObjectTranslator())
+              .put(ProtoCoder.class, new ProtoCoderCloudObjectTranslator())
+              .put(SerializableCoder.class, new SerializableCoderCloudObjectTranslator())
               .put(CustomCoder.class, CloudObjectTranslators.custom())
               .build();
   @VisibleForTesting
