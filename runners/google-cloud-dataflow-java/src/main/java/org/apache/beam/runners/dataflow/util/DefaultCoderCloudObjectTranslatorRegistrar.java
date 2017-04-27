@@ -66,6 +66,9 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.stream(),
           CloudObjectTranslators.pair(),
           CloudObjectTranslators.windowedValue(),
+          new AvroCoderCloudObjectTranslator(),
+          new ProtoCoderCloudObjectTranslator(),
+          new SerializableCoderCloudObjectTranslator(),
           CloudObjectTranslators.custom());
   @VisibleForTesting
   static final ImmutableSet<Class<? extends Coder>> KNOWN_ATOMIC_CODERS =
