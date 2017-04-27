@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.options;
+package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
@@ -26,7 +26,12 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.Hidden;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -35,7 +40,6 @@ import org.apache.beam.sdk.util.PathValidator;
 /**
  * Options used to configure Google Cloud Storage.
  */
-@Deprecated
 public interface GcsOptions extends
     ApplicationNameOptions, GcpOptions, PipelineOptions {
   /**

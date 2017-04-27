@@ -15,15 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
-
-import com.google.auth.Credentials;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-
 /**
- * Construct an oauth credential to be used by the SDK and the SDK workers.
+ * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for
+ * configuring pipeline execution for Google Cloud Platform components.
  */
-public interface CredentialFactory {
-  Credentials getCredential() throws IOException, GeneralSecurityException;
-}
+package org.apache.beam.sdk.options;
