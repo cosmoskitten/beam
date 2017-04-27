@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.dataflow.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,8 +29,10 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.IterableLikeCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
@@ -369,6 +373,62 @@ class CloudObjectTranslators {
       @Override
       public String cloudObjectClassName() {
         return CloudObject.forClass(coderClass).getClassName();
+      }
+    };
+  }
+
+  public static CloudObjectTranslator<IterableLikeCoder<?, ?>> iterableLike(
+      final Class<? extends IterableLikeCoder> clazz) {
+    return new CloudObjectTranslator<IterableLikeCoder<?, ?>>() {
+      @Override
+      public CloudObject toCloudObject(IterableLikeCoder<?, ?> target) {
+        CloudObject base = CloudObject.forClass(clazz);
+        return addComponents(base, Collections.<Coder<?>>singletonList(target.getElemCoder()));
+      }
+
+      @Override
+      public IterableLikeCoder<?, ?> fromCloudObject(CloudObject cloudObject) {
+        List<Coder<?>> elemCoderList = getComponents(cloudObject);
+        checkArgument(
+            elemCoderList.size() == 1,
+            "Expected 1 component for %s, got %s",
+            cloudObject.getClassName(),
+            elemCoderList.size());
+        return InstanceBuilder.ofType(clazz)
+            .fromFactoryMethod("of")
+            .withArg(Coder.class, elemCoderList.get(0))
+            .build();
+      }
+
+      @Override
+      public String cloudObjectClassName() {
+        return CloudObject.forClass(clazz).getClassName();
+      }
+    };
+  }
+
+  public static CloudObjectTranslator<MapCoder<?, ?>> map() {
+    return new CloudObjectTranslator<MapCoder<?, ?>>() {
+      @Override
+      public CloudObject toCloudObject(MapCoder<?, ?> target) {
+        CloudObject base = CloudObject.forClass(MapCoder.class);
+        return addComponents(base, ImmutableList.of(target.getKeyCoder(), target.getValueCoder()));
+      }
+
+      @Override
+      public MapCoder<?, ?> fromCloudObject(CloudObject cloudObject) {
+        List<Coder<?>> components = getComponents(cloudObject);
+        checkArgument(
+            components.size() == 2,
+            "Expected 2 components for %s, got %s",
+            MapCoder.class.getSimpleName(),
+            components.size());
+        return MapCoder.of(components.get(0), components.get(1));
+      }
+
+      @Override
+      public String cloudObjectClassName() {
+        return CloudObject.forClass(MapCoder.class).getClassName();
       }
     };
   }

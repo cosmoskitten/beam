@@ -40,6 +40,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -65,7 +67,12 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.stream(),
           CloudObjectTranslators.pair(),
           CloudObjectTranslators.windowedValue(),
-          CloudObjectTranslators.custom());
+          CloudObjectTranslators.custom(),
+          CloudObjectTranslators.iterableLike(ListCoder.class),
+          CloudObjectTranslators.iterableLike(SetCoder.class),
+          CloudObjectTranslators.map());
+  // TODO: NullableCoder, UnionCoder, CoGbkResultCoder,
+  // ElementAndRestrictionCoder
   @VisibleForTesting
   static final ImmutableSet<Class<? extends Coder>> KNOWN_ATOMIC_CODERS =
       ImmutableSet.<Class<? extends Coder>>of(
