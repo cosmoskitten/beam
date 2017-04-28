@@ -101,6 +101,11 @@ public interface ResourceId extends Serializable {
   String getScheme();
 
   /**
+   * Returns {@code true} if this {@link ResourceId} represents a directory, false otherwise.
+   */
+  boolean isDirectory();
+
+  /**
    * Returns the string representation of this {@link ResourceId}.
    *
    * <p>The corresponding {@link FileSystem#match} is required to accept this string representation.

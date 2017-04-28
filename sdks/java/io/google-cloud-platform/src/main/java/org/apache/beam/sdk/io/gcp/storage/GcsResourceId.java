@@ -82,7 +82,8 @@ public class GcsResourceId implements ResourceId {
     }
   }
 
-  private boolean isDirectory() {
+  @Override
+  public boolean isDirectory() {
     return gcsPath.endsWith("/");
   }
 

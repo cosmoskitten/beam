@@ -39,4 +39,9 @@ public class HadoopResourceId implements ResourceId {
   public String getScheme() {
     throw new UnsupportedOperationException();
   }
+
+  @Override
+  public boolean isDirectory() {
+    throw new UnsupportedOperationException();
+  }
 }
