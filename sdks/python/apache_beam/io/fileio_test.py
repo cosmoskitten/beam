@@ -184,6 +184,26 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
     self.assertTrue('][a][' in concat, concat)
     self.assertTrue('][b][' in concat, concat)
 
+  def test_temp_dir(self):
+    file_name_prefix = 'gs://aaa/bbb'
+
+    def _get_temp_dir(file_path_prefix):
+      sink = MyFileSink(
+          file_path_prefix, file_name_suffix='.output',
+          coder=coders.ToStringCoder())
+      return sink.initialize_write()
+
+    temp_dir = _get_temp_dir('gs://aaa/bbb')
+    self.assertTrue(temp_dir.startswith('gs://'))
+    last_sep = temp_dir.rfind('/')
+    self.assertFalse(temp_dir[last_sep + 1:].startswith('bbb'))
+
+    with self.assertRaises(ValueError):
+      _get_temp_dir('gs://aaa/')
+
+    with self.assertRaises(ValueError):
+      _get_temp_dir('gs://aaa')
+
   def test_file_sink_multi_shards(self):
     temp_path = os.path.join(self._new_tempdir(), 'multishard')
     sink = MyFileSink(
