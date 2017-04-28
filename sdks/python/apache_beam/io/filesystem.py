@@ -191,7 +191,7 @@ class CompressedFile(object):
           try:
             # EOF implies that the underlying BZIP2 stream must also have
             # reached EOF. We expect this to raise an EOFError and we catch it
-            # below. Any other kind of error though would be problematic.
+            #below.Any other kind of error though would be problematic.
             self._decompressor.decompress('dummy')
             assert False, 'Possible file corruption.'
           except EOFError:
@@ -334,7 +334,7 @@ class CompressedFile(object):
       self._rewind()
     bytes_to_skip = absolute_offset - self._uncompressed_position
 
-    # Read until the desired position is reached or EOF occurs.
+    #Read until the desired position is reached or EOF occurs.
     while bytes_to_skip:
       data = self.read(min(self._read_size, bytes_to_skip))
       if not data:
@@ -434,6 +434,23 @@ class FileSystem(object):
       paths: path components to be added
 
     Returns: full path after combining all the passed components
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def split(self, path):
+    """Splits the given path into two parts.
+
+    Splits the path into a pair (head, tail) such that tail contains the last
+    component of the path and head contains everything up to that.
+
+    For file-systems other than the local file-system, head should include the
+    prefix.
+
+    Args:
+      path: path as a string
+    Returns:
+      a pair of path components as strings.
     """
     raise NotImplementedError
 
