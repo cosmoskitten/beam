@@ -82,7 +82,7 @@ public class CreateTables<DestinationT>
   @Override
   public PCollection<KV<TableDestination, TableRow>> expand(
       PCollection<KV<DestinationT, TableRow>> input) {
-    List<PCollectionView<Map<String, String>>> sideInputs = Lists.newArrayList();
+    List<PCollectionView<?>> sideInputs = Lists.newArrayList();
     if (dynamicDestinations.getSideInput() != null) {
       sideInputs.add(dynamicDestinations.getSideInput());
     }

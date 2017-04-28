@@ -56,8 +56,8 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  *}</pre>
  */
 public abstract class DynamicDestinations<T, DestinationT> implements Serializable {
-  private PCollectionView<Map<String, String>> sideInput;
-  private Map<String, String> materialized;
+  private PCollectionView<?> sideInput;
+  private Object materialized;
 
   public DynamicDestinations withSideInput(PCollectionView<Map<String, String>> sideInput) {
     this.sideInput = sideInput;
@@ -87,19 +87,19 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
    */
   public abstract TableSchema getSchema(DestinationT destination);
 
-  public PCollectionView<Map<String, String>> getSideInput() {
-    return sideInput;
+  public <SideInputT> PCollectionView<SideInputT> getSideInput() {
+    return (PCollectionView<SideInputT>) sideInput;
   }
 
   /**
    * Returns the materialized value of the side input. Can be called by concrete
    * {@link DynamicDestinations} instances in {@link #getSchema} or {@link #getTable}.
    */
-  public Map<String, String> getSideInputValue() {
-    return materialized;
+  public <SideInputT> SideInputT getSideInputValue() {
+    return (SideInputT) materialized;
   }
 
-  void setSideInputValue(Map<String, String> value) {
+  <SideInputT> void setSideInputValue(SideInputT value) {
     materialized = value;
   }
 }
