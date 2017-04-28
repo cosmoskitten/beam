@@ -993,7 +993,8 @@ public class BigQueryIO {
 
       @Override
       public TableSchema getSchema(TableDestination destination) {
-        return BigQueryHelpers.fromJsonString(getSideInputValue().get(destination.getTableSpec()),
+        Map<String, String> mapValue = getSideInputValue();
+        return BigQueryHelpers.fromJsonString(mapValue.get(destination.getTableSpec()),
             TableSchema.class);
       }
     }

@@ -128,7 +128,7 @@ class BatchLoads<DestinationT>
     final TupleTag<KV<TableDestination, TableRow>> elementsOutputTag = new TupleTag<>();
     final TupleTag<KV<String, String>> tableSchemasTag = new TupleTag<>();
 
-    List<PCollectionView<Map<String, String>>> resolveSideInputs = Lists.newArrayList();
+    List<PCollectionView<?>> resolveSideInputs = Lists.newArrayList();
     if (dynamicDestinations.getSideInput() != null) {
       resolveSideInputs.add(dynamicDestinations.getSideInput());
     }
