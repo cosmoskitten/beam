@@ -55,12 +55,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -270,7 +265,7 @@ public class KafkaIO {
    * deserializer argument using the {@link Coder} registry.
    */
   @VisibleForTesting
-  static <T> Coder<T> inferCoder(
+  static <T> NullableCoder<T> inferCoder(
       CoderRegistry coderRegistry, Class<? extends Deserializer<T>> deserializer) {
     checkNotNull(deserializer);
 
@@ -289,7 +284,7 @@ public class KafkaIO {
         try {
           @SuppressWarnings("unchecked")
           Class<T> clazz = (Class<T>) parameter;
-          return coderRegistry.getDefaultCoder(clazz);
+          return NullableCoder.of(coderRegistry.getDefaultCoder(clazz));
         } catch (CannotProvideCoderException e) {
           LOG.warn("Could not infer coder from deserializer type", e);
         }
