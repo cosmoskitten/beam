@@ -175,9 +175,9 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   }
 
   /**
-   * Mostly based on {@link
-   * org.apache.beam.sdk.io.BoundedReadFromUnboundedSource.UnboundedToBoundedSourceAdapter}, with
-   * some adjustments for Spark specifics.
+   * Mostly based on
+   * {@link org.apache.beam.sdk.io.BoundedReadFromUnboundedSource.UnboundedToBoundedSourceAdapter},
+   * with some adjustments for Spark specifics.
    *
    * <p>This Reader reads until one of the following thresholds has been reached:
     * <ol>
