@@ -82,7 +82,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
   private static synchronized void initReaderCache(final long readerCacheInterval) {
     if (readerCache == null) {
-      LOG.info("Creating reader cache. Cache interval = " + readerCacheInterval + " ms.");
+      LOG.info("Creating reader cache. Cache interval = {} ms.", readerCacheInterval);
       readerCache =
           CacheBuilder.newBuilder()
                       .expireAfterAccess(readerCacheInterval, TimeUnit.MILLISECONDS)
@@ -175,15 +175,16 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   }
 
   /**
-   * Mostly based on {@link
-   * org.apache.beam.sdk.io.BoundedReadFromUnboundedSource.UnboundedToBoundedSourceAdapter}, with
-   * some adjustments for Spark specifics.
+   * Mostly based on
+   * {@link org.apache.beam.sdk.io.BoundedReadFromUnboundedSource}'s
+   * <code>UnboundedToBoundedSourceAdapter</code>,
+   * with some adjustments for Spark specifics.
    *
    * <p>This Reader reads until one of the following thresholds has been reached:
-    * <ol>
-    *   <li>max records (per batch)</li>
-    *   <li>max read duration (per batch)</li>
-    * </ol>
+   * <ol>
+   *   <li>max records (per batch)</li>
+   *   <li>max read duration (per batch)</li>
+   * </ol>
    */
   public class Reader extends Source.Reader<T> {
     private long recordsRead = 0L;
