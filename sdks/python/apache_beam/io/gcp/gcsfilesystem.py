@@ -49,6 +49,35 @@ class GCSFileSystem(FileSystem):
       path = path.rstrip('/') + '/' + p.lstrip('/')
     return path
 
+  def split(self, path):
+    """Splits the given path into two parts.
+
+    Splits the path into a pair (head, tail) such that tail contains the last
+    component of the path and head contains everything up to that.
+
+    Head will include the GCS prefix ('gs://').
+
+    Args:
+      path: path as a string
+    Returns:
+      a pair of path components as strings.
+    """
+    path = path.strip()
+    if not path.startswith('gs://'):
+      raise ValueError('Path %r must be GCS path.', path)
+
+    # len('gs://') == 5
+    last_sep = path[5:].rfind('/')
+    if last_sep >= 0:
+      last_sep += 5
+
+    if last_sep > 0:
+      return (path[:last_sep], path[last_sep + 1:])
+    elif last_sep < 0:
+      return (path, '')
+    else:
+      raise ValueError('Invalid path: %s', path)
+
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 

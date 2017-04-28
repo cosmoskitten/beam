@@ -139,11 +139,22 @@ class FileSink(iobase.Sink):
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def initialize_write(self):
     file_path_prefix = self.file_path_prefix.get()
-    file_name_suffix = self.file_name_suffix.get()
-    tmp_dir = file_path_prefix + file_name_suffix + time.strftime(
-        '-temp-%Y-%m-%d_%H-%M-%S')
+
+    tmp_dir = self._create_temp_dir(file_path_prefix)
     FileSystems.mkdirs(tmp_dir)
     return tmp_dir
+
+  def _create_temp_dir(self, file_path_prefix):
+    base_path, last_component = FileSystems.split(file_path_prefix)
+    if not last_component:
+      raise ValueError('Cannot create a temporary directory for root path'
+                       'prefix %s. Please specify a file path prefix with at'
+                       'least two components. For example gs://foo/bar',
+                       file_path_prefix)
+    path_components = [base_path,
+                       'beam-temp-' + last_component + time.strftime(
+                           '-%Y-%m-%d_%H-%M-%S')]
+    return FileSystems.join(*path_components)
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def open_writer(self, init_result, uid):
