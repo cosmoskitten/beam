@@ -19,35 +19,55 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
+import java.io.Serializable;
 import java.util.Map;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
- * A user-suppled schema function, mapping a {@link TableDestination} to a {@link TableSchema}.
- *
- * <p>A function can declare that it wants access to a map-valued {@link PCollectionView} and use
- * that map to assign {@link TableSchema}s to tables. This is used by
- * {@link BigQueryIO.Write#withSchemaFromView}. In that case the map is assumed to map string
- * tablespecs to json-formatted schemas.
+ * FILL In this javadoc.
  */
-public abstract class SchemaFunction
-    implements SerializableFunction<TableDestination, TableSchema> {
+public abstract class DynamicDestinations<T, DestinationT> implements Serializable {
   private PCollectionView<Map<String, String>> sideInput;
   private Map<String, String> materialized;
 
-  public SchemaFunction() {
-  }
-
-  public SchemaFunction withSideInput(PCollectionView<Map<String, String>> sideInput) {
+  public DynamicDestinations withSideInput(PCollectionView<Map<String, String>> sideInput) {
     this.sideInput = sideInput;
     return this;
   }
+
+  /**
+   * Returns an object that represents at a high level which table is being written to.
+   */
+  public abstract DestinationT getDestination(ValueInSingleWindow<T> element);
+
+  /**
+   * Returns the coder for {@link DestinationT}.
+   */
+  public @Nullable Coder<DestinationT> getDestinationCoder() {
+    return null;
+  }
+
+  /**
+   * Returns a {@link TableDestination} object for the destination.
+   */
+  public abstract TableDestination getTable(DestinationT destination);
+
+  /**
+   * Returns the table schema for the destination.
+   */
+  public abstract TableSchema getSchema(DestinationT destination);
 
   public PCollectionView<Map<String, String>> getSideInput() {
     return sideInput;
   }
 
+  /**
+   * Returns the materialized value of the side input. Can be called by concrete
+   * {@link DynamicDestinations} instances in {@link #getSchema} or {@link #getTable}.
+   */
   public Map<String, String> getSideInputValue() {
     return materialized;
   }
