@@ -27,7 +27,33 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
- * FILL In this javadoc.
+ * This class provides the most general way of specifying dynamic BigQuery table destinations.
+ * Destinations can be extracted from the input element, and stored as a custom type. Mappings
+ * are provided to convert the destination into a BigQuery table reference and a BigQuery schema.
+ * The class can read a side input from another PCollection while performing these mappings.
+ *
+ * <p>For example, consider a PCollection of events, each containing a user-id field. You want to
+ * write each user's events to a separate table with a separate schema per user. Since the user-id
+ * field is a string, you will represent the destination as a string.
+ *<pre>{@code
+ *events.apply(BigQueryIO.<UserEvent>write()
+ *  .to(new DynamicDestinations<UserEvent, String>() {
+ *        public String getDestination(ValueInSingleWindow<String> element) {
+ *          return element.getValue().getUserId();
+ *        }
+ *        public TableDestination getTable(String user) {
+ *          return new TableDestination(tableForUser(user), "Table for user " + user);
+ *        }
+ *        public TableSchema getSchema(String user) {
+ *          return tableSchemaForUser(user);
+ *        }
+ *      })
+ *  .withFormatFunction(new SerializableFunction<UserEvent, TableRow>() {
+ *     public TableRow apply(UserEvent event) {
+ *       return convertUserEventToTableRow(event);
+ *     }
+ *   }));
+ *}</pre>
  */
 public abstract class DynamicDestinations<T, DestinationT> implements Serializable {
   private PCollectionView<Map<String, String>> sideInput;
@@ -44,7 +70,8 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   public abstract DestinationT getDestination(ValueInSingleWindow<T> element);
 
   /**
-   * Returns the coder for {@link DestinationT}.
+   * Returns the coder for {@link DestinationT}. If this is not overridden, then
+   * {@link BigQueryIO} will look in the coder registry for a suitable coder.
    */
   public @Nullable Coder<DestinationT> getDestinationCoder() {
     return null;
