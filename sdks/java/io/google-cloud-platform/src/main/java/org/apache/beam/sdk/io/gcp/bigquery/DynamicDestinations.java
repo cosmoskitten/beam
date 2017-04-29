@@ -59,7 +59,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   private PCollectionView<?> sideInput;
   private Object materialized;
 
-  public DynamicDestinations withSideInput(PCollectionView<Map<String, String>> sideInput) {
+  public DynamicDestinations setSideInput(PCollectionView<Map<String, String>> sideInput) {
     this.sideInput = sideInput;
     return this;
   }
@@ -87,7 +87,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
    */
   public abstract TableSchema getSchema(DestinationT destination);
 
-  public <SideInputT> PCollectionView<SideInputT> getSideInput() {
+  <SideInputT> PCollectionView<SideInputT> getSideInput() {
     return (PCollectionView<SideInputT>) sideInput;
   }
 
