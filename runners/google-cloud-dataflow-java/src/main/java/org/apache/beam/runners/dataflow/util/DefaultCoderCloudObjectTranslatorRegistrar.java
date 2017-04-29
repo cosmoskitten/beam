@@ -44,7 +44,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
@@ -76,7 +75,6 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           BigIntegerCoder.class,
           BitSetCoder.class,
           ByteCoder.class,
-          ByteStringCoder.class,
           DoubleCoder.class,
           DurationCoder.class,
           FileResultCoder.class,
