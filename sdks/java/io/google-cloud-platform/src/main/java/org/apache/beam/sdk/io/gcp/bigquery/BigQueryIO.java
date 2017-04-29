@@ -30,9 +30,11 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -988,7 +990,7 @@ public class BigQueryIO {
       SchemaFromViewDestinations(DynamicDestinations<T, TableDestination> inner,
                                  PCollectionView<Map<String, String>> schemaView) {
         super(inner);
-        withSideInput(schemaView);
+        setSideInput(schemaView);
       }
 
       @Override
@@ -1087,19 +1089,15 @@ public class BigQueryIO {
           || getSchemaFromView() != null,
           "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
 
-      checkArgument(getJsonTableRef() == null || getTableFunction() == null,
-          "Cannot specify both jsonTableRef and tableFunction");
-      checkArgument(getJsonTableRef() == null || getDynamicDestinations() == null,
-          "Cannot specify both jsonTableRef and dynamicDestinations");
-      checkArgument(getTableFunction() == null || getDynamicDestinations() == null,
-          "Cannot specify both tableFunction and dynamicDestinations");
+      checkArgument(1 == Iterables.size(Iterables.filter(
+          ImmutableList.of(getJsonTableRef(), getTableFunction(), getDynamicDestinations()),
+          Predicates.notNull())), "Exactly one of jsonTableRef, tableFunction, or "
+          + "dynamicDestinations must be set");
 
-      checkArgument(getJsonSchema() == null || getDynamicDestinations() == null,
-          "Cannot specify both jsonSchema and dynamicDestinations.");
-      checkArgument(getJsonSchema() == null || getSchemaFromView() == null,
-          "Cannot specify both jsonSchema and schemaFromView.");
-      checkArgument(getSchemaFromView() == null || getDynamicDestinations() == null,
-          "Cannot specify both schemaFromView and dynamicDestinations.");
+      checkArgument(1 == Iterables.size(Iterables.filter(
+          ImmutableList.of(getJsonSchema(), getSchemaFromView(), getDynamicDestinations()),
+          Predicates.notNull())), "Exactly one of jsonSchema, schemaFromView, or "
+          + "dynamicDestinations must be set");
 
       // The user specified a table.
       if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {
