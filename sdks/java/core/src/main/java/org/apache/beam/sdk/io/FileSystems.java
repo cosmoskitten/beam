@@ -32,6 +32,8 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
+
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -117,10 +119,15 @@ public class FileSystems {
   public static Metadata matchSingleFileSpec(String spec) throws IOException {
     List<MatchResult> matches = FileSystems.match(Collections.singletonList(spec));
     MatchResult matchResult = Iterables.getOnlyElement(matches);
+    if (matchResult.status() == Status.NOT_FOUND) {
+      throw new FileNotFoundException(String.format("File spec %s not found", spec));
+    }
+
     if (matchResult.status() != Status.OK) {
       throw new IOException(
           String.format("Error matching file spec %s: status %s", spec, matchResult.status()));
     }
+
     List<Metadata> metadata = matchResult.metadata();
     if (metadata.size() != 1) {
       throw new IOException(
