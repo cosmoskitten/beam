@@ -82,7 +82,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
   private static synchronized void initReaderCache(final long readerCacheInterval) {
     if (readerCache == null) {
-      LOG.info("Creating reader cache. Cache interval = " + readerCacheInterval + " ms.");
+      LOG.info("Creating reader cache. Cache interval = {} ms.", readerCacheInterval);
       readerCache =
           CacheBuilder.newBuilder()
                       .expireAfterAccess(readerCacheInterval, TimeUnit.MILLISECONDS)
