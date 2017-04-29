@@ -97,7 +97,7 @@ public class MetricsContainer implements Serializable {
     return gauges.get(metricName);
   }
 
-  private <UpdateT, CellT extends MetricCell<UpdateT>>
+  private <UserT extends Metric, UpdateT, CellT extends MetricCell<UserT, UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractUpdates(
       MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
@@ -121,8 +121,8 @@ public class MetricsContainer implements Serializable {
         extractUpdates(gauges));
   }
 
-  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
-    for (MetricCell<?> cell : cells.values()) {
+  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?, ?>> cells) {
+    for (MetricCell<?, ?> cell : cells.values()) {
       cell.getDirty().afterCommit();
     }
   }
@@ -137,7 +137,7 @@ public class MetricsContainer implements Serializable {
     commitUpdates(gauges);
   }
 
-  private <UpdateT, CellT extends MetricCell<UpdateT>>
+  private <UserT extends Metric, UpdateT, CellT extends MetricCell<UserT, UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(
       MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();

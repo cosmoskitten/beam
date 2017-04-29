@@ -20,7 +20,6 @@ package org.apache.beam.sdk.metrics;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import sun.jvm.hotspot.oops.CounterData;
 
 /**
  * Tracks the current value (and delta) for a Counter metric for a specific context and bundle.

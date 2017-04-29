@@ -27,23 +27,32 @@ import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 public class MetricsAccumulator implements SimpleAccumulator<MetricsContainers> {
   private MetricsContainers metricsContainers = new MetricsContainers();
 
-  @Override public void add(MetricsContainers value) {
+  @Override
+  public void add(MetricsContainers value) {
     metricsContainers.updateAll(value);
   }
 
-  @Override public MetricsContainers getLocalValue() {
+  @Override
+  public MetricsContainers getLocalValue() {
     return metricsContainers;
   }
 
-  @Override public void resetLocal() {
+  @Override
+  public void resetLocal() {
     this.metricsContainers = new MetricsContainers();
   }
 
-  @Override public void merge(Accumulator<MetricsContainers, MetricsContainers> other) {
+  @Override
+  public void merge(Accumulator<MetricsContainers, MetricsContainers> other) {
     this.add(other.getLocalValue());
   }
 
-  @Override public Accumulator<MetricsContainers, MetricsContainers> clone() {
+  @Override
+  public Accumulator<MetricsContainers, MetricsContainers> clone() {
+    try {
+      super.clone();
+    } catch (CloneNotSupportedException ignored) {
+    }
     MetricsAccumulator metricsAccumulator = new MetricsAccumulator();
     metricsAccumulator.getLocalValue().updateAll(this.getLocalValue());
     return metricsAccumulator;
