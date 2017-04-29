@@ -41,7 +41,7 @@ import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.metrics.MetricsContainers;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -98,9 +98,9 @@ class EvaluationContext {
 
   private final AggregatorContainer mergedAggregators;
 
-  private MetricsContainers attemptedMetrics = new MetricsContainers();
+  private MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
 
-  private MetricsContainers committedMetrics = new MetricsContainers();
+  private MetricsContainerStepMap committedMetrics = new MetricsContainerStepMap();
 
   private final Set<PValue> keyedPValues;
 
@@ -423,11 +423,11 @@ class EvaluationContext {
     return clock;
   }
 
-  MetricsContainers getAttemptedMetrics() {
+  MetricsContainerStepMap getAttemptedMetrics() {
     return attemptedMetrics;
   }
 
-  MetricsContainers getCommittedMetrics() {
+  MetricsContainerStepMap getCommittedMetrics() {
     return committedMetrics;
   }
 }

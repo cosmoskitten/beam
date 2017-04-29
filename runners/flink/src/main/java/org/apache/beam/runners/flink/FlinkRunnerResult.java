@@ -22,9 +22,9 @@ import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.metrics.AccumulatedAttemptedMetricResults;
+import org.apache.beam.sdk.metrics.AccumulatedMetricResults;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsContainers;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.joda.time.Duration;
 
 /**
@@ -75,7 +75,7 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return new AccumulatedAttemptedMetricResults(
-        (MetricsContainers) aggregators.get(FlinkMetricContainer.ACCUMULATOR_NAME));
+    return new AccumulatedMetricResults(
+        (MetricsContainerStepMap) aggregators.get(FlinkMetricContainer.ACCUMULATOR_NAME));
   }
 }

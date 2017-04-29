@@ -25,7 +25,8 @@ import java.util.Map;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
 
 /**
- * Implementation of {@link MetricResults} by means of accumulated {@link MetricsContainers}.
+ * Implementation of {@link MetricResults} using
+ * {@link MetricsContainerStepMap MetricsContainerStepMaps}.
  */
 public class AccumulatedMetricResults extends MetricResults {
 
@@ -33,22 +34,134 @@ public class AccumulatedMetricResults extends MetricResults {
   private final Map<MetricKey, AttemptedAndCommitted<DistributionData>> distributions =
       new HashMap<>();
   private final Map<MetricKey, AttemptedAndCommitted<GaugeData>> gauges = new HashMap<>();
+  private final boolean isCommittedSupported;
 
+  /**
+   * Returns {@link MetricResults} based on given {@link MetricsContainerStepMap} of attempted
+   * metrics.
+   *
+   * <p>This constructor is intended for runners which only support `attempted` metrics.
+   * Accessing {@link MetricResult#committed()} in the resulting {@link MetricResults} will result
+   * in an {@link UnsupportedOperationException}.</p>
+   */
   public AccumulatedMetricResults(
-      MetricsContainers attemptedMetricsContainers,
-      MetricsContainers committedMetricsContainers) {
+      MetricsContainerStepMap attemptedMetricsContainers) {
+    this(attemptedMetricsContainers, new MetricsContainerStepMap(), false);
+  }
+
+  /**
+   * Returns {@link MetricResults} based on given
+   * {@link MetricsContainerStepMap MetricsContainerStepMaps} of attempted and committed metrics.
+   *
+   * <p>This constructor is intended for runners which support both attempted and committed metrics.
+   */
+  public AccumulatedMetricResults(
+      MetricsContainerStepMap attemptedMetricsContainers,
+      MetricsContainerStepMap committedMetricsContainers) {
+    this(attemptedMetricsContainers, committedMetricsContainers, true);
+  }
+
+  private AccumulatedMetricResults(
+      MetricsContainerStepMap attemptedMetricsContainers,
+      MetricsContainerStepMap committedMetricsContainers,
+      boolean isCommittedSupported) {
     for (MetricsContainer container : attemptedMetricsContainers.asMap().values()) {
       MetricUpdates cumulative = container.getCumulative();
-      mergeCounters(counters, cumulative.counterUpdates(), true);
-      mergeDistributions(distributions, cumulative.distributionUpdates(), true);
-      mergeGauges(gauges, cumulative.gaugeUpdates(), true);
+      mergeCounters(counters, cumulative.counterUpdates(), attemptedCounterUpdateFn());
+      mergeDistributions(distributions, cumulative.distributionUpdates(),
+          attemptedDistributionUpdateFn());
+      mergeGauges(gauges, cumulative.gaugeUpdates(), attemptedGaugeUpdateFn());
     }
     for (MetricsContainer container : committedMetricsContainers.asMap().values()) {
       MetricUpdates cumulative = container.getCumulative();
-      mergeCounters(counters, cumulative.counterUpdates(), false);
-      mergeDistributions(distributions, cumulative.distributionUpdates(), false);
-      mergeGauges(gauges, cumulative.gaugeUpdates(), false);
+      mergeCounters(counters, cumulative.counterUpdates(), committedCounterUpdateFn());
+      mergeDistributions(distributions, cumulative.distributionUpdates(),
+          committedDistributionUpdateFn());
+      mergeGauges(gauges, cumulative.gaugeUpdates(), committedGaugeUpdateFn());
     }
+    this.isCommittedSupported = isCommittedSupported;
+  }
+
+  private Function<MetricUpdate<DistributionData>, AttemptedAndCommitted<DistributionData>>
+  attemptedDistributionUpdateFn() {
+    return new Function<MetricUpdate<DistributionData>, AttemptedAndCommitted<DistributionData>>() {
+      @Override
+      public AttemptedAndCommitted<DistributionData> apply(MetricUpdate<DistributionData> input) {
+        MetricKey key = input.getKey();
+        return new AttemptedAndCommitted<>(
+            key,
+            input,
+            MetricUpdate.create(key, DistributionData.EMPTY));
+      }
+    };
+  }
+
+  private Function<MetricUpdate<DistributionData>, AttemptedAndCommitted<DistributionData>>
+  committedDistributionUpdateFn() {
+    return new Function<MetricUpdate<DistributionData>, AttemptedAndCommitted<DistributionData>>() {
+      @Override
+      public AttemptedAndCommitted<DistributionData> apply(MetricUpdate<DistributionData> input) {
+        MetricKey key = input.getKey();
+        return new AttemptedAndCommitted<>(
+            key,
+            MetricUpdate.create(key, DistributionData.EMPTY),
+            input);
+      }
+    };
+  }
+
+  private Function<MetricUpdate<GaugeData>, AttemptedAndCommitted<GaugeData>>
+  attemptedGaugeUpdateFn() {
+    return new Function<MetricUpdate<GaugeData>, AttemptedAndCommitted<GaugeData>>() {
+      @Override
+      public AttemptedAndCommitted<GaugeData> apply(MetricUpdate<GaugeData> input) {
+        MetricKey key = input.getKey();
+        return new AttemptedAndCommitted<>(
+            key,
+            input,
+            MetricUpdate.create(key, GaugeData.empty()));
+      }
+    };
+  }
+
+  private Function<MetricUpdate<GaugeData>, AttemptedAndCommitted<GaugeData>>
+  committedGaugeUpdateFn() {
+    return new Function<MetricUpdate<GaugeData>, AttemptedAndCommitted<GaugeData>>() {
+      @Override
+      public AttemptedAndCommitted<GaugeData> apply(MetricUpdate<GaugeData> input) {
+        MetricKey key = input.getKey();
+        return new AttemptedAndCommitted<>(
+            key,
+            MetricUpdate.create(key, GaugeData.empty()),
+            input);
+      }
+    };
+  }
+
+  private Function<MetricUpdate<Long>, AttemptedAndCommitted<Long>> attemptedCounterUpdateFn() {
+    return new Function<MetricUpdate<Long>, AttemptedAndCommitted<Long>>() {
+      @Override
+      public AttemptedAndCommitted<Long> apply(MetricUpdate<Long> input) {
+        MetricKey key = input.getKey();
+        return new AttemptedAndCommitted<>(
+            key,
+            input,
+            MetricUpdate.create(key, 0L));
+      }
+    };
+  }
+
+  private Function<MetricUpdate<Long>, AttemptedAndCommitted<Long>> committedCounterUpdateFn() {
+    return new Function<MetricUpdate<Long>, AttemptedAndCommitted<Long>>() {
+      @Override
+      public AttemptedAndCommitted<Long> apply(MetricUpdate<Long> input) {
+        MetricKey key = input.getKey();
+        return new AttemptedAndCommitted<>(
+            key,
+            MetricUpdate.create(key, 0L),
+            input);
+      }
+    };
   }
 
   @Override
@@ -103,7 +216,7 @@ public class AccumulatedMetricResults extends MetricResults {
     }
   }
 
-  protected Function<AttemptedAndCommitted<Long>, MetricResult<Long>>
+  private Function<AttemptedAndCommitted<Long>, MetricResult<Long>>
   counterUpdateToResult() {
     return new
         Function<AttemptedAndCommitted<Long>, MetricResult<Long>>() {
@@ -115,12 +228,14 @@ public class AccumulatedMetricResults extends MetricResults {
                 key.metricName(),
                 key.stepName(),
                 metricResult.getAttempted().getUpdate(),
-                metricResult.getCommitted().getUpdate());
+                isCommittedSupported
+                    ? metricResult.getCommitted().getUpdate()
+                    : null,
+                isCommittedSupported);
           }
         };
   }
-
-  protected Function<AttemptedAndCommitted<DistributionData>, MetricResult<DistributionResult>>
+  private Function<AttemptedAndCommitted<DistributionData>, MetricResult<DistributionResult>>
   distributionUpdateToResult() {
     return new
         Function<AttemptedAndCommitted<DistributionData>, MetricResult<DistributionResult>>() {
@@ -132,12 +247,15 @@ public class AccumulatedMetricResults extends MetricResults {
                 key.metricName(),
                 key.stepName(),
                 metricResult.getAttempted().getUpdate().extractResult(),
-                metricResult.getCommitted().getUpdate().extractResult());
+                isCommittedSupported
+                    ? metricResult.getCommitted().getUpdate().extractResult()
+                    : null,
+                isCommittedSupported);
           }
         };
   }
 
-  protected Function<AttemptedAndCommitted<GaugeData>, MetricResult<GaugeResult>>
+  private Function<AttemptedAndCommitted<GaugeData>, MetricResult<GaugeResult>>
   gaugeUpdateToResult() {
     return new
         Function<AttemptedAndCommitted<GaugeData>, MetricResult<GaugeResult>>() {
@@ -149,129 +267,110 @@ public class AccumulatedMetricResults extends MetricResults {
                 key.metricName(),
                 key.stepName(),
                 metricResult.getAttempted().getUpdate().extractResult(),
-                metricResult.getCommitted().getUpdate().extractResult());
+                isCommittedSupported
+                    ? metricResult.getCommitted().getUpdate().extractResult()
+                    : null,
+                isCommittedSupported);
           }
         };
   }
 
+  @SuppressWarnings("ConstantConditions")
   private void mergeCounters(
       Map<MetricKey, AttemptedAndCommitted<Long>> counters,
       Iterable<MetricUpdate<Long>> updates,
-      boolean isAttempted) {
-    for (MetricUpdate<Long> update : updates) {
-      MetricKey key = update.getKey();
-      AttemptedAndCommitted<Long> updated;
-      if (isAttempted) {
-        updated = new AttemptedAndCommitted<>(
-            key,
-            update,
-            MetricUpdate.create(key, 0L));
-      } else {
-        updated = new AttemptedAndCommitted<>(
-            key,
-            MetricUpdate.create(key, 0L),
-            update);
-      }
+      Function<MetricUpdate<Long>, AttemptedAndCommitted<Long>> updateToAttemptedAndCommittedFn) {
+    for (MetricUpdate<Long> metricUpdate : updates) {
+      MetricKey key = metricUpdate.getKey();
+      AttemptedAndCommitted<Long> update =
+          updateToAttemptedAndCommittedFn.apply(metricUpdate);
       if (counters.containsKey(key)) {
         AttemptedAndCommitted<Long> current = counters.get(key);
-        updated = new AttemptedAndCommitted<>(
+        update = new AttemptedAndCommitted<>(
             key,
             MetricUpdate.create(
                 key,
-                updated.getAttempted().getUpdate() + current.getAttempted().getUpdate()),
+                update.getAttempted().getUpdate() + current.getAttempted().getUpdate()),
             MetricUpdate.create(
                 key,
-                updated.getCommitted().getUpdate() + current.getCommitted().getUpdate()));
+                update.getCommitted().getUpdate() + current.getCommitted().getUpdate()));
       }
-      counters.put(key, updated);
+      counters.put(key, update);
     }
   }
 
+  @SuppressWarnings("ConstantConditions")
   private void mergeDistributions(
       Map<MetricKey, AttemptedAndCommitted<DistributionData>> distributions,
       Iterable<MetricUpdate<DistributionData>> updates,
-      boolean isAttempted) {
-    for (MetricUpdate<DistributionData> update : updates) {
-      MetricKey key = update.getKey();
-      AttemptedAndCommitted<DistributionData> updated;
-      if (isAttempted) {
-        updated = new AttemptedAndCommitted<>(
-            key,
-            update,
-            MetricUpdate.create(key, DistributionData.EMPTY));
-      } else {
-        updated = new AttemptedAndCommitted<>(
-            key,
-            MetricUpdate.create(key, DistributionData.EMPTY),
-            update);
-      }
+      Function<MetricUpdate<DistributionData>, AttemptedAndCommitted<DistributionData>>
+          updateToAttemptedAndCommittedFn) {
+    for (MetricUpdate<DistributionData> metricUpdate : updates) {
+      MetricKey key = metricUpdate.getKey();
+      AttemptedAndCommitted<DistributionData> update =
+          updateToAttemptedAndCommittedFn.apply(metricUpdate);
       if (distributions.containsKey(key)) {
         AttemptedAndCommitted<DistributionData> current = distributions.get(key);
-        updated = new AttemptedAndCommitted<>(
+        update = new AttemptedAndCommitted<>(
             key,
             MetricUpdate.create(
                 key,
-                updated.getAttempted().getUpdate().combine(current.getAttempted().getUpdate())),
+                update.getAttempted().getUpdate().combine(current.getAttempted().getUpdate())),
             MetricUpdate.create(
                 key,
-                updated.getCommitted().getUpdate().combine(current.getCommitted().getUpdate())));
+                update.getCommitted().getUpdate().combine(current.getCommitted().getUpdate())));
       }
-      distributions.put(key, updated);
+      distributions.put(key, update);
     }
   }
 
 
+  @SuppressWarnings("ConstantConditions")
   private void mergeGauges(
       Map<MetricKey, AttemptedAndCommitted<GaugeData>> gauges,
       Iterable<MetricUpdate<GaugeData>> updates,
-      boolean isAttempted) {
-    for (MetricUpdate<GaugeData> update : updates) {
-      MetricKey key = update.getKey();
-      AttemptedAndCommitted<GaugeData> updated;
-      if (isAttempted) {
-        updated = new AttemptedAndCommitted<>(
-            key,
-            update,
-            MetricUpdate.create(key, GaugeData.empty()));
-      } else {
-        updated = new AttemptedAndCommitted<>(
-            key,
-            MetricUpdate.create(key, GaugeData.empty()),
-            update);
-      }
+      Function<MetricUpdate<GaugeData>, AttemptedAndCommitted<GaugeData>>
+          updateToAttemptedAndCommittedFn) {
+    for (MetricUpdate<GaugeData> metricUpdate : updates) {
+      MetricKey key = metricUpdate.getKey();
+      AttemptedAndCommitted<GaugeData> update =
+          updateToAttemptedAndCommittedFn.apply(metricUpdate);
       if (gauges.containsKey(key)) {
         AttemptedAndCommitted<GaugeData> current = gauges.get(key);
-        updated = new AttemptedAndCommitted<>(
+        update = new AttemptedAndCommitted<>(
             key,
             MetricUpdate.create(
                 key,
-                updated.getAttempted().getUpdate().combine(current.getAttempted().getUpdate())),
+                update.getAttempted().getUpdate().combine(current.getAttempted().getUpdate())),
             MetricUpdate.create(
                 key,
-                updated.getCommitted().getUpdate().combine(current.getCommitted().getUpdate())));
+                update.getCommitted().getUpdate().combine(current.getCommitted().getUpdate())));
       }
-      gauges.put(key, updated);
+      gauges.put(key, update);
     }
   }
 
   /**
    * Accumulated implementation of {@link MetricResult}.
    */
-  protected static class AccumulatedMetricResult<T> implements MetricResult<T> {
+  private static class AccumulatedMetricResult<T> implements MetricResult<T> {
     private final MetricName name;
     private final String step;
     private final T attempted;
     private final T committed;
+    private final boolean isCommittedSupported;
 
-    public AccumulatedMetricResult(
+    private AccumulatedMetricResult(
         MetricName name,
         String step,
         T attempted,
-        T committed) {
+        T committed,
+        boolean isCommittedSupported) {
       this.name = name;
       this.step = step;
       this.attempted = attempted;
       this.committed = committed;
+      this.isCommittedSupported = isCommittedSupported;
     }
 
     @Override
@@ -286,6 +385,10 @@ public class AccumulatedMetricResults extends MetricResults {
 
     @Override
     public T committed() {
+      if (!isCommittedSupported) {
+        throw new UnsupportedOperationException("This runner does not currently support committed"
+            + " metrics results. Please use 'attempted' instead.");
+      }
       return committed;
     }
 

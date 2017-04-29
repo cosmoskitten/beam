@@ -24,14 +24,19 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Metrics containers by step.
+ *
+ * <p>This class is not thread-safe.</p>
  */
-public class MetricsContainers implements Serializable {
+public class MetricsContainerStepMap implements Serializable {
   private Map<String, MetricsContainer> metricsContainers;
 
-  public MetricsContainers() {
+  public MetricsContainerStepMap() {
     this.metricsContainers = new ConcurrentHashMap<>();
   }
 
+  /**
+   * Returns the container for the given step name.
+   */
   public MetricsContainer getContainer(String stepName) {
     if (!metricsContainers.containsKey(stepName)) {
       metricsContainers.put(stepName, new MetricsContainer(stepName));
@@ -39,16 +44,28 @@ public class MetricsContainers implements Serializable {
     return metricsContainers.get(stepName);
   }
 
-  public void updateAll(MetricsContainers other) {
+  /**
+   * Update this {@link MetricsContainerStepMap} with all values from given
+   * {@link MetricsContainerStepMap}.
+   */
+  public void updateAll(MetricsContainerStepMap other) {
     for (Map.Entry<String, MetricsContainer> container : other.metricsContainers.entrySet()) {
       getContainer(container.getKey()).update(container.getValue());
     }
   }
 
+  /**
+   * Update {@link MetricsContainer} for given step in this map with all values from given
+   * {@link MetricsContainer}.
+   */
   public void update(String step, MetricsContainer container) {
     getContainer(step).update(container);
   }
 
+  /**
+   * Returns a map from step name to {@link MetricsContainer} representation of this
+   * {@link MetricsContainerStepMap}.
+   */
   public Map<String, MetricsContainer> asMap() {
     return new HashMap<>(metricsContainers);
   }

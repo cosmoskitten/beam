@@ -37,7 +37,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.sdk.metrics.MetricsContainers;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -112,7 +112,7 @@ public class StateSpecFunctions {
           scala.Option<CheckpointMarkT> startCheckpointMark,
           State<Tuple2<byte[], Instant>> state) {
 
-        MetricsContainers metricsContainers = new MetricsContainers();
+        MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
         MetricsContainer metricsContainer = metricsContainers.getContainer(stepName);
 
         // Add metrics container to the scope of org.apache.beam.sdk.io.Source.Reader methods

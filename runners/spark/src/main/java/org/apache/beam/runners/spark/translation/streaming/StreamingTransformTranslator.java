@@ -58,7 +58,7 @@ import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.metrics.MetricsContainers;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -395,7 +395,7 @@ public final class StreamingTransformTranslator {
                       JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
                     final Accumulator<NamedAggregators> aggAccum =
                         AggregatorsAccumulator.getInstance();
-                    final Accumulator<MetricsContainers> metricsAccum =
+                    final Accumulator<MetricsContainerStepMap> metricsAccum =
                         MetricsAccumulator.getInstance();
                     final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
                         sideInputs =

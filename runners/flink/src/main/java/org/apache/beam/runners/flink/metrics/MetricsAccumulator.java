@@ -17,38 +17,38 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import org.apache.beam.sdk.metrics.MetricsContainers;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 
 /**
- * Accumulator of {@link MetricsContainers}.
+ * Accumulator of {@link MetricsContainerStepMap}.
  */
-public class MetricsAccumulator implements SimpleAccumulator<MetricsContainers> {
-  private MetricsContainers metricsContainers = new MetricsContainers();
+public class MetricsAccumulator implements SimpleAccumulator<MetricsContainerStepMap> {
+  private MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
 
   @Override
-  public void add(MetricsContainers value) {
+  public void add(MetricsContainerStepMap value) {
     metricsContainers.updateAll(value);
   }
 
   @Override
-  public MetricsContainers getLocalValue() {
+  public MetricsContainerStepMap getLocalValue() {
     return metricsContainers;
   }
 
   @Override
   public void resetLocal() {
-    this.metricsContainers = new MetricsContainers();
+    this.metricsContainers = new MetricsContainerStepMap();
   }
 
   @Override
-  public void merge(Accumulator<MetricsContainers, MetricsContainers> other) {
+  public void merge(Accumulator<MetricsContainerStepMap, MetricsContainerStepMap> other) {
     this.add(other.getLocalValue());
   }
 
   @Override
-  public Accumulator<MetricsContainers, MetricsContainers> clone() {
+  public Accumulator<MetricsContainerStepMap, MetricsContainerStepMap> clone() {
     try {
       super.clone();
     } catch (CloneNotSupportedException ignored) {

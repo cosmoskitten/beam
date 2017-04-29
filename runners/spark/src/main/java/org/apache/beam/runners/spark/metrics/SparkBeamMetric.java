@@ -22,19 +22,18 @@ import com.codahale.metrics.Metric;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.metrics.AccumulatedAttemptedMetricResults;
 import org.apache.beam.sdk.metrics.AccumulatedMetricResults;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
-import org.apache.beam.sdk.metrics.MetricsContainers;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 
 
 /**
- * An adapter between the {@link MetricsContainers} and Codahale's {@link Metric} interface.
+ * An adapter between the {@link MetricsContainerStepMap} and Codahale's {@link Metric} interface.
  */
 class SparkBeamMetric implements Metric {
   private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9\\._-]";
@@ -43,7 +42,7 @@ class SparkBeamMetric implements Metric {
   Map<String, ?> renderAll() {
     Map<String, Object> metrics = new HashMap<>();
     AccumulatedMetricResults metricResults =
-        new AccumulatedAttemptedMetricResults(MetricsAccumulator.getInstance().value());
+        new AccumulatedMetricResults(MetricsAccumulator.getInstance().value());
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().build());
     for (MetricResult<Long> metricResult : metricQueryResults.counters()) {

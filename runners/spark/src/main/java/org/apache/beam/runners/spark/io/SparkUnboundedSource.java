@@ -36,7 +36,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.sdk.metrics.MetricsContainers;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -191,7 +191,7 @@ public class SparkUnboundedSource {
     public scala.Option<RDD<BoxedUnit>> compute(Time validTime) {
       // compute parent.
       scala.Option<RDD<Metadata>> parentRDDOpt = parent.getOrCompute(validTime);
-      final Accumulator<MetricsContainers> metricsAccum = MetricsAccumulator.getInstance();
+      final Accumulator<MetricsContainerStepMap> metricsAccum = MetricsAccumulator.getInstance();
       long count = 0;
       SparkWatermarks sparkWatermark = null;
       Instant globalLowWatermarkForBatch = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -261,14 +261,14 @@ public class SparkUnboundedSource {
     private final Instant lowWatermark;
     private final Instant highWatermark;
     private final long readDurationMillis;
-    private final MetricsContainers metricsContainers;
+    private final MetricsContainerStepMap metricsContainers;
 
     public Metadata(
         long numRecords,
         Instant lowWatermark,
         Instant highWatermark,
         final long readDurationMillis,
-        MetricsContainers metricsContainer) {
+        MetricsContainerStepMap metricsContainer) {
       this.numRecords = numRecords;
       this.readDurationMillis = readDurationMillis;
       this.metricsContainers = metricsContainer;
@@ -292,7 +292,7 @@ public class SparkUnboundedSource {
       return readDurationMillis;
     }
 
-    MetricsContainers getMetricsContainers() {
+    MetricsContainerStepMap getMetricsContainers() {
       return metricsContainers;
     }
   }

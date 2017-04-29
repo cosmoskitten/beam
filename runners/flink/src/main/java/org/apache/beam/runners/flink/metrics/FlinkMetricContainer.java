@@ -19,14 +19,13 @@ package org.apache.beam.runners.flink.metrics;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.metrics.AccumulatedAttemptedMetricResults;
 import org.apache.beam.sdk.metrics.AccumulatedMetricResults;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.sdk.metrics.MetricsContainers;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -62,7 +61,7 @@ public class FlinkMetricContainer {
     this.flinkDistributionGaugeCache = new HashMap<>();
     this.flinkGaugeCache = new HashMap<>();
 
-    Accumulator<MetricsContainers, MetricsContainers> metricsAccumulator =
+    Accumulator<MetricsContainerStepMap, MetricsContainerStepMap> metricsAccumulator =
         runtimeContext.getAccumulator(ACCUMULATOR_NAME);
     if (metricsAccumulator == null) {
       metricsAccumulator = new MetricsAccumulator();
@@ -81,9 +80,9 @@ public class FlinkMetricContainer {
         : null;
   }
 
-  public void updateMetrics() {
+  void updateMetrics() {
     AccumulatedMetricResults metricResults =
-        new AccumulatedAttemptedMetricResults(metricsAccumulator.getLocalValue());
+        new AccumulatedMetricResults(metricsAccumulator.getLocalValue());
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().build());
     updateCounters(metricQueryResults.counters());
