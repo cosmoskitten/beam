@@ -69,7 +69,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.TextIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -171,7 +170,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
 
-    p.apply("ReadMyFile", TextIO.Read.from("gs://bucket/object"))
+    p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
         .apply("WriteMyFile", TextIO.Write.to("gs://bucket/object"));
 
     return p;
@@ -331,7 +330,7 @@ public class DataflowRunnerTest {
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
     p
-        .apply(TextIO.Read.from(options.getInput()))
+        .apply(TextIO.read().from(options.getInput()))
         .apply(TextIO.Write.to(options.getOutput()));
   }
 
@@ -343,7 +342,7 @@ public class DataflowRunnerTest {
     DataflowPipelineOptions dataflowOptions = buildPipelineOptions();
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
-    PCollection<String> unconsumed = p.apply(Read.from(options.getInput()));
+    PCollection<String> unconsumed = p.apply(TextIO.read().from(options.getInput()));
     DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
     final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
     p.traverseTopologically(new PipelineVisitor.Defaults() {
@@ -566,7 +565,7 @@ public class DataflowRunnerTest {
   @Test
   public void testNonGcsFilePathInReadFailure() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    p.apply("ReadMyNonGcsFile", TextIO.Read.from(tmpFolder.newFile().getPath()));
+    p.apply("ReadMyNonGcsFile", TextIO.read().from(tmpFolder.newFile().getPath()));
 
     thrown.expectCause(Matchers.allOf(
         instanceOf(IllegalArgumentException.class),
@@ -583,7 +582,7 @@ public class DataflowRunnerTest {
   public void testNonGcsFilePathInWriteFailure() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
 
-    p.apply("ReadMyGcsFile", TextIO.Read.from("gs://bucket/object"))
+    p.apply("ReadMyGcsFile", TextIO.read().from("gs://bucket/object"))
         .apply("WriteMyNonGcsFile", TextIO.Write.to("/tmp/file"));
 
     thrown.expect(IllegalArgumentException.class);
@@ -594,7 +593,7 @@ public class DataflowRunnerTest {
   @Test
   public void testMultiSlashGcsFileReadPath() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    p.apply("ReadInvalidGcsFile", TextIO.Read.from("gs://bucket/tmp//file"));
+    p.apply("ReadInvalidGcsFile", TextIO.read().from("gs://bucket/tmp//file"));
 
     thrown.expectCause(Matchers.allOf(
         instanceOf(IllegalArgumentException.class),
@@ -609,7 +608,7 @@ public class DataflowRunnerTest {
   @Test
   public void testMultiSlashGcsFileWritePath() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    PCollection<String> pc = p.apply("ReadMyGcsFile", TextIO.Read.from("gs://bucket/object"));
+    PCollection<String> pc = p.apply("ReadMyGcsFile", TextIO.read().from("gs://bucket/object"));
     pc.apply("WriteInvalidGcsFile", TextIO.Write.to("gs://bucket/tmp//file"));
 
     thrown.expect(IllegalArgumentException.class);
