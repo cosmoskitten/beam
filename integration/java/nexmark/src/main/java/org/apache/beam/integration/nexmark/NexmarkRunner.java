@@ -86,7 +86,7 @@ import org.joda.time.Duration;
 /**
  * Run a single Nexmark query using a given configuration.
  */
-public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
+public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Minimum number of samples needed for 'stead-state' rate calculation.
    */
@@ -175,17 +175,23 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Is this query running in streaming mode?
    */
-  protected abstract boolean isStreaming();
+  protected boolean isStreaming() {
+    return options.isStreaming();
+  }
 
   /**
    * Return number of cores per worker.
    */
-  protected abstract int coresPerWorker();
+  protected int coresPerWorker() {
+    return 4;
+  }
 
   /**
    * Return maximum number of workers.
    */
-  protected abstract int maxNumWorkers();
+  protected int maxNumWorkers() {
+    return 5;
+  }
 
   /**
    * Return the current value for a long counter, or a default value if can't be retrieved.
@@ -544,13 +550,20 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Invoke the builder with options suitable for running a publish-only child pipeline.
    */
-  protected abstract void invokeBuilderForPublishOnlyPipeline(PipelineBuilder builder);
+  protected void invokeBuilderForPublishOnlyPipeline(
+      PipelineBuilder builder) {
+    builder.build(options);
+//    throw new UnsupportedOperationException(
+//        "Cannot use --pubSubMode=COMBINED with DirectRunner");
+  }
 
   /**
    * If monitoring, wait until the publisher pipeline has run long enough to establish
    * a backlog on the Pubsub topic. Otherwise, return immediately.
    */
-  protected abstract void waitForPublisherPreload();
+  protected void waitForPublisherPreload() {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Monitor the performance and progress of a running job. Return final performance if
