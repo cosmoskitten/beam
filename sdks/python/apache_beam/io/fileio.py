@@ -147,10 +147,13 @@ class FileSink(iobase.Sink):
   def _create_temp_dir(self, file_path_prefix):
     base_path, last_component = FileSystems.split(file_path_prefix)
     if not last_component:
-      raise ValueError('Cannot create a temporary directory for root path'
-                       'prefix %s. Please specify a file path prefix with at'
-                       'least two components. For example gs://foo/bar',
-                       file_path_prefix)
+      # Trying to re-split the base_path to check if it's a root.
+      new_base_path, _ = FileSystems.split(base_path)
+      if base_path == new_base_path:
+        raise ValueError('Cannot create a temporary directory for root path '
+                         'prefix %s. Please specify a file path prefix with '
+                         'at least two components.',
+                         file_path_prefix)
     path_components = [base_path,
                        'beam-temp-' + last_component + time.strftime(
                            '-%Y-%m-%d_%H-%M-%S')]
