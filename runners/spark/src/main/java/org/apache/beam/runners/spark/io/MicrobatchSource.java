@@ -176,14 +176,15 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
   /**
    * Mostly based on
-   * {@link org.apache.beam.sdk.io.BoundedReadFromUnboundedSource.UnboundedToBoundedSourceAdapter},
+   * {@link org.apache.beam.sdk.io.BoundedReadFromUnboundedSource}'s
+   * <code>UnboundedToBoundedSourceAdapter</code>,
    * with some adjustments for Spark specifics.
    *
    * <p>This Reader reads until one of the following thresholds has been reached:
-    * <ol>
-    *   <li>max records (per batch)</li>
-    *   <li>max read duration (per batch)</li>
-    * </ol>
+   * <ol>
+   *   <li>max records (per batch)</li>
+   *   <li>max read duration (per batch)</li>
+   * </ol>
    */
   public class Reader extends Source.Reader<T> {
     private long recordsRead = 0L;
