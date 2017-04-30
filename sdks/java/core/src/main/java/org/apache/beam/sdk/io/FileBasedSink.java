@@ -791,20 +791,16 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
 
     /**
      * The MIME type used in the creation of the output channel (if the file system supports it).
-     *
-     * <p>GCS, for example, supports writing files with Content-Type metadata.
-     *
-     * <p>May be overridden. Default is {@link MimeTypes#TEXT}. See {@link MimeTypes} for other
-     * options.
      */
-    protected String mimeType = MimeTypes.TEXT;
+    private final String mimeType;
 
     /**
      * Construct a new FileBasedWriter with a base filename.
      */
-    public FileBasedWriter(FileBasedWriteOperation<T> writeOperation) {
+    public FileBasedWriter(FileBasedWriteOperation<T> writeOperation, String mimeType) {
       checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
+      this.mimeType = mimeType;
     }
 
     /**
@@ -888,7 +884,6 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       LOG.debug("Opening {}.", filename);
       final WritableByteChannelFactory factory =
           getWriteOperation().getSink().writableByteChannelFactory;
-      mimeType = factory.getMimeType();
       channel = factory.create(IOChannelUtils.create(filename, mimeType));
       try {
         prepareWrite(channel);
