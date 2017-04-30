@@ -35,6 +35,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -960,19 +961,19 @@ public class BigQueryIO {
           1
               == Iterables.size(
                   Iterables.filter(
-                      ImmutableList.of(
-                          getJsonTableRef(), getTableFunction(), getDynamicDestinations()),
-                      Predicates.notNull())),
+                      Lists.newArrayList(getJsonTableRef(), getTableFunction(),
+                          getDynamicDestinations()), Predicates.notNull())),
           "Exactly one of jsonTableRef, tableFunction, or " + "dynamicDestinations must be set");
 
       checkArgument(
-          1
-              == Iterables.size(
+          2
+              > Iterables.size(
                   Iterables.filter(
-                      ImmutableList.of(
-                          getJsonSchema(), getSchemaFromView(), getDynamicDestinations()),
-                      Predicates.notNull())),
-          "Exactly one of jsonSchema, schemaFromView, or " + "dynamicDestinations must be set");
+                      Lists.newArrayList(getJsonSchema(), getSchemaFromView(),
+                          getDynamicDestinations()),
+                     Predicates.notNull())),
+          "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may "
+          + "be set");
 
       // The user specified a table.
       if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {

@@ -162,6 +162,12 @@ class BatchLoads<DestinationT>
                 .withSideInputs(resultsView)
                 .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
 
+    List<PCollectionView<?>> writeTablesSideInputs =
+        Lists.newArrayList(jobIdTokenView, schemasView);
+    if (dynamicDestinations.getSideInput() != null) {
+      writeTablesSideInputs.add(dynamicDestinations.getSideInput());
+    }
+
     Coder<KV<ShardedKey<DestinationT>, List<String>>> partitionsCoder =
         KvCoder.of(
             ShardedKeyCoder.of(NullableCoder.of(dynamicDestinations.getDestinationCoder())),
@@ -181,7 +187,7 @@ class BatchLoads<DestinationT>
             .apply(
                 "MultiPartitionsWriteTables",
                 ParDo.of(
-                        new WriteTables<DestinationT>(
+                        new WriteTables<>(
                             false,
                             bigQueryServices,
                             jobIdTokenView,
@@ -190,7 +196,7 @@ class BatchLoads<DestinationT>
                             WriteDisposition.WRITE_EMPTY,
                             CreateDisposition.CREATE_IF_NEEDED,
                             dynamicDestinations))
-                    .withSideInputs(jobIdTokenView, schemasView));
+                    .withSideInputs(writeTablesSideInputs));
 
     // This view maps each final table destination to the set of temporary partitioned tables
     // the PCollection was loaded into.
@@ -219,7 +225,7 @@ class BatchLoads<DestinationT>
         .apply(
             "SinglePartitionWriteTables",
             ParDo.of(
-                    new WriteTables<DestinationT>(
+                    new WriteTables<>(
                         true,
                         bigQueryServices,
                         jobIdTokenView,
@@ -228,7 +234,7 @@ class BatchLoads<DestinationT>
                         writeDisposition,
                         createDisposition,
                         dynamicDestinations))
-                .withSideInputs(jobIdTokenView, schemasView));
+                .withSideInputs(writeTablesSideInputs));
 
     return WriteResult.in(input.getPipeline());
   }

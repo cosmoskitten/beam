@@ -21,9 +21,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
-import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -117,27 +117,34 @@ class WriteTables<DestinationT>
         BigQueryHelpers.fromJsonString(
             c.sideInput(schemasView).get(destination), TableSchema.class);
     TableDestination tableDestination = dynamicDestinationsCopy.getTable(destination);
+    TableReference tableReference = tableDestination.getTableReference();
+    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      tableReference.setProjectId(
+          c.getPipelineOptions().as(BigQueryOptions.class).getProject());
+    }
+
     Integer partition = c.element().getKey().getShardNumber();
     List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
     String jobIdPrefix =
         BigQueryHelpers.createJobId(c.sideInput(jobIdToken), tableDestination, partition);
 
-    TableReference ref = tableDestination.getTableReference();
     if (!singlePartition) {
-      ref.setTableId(jobIdPrefix);
+      tableReference.setTableId(jobIdPrefix);
     }
+
+    tableDestination = new TableDestination(tableReference, tableDestination.getTableDescription());
 
     load(
         bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
         bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
         jobIdPrefix,
-        ref,
+        tableReference,
         tableSchema,
         partitionFiles,
         writeDisposition,
         createDisposition,
         tableDestination.getTableDescription());
-    c.output(KV.of(tableDestination, BigQueryHelpers.toJsonString(ref)));
+    c.output(KV.of(tableDestination, BigQueryHelpers.toJsonString(tableReference)));
 
     removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix, partitionFiles);
   }
