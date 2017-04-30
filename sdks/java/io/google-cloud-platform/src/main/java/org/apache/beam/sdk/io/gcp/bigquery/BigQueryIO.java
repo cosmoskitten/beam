@@ -991,33 +991,6 @@ public class BigQueryIO {
           BigQueryHelpers.verifyTableNotExistOrEmpty(datasetService, table);
         }
       }
-<<<<<<< HEAD
-=======
-
-      if (input.isBounded() == PCollection.IsBounded.UNBOUNDED) {
-        // We will use BigQuery's streaming write API -- validate supported dispositions.
-        checkArgument(
-            getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
-            "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded" + " PCollection.");
-      } else {
-        // We will use a BigQuery load job -- validate the temp location.
-        String tempLocation = options.getTempLocation();
-        checkArgument(
-            !Strings.isNullOrEmpty(tempLocation),
-            "BigQueryIO.Write needs a GCS temp location to store temp files.");
-        if (getBigQueryServices() == null) {
-          try {
-            GcsPath.fromUri(tempLocation);
-          } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
-                    tempLocation),
-                e);
-          }
-        }
-      }
->>>>>>> Address code-review comments.
     }
 
     @Override
@@ -1082,8 +1055,7 @@ public class BigQueryIO {
             new BatchLoads<DestinationT>(
                     getWriteDisposition(),
                     getCreateDisposition(),
-                    getJsonTableRef(),
-                    getTableDescription(),
+                    getJsonTableRef() != null,
                     dynamicDestinations)
                 .withTestServices(getBigQueryServices()));
       }

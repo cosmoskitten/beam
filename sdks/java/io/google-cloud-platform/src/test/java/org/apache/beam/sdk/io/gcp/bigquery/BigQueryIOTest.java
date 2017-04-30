@@ -1596,23 +1596,16 @@ public class BigQueryIOTest implements Serializable {
     // In the case where a static destination is specified (i.e. not through a dynamic table
     // function) and there is no input data, WritePartition will generate an empty table. This
     // code is to test that path.
-    TableReference singletonReference = new TableReference()
-        .setProjectId("projectid")
-        .setDatasetId("dataset")
-        .setTableId("table");
-    String singletonDescription = "singleton";
     boolean isSingleton = numTables == 1 && numFilesPerTable == 0;
 
-    List<ShardedKey<TableDestination>> expectedPartitions = Lists.newArrayList();
+    List<ShardedKey<String>> expectedPartitions = Lists.newArrayList();
     if (isSingleton) {
-      expectedPartitions.add(ShardedKey.of(
-          new TableDestination(singletonReference, singletonDescription), 1));
+      expectedPartitions.add(ShardedKey.<String>of(null, 1));
     } else {
       for (int i = 0; i < numTables; ++i) {
         for (int j = 1; j <= expectedNumPartitionsPerTable; ++j) {
           String tableName = String.format("project-id:dataset-id.tables%05d", i);
-          TableDestination destination = new TableDestination(tableName, tableName);
-          expectedPartitions.add(ShardedKey.of(destination, j));
+          expectedPartitions.add(ShardedKey.of(tableName, j));
         }
       }
     }
@@ -1647,14 +1640,8 @@ public class BigQueryIOTest implements Serializable {
         WindowingStrategy.globalDefault(),
         WriteBundlesToFiles.ResultCoder.of(StringUtf8Coder.of()));
 
-    ValueProvider<String> singletonTable = null;
-    if (isSingleton) {
-      singletonTable = StaticValueProvider.of(BigQueryHelpers.toJsonString(singletonReference));
-    }
     WritePartition<String> writePartition =
-        new WritePartition<>(singletonTable,
-            "singleton", resultsView,
-            multiPartitionsTag, singlePartitionTag);
+        new WritePartition<>(isSingleton, resultsView, multiPartitionsTag, singlePartitionTag);
 
     DoFnTester<String, KV<ShardedKey<String>, List<String>>> tester =
         DoFnTester.of(writePartition);
@@ -1705,7 +1692,7 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public TableDestination getTable(String destination) {
-      return new TableDestination(destination, "");
+      return new TableDestination(destination, destination);
     }
 
     @Override
