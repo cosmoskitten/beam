@@ -21,11 +21,10 @@ import java.util.concurrent.TimeUnit;
 import org.joda.time.Instant;
 
 /**
- * A {@code BoundedWindow} represents a finite grouping of elements, with an
- * upper bound (larger timestamps represent more recent data) on the timestamps
- * of elements that can be placed in the window. This finiteness means that for
- * every window, at some point in time, all data for that window will have
- * arrived and can be processed together.
+ * A {@code BoundedWindow} represents window information assigned to data elements.
+ * It has one method {@link #maxTimestamp()} to define an upper bound(included).
+ * Elements within the timestamp range are placed in this window.
+ * At some point in time, all data with the same window will arrive and can be processed together.
  *
  * <p>Windows must also implement {@link Object#equals} and
  * {@link Object#hashCode} such that windows that are logically equal will
