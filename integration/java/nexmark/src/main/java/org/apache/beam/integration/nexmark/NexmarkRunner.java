@@ -1138,9 +1138,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     checkState(queryName == null);
     configuration = runConfiguration;
 
-    // GCS URI patterns to delete on exit.
-    List<String> pathsToDelete = new ArrayList<>();
-
     try {
       NexmarkUtils.console("Running %s", configuration.toShortString());
 
@@ -1218,9 +1215,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
           }
           ((Query10) query).setOutputPath(path);
           ((Query10) query).setMaxNumWorkers(maxNumWorkers());
-          if (path != null && options.getManageResources()) {
-            pathsToDelete.add(path + "/**");
-          }
         }
 
         // Apply query.
@@ -1250,7 +1244,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     } finally {
       configuration = null;
       queryName = null;
-      // TODO: Cleanup pathsToDelete
     }
   }
 }

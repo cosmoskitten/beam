@@ -403,8 +403,8 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     if (n < Integer.MAX_VALUE) {
       return random.nextInt((int) n);
     } else {
-      // TODO: Very skewed distribution! Bad!
-      return Math.abs(random.nextLong()) % n;
+      // WARNING: Very skewed distribution! Bad!
+      return Math.abs(random.nextLong() % n);
     }
   }
 

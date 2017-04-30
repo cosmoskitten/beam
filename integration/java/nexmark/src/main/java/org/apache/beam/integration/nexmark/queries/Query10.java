@@ -101,7 +101,7 @@ public class Query10 extends NexmarkQuery {
 
     @Override
     public String toString() {
-      return String.format("%s %s %d %s %s\n", maxTimestamp, shard, index, timing, filename);
+      return String.format("%s %s %d %s %s%n", maxTimestamp, shard, index, timing, filename);
     }
   }
 

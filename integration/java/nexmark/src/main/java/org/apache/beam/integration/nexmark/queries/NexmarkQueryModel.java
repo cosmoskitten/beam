@@ -104,8 +104,6 @@ public abstract class NexmarkQueryModel implements Serializable {
   /** Return assertion to use on results of pipeline for this query. */
   public SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void> assertionFor() {
     final Collection<String> expectedStrings = toCollection(simulator().results());
-    final String[] expectedStringsArray =
-      expectedStrings.toArray(new String[expectedStrings.size()]);
 
     return new SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void>() {
       @Override
@@ -113,9 +111,6 @@ public abstract class NexmarkQueryModel implements Serializable {
       Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
         Assert.assertThat("wrong pipeline output", actualStrings,
           IsEqual.equalTo(expectedStrings));
-//compare without order
-//      Assert.assertThat("wrong pipeline output", actualStrings,
-//        IsIterableContainingInAnyOrder.containsInAnyOrder(expectedStringsArray));
         return null;
       }
     };

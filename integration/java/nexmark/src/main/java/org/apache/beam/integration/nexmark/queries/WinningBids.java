@@ -77,7 +77,7 @@ import org.joda.time.Instant;
  */
 public class WinningBids extends PTransform<PCollection<Event>, PCollection<AuctionBid>> {
   /** Windows for open auctions and bids. */
-  private static class AuctionOrBidWindow extends IntervalWindow implements Serializable {
+  private static class AuctionOrBidWindow extends IntervalWindow {
     /** Id of auction this window is for. */
     public final long auction;
 
@@ -223,8 +223,9 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
       // Merge all 'bid' windows into their corresponding 'auction' window, provided the
       // auction has not expired.
-      for (long auction : idToTrueAuctionWindow.keySet()) {
-        AuctionOrBidWindow auctionWindow = idToTrueAuctionWindow.get(auction);
+      for (Map.Entry<Long, AuctionOrBidWindow> entry : idToTrueAuctionWindow.entrySet()) {
+        long auction = entry.getKey();
+        AuctionOrBidWindow auctionWindow = entry.getValue();
         List<AuctionOrBidWindow> bidWindows = idToBidAuctionWindows.get(auction);
         if (bidWindows != null) {
           List<AuctionOrBidWindow> toBeMerged = new ArrayList<>();

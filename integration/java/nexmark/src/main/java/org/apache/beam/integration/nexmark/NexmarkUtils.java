@@ -310,7 +310,7 @@ public class NexmarkUtils {
    * Log message to console. For client side only.
    */
   public static void console(String format, Object... args) {
-    System.out.printf("%s %s\n", Instant.now(), String.format(format, args));
+    System.out.printf("%s %s%n", Instant.now(), String.format(format, args));
   }
 
   /**
@@ -577,19 +577,19 @@ public class NexmarkUtils {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     long remain = bytes;
-                    long now = System.currentTimeMillis();
+//                    long now = System.currentTimeMillis();
                     while (remain > 0) {
+                      //TODO Ismael google on state
                       long thisBytes = Math.min(remain, MAX_BUFFER_SIZE);
                       remain -= thisBytes;
-                      byte[] arr = new byte[(int) thisBytes];
-                      for (int i = 0; i < thisBytes; i++) {
-                        arr[i] = (byte) now;
-                      }
-                      //TODO Ismael google on state
+//                      byte[] arr = new byte[(int) thisBytes];
+//                      for (int i = 0; i < thisBytes; i++) {
+//                        arr[i] = (byte) now;
+//                      }
 //                      ValueState<byte[]> state = c.windowingInternals().stateInternals().state(
 //                          StateNamespaces.global(), DUMMY_TAG);
 //                      state.write(arr);
-                      now = System.currentTimeMillis();
+//                      now = System.currentTimeMillis();
                     }
                     c.output(c.element());
                   }

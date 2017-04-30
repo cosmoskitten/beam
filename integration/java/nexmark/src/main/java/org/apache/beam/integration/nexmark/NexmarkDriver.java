@@ -87,7 +87,7 @@ public class NexmarkDriver<OptionT extends NexmarkOptions> {
     }
 
     if (!successful) {
-      System.exit(1);
+      throw new RuntimeException("Execution was not successful");
     }
   }
 
