@@ -92,12 +92,14 @@ public class CreateTables<DestinationT>
 
                   @StartBundle
                   public void startBundle(Context c) {
+                    // Make sure each bundle has it's own copy of dynamicDestinations.
                     this.dynamicDestinationsCopy = SerializableUtils.clone(dynamicDestinations);
                   }
 
                   @ProcessElement
                   public void processElement(ProcessContext context)
                       throws InterruptedException, IOException {
+                    // If a side input is needed to produce the table name, set it.
                     if (dynamicDestinationsCopy.getSideInput() != null) {
                       dynamicDestinationsCopy.setSideInputValue(
                           context.sideInput(dynamicDestinationsCopy.getSideInput()));
