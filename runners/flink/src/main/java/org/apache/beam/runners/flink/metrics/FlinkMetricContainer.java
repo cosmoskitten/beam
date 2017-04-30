@@ -19,11 +19,11 @@ package org.apache.beam.runners.flink.metrics;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.metrics.AccumulatedMetricResults;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -81,8 +81,8 @@ public class FlinkMetricContainer {
   }
 
   void updateMetrics() {
-    AccumulatedMetricResults metricResults =
-        new AccumulatedMetricResults(metricsAccumulator.getLocalValue());
+    MetricResults metricResults =
+        MetricsContainerStepMap.asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().build());
     updateCounters(metricQueryResults.counters());

@@ -30,11 +30,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Tests for {@link AccumulatedMetricResults}.
+ * Tests for {@link MetricsContainerStepMap}.
  */
-public class AccumulatedMetricResultsTest {
+public class MetricsContainerStepMapTest {
 
-  private static final String NAMESPACE = AccumulatedMetricResultsTest.class.getName();
+  private static final String NAMESPACE = MetricsContainerStepMapTest.class.getName();
   private static final String STEP1 = "myStep1";
   private static final String STEP2 = "myStep2";
 
@@ -42,15 +42,15 @@ public class AccumulatedMetricResultsTest {
 
   private static final Counter counter =
       Metrics.counter(
-          AccumulatedMetricResultsTest.class,
+          MetricsContainerStepMapTest.class,
           "myCounter");
   private static final Distribution distribution =
       Metrics.distribution(
-          AccumulatedMetricResultsTest.class,
+          MetricsContainerStepMapTest.class,
           "myDistribution");
   private static final Gauge gauge =
       Metrics.gauge(
-          AccumulatedMetricResultsTest.class,
+          MetricsContainerStepMapTest.class,
           "myGauge");
 
   private static final MetricsContainer metricsContainer;
@@ -77,7 +77,8 @@ public class AccumulatedMetricResultsTest {
     attemptedMetrics.update(STEP2, metricsContainer);
     attemptedMetrics.update(STEP2, metricsContainer);
 
-    MetricResults metricResults = new AccumulatedMetricResults(attemptedMetrics);
+    MetricResults metricResults =
+        MetricsContainerStepMap.asAttemptedOnlyMetricResults(attemptedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
@@ -115,7 +116,8 @@ public class AccumulatedMetricResultsTest {
   public void testCounterCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
     attemptedMetrics.update(STEP1, metricsContainer);
-    MetricResults metricResults = new AccumulatedMetricResults(attemptedMetrics);
+    MetricResults metricResults =
+        MetricsContainerStepMap.asAttemptedOnlyMetricResults(attemptedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
@@ -130,7 +132,8 @@ public class AccumulatedMetricResultsTest {
   public void testDistributionCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
     attemptedMetrics.update(STEP1, metricsContainer);
-    MetricResults metricResults = new AccumulatedMetricResults(attemptedMetrics);
+    MetricResults metricResults =
+        MetricsContainerStepMap.asAttemptedOnlyMetricResults(attemptedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
@@ -145,7 +148,8 @@ public class AccumulatedMetricResultsTest {
   public void testGaugeCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
     attemptedMetrics.update(STEP1, metricsContainer);
-    MetricResults metricResults = new AccumulatedMetricResults(attemptedMetrics);
+    MetricResults metricResults =
+        MetricsContainerStepMap.asAttemptedOnlyMetricResults(attemptedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
@@ -170,7 +174,8 @@ public class AccumulatedMetricResultsTest {
     committedMetrics.update(STEP2, metricsContainer);
     committedMetrics.update(STEP2, metricsContainer);
 
-    MetricResults metricResults = new AccumulatedMetricResults(attemptedMetrics, committedMetrics);
+    MetricResults metricResults =
+        MetricsContainerStepMap.asMetricResults(attemptedMetrics, committedMetrics);
 
     MetricQueryResults step1res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());

@@ -37,8 +37,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.metrics.AccumulatedMetricResults;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -375,7 +375,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
     @Override
     public MetricResults metrics() {
-      return new AccumulatedMetricResults(
+      return MetricsContainerStepMap.asMetricResults(
           evaluationContext.getAttemptedMetrics(),
           evaluationContext.getCommittedMetrics());
     }

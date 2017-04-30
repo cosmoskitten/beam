@@ -29,8 +29,8 @@ import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.metrics.AccumulatedMetricResults;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -111,7 +111,8 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return new AccumulatedMetricResults(MetricsAccumulator.getInstance().value());
+    return MetricsContainerStepMap.asAttemptedOnlyMetricResults(
+        MetricsAccumulator.getInstance().value());
   }
 
   @Override

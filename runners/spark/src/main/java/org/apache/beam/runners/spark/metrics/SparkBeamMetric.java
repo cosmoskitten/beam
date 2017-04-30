@@ -22,12 +22,12 @@ import com.codahale.metrics.Metric;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.metrics.AccumulatedMetricResults;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 
@@ -41,8 +41,9 @@ class SparkBeamMetric implements Metric {
 
   Map<String, ?> renderAll() {
     Map<String, Object> metrics = new HashMap<>();
-    AccumulatedMetricResults metricResults =
-        new AccumulatedMetricResults(MetricsAccumulator.getInstance().value());
+    MetricResults metricResults =
+        MetricsContainerStepMap.asAttemptedOnlyMetricResults(
+            MetricsAccumulator.getInstance().value());
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().build());
     for (MetricResult<Long> metricResult : metricQueryResults.counters()) {
