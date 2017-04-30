@@ -1,8 +1,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-/**
- * Created by relax on 4/30/17.
- */
+/** Created by relax on 4/30/17. */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -22,6 +20,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
  */
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.Lists;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -37,12 +38,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-/**
- * Compute the mapping of destinations to json-formatted schema objects.
- */
-class CalculateSchemas<DestinationT> extends PTransform<PCollection<KV<DestinationT, TableRow>>,
-    PCollectionView<Map<DestinationT, String>>> {
+/** Compute the mapping of destinations to json-formatted schema objects. */
+class CalculateSchemas<DestinationT>
+    extends PTransform<
+        PCollection<KV<DestinationT, TableRow>>, PCollectionView<Map<DestinationT, String>>> {
   private static final Logger LOG = LoggerFactory.getLogger(CalculateSchemas.class);
 
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
@@ -54,30 +53,41 @@ class CalculateSchemas<DestinationT> extends PTransform<PCollection<KV<Destinati
   @Override
   public PCollectionView<Map<DestinationT, String>> expand(
       PCollection<KV<DestinationT, TableRow>> input) {
+    List<PCollectionView<?>> sideInputs = Lists.newArrayList();
+    if (dynamicDestinations.getSideInput() != null) {
+      sideInputs.add(dynamicDestinations.getSideInput());
+    }
     return input
         .apply("Keys", Keys.<DestinationT>create())
         .apply("Distinct Keys", Distinct.<DestinationT>create())
-        .apply("GetSchemas", ParDo.of(new DoFn<DestinationT, KV<DestinationT, String>>() {
-          private DynamicDestinations<?, DestinationT> dynamicDestinationsCopy;
+        .apply(
+            "GetSchemas",
+            ParDo.of(
+                    new DoFn<DestinationT, KV<DestinationT, String>>() {
+                      private DynamicDestinations<?, DestinationT> dynamicDestinationsCopy;
 
-          @StartBundle
-          public void startBundle(Context c) {
-            // Ensure that each bundle has a fresh copy of the DynamicDestinations class.
-            this.dynamicDestinationsCopy = SerializableUtils.clone(dynamicDestinations);
-          }
+                      @StartBundle
+                      public void startBundle(Context c) {
+                        // Ensure that each bundle has a fresh copy of the DynamicDestinations
+                        // class.
+                        this.dynamicDestinationsCopy = SerializableUtils.clone(dynamicDestinations);
+                      }
 
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            // If the DynamicDestinations class wants to read a side input, give it the value.
-            if (dynamicDestinationsCopy.getSideInput() != null) {
-              dynamicDestinationsCopy.setSideInputValue(
-                  c.sideInput(dynamicDestinationsCopy.getSideInput()));
-            }
-            c.output(KV.of(c.element(),
-                BigQueryHelpers.toJsonString(dynamicDestinationsCopy.getSchema(c.element()))));
-          }
-        }))
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        // If the DynamicDestinations class wants to read a side input, give it the
+                        // value.
+                        if (dynamicDestinationsCopy.getSideInput() != null) {
+                          dynamicDestinationsCopy.setSideInputValue(
+                              c.sideInput(dynamicDestinationsCopy.getSideInput()));
+                        }
+                        TableSchema tableSchema = dynamicDestinationsCopy.getSchema(c.element());
+                        if (tableSchema != null) {
+                          c.output(KV.of(c.element(), BigQueryHelpers.toJsonString(tableSchema)));
+                        }
+                      }
+                    })
+                .withSideInputs(sideInputs))
         .apply("asMap", View.<DestinationT, String>asMap());
   }
 }
-

@@ -1617,51 +1617,51 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
-    List<WriteBundlesToFiles.Result> files = Lists.newArrayList();
-    Map<TableDestination, List<String>> filenamesPerTable = Maps.newHashMap();
+    List<WriteBundlesToFiles.Result<String>> files = Lists.newArrayList();
+    Map<String, List<String>> filenamesPerTable = Maps.newHashMap();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.tables%05d", i);
-      TableDestination destination = new TableDestination(tableName, tableName);
-      List<String> filenames = filenamesPerTable.get(destination);
+      List<String> filenames = filenamesPerTable.get(tableName);
       if (filenames == null) {
         filenames = Lists.newArrayList();
-        filenamesPerTable.put(destination, filenames);
+        filenamesPerTable.put(tableName, filenames);
       }
       for (int j = 0; j < numFilesPerTable; ++j) {
         String fileName = String.format("%s_files%05d", tableName, j);
         filenames.add(fileName);
-        files.add(new Result(fileName, fileSize, destination));
+        files.add(new Result<>(fileName, fileSize, tableName));
       }
     }
 
-    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag =
-        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("multiPartitionsTag") {};
-    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag =
-        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("singlePartitionTag") {};
+    TupleTag<KV<ShardedKey<String>, List<String>>> multiPartitionsTag =
+        new TupleTag<KV<ShardedKey<String>, List<String>>>("multiPartitionsTag") {};
+    TupleTag<KV<ShardedKey<String>, List<String>>> singlePartitionTag =
+        new TupleTag<KV<ShardedKey<String>, List<String>>>("singlePartitionTag") {};
 
-    PCollection<WriteBundlesToFiles.Result> filesPCollection =
-        p.apply(Create.of(files).withType(new TypeDescriptor<WriteBundlesToFiles.Result>() {}));
-    PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView =
+    PCollection<WriteBundlesToFiles.Result<String>> filesPCollection =
+        p.apply(Create.of(files)
+        .withCoder(WriteBundlesToFiles.ResultCoder.of(StringUtf8Coder.of())));
+    PCollectionView<Iterable<WriteBundlesToFiles.Result<String>>> resultsView =
         PCollectionViews.iterableView(
         filesPCollection,
         WindowingStrategy.globalDefault(),
-        WriteBundlesToFiles.ResultCoder.of());
+        WriteBundlesToFiles.ResultCoder.of(StringUtf8Coder.of()));
 
     ValueProvider<String> singletonTable = null;
     if (isSingleton) {
       singletonTable = StaticValueProvider.of(BigQueryHelpers.toJsonString(singletonReference));
     }
-    WritePartition writePartition =
-        new WritePartition(singletonTable,
+    WritePartition<String> writePartition =
+        new WritePartition<>(singletonTable,
             "singleton", resultsView,
             multiPartitionsTag, singlePartitionTag);
 
-    DoFnTester<String, KV<ShardedKey<TableDestination>, List<String>>> tester =
+    DoFnTester<String, KV<ShardedKey<String>, List<String>>> tester =
         DoFnTester.of(writePartition);
     tester.setSideInput(resultsView, GlobalWindow.INSTANCE, files);
     tester.processElement(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
-    List<KV<ShardedKey<TableDestination>, List<String>>> partitions;
+    List<KV<ShardedKey<String>, List<String>>> partitions;
     if (expectedNumPartitionsPerTable > 1) {
       partitions = tester.takeOutputElements(multiPartitionsTag);
     } else {
@@ -1669,10 +1669,10 @@ public class BigQueryIOTest implements Serializable {
     }
 
 
-    List<ShardedKey<TableDestination>> partitionsResult = Lists.newArrayList();
-    Map<TableDestination, List<String>> filesPerTableResult = Maps.newHashMap();
-    for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
-      TableDestination table = partition.getKey().getKey();
+    List<ShardedKey<String>> partitionsResult = Lists.newArrayList();
+    Map<String, List<String>> filesPerTableResult = Maps.newHashMap();
+    for (KV<ShardedKey<String>, List<String>> partition : partitions) {
+      String table = partition.getKey().getKey();
       partitionsResult.add(partition.getKey());
       List<String> tableFilesResult = filesPerTableResult.get(table);
       if (tableFilesResult == null) {
@@ -1696,6 +1696,23 @@ public class BigQueryIOTest implements Serializable {
     }
   }
 
+  static class IdentityDynamicTables extends DynamicDestinations<String, String> {
+
+    @Override
+    public String getDestination(ValueInSingleWindow<String> element) {
+      return null;
+    }
+
+    @Override
+    public TableDestination getTable(String destination) {
+      return new TableDestination(destination, "");
+    }
+
+    @Override
+    public TableSchema getSchema(String destination) {
+      return null;
+    }
+  }
   @Test
   public void testWriteTables() throws Exception {
     p.enableAbandonedNodeEnforcement(false);
@@ -1714,7 +1731,7 @@ public class BigQueryIOTest implements Serializable {
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testWriteTables");
 
-    List<KV<ShardedKey<TableDestination>, List<String>>> partitions = Lists.newArrayList();
+    List<KV<ShardedKey<String>, List<String>>> partitions = Lists.newArrayList();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.table%05d", i);
       TableDestination tableDestination = new TableDestination(tableName, tableName);
@@ -1733,7 +1750,7 @@ public class BigQueryIOTest implements Serializable {
           }
           filesPerPartition.add(filename);
         }
-        partitions.add(KV.of(ShardedKey.of(tableDestination, j),
+        partitions.add(KV.of(ShardedKey.of(tableDestination.getTableSpec(), j),
             filesPerPartition));
 
         List<String> expectedTables = expectedTempTables.get(tableDestination);
@@ -1752,28 +1769,30 @@ public class BigQueryIOTest implements Serializable {
         .apply("CreateJobId", Create.of("jobId"))
         .apply(View.<String>asSingleton());
 
-    PCollectionView<Map<String, String>> schemaMapView = p.apply("CreateEmptySchema", Create.empty(
+    PCollectionView<Map<String, String>> schemaMapView = p.apply("CreateEmptySchema", Create
+        .empty(
         new TypeDescriptor<KV<String, String>>() {}))
         .apply(View.<String, String>asMap());
-    WriteTables writeTables = new WriteTables(
+    WriteTables<String> writeTables = new WriteTables<>(
         false,
         fakeBqServices,
         jobIdTokenView,
         schemaMapView,
         tempFilePrefix,
         WriteDisposition.WRITE_EMPTY,
-        CreateDisposition.CREATE_IF_NEEDED);
+        CreateDisposition.CREATE_IF_NEEDED,
+        new IdentityDynamicTables());
 
-    DoFnTester<KV<ShardedKey<TableDestination>, List<String>>,
+    DoFnTester<KV<ShardedKey<String>, List<String>>,
         KV<TableDestination, String>> tester = DoFnTester.of(writeTables);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
     tester.setSideInput(schemaMapView, GlobalWindow.INSTANCE, ImmutableMap.<String, String>of());
-    for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
+    for (KV<ShardedKey<String>, List<String>> partition : partitions) {
       tester.processElement(partition);
     }
 
     Map<TableDestination, List<String>> tempTablesResult = Maps.newHashMap();
-    for (KV<TableDestination, String> element : tester.takeOutputElements()) {
+      for (KV<TableDestination, String> element : tester.takeOutputElements()) {
       List<String> tables = tempTablesResult.get(element.getKey());
       if (tables == null) {
         tables = Lists.newArrayList();
