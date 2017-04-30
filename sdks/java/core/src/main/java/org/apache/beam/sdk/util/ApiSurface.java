@@ -33,8 +33,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import com.google.common.reflect.ClassPath;
-import com.google.common.reflect.ClassPath.ClassInfo;
 import com.google.common.reflect.Invokable;
 import com.google.common.reflect.Parameter;
 import com.google.common.reflect.TypeToken;
@@ -89,6 +87,7 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("rawtypes")
 public class ApiSurface {
+
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
 
   /** A factory method to create a {@link Class} matcher for classes residing in a given package. */
@@ -200,14 +199,14 @@ public class ApiSurface {
               @Override
               public boolean apply(@Nonnull final Matcher<Class<?>> classMatcher) {
                 return FluentIterable.from(checkedApiSurface.getExposedClasses())
-                    .anyMatch(
-                        new Predicate<Class<?>>() {
+                                     .anyMatch(
+                                         new Predicate<Class<?>>() {
 
-                          @Override
-                          public boolean apply(@Nonnull final Class<?> aClass) {
-                            return classMatcher.matches(aClass);
-                          }
-                        });
+                                           @Override
+                                           public boolean apply(@Nonnull final Class<?> aClass) {
+                                             return classMatcher.matches(aClass);
+                                           }
+                                         });
               }
             };
 
@@ -221,8 +220,8 @@ public class ApiSurface {
 
         final ImmutableList<String> messages =
             FluentIterable.from(abandonedClassMatchers)
-                .transform(toMessage)
-                .toSortedList(Ordering.<String>natural());
+                          .transform(toMessage)
+                          .toSortedList(Ordering.<String>natural());
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
@@ -279,7 +278,7 @@ public class ApiSurface {
 
         final ImmutableList<String> messages =
             FluentIterable.from(Maps.transformEntries(exposures, toMessage).values())
-                .toSortedList(Ordering.<String>natural());
+                          .toSortedList(Ordering.<String>natural());
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
@@ -290,7 +289,7 @@ public class ApiSurface {
         return messages.isEmpty();
       }
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({ "rawtypes", "unchecked" })
       private boolean classIsAllowed(
           final Class<?> clazz, final Set<Matcher<Class<?>>> allowedClasses) {
         // Safe cast inexpressible in Java without rawtypes
@@ -353,7 +352,7 @@ public class ApiSurface {
     ClassPath classPath = ClassPath.from(classLoader);
 
     Set<Class<?>> newRootClasses = Sets.newHashSet();
-    for (ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
+    for (ClassPath.ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
       Class clazz = classInfo.load();
       if (exposed(clazz.getModifiers())) {
         newRootClasses.add(clazz);
@@ -520,6 +519,7 @@ public class ApiSurface {
         Multimaps.newSetMultimap(
             Maps.<Class<?>, Collection<Class<?>>>newHashMap(),
             new Supplier<Set<Class<?>>>() {
+
               @Override
               public Set<Class<?>> get() {
                 return Sets.newHashSet();
@@ -825,9 +825,9 @@ public class ApiSurface {
    */
   public static ApiSurface getSdkApiSurface(final ClassLoader classLoader) throws IOException {
     return ApiSurface.ofPackage("org.apache.beam", classLoader)
-        .pruningPattern("org[.]apache[.]beam[.].*Test")
-        // Exposes Guava, but not intended for users
-        .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
-        .pruningPrefix("java");
+                     .pruningPattern("org[.]apache[.]beam[.].*Test")
+                     // Exposes Guava, but not intended for users
+                     .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
+                     .pruningPrefix("java");
   }
 }
