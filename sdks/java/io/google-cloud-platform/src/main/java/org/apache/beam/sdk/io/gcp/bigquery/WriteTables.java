@@ -121,6 +121,8 @@ class WriteTables<DestinationT>
     if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
       tableReference.setProjectId(
           c.getPipelineOptions().as(BigQueryOptions.class).getProject());
+      tableDestination = new TableDestination(
+          tableReference, tableDestination.getTableDescription());
     }
 
     Integer partition = c.element().getKey().getShardNumber();
@@ -131,8 +133,6 @@ class WriteTables<DestinationT>
     if (!singlePartition) {
       tableReference.setTableId(jobIdPrefix);
     }
-
-    tableDestination = new TableDestination(tableReference, tableDestination.getTableDescription());
 
     load(
         bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),

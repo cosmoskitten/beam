@@ -1073,8 +1073,7 @@ public class BigQueryIO {
             new BatchLoads<DestinationT>(
                     getWriteDisposition(),
                     getCreateDisposition(),
-                    getJsonTableRef(),
-                    getTableDescription(),
+                    getJsonTableRef() != null,
                     dynamicDestinations)
                 .withTestServices(getBigQueryServices()));
       }

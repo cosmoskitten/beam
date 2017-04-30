@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.List;
@@ -27,7 +26,6 @@ import java.util.UUID;
 
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -39,8 +37,7 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class WritePartition<DestinationT>
     extends DoFn<String, KV<ShardedKey<DestinationT>, List<String>>> {
-  private final ValueProvider<String> singletonOutputJsonTableRef;
-  private final String singletonOutputTableDescription;
+  private final boolean singletonTable;
   private final PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> resultsView;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
@@ -104,13 +101,11 @@ class WritePartition<DestinationT>
   }
 
   WritePartition(
-      ValueProvider<String> singletonOutputJsonTableRef,
-      String singletonOutputTableDescription,
+      boolean singletonTable,
       PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> resultsView,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag) {
-    this.singletonOutputJsonTableRef = singletonOutputJsonTableRef;
-    this.singletonOutputTableDescription = singletonOutputTableDescription;
+    this.singletonTable = singletonTable;
     this.resultsView = resultsView;
     this.multiPartitionsTag = multiPartitionsTag;
     this.singlePartitionTag = singlePartitionTag;
@@ -123,10 +118,7 @@ class WritePartition<DestinationT>
 
     // If there are no elements to write _and_ the user specified a constant output table, then
     // generate an empty table of that name.
-    if (results.isEmpty() && singletonOutputJsonTableRef != null) {
-      TableReference singletonTable =
-          BigQueryHelpers.fromJsonString(singletonOutputJsonTableRef.get(), TableReference.class);
-      if (singletonTable != null) {
+    if (results.isEmpty() && singletonTable) {
         TableRowWriter writer = new TableRowWriter(c.element());
         writer.open(UUID.randomUUID().toString());
         TableRowWriter.Result writerResult = writer.close();
@@ -137,7 +129,6 @@ class WritePartition<DestinationT>
                 writerResult.filename,
                 writerResult.byteSize,
                 null));
-      }
     }
 
     Map<DestinationT, DestinationData> currentResults = Maps.newHashMap();

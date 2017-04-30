@@ -31,7 +31,6 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -57,19 +56,16 @@ class BatchLoads<DestinationT>
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
-  private final ValueProvider<String> singletonJsonTableRef;
-  private final String singletonTableDescription;
+  private final boolean singletonTable;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
-             ValueProvider<String> singletonJsonTableRef,
-             String singletonTableDescription,
+             boolean singletonTable,
              DynamicDestinations<?, DestinationT> dynamicDestinations) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
-    this.singletonJsonTableRef  = singletonJsonTableRef;
-    this.singletonTableDescription = singletonTableDescription;
+    this.singletonTable = singletonTable;
     this.dynamicDestinations = dynamicDestinations;
   }
 
@@ -154,8 +150,7 @@ class BatchLoads<DestinationT>
             "WritePartition",
             ParDo.of(
                     new WritePartition<>(
-                        singletonJsonTableRef,
-                        singletonTableDescription,
+                        singletonTable,
                         resultsView,
                         multiPartitionsTag,
                         singlePartitionTag))
