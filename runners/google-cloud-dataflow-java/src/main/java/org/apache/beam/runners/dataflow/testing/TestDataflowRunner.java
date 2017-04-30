@@ -203,19 +203,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * <p>If the pipeline is not in a failed/cancelled state and no PAsserts were used within the
    * pipeline, then this method will state that all PAsserts succeeded.
    *
-   * @return Optional.of(false) if we are certain a PAssert or some other critical thing has failed,
-   *     Optional.of(true) if we are certain all PAsserts passed, and Optional.absent() if the
-   *     evidence is inconclusive.
+   * @return Optional.of(false) if we are certain a PAssert failed.
+   *     Optional.of(true) if we are certain all PAsserts passed.
+   *     Optional.absent() if the evidence is inconclusive, including when the pipeline may have
+   *     failed for other reasons.
    */
   @VisibleForTesting
   Optional<Boolean> checkForPAssertSuccess(DataflowPipelineJob job) throws IOException {
-
-    // If the job failed, this is a definite failure. We only cancel jobs when they fail.
-    State state = job.getState();
-    if (state == State.FAILED || state == State.CANCELLED) {
-      LOG.info("Dataflow job {} terminated in failure state {}", job.getJobId(), state);
-      return Optional.of(false);
-    }
 
     JobMetrics metrics = getJobMetrics(job);
     if (metrics == null || metrics.getMetrics() == null) {
@@ -253,6 +247,16 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           failures,
           expectedNumberOfAssertions);
       return Optional.of(true);
+    }
+
+    // If the job failed, this is a definite failure. We only cancel jobs when they fail.
+    State state = job.getState();
+    if (state == State.FAILED || state == State.CANCELLED) {
+      LOG.info(
+          "Dataflow job {} terminated in failure state {} without reporting a failed assertion",
+          job.getJobId(),
+          state);
+      return Optional.absent();
     }
 
     LOG.info(
