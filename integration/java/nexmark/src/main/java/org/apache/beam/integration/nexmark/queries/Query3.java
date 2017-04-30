@@ -17,7 +17,6 @@
  */
 package org.apache.beam.integration.nexmark.queries;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.integration.nexmark.NexmarkConfiguration;
@@ -176,7 +175,7 @@ public class Query3 extends NexmarkQuery {
    */
   private static class JoinDoFn extends DoFn<KV<Long, CoGbkResult>, KV<Auction, Person>> {
 
-    private int maxAuctionsWaitingTime;
+    private final int maxAuctionsWaitingTime;
     private static final String AUCTIONS = "auctions";
     private static final String PERSON = "person";
 
@@ -219,8 +218,7 @@ public class Query3 extends NexmarkQuery {
         ProcessContext c,
         @TimerId(PERSON_STATE_EXPIRING) Timer timer,
         @StateId(PERSON) ValueState<Person> personState,
-        @StateId(AUCTIONS) ValueState<List<Auction>> auctionsState)
-        throws IOException {
+        @StateId(AUCTIONS) ValueState<List<Auction>> auctionsState) {
       // We would *almost* implement this by  rewindowing into the global window and
       // running a combiner over the result. The combiner's accumulator would be the
       // state we use below. However, combiners cannot emit intermediate results, thus

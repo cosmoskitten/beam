@@ -91,15 +91,15 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Minimum number of samples needed for 'stead-state' rate calculation.
    */
-  protected static final int MIN_SAMPLES = 9;
+  private static final int MIN_SAMPLES = 9;
   /**
    * Minimum length of time over which to consider samples for 'steady-state' rate calculation.
    */
-  protected static final Duration MIN_WINDOW = Duration.standardMinutes(2);
+  private static final Duration MIN_WINDOW = Duration.standardMinutes(2);
   /**
    * Delay between perf samples.
    */
-  protected static final Duration PERF_DELAY = Duration.standardSeconds(15);
+  private static final Duration PERF_DELAY = Duration.standardSeconds(15);
   /**
    * How long to let streaming pipeline run after all events have been generated and we've
    * seen no activity.
@@ -117,37 +117,37 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * NexmarkOptions shared by all runs.
    */
-  protected final OptionT options;
+  private final OptionT options;
 
   /**
    * Which configuration we are running.
    */
   @Nullable
-  protected NexmarkConfiguration configuration;
+  private NexmarkConfiguration configuration;
 
   /**
    * If in --pubsubMode=COMBINED, the event monitor for the publisher pipeline. Otherwise null.
    */
   @Nullable
-  protected Monitor<Event> publisherMonitor;
+  private Monitor<Event> publisherMonitor;
 
   /**
    * If in --pubsubMode=COMBINED, the pipeline result for the publisher pipeline. Otherwise null.
    */
   @Nullable
-  protected PipelineResult publisherResult;
+  private PipelineResult publisherResult;
 
   /**
    * Result for the main pipeline.
    */
   @Nullable
-  protected PipelineResult mainResult;
+  private PipelineResult mainResult;
 
   /**
    * Query name we are running.
    */
   @Nullable
-  protected String queryName;
+  private String queryName;
 
   public NexmarkRunner(OptionT options) {
     this.options = options;
@@ -160,7 +160,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Is this query running in streaming mode?
    */
-  protected boolean isStreaming() {
+  private boolean isStreaming() {
     return options.isStreaming();
   }
 
@@ -174,7 +174,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Return maximum number of workers.
    */
-  protected int maxNumWorkers() {
+  private int maxNumWorkers() {
     return 5;
   }
 
@@ -182,7 +182,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * Return the current value for a long counter, or a default value if can't be retrieved.
    * Note this uses only attempted metrics because some runners don't support committed metrics.
    */
-  protected long getCounterMetric(PipelineResult result, String namespace, String name,
+  private long getCounterMetric(PipelineResult result, String namespace, String name,
     long defaultValue) {
     //TODO Ismael calc this only once
     MetricQueryResults metrics = result.metrics().queryMetrics(
@@ -201,7 +201,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * Return the current value for a long counter, or a default value if can't be retrieved.
    * Note this uses only attempted metrics because some runners don't support committed metrics.
    */
-  protected long getDistributionMetric(PipelineResult result, String namespace, String name,
+  private long getDistributionMetric(PipelineResult result, String namespace, String name,
       DistributionType distType, long defaultValue) {
     MetricQueryResults metrics = result.metrics().queryMetrics(
         MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build());
@@ -226,7 +226,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Return the current value for a time counter, or -1 if can't be retrieved.
    */
-  protected long getTimestampMetric(long now, long value) {
+  private long getTimestampMetric(long now, long value) {
     //TODO Ismael improve doc
     if (Math.abs(value - now) > Duration.standardDays(10000).getMillis()) {
       return -1;
@@ -238,8 +238,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * Find a 'steady state' events/sec from {@code snapshots} and
    * store it in {@code perf} if found.
    */
-  protected void captureSteadyState(NexmarkPerf perf,
-                                    List<NexmarkPerf.ProgressSnapshot> snapshots) {
+  private void captureSteadyState(NexmarkPerf perf, List<NexmarkPerf.ProgressSnapshot> snapshots) {
     if (!options.isStreaming()) {
       return;
     }
@@ -426,7 +425,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     return perf;
   }
 
-  protected String getJobId(PipelineResult job) {
+  private String getJobId(PipelineResult job) {
     return "";
   }
 
@@ -528,15 +527,14 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Build and run a pipeline using specified options.
    */
-  protected interface PipelineBuilder<OptionT extends NexmarkOptions> {
+  interface PipelineBuilder<OptionT extends NexmarkOptions> {
     void build(OptionT publishOnlyOptions);
   }
 
   /**
    * Invoke the builder with options suitable for running a publish-only child pipeline.
    */
-  protected void invokeBuilderForPublishOnlyPipeline(
-      PipelineBuilder builder) {
+  private void invokeBuilderForPublishOnlyPipeline(PipelineBuilder<NexmarkOptions> builder) {
     builder.build(options);
 //    throw new UnsupportedOperationException(
 //        "Cannot use --pubSubMode=COMBINED with DirectRunner");
@@ -546,7 +544,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * If monitoring, wait until the publisher pipeline has run long enough to establish
    * a backlog on the Pubsub topic. Otherwise, return immediately.
    */
-  protected void waitForPublisherPreload() {
+  private void waitForPublisherPreload() {
     throw new UnsupportedOperationException();
   }
 
@@ -555,7 +553,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * it was measured.
    */
   @Nullable
-  protected NexmarkPerf monitor(NexmarkQuery query) {
+  private NexmarkPerf monitor(NexmarkQuery query) {
     if (!options.getMonitorJobs()) {
       return null;
     }
@@ -1010,12 +1008,12 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
             // Send synthesized events to Pubsub in separate publisher job.
             // We won't start the main pipeline until the publisher has sent the pre-load events.
             // We'll shutdown the publisher job when we notice the main job has finished.
-            invokeBuilderForPublishOnlyPipeline(new PipelineBuilder() {
+            invokeBuilderForPublishOnlyPipeline(new PipelineBuilder<NexmarkOptions>() {
               @Override
               public void build(NexmarkOptions publishOnlyOptions) {
                 Pipeline sp = Pipeline.create(options);
                 NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
-                publisherMonitor = new Monitor<Event>(queryName, "publisher");
+                publisherMonitor = new Monitor<>(queryName, "publisher");
                 sinkEventsToPubsub(
                     sourceEventsFromSynthetic(sp)
                             .apply(queryName + ".Monitor", publisherMonitor.getTransform()),

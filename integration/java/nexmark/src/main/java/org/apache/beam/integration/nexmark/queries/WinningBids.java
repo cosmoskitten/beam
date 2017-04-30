@@ -25,8 +25,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -104,9 +104,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
     /** Return an auction window for {@code auction}. */
     public static AuctionOrBidWindow forAuction(Instant timestamp, Auction auction) {
-      AuctionOrBidWindow result =
-          new AuctionOrBidWindow(timestamp, new Instant(auction.expires), auction.id, true);
-      return result;
+      return new AuctionOrBidWindow(timestamp, new Instant(auction.expires), auction.id, true);
     }
 
     /**
@@ -127,9 +125,8 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
       // Instead, we will just give the bid a finite window which expires at
       // the upper bound of auctions assuming the auction starts at the same time as the bid,
       // and assuming the system is running at its lowest event rate (as per interEventDelayUs).
-      AuctionOrBidWindow result = new AuctionOrBidWindow(
+      return new AuctionOrBidWindow(
           timestamp, timestamp.plus(expectedAuctionDurationMs * 2), bid.auction, false);
-      return result;
     }
 
     /** Is this an auction window? */
@@ -171,8 +168,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
         throws IOException, CoderException {
       IntervalWindow superWindow = SUPER_CODER.decode(inStream, Coder.Context.NESTED);
       long auction = ID_CODER.decode(inStream, Coder.Context.NESTED);
-      boolean isAuctionWindow =
-          INT_CODER.decode(inStream, Coder.Context.NESTED) == 0 ? false : true;
+      boolean isAuctionWindow = INT_CODER.decode(inStream, Context.NESTED) != 0;
       return new AuctionOrBidWindow(
           superWindow.start(), superWindow.end(), auction, isAuctionWindow);
     }
@@ -194,15 +190,16 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
       Event event = c.element();
       if (event.newAuction != null) {
         // Assign auctions to an auction window which expires at the auction's close.
-        return Arrays.asList(AuctionOrBidWindow.forAuction(c.timestamp(), event.newAuction));
+        return Collections
+            .singletonList(AuctionOrBidWindow.forAuction(c.timestamp(), event.newAuction));
       } else if (event.bid != null) {
         // Assign bids to a temporary bid window which will later be merged into the appropriate
         // auction window.
-        return Arrays.asList(
+        return Collections.singletonList(
             AuctionOrBidWindow.forBid(expectedAuctionDurationMs, c.timestamp(), event.bid));
       } else {
         // Don't assign people to any window. They will thus be dropped.
-        return Arrays.asList();
+        return Collections.emptyList();
       }
     }
 
@@ -296,8 +293,8 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
         configuration.firstEventRate, configuration.nextEventRate,
         configuration.rateUnit, configuration.numEventGenerators);
     long longestDelayUs = 0;
-    for (int i = 0; i < interEventDelayUs.length; i++) {
-      longestDelayUs = Math.max(longestDelayUs, interEventDelayUs[i]);
+    for (long interEventDelayU : interEventDelayUs) {
+      longestDelayUs = Math.max(longestDelayUs, interEventDelayU);
     }
     // Adjust for proportion of auction events amongst all events.
     longestDelayUs =

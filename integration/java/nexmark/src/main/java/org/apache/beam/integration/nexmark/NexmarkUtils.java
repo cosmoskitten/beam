@@ -178,7 +178,7 @@ public class NexmarkUtils {
     /** Names are suffixed with the query being run. */
     QUERY,
     /** Names are suffixed with the query being run and a random number. */
-    QUERY_AND_SALT;
+    QUERY_AND_SALT
   }
 
   /**
@@ -326,7 +326,7 @@ public class NexmarkUtils {
   /**
    * All events will be given a timestamp relative to this time (ms since epoch).
    */
-  public static final long BASE_TIME = Instant.parse("2015-07-15T00:00:00.000Z").getMillis();
+  private static final long BASE_TIME = Instant.parse("2015-07-15T00:00:00.000Z").getMillis();
 
   /**
    * Instants guaranteed to be strictly before and after all event timestamps, and which won't
@@ -377,7 +377,7 @@ public class NexmarkUtils {
   /**
    * Return a generator config to match the given {@code options}.
    */
-  public static GeneratorConfig standardGeneratorConfig(NexmarkConfiguration configuration) {
+  private static GeneratorConfig standardGeneratorConfig(NexmarkConfiguration configuration) {
     return new GeneratorConfig(configuration,
                                configuration.useWallclockEventTime ? System.currentTimeMillis()
                                                                    : BASE_TIME, 0,
@@ -558,8 +558,7 @@ public class NexmarkUtils {
                         }
                         p++;
                       }
-                      long next = System.currentTimeMillis();
-                      now = next;
+                      now = System.currentTimeMillis();
                     }
                     c.output(c.element());
                   }
@@ -578,8 +577,7 @@ public class NexmarkUtils {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     long remain = bytes;
-                    long start = System.currentTimeMillis();
-                    long now = start;
+                    long now = System.currentTimeMillis();
                     while (remain > 0) {
                       long thisBytes = Math.min(remain, MAX_BUFFER_SIZE);
                       remain -= thisBytes;

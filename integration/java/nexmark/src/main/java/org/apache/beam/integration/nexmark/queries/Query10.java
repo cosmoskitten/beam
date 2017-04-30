@@ -130,8 +130,6 @@ public class Query10 extends NexmarkQuery {
 
   /**
    * Return channel for writing bytes to GCS.
-   *
-   * @throws IOException
    */
   private WritableByteChannel openWritableGcsFile(GcsOptions options, String filename)
       throws IOException {
