@@ -37,6 +37,7 @@ import org.apache.beam.sdk.coders.BigIntegerCoder;
 import org.apache.beam.sdk.coders.BitSetCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -68,6 +69,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.pair(),
           CloudObjectTranslators.windowedValue(),
           CloudObjectTranslators.custom(),
+          CloudObjectTranslators.iterableLike(CollectionCoder.class),
           CloudObjectTranslators.iterableLike(ListCoder.class),
           CloudObjectTranslators.iterableLike(SetCoder.class),
           CloudObjectTranslators.map(),
