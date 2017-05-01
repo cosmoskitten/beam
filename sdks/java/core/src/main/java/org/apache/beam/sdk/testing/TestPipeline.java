@@ -45,6 +45,7 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.experimental.categories.Category;
@@ -400,6 +401,10 @@ public class TestPipeline extends Pipeline implements TestRule {
 
       IOChannelUtils.registerIOFactoriesAllowOverride(options);
       FileSystems.setDefaultConfigInWorkers(options);
+
+      // TODO: fix runners that mutate PipelineOptions in this method, then remove this line
+      PipelineRunner.fromOptions(options);
+
       return options;
     } catch (IOException e) {
       throw new RuntimeException(
