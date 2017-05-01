@@ -33,6 +33,7 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.io.iobase import Read
 from apache_beam.test_pipeline import TestPipeline
 import apache_beam.pvalue as pvalue
+from apache_beam.transforms import window
 import apache_beam.transforms.combiners as combine
 from apache_beam.transforms.display import DisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
@@ -42,6 +43,7 @@ from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
 from apache_beam.utils.pipeline_options import TypeOptions
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
@@ -55,7 +57,7 @@ class MyDoFn(beam.DoFn):
     pass
 
   def finish_bundle(self):
-    yield 'finish'
+    yield WindowedValue('finish', -1, [window.GlobalWindow()])
 
 
 class PTransformTest(unittest.TestCase):
