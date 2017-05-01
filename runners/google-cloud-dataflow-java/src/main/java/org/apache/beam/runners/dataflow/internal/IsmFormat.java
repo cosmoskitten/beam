@@ -34,12 +34,14 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.VarInt;
@@ -450,7 +452,7 @@ public class IsmFormat {
    * A coder for metadata key component. Can be used to wrap key component coder allowing for
    * the metadata key component to be used as a place holder instead of an actual key.
    */
-  public static class MetadataKeyCoder<K> extends CustomCoder<K> {
+  public static class MetadataKeyCoder<K> extends StructuredCoder<K> {
     public static <K> MetadataKeyCoder<K> of(Coder<K> keyCoder) {
       checkNotNull(keyCoder);
       return new MetadataKeyCoder<>(keyCoder);
@@ -584,7 +586,7 @@ public class IsmFormat {
    *   <li>indexOffset (variable length long encoding)</li>
    * </ul>
    */
-  public static class IsmShardCoder extends CustomCoder<IsmShard> {
+  public static class IsmShardCoder extends AtomicCoder<IsmShard> {
     private static final IsmShardCoder INSTANCE = new IsmShardCoder();
 
     /** Returns an IsmShardCoder. */
@@ -649,7 +651,7 @@ public class IsmFormat {
   }
 
   /** A {@link Coder} for {@link KeyPrefix}. */
-  public static final class KeyPrefixCoder extends CustomCoder<KeyPrefix> {
+  public static final class KeyPrefixCoder extends AtomicCoder<KeyPrefix> {
     private static final KeyPrefixCoder INSTANCE = new KeyPrefixCoder();
 
     public static KeyPrefixCoder of() {
@@ -721,7 +723,7 @@ public class IsmFormat {
   }
 
   /** A {@link Coder} for {@link Footer}. */
-  public static final class FooterCoder extends CustomCoder<Footer> {
+  public static final class FooterCoder extends AtomicCoder<Footer> {
     private static final FooterCoder INSTANCE = new FooterCoder();
 
     public static FooterCoder of() {

@@ -763,12 +763,9 @@ public class ApproximateQuantiles {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(this, "QuantileState.ElementCoder must be deterministic", elementCoder);
       verifyDeterministic(
-          "QuantileState.ElementCoder must be deterministic",
-          elementCoder);
-      verifyDeterministic(
-          "QuantileState.ElementListCoder must be deterministic",
-          elementListCoder);
+          this, "QuantileState.ElementListCoder must be deterministic", elementListCoder);
     }
   }
 }

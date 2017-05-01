@@ -40,7 +40,7 @@ import org.apache.beam.sdk.util.StringUtils;
  *
  * @param <T> the type of elements handled by this coder
  */
-public abstract class CustomCoder<T> extends StructuredCoder<T>
+public abstract class CustomCoder<T> extends Coder<T>
     implements Serializable {
 
   @JsonCreator
@@ -88,7 +88,7 @@ public abstract class CustomCoder<T> extends StructuredCoder<T>
    * @return A thin {@link CloudObject} wrapping of the Java serialization of {@code this}.
    */
   @Override
-  public final CloudObject initializeCloudObject() {
+  public final CloudObject asCloudObject() {
     // N.B. We use the CustomCoder class, not the derived class, since during
     // deserialization we will be using the CustomCoder's static factory method
     // to construct an instance of the derived class.

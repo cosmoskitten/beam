@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -874,7 +875,7 @@ public class CombineTest implements Serializable {
     /**
      * A {@link Coder} for {@link CountSum}.
      */
-    private class CountSumCoder extends CustomCoder<CountSum> {
+    private class CountSumCoder extends AtomicCoder<CountSum> {
       @Override
       public void encode(CountSum value, OutputStream outStream,
           Context context) throws CoderException, IOException {
