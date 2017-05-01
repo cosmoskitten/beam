@@ -88,7 +88,7 @@ public class CloudObjectsTest {
       Set<Class<? extends Coder>> missing = new HashSet<>();
       missing.addAll(defaultCoderTranslators);
       missing.removeAll(testedClasses);
-      assertThat(missing, emptyIterable());
+      assertThat("Coders with custom serializers should all be tested", missing, emptyIterable());
     }
 
     @Test
@@ -110,7 +110,7 @@ public class CloudObjectsTest {
     public static Iterable<Coder<?>> data() {
       Builder<Coder<?>> dataBuilder =
           ImmutableList.<Coder<?>>builder()
-              .add(new ObjectCoder())
+              .add(new ObjectCoder() /* Exercises the CustomCoder serialization path */)
               .add(GlobalWindow.Coder.INSTANCE)
               .add(IntervalWindow.getCoder())
               .add(LengthPrefixCoder.of(VarLongCoder.of()))
@@ -120,8 +120,8 @@ public class CloudObjectsTest {
                   WindowedValue.getFullCoder(
                       KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()),
                       IntervalWindow.getCoder()))
-              .add(VarLongCoder.of())
               .add(ByteArrayCoder.of())
+              .add(VarLongCoder.of())
               .add(CollectionCoder.of(VarLongCoder.of()))
               .add(ListCoder.of(VarLongCoder.of()))
               .add(SetCoder.of(VarLongCoder.of()))
