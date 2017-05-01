@@ -379,7 +379,7 @@
     <!--[BEAM-421] Class doesn't override equals in superclass-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.ApiSurface$ClassPath$ClassInfo"/>
+    <Class name="org.apache.beam.sdk.util.ClassPath$ClassInfo"/>
     <Method name="equals"/>
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-1676] Class doesn't override equals in superclass-->
