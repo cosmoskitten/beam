@@ -1022,19 +1022,14 @@ public class BigQueryIO {
 
     private <DestinationT> WriteResult expandTyped(
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
-      Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
-      if (destinationCoder == null) {
-        try {
-          // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
-          destinationCoder =
-              input
-                  .getPipeline()
-                  .getCoderRegistry()
-                  .getDefaultCoder(new TypeDescriptor<DestinationT>() {});
-        } catch (CannotProvideCoderException e) {
+      Coder<DestinationT> destinationCoder = null;
+      try {
+        destinationCoder = dynamicDestinations.getDestinationCoderWithDefault(
+            input.getPipeline().getCoderRegistry());
+      } catch (CannotProvideCoderException e) {
           throw new RuntimeException(e);
-        }
       }
+
       PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
           input
               .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, getFormatFunction()))

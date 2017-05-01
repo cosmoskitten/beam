@@ -21,8 +21,11 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
@@ -114,5 +117,17 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
 
   <SideInputT> void setSideInputValue(SideInputT value) {
     materialized = value;
+  }
+
+  // Gets the destination coder. If the user does not provide one, try to find one in the coder
+  // registry. If no coder can be found, throws CannotProvideCoderException.
+  Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+      throws CannotProvideCoderException {
+    Coder<DestinationT> destinationCoder = getDestinationCoder();
+    if (destinationCoder == null) {
+      // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
+      destinationCoder =registry.getDefaultCoder(new TypeDescriptor<DestinationT>() {});
+    }
+    return destinationCoder;
   }
 }
