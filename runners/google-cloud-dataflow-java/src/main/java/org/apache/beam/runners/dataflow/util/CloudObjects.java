@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.dataflow.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableMap;
@@ -26,6 +25,7 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.CloudObject;
 
 /** Utilities for converting an object to a {@link CloudObject}. */
@@ -67,29 +67,45 @@ public class CloudObjects {
         (CloudObjectTranslator<Coder>) CODER_TRANSLATORS.get(coder.getClass());
     if (translator != null) {
       return translator.toCloudObject(coder);
-    } else if (coder instanceof CustomCoder) {
-      CloudObjectTranslator customCoderTranslator = CODER_TRANSLATORS.get(CustomCoder.class);
-      checkNotNull(
-          customCoderTranslator,
-          "No %s registered for %s, but it is in the %s",
-          CloudObjectTranslator.class.getSimpleName(),
-          CustomCoder.class.getSimpleName(),
-          DefaultCoderCloudObjectTranslatorRegistrar.class.getSimpleName());
-      return customCoderTranslator.toCloudObject(coder);
+    } else if (coder instanceof StructuredCoder
+        && ((StructuredCoder<?>) coder).getComponents().isEmpty()) {
+      CloudObjectTranslator<Coder> atomicTranslator =
+          (CloudObjectTranslator<Coder>) CloudObjectTranslators.atomic(coder.getClass());
+      CloudObject cloudObject = atomicTranslator.toCloudObject(coder);
+      try {
+        if (coder.equals(atomicTranslator.fromCloudObject(cloudObject))) {
+          return cloudObject;
+        }
+      } catch (Exception e) {
+        // Ignored. We have a backup translation via Java Serialization
+      }
     }
-    throw new IllegalArgumentException(
-        String.format(
-            "Non-Custom %s with no registered %s", Coder.class, CloudObjectTranslator.class));
+    // Backup - serialize as a Java Object
+    CloudObjectTranslator customCoderTranslator = CODER_TRANSLATORS.get(CustomCoder.class);
+    checkNotNull(
+        customCoderTranslator,
+        "No %s registered for %s, but it is in the %s",
+        CloudObjectTranslator.class.getSimpleName(),
+        CustomCoder.class.getSimpleName(),
+        DefaultCoderCloudObjectTranslatorRegistrar.class.getSimpleName());
+    return customCoderTranslator.toCloudObject(coder);
   }
 
   public static Coder<?> coderFromCloudObject(CloudObject cloudObject) {
     CloudObjectTranslator<? extends Coder> translator =
         CLOUD_OBJECT_CLASS_NAME_TRANSLATORS.get(cloudObject.getClassName());
-    checkArgument(
-        translator != null,
-        "Unknown %s class %s",
-        Coder.class.getSimpleName(),
-        cloudObject.getClassName());
+    if (translator == null) {
+      try {
+        Class<? extends Coder> aClass =
+            (Class<? extends Coder>) Class.forName(cloudObject.getClassName());
+        translator = CloudObjectTranslators.atomic(aClass);
+      } catch (ClassNotFoundException e) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Unknown %s class %s", Coder.class.getSimpleName(), cloudObject.getClassName()),
+            e);
+      }
+    }
     return translator.fromCloudObject(cloudObject);
   }
 }

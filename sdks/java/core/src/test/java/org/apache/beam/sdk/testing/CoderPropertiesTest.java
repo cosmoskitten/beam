@@ -24,6 +24,7 @@ import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -47,7 +48,7 @@ public class CoderPropertiesTest {
   }
 
   /** A coder that says it is not deterministic but actually is. */
-  public static class NonDeterministicCoder extends CustomCoder<String> {
+  public static class NonDeterministicCoder extends AtomicCoder<String> {
     @Override
     public void encode(String value, OutputStream outStream, Context context)
         throws CoderException, IOException {
@@ -84,7 +85,7 @@ public class CoderPropertiesTest {
   }
 
   /** A coder that is non-deterministic because it adds a string to the value. */
-  private static class BadDeterminsticCoder extends CustomCoder<String> {
+  private static class BadDeterminsticCoder extends AtomicCoder<String> {
     public BadDeterminsticCoder() {
     }
 
@@ -141,6 +142,17 @@ public class CoderPropertiesTest {
       String decodedValue = StringUtf8Coder.of().decode(inStream, context);
       return decodedValue.substring(0, decodedValue.length() - changedState);
     }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof StateChangingSerializingCoder
+          && ((StateChangingSerializingCoder) other).changedState == this.changedState;
+    }
+
+    @Override
+    public int hashCode() {
+      return changedState;
+    }
   }
 
   @Test
@@ -175,6 +187,17 @@ public class CoderPropertiesTest {
         throws CoderException, IOException {
       return StringUtf8Coder.of().decode(inStream, context);
     }
+
+    @Override
+    public boolean equals(Object other) {
+      return (other instanceof ForgetfulSerializingCoder)
+          && ((ForgetfulSerializingCoder) other).lostState == lostState;
+    }
+
+    @Override
+    public int hashCode() {
+      return lostState;
+    }
   }
 
   @Test
@@ -185,7 +208,7 @@ public class CoderPropertiesTest {
   }
 
   /** A coder which closes the underlying stream during encoding and decoding. */
-  public static class ClosingCoder extends CustomCoder<String> {
+  public static class ClosingCoder extends AtomicCoder<String> {
     @Override
     public void encode(String value, OutputStream outStream, Context context) throws IOException {
       outStream.close();
