@@ -63,15 +63,18 @@ class BatchLoads<DestinationT>
   private final CreateDisposition createDisposition;
   private final boolean singletonTable;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private final Coder<DestinationT> destinationCoder;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
              boolean singletonTable,
-             DynamicDestinations<?, DestinationT> dynamicDestinations) {
+             DynamicDestinations<?, DestinationT> dynamicDestinations,
+             Coder<DestinationT> destinationCoder) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
     this.singletonTable = singletonTable;
     this.dynamicDestinations = dynamicDestinations;
+    this.destinationCoder = destinationCoder;
   }
 
   BatchLoads<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
@@ -156,8 +159,7 @@ class BatchLoads<DestinationT>
             .apply("WriteBundlesToFiles", ParDo.of(
                 new WriteBundlesToFiles<DestinationT>(tempFilePrefix))
                 .withSideInputs(writeBundlesToFilesSideInputs))
-            .setCoder(WriteBundlesToFiles.ResultCoder.of(
-                dynamicDestinations.getDestinationCoder()));
+            .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
 
     TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag =
         new TupleTag<KV<ShardedKey<DestinationT>, List<String>>>("multiPartitionsTag") {};
@@ -191,9 +193,10 @@ class BatchLoads<DestinationT>
     }
 
     Coder<KV<ShardedKey<DestinationT>, List<String>>> partitionsCoder =
-        KvCoder.of(
-            ShardedKeyCoder.of(NullableCoder.of(dynamicDestinations.getDestinationCoder())),
-            ListCoder.of(StringUtf8Coder.of()));
+          KvCoder.of(
+              ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
+              ListCoder.of(StringUtf8Coder.of()));
+
     // If WriteBundlesToFiles produced more than MAX_NUM_FILES files or MAX_SIZE_BYTES bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
     // specified in multiPartitionsTag.

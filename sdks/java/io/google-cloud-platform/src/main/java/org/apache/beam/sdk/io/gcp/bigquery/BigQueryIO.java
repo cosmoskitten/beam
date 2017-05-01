@@ -78,7 +78,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1043,15 +1042,16 @@ public class BigQueryIO {
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
         return rowsWithDestination.apply(
-            new StreamingInserts<DestinationT>(getCreateDisposition(), dynamicDestinations)
+            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
                 .withTestServices(getBigQueryServices()));
       } else {
         return rowsWithDestination.apply(
-            new BatchLoads<DestinationT>(
-                    getWriteDisposition(),
-                    getCreateDisposition(),
-                    getJsonTableRef() != null,
-                    dynamicDestinations)
+            new BatchLoads<>(
+                getWriteDisposition(),
+                getCreateDisposition(),
+                getJsonTableRef() != null,
+                dynamicDestinations,
+                destinationCoder)
                 .withTestServices(getBigQueryServices()));
       }
     }

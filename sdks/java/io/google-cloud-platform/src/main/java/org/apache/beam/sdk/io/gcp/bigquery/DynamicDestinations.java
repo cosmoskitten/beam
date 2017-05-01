@@ -20,12 +20,13 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
@@ -124,9 +125,20 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
       throws CannotProvideCoderException {
     Coder<DestinationT> destinationCoder = getDestinationCoder();
-    if (destinationCoder == null) {
-      // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
-      destinationCoder = registry.getDefaultCoder(new TypeDescriptor<DestinationT>() {});
+    // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
+    // We must first use reflection to figure out what the type parameter is.
+    Type superclass = getClass().getGenericSuperclass();
+    while (destinationCoder == null) {
+      if (superclass instanceof ParameterizedType) {
+        ParameterizedType parameterized = (ParameterizedType) superclass;
+        if (parameterized.getRawType() == DynamicDestinations.class) {
+          // DestinationT is the second parameter.
+          Type parameter = parameterized.getActualTypeArguments()[1];
+          destinationCoder = registry.getDefaultCoder((Class<DestinationT>) parameter);
+          break;
+        }
+      }
+      superclass = ((Class) superclass).getGenericSuperclass();
     }
     return destinationCoder;
   }
