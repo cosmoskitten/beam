@@ -81,7 +81,8 @@ class LocalFileSystemTest(unittest.TestCase):
 
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_unix_path_split(self, os_mock):
-    localfilesystem.os.path.split.side_effect = _gen_fake_split('/')
+    os_mock.path.abspath.side_effect = lambda a: a
+    os_mock.path.split.side_effect = _gen_fake_split('/')
     self.assertEqual(('/tmp/path/to', 'file'),
                      self.fs.split('/tmp/path/to/file'))
     # Actual os.path.split will split following to '/' and 'tmp' when run in
@@ -91,7 +92,8 @@ class LocalFileSystemTest(unittest.TestCase):
 
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_windows_path_split(self, os_mock):
-    localfilesystem.os.path.split.side_effect = _gen_fake_split('\\')
+    os_mock.path.abspath = lambda a: a
+    os_mock.path.split.side_effect = _gen_fake_split('\\')
     self.assertEqual((r'C:\tmp\path\to', 'file'),
                      self.fs.split(r'C:\tmp\path\to\file'))
     # Actual os.path.split will split following to 'C:\' and 'tmp' when run in

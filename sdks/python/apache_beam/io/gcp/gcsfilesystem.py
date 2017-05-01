@@ -32,6 +32,7 @@ class GCSFileSystem(FileSystem):
   """
 
   CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
+  GCS_PREFIX = 'gs://'
 
   def join(self, basepath, *paths):
     """Join two or more pathname components for the filesystem
@@ -42,7 +43,7 @@ class GCSFileSystem(FileSystem):
 
     Returns: full path after combining all the passed components
     """
-    if not basepath.startswith('gs://'):
+    if not basepath.startswith(GCSFileSystem.GCS_PREFIX):
       raise ValueError('Basepath %r must be GCS path.', basepath)
     path = basepath
     for p in paths:
@@ -63,13 +64,13 @@ class GCSFileSystem(FileSystem):
       a pair of path components as strings.
     """
     path = path.strip()
-    if not path.startswith('gs://'):
+    if not path.startswith(GCSFileSystem.GCS_PREFIX):
       raise ValueError('Path %r must be GCS path.', path)
 
-    # len('gs://') == 5
-    last_sep = path[5:].rfind('/')
+    prefix_len = len(GCSFileSystem.GCS_PREFIX)
+    last_sep = path[prefix_len:].rfind('/')
     if last_sep >= 0:
-      last_sep += 5
+      last_sep += prefix_len
 
     if last_sep > 0:
       return (path[:last_sep], path[last_sep + 1:])
@@ -183,7 +184,7 @@ class GCSFileSystem(FileSystem):
     def _copy_path(source, destination):
       """Recursively copy the file tree from the source to the destination
       """
-      if not destination.startswith('gs://'):
+      if not destination.startswith(GCSFileSystem.GCS_PREFIX):
         raise ValueError('Destination %r must be GCS path.', destination)
       # Use copy_tree if the path ends with / as it is a directory
       if source.endswith('/'):

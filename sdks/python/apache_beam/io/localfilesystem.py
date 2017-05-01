@@ -56,7 +56,7 @@ class LocalFileSystem(FileSystem):
     Returns:
       a pair of path components as strings.
     """
-    return os.path.split(path)
+    return os.path.split(os.path.abspath(path))
 
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
