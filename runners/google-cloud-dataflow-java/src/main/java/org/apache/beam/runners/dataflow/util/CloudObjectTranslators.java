@@ -382,11 +382,11 @@ class CloudObjectTranslators {
     };
   }
 
-  public static CloudObjectTranslator<IterableLikeCoder<?, ?>> iterableLike(
+  public static CloudObjectTranslator<IterableLikeCoder> iterableLike(
       final Class<? extends IterableLikeCoder> clazz) {
-    return new CloudObjectTranslator<IterableLikeCoder<?, ?>>() {
+    return new CloudObjectTranslator<IterableLikeCoder>() {
       @Override
-      public CloudObject toCloudObject(IterableLikeCoder<?, ?> target) {
+      public CloudObject toCloudObject(IterableLikeCoder target) {
         CloudObject base = CloudObject.forClass(clazz);
         return addComponents(base, Collections.<Coder<?>>singletonList(target.getElemCoder()));
       }
@@ -406,18 +406,24 @@ class CloudObjectTranslators {
       }
 
       @Override
+      public Class<? extends IterableLikeCoder> getSupportedClass() {
+        return clazz;
+      }
+
+      @Override
       public String cloudObjectClassName() {
         return CloudObject.forClass(clazz).getClassName();
       }
     };
   }
 
-  public static CloudObjectTranslator<MapCoder<?, ?>> map() {
-    return new CloudObjectTranslator<MapCoder<?, ?>>() {
+  public static CloudObjectTranslator<MapCoder> map() {
+    return new CloudObjectTranslator<MapCoder>() {
       @Override
-      public CloudObject toCloudObject(MapCoder<?, ?> target) {
+      public CloudObject toCloudObject(MapCoder target) {
         CloudObject base = CloudObject.forClass(MapCoder.class);
-        return addComponents(base, ImmutableList.of(target.getKeyCoder(), target.getValueCoder()));
+        return addComponents(
+            base, ImmutableList.<Coder<?>>of(target.getKeyCoder(), target.getValueCoder()));
       }
 
       @Override
@@ -432,16 +438,21 @@ class CloudObjectTranslators {
       }
 
       @Override
+      public Class<? extends MapCoder> getSupportedClass() {
+        return MapCoder.class;
+      }
+
+      @Override
       public String cloudObjectClassName() {
         return CloudObject.forClass(MapCoder.class).getClassName();
       }
     };
   }
 
-  public static CloudObjectTranslator<NullableCoder<?>> nullable() {
-    return new CloudObjectTranslator<NullableCoder<?>>() {
+  public static CloudObjectTranslator<NullableCoder> nullable() {
+    return new CloudObjectTranslator<NullableCoder>() {
       @Override
-      public CloudObject toCloudObject(NullableCoder<?> target) {
+      public CloudObject toCloudObject(NullableCoder target) {
         CloudObject base = CloudObject.forClass(NullableCoder.class);
         return addComponents(base, Collections.<Coder<?>>singletonList(target.getValueCoder()));
       }
@@ -455,6 +466,11 @@ class CloudObjectTranslators {
             NullableCoder.class.getSimpleName(),
             componentList.size());
         return NullableCoder.of(componentList.get(0));
+      }
+
+      @Override
+      public Class<? extends NullableCoder> getSupportedClass() {
+        return NullableCoder.class;
       }
 
       @Override
@@ -475,6 +491,11 @@ class CloudObjectTranslators {
       public UnionCoder fromCloudObject(CloudObject cloudObject) {
         List<Coder<?>> elementCoders = getComponents(cloudObject);
         return UnionCoder.of(elementCoders);
+      }
+
+      @Override
+      public Class<? extends UnionCoder> getSupportedClass() {
+        return UnionCoder.class;
       }
 
       @Override
@@ -524,6 +545,11 @@ class CloudObjectTranslators {
                 CloudObject.fromSpec(
                     Structs.getObject(cloudObject, PropertyNames.CO_GBK_RESULT_SCHEMA))),
             (UnionCoder) components.get(0));
+      }
+
+      @Override
+      public Class<? extends CoGbkResultCoder> getSupportedClass() {
+        return CoGbkResultCoder.class;
       }
 
       private CoGbkResultSchema schemaFromCloudObject(CloudObject cloudObject) {
