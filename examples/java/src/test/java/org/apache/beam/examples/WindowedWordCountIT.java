@@ -133,11 +133,11 @@ public class WindowedWordCountIT {
 
   private void testWindowedWordCountPipeline(WindowedWordCountITOptions options) throws Exception {
 
-    PerWindowFiles filenamePolicy = new PerWindowFiles(options.getOutput());
-
-    List<ShardedFile> expectedOutputFiles = Lists.newArrayListWithCapacity(6);
     String outputPrefix = options.getOutput();
 
+    PerWindowFiles filenamePolicy = new PerWindowFiles(outputPrefix);
+
+    List<ShardedFile> expectedOutputFiles = Lists.newArrayListWithCapacity(6);
 
     for (int startMinute : ImmutableList.of(0, 10, 20, 30, 40, 50)) {
       final Instant windowStart =
