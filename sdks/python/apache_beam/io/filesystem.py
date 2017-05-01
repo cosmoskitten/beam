@@ -406,6 +406,14 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
+class abstractclassmethod(classmethod):
+  __isabstractmethod__ = True
+
+  def __init__(self, callable):
+    callable.__isabstractmethod__ = True
+    super(abstractclassmethod, self).__init__(callable)
+
+
 class FileSystem(object):
   """A class that defines the functions that can be performed on a filesystem.
 
@@ -424,6 +432,22 @@ class FileSystem(object):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
     return compression_type
+
+  @classmethod
+  def get_all_subclasses(cls):
+    """Get all the subclasses of the FileSystem class
+    """
+    all_subclasses = []
+    for subclass in cls.__subclasses__():
+      all_subclasses.append(subclass)
+      all_subclasses.extend(subclass.get_all_subclasses())
+    return all_subclasses
+
+  @abstractclassmethod
+  def scheme(cls):
+    """URI scheme for the FileSystem
+    """
+    raise NotImplementedError
 
   @abc.abstractmethod
   def join(self, basepath, *paths):
