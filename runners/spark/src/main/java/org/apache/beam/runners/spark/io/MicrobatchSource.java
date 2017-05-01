@@ -44,7 +44,8 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * A {@link Source} that accommodates Spark's micro-batch oriented nature.
+ * A {@link Source} that accommodates Spark's micro-batch oriented nature and wraps an
+ * {@link UnboundedSource}.
  */
 public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends Source<T> {
@@ -228,14 +229,12 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
     @Override
     public boolean advance() throws IOException {
-      final boolean advanced;
       if (recordsRead >= maxNumRecords) {
         finalizeCheckpoint();
-        advanced = false;
+        return false;
       } else {
-        advanced = advanceWithBackoff();
+        return advanceWithBackoff();
       }
-      return advanced;
     }
 
     private boolean advanceWithBackoff() throws IOException {
