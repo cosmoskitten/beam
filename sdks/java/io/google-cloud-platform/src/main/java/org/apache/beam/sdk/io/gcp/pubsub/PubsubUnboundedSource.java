@@ -46,9 +46,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -121,7 +121,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   /**
    * Coder for checkpoints.
    */
-  private static final PubsubCheckpointCoder<?> CHECKPOINT_CODER = new PubsubCheckpointCoder<>();
+  private static final PubsubCheckpointCoder<?> CHECKPOINT_CODER = PubsubCheckpointCoder.of();
 
   /**
    * Maximum number of messages per pull.
@@ -360,10 +360,16 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   /** The coder for our checkpoints. */
-  private static class PubsubCheckpointCoder<T> extends CustomCoder<PubsubCheckpoint<T>> {
+  private static class PubsubCheckpointCoder<T> extends AtomicCoder<PubsubCheckpoint<T>> {
     private static final Coder<String> SUBSCRIPTION_PATH_CODER =
         NullableCoder.of(StringUtf8Coder.of());
     private static final Coder<List<String>> LIST_CODER = ListCoder.of(StringUtf8Coder.of());
+
+    public static <T> PubsubCheckpointCoder<T> of() {
+      return new PubsubCheckpointCoder<>();
+    }
+
+    private PubsubCheckpointCoder() {}
 
     @Override
     public void encode(PubsubCheckpoint<T> value, OutputStream outStream, Context context)
