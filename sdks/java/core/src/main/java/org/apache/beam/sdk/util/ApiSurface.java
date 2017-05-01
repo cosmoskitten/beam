@@ -141,7 +141,7 @@ public class ApiSurface {
 
           @Override
           public boolean apply(ClassInfo info) {
-            return info.className.indexOf('$') == -1;
+            return info != null && info.className.indexOf('$') == -1;
           }
         };
 
