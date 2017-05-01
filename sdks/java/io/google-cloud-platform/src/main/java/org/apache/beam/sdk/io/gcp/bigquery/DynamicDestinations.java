@@ -126,7 +126,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     Coder<DestinationT> destinationCoder = getDestinationCoder();
     if (destinationCoder == null) {
       // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
-      destinationCoder =registry.getDefaultCoder(new TypeDescriptor<DestinationT>() {});
+      destinationCoder = registry.getDefaultCoder(new TypeDescriptor<DestinationT>() {});
     }
     return destinationCoder;
   }
