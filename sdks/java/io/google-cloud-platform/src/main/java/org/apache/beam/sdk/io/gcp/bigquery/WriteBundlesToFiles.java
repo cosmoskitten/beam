@@ -143,7 +143,7 @@ class WriteBundlesToFiles<DestinationT>
   public void finishBundle(Context c) throws Exception {
     for (Map.Entry<DestinationT, TableRowWriter> entry : writers.entrySet()) {
       TableRowWriter.Result result = entry.getValue().close();
-      c.output(new Result<DestinationT>(result.filename, result.byteSize, entry.getKey()));
+      c.output(new Result<>(result.filename, result.byteSize, entry.getKey()));
     }
     writers.clear();
   }

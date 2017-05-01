@@ -66,6 +66,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -447,6 +449,82 @@ public class BigQueryIOTest implements Serializable {
     PAssert.that(output)
         .containsInAnyOrder(ImmutableList.of(KV.of("a", 1L), KV.of("b", 2L), KV.of("c", 3L)));
     p.run();
+  }
+
+  // Create an intermediate type to ensure that coder inference up the inheritance tree is tested.
+  abstract static class StringIntegerDestinations extends DynamicDestinations<String, Integer> {
+  }
+
+  @Test
+  public void testWriteDynamicDestinations() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("project-id");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeDatasetService datasetService = new FakeDatasetService();
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService())
+        .withDatasetService(datasetService);
+
+    datasetService.createDataset("project-id", "dataset-id", "", "");
+
+    final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
+    Pipeline p = TestPipeline.create(bqOptions);
+    PCollection<String> users = p.apply(Create.of("bill1", "sam2", "laurence3")
+            .withCoder(StringUtf8Coder.of()));
+    users.apply(BigQueryIO.<String>write()
+            .withTestServices(fakeBqServices)
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withFormatFunction(new SerializableFunction<String, TableRow>() {
+              @Override
+              public TableRow apply(String user) {
+                Matcher matcher = userPattern.matcher(user);
+                if (matcher.matches()) {
+                  return new TableRow().set("name", matcher.group(1))
+                      .set("id", matcher.group(2));
+                }
+                return null;
+              }
+            })
+            .to(new StringIntegerDestinations() {
+              @Override
+              public Integer getDestination(ValueInSingleWindow<String> element) {
+                Matcher matcher = userPattern.matcher(element.getValue());
+                if (matcher.matches()) {
+                  // Since we name tables by userid, we can simply store an Integer to represent
+                  // a table.
+                  return Integer.valueOf(matcher.group(2));
+                }
+                return null;
+              }
+
+              @Override
+              public TableDestination getTable(Integer userId) {
+                // Each user in it's own table.
+                return new TableDestination("dataset-id.userid-" + userId,
+                    "table for userid " + userId);
+              }
+
+              @Override
+              public TableSchema getSchema(Integer userId) {
+                return new TableSchema().setFields(
+                    ImmutableList.of(
+                        new TableFieldSchema().setName("name").setType("STRING"),
+                        new TableFieldSchema().setName("id").setType("INTEGER")));
+              }
+            })
+            .withoutValidation());
+    p.run();
+
+    File tempDir = new File(bqOptions.getTempLocation());
+    testNumFiles(tempDir, 0);
+
+    assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-1"),
+        containsInAnyOrder(new TableRow().set("name", "bill").set("id", 1)));
+    assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-2"),
+        containsInAnyOrder(new TableRow().set("name", "sam").set("id", 2)));
+    assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-3"),
+        containsInAnyOrder(new TableRow().set("name", "laurence").set("id", 3)));
   }
 
   @Test
@@ -1684,7 +1762,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   static class IdentityDynamicTables extends DynamicDestinations<String, String> {
-
     @Override
     public String getDestination(ValueInSingleWindow<String> element) {
       return null;
