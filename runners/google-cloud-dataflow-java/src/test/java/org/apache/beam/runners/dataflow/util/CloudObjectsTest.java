@@ -120,8 +120,8 @@ public class CloudObjectsTest {
                   WindowedValue.getFullCoder(
                       KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()),
                       IntervalWindow.getCoder()))
-              .add(VarLongCoder.of())
               .add(ByteArrayCoder.of())
+              .add(VarLongCoder.of())
               .add(CollectionCoder.of(VarLongCoder.of()))
               .add(ListCoder.of(VarLongCoder.of()))
               .add(SetCoder.of(VarLongCoder.of()))
