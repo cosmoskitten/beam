@@ -65,8 +65,8 @@ public class GcsPathValidator implements PathValidator {
   @Override
   public void validateOutputResourceSupported(ResourceId resourceId) {
     checkArgument(
-        resourceId.getScheme().equals("gs://"),
-        "Not a valid GCS URI: %s",
+        resourceId.getScheme().equals("gs"),
+        "Expected a valid 'gs://' path but was given: '%s'",
         resourceId);
     verifyPath(resourceId.toString());
   }

@@ -86,6 +86,7 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
@@ -843,7 +844,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           transform.getSink().getBaseOutputDirectoryProvider();
       if (outputDirectory.isAccessible()) {
         PathValidator validator = runner.options.getPathValidator();
-        validator.validateOutputResourceSupported(outputDirectory.get());
+        validator.validateOutputResourceSupported(
+            outputDirectory.get().resolve("some-file", StandardResolveOptions.RESOLVE_FILE));
       }
       return transform.expand(input);
     }
