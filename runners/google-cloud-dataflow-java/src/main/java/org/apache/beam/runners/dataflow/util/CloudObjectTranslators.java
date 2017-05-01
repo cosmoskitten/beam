@@ -313,10 +313,10 @@ class CloudObjectTranslators {
 
   private static final String CODER_FIELD = "serialized_coder";
   private static final String TYPE_FIELD = "type";
-  public static CloudObjectTranslator<? extends CustomCoder> custom() {
-    return new CloudObjectTranslator<CustomCoder>() {
+  public static CloudObjectTranslator<? extends Coder> javaSerialized() {
+    return new CloudObjectTranslator<Coder>() {
       @Override
-      public CloudObject toCloudObject(CustomCoder target) {
+      public CloudObject toCloudObject(Coder target) {
         CloudObject cloudObject = CloudObject.forClass(CustomCoder.class);
         Structs.addString(cloudObject, TYPE_FIELD, target.getClass().getName());
         Structs.addString(
@@ -327,10 +327,10 @@ class CloudObjectTranslators {
       }
 
       @Override
-      public CustomCoder fromCloudObject(CloudObject cloudObject) {
+      public Coder<?> fromCloudObject(CloudObject cloudObject) {
         String serializedCoder = Structs.getString(cloudObject, CODER_FIELD);
         String type = Structs.getString(cloudObject, TYPE_FIELD);
-        return (CustomCoder<?>)
+        return (Coder<?>)
             SerializableUtils.deserializeFromByteArray(
                 StringUtils.jsonStringToByteArray(serializedCoder), type);
       }

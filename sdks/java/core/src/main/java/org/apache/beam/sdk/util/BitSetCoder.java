@@ -54,8 +54,7 @@ public class BitSetCoder extends CustomCoder<BitSet> {
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic(
-        "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
+    BYTE_ARRAY_CODER.verifyDeterministic();
   }
 }
 
