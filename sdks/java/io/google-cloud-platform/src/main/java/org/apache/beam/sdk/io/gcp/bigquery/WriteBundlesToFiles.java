@@ -83,13 +83,6 @@ class WriteBundlesToFiles<DestinationT>
       return new ResultCoder<>(destinationCoder);
     }
 
-    @JsonCreator
-    public static <DestinationT> ResultCoder<DestinationT> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<DestinationT>> components) {
-      checkArgument(components.size() == 1, "Expecting 1 components, got %s", components.size());
-      return of(components.get(0));
-    }
-
     ResultCoder(Coder<DestinationT> destinationCoder) {
       this.destinationCoder = destinationCoder;
     }
