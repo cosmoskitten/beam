@@ -29,8 +29,8 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -67,8 +67,11 @@ class WriteBundlesToFiles<DestinationT>
     }
   }
 
-  /** a coder for the {@link Result} class. */
-  public static class ResultCoder<DestinationT> extends CustomCoder<Result<DestinationT>> {
+  /**
+   * A coder for the {@link Result} class.
+   */
+  public static class ResultCoder extends AtomicCoder<Result> {
+    private static final ResultCoder INSTANCE = new ResultCoder();
     private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
     private static final VarLongCoder longCoder = VarLongCoder.of();
     private final Coder<DestinationT> destinationCoder;
