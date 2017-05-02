@@ -126,12 +126,9 @@ public class CloudObjectsTest {
     @Test
     public void toAndFromCloudObject() throws Exception {
       CloudObject cloudObject = CloudObjects.asCloudObject(coder);
-      Coder<?> reconstructed = Serializer.deserialize(cloudObject, Coder.class);
       Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
 
-      assertEquals(coder.getClass(), reconstructed.getClass());
       assertEquals(coder.getClass(), fromCloudObject.getClass());
-      assertEquals(coder, reconstructed);
       assertEquals(coder, fromCloudObject);
     }
   }
