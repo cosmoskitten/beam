@@ -98,7 +98,7 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
     if (other == this) {
       return true;
     }
-    if (other == null || !other.getClass().equals(WritableCoder.class)) {
+    if (!(other instanceof WritableCoder)) {
       return false;
     }
     WritableCoder<?> that = (WritableCoder<?>) other;

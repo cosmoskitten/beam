@@ -145,7 +145,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
     if (other == this) {
       return true;
     }
-    if (other == null || !JAXBCoder.class.equals(other.getClass())) {
+    if (!(other instanceof JAXBCoder)) {
       return false;
     }
     JAXBCoder<?> that = (JAXBCoder<?>) other;

@@ -767,7 +767,7 @@ public class ApproximateQuantiles {
       if (other == this) {
         return true;
       }
-      if (other == null || !other.getClass().equals(QuantileStateCoder.class)) {
+      if (!(other instanceof QuantileStateCoder)) {
         return false;
       }
       QuantileStateCoder<?, ?> that = (QuantileStateCoder<?, ?>) other;

@@ -574,7 +574,7 @@ public class Top {
       if (other == this) {
         return true;
       }
-      if (other == null || other.getClass().equals(BoundedHeapCoder.class)) {
+      if (!(other instanceof BoundedHeapCoder)) {
         return false;
       }
       BoundedHeapCoder<?, ?> that = (BoundedHeapCoder<?, ?>) other;

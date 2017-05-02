@@ -403,7 +403,7 @@ public class IsmFormat {
       if (other == this) {
         return true;
       }
-      if (other == null || !other.getClass().equals(IsmRecordCoder.class)) {
+      if (!(other instanceof IsmRecordCoder)) {
         return false;
       }
       IsmRecordCoder<?> that = (IsmRecordCoder<?>) other;

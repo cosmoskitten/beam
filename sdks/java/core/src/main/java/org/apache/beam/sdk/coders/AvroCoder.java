@@ -688,7 +688,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     if (other == this) {
       return true;
     }
-    if (other == null || !AvroCoder.class.equals(other.getClass())) {
+    if (!(other instanceof AvroCoder)) {
       return false;
     }
     AvroCoder<?> that = (AvroCoder<?>) other;
