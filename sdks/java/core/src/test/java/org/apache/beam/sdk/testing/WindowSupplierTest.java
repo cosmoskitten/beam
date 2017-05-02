@@ -17,12 +17,6 @@
  */
 package org.apache.beam.sdk.testing;
 
-
-@Override
-public abstract boolean equals(Object other);
-
-@Override
-public abstract int hashCode();
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
