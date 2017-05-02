@@ -33,7 +33,6 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -491,7 +490,6 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound to(String filenamePrefix) {
-        validateOutputComponent(filenamePrefix);
         return new Bound(name, StaticValueProvider.of(filenamePrefix), filenameSuffix,
             header, footer, numShards, shardTemplate,
             writableByteChannelFactory, filenamePolicy, windowedWrites);
@@ -522,7 +520,6 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound withSuffix(String nameExtension) {
-        validateOutputComponent(nameExtension);
         return new Bound(name, filenamePrefix, nameExtension, header, footer, numShards,
             shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
@@ -784,17 +781,6 @@ public class TextIO {
     public boolean matches(String filename) {
       return filename.toLowerCase().endsWith(filenameSuffix.toLowerCase());
     }
-  }
-
-  // Pattern which matches old-style shard output patterns, which are now
-  // disallowed.
-  private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
-
-  private static void validateOutputComponent(String partialFilePattern) {
-    checkArgument(
-        !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
-        "Output name components are not allowed to contain @* or @N patterns: "
-        + partialFilePattern);
   }
 
   //////////////////////////////////////////////////////////////////////////////
