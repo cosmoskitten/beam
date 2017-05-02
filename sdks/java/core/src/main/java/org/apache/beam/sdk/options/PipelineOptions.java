@@ -32,6 +32,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
+import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
@@ -247,16 +248,13 @@ public interface PipelineOptions extends HasDisplayData {
   /**
    * A pipeline level default location for storing temporary files.
    *
-   * <p>This can be a path of any file system.
-   *
-   * <p>{@link #getTempLocation()} can be used as a default location in other
-   * {@link PipelineOptions}.
-   *
-   * <p>If it is unset, {@link PipelineRunner} can override it.
+   * <p>This option is not accessible to transforms during construction, as it may be controlled by
+   * the runner. Transforms instead use the {@link ValueProvider} in order to receive an appropriate
+   * temporary location at run time.
    */
   @Description("A pipeline level default location for storing temporary files.")
-  String getTempLocation();
-  void setTempLocation(String value);
+  ValueProvider<String> getTempLocation();
+  void setTempLocation(ValueProvider<String> value);
 
   @Description("Name of the pipeline execution."
       + "It must match the regular expression '[a-z]([-a-z0-9]{0,38}[a-z0-9])?'."
