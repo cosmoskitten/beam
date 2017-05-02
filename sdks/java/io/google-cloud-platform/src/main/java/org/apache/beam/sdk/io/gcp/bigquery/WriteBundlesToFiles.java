@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +49,7 @@ class WriteBundlesToFiles<DestinationT>
 
   // Map from tablespec to a writer for that table.
   private transient Map<DestinationT, TableRowWriter> writers;
+  private transient Map<DestinationT, BoundedWindow> tableDestinationWindows;
   private final String stepUuid;
 
   /**
@@ -83,21 +85,21 @@ class WriteBundlesToFiles<DestinationT>
     }
 
     @Override
-    public void encode(Result<DestinationT> value, OutputStream outStream, Context context)
+    public void encode(Result<DestinationT> value, OutputStream outStream)
         throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
       }
-      stringCoder.encode(value.filename, outStream, context.nested());
-      longCoder.encode(value.fileByteSize, outStream, context.nested());
-      destinationCoder.encode(value.destination, outStream, context.nested());
+      stringCoder.encode(value.filename, outStream);
+      longCoder.encode(value.fileByteSize, outStream);
+      destinationCoder.encode(value.destination, outStream);
     }
 
     @Override
-    public Result<DestinationT> decode(InputStream inStream, Context context) throws IOException {
-      String filename = stringCoder.decode(inStream, context.nested());
-      long fileByteSize = longCoder.decode(inStream, context.nested());
-      DestinationT destination = destinationCoder.decode(inStream, context.nested());
+    public Result<DestinationT> decode(InputStream inStream) throws IOException {
+      String filename = stringCoder.decode(inStream);
+      long fileByteSize = longCoder.decode(inStream);
+      DestinationT destination = destinationCoder.decode(inStream);
       return new Result<>(filename, fileByteSize, destination);
     }
 
@@ -110,14 +112,15 @@ class WriteBundlesToFiles<DestinationT>
   }
 
   @StartBundle
-  public void startBundle(Context c) {
+  public void startBundle() {
     // This must be done each bundle, as by default the {@link DoFn} might be reused between
     // bundles.
     this.writers = Maps.newHashMap();
+    this.tableDestinationWindows = Maps.newHashMap();
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c) throws Exception {
+  public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
     String tempFilePrefix = resolveTempLocation(
         c.getPipelineOptions().getTempLocation(), "BigQueryWriteTemp", stepUuid);
     TableRowWriter writer = writers.get(c.element().getKey());
@@ -125,6 +128,7 @@ class WriteBundlesToFiles<DestinationT>
       writer = new TableRowWriter(tempFilePrefix);
       writer.open(UUID.randomUUID().toString());
       writers.put(c.element().getKey(), writer);
+      tableDestinationWindows.put(c.element().getKey(), window);
       LOG.debug("Done opening writer {}", writer);
     }
     try {
@@ -143,11 +147,15 @@ class WriteBundlesToFiles<DestinationT>
   }
 
   @FinishBundle
-  public void finishBundle(Context c) throws Exception {
-    for (Map.Entry<DestinationT, TableRowWriter> entry : writers.entrySet()) {
+  public void finishBundle(FinishBundleContext c) throws Exception {
+    for (Map.Entry<TableDestination, TableRowWriter> entry : writers.entrySet()) {
       TableRowWriter.Result result = entry.getValue().close();
-      c.output(new Result<>(result.resourceId.toString(), result.byteSize, entry.getKey()));
+      c.output(
+          new Result(result.resourceId.toString(), result.byteSize, entry.getKey()),
+          tableDestinationWindows.get(entry.getKey()).maxTimestamp(),
+          tableDestinationWindows.get(entry.getKey()));
     }
     writers.clear();
+    tableDestinationWindows.clear();
   }
 }
