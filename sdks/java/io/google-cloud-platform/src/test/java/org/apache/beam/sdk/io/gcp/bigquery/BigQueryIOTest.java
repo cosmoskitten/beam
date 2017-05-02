@@ -483,7 +483,7 @@ public class BigQueryIOTest implements Serializable {
                   return new TableRow().set("name", matcher.group(1))
                       .set("id", Integer.valueOf(matcher.group(2)));
                 }
-                return null;
+                throw new RuntimeException("Unmatching element " + user);
               }
             })
             .to(new StringIntegerDestinations() {
@@ -495,7 +495,7 @@ public class BigQueryIOTest implements Serializable {
                   // a table.
                   return Integer.valueOf(matcher.group(2));
                 }
-                return null;
+                throw new RuntimeException("Unmatching destination " + element.getValue());
               }
 
               @Override
@@ -1764,7 +1764,7 @@ public class BigQueryIOTest implements Serializable {
   static class IdentityDynamicTables extends DynamicDestinations<String, String> {
     @Override
     public String getDestination(ValueInSingleWindow<String> element) {
-      return null;
+      throw new UnsupportedOperationException("getDestination not expected in this test.");
     }
 
     @Override
@@ -1774,7 +1774,7 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public TableSchema getSchema(String destination, SideInputAccessor sideInputAccessor) {
-      return null;
+      throw new UnsupportedOperationException("getSchema not expected in this test.");
     }
   }
   @Test
