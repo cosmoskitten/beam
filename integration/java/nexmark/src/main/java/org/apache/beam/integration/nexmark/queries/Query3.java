@@ -29,6 +29,13 @@ import org.apache.beam.integration.nexmark.model.Person;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -40,13 +47,6 @@ import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerSpec;
-import org.apache.beam.sdk.util.TimerSpecs;
-import org.apache.beam.sdk.util.state.StateSpec;
-import org.apache.beam.sdk.util.state.StateSpecs;
-import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -180,13 +180,13 @@ public class Query3 extends NexmarkQuery {
     private static final String PERSON = "person";
 
     @StateId(PERSON)
-    private static final StateSpec<Object, ValueState<Person>> personSpec =
+    private static final StateSpec<ValueState<Person>> personSpec =
         StateSpecs.value(Person.CODER);
 
     private static final String PERSON_STATE_EXPIRING = "personStateExpiring";
 
     @StateId(AUCTIONS)
-    private final StateSpec<Object, ValueState<List<Auction>>> auctionsSpec =
+    private final StateSpec<ValueState<List<Auction>>> auctionsSpec =
         StateSpecs.value(ListCoder.of(Auction.CODER));
 
     @TimerId(PERSON_STATE_EXPIRING)

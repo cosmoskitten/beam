@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
@@ -65,10 +66,12 @@ import org.apache.beam.integration.nexmark.queries.Query9;
 import org.apache.beam.integration.nexmark.queries.Query9Model;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -77,6 +80,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -839,14 +843,28 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   private PCollection<Event> sourceEventsFromPubsub(Pipeline p, long now) {
     String shortSubscription = shortSubscription(now);
     NexmarkUtils.console("Reading events from Pubsub %s", shortSubscription);
-    PubsubIO.Read<Event> io =
-        PubsubIO.<Event>read().fromSubscription(shortSubscription)
-            .withIdAttribute(NexmarkUtils.PUBSUB_ID)
-            .withCoder(Event.CODER);
+
+    PubsubIO.Read<PubsubMessage> io =
+        PubsubIO.readPubsubMessagesWithAttributes().fromSubscription(shortSubscription)
+            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
-    return p.apply(queryName + ".ReadPubsubEvents", io);
+
+    return p
+      .apply(queryName + ".ReadPubsubEvents", io)
+      .apply(queryName + ".PubsubMessageToEvent", ParDo.of(new DoFn<PubsubMessage, Event>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+          byte[] payload = c.element().getPayload();
+          try {
+            Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
+            c.output(event);
+          } catch (CoderException e) {
+            // TODO Log decoding Event error
+          }
+        }
+      }));
   }
 
   /**
@@ -859,9 +877,8 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     }
     NexmarkUtils.console("Reading events from Avro files at %s", filename);
     return p
-        .apply(queryName + ".ReadAvroEvents", AvroIO.Read
-                          .from(filename + "*.avro")
-                          .withSchema(Event.class))
+        .apply(queryName + ".ReadAvroEvents", AvroIO.read(Event.class)
+                          .from(filename + "*.avro"))
         .apply("OutputWithTimestamp", NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA);
   }
 
@@ -871,14 +888,28 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   private void sinkEventsToPubsub(PCollection<Event> events, long now) {
     String shortTopic = shortTopic(now);
     NexmarkUtils.console("Writing events to Pubsub %s", shortTopic);
-    PubsubIO.Write<Event> io =
-        PubsubIO.<Event>write().to(shortTopic)
-                      .withIdAttribute(NexmarkUtils.PUBSUB_ID)
-                      .withCoder(Event.CODER);
+
+    PubsubIO.Write<PubsubMessage> io =
+        PubsubIO.writePubsubMessages().to(shortTopic)
+            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
-    events.apply(queryName + ".WritePubsubEvents", io);
+
+    events.apply(queryName + ".EventToPubsubMessage",
+            ParDo.of(new DoFn<Event, PubsubMessage>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                try {
+                  byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+                  c.output(new PubsubMessage(payload, new HashMap<String, String>()));
+                } catch (CoderException e1) {
+                  // TODO Log encoding Event error
+                }
+              }
+            })
+        )
+        .apply(queryName + ".WritePubsubEvents", io);
   }
 
   /**
@@ -888,7 +919,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     String shortTopic = shortTopic(now);
     NexmarkUtils.console("Writing results to Pubsub %s", shortTopic);
     PubsubIO.Write<String> io =
-        PubsubIO.<String>write().to(shortTopic)
+        PubsubIO.writeStrings().to(shortTopic)
             .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
@@ -915,18 +946,16 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     }
     NexmarkUtils.console("Writing events to Avro files at %s", filename);
     source.apply(queryName + ".WriteAvroEvents",
-            AvroIO.Write.to(filename + "/event").withSuffix(".avro").withSchema(Event.class));
+            AvroIO.write(Event.class).to(filename + "/event").withSuffix(".avro"));
     source.apply(NexmarkQuery.JUST_BIDS)
           .apply(queryName + ".WriteAvroBids",
-            AvroIO.Write.to(filename + "/bid").withSuffix(".avro").withSchema(Bid.class));
+            AvroIO.write(Bid.class).to(filename + "/bid").withSuffix(".avro"));
     source.apply(NexmarkQuery.JUST_NEW_AUCTIONS)
           .apply(queryName + ".WriteAvroAuctions",
-                  AvroIO.Write.to(filename + "/auction").withSuffix(".avro")
-                          .withSchema(Auction.class));
+            AvroIO.write(Auction.class).to(filename + "/auction").withSuffix(".avro"));
     source.apply(NexmarkQuery.JUST_NEW_PERSONS)
           .apply(queryName + ".WriteAvroPeople",
-                  AvroIO.Write.to(filename + "/person").withSuffix(".avro")
-                             .withSchema(Person.class));
+            AvroIO.write(Person.class).to(filename + "/person").withSuffix(".avro"));
   }
 
   /**
@@ -936,7 +965,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     String filename = textFilename(now);
     NexmarkUtils.console("Writing results to text files at %s", filename);
     formattedResults.apply(queryName + ".WriteTextResults",
-        TextIO.Write.to(filename));
+        TextIO.write().to(filename));
   }
 
   private static class StringToTableRow extends DoFn<String, TableRow> {
