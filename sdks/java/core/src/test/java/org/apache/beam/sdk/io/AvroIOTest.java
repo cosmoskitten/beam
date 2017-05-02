@@ -103,8 +103,8 @@ public class AvroIOTest {
 
   @Test
   public void testAvroIOGetName() {
-    assertEquals("AvroIO.Read", AvroIO.Read.from("gs://bucket/foo*/baz").getName());
-    assertEquals("AvroIO.Write", AvroIO.Write.to("gs://bucket/foo/baz").getName());
+    assertEquals("AvroIO.Read", AvroIO.Read.from("/tmp/foo*/baz").getName());
+    assertEquals("AvroIO.Write", AvroIO.Write.to("/tmp/foo/baz").getName());
   }
 
   @DefaultCoder(AvroCoder.class)
@@ -406,14 +406,14 @@ public class AvroIOTest {
   @Test
   public void testWriteWithDefaultCodec() throws Exception {
     AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write
-        .to("gs://bucket/foo/baz");
+        .to("/tmp/foo/baz");
     assertEquals(CodecFactory.deflateCodec(6).toString(), write.getCodec().toString());
   }
 
   @Test
   public void testWriteWithCustomCodec() throws Exception {
     AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write
-        .to("gs://bucket/foo/baz")
+        .to("/tmp/foo/baz")
         .withCodec(CodecFactory.snappyCodec());
     assertEquals(SNAPPY_CODEC, write.getCodec().toString());
   }
@@ -422,7 +422,7 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomDeflateCodec() throws Exception {
     AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write
-        .to("gs://bucket/foo/baz")
+        .to("/tmp/foo/baz")
         .withCodec(CodecFactory.deflateCodec(9));
 
     AvroIO.Write.Bound<GenericRecord> serdeWrite = SerializableUtils.clone(write);
@@ -434,7 +434,7 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomXZCodec() throws Exception {
     AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write
-        .to("gs://bucket/foo/baz")
+        .to("/tmp/foo/baz")
         .withCodec(CodecFactory.xzCodec(9));
 
     AvroIO.Write.Bound<GenericRecord> serdeWrite = SerializableUtils.clone(write);
