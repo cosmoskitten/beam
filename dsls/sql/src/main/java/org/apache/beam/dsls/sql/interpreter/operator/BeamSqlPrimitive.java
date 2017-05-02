@@ -80,8 +80,9 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
     case INTEGER:
       return value instanceof Integer;
     case SMALLINT:
-    case TINYINT:
       return value instanceof Short;
+    case TINYINT:
+      return value instanceof Byte;
     case BOOLEAN:
       return value instanceof Boolean;
     case CHAR:

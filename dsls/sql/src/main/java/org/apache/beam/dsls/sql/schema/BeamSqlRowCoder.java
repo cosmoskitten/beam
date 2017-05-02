@@ -54,10 +54,8 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
   @Override
   public void encode(BeamSQLRow value, OutputStream outStream,
       org.apache.beam.sdk.coders.Coder.Context context) throws CoderException, IOException {
-    recordTypeCoder.encode(value.getDataType(), outStream, context);
-    listCoder.encode(value.getNullFields(), outStream, context);
-
-    Context nested = context.nested();
+    recordTypeCoder.encode(value.getDataType(), outStream, context.nested());
+    listCoder.encode(value.getNullFields(), outStream, context.nested());
 
     for (int idx = 0; idx < value.size(); ++idx) {
       if (value.getNullFields().contains(idx)) {
@@ -66,29 +64,31 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
 
       switch (value.getDataType().getFieldsType().get(idx)) {
       case INTEGER:
-        intCoder.encode(value.getInteger(idx), outStream, nested);
+        intCoder.encode(value.getInteger(idx), outStream, context.nested());
         break;
       case SMALLINT:
       case TINYINT:
-        intCoder.encode((int) value.getShort(idx), outStream, nested);
+        intCoder.encode((int) value.getShort(idx), outStream, context.nested());
         break;
       case DOUBLE:
-        doubleCoder.encode(value.getDouble(idx), outStream, nested);
+        doubleCoder.encode(value.getDouble(idx), outStream, context.nested());
         break;
       case FLOAT:
-        doubleCoder.encode((double) value.getFloat(idx), outStream, nested);
+        doubleCoder.encode((double) value.getFloat(idx), outStream, context.nested());
         break;
       case BIGINT:
-        longCoder.encode(value.getLong(idx), outStream, nested);
+        longCoder.encode(value.getLong(idx), outStream, context.nested());
         break;
       case VARCHAR:
-        stringCoder.encode(value.getString(idx), outStream, nested);
+        stringCoder.encode(value.getString(idx), outStream, context.nested());
         break;
 
       default:
         throw new UnsupportedDataTypeException(value.getDataType().getFieldsType().get(idx));
       }
     }
+    //add a dummy field to indicate the end of record
+    intCoder.encode(value.size(), outStream, context);
   }
 
   @Override
@@ -110,8 +110,10 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
         record.addField(idx, intCoder.decode(inStream, context));
         break;
       case SMALLINT:
-      case TINYINT:
         record.addField(idx, intCoder.decode(inStream, context).shortValue());
+        break;
+      case TINYINT:
+        record.addField(idx, intCoder.decode(inStream, context).byteValue());
         break;
       case DOUBLE:
         record.addField(idx, doubleCoder.decode(inStream, context));
@@ -130,6 +132,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
         throw new UnsupportedDataTypeException(type.getFieldsType().get(idx));
       }
     }
+    intCoder.decode(inStream, context);
 
     return record;
   }

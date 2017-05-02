@@ -50,6 +50,9 @@ public class BeamSqlAndExpression extends BeamSqlExpression {
     for (BeamSqlExpression exp : operands) {
       BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRecord);
       result = result && expOut.getValue();
+      if (!result) {
+        break;
+      }
     }
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, result);
   }
