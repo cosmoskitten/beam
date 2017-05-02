@@ -35,7 +35,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -75,7 +74,7 @@ public class CreateTables<DestinationT>
   }
 
   CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
-    return new CreateTables(createDisposition, bqServices, dynamicDestinations);
+    return new CreateTables<DestinationT>(createDisposition, bqServices, dynamicDestinations);
   }
 
   @Override
@@ -88,25 +87,16 @@ public class CreateTables<DestinationT>
     return input.apply(
         ParDo.of(
                 new DoFn<KV<DestinationT, TableRow>, KV<TableDestination, TableRow>>() {
-                  DynamicDestinations<?, DestinationT> dynamicDestinationsCopy;
-
-                  @StartBundle
-                  public void startBundle(Context c) {
-                    // Make sure each bundle has it's own copy of dynamicDestinations.
-                    this.dynamicDestinationsCopy = SerializableUtils.clone(dynamicDestinations);
-                  }
-
                   @ProcessElement
                   public void processElement(ProcessContext context)
                       throws InterruptedException, IOException {
                     // If a side input is needed to produce the table name, set it.
-                    if (dynamicDestinationsCopy.getSideInput() != null) {
-                      dynamicDestinationsCopy.setSideInputValue(
-                          context.sideInput(dynamicDestinationsCopy.getSideInput()));
-                    }
+                    DynamicDestinations.SideInputAccessor sideInputAccessor =
+                        new DynamicDestinations.SideInputAccessor(
+                            context, dynamicDestinations.getSideInput());
 
                     TableDestination tableDestination =
-                        dynamicDestinationsCopy.getTable(context.element().getKey());
+                        dynamicDestinations.getTable(context.element().getKey(), sideInputAccessor);
                     TableReference tableReference = tableDestination.getTableReference();
                     if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
                       tableReference.setProjectId(
@@ -116,7 +106,8 @@ public class CreateTables<DestinationT>
                               tableReference, tableDestination.getTableDescription());
                     }
                     TableSchema tableSchema =
-                        dynamicDestinationsCopy.getSchema(context.element().getKey());
+                        dynamicDestinations.getSchema(context.element().getKey(),
+                            sideInputAccessor);
                     BigQueryOptions options =
                         context.getPipelineOptions().as(BigQueryOptions.class);
                     possibleCreateTable(options, tableDestination, tableSchema);
