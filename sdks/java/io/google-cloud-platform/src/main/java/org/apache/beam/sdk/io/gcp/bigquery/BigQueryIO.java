@@ -1043,7 +1043,7 @@ public class BigQueryIO {
                 + " PCollection.");
         return rowsWithDestination.apply(
             new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
-                .withTestServices(getBigQueryServices()));
+                .setTestServices(getBigQueryServices()));
       } else {
         return rowsWithDestination.apply(
             new BatchLoads<>(
