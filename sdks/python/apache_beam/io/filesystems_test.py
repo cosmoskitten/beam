@@ -48,6 +48,19 @@ class FileSystemsTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
+  def test_get_scheme(self):
+    self.assertIsNone(FileSystems.get_scheme('/abc/cdf'))
+    self.assertIsNone(FileSystems.get_scheme('c:\\abc\cdf'))  # pylint: disable=anomalous-backslash-in-string
+    self.assertEqual(FileSystems.get_scheme('gs://abc/cdf'), 'gs')
+
+  def test_get_filesystem(self):
+    self.assertTrue(isinstance(FileSystems.get_filesystem('/tmp'),
+                               localfilesystem.LocalFileSystem))
+    self.assertTrue(isinstance(FileSystems.get_filesystem('c:\\abc\def'),  # pylint: disable=anomalous-backslash-in-string
+                               localfilesystem.LocalFileSystem))
+    with self.assertRaises(ValueError):
+      FileSystems.get_filesystem('error://abc/def')
+
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_unix_path_join(self, *unused_mocks):
     # Test joining of Unix paths.
