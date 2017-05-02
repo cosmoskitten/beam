@@ -19,28 +19,9 @@ package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
-/**
- * An {@code Aggregator<InputT>} enables monitoring of values of type {@code InputT},
- * to be combined across all bundles.
- *
- * @param <InputT> the type of input values
- * @param <OutputT> the type of output values
- */
+@Deprecated
 public interface Aggregator<InputT, OutputT> {
-
-  /**
-   * Adds a new value into the Aggregator.
-   */
   void addValue(InputT value);
-
-  /**
-   * Returns the name of the Aggregator.
-   */
   String getName();
-
-  /**
-   * Returns the {@link CombineFn}, which combines input elements in the
-   * aggregator.
-   */
   CombineFn<InputT, ?, OutputT> getCombineFn();
 }
