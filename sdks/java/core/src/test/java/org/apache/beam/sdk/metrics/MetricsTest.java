@@ -210,7 +210,7 @@ public class MetricsTest implements Serializable {
           Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
 
           @StartBundle
-          public void startBundle(Context c) {
+          public void startBundle(StartBundleContext c) {
             bundleDist.update(10L);
           }
 
@@ -226,7 +226,7 @@ public class MetricsTest implements Serializable {
           }
 
           @DoFn.FinishBundle
-          public void finishBundle(Context c) {
+          public void finishBundle(FinishBundleContext c) {
             bundleDist.update(40L);
           }
         }))

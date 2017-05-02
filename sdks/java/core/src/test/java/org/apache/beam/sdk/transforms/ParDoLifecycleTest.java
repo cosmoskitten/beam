@@ -87,7 +87,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle(StartBundleContext c) {
       assertThat("setup should have been called", setupCalled, is(true));
       assertThat(
           "Even number of startBundle and finishBundle calls in startBundle",
@@ -108,7 +108,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle(FinishBundleContext c) {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
       assertThat(
           "there should be one bundle that has been started but not finished",
@@ -167,7 +167,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @StartBundle
-    public void begin(Context c) {
+    public void begin(StartBundleContext c) {
       assertThat("setup should have been called", setupCalled, is(true));
       assertThat("Even number of startBundle and finishBundle calls in startBundle",
           startBundleCalls,
@@ -186,7 +186,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @FinishBundle
-    public void end(Context c) {
+    public void end(FinishBundleContext c) {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
       assertThat("there should be one bundle that has been started but not finished",
           startBundleCalls,
@@ -354,7 +354,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @StartBundle
-    public void startBundle(Context c) throws Exception {
+    public void startBundle(StartBundleContext c) throws Exception {
       throwIfNecessary(MethodForException.START_BUNDLE);
     }
 
@@ -364,7 +364,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle(FinishBundleContext c) throws Exception {
       throwIfNecessary(MethodForException.FINISH_BUNDLE);
     }
 
@@ -401,7 +401,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @StartBundle
-    public void preBundle(Context c) throws Exception {
+    public void preBundle(StartBundleContext c) throws Exception {
       throwIfNecessary(MethodForException.START_BUNDLE);
     }
 
@@ -411,7 +411,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @FinishBundle
-    public void postBundle(Context c) throws Exception {
+    public void postBundle(FinishBundleContext c) throws Exception {
       throwIfNecessary(MethodForException.FINISH_BUNDLE);
     }
 
