@@ -179,6 +179,10 @@ public abstract class DoFnSignature {
       // they are simply inlined.
       if (this instanceof ContextParameter) {
         return cases.dispatch((ContextParameter) this);
+      } else if (this instanceof StartBundleContextParameter) {
+        return cases.dispatch((StartBundleContextParameter) this);
+      } else if (this instanceof FinishBundleContextParameter) {
+        return cases.dispatch((FinishBundleContextParameter) this);
       } else if (this instanceof ProcessContextParameter) {
         return cases.dispatch((ProcessContextParameter) this);
       } else if (this instanceof OnTimerContextParameter) {
@@ -203,6 +207,8 @@ public abstract class DoFnSignature {
      */
     public interface Cases<ResultT> {
       ResultT dispatch(ContextParameter p);
+      ResultT dispatch(StartBundleContextParameter p);
+      ResultT dispatch(FinishBundleContextParameter p);
       ResultT dispatch(ProcessContextParameter p);
       ResultT dispatch(OnTimerContextParameter p);
       ResultT dispatch(WindowParameter p);
@@ -219,6 +225,16 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(ContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(StartBundleContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(FinishBundleContextParameter p) {
           return dispatchDefault(p);
         }
 
@@ -257,6 +273,10 @@ public abstract class DoFnSignature {
     // These parameter descriptors are constant
     private static final ContextParameter CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_ContextParameter();
+    private static final StartBundleContextParameter START_BUNDLE_CONTEXT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_StartBundleContextParameter();
+    private static final FinishBundleContextParameter FINISH_BUNDLE_CONTEXT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_FinishBundleContextParameter();
     private static final ProcessContextParameter PROCESS_CONTEXT_PARAMETER =
           new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final OnTimerContextParameter ON_TIMER_CONTEXT_PARAMETER =
@@ -308,6 +328,25 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class ContextParameter extends Parameter {
       ContextParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.StartBundleContext}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class StartBundleContextParameter extends Parameter {
+      StartBundleContextParameter() {}
+    }
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.FinishBundleContext}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class FinishBundleContextParameter extends Parameter {
+      FinishBundleContextParameter() {}
     }
 
     /**

@@ -192,8 +192,8 @@ import org.apache.beam.sdk.values.TypedPValue;
  * necessarily need to be explicitly specified, even if the {@link DoFn}
  * generates them. Within the {@link DoFn}, an element is added to the
  * main output {@link PCollection} as normal, using
- * {@link DoFn.Context#output(Object)}, while an element is added to any additional output
- * {@link PCollection} using {@link DoFn.Context#output(TupleTag, Object)}. For example:
+ * {@link DoFn.ElementContext#output(Object)}, while an element is added to any additional output
+ * {@link PCollection} using {@link DoFn.ElementContext#output(TupleTag, Object)}. For example:
  *
  * <pre>{@code
  * PCollection<String> words = ...;

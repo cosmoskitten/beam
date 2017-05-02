@@ -220,7 +220,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
     TestContext context = new TestContext();
     try {
-      fnInvoker.invokeStartBundle(context);
+      fnInvoker.invokeStartBundle(new TestStartBundleContext(context));
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
@@ -291,9 +291,17 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
+            public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
+                DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException(
-                  "Not expected to access DoFn.Context from @ProcessElement");
+                  "Not expected to access DoFn.StartBundleContext from @ProcessElement");
+            }
+
+            @Override
+            public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+                DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Not expected to access DoFn.FinishBundleContext from @ProcessElement");
             }
 
             @Override
@@ -303,8 +311,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
             @Override
             public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-              throw new UnsupportedOperationException(
-                  "DoFnTester doesn't support timers yet.");
+              throw new UnsupportedOperationException("DoFnTester doesn't support timers yet.");
             }
 
             @Override
@@ -344,7 +351,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         "Must be inside bundle to call finishBundle, but was: %s",
         state);
     try {
-      fnInvoker.invokeFinishBundle(new TestContext());
+      fnInvoker.invokeFinishBundle(new TestFinishBundleContext(new TestContext()));
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
@@ -531,30 +538,49 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     public PipelineOptions getPipelineOptions() {
       return options;
     }
+  }
 
-    @Override
-    public void output(OutputT output) {
-      throwUnsupportedOutputFromBundleMethods();
+  private class TestStartBundleContext extends DoFn<InputT, OutputT>.StartBundleContext {
+    private final TestContext context;
+
+    private TestStartBundleContext(TestContext context) {
+      fn.super();
+      this.context = context;
     }
 
     @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      throwUnsupportedOutputFromBundleMethods();
+    public PipelineOptions getPipelineOptions() {
+      return options;
     }
+  }
 
-    @Override
-    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      throwUnsupportedOutputFromBundleMethods();
-    }
+  private class TestFinishBundleContext extends DoFn<InputT, OutputT>.FinishBundleContext {
+    private final TestContext context;
 
-    @Override
-    public <T> void output(TupleTag<T> tag, T output) {
-      throwUnsupportedOutputFromBundleMethods();
+    private TestFinishBundleContext(TestContext context) {
+      fn.super();
+      this.context = context;
     }
 
     private void throwUnsupportedOutputFromBundleMethods() {
       throw new UnsupportedOperationException(
           "DoFnTester doesn't support output from bundle methods");
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      return options;
+    }
+
+    @Override
+    public void output(
+        OutputT output, Instant timestamp, BoundedWindow window) {
+      throwUnsupportedOutputFromBundleMethods();
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+      throwUnsupportedOutputFromBundleMethods();
     }
   }
 
@@ -634,6 +660,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       getMutableOutput(tag)
           .add(ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
     }
+
+    private void throwUnsupportedOutputFromBundleMethods() {
+      throw new UnsupportedOperationException(
+          "DoFnTester doesn't support output from bundle methods");
+    }
+
   }
 
   @Override
