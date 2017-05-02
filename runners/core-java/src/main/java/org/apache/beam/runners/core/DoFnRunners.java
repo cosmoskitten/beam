@@ -63,7 +63,6 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new SimpleDoFnRunner<>(
         options,
@@ -73,7 +72,6 @@ public class DoFnRunners {
         mainOutputTag,
         additionalOutputTags,
         stepContext,
-        aggregatorFactory,
         windowingStrategy);
   }
 
@@ -90,7 +88,6 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new SimpleOldDoFnRunner<>(
         options,
@@ -100,7 +97,6 @@ public class DoFnRunners {
         mainOutputTag,
         additionalOutputTags,
         stepContext,
-        aggregatorFactory,
         windowingStrategy);
   }
 
@@ -151,7 +147,6 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new ProcessFnRunner<>(
         simpleRunner(
@@ -162,7 +157,6 @@ public class DoFnRunners {
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            aggregatorFactory,
             windowingStrategy),
         views,
         sideInputReader);
