@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -39,16 +40,13 @@ import org.apache.beam.sdk.values.PDone;
 /**
  * {@link PTransform}s for reading and writing text files.
  *
- * <p>To read a {@link PCollection} from one or more text files, use {@link TextIO.Read}.
- * You can instantiate a transform using {@link TextIO.Read#from(String)} to specify
- * the path of the file(s) to read from (e.g., a local filename or
- * filename pattern if running locally, or a Google Cloud Storage
- * filename or filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}).
+ * <p>To read a {@link PCollection} from one or more text files, use {@code TextIO.read()} to
+ * instantiate a transform and use {@link TextIO.Read#from(String)} to specify the path of the
+ * file(s) to be read.
  *
- * <p>{@link TextIO.Read} returns a {@link PCollection} of {@link String Strings},
- * each corresponding to one line of an input UTF-8 text file (split into lines delimited by '\n',
- * '\r', or '\r\n').
+ * <p>{@link TextIO.Read} returns a {@link PCollection} of {@link String Strings}, each
+ * corresponding to one line of an input UTF-8 text file (split into lines delimited by '\n', '\r',
+ * or '\r\n').
  *
  * <p>Example:
  *
@@ -56,16 +54,11 @@ import org.apache.beam.sdk.values.PDone;
  * Pipeline p = ...;
  *
  * // A simple Read of a local file (only runs locally):
- * PCollection<String> lines =
- *     p.apply(TextIO.read().from("/local/path/to/file.txt"));
+ * PCollection<String> lines = p.apply(TextIO.read().from("/local/path/to/file.txt"));
  * }</pre>
  *
- * <p>To write a {@link PCollection} to one or more text files, use
- * {@link TextIO.Write}, specifying {@link TextIO.Write#to(String)} to specify
- * the path of the file to write to (e.g., a local filename or sharded
- * filename pattern if running locally, or a Google Cloud Storage
- * filename or sharded filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}).
+ * <p>To write a {@link PCollection} to one or more text files, use {@code TextIO.write()}, using
+ * {@link TextIO.Write#to(String)} to specify the output prefix of the files to write.
  *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
  * desired - for example, when using a streaming runner -
@@ -75,8 +68,7 @@ import org.apache.beam.sdk.values.PDone;
  * runner-chosen value, so you may need not set it yourself. A {@link FilenamePolicy} must be
  * set, and unique windows and triggers must produce unique filenames.
  *
- * <p>Any existing files with the same names as generated output files
- * will be overwritten.
+ * <p>Any existing files with the same names as generated output files will be overwritten.
  *
  * <p>For example:
  * <pre>{@code
@@ -93,25 +85,27 @@ import org.apache.beam.sdk.values.PDone;
  */
 public class TextIO {
   /**
-   * Reads from one or more text files and returns a bounded {@link PCollection} containing one
-   * element for each line of the input files.
+   * A {@link PTransform} that reads from one or more text files and returns a bounded
+   * {@link PCollection} containing one element for each line of the input files.
    */
   public static Read read() {
     return new AutoValue_TextIO_Read.Builder().setCompressionType(CompressionType.AUTO).build();
   }
 
   /**
-   * A {@link PTransform} that writes a {@link PCollection} to text file (or
-   * multiple text files matching a sharding pattern), with each
-   * element of the input collection encoded into its own line.
+   * A {@link PTransform} that writes a {@link PCollection} to a text file (or multiple text files
+   * matching a sharding pattern), with each element of the input collection encoded into its own
+   * line.
    */
   public static Write write() {
     return new AutoValue_TextIO_Write.Builder()
-        .setFilenameSuffix("")
-        .setNumShards(0)
-        .setShardTemplate(Write.DEFAULT_SHARD_TEMPLATE)
+        .setFilenamePrefix(null)
+        .setShardTemplate(null)
+        .setFilenameSuffix(null)
+        .setFilenamePolicy(null)
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
+        .setNumShards(0)
         .build();
   }
 
@@ -228,13 +222,11 @@ public class TextIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<String>, PDone> {
-    private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
-
     /** The prefix of each file written, combined with suffix and shardTemplate. */
-    @Nullable abstract ValueProvider<String> getFilenamePrefix();
+    @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
 
     /** The suffix of each file written, combined with prefix and shardTemplate. */
-    abstract String getFilenameSuffix();
+    @Nullable abstract String getFilenameSuffix();
 
     /** An optional header to add to each file. */
     @Nullable abstract String getHeader();
@@ -246,7 +238,7 @@ public class TextIO {
     abstract int getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
-    abstract String getShardTemplate();
+    @Nullable abstract String getShardTemplate();
 
     /** A policy for naming output files. */
     @Nullable abstract FilenamePolicy getFilenamePolicy();
@@ -264,13 +256,13 @@ public class TextIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setFilenamePrefix(ValueProvider<String> filenamePrefix);
-      abstract Builder setFilenameSuffix(String filenameSuffix);
-      abstract Builder setHeader(String header);
-      abstract Builder setFooter(String footer);
+      abstract Builder setFilenamePrefix(ValueProvider<ResourceId> filenamePrefix);
+      abstract Builder setShardTemplate(@Nullable String shardTemplate);
+      abstract Builder setFilenameSuffix(@Nullable String filenameSuffix);
+      abstract Builder setHeader(@Nullable String header);
+      abstract Builder setFooter(@Nullable String footer);
+      abstract Builder setFilenamePolicy(@Nullable FilenamePolicy filenamePolicy);
       abstract Builder setNumShards(int numShards);
-      abstract Builder setShardTemplate(String shardTemplate);
-      abstract Builder setFilenamePolicy(FilenamePolicy filenamePolicy);
       abstract Builder setWindowedWrites(boolean windowedWrites);
       abstract Builder setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
@@ -289,16 +281,29 @@ public class TextIO {
      * in a common extension, if given by {@link #withSuffix(String)}.
      */
     public Write to(String filenamePrefix) {
+      try {
+        ResourceId fileResource =
+            FileSystems.matchNewResource(filenamePrefix, false /* isDirectory */);
+        return to(fileResource);
+      } catch (Exception e) {
+        ResourceId directoryResource =
+            FileSystems.matchNewResource(filenamePrefix, true /* isDirectory */);
+        return to(directoryResource);
+      }
+    }
+
+    /** Like {@link #to(String)}, but with a {@link ValueProvider}. */
+    public Write to(ResourceId filenamePrefix) {
       return to(StaticValueProvider.of(filenamePrefix));
     }
 
     /** Like {@link #to(String)}, but with a {@link ValueProvider}. */
-    public Write to(ValueProvider<String> filenamePrefix) {
+    public Write to(ValueProvider<ResourceId> filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
 
     /** Like {@link #to(String)}, but with a {@link FilenamePolicy}. */
-    public Write to(FilenamePolicy filenamePolicy) {
+    public Write withFilenamePolicy(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
     }
 
@@ -386,6 +391,7 @@ public class TextIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
+
       if (getFilenamePolicy() == null && getFilenamePrefix() == null) {
         throw new IllegalStateException(
             "need to set the filename prefix of an TextIO.Write transform");
@@ -394,26 +400,19 @@ public class TextIO {
         throw new IllegalStateException(
             "cannot set both a filename policy and a filename prefix");
       }
-      WriteFiles<String> write;
-      if (getFilenamePolicy() != null) {
-        write =
-            WriteFiles.to(
-                new TextSink(
-                    getFilenamePolicy(),
-                    getHeader(),
-                    getFooter(),
-                    getWritableByteChannelFactory()));
-      } else {
-        write =
-            WriteFiles.to(
-                new TextSink(
-                    getFilenamePrefix(),
-                    getFilenameSuffix(),
-                    getHeader(),
-                    getFooter(),
-                    getShardTemplate(),
-                    getWritableByteChannelFactory()));
+      FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
+      if (usedFilenamePolicy == null) {
+        usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
+            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix());
       }
+      WriteFiles<String> write =
+          WriteFiles.to(
+              new TextSink(
+                  getFilenamePrefix(),
+                  getFilenamePolicy(),
+                  getHeader(),
+                  getFooter(),
+                  getWritableByteChannelFactory()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -430,16 +429,15 @@ public class TextIO {
       String prefixString = "";
       if (getFilenamePrefix() != null) {
         prefixString = getFilenamePrefix().isAccessible()
-            ? getFilenamePrefix().get() : getFilenamePrefix().toString();
+            ? getFilenamePrefix().get().toString() : getFilenamePrefix().toString();
       }
       builder
           .addIfNotNull(DisplayData.item("filePrefix", prefixString)
             .withLabel("Output File Prefix"))
-          .addIfNotDefault(DisplayData.item("fileSuffix", getFilenameSuffix())
-            .withLabel("Output File Suffix"), "")
-          .addIfNotDefault(DisplayData.item("shardNameTemplate", getShardTemplate())
-            .withLabel("Output Shard Name Template"),
-              DEFAULT_SHARD_TEMPLATE)
+          .addIfNotNull(DisplayData.item("fileSuffix", getFilenameSuffix())
+            .withLabel("Output File Suffix"))
+          .addIfNotNull(DisplayData.item("shardNameTemplate", getShardTemplate())
+            .withLabel("Output Shard Name Template"))
           .addIfNotDefault(DisplayData.item("numShards", getNumShards())
             .withLabel("Maximum Output Shards"), 0)
           .addIfNotNull(DisplayData.item("fileHeader", getHeader())
