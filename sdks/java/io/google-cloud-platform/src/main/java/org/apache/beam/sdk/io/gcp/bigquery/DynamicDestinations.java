@@ -94,7 +94,8 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   }
 
   /**
-   * Specifies that this object needs access to a side input.
+   * Specifies that this object needs access to a side input. This side input must be globally
+   * windowed, as it will be accessed from the global window.
    */
   public DynamicDestinations setSideInputRequired(PCollectionView<?> sideInput) {
     this.sideInput = sideInput;
