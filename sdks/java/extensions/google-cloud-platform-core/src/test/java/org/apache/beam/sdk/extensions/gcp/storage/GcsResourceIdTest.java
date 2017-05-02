@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.storage;
+package org.apache.beam.sdk.extensions.gcp.storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -43,11 +44,11 @@ public class GcsResourceIdTest {
   @Test
   public void testResolve() throws Exception {
     // Tests for common gcs paths.
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://bucket/tmp/aa"),
         toResourceIdentifier("gs://bucket/tmp/")
             .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://bucket/tmp/aa/bb/cc/"),
         toResourceIdentifier("gs://bucket/tmp/")
             .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
@@ -55,19 +56,19 @@ public class GcsResourceIdTest {
             .resolve("cc", StandardResolveOptions.RESOLVE_DIRECTORY));
 
     // Tests absolute path.
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://bucket/tmp/aa"),
         toResourceIdentifier("gs://bucket/tmp/bb/")
             .resolve("gs://bucket/tmp/aa", StandardResolveOptions.RESOLVE_FILE));
 
     // Tests bucket with no ending '/'.
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://my_bucket/tmp"),
         toResourceIdentifier("gs://my_bucket")
             .resolve("tmp", StandardResolveOptions.RESOLVE_FILE));
 
     // Tests path with unicode
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://bucket/输出 目录/输出 文件01.txt"),
         toResourceIdentifier("gs://bucket/输出 目录/")
             .resolve("输出 文件01.txt", StandardResolveOptions.RESOLVE_FILE));
@@ -75,7 +76,7 @@ public class GcsResourceIdTest {
 
   @Test
   public void testResolveHandleBadInputs() throws Exception {
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://my_bucket/tmp/"),
         toResourceIdentifier("gs://my_bucket/")
             .resolve("tmp/", StandardResolveOptions.RESOLVE_DIRECTORY));
@@ -101,17 +102,17 @@ public class GcsResourceIdTest {
   @Test
   public void testGetCurrentDirectory() throws Exception {
     // Tests gcs paths.
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://my_bucket/tmp dir/"),
         toResourceIdentifier("gs://my_bucket/tmp dir/").getCurrentDirectory());
 
     // Tests path with unicode.
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://my_bucket/输出 目录/"),
         toResourceIdentifier("gs://my_bucket/输出 目录/文件01.txt").getCurrentDirectory());
 
     // Tests bucket with no ending '/'.
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://my_bucket/"),
         toResourceIdentifier("gs://my_bucket").getCurrentDirectory());
   }
@@ -135,31 +136,31 @@ public class GcsResourceIdTest {
   @Test
   public void testGetScheme() throws Exception {
     // Tests gcs paths.
-    assertEquals("gs", toResourceIdentifier("gs://my_bucket/tmp dir/").getScheme());
+    Assert.assertEquals("gs", toResourceIdentifier("gs://my_bucket/tmp dir/").getScheme());
 
     // Tests bucket with no ending '/'.
-    assertEquals("gs", toResourceIdentifier("gs://my_bucket").getScheme());
+    Assert.assertEquals("gs", toResourceIdentifier("gs://my_bucket").getScheme());
   }
 
   @Test
   public void testEquals() throws Exception {
-    assertEquals(
+    Assert.assertEquals(
         toResourceIdentifier("gs://my_bucket/tmp/"),
         toResourceIdentifier("gs://my_bucket/tmp/"));
 
-    assertNotEquals(
+    Assert.assertNotEquals(
         toResourceIdentifier("gs://my_bucket/tmp"),
         toResourceIdentifier("gs://my_bucket/tmp/"));
   }
 
   @Test
   public void testGetFilename() throws Exception {
-    assertEquals(toResourceIdentifier("gs://my_bucket/").getFilename(), null);
-    assertEquals(toResourceIdentifier("gs://my_bucket/abc").getFilename(),
+    Assert.assertEquals(toResourceIdentifier("gs://my_bucket/").getFilename(), null);
+    Assert.assertEquals(toResourceIdentifier("gs://my_bucket/abc").getFilename(),
         "abc");
-    assertEquals(toResourceIdentifier("gs://my_bucket/abc/").getFilename(),
+    Assert.assertEquals(toResourceIdentifier("gs://my_bucket/abc/").getFilename(),
         "abc");
-    assertEquals(toResourceIdentifier("gs://my_bucket/abc/xyz.txt").getFilename(),
+    Assert.assertEquals(toResourceIdentifier("gs://my_bucket/abc/xyz.txt").getFilename(),
         "xyz.txt");
   }
 
