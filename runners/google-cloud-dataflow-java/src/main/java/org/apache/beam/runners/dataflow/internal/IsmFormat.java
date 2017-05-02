@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -358,8 +359,9 @@ public class IsmFormat {
 
     @Override
     public void verifyDeterministic() throws Coder.NonDeterministicException {
-      verifyDeterministic("Key component coders expected to be deterministic.", keyComponentCoders);
-      verifyDeterministic("Value coder expected to be deterministic.", valueCoder);
+      verifyDeterministic(
+          this, "Key component coders expected to be deterministic.", keyComponentCoders);
+      verifyDeterministic(this, "Value coder expected to be deterministic.", valueCoder);
     }
 
     @Override
@@ -394,6 +396,28 @@ public class IsmFormat {
         }
       }
       return super.structuralValue(record);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other == this) {
+        return true;
+      }
+      if (other == null || !other.getClass().equals(IsmRecordCoder.class)) {
+        return false;
+      }
+      IsmRecordCoder<?> that = (IsmRecordCoder<?>) other;
+      return Objects.equals(this.numberOfShardKeyCoders, that.numberOfShardKeyCoders)
+          && Objects.equals(
+              this.numberOfMetadataShardKeyCoders, that.numberOfMetadataShardKeyCoders)
+          && Objects.equals(this.keyComponentCoders, that.keyComponentCoders)
+          && Objects.equals(this.valueCoder, that.valueCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(
+          numberOfShardKeyCoders, numberOfMetadataShardKeyCoders, keyComponentCoders, valueCoder);
     }
   }
 
@@ -499,7 +523,7 @@ public class IsmFormat {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      verifyDeterministic("Expected key coder to be deterministic", keyCoder);
+      verifyDeterministic(this, "Expected key coder to be deterministic", keyCoder);
     }
   }
 

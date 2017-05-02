@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -132,7 +133,7 @@ public class CreateTest {
   static class Record2 extends Record {
   }
 
-  private static class RecordCoder extends CustomCoder<Record> {
+  private static class RecordCoder extends AtomicCoder<Record> {
     @Override
     public void encode(Record value, OutputStream outStream, Context context)
         throws CoderException, IOException {}
@@ -201,7 +202,7 @@ public class CreateTest {
       return myString.equals(((UnserializableRecord) o).myString);
     }
 
-    static class UnserializableRecordCoder extends CustomCoder<UnserializableRecord> {
+    static class UnserializableRecordCoder extends AtomicCoder<UnserializableRecord> {
       private final Coder<String> stringCoder = StringUtf8Coder.of();
 
       @Override

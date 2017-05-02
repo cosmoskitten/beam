@@ -924,7 +924,7 @@ public class CombineTest implements Serializable {
       }
 
       public static Coder<Accumulator> getCoder() {
-        return new CustomCoder<Accumulator>() {
+        return new AtomicCoder<Accumulator>() {
           @Override
           public void encode(Accumulator accumulator, OutputStream outStream, Coder.Context context)
               throws CoderException, IOException {

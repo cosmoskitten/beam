@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.PriorityQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -759,6 +760,24 @@ public class ApproximateQuantiles {
         elementListCoder.registerByteSizeObserver(
             buffer.elements, observer, nestedContext);
       }
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other == this) {
+        return true;
+      }
+      if (other == null || !other.getClass().equals(QuantileStateCoder.class)) {
+        return false;
+      }
+      QuantileStateCoder<?, ?> that = (QuantileStateCoder<?, ?>) other;
+      return Objects.equals(this.elementCoder, that.elementCoder)
+          && Objects.equals(this.compareFn, that.compareFn);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(elementCoder, compareFn);
     }
 
     @Override

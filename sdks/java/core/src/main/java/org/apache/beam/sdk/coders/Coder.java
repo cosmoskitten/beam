@@ -305,6 +305,12 @@ public abstract class Coder<T> implements Serializable {
         TypeDescriptor.of(getClass()).resolveType(new TypeDescriptor<T>() {}.getType());
   }
 
+  @Override
+  public abstract boolean equals(Object other);
+
+  @Override
+  public abstract int hashCode();
+
   /**
    * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is
    * not deterministic, including details of why the encoding is not deterministic.
