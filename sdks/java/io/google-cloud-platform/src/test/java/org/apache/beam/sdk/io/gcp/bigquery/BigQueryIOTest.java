@@ -481,7 +481,7 @@ public class BigQueryIOTest implements Serializable {
                 Matcher matcher = userPattern.matcher(user);
                 if (matcher.matches()) {
                   return new TableRow().set("name", matcher.group(1))
-                      .set("id", matcher.group(2));
+                      .set("id", Integer.valueOf(matcher.group(2)));
                 }
                 return null;
               }
