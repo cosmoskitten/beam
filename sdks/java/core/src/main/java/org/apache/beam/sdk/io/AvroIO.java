@@ -302,7 +302,6 @@ public class AvroIO {
      * in a common extension, if given by {@link #withSuffix}.
      */
     public Write<T> to(String filenamePrefix) {
-      validateOutputComponent(filenamePrefix);
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
 
@@ -317,7 +316,6 @@ public class AvroIO {
      * <p>See {@link ShardNameTemplate} for a description of shard templates.
      */
     public Write<T> withSuffix(String filenameSuffix) {
-      validateOutputComponent(filenameSuffix);
       return toBuilder().setFilenameSuffix(filenameSuffix).build();
     }
 
@@ -472,17 +470,6 @@ public class AvroIO {
     protected Coder<Void> getDefaultOutputCoder() {
       return VoidCoder.of();
     }
-  }
-
-  // Pattern which matches old-style shard output patterns, which are now
-  // disallowed.
-  private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
-
-  private static void validateOutputComponent(String partialFilePattern) {
-    checkArgument(
-        !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
-        "Output name components are not allowed to contain @* or @N patterns: "
-        + partialFilePattern);
   }
 
   /////////////////////////////////////////////////////////////////////////////
