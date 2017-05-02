@@ -43,7 +43,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -917,7 +916,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    */
   public static final class FileResultCoder extends CustomCoder<FileResult> {
     private static final FileResultCoder INSTANCE = new FileResultCoder();
-    private final Coder<String> stringCoder = NullableCoder.of(StringUtf8Coder.of());
+    private final NullableCoder<String> stringCoder = NullableCoder.of(StringUtf8Coder.of());
 
     public static FileResultCoder of() {
       return INSTANCE;
@@ -930,17 +929,24 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
         throw new CoderException("cannot encode a null value");
       }
       stringCoder.encode(value.getFilename().toString(), outStream, context.nested());
-      stringCoder.encode(value.getDestinationFilename().toString(), outStream, context);
+      if (value.getDestinationFilename() == null) {
+        stringCoder.encode(null, outStream, context);
+      } else {
+        stringCoder.encode(value.getDestinationFilename().toString(), outStream, context);
+      }
     }
 
     @Override
     public FileResult decode(InputStream inStream, Context context)
         throws IOException {
       String filename = stringCoder.decode(inStream, context.nested());
-      String destinationFilename = stringCoder.decode(inStream, context);
+      assert filename != null;  // fixes a compiler warning
+      @Nullable String destinationFilename = stringCoder.decode(inStream, context);
       return new FileResult(
           FileSystems.matchNewResource(filename, false /* isDirectory */),
-          FileSystems.matchNewResource(destinationFilename, false /* isDirectory */));
+          destinationFilename == null
+              ? null
+              : FileSystems.matchNewResource(destinationFilename, false /* isDirectory */));
     }
 
     @Override
