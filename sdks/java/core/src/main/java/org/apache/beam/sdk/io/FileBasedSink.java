@@ -28,6 +28,8 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -42,7 +44,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.WindowedContext;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -617,13 +623,6 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     /**
-     * Provides a coder for {@link FileBasedSink.FileResult}.
-     */
-    public final Coder<FileResult> getFileResultCoder() {
-      return SerializableCoder.of(FileResult.class);
-    }
-
-    /**
      * Returns the FileBasedSink for this write operation.
      */
     public FileBasedSink<T> getSink() {
@@ -911,6 +910,43 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
           .add("filename", filename)
           .add("destinationFilename", destinationFilename)
           .toString();
+    }
+  }
+
+  /**
+   * A coder for {@link FileResult} objects.
+   */
+  public static final class FileResultCoder extends CustomCoder<FileResult> {
+    private static final FileResultCoder INSTANCE = new FileResultCoder();
+    private final Coder<String> stringCoder = NullableCoder.of(StringUtf8Coder.of());
+
+    public static FileResultCoder of() {
+      return INSTANCE;
+    }
+
+    @Override
+    public void encode(FileResult value, OutputStream outStream, Context context)
+        throws IOException {
+      if (value == null) {
+        throw new CoderException("cannot encode a null value");
+      }
+      stringCoder.encode(value.getFilename().toString(), outStream, context.nested());
+      stringCoder.encode(value.getDestinationFilename().toString(), outStream, context);
+    }
+
+    @Override
+    public FileResult decode(InputStream inStream, Context context)
+        throws IOException {
+      String filename = stringCoder.decode(inStream, context.nested());
+      String destinationFilename = stringCoder.decode(inStream, context);
+      return new FileResult(
+          FileSystems.matchNewResource(filename, false /* isDirectory */),
+          FileSystems.matchNewResource(destinationFilename, false /* isDirectory */));
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      stringCoder.verifyDeterministic();
     }
   }
 
