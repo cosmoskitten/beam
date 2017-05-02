@@ -72,7 +72,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
     private MetricUpdates metricUpdates;
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
-    private AggregatorContainer.Mutator aggregatorChanges;
     private final Set<OutputType> producedOutputs;
     private final Instant watermarkHold;
 
@@ -91,17 +90,11 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
           transform,
           bundlesBuilder.build(),
           unprocessedElementsBuilder.build(),
-          aggregatorChanges,
           metricUpdates,
           watermarkHold,
           state,
           timerUpdate,
           producedOutputs);
-    }
-
-    public Builder<InputT> withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
-      this.aggregatorChanges = aggregatorChanges;
-      return this;
     }
 
     public Builder<InputT> withMetricUpdates(MetricUpdates metricUpdates) {
