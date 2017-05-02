@@ -70,7 +70,7 @@ public final class PaneInfo {
    * definitions:
    * <ol>
    * <li>We'll call a pipeline 'simple' if it does not use
-   * {@link DoFn.Context#outputWithTimestamp} in
+   * {@link DoFn.ElementContext#outputWithTimestamp} in
    * any {@link DoFn}, and it uses the same
    * {@link org.apache.beam.sdk.transforms.windowing.Window#withAllowedLateness}
    * argument value on all windows (or uses the default of {@link org.joda.time.Duration#ZERO}).
