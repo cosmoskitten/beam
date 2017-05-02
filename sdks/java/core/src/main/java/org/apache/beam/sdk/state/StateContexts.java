@@ -22,8 +22,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Factory that produces {@link StateContext} based on different inputs.
+ * For internal use only; no backwards-compatibility guarantees.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  */
+@Internal
 public class StateContexts {
   private static final StateContext<BoundedWindow> NULL_CONTEXT =
       new StateContext<BoundedWindow>() {

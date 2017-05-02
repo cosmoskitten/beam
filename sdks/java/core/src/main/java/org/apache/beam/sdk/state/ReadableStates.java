@@ -21,9 +21,9 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * Utilities for constructing and manipulating {@link ReadableState} instances.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  */
-@Experimental(Kind.STATE)
+@Internal
 public class ReadableStates {
 
   /**
