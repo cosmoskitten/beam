@@ -456,7 +456,16 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testWriteDynamicDestinations() throws Exception {
+  public void testWriteDynamicDestinationsBatch() throws Exception {
+    writeDynamicDestinations(false);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsStreaming() throws Exception {
+    writeDynamicDestinations(true);
+  }
+
+  public void writeDynamicDestinations(boolean streaming) throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("project-id");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
@@ -472,6 +481,9 @@ public class BigQueryIOTest implements Serializable {
     Pipeline p = TestPipeline.create(bqOptions);
     PCollection<String> users = p.apply(Create.of("bill1", "sam2", "laurence3")
             .withCoder(StringUtf8Coder.of()));
+    if (streaming) {
+      users = users.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+    }
     users.apply(BigQueryIO.<String>write()
             .withTestServices(fakeBqServices)
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
