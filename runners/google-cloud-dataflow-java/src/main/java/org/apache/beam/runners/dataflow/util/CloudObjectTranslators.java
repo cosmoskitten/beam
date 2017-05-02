@@ -567,7 +567,7 @@ class CloudObjectTranslators {
 
       @Override
       public String cloudObjectClassName() {
-        return CloudObject.forClass(CoGbkResultSchema.class).getClassName();
+        return CloudObject.forClass(CoGbkResultCoder.class).getClassName();
       }
     };
   }
