@@ -133,10 +133,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   private Pipeline buildPipeline(DataflowPipelineOptions options) {
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
-    FileSystems.setDefaultConfigInWorkers(options);
-
-    // Enable the FileSystems API to know about gs:// URIs in this test.
-    FileSystems.setDefaultConfigInWorkers(options);
 
     // Enable the FileSystems API to know about gs:// URIs in this test.
     FileSystems.setDefaultConfigInWorkers(options);
