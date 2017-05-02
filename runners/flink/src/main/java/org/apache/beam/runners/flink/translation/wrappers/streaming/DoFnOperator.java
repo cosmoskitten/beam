@@ -202,8 +202,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   public void open() throws Exception {
     super.open();
 
-    currentInputWatermark = Long.MIN_VALUE;
-    currentOutputWatermark = Long.MIN_VALUE;
+    currentInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+    currentOutputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
 
     AggregatorFactory aggregatorFactory = new AggregatorFactory() {
       @Override
