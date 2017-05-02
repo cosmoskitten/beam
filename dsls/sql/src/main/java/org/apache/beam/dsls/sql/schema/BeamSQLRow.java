@@ -76,8 +76,13 @@ public class BeamSQLRow implements Serializable {
       }
       break;
     case SMALLINT:
-    case TINYINT:
       if (!(fieldValue instanceof Short)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      }
+      break;
+    case TINYINT:
+      if (!(fieldValue instanceof Byte)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       }
@@ -158,43 +163,49 @@ public class BeamSQLRow implements Serializable {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return Integer.valueOf(fieldValue.toString());
+        return fieldValue;
       }
     case SMALLINT:
-    case TINYINT:
-      if (!(fieldValue instanceof Integer)) {
+      if (!(fieldValue instanceof Short)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return Short.valueOf(fieldValue.toString());
+        return fieldValue;
+      }
+    case TINYINT:
+      if (!(fieldValue instanceof Byte)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      } else {
+        return fieldValue;
       }
     case DOUBLE:
       if (!(fieldValue instanceof Double)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return Double.valueOf(fieldValue.toString());
+        return fieldValue;
       }
     case BIGINT:
       if (!(fieldValue instanceof Long)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return Long.valueOf(fieldValue.toString());
+        return fieldValue;
       }
     case FLOAT:
       if (!(fieldValue instanceof Float)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return Float.valueOf(fieldValue.toString());
+        return fieldValue;
       }
     case VARCHAR:
       if (!(fieldValue instanceof String)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return fieldValue.toString();
+        return fieldValue;
       }
     default:
       throw new UnsupportedDataTypeException(fieldType);
