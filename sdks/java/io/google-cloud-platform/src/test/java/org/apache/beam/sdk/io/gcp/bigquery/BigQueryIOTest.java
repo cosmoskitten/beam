@@ -499,14 +499,14 @@ public class BigQueryIOTest implements Serializable {
               }
 
               @Override
-              public TableDestination getTable(Integer userId) {
+              public TableDestination getTable(Integer userId, SideInputAccessor sideInput) {
                 // Each user in it's own table.
                 return new TableDestination("dataset-id.userid-" + userId,
                     "table for userid " + userId);
               }
 
               @Override
-              public TableSchema getSchema(Integer userId) {
+              public TableSchema getSchema(Integer userId, SideInputAccessor sideInput) {
                 return new TableSchema().setFields(
                     ImmutableList.of(
                         new TableFieldSchema().setName("name").setType("STRING"),
@@ -1768,12 +1768,12 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public TableDestination getTable(String destination) {
+    public TableDestination getTable(String destination, SideInputAccessor sideInputAccessor) {
       return new TableDestination(destination, destination);
     }
 
     @Override
-    public TableSchema getSchema(String destination) {
+    public TableSchema getSchema(String destination, SideInputAccessor sideInputAccessor) {
       return null;
     }
   }

@@ -62,12 +62,14 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableSchema getSchema(TableDestination destination) {
+    public TableSchema getSchema(TableDestination destination,
+                                 SideInputAccessor sideInputAccessor) {
       return null;
     }
 
     @Override
-    public TableDestination getTable(TableDestination destination) {
+    public TableDestination getTable(TableDestination destination,
+                                     SideInputAccessor sideInputAccessor) {
       return destination;
     }
 
@@ -94,12 +96,14 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableSchema getSchema(TableDestination destination) {
+    public TableSchema getSchema(TableDestination destination,
+                                 SideInputAccessor sideInputAccessor) {
       return null;
     }
 
     @Override
-    public TableDestination getTable(TableDestination destination) {
+    public TableDestination getTable(TableDestination destination,
+                                     SideInputAccessor sideInputAccessor) {
       return destination;
     }
 
@@ -126,13 +130,14 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableSchema getSchema(DestinationT destination) {
-      return inner.getSchema(destination);
+    public TableSchema getSchema(DestinationT destination, SideInputAccessor sideInputAccessor) {
+      return inner.getSchema(destination, sideInputAccessor);
     }
 
     @Override
-    public TableDestination getTable(DestinationT destination) {
-      return inner.getTable(destination);
+    public TableDestination getTable(DestinationT destination,
+                                     SideInputAccessor sideInputAccessor) {
+      return inner.getTable(destination, sideInputAccessor);
     }
 
     @Override
@@ -156,7 +161,8 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableSchema getSchema(TableDestination destination) {
+    public TableSchema getSchema(TableDestination destination,
+                                 SideInputAccessor sideInputAccessor) {
       return BigQueryHelpers.fromJsonString(jsonSchema.get(), TableSchema.class);
     }
   }
@@ -174,8 +180,9 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public TableSchema getSchema(TableDestination destination) {
-      Map<String, String> mapValue = getSideInputValue();
+    public TableSchema getSchema(TableDestination destination,
+                                 SideInputAccessor sideInputAccessor) {
+      Map<String, String> mapValue = sideInputAccessor.getSideInputValue();
       return BigQueryHelpers.fromJsonString(mapValue.get(destination.getTableSpec()),
           TableSchema.class);
     }

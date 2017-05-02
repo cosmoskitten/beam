@@ -901,7 +901,8 @@ public class BigQueryIO {
      * Allows the schemas for each table to be computed within the pipeline itself.
      *
      * <p>The input is a map-valued {@link PCollectionView} mapping string tablespecs to
-     * JSON-formatted {@link TableSchema}s.
+     * JSON-formatted {@link TableSchema}s. Tablespecs must be in the same format as taken by
+     * {@link #to(String)}.
      */
     public Write<T> withSchemaFromView(PCollectionView<Map<String, String>> view) {
       return toBuilder().setSchemaFromView(view).build();
@@ -956,21 +957,20 @@ public class BigQueryIO {
               || getSchemaFromView() != null,
           "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
 
+      List<?> allToArgs = Lists.newArrayList(getJsonTableRef(), getTableFunction(),
+          getDynamicDestinations());
       checkArgument(
           1
               == Iterables.size(
-                  Iterables.filter(
-                      Lists.newArrayList(getJsonTableRef(), getTableFunction(),
-                          getDynamicDestinations()), Predicates.notNull())),
+                  Iterables.filter(allToArgs, Predicates.notNull())),
           "Exactly one of jsonTableRef, tableFunction, or " + "dynamicDestinations must be set");
 
+      List<?> allSchemaArgs = Lists.newArrayList(getJsonSchema(), getSchemaFromView(),
+          getDynamicDestinations());
       checkArgument(
           2
               > Iterables.size(
-                  Iterables.filter(
-                      Lists.newArrayList(getJsonSchema(), getSchemaFromView(),
-                          getDynamicDestinations()),
-                     Predicates.notNull())),
+                  Iterables.filter(allSchemaArgs, Predicates.notNull())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may "
           + "be set");
 

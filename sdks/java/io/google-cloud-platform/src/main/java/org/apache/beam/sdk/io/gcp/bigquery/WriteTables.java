@@ -48,7 +48,6 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
@@ -78,7 +77,6 @@ class WriteTables<DestinationT>
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
-  private DynamicDestinations<?, DestinationT> dynamicDestinationsCopy;
 
   public WriteTables(
       boolean singlePartition,
@@ -99,24 +97,19 @@ class WriteTables<DestinationT>
     this.dynamicDestinations = dynamicDestinations;
   }
 
-  @StartBundle
-  public void startBundle(Context c) {
-    // Ensure that each bundle has a fresh copy of the DynamicDestinations class.
-    this.dynamicDestinationsCopy = SerializableUtils.clone(dynamicDestinations);
-  }
-
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
     // If the DynamicDestinations class wants to read a side input, give it the value.
-    if (dynamicDestinationsCopy.getSideInput() != null) {
-      dynamicDestinationsCopy.setSideInputValue(
-          c.sideInput(dynamicDestinationsCopy.getSideInput()));
-    }
+    DynamicDestinations.SideInputAccessor sideInputAccessor =
+        new DynamicDestinations.SideInputAccessor(
+            c, dynamicDestinations.getSideInput());
+
     DestinationT destination = c.element().getKey().getKey();
     TableSchema tableSchema =
         BigQueryHelpers.fromJsonString(
             c.sideInput(schemasView).get(destination), TableSchema.class);
-    TableDestination tableDestination = dynamicDestinationsCopy.getTable(destination);
+    TableDestination tableDestination =
+        dynamicDestinations.getTable(destination, sideInputAccessor);
     TableReference tableReference = tableDestination.getTableReference();
     if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
       tableReference.setProjectId(

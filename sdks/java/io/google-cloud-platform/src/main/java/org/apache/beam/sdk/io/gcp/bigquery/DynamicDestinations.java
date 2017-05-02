@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
@@ -38,8 +39,8 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * <p>For example, consider a PCollection of events, each containing a user-id field. You want to
  * write each user's events to a separate table with a separate schema per user. Since the user-id
  * field is a string, you will represent the destination as a string.
- *<pre>{@code
- *events.apply(BigQueryIO.<UserEvent>write()
+ * <pre>{@code
+ * events.apply(BigQueryIO.<UserEvent>write()
  *  .to(new DynamicDestinations<UserEvent, String>() {
  *        public String getDestination(ValueInSingleWindow<String> element) {
  *          return element.getValue().getUserId();
@@ -56,19 +57,41 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  *       return convertUserEventToTableRow(event);
  *     }
  *   }));
- *}</pre>
+ * }</pre>
  *
  * <p>An instance of {@link DynamicDestinations} can also request a side input value that can be
  *  examined from inside {@link #getTable} and {@link #getSchema}. The side input is requested by
- *  calling {@link #setSideInputRequired} on the base class. The value can be examined by calling
- *  {@link #getSideInputValue()}; the side input value will only be available from within calls to
- *  {@link #getTable} or {@link #getSchema}.
+ *  calling {@link #setSideInputRequired} on the base class. The value can be examined via the
+ *  {@link DynamicDestinations.SideInputAccessor} class.
  *
- * <p>{@code DestinationT} is expected to provide proper hash and equality members.
+ * <p>{@code DestinationT} is expected to provide proper hash and equality members. Ideally it will
+ * be a compact type with an efficient coder, as these objects may be used as a key in a
+ * {@link org.apache.beam.sdk.transforms.GroupByKey}.
  */
 public abstract class DynamicDestinations<T, DestinationT> implements Serializable {
   private PCollectionView<?> sideInput;
-  private Object materialized;
+
+  /**
+   * Returns the materialized value of the side input. Can be used by concrete
+   * {@link DynamicDestinations} instances in {@link #getSchema} or {@link #getTable}.
+   */
+  public static class SideInputAccessor {
+    private ProcessContext processContext;
+    private PCollectionView<?> sideInput;
+    SideInputAccessor(ProcessContext processContext, PCollectionView<?> sideInput) {
+      this.processContext = processContext;
+      this.sideInput = sideInput;
+    }
+
+    public <SideInputT> SideInputT getSideInputValue() throws IllegalStateException {
+      if (sideInput == null) {
+        return null;
+      }
+      @SuppressWarnings("unchecked")
+      SideInputT materialized = (SideInputT)  processContext.sideInput(sideInput);
+      return materialized;
+    }
+  }
 
   /**
    * Specifies that this object needs access to a side input.
@@ -85,39 +108,34 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
 
   /**
    * Returns the coder for {@link DestinationT}. If this is not overridden, then
-   * {@link BigQueryIO} will look in the coder registry for a suitable coder.
+   * {@link BigQueryIO} will look in the coder registry for a suitable coder. This must be a
+   * deterministic coder, as {@link DestinationT} will be used as a key type in a
+   * {@link org.apache.beam.sdk.transforms.GroupByKey}.
    */
-  public @Nullable Coder<DestinationT> getDestinationCoder() {
+  @Nullable
+  public Coder<DestinationT> getDestinationCoder() {
     return null;
   }
 
   /**
    * Returns a {@link TableDestination} object for the destination.
    */
-  public abstract TableDestination getTable(DestinationT destination);
+  public abstract TableDestination getTable(DestinationT destination,
+                                            SideInputAccessor sideInputAccessor);
 
   /**
    * Returns the table schema for the destination.
    */
-  public abstract TableSchema getSchema(DestinationT destination);
+  public abstract TableSchema getSchema(DestinationT destination,
+                                        SideInputAccessor sideInputAccessor);
 
   /**
    * This returns the unmaterialized side input used by this transform.
    */
   <SideInputT> PCollectionView<SideInputT> getSideInput() {
-    return (PCollectionView<SideInputT>) sideInput;
-  }
-
-  /**
-   * Returns the materialized value of the side input. Can be called by concrete
-   * {@link DynamicDestinations} instances in {@link #getSchema} or {@link #getTable}.
-   */
-  protected <SideInputT> SideInputT getSideInputValue() {
-    return (SideInputT) materialized;
-  }
-
-  <SideInputT> void setSideInputValue(SideInputT value) {
-    materialized = value;
+    @SuppressWarnings("unchecked")
+    PCollectionView<SideInputT> sideInputTyped = (PCollectionView<SideInputT>) sideInput;
+    return sideInputTyped;
   }
 
   // Gets the destination coder. If the user does not provide one, try to find one in the coder
@@ -134,7 +152,9 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
         if (parameterized.getRawType() == DynamicDestinations.class) {
           // DestinationT is the second parameter.
           Type parameter = parameterized.getActualTypeArguments()[1];
-          destinationCoder = registry.getDefaultCoder((Class<DestinationT>) parameter);
+          @SuppressWarnings("unchecked")
+          Class<DestinationT> parameterClass = (Class<DestinationT>) parameter;
+          destinationCoder = registry.getDefaultCoder(parameterClass);
           break;
         }
       }

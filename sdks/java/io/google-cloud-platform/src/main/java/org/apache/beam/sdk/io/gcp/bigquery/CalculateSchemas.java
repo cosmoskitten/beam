@@ -31,7 +31,6 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -64,25 +63,19 @@ class CalculateSchemas<DestinationT>
             "GetSchemas",
             ParDo.of(
                     new DoFn<DestinationT, KV<DestinationT, String>>() {
-                      private DynamicDestinations<?, DestinationT> dynamicDestinationsCopy;
-
-                      @StartBundle
-                      public void startBundle(Context c) {
-                        // Ensure that each bundle has a fresh copy of the DynamicDestinations
-                        // class.
-                        this.dynamicDestinationsCopy = SerializableUtils.clone(dynamicDestinations);
-                      }
-
                       @ProcessElement
                       public void processElement(ProcessContext c) throws Exception {
                         // If the DynamicDestinations class wants to read a side input, give it the
                         // value.
-                        if (dynamicDestinationsCopy.getSideInput() != null) {
-                          dynamicDestinationsCopy.setSideInputValue(
-                              c.sideInput(dynamicDestinationsCopy.getSideInput()));
-                        }
-                        TableSchema tableSchema = dynamicDestinationsCopy.getSchema(c.element());
+                        DynamicDestinations.SideInputAccessor sideInputAccessor =
+                            new DynamicDestinations.SideInputAccessor(
+                                c, dynamicDestinations.getSideInput());
+                        TableSchema tableSchema = dynamicDestinations.getSchema(
+                            c.element(), sideInputAccessor);
                         if (tableSchema != null) {
+                          // If the createDisposition is CREATE_NEVER, then there's no need for a
+                          // schema, and getSchema might return null. In this case, we simply
+                          // leave it out of the map.
                           c.output(KV.of(c.element(), BigQueryHelpers.toJsonString(tableSchema)));
                         }
                       }
