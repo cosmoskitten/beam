@@ -37,9 +37,12 @@ import org.apache.beam.sdk.coders.BigIntegerCoder;
 import org.apache.beam.sdk.coders.BitSetCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -67,7 +70,16 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.windowedValue(),
           new AvroCoderCloudObjectTranslator(),
           new SerializableCoderCloudObjectTranslator(),
-          CloudObjectTranslators.custom());
+          CloudObjectTranslators.custom(),
+          CloudObjectTranslators.iterableLike(CollectionCoder.class),
+          CloudObjectTranslators.iterableLike(ListCoder.class),
+          CloudObjectTranslators.iterableLike(SetCoder.class),
+          CloudObjectTranslators.map(),
+          CloudObjectTranslators.nullable(),
+          CloudObjectTranslators.union(),
+          CloudObjectTranslators.coGroupByKeyResult());
+  // TODO: ElementAndRestrictionCoder. This is in runners-core, but probably needs to be
+  // in core-construction
   @VisibleForTesting
   static final ImmutableSet<Class<? extends Coder>> KNOWN_ATOMIC_CODERS =
       ImmutableSet.<Class<? extends Coder>>of(
@@ -91,6 +103,11 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           TextualIntegerCoder.class,
           VarIntCoder.class,
           VoidCoder.class);
+  // TODO: WriteBundlesToFiles.ResultCoder.class);
+  // TODO: Atomic, GCPIO Coders:
+  //   TableRowInfoCoder.class
+  //   PubsubUnboundedSink.OutgoingMessageCoder.class,
+  //   PubsubUnboundedSource.PubsubCheckpointCoder.class,
 
   @Override
   public Map<String, CloudObjectTranslator<? extends Coder>> classNamesToTranslators() {
@@ -106,7 +123,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
   public Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
       classesToTranslators() {
     Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
-        ImmutableMap.<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>builder();
+        ImmutableMap.builder();
     for (CloudObjectTranslator<? extends Coder> defaultTranslator : DEFAULT_TRANSLATORS) {
       builder.put(defaultTranslator.getSupportedClass(), defaultTranslator);
     }
