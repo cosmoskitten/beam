@@ -118,7 +118,7 @@ import org.apache.commons.compress.utils.CountingInputStream;
  */
 // CHECKSTYLE.ON: JavadocStyle
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public class AvroSource<T> extends BlockBasedSource<T> {
+class AvroSource<T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).
   // The default sync interval is 64k.
