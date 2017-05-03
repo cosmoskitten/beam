@@ -28,7 +28,6 @@ import java.util.Map;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.Matchers;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,7 +44,6 @@ public class HadoopFileSystemModuleTest {
   }
 
   @Test
-  @Ignore
   public void testConfigurationSerializationDeserialization() throws Exception {
     Configuration baseConfiguration = new Configuration(false);
     baseConfiguration.set("testPropertyA", "baseA");
@@ -59,7 +57,7 @@ public class HadoopFileSystemModuleTest {
     String serializedConfiguration = objectMapper.writeValueAsString(configuration);
     Configuration deserializedConfiguration =
         objectMapper.readValue(serializedConfiguration, Configuration.class);
-    assertThat(deserializedConfiguration, Matchers.<Map.Entry<String, String>>contains(
+    assertThat(deserializedConfiguration, Matchers.<Map.Entry<String, String>>containsInAnyOrder(
         new AbstractMap.SimpleEntry("testPropertyA", "A"),
         new AbstractMap.SimpleEntry("testPropertyB", "B"),
         new AbstractMap.SimpleEntry("testPropertyC", "baseC")));
