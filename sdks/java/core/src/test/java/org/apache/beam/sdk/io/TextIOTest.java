@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.sdk.TestUtils.LINES2_ARRAY;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
@@ -28,7 +29,6 @@ import static org.apache.beam.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.ZIP;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static org.apache.beam.sdk.util.IOChannelUtils.resolve;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -73,6 +73,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -101,7 +102,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for TextIO Read and Write transforms.
+ * Tests for {@link TextIO} {@link TextIO.Read} and {@link TextIO.Write} transforms.
  */
 // TODO: Change the tests to use ValidatesRunner instead of NeedsRunner
 @RunWith(JUnit4.class)
@@ -168,7 +169,6 @@ public class TextIOTest {
 
   @BeforeClass
   public static void setupClass() throws IOException {
-    IOChannelUtils.registerIOFactoriesAllowOverride(TestPipeline.testingPipelineOptions());
     tempFolder = Files.createTempDirectory("TextIOTest");
     // empty files
     emptyTxt = writeToFile(EMPTY, "empty.txt", CompressionType.UNCOMPRESSED);
@@ -314,7 +314,7 @@ public class TextIOTest {
     p.run();
 
     assertOutputFiles(elems, header, footer, numShards, baseDir, outputName,
-        write.getShardTemplate());
+        firstNonNull(write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE));
   }
 
   public static void assertOutputFiles(
@@ -326,10 +326,11 @@ public class TextIOTest {
       String outputName,
       String shardNameTemplate)
       throws Exception {
+    ResourceId outputDir = LocalResources.fromPath(rootLocation, true /* isDirectory */);
     List<File> expectedFiles = new ArrayList<>();
     if (numShards == 0) {
       String pattern =
-          resolve(rootLocation.toAbsolutePath().toString(), outputName + "*");
+          outputDir.resolve(rootLocation.toAbsolutePath().toString(), outputName + "*");
       for (String expected : IOChannelUtils.getFactory(pattern).match(pattern)) {
         expectedFiles.add(new File(expected));
       }
@@ -338,7 +339,7 @@ public class TextIOTest {
         expectedFiles.add(
             new File(
                 rootLocation.toString(),
-                FileBasedSink.constructName(outputName, shardNameTemplate, "", i, numShards)));
+                DefaultFilenamePolicy.constructName(outputName, shardNameTemplate, "", i, numShards)));
       }
     }
 
@@ -545,8 +546,8 @@ public class TextIOTest {
     ValueProvider<String> getInput();
     void setInput(ValueProvider<String> value);
 
-    ValueProvider<String> getOutput();
-    void setOutput(ValueProvider<String> value);
+    ValueProvider<ResourceId> getOutput();
+    void setOutput(ValueProvider<ResourceId> value);
   }
 
   @Test

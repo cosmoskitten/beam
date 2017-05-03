@@ -346,8 +346,8 @@ public class AvroIO {
     }
 
     /**
-     * Uses the given {@link ShardNameTemplate} for naming output files.  This option may only be
-     * used when {@link #withFilenamePolicy(FilenamePolicy)} has not configured.
+     * Uses the given {@link ShardNameTemplate} for naming output files. This option may only be
+     * used when {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
      *
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
@@ -358,7 +358,7 @@ public class AvroIO {
 
     /**
      * Configures the filename suffix for written files. This option may only be used when
-     * {@link #withFilenamePolicy(FilenamePolicy)} has not configured.
+     * {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
      *
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
@@ -383,7 +383,12 @@ public class AvroIO {
     }
 
     /**
-     * Forces a single file as output. This option is only compatible with unwindowed writes.
+     * Forces a single file as output and empty shard name template. This option is only compatible
+     * with unwindowed writes.
+     *
+     * <p>For unwindowed writes, constraining the number of shards is likely to reduce the
+     * performance of a pipeline. Setting this value is not recommended unless you require a
+     * specific number of output files.
      *
      * <p>This is equivalent to {@code .withNumShards(1).withShardNameTemplate("")}
      */

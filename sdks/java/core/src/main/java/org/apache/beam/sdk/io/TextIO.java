@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
@@ -271,14 +272,19 @@ public class TextIO {
     }
 
     /**
-     * Writes to text files with the given prefix. This can be a local filename
-     * (if running locally), or a Google Cloud Storage filename of
-     * the form {@code "gs://<bucket>/<filepath>"}
-     * (if running locally or using remote execution).
+     * Writes to text files with the given prefix. The given {@code prefix} can reference any
+     * {@link FileSystem} on the classpath.
      *
-     * <p>The files written will begin with this prefix, followed by
-     * a shard identifier (see {@link #withNumShards(int)}, and end
-     * in a common extension, if given by {@link #withSuffix(String)}.
+     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
+     *
+     * <p>By default, a {@link DefaultFilenamePolicy} will be used built using the specified prefix
+     * to define the base output directory and file prefix, a shard identifier (see
+     * {@link #withNumShards(int)}), and a common suffix (if supplied using
+     * {@link #withSuffix(String)}).
+     *
+     * <p>This default policy can be overridden using {@link #withFilenamePolicy(FilenamePolicy)},
+     * in which case {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should
+     * not be set.
      */
     public Write to(String filenamePrefix) {
       try {
@@ -292,40 +298,80 @@ public class TextIO {
       }
     }
 
-    /** Like {@link #to(String)}, but with a {@link ValueProvider}. */
+    /**
+     * Writes to text files with prefix from the given resource.
+     *
+     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
+     *
+     * <p>By default, a {@link DefaultFilenamePolicy} will be used built using the specified prefix
+     * to define the base output directory and file prefix, a shard identifier (see
+     * {@link #withNumShards(int)}), and a common suffix (if supplied using
+     * {@link #withSuffix(String)}).
+     *
+     * <p>This default policy can be overridden using {@link #withFilenamePolicy(FilenamePolicy)},
+     * in which case {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should
+     * not be set.
+     */
     public Write to(ResourceId filenamePrefix) {
       return to(StaticValueProvider.of(filenamePrefix));
     }
 
-    /** Like {@link #to(String)}, but with a {@link ValueProvider}. */
+    /**
+     * Writes to text files with prefix from the given resource.
+     *
+     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
+     *
+     * <p>By default, a {@link DefaultFilenamePolicy} will be used built using the specified prefix
+     * to define the base output directory and file prefix, a shard identifier (see
+     * {@link #withNumShards(int)}), and a common suffix (if supplied using
+     * {@link #withSuffix(String)}).
+     *
+     * <p>This default policy can be overridden using {@link #withFilenamePolicy(FilenamePolicy)},
+     * in which case {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should
+     * not be set.
+     */
     public Write to(ValueProvider<ResourceId> filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
 
-    /** Like {@link #to(String)}, but with a {@link FilenamePolicy}. */
+    /**
+     * Uses the given {@link ShardNameTemplate} for naming output files. This option may only be
+     * used when {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
+     *
+     * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
+     * used.
+     */
+    public Write withShardNameTemplate(String shardTemplate) {
+      return toBuilder().setShardTemplate(shardTemplate).build();
+    }
+
+    /**
+     * Configures the filename suffix for written files. This option may only be used when
+     * {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
+     *
+     * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
+     * used.
+     */
+    public Write withSuffix(String filenameSuffix) {
+      return toBuilder().setFilenameSuffix(filenameSuffix).build();
+    }
+
+    /**
+     * Configures the {@link FileBasedSink.FilenamePolicy} that will be used to name written files.
+     */
     public Write withFilenamePolicy(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
     }
 
     /**
-     * Writes to the file(s) with the given filename suffix.
+     * Configures the number of output shards produced overall (when using unwindowed writes) or
+     * per-window (when using windowed writes).
      *
-     * @see ShardNameTemplate
-     */
-    public Write withSuffix(String nameExtension) {
-      return toBuilder().setFilenameSuffix(nameExtension).build();
-    }
-
-    /**
-     * Uses the provided shard count.
+     * <p>For unwindowed writes, constraining the number of shards is likely to reduce the
+     * performance of a pipeline. Setting this value is not recommended unless you require a
+     * specific number of output files.
      *
-     * <p>Constraining the number of shards is likely to reduce
-     * the performance of a pipeline. Setting this value is not recommended
-     * unless you require a specific number of output files.
-     *
-     * @param numShards the number of shards to use, or 0 to let the system
-     *                  decide.
-     * @see ShardNameTemplate
+     * @param numShards the number of shards to use, or 0 to let the system decide.
      */
     public Write withNumShards(int numShards) {
       checkArgument(numShards >= 0);
@@ -333,23 +379,14 @@ public class TextIO {
     }
 
     /**
-     * Uses the given shard name template.
+     * Forces a single file as output and empty shard name template. This option is only compatible
+     * with unwindowed writes.
      *
-     * @see ShardNameTemplate
-     */
-    public Write withShardNameTemplate(String shardTemplate) {
-      return toBuilder().setShardTemplate(shardTemplate).build();
-    }
-
-    /**
-     * Forces a single file as output.
+     * <p>For unwindowed writes, constraining the number of shards is likely to reduce the
+     * performance of a pipeline. Setting this value is not recommended unless you require a
+     * specific number of output files.
      *
-     * <p>Constraining the number of shards is likely to reduce
-     * the performance of a pipeline. Using this setting is not recommended
-     * unless you truly require a single output file.
-     *
-     * <p>This is a shortcut for
-     * {@code .withNumShards(1).withShardNameTemplate("")}
+     * <p>This is equivalent to {@code .withNumShards(1).withShardNameTemplate("")}
      */
     public Write withoutSharding() {
       return withNumShards(1).withShardNameTemplate("");
@@ -391,15 +428,13 @@ public class TextIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
+      checkState(getFilenamePrefix() != null,
+          "Need to set the filename prefix of a TextIO.Write transform.");
+      checkState(
+          (getFilenamePolicy() == null)
+              || (getShardTemplate() == null && getFilenameSuffix() == null),
+          "Cannot set a filename policy and also a filename template or suffix.");
 
-      if (getFilenamePolicy() == null && getFilenamePrefix() == null) {
-        throw new IllegalStateException(
-            "need to set the filename prefix of an TextIO.Write transform");
-      }
-      if (getFilenamePolicy() != null && getFilenamePrefix() != null) {
-        throw new IllegalStateException(
-            "cannot set both a filename policy and a filename prefix");
-      }
       FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
       if (usedFilenamePolicy == null) {
         usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
@@ -409,7 +444,7 @@ public class TextIO {
           WriteFiles.to(
               new TextSink(
                   getFilenamePrefix(),
-                  getFilenamePolicy(),
+                  usedFilenamePolicy,
                   getHeader(),
                   getFooter(),
                   getWritableByteChannelFactory()));
