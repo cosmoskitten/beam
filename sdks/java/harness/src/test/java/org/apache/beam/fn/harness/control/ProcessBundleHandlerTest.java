@@ -63,7 +63,7 @@ import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.runners.core.construction.Coders;
-import org.apache.beam.runners.dataflow.util.DoFnInfo;
+import org.apache.beam.runners.dataflow.DoFnInfo;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
