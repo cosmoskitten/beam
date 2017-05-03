@@ -927,9 +927,6 @@ public class BigQueryIO {
 
     @Override
     public WriteResult expand(PCollection<T> input) {
-
-      validate(input.getPipeline().getOptions());
-
       PCollection<KV<TableDestination, TableRow>> rowsWithDestination =
           input.apply("PrepareWrite", new PrepareWrite<T>(
               getTableFunction(), getFormatFunction()))

@@ -47,14 +47,21 @@ import org.apache.beam.sdk.values.PDone;
 public class WriteToBigQuery<InputT>
     extends PTransform<PCollection<InputT>, PDone> {
 
+  protected String projectId;
+  protected String datasetId;
   protected String tableName;
   protected Map<String, FieldInfo<InputT>> fieldInfo;
 
   public WriteToBigQuery() {
   }
 
-  public WriteToBigQuery(String tableName,
+  public WriteToBigQuery(
+      String projectId,
+      String datasetId,
+      String tableName,
       Map<String, FieldInfo<InputT>> fieldInfo) {
+    this.projectId = projectId;
+    this.datasetId = datasetId;
     this.tableName = tableName;
     this.fieldInfo = fieldInfo;
   }
@@ -120,20 +127,21 @@ public class WriteToBigQuery<InputT>
   @Override
   public PDone expand(PCollection<InputT> teamAndScore) {
     teamAndScore
-      .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
-      .apply(BigQueryIO.writeTableRows().to(getTable(teamAndScore.getPipeline(), tableName))
-          .withSchema(getSchema())
-          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-          .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+        .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(getTable(projectId, datasetId, tableName))
+                .withSchema(getSchema())
+                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
     return PDone.in(teamAndScore.getPipeline());
   }
 
   /** Utility to construct an output table reference. */
-  static TableReference getTable(Pipeline pipeline, String tableName) {
-    PipelineOptions options = pipeline.getOptions();
+  static TableReference getTable(String projectId, String datasetId, String tableName) {
     TableReference table = new TableReference();
-    table.setDatasetId(options.as(UserScore.Options.class).getDataset());
-    table.setProjectId(options.as(GcpOptions.class).getProject());
+    table.setDatasetId(datasetId);
+    table.setProjectId(projectId);
     table.setTableId(tableName);
     return table;
   }
