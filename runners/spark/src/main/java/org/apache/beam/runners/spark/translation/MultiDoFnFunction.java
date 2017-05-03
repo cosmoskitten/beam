@@ -25,13 +25,21 @@ import com.google.common.collect.Multimap;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.InMemoryStateInternals;
+import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -59,6 +67,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final TupleTag<OutputT> mainOutputTag;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   private final WindowingStrategy<?, ?> windowingStrategy;
+  private final boolean stateful;
 
   /**
    * @param aggAccum       The Spark {@link Accumulator} that backs the Beam Aggregators.
@@ -86,6 +95,8 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.mainOutputTag = mainOutputTag;
     this.sideInputs = sideInputs;
     this.windowingStrategy = windowingStrategy;
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+    stateful = signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
   }
 
   @Override
@@ -94,7 +105,35 @@ public class MultiDoFnFunction<InputT, OutputT>
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
 
-    DoFnRunner<InputT, OutputT> doFnRunner =
+    SparkProcessContext.NoOpStepContext context;
+    InMemoryTimerInternals timerInternals = null;
+    // Now only implements the StatefulParDo in Batch mode.
+    if (stateful) {
+      Object key = null;
+      if (iter.hasNext()) {
+        WindowedValue<InputT> currentValue = iter.next();
+        key = ((KV) currentValue.getValue()).getKey();
+        iter = Iterators.concat(Iterators.singletonIterator(currentValue), iter);
+      }
+      final InMemoryStateInternals<?> stateInternals = InMemoryStateInternals.forKey(key);
+      timerInternals = new InMemoryTimerInternals();
+      final InMemoryTimerInternals finalTimerInternals = timerInternals;
+      context = new SparkProcessContext.NoOpStepContext(){
+        @Override
+        public StateInternals stateInternals() {
+          return stateInternals;
+        }
+
+        @Override
+        public TimerInternals timerInternals() {
+          return finalTimerInternals;
+        }
+      };
+    } else {
+      context = new SparkProcessContext.NoOpStepContext();
+    }
+
+    final DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.simpleRunner(
             runtimeContext.getPipelineOptions(),
             doFn,
@@ -102,20 +141,72 @@ public class MultiDoFnFunction<InputT, OutputT>
             outputManager,
             mainOutputTag,
             Collections.<TupleTag<?>>emptyList(),
-            new SparkProcessContext.NoOpStepContext(),
+            context,
             windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
-    return new SparkProcessContext<>(doFn, doFnRunnerWithMetrics, outputManager)
-        .processPartition(iter);
+    return new SparkProcessContext<>(
+        doFn, doFnRunnerWithMetrics, outputManager,
+        stateful ? new TimerDataIterator(timerInternals) :
+            Collections.<TimerInternals.TimerData>emptyIterator()).processPartition(iter);
+  }
+
+  private static class TimerDataIterator implements Iterator<TimerInternals.TimerData> {
+
+    private InMemoryTimerInternals timerInternals;
+    private boolean hasAdvance;
+    private TimerInternals.TimerData timerData;
+
+    TimerDataIterator(InMemoryTimerInternals timerInternals) {
+      this.timerInternals = timerInternals;
+    }
+
+    @Override
+    public boolean hasNext() {
+
+      // Advance
+      if (!hasAdvance) {
+        try {
+          // Finish any pending windows by advancing the input watermark to infinity.
+          timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+          // Finally, advance the processing time to infinity to fire any timers.
+          timerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
+          timerInternals.advanceSynchronizedProcessingTime(
+              BoundedWindow.TIMESTAMP_MAX_VALUE);
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+        hasAdvance = true;
+      }
+
+      // Get timer data
+      return (timerData = timerInternals.removeNextEventTimer()) != null
+          || (timerData = timerInternals.removeNextProcessingTimer()) != null
+          || (timerData = timerInternals.removeNextSynchronizedProcessingTimer()) != null;
+    }
+
+    @Override
+    public TimerInternals.TimerData next() {
+      if (timerData == null) {
+        throw new NoSuchElementException();
+      } else {
+        return timerData;
+      }
+    }
+
+    @Override
+    public void remove() {
+      throw new RuntimeException("TimerDataIterator not support remove!");
+    }
+
   }
 
   private class DoFnOutputManager
       implements SparkProcessContext.SparkOutputManager<Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
-    private final Multimap<TupleTag<?>, WindowedValue<?>> outputs = LinkedListMultimap.create();;
+    private final Multimap<TupleTag<?>, WindowedValue<?>> outputs = LinkedListMultimap.create();
 
     @Override
     public void clear() {
