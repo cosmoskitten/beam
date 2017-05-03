@@ -168,13 +168,13 @@ public class TransformHierarchy {
       if (!producers.containsKey(value)) {
         producers.put(value, current);
       }
-      value.finishSpecifyingOutput(unexpandedInputs.get(current), current.transform);
+      value.finishSpecifyingOutput(
+          current.getFullName(), unexpandedInputs.get(current), current.transform);
       producerInput.put(value, unexpandedInputs.get(current));
     }
-    output.finishSpecifyingOutput(unexpandedInputs.get(current), current.transform);
+    output.finishSpecifyingOutput(
+        current.getFullName(), unexpandedInputs.get(current), current.transform);
     current.setOutput(output);
-    // TODO: Replace with a "generateDefaultNames" method.
-    output.recordAsOutput(current.toAppliedPTransform());
   }
 
   /**

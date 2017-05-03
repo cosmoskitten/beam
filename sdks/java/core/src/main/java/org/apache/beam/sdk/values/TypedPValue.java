@@ -69,7 +69,8 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
   }
 
   @Override
-  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) {
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {
     this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
   }
 

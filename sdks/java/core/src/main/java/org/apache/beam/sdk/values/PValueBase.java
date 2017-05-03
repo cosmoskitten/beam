@@ -20,7 +20,6 @@ package org.apache.beam.sdk.values;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
 
@@ -65,11 +64,30 @@ public abstract class PValueBase implements PValue {
    * already been finalized and may no longer be set.
    */
   public PValueBase setName(String name) {
-    if (finishedSpecifying) {
-      throw new IllegalStateException(
-          "cannot change the name of " + this + " once it's been used");
+    setNameToDefault(name, false);
+    return this;
+  }
+
+  private void setNameToDefault(String name, boolean generated) {
+    if (nameGenerated || !generated) {
+      if (finishedSpecifying) {
+        throw new IllegalStateException(
+            "cannot change the name of " + this + " once it's been used");
+      }
+      this.name = name;
     }
-    this.name = name;
+  }
+
+  /**
+   * Sets the name of this {@link PValueBase} to the provided name if it has not been explicitly
+   * set.
+   *
+   * <p>Generally will be used within
+   * {@link POutput#finishSpecifyingOutput(String, PInput, PTransform)} by a composite
+   * {@link POutput}.
+   */
+  public PValueBase setDefaultName(String name) {
+    setNameToDefault(name, true);
     return this;
   }
 
@@ -92,6 +110,7 @@ public abstract class PValueBase implements PValue {
    * The name of this {@link PValueBase}, or {@code null} if not yet set.
    */
   private String name;
+  private boolean nameGenerated = true;
 
   /**
    * A local {@link TupleTag} used in the expansion of this {@link PValueBase}.
@@ -103,26 +122,6 @@ public abstract class PValueBase implements PValue {
    * properties, e.g., name, can no longer be changed.
    */
   private boolean finishedSpecifying = false;
-
-  @Override
-  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {
-    recordAsOutput(transform, "out");
-  }
-
-  /**
-   * Records that this {@link PValueBase} is an output with the
-   * given name of the given {@link AppliedPTransform} in the given
-   * {@link Pipeline}.
-   *
-   * <p>To be invoked only by {@link POutput#recordAsOutput}
-   * implementations.  Not to be invoked directly by user code.
-   */
-  protected void recordAsOutput(AppliedPTransform<?, ?, ?> transform,
-                                String outName) {
-    if (name == null) {
-      name = transform.getFullName() + "." + outName;
-    }
-  }
 
   /**
    * Returns whether this {@link PValueBase} has been finalized, and
@@ -165,11 +164,9 @@ public abstract class PValueBase implements PValue {
     return pipeline;
   }
 
-  /**
-   * Default behavior for {@link #finishSpecifyingOutput(PInput, PTransform)}} is
-   * to do nothing. Override if your {@link PValue} requires
-   * finalization.
-   */
   @Override
-  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) { }
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {
+    setDefaultName(String.format("%s.%s", transformName, "out"));
+  }
 }
