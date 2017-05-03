@@ -46,7 +46,6 @@ public class GcsPathValidator implements PathValidator {
   @Override
   public String validateInputFilePatternSupported(String filepattern) {
     GcsPath gcsPath = getGcsPath(filepattern);
-    checkArgument(gcpOptions.getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
     String returnValue = verifyPath(filepattern);
     verifyPathIsAccessible(filepattern, "Could not find file %s");
     return returnValue;
