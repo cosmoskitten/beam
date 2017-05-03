@@ -160,22 +160,9 @@ public class GcsUtil {
   final ExecutorService executorService;
 
   /**
-   * Returns true if the given GCS pattern is supported otherwise fails with an
-   * exception.
-   */
-  public static boolean isGcsPatternSupported(String gcsPattern) {
-    if (RECURSIVE_GCS_PATTERN.matcher(gcsPattern).matches()) {
-      throw new IllegalArgumentException("Unsupported wildcard usage in \"" + gcsPattern + "\": "
-          + " recursive wildcards are not supported.");
-    }
-    return true;
-  }
-
-  /**
    * Returns the prefix portion of the glob that doesn't contain wildcards.
    */
   public static String getGlobPrefix(String globExp) {
-    checkArgument(isGcsPatternSupported(globExp));
     Matcher m = GLOB_PREFIX.matcher(globExp);
     checkArgument(
         m.matches(),
@@ -197,10 +184,10 @@ public class GcsUtil {
       char c = src[i++];
       switch (c) {
         case '*':
-          dst.append("[^/]*");
+          dst.append(".*");
           break;
         case '?':
-          dst.append("[^/]");
+          dst.append(".");
           break;
         case '.':
         case '+':
@@ -254,7 +241,6 @@ public class GcsUtil {
    * exists.
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
-    checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
     Pattern p = null;
     String prefix = null;
     if (!isGlob(gcsPattern)) {
