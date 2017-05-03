@@ -62,8 +62,8 @@ public class MetricsTest implements Serializable {
   private static final MetricName METRIC_NAME = MetricName.named(NS, NAME);
   private static final String NAMESPACE = MetricsTest.class.getName();
   private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
-  private static final MetricName SOURCE_WATERMARK_SPLIT
-      = SourceMetrics.sourceWatermarkOfSplit("0").getName();
+  private static final MetricName SOURCE_WATERMARK_SPLIT =
+      SourceMetrics.sourceWatermarkOfSplit("0").getName();
 
   private static MetricQueryResults queryTestMetrics(PipelineResult result) {
     return result.metrics().queryMetrics(

@@ -21,8 +21,8 @@ package org.apache.beam.sdk.testing;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 
 /**
- * Category tag for validation tests which utilize {@link SourceMetrics#sourceWatermark()}.
- * Tests tagged with {@link UsesWatermarkMetrics} should be run for runners which support
- * source watermark.
+ * Category tag for validation tests which utilize
+ * {@link SourceMetrics#sourceWatermarkOfSplit(String)}. Tests tagged with
+ * {@link UsesWatermarkMetrics} should be run for runners which support source watermark.
  */
 public class UsesWatermarkMetrics {}
