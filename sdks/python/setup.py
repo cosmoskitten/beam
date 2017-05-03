@@ -131,6 +131,7 @@ setuptools.setup(
         'apache_beam/runners/worker/logger.py',
         'apache_beam/runners/worker/opcounters.py',
         'apache_beam/runners/worker/operations.py',
+        'apache_beam/transforms/core.py',
         'apache_beam/transforms/cy_combiners.py',
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
