@@ -939,8 +939,6 @@ public class BigQueryIO {
 
     @Override
     public WriteResult expand(PCollection<T> input) {
-      validate(input.getPipeline().getOptions());
-
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
         if (getJsonTableRef() != null) {
