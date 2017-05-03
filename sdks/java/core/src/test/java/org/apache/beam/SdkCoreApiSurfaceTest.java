@@ -30,27 +30,26 @@ import org.junit.runners.JUnit4;
 /** API surface verification for {@link org.apache.beam}. */
 @RunWith(JUnit4.class)
 public class SdkCoreApiSurfaceTest {
+  @SuppressWarnings("unchecked")
+  public static final Set<String> ALLOWED_PACKAGES =
+      ImmutableSet.of(
+          "org.apache.beam",
+          "com.google.api.client",
+          "com.fasterxml.jackson.annotation",
+          "com.fasterxml.jackson.core",
+          "com.fasterxml.jackson.databind",
+          "org.apache.avro",
+          "org.hamcrest",
+          // via DataflowMatchers
+          "org.codehaus.jackson",
+          // via Avro
+          "org.joda.time",
+          "org.junit");
 
   @Test
   public void testSdkApiSurface() throws Exception {
-
-    @SuppressWarnings("unchecked")
-    final Set<String> allowed =
-        ImmutableSet.of(
-            "org.apache.beam",
-            "com.google.api.client",
-            "com.fasterxml.jackson.annotation",
-            "com.fasterxml.jackson.core",
-            "com.fasterxml.jackson.databind",
-            "org.apache.avro",
-            "org.hamcrest",
-            // via DataflowMatchers
-            "org.codehaus.jackson",
-            // via Avro
-            "org.joda.time",
-            "org.junit");
-
     assertThat(
-        ApiSurface.getSdkApiSurface(getClass().getClassLoader()), containsOnlyPackages(allowed));
+        ApiSurface.getSdkApiSurface(getClass().getClassLoader()),
+        containsOnlyPackages(ALLOWED_PACKAGES));
   }
 }
