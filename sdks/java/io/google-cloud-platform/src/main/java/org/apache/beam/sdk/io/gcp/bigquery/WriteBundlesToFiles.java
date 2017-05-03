@@ -32,6 +32,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +47,7 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
 
   // Map from tablespec to a writer for that table.
   private transient Map<TableDestination, TableRowWriter> writers;
-  private final String tempFilePrefix;
+  private final String stepUuid;
 
   /**
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
@@ -101,8 +103,8 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
     public void verifyDeterministic() {}
   }
 
-  WriteBundlesToFiles(String tempFilePrefix) {
-    this.tempFilePrefix = tempFilePrefix;
+  WriteBundlesToFiles(String stepUuid) {
+    this.stepUuid = stepUuid;
   }
 
   @StartBundle
@@ -114,6 +116,17 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
+    String tempLocation = c.getPipelineOptions().getTempLocation();
+    String tempFilePrefix;
+    try {
+      IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+      tempFilePrefix =
+          factory.resolve(
+              factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
+    }
     TableRowWriter writer = writers.get(c.element().getKey());
     if (writer == null) {
       writer = new TableRowWriter(tempFilePrefix);
@@ -148,9 +161,5 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-
-    builder
-        .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
-            .withLabel("Temporary File Prefix"));
   }
 }

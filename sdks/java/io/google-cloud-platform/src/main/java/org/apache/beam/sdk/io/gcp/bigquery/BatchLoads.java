@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -104,26 +105,30 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
   @Override
   public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
     Pipeline p = input.getPipeline();
-    BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
-
-    validate(p.getOptions());
-
     final String stepUuid = BigQueryHelpers.randomUUIDString();
 
-    String tempLocation = options.getTempLocation();
-    String tempFilePrefix;
-    try {
-      IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-      tempFilePrefix =
-          factory.resolve(factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
-    }
-
     // Create a singleton job ID token at execution time. This will be used as the base for all
-    // load jobs issued from this instance of the transfomr.
-    PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
+    // load jobs issued from this instance of the transform.
+    PCollection<String> singleton = p
+        .apply("Create", Create.of((Void) null))
+        .apply("GetTempFilePrefix", ParDo.of(new DoFn<Void, String>() {
+          @ProcessElement
+          public void getTempFilePrefix(ProcessContext c) {
+            String tempLocation = c.getPipelineOptions().getTempLocation();
+            String tempFilePrefix;
+            try {
+              IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+              tempFilePrefix =
+                  factory.resolve(
+                      factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
+            } catch (IOException e) {
+              throw new RuntimeException(
+                  String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
+            }
+            c.output(tempFilePrefix);
+          }
+        }));
+
     PCollectionView<String> jobIdTokenView =
         p.apply("TriggerIdCreation", Create.of("ignored"))
             .apply(
@@ -147,7 +152,7 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
     // PCollection of filename, file byte size, and table destination.
     PCollection<WriteBundlesToFiles.Result> results =
         inputInGlobalWindow
-            .apply("WriteBundlesToFiles", ParDo.of(new WriteBundlesToFiles(tempFilePrefix)))
+            .apply("WriteBundlesToFiles", ParDo.of(new WriteBundlesToFiles(stepUuid)))
             .setCoder(WriteBundlesToFiles.ResultCoder.of());
 
     TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag =
@@ -203,7 +208,7 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
                             false,
                             write.getBigQueryServices(),
                             jobIdTokenView,
-                            tempFilePrefix,
+                            stepUuid,
                             WriteDisposition.WRITE_EMPTY,
                             CreateDisposition.CREATE_IF_NEEDED,
                             schemaFunction))
@@ -240,7 +245,7 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
                         true,
                         write.getBigQueryServices(),
                         jobIdTokenView,
-                        tempFilePrefix,
+                        stepUuid,
                         write.getWriteDisposition(),
                         write.getCreateDisposition(),
                         schemaFunction))
