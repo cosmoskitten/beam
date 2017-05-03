@@ -27,7 +27,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
- * Matches applications of {@link PTransform PTransforms}.
+ * <p>Matches applications of {@link PTransform PTransforms}.
  */
 @Internal
 @Experimental(Kind.CORE_RUNNERS_ONLY)

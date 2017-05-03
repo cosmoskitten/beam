@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
- * Captures information about a collection of transformations and their
+ * <p>Captures information about a collection of transformations and their
  * associated {@link PValue}s.
  */
 @Internal

@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TupleTag;
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
- * Produces {@link PipelineRunner}-specific overrides of {@link PTransform PTransforms}, and
+ * <p>Produces {@link PipelineRunner}-specific overrides of {@link PTransform PTransforms}, and
  * provides mappings between original and replacement outputs.
  */
 @Internal
