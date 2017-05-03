@@ -102,11 +102,11 @@ public class CombineFnBase {
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * An abstract {@link GlobalCombineFn} base class shared by
-   * {@link CombineFn} and {@link CombineFnWithContext}.
+   * <p>An abstract {@link GlobalCombineFn} base class shared by {@link CombineFn} and {@link
+   * CombineFnWithContext}.
    *
-   * <p>Do not extend this class directly.
-   * Extends {@link CombineFn} and {@link CombineFnWithContext} instead.
+   * <p>Do not extend this class directly. Extends {@link CombineFn} and {@link
+   * CombineFnWithContext} instead.
    *
    * @param <InputT> type of input values
    * @param <AccumT> type of mutable accumulator values

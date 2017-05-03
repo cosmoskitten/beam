@@ -472,7 +472,7 @@ public class View {
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * Creates a primitive {@link PCollectionView}.
+   * <p>Creates a primitive {@link PCollectionView}.
    *
    * @param <ElemT> The type of the elements of the input PCollection
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
