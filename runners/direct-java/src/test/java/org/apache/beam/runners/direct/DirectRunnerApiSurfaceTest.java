@@ -15,41 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam;
+
+package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import org.apache.beam.SdkCoreApiSurfaceTest;
 import org.apache.beam.sdk.util.ApiSurface;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** API surface verification for {@link org.apache.beam}. */
+/** API surface verification for {@link org.apache.beam.runners.direct}. */
 @RunWith(JUnit4.class)
-public class SdkCoreApiSurfaceTest {
-  @SuppressWarnings("unchecked")
-  public static final Set<String> ALLOWED_PACKAGES =
-      ImmutableSet.of(
-          "org.apache.beam",
-          "com.google.api.client",
-          "com.fasterxml.jackson.annotation",
-          "com.fasterxml.jackson.core",
-          "com.fasterxml.jackson.databind",
-          "org.apache.avro",
-          "org.hamcrest",
-          // via DataflowMatchers
-          "org.codehaus.jackson",
-          // via Avro
-          "org.joda.time",
-          "org.junit");
-
+public class DirectRunnerApiSurfaceTest {
   @Test
-  public void testSdkApiSurface() throws Exception {
-    assertThat(
-        ApiSurface.getSdkApiSurface(getClass().getClassLoader()),
-        containsOnlyPackages(ALLOWED_PACKAGES));
+  public void testDirectRunnerApiSurface() throws Exception {
+    // The DirectRunner should expose no more than the Core SDK
+    @SuppressWarnings("unchecked")
+    final Set<String> allowed = SdkCoreApiSurfaceTest.ALLOWED_PACKAGES;
+
+    final Package thisPackage = getClass().getPackage();
+    final ClassLoader thisClassLoader = getClass().getClassLoader();
+    ApiSurface apiSurface =
+        ApiSurface.ofPackage(thisPackage, thisClassLoader)
+            .pruningPattern("org[.]apache[.]beam[.].*Test.*")
+            .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("java[.]lang.*")
+            .pruningPattern("java[.]util.*");
+
+    assertThat(apiSurface, containsOnlyPackages(allowed));
   }
 }
