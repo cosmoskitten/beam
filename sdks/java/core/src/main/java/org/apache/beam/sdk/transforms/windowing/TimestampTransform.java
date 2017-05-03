@@ -19,10 +19,16 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/** An abstract description of a standardized transformation on timestamps. */
+/**
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>An abstract description of a standardized transformation on timestamps.
+ */
+@Internal
 public abstract class TimestampTransform implements Serializable{
 
   /** Returns a transform that shifts a timestamp later by {@code delay}. */
