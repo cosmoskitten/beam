@@ -104,6 +104,8 @@ import org.junit.runners.model.Statement;
  */
 public class TestPipeline extends Pipeline implements TestRule {
 
+  private final PipelineOptions options;
+
   private static class PipelineRunEnforcement {
 
     @SuppressWarnings("WeakerAccess")
@@ -183,10 +185,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     private void verifyPipelineExecution() {
       if (!isEmptyPipeline(pipeline)) {
         if (!runAttempted && !enableAutoRunIfMissing) {
-          throw new PipelineRunMissingException(
-              "The pipeline has not been run (runner: "
-                  + pipeline.getOptions().getRunner().getSimpleName()
-                  + ")");
+          throw new PipelineRunMissingException("The pipeline has not been run.");
 
         } else {
           final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
@@ -272,6 +271,11 @@ public class TestPipeline extends Pipeline implements TestRule {
 
   private TestPipeline(final PipelineOptions options) {
     super(options);
+    this.options = options;
+  }
+
+  public PipelineOptions getOptions() {
+    return this.options;
   }
 
   @Override
@@ -288,7 +292,7 @@ public class TestPipeline extends Pipeline implements TestRule {
                   .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
 
           final boolean crashingRunner =
-              CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
+              CrashingRunner.class.isAssignableFrom(options.getRunner());
 
           checkState(
               !(annotatedWithNeedsRunner && crashingRunner),
@@ -381,18 +385,9 @@ public class TestPipeline extends Pipeline implements TestRule {
     return this;
   }
 
-  @VisibleForTesting
-  @Override
-  /**
-   * Get this pipeline's options.
-   */
-  public PipelineOptions getOptions() {
-    return defaultOptions;
-  }
-
   @Override
   public String toString() {
-    return "TestPipeline#" + getOptions().as(ApplicationNameOptions.class).getAppName();
+    return "TestPipeline#" + options.as(ApplicationNameOptions.class).getAppName();
   }
 
   /** Creates {@link PipelineOptions} for testing. */
