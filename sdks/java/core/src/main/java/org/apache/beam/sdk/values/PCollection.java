@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -209,30 +210,27 @@ public class PCollection<T> extends TypedPValue<T> {
   }
 
   /**
-   * Sets the {@link WindowingStrategy} of this {@link PCollection}.
-   *
-   * <p>For use by primitive transformations only.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    */
+  @Internal
   public PCollection<T> setWindowingStrategyInternal(WindowingStrategy<?, ?> windowingStrategy) {
      this.windowingStrategy = windowingStrategy;
      return this;
   }
 
   /**
-   * Sets the {@link PCollection.IsBounded} of this {@link PCollection}.
-   *
-   * <p>For use by internal transformations only.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    */
+  @Internal
   public PCollection<T> setIsBoundedInternal(IsBounded isBounded) {
     this.isBounded = isBounded;
     return this;
   }
 
   /**
-   * Creates and returns a new {@link PCollection} for a primitive output.
-   *
-   * <p>For use by primitive transformations only.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    */
+  @Internal
   public static <T> PCollection<T> createPrimitiveOutputInternal(
       Pipeline pipeline,
       WindowingStrategy<?, ?> windowingStrategy,
