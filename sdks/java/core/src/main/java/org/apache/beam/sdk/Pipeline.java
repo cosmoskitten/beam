@@ -457,18 +457,6 @@ public class Pipeline {
   }
 
   /**
-   * Returns the default {@link PipelineOptions} provided to {@link #create(PipelineOptions)}.
-   *
-   * @deprecated see BEAM-818 Remove Pipeline.getPipelineOptions. Configuration should be explicitly
-   *     provided to a transform if it is required.
-   */
-  @Deprecated
-  public PipelineOptions getOptions() {
-    return defaultOptions;
-  }
-
-
-  /**
    * Applies a {@link PTransform} to the given {@link PInput}.
    *
    * @see Pipeline#apply
