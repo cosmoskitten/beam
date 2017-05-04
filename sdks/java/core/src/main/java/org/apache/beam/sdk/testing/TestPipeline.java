@@ -46,7 +46,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -398,7 +397,6 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
       options.setStableUniqueNames(CheckEnabled.ERROR);
 
-      IOChannelUtils.registerIOFactoriesAllowOverride(options);
       FileSystems.setDefaultConfigInWorkers(options);
       return options;
     } catch (IOException e) {

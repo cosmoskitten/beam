@@ -33,7 +33,6 @@ import org.apache.beam.fn.harness.stream.StreamObserverFactory;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,8 +86,6 @@ public class FnHarness {
   public static void main(PipelineOptions options,
       BeamFnApi.ApiServiceDescriptor loggingApiServiceDescriptor,
       BeamFnApi.ApiServiceDescriptor controlApiServiceDescriptor) throws Exception {
-    IOChannelUtils.registerIOFactories(options);
-
     ManagedChannelFactory channelFactory = ManagedChannelFactory.from(options);
     StreamObserverFactory streamObserverFactory = StreamObserverFactory.fromOptions(options);
     PrintStream originalErrStream = System.err;
