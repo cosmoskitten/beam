@@ -115,6 +115,10 @@ public class BeamSQLRow implements Serializable {
     return (Integer) getFieldValue(idx);
   }
 
+  public float getFloat(int idx) {
+    return (Float) getFieldValue(idx);
+  }
+
   public double getDouble(int idx) {
     return (Double) getFieldValue(idx);
   }

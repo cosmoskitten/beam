@@ -71,8 +71,11 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
       case TINYINT:
         intCoder.encode(value.getInteger(idx), outStream, nested);
         break;
-      case DOUBLE:
       case FLOAT:
+        doubleCoder.encode(Double.parseDouble(
+            String.valueOf(value.getFloat(idx))), outStream, nested);
+        break;
+      case DOUBLE:
         doubleCoder.encode(value.getDouble(idx), outStream, nested);
         break;
       case BIGINT:
@@ -101,6 +104,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
     BeamSQLRow record = new BeamSQLRow(type);
     record.setNullFields(nullFields);
 
+    Context nested = context.nested();
     for (int idx = 0; idx < type.size(); ++idx) {
       if (nullFields.contains(idx)) {
         continue;
@@ -110,21 +114,25 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
       case INTEGER:
       case SMALLINT:
       case TINYINT:
-        record.addField(idx, intCoder.decode(inStream, context));
+        record.addField(idx, intCoder.decode(inStream, nested));
         break;
       case DOUBLE:
+        record.addField(idx, doubleCoder.decode(inStream, nested));
+        break;
       case FLOAT:
-        record.addField(idx, doubleCoder.decode(inStream, context));
+        Double raw = doubleCoder.decode(inStream, nested);
+        Float actual = (raw == null) ? null : raw.floatValue();
+        record.addField(idx, actual);
         break;
       case BIGINT:
-        record.addField(idx, longCoder.decode(inStream, context));
+        record.addField(idx, longCoder.decode(inStream, nested));
         break;
       case VARCHAR:
-        record.addField(idx, stringCoder.decode(inStream, context));
+        record.addField(idx, stringCoder.decode(inStream, nested));
         break;
       case TIME:
       case TIMESTAMP:
-        record.addField(idx, new Date(longCoder.decode(inStream, context)));
+        record.addField(idx, new Date(longCoder.decode(inStream, nested)));
         break;
 
       default:
