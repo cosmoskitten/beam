@@ -120,9 +120,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
         record.addField(idx, doubleCoder.decode(inStream, nested));
         break;
       case FLOAT:
-        Double raw = doubleCoder.decode(inStream, nested);
-        Float actual = (raw == null) ? null : raw.floatValue();
-        record.addField(idx, actual);
+        record.addField(idx, doubleCoder.decode(inStream, nested).floatValue());
         break;
       case BIGINT:
         record.addField(idx, longCoder.decode(inStream, nested));
