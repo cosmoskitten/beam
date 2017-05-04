@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.util.StreamUtils;
+import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 
 /** A coder for PubsubMessage treating the raw bytes being decoded as the message's payload. */
 public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubIO.PubsubMessage> {
@@ -43,6 +43,6 @@ public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubIO.PubsubMe
   public PubsubIO.PubsubMessage decode(InputStream inStream, Context context) throws IOException {
     checkState(context.isWholeStream, "Expected to only be used in a whole-stream context");
     return new PubsubIO.PubsubMessage(
-        StreamUtils.getBytes(inStream), ImmutableMap.<String, String>of());
+        ExposedByteArrayInputStream.getBytes(inStream), ImmutableMap.<String, String>of());
   }
 }
