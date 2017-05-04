@@ -91,6 +91,7 @@
                 <artifactSet>
                   <includes>
                     <include>com.google.guava:guava</include>
+                    <include>com.google.protobuf:protobuf-java</include>
                     <include>org.apache.beam:beam-runners-core-java</include>
                     <include>org.apache.beam:beam-runners-core-construction-java</include>
                   </includes>
@@ -119,6 +120,12 @@
                     <pattern>com.google.common</pattern>
                     <shadedPattern>
                       org.apache.beam.runners.direct.repackaged.com.google.common
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.protobuf</pattern>
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.com.google.protobuf
                     </shadedPattern>
                   </relocation>
                   <relocation>
