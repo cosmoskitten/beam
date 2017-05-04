@@ -35,7 +35,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -153,45 +152,6 @@ public class PubsubIO {
           : topic.toString();
       builder.add(DisplayData.item("topic", topicString)
           .withLabel("Pubsub Topic"));
-    }
-  }
-
-  /**
-   * Class representing a Pub/Sub message. Each message contains a single message payload and
-   * a map of attached attributes.
-   */
-  @DefaultCoder(PubsubMessageWithAttributesCoder.class)
-  public static class PubsubMessage {
-
-    private byte[] message;
-    private Map<String, String> attributes;
-
-    public PubsubMessage(byte[] message, Map<String, String> attributes) {
-      this.message = message;
-      this.attributes = attributes;
-    }
-
-    /**
-     * Returns the main PubSub message.
-     */
-    public byte[] getMessage() {
-      return message;
-    }
-
-    /**
-     * Returns the given attribute value. If not such attribute exists, returns null.
-     */
-    @Nullable
-    public String getAttribute(String attribute) {
-      checkNotNull(attribute, "attribute");
-      return attributes.get(attribute);
-    }
-
-    /**
-     * Returns the full map of attributes. This is an unmodifiable map.
-     */
-    public Map<String, String> getAttributeMap() {
-      return attributes;
     }
   }
 
@@ -473,7 +433,7 @@ public class PubsubIO {
 
   /**
    * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
-   * messages will only contain a {@link PubsubMessage#getMessage() payload}, but no {@link
+   * messages will only contain a {@link PubsubMessage#getPayload() payload}, but no {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
   public static Read<PubsubMessage> readPubsubMessagesWithoutAttributes() {
@@ -486,7 +446,7 @@ public class PubsubIO {
 
   /**
    * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
-   * messages will contain both a {@link PubsubMessage#getMessage() payload} and {@link
+   * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
   public static Read<PubsubMessage> readPubsubMessagesWithAttributes() {
@@ -941,7 +901,7 @@ public class PubsubIO {
       public void processElement(ProcessContext c) throws IOException {
         byte[] payload;
         PubsubMessage message = getFormatFn().apply(c.element());
-        payload = message.getMessage();
+        payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
         // NOTE: The record id is always null.
         output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
@@ -983,7 +943,7 @@ public class PubsubIO {
   private static class ParsePayloadAsUtf8 extends SimpleFunction<PubsubMessage, String> {
     @Override
     public String apply(PubsubMessage input) {
-      return new String(input.getMessage(), StandardCharsets.UTF_8);
+      return new String(input.getPayload(), StandardCharsets.UTF_8);
     }
   }
 
@@ -997,7 +957,7 @@ public class PubsubIO {
     @Override
     public T apply(PubsubMessage input) {
       try {
-        return CoderUtils.decodeFromByteArray(coder, input.getMessage());
+        return CoderUtils.decodeFromByteArray(coder, input.getPayload());
       } catch (CoderException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }
