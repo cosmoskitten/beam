@@ -35,6 +35,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -159,6 +160,7 @@ public class PubsubIO {
    * Class representing a Pub/Sub message. Each message contains a single message payload and
    * a map of attached attributes.
    */
+  @DefaultCoder(PubsubMessageWithAttributesCoder.class)
   public static class PubsubMessage {
 
     private byte[] message;
