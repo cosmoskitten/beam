@@ -34,7 +34,7 @@ import org.junit.runners.JUnit4;
 public class DirectRunnerApiSurfaceTest {
   @Test
   public void testDirectRunnerApiSurface() throws Exception {
-    // The DirectRunner should expose no more than the Core SDK
+    // The DirectRunner can expose the Core SDK, anything exposed by the Core SDK, and itself
     @SuppressWarnings("unchecked")
     final Set<String> allowed =
         ImmutableSet.of("org.apache.beam.sdk", "org.apache.beam.runners.direct", "org.joda.time");
@@ -45,7 +45,6 @@ public class DirectRunnerApiSurfaceTest {
         ApiSurface.ofPackage(thisPackage, thisClassLoader)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
-            // Nullable is retained at runtime. Should it be shaded?
             .pruningClass(Nullable.class)
             .pruningPattern("java[.]io.*")
             .pruningPattern("java[.]lang.*")
