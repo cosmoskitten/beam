@@ -23,10 +23,8 @@ import static org.junit.Assert.assertNotNull;
 import com.datatorrent.common.util.FSStorageAgent;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
