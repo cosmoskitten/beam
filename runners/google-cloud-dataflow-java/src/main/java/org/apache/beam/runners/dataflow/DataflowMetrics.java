@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 
+import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
@@ -73,34 +74,6 @@ class DataflowMetrics extends MetricResults {
   }
 
   /**
-   * Build an immutable map that serves as a hash key for a metric update.
-   * @return a {@link MetricKey} that can be hashed and used to identify a metric.
-   */
-  private MetricKey metricHashKey(
-      com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
-    String fullStepName = metricUpdate.getName().getContext().get("step");
-    fullStepName = (dataflowPipelineJob.transformStepNames != null
-        ? dataflowPipelineJob.transformStepNames
-        .inverse().get(fullStepName).getFullName() : fullStepName);
-    return MetricKey.create(
-        fullStepName,
-        MetricName.named(
-            metricUpdate.getName().getContext().get("namespace"),
-            metricUpdate.getName().getName()));
-  }
-
-  /**
-   * Check whether a {@link com.google.api.services.dataflow.model.MetricUpdate} is a tentative
-   * update or not.
-   * @return true if update is tentative, false otherwise
-   */
-  private boolean isMetricTentative(
-      com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
-    return (metricUpdate.getName().getContext().containsKey("tentative")
-        && Objects.equal(metricUpdate.getName().getContext().get("tentative"), "true"));
-  }
-
-  /**
    * Take a list of metric updates coming from the Dataflow service, and format it into a
    * Metrics API MetricQueryResults instance.
    * @param metricUpdates
@@ -109,65 +82,8 @@ class DataflowMetrics extends MetricResults {
   private MetricQueryResults populateMetricQueryResults(
       List<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates,
       MetricsFilter filter) {
-    // Separate metric updates by name and by tentative/committed.
-    HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
-        tentativeByName = new HashMap<>();
-    HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
-        committedByName = new HashMap<>();
-    HashSet<MetricKey> metricHashKeys = new HashSet<>();
-
-    // If the Context of the metric update does not have a namespace, then these are not
-    // actual metrics counters.
-    for (com.google.api.services.dataflow.model.MetricUpdate update : metricUpdates) {
-      if (Objects.equal(update.getName().getOrigin(), "user") && isMetricTentative(update)
-          && update.getName().getContext().containsKey("namespace")) {
-        tentativeByName.put(metricHashKey(update), update);
-        metricHashKeys.add(metricHashKey(update));
-      } else if (Objects.equal(update.getName().getOrigin(), "user")
-          && update.getName().getContext().containsKey("namespace")
-          && !isMetricTentative(update)) {
-        committedByName.put(metricHashKey(update), update);
-        metricHashKeys.add(metricHashKey(update));
-      }
-    }
-    // Create the lists with the metric result information.
-    ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
-    ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults =
-        ImmutableList.builder();
-    ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults = ImmutableList.builder();
-    for (MetricKey metricKey : metricHashKeys) {
-      if (!MetricFiltering.matches(filter, metricKey)) {
-        // Skip unmatched metrics early.
-        continue;
-      }
-
-      // This code is not robust to evolutions in the types of metrics that can be returned, so
-      // wrap it in a try-catch and log errors.
-      try {
-        String metricName = metricKey.metricName().name();
-        if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
-            || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
-          // Skip distribution metrics, as these are not yet properly supported.
-          LOG.warn("Distribution metrics are not yet supported. You can see them in the Dataflow"
-              + " User Interface");
-          continue;
-        }
-
-        String namespace = metricKey.metricName().namespace();
-        String step = metricKey.stepName();
-        Long committed = ((Number) committedByName.get(metricKey).getScalar()).longValue();
-        Long attempted = ((Number) tentativeByName.get(metricKey).getScalar()).longValue();
-        counterResults.add(
-            DataflowMetricResult.create(
-                MetricName.named(namespace, metricName), step, committed, attempted));
-      } catch (Exception e) {
-        LOG.warn("Error handling metric {} for filter {}, skipping result.", metricKey, filter);
-      }
-    }
-    return DataflowMetricQueryResults.create(
-        counterResults.build(),
-        distributionResults.build(),
-        gaugeResults.build());
+    return DataflowMetricQueryResultsFactory.create(dataflowPipelineJob, metricUpdates, filter)
+        .build();
   }
 
   private MetricQueryResults queryServiceForMetrics(MetricsFilter filter) {
@@ -204,6 +120,167 @@ class DataflowMetrics extends MetricResults {
       cachedMetricResults = result;
     }
     return result;
+  }
+
+  private static class DataflowMetricResultExtractor {
+    ImmutableList.Builder<MetricResult<Long>> counterResults;
+    ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults;
+    ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults;
+
+    DataflowMetricResultExtractor() {
+      counterResults = ImmutableList.builder();
+      distributionResults = ImmutableList.builder();
+      gaugeResults = ImmutableList.builder();
+    }
+
+    public void addMetricResult(
+        MetricKey metricKey,
+        com.google.api.services.dataflow.model.MetricUpdate committed,
+        com.google.api.services.dataflow.model.MetricUpdate attempted) {
+      if (committed.getDistribution() != null && attempted.getDistribution() != null) {
+        // distribution metric
+        distributionResults.add(
+            DataflowMetricResult.create(metricKey.metricName(), metricKey.stepName(),
+            getDistributionValue(committed), getDistributionValue(attempted)));
+      } else if (committed.getScalar() != null && attempted.getScalar() != null) {
+        // counter metric
+        Long committedLong = getCounterValue(committed);
+        Long attemptedLong = getCounterValue(attempted);
+        counterResults.add(
+            DataflowMetricResult.create(
+                metricKey.metricName(), metricKey.stepName(), committedLong, attemptedLong));
+      } else {
+        // warning
+        LOG.warn("Unexpected metric type. Please report JOB ID to Dataflow Support.");
+      }
+    }
+
+    private Long getCounterValue(com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+      return ((Number) metricUpdate.getScalar()).longValue();
+    }
+
+    private DistributionResult getDistributionValue(
+        com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+      ArrayMap distributionMap = (ArrayMap) metricUpdate.getDistribution();
+      Long count = ((Number) distributionMap.get("count")).longValue();
+      Long min = ((Number) distributionMap.get("min")).longValue();
+      Long max = ((Number) distributionMap.get("max")).longValue();
+      Long mean = ((Number) distributionMap.get("mean")).longValue();
+      // TODO: Switch to use sum when it's available in the service.
+      return DistributionResult.create(count * mean, count, min, max);
+    }
+
+    public Iterable<MetricResult<DistributionResult>> getDistributionResults() {
+      return distributionResults.build();
+    }
+
+    public Iterable<MetricResult<Long>> getCounterResults() {
+      return counterResults.build();
+    }
+
+    public Iterable<MetricResult<GaugeResult>> getGaugeResults() {
+      return gaugeResults.build();
+    }
+  }
+
+  private static class DataflowMetricQueryResultsFactory {
+    Iterable<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates;
+    MetricsFilter filter;
+    HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate> tentativeByName;
+    HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate> committedByName;
+    HashSet<MetricKey> metricHashKeys;
+    private DataflowPipelineJob dataflowPipelineJob;
+
+    public static DataflowMetricQueryResultsFactory create(DataflowPipelineJob dataflowPipelineJob,
+        Iterable<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates,
+        MetricsFilter filter) {
+      return new DataflowMetricQueryResultsFactory(dataflowPipelineJob, metricUpdates, filter);
+    }
+
+    private DataflowMetricQueryResultsFactory(DataflowPipelineJob dataflowPipelineJob,
+        Iterable<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates,
+        MetricsFilter filter) {
+      this.dataflowPipelineJob = dataflowPipelineJob;
+      this.metricUpdates = metricUpdates;
+      this.filter = filter;
+
+      tentativeByName = new HashMap<>();
+      committedByName = new HashMap<>();
+      metricHashKeys = new HashSet<>();
+    }
+
+    /**
+     * Check whether a {@link com.google.api.services.dataflow.model.MetricUpdate} is a tentative
+     * update or not.
+     * @return true if update is tentative, false otherwise
+     */
+    private boolean isMetricTentative(
+        com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+      return (metricUpdate.getName().getContext().containsKey("tentative")
+          && Objects.equal(metricUpdate.getName().getContext().get("tentative"), "true"));
+    }
+
+    /**
+     * Build an immutable map that serves as a hash key for a metric update.
+     * @return a {@link MetricKey} that can be hashed and used to identify a metric.
+     */
+    private MetricKey getMetricHashKey(
+        com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+      String fullStepName = metricUpdate.getName().getContext().get("step");
+      fullStepName = (dataflowPipelineJob.transformStepNames != null
+          ? dataflowPipelineJob.transformStepNames
+          .inverse().get(fullStepName).getFullName() : fullStepName);
+      return MetricKey.create(
+          fullStepName,
+          MetricName.named(
+              metricUpdate.getName().getContext().get("namespace"),
+              metricUpdate.getName().getName()));
+    }
+
+    private void buildMetricsIndex() {
+      // If the Context of the metric update does not have a namespace, then these are not
+      // actual metrics counters.
+      for (com.google.api.services.dataflow.model.MetricUpdate update : metricUpdates) {
+        if (Objects.equal(update.getName().getOrigin(), "user") && isMetricTentative(update)
+            && update.getName().getContext().containsKey("namespace")) {
+          tentativeByName.put(getMetricHashKey(update), update);
+          metricHashKeys.add(getMetricHashKey(update));
+        } else if (Objects.equal(update.getName().getOrigin(), "user")
+            && update.getName().getContext().containsKey("namespace")
+            && !isMetricTentative(update)) {
+          committedByName.put(getMetricHashKey(update), update);
+          metricHashKeys.add(getMetricHashKey(update));
+        }
+      }
+    }
+
+    public MetricQueryResults build() {
+      buildMetricsIndex();
+
+      DataflowMetricResultExtractor extractor = new DataflowMetricResultExtractor();
+      for (MetricKey metricKey : metricHashKeys) {
+        if (!MetricFiltering.matches(filter, metricKey)) {
+          // Skip unmatched metrics early.
+          continue;
+        }
+
+        String metricName = metricKey.metricName().name();
+        if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
+            || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
+          // Skip distribution metrics, as these are not yet properly supported.
+          // TODO: remove this when distributions stop being broken up for the UI.
+          continue;
+        }
+
+        extractor.addMetricResult(metricKey,
+            committedByName.get(metricKey),
+            tentativeByName.get(metricKey));
+      }
+      return DataflowMetricQueryResults.create(
+          extractor.getCounterResults(),
+          extractor.getDistributionResults(),
+          extractor.getGaugeResults());
+    }
   }
 
   @AutoValue
