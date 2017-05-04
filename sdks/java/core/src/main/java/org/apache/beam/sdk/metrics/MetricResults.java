@@ -58,4 +58,5 @@ public abstract class MetricResults {
    * }</pre>
    */
   public abstract MetricQueryResults queryMetrics(MetricsFilter filter);
+  public abstract MetricQueryResults queryMetrics();
 }

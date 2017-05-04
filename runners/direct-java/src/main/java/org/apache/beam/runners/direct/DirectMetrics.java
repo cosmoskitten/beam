@@ -271,6 +271,11 @@ class DirectMetrics extends MetricResults {
   }
 
   @Override
+  public MetricQueryResults queryMetrics() {
+    return queryMetrics(null);
+  }
+
+  @Override
   public MetricQueryResults queryMetrics(MetricsFilter filter) {
     ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
     for (Entry<MetricKey, DirectMetric<Long, Long>> counter : counters.entries()) {

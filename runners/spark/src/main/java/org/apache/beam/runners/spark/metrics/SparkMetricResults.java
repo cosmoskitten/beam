@@ -41,6 +41,11 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 public class SparkMetricResults extends MetricResults {
 
   @Override
+  public MetricQueryResults queryMetrics() {
+    return queryMetrics(null);
+  }
+
+  @Override
   public MetricQueryResults queryMetrics(MetricsFilter filter) {
     return new SparkMetricQueryResults(filter);
   }

@@ -19,8 +19,10 @@ package org.apache.beam.examples;
 
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -88,9 +90,12 @@ public class WordCount {
    */
   static class ExtractWordsFn extends DoFn<String, String> {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
+    private final Distribution lineLenDist = Metrics.distribution(
+        ExtractWordsFn.class, "lineLenDistro");
 
     @ProcessElement
     public void processElement(ProcessContext c) {
+      lineLenDist.update(c.element().length());
       if (c.element().trim().isEmpty()) {
         emptyLines.inc();
       }
@@ -181,6 +186,8 @@ public class WordCount {
      .apply(MapElements.via(new FormatAsTextFn()))
      .apply("WriteCounts", TextIO.write().to(options.getOutput()));
 
-    p.run().waitUntilFinish();
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
+    result.metrics().queryMetrics(null);
   }
 }

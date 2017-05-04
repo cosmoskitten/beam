@@ -53,6 +53,11 @@ public class FlinkMetricResults extends MetricResults {
     return new FlinkMetricQueryResults(filter);
   }
 
+  @Override
+  public MetricQueryResults queryMetrics() {
+    return queryMetrics(null);
+  }
+
   private class FlinkMetricQueryResults implements MetricQueryResults {
 
     private MetricsFilter filter;
