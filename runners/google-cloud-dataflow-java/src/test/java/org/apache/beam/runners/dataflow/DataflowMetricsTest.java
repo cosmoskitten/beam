@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.committedMetricsResult;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
@@ -28,6 +29,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMetrics;
@@ -40,6 +42,7 @@ import java.math.BigDecimal;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Before;
@@ -129,11 +132,8 @@ public class DataflowMetricsTest {
     verify(dataflowClient, times(1)).getJobMetrics(JOB_ID);
   }
 
-  private MetricUpdate makeCounterMetricUpdate(String name, String namespace, String step,
-      long scalar, boolean tentative) {
-    MetricUpdate update = new MetricUpdate();
-    update.setScalar(new BigDecimal(scalar));
-
+  private MetricUpdate setStructuredName(MetricUpdate update, String name, String namespace,
+      String step, boolean tentative) {
     MetricStructuredName structuredName = new MetricStructuredName();
     structuredName.setName(name);
     structuredName.setOrigin("user");
@@ -146,6 +146,27 @@ public class DataflowMetricsTest {
     structuredName.setContext(contextBuilder.build());
     update.setName(structuredName);
     return update;
+  }
+
+  private MetricUpdate makeDistributionMetricUpdate(String name, String namespace, String step,
+      Long sum, Long count, Long min, Long max, boolean tentative) {
+    MetricUpdate update = new MetricUpdate();
+    ArrayMap<String, BigDecimal> distribution = ArrayMap.create();
+    distribution.add("count", new BigDecimal(count));
+    distribution.add("mean", new BigDecimal(sum / count));
+    distribution.add("sum", new BigDecimal(sum));
+    distribution.add("min", new BigDecimal(min));
+    distribution.add("max", new BigDecimal(max));
+    update.setDistribution(distribution);
+    return setStructuredName(update, name, namespace, step, tentative);
+  }
+
+  private MetricUpdate makeCounterMetricUpdate(String name, String namespace, String step,
+      long scalar, boolean tentative) {
+    MetricUpdate update = new MetricUpdate();
+    update.setScalar(new BigDecimal(scalar));
+    return setStructuredName(update, name, namespace, step, tentative);
+
   }
 
   @Test
@@ -200,6 +221,33 @@ public class DataflowMetricsTest {
         attemptedMetricsResult("counterNamespace", "counterName", "s2", 1234L)));
     assertThat(result.counters(), containsInAnyOrder(
         committedMetricsResult("counterNamespace", "counterName", "s2", 1233L)));
+  }
+
+  @Test
+  public void testDistributionUpdates() throws IOException {
+    JobMetrics jobMetrics = new JobMetrics();
+    DataflowClient dataflowClient = mock(DataflowClient.class);
+    when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
+    DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    when(job.getState()).thenReturn(State.RUNNING);
+    job.jobId = JOB_ID;
+
+    // The parser relies on the fact that one tentative and one committed metric update exist in
+    // the job metrics results.
+    jobMetrics.setMetrics(ImmutableList.of(
+        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
+            18L, 2L, 2L, 16L, false),
+        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
+            18L, 2L, 2L, 16L, true)));
+
+    DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
+    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    assertThat(result.distributions(), contains(
+        attemptedMetricsResult("distributionNamespace", "distributionName", "s2",
+            DistributionResult.create(18, 2, 2, 16))));
+    assertThat(result.distributions(), contains(
+        committedMetricsResult("distributionNamespace", "distributionName", "s2",
+            DistributionResult.create(18, 2, 2, 16))));
   }
 
   @Test
