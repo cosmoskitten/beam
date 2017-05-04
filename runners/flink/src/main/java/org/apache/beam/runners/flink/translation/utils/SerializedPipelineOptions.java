@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.IOChannelUtils;
 
 /**
  * Encapsulates the PipelineOptions in serialized form to ship them to the cluster.
@@ -55,7 +54,6 @@ public class SerializedPipelineOptions implements Serializable {
       try {
         pipelineOptions = new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
 
-        IOChannelUtils.registerIOFactoriesAllowOverride(pipelineOptions);
         FileSystems.setDefaultConfigInWorkers(pipelineOptions);
       } catch (IOException e) {
         throw new RuntimeException("Couldn't deserialize the PipelineOptions.", e);
