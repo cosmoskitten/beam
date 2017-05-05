@@ -31,6 +31,7 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderFactories;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -46,6 +47,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -104,7 +107,8 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombine() {
-    p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
+    p.getCoderRegistry().registerCoderFactory(
+        CoderFactories.forCoder(TypeDescriptor.of(UserString.class), UserStringCoder.of()));
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
         Create.timestamped(
@@ -156,7 +160,8 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombineWithContext() {
-    p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
+    p.getCoderRegistry().registerCoderFactory(
+        CoderFactories.forCoder(TypeDescriptor.of(UserString.class), UserStringCoder.of()));
 
     PCollectionView<String> view = p
         .apply(Create.of("I"))
@@ -218,8 +223,11 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombineNullValues() {
-    p.getCoderRegistry().registerCoder(UserString.class, NullableCoder.of(UserStringCoder.of()));
-    p.getCoderRegistry().registerCoder(String.class, NullableCoder.of(StringUtf8Coder.of()));
+    p.getCoderRegistry().registerCoderFactory(
+        CoderFactories.forCoder(
+            TypeDescriptor.of(UserString.class), NullableCoder.of(UserStringCoder.of())));
+    p.getCoderRegistry().registerCoderFactory(
+        CoderFactories.forCoder(TypeDescriptors.strings(), NullableCoder.of(StringUtf8Coder.of())));
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
         Create.timestamped(

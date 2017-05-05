@@ -39,6 +39,7 @@ import java.util.Random;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderFactories;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -321,7 +322,8 @@ public class CreateTest {
   @Test
   public void testCreateTimestampedDefaultOutputCoderUsingTypeDescriptor() throws Exception {
     Coder<Record> coder = new RecordCoder();
-    p.getCoderRegistry().registerCoder(Record.class, coder);
+    p.getCoderRegistry().registerCoderFactory(
+        CoderFactories.forCoder(TypeDescriptor.of(Record.class), coder));
     PBegin pBegin = PBegin.in(p);
     Create.TimestampedValues<Record> values =
         Create.timestamped(
@@ -364,7 +366,8 @@ public class CreateTest {
   @Test
   public void testCreateDefaultOutputCoderUsingInference() throws Exception {
     Coder<Record> coder = new RecordCoder();
-    p.getCoderRegistry().registerCoder(Record.class, coder);
+    p.getCoderRegistry().registerCoderFactory(
+        CoderFactories.forCoder(TypeDescriptor.of(Record.class), coder));
     PBegin pBegin = PBegin.in(p);
     Create.Values<Record> values = Create.of(new Record(), new Record(), new Record());
     Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
@@ -384,7 +387,8 @@ public class CreateTest {
   @Test
   public void testCreateDefaultOutputCoderUsingTypeDescriptor() throws Exception {
     Coder<Record> coder = new RecordCoder();
-    p.getCoderRegistry().registerCoder(Record.class, coder);
+    p.getCoderRegistry().registerCoderFactory(
+        CoderFactories.forCoder(TypeDescriptor.of(Record.class), coder));
     PBegin pBegin = PBegin.in(p);
     Create.Values<Record> values =
         Create.of(new Record(), new Record2()).withType(new TypeDescriptor<Record>() {});

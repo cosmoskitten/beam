@@ -476,10 +476,10 @@ public class ParDo {
       Type typeArgument = typeArguments[i];
       TypeDescriptor<?> typeDescriptor = TypeDescriptor.of(typeArgument);
       try {
-        coders[i] = coderRegistry.getDefaultCoder(typeDescriptor);
+        coders[i] = coderRegistry.getCoder(typeDescriptor);
       } catch (CannotProvideCoderException e) {
         try {
-          coders[i] = coderRegistry.getDefaultCoder(
+          coders[i] = coderRegistry.getCoder(
               typeDescriptor, inputCoder.getEncodedTypeDescriptor(), inputCoder);
         } catch (CannotProvideCoderException ignored) {
           // Since not all type arguments will have a registered coder we ignore this exception.
@@ -622,7 +622,7 @@ public class ParDo {
     @SuppressWarnings("unchecked")
     protected Coder<OutputT> getDefaultOutputCoder(PCollection<? extends InputT> input)
         throws CannotProvideCoderException {
-      return input.getPipeline().getCoderRegistry().getDefaultCoder(
+      return input.getPipeline().getCoderRegistry().getCoder(
           getFn().getOutputTypeDescriptor(),
           getFn().getInputTypeDescriptor(),
           ((PCollection<InputT>) input).getCoder());
@@ -766,7 +766,7 @@ public class ParDo {
         throws CannotProvideCoderException {
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
-      return input.getPipeline().getCoderRegistry().getDefaultCoder(
+      return input.getPipeline().getCoderRegistry().getCoder(
           output.getTypeDescriptor(),
           getFn().getInputTypeDescriptor(),
           inputCoder);

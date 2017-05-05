@@ -21,9 +21,7 @@ import com.google.common.base.MoreObjects;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -34,17 +32,13 @@ public final class CoderFactories {
   private CoderFactories() { } // Static utility class
 
   /**
-   * Creates a {@link CoderFactory} built from particular static methods of a class that
-   * implements {@link Coder}.
+   * Creates a {@link CoderFactory} for a given raw type which is able to build a coder from a
+   * particular static method of a class.
    *
-   * <p>The class must have the following static methods:
-   *
+   * <p>The class must have the following static method:
    * <ul>
    * <li> {@code
    * public static Coder<T> of(Coder<X> argCoder1, Coder<Y> argCoder2, ...)
-   * }
-   * <li> {@code
-   * public static List<Object> getInstanceComponents(T exampleValue);
    * }
    * </ul>
    *
@@ -54,10 +48,6 @@ public final class CoderFactories {
    * generic type parameter of {@code T}. If {@code T} takes no generic
    * type parameters, then the {@code of()} factory method should take
    * no arguments.
-   *
-   * <p>The {@code getInstanceComponents} method will be used to
-   * decompose a value during the {@link Coder} inference process,
-   * to automatically choose coders for the components.
    *
    * <p>Note that the class {@code T} to be coded may be a
    * not-yet-specialized generic class.
@@ -69,30 +59,33 @@ public final class CoderFactories {
    * {@code fromStaticMethods(ListCoder.class)}
    * will produce a {@code Coder<List<X>>} for any {@code Coder Coder<X>}.
    */
-  public static <T> CoderFactory fromStaticMethods(Class<T> clazz) {
-    return new CoderFactoryFromStaticMethods(clazz);
+  public static <T> CoderFactory fromStaticMethods(Class<T> rawType, Class<?> coderClazz) {
+    return new CoderFactoryFromStaticMethods(rawType, coderClazz);
   }
 
   /**
    * Creates a {@link CoderFactory} that always returns the
    * given coder.
-   *
-   * <p>The {@code getInstanceComponents} method of this
-   * {@link CoderFactory} always returns an empty list.
    */
-  public static <T> CoderFactory forCoder(Coder<T> coder) {
-    return new CoderFactoryForCoder<>(coder);
+  public static <T> CoderFactory forCoder(TypeDescriptor<T> type, Coder<T> coder) {
+    return new CoderFactoryForCoder<>(type, coder);
   }
 
   /**
    * See {@link #fromStaticMethods} for a detailed description
    * of the characteristics of this {@link CoderFactory}.
    */
-  private static class CoderFactoryFromStaticMethods implements CoderFactory {
+  private static class CoderFactoryFromStaticMethods<T> implements CoderFactory {
 
     @Override
-    @SuppressWarnings("rawtypes")
-    public Coder<?> create(List<? extends Coder<?>> componentCoders) {
+    public <T> Coder<T> create(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
+        throws CannotProvideCoderException {
+      if (!this.rawType.equals(type.getRawType())) {
+        throw new CannotProvideCoderException(String.format(
+            "Unable to provide coder for %s, this factory can only provide coders for %s",
+            type,
+            this.rawType));
+      }
       try {
         return (Coder) factoryMethod.invoke(
             null /* static */, componentCoders.toArray());
@@ -107,44 +100,23 @@ public final class CoderFactories {
       }
     }
 
-    @Override
-    public List<Object> getInstanceComponents(Object value) {
-      try {
-        @SuppressWarnings("unchecked")
-        List<Object> components =  (List<Object>) getComponentsMethod.invoke(
-            null /* static */, value);
-        return components;
-      } catch (IllegalAccessException
-          | IllegalArgumentException
-          | InvocationTargetException
-          | NullPointerException
-          | ExceptionInInitializerError exn) {
-        throw new IllegalStateException(
-            "error when invoking Coder getComponents method " + getComponentsMethod,
-            exn);
-      }
-    }
-
     ////////////////////////////////////////////////////////////////////////////////
+
+    // Type raw type used to filter the incoming type on.
+    private final Class<T> rawType;
 
     // Method to create a coder given component coders
     // For a Coder class of kind * -> * -> ... n times ... -> *
     // this has type Coder<?> -> Coder<?> -> ... n times ... -> Coder<T>
     private final Method factoryMethod;
 
-    // Method to decompose a value of type T into its parts.
-    // For a Coder class of kind * -> * -> ... n times ... -> *
-    // this has type T -> List<Object>
-    // where the list has n elements.
-    private final Method getComponentsMethod;
-
     /**
      * Returns a CoderFactory that invokes the given static factory method
      * to create the Coder.
      */
-    private CoderFactoryFromStaticMethods(Class<?> coderClazz) {
+    private CoderFactoryFromStaticMethods(Class<T> rawType, Class<T> coderClazz) {
+      this.rawType = rawType;
       this.factoryMethod = getFactoryMethod(coderClazz);
-      this.getComponentsMethod = getInstanceComponentsMethod(coderClazz);
     }
 
     /**
@@ -197,92 +169,43 @@ public final class CoderFactories {
       return factoryMethodCandidate;
     }
 
-    /**
-     * Finds the static method on {@code coderType} to use
-     * to decompose a value of type {@code T} into components,
-     * each corresponding to an argument of the {@code of}
-     * method.
-     */
-    private <T> Method getInstanceComponentsMethod(Class<?> coderClazz) {
-      TypeDescriptor<?> coderType = TypeDescriptor.of(coderClazz);
-      TypeDescriptor<T> argumentType = getCodedType(coderType);
-
-      // getInstanceComponents may be implemented in a superclass,
-      // so we search them all for an applicable method. We do not
-      // try to be clever about finding the best overload. It may
-      // be in a generic superclass, erased to accept an Object.
-      // However, subtypes are listed before supertypes (it is a
-      // topological ordering) so probably the best one will be chosen
-      // if there are more than one (which should be rare)
-      for (TypeDescriptor<?> supertype : coderType.getClasses()) {
-        for (Method method : supertype.getRawType().getDeclaredMethods()) {
-          if (method.getName().equals("getInstanceComponents")) {
-            TypeDescriptor<?> formalArgumentType = supertype.getArgumentTypes(method).get(0);
-            if (formalArgumentType.getRawType().isAssignableFrom(argumentType.getRawType())) {
-              return method;
-            }
-          }
-        }
-      }
-
-      throw new IllegalArgumentException(
-          "cannot create a CoderFactory from " + coderType + ": "
-          + "does not have an accessible method "
-          + "'getInstanceComponents'");
-    }
-
-    /**
-     * If {@code coderType} is a subclass of {@link Coder} for a specific
-     * type {@code T}, returns {@code T.class}. Otherwise, raises IllegalArgumentException.
-     */
-    private <T> TypeDescriptor<T> getCodedType(TypeDescriptor<?> coderType) {
-      for (TypeDescriptor<?> ifaceType : coderType.getInterfaces()) {
-        if (ifaceType.getRawType().equals(Coder.class)) {
-          ParameterizedType coderIface = (ParameterizedType) ifaceType.getType();
-          @SuppressWarnings("unchecked")
-          TypeDescriptor<T> token =
-              (TypeDescriptor<T>) TypeDescriptor.of(coderIface.getActualTypeArguments()[0]);
-          return token;
-        }
-      }
-      throw new IllegalArgumentException(
-          "cannot build CoderFactory from class " + coderType
-          + ": does not implement Coder<T> for any T.");
-    }
-
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
+          .add("rawType", rawType)
           .add("factoryMethod", factoryMethod)
-          .add("getComponentsMethod", getComponentsMethod)
           .toString();
     }
   }
 
   /**
-   * See {@link #forCoder} for a detailed description of this
-   * {@link CoderFactory}.
+   * See {@link #forCoder} for a detailed description of this {@link CoderFactory}.
    */
   private static class CoderFactoryForCoder<T> implements CoderFactory {
     private final Coder<T> coder;
+    private final TypeDescriptor<T> type;
 
-    public CoderFactoryForCoder(Coder<T> coder) {
+    public CoderFactoryForCoder(TypeDescriptor<T> type, Coder<T> coder){
+      this.type = type;
       this.coder = coder;
     }
 
     @Override
-    public Coder<?> create(List<? extends Coder<?>> componentCoders) {
-      return this.coder;
-    }
-
-    @Override
-    public List<Object> getInstanceComponents(Object value) {
-      return Collections.emptyList();
+    public <T> Coder<T> create(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
+        throws CannotProvideCoderException {
+      if (!this.type.equals(type)) {
+        throw new CannotProvideCoderException(String.format(
+            "Unable to provide coder for %s, this factory can only provide coders for %s",
+            type,
+            this.type));
+      }
+      return (Coder) coder;
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
+          .add("type", type)
           .add("coder", coder)
           .toString();
     }

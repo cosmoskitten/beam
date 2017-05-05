@@ -19,6 +19,7 @@ package org.apache.beam.examples.complete;
 
 import java.net.URI;
 import java.util.Arrays;
+import org.apache.beam.sdk.coders.CoderFactories;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -48,7 +50,8 @@ public class TfIdfTest {
   @Category(ValidatesRunner.class)
   public void testTfIdf() throws Exception {
 
-    pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
+    pipeline.getCoderRegistry().registerCoderFactory(
+        CoderFactories.forCoder(TypeDescriptor.of(URI.class), StringDelegateCoder.of(URI.class)));
 
     PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = pipeline
         .apply(Create.of(

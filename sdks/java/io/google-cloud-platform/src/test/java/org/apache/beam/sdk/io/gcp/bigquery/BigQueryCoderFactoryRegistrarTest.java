@@ -15,20 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
-import org.apache.beam.sdk.values.TypeDescriptor;
+import com.google.api.services.bigquery.model.TableRow;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
- * A {@link CoderProvider} may create a {@link Coder} for
- * any concrete class.
+ * Tests for {@link BigQueryCoderFactoryRegistrar}.
  */
-public interface CoderProvider {
+@RunWith(JUnit4.class)
+public class BigQueryCoderFactoryRegistrarTest {
+  @Test
+  public void testTableRowCoderIsRegistered() throws Exception {
+    CoderRegistry.createDefault().getCoder(TableRow.class);
+  }
 
-  /**
-   * Provides a coder for a given class, if possible.
-   *
-   * @throws CannotProvideCoderException if no coder can be provided
-   */
-  <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException;
+  @Test
+  public void testTableRowInfoCoderIsRegistered() throws Exception {
+    CoderRegistry.createDefault().getCoder(TableRowInfo.class);
+  }
 }
