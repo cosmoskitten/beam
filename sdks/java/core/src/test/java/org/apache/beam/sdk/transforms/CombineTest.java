@@ -441,7 +441,13 @@ public class CombineTest implements Serializable {
         KV.of("a", "1114"),
         KV.of("b", "11"),
         KV.of("b", "013"));
-    PAssert.that(sessionsCombineGlobally).containsInAnyOrder("11114", "013");
+    PAssert.that(sessionsCombineGlobally.apply(ParDo.of(new DoFn<String, String>() {
+      @ProcessElement
+      public void p(ProcessContext c) {
+        System.out.println("GET: " + c.element());
+        c.output(c.element());
+      }
+    }))).containsInAnyOrder("11114", "013");
     pipeline.run();
   }
 

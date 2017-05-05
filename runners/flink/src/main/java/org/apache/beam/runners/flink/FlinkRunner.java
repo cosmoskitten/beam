@@ -25,7 +25,6 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -38,8 +37,6 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.DetachedEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,29 +117,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       executor = new FlinkBatchPipelineExecutor();
     }
 
-    JobExecutionResult result;
     try {
-      LOG.info("Starting execution of Flink program.");
-      result = executor.executePipeline(this, pipeline, options);
+      return executor.executePipeline(this, pipeline, options);
     } catch (Exception e) {
-      LOG.error("Pipeline execution failed", e);
-      throw new RuntimeException("Pipeline execution failed", e);
-    }
-
-    if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
-      LOG.info("Pipeline submitted in Detached mode");
-      return new FlinkDetachedRunnerResult();
-    } else {
-      LOG.info("Execution finished in {} msecs", result.getNetRuntime());
-      Map<String, Object> accumulators = result.getAllAccumulatorResults();
-      if (accumulators != null && !accumulators.isEmpty()) {
-        LOG.info("Final accumulator values:");
-        for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
-          LOG.info("{} : {}", entry.getKey(), entry.getValue());
-        }
-      }
-
-      return new FlinkRunnerResult(accumulators, result.getNetRuntime());
+      throw new RuntimeException("Pipeline execution failed.", e);
     }
   }
 
