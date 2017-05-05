@@ -18,11 +18,16 @@
 package org.apache.beam.runners.flink;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.program.DetachedEnvironment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
+import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,15 +42,16 @@ class FlinkStreamingPipelineExecutor implements FlinkPipelineExecutor {
       LoggerFactory.getLogger(FlinkStreamingPipelineExecutor.class);
 
   @Override
-  public JobExecutionResult executePipeline(
-      FlinkRunner runner, Pipeline pipeline, FlinkPipelineOptions options) throws Exception{
+  public PipelineResult executePipeline(
+      FlinkRunner runner, Pipeline pipeline, FlinkPipelineOptions options) throws Exception {
 
     StreamExecutionEnvironment env = createStreamExecutionEnvironment(options);
+
     FlinkStreamingPipelineTranslator translator =
         new FlinkStreamingPipelineTranslator(runner, env, options);
     translator.translate(pipeline);
 
-    return env.execute(options.getJobName());
+    return runPipeline(options, env);
   }
 
   private StreamExecutionEnvironment createStreamExecutionEnvironment(
@@ -124,4 +130,38 @@ class FlinkStreamingPipelineExecutor implements FlinkPipelineExecutor {
     return flinkStreamEnv;
   }
 
+  /**
+   * Executes the {@link Pipeline} using non-blocking {@link FlinkStreamingPipelineJob} for job
+   * submission if possible. This will fall back to blocking submission in case that is not
+   * possible.
+   */
+  private static PipelineResult runPipeline(
+      FlinkPipelineOptions options, StreamExecutionEnvironment env) throws Exception {
+
+    // we handle local and remote with our own code that does support non-blocking submit
+    if (env instanceof LocalStreamEnvironment) {
+      return new FlinkLocalStreamingPipelineJob(options, (LocalStreamEnvironment) env);
+    } else if (env instanceof RemoteStreamEnvironment) {
+      return new FlinkRemoteStreamingPipelineJob(options, (RemoteStreamEnvironment) env);
+    }
+
+    // for other Flink Environments use the default (blocking) submission
+    JobExecutionResult jobResult = env.execute(options.getJobName());
+
+    if (jobResult instanceof DetachedEnvironment.DetachedJobExecutionResult) {
+      LOG.info("Pipeline submitted in Detached mode");
+      return new FlinkDetachedRunnerResult();
+    } else {
+      LOG.info("Execution finished in {} msecs", jobResult.getNetRuntime());
+      Map<String, Object> accumulators = jobResult.getAllAccumulatorResults();
+      if (accumulators != null && !accumulators.isEmpty()) {
+        LOG.info("Final accumulator values:");
+        for (Map.Entry<String, Object> entry : jobResult.getAllAccumulatorResults().entrySet()) {
+          LOG.info("{} : {}", entry.getKey(), entry.getValue());
+        }
+      }
+
+      return new FlinkRunnerResult(accumulators, jobResult.getNetRuntime());
+    }
+  }
 }
