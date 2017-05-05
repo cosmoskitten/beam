@@ -33,6 +33,15 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlNotEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlOrExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlConcatExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlInitCapExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlLowerExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlOverlayExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlPositionExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlSubstringExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlTrimExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlUpperExpression;
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
@@ -74,9 +83,10 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
    * {@link #buildExpression(RexNode)} visits the operands of {@link RexNode} recursively,
    * and represent each {@link SqlOperator} with a corresponding {@link BeamSqlExpression}.
    */
-  private BeamSqlExpression buildExpression(RexNode rexNode) {
+  static BeamSqlExpression buildExpression(RexNode rexNode) {
     if (rexNode instanceof RexLiteral) {
       RexLiteral node = (RexLiteral) rexNode;
+
       return BeamSqlPrimitive.of(node.getTypeName(), node.getValue());
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef node = (RexInputRef) rexNode;
@@ -106,6 +116,27 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
           return new BeamSqlLessThanExpression(subExps);
         case "<=":
           return new BeamSqlLessThanEqualExpression(subExps);
+
+        // string operators
+        case "||":
+          return new BeamSqlConcatExpression(subExps);
+        case "POSITION":
+          return new BeamSqlPositionExpression(subExps);
+        case "CHAR_LENGTH":
+        case "CHARACTER_LENGTH":
+          return new BeamSqlCharLengthExpression(subExps);
+        case "UPPER":
+          return new BeamSqlUpperExpression(subExps);
+        case "LOWER":
+          return new BeamSqlLowerExpression(subExps);
+        case "TRIM":
+          return new BeamSqlTrimExpression(subExps);
+        case "SUBSTRING":
+          return new BeamSqlSubstringExpression(subExps);
+        case "OVERLAY":
+          return new BeamSqlOverlayExpression(subExps);
+        case "INITCAP":
+          return new BeamSqlInitCapExpression(subExps);
 
         case "IS NULL":
           return new BeamSqlIsNullExpression(subExps.get(0));
