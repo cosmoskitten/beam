@@ -34,18 +34,19 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CoderFactoriesTest {
-
-  /**
-   * Ensures that a few of our standard atomic coder classes
-   * can each be built into a factory that works as expected.
-   * It is presumed that testing a few, not all, suffices to
-   * exercise CoderFactoryFromStaticMethods.
-   */
   @Test
-  public void testAtomicCoderClassFactories() throws Exception {
-    checkAtomicCoderFactory(String.class, StringUtf8Coder.class, StringUtf8Coder.of());
-    checkAtomicCoderFactory(Double.class, DoubleCoder.class, DoubleCoder.of());
-    checkAtomicCoderFactory(byte[].class, ByteArrayCoder.class, ByteArrayCoder.of());
+  public void testCoderFactoriesFromStaticMethodsForParameterlessTypes() throws Exception {
+    CoderFactory factory = CoderFactories.fromStaticMethods(String.class, StringUtf8Coder.class);
+    assertEquals(StringUtf8Coder.of(),
+        factory.create(TypeDescriptors.strings(), Collections.<Coder<?>>emptyList()));
+
+    factory = CoderFactories.fromStaticMethods(Double.class, DoubleCoder.class);
+    assertEquals(DoubleCoder.of(),
+        factory.create(TypeDescriptors.doubles(), Collections.<Coder<?>>emptyList()));
+
+    factory = CoderFactories.fromStaticMethods(byte[].class, ByteArrayCoder.class);
+    assertEquals(ByteArrayCoder.of(),
+        factory.create(TypeDescriptor.of(byte[].class), Collections.<Coder<?>>emptyList()));
   }
 
   /**
@@ -89,23 +90,5 @@ public class CoderFactoriesTest {
     assertEquals(
         IterableCoder.of(DoubleCoder.of()),
         iterableCoderFactory.create(type, Arrays.asList(DoubleCoder.of())));
-  }
-
-  ///////////////////////////////////////////////////////////////////////
-
-  /**
-   * Checks that an atomic coder class can be converted into
-   * a factory that then yields a coder equal to the example
-   * provided.
-   */
-  private <T> void checkAtomicCoderFactory(
-      Class<T> typeClazz,
-      Class<? extends Coder<T>> coderClazz,
-      Coder<T> expectedCoder) throws CannotProvideCoderException {
-    CoderFactory factory =
-        CoderFactories.fromStaticMethods(typeClazz, coderClazz);
-    Coder<T> actualCoder = factory.create(
-        TypeDescriptor.of(typeClazz), Collections.<Coder<?>>emptyList());
-    assertEquals(expectedCoder, actualCoder);
   }
 }

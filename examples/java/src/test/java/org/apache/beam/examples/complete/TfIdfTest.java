@@ -50,8 +50,7 @@ public class TfIdfTest {
   @Category(ValidatesRunner.class)
   public void testTfIdf() throws Exception {
 
-    pipeline.getCoderRegistry().registerCoderFactory(
-        CoderFactories.forCoder(TypeDescriptor.of(URI.class), StringDelegateCoder.of(URI.class)));
+    pipeline.getCoderRegistry().registerCoderForType(URI.class, StringDelegateCoder.of(URI.class));
 
     PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = pipeline
         .apply(Create.of(

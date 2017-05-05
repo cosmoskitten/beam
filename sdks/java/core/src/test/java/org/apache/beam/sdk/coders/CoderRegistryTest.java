@@ -74,8 +74,7 @@ public class CoderRegistryTest {
   @Test
   public void testRegisterInstantiatedCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
-    registry.registerCoderFactory(
-        CoderFactories.forCoder(TypeDescriptor.of(MyValue.class), MyValueCoder.of()));
+    registry.registerCoderForClass(MyValue.class, MyValueCoder.of());
     assertEquals(registry.getCoder(MyValue.class), MyValueCoder.of());
   }
 

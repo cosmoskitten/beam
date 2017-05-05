@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderFactories;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -58,7 +57,6 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -411,8 +409,7 @@ public class TfIdf {
   public static void main(String[] args) throws Exception {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     Pipeline pipeline = Pipeline.create(options);
-    pipeline.getCoderRegistry().registerCoderFactory(
-        CoderFactories.forCoder(TypeDescriptor.of(URI.class), StringDelegateCoder.of(URI.class)));
+    pipeline.getCoderRegistry().registerCoderForClass(URI.class, StringDelegateCoder.of(URI.class));
 
     pipeline
         .apply(new ReadDocuments(listInputDocuments(options)))

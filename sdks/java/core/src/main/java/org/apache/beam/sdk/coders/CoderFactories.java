@@ -59,7 +59,7 @@ public final class CoderFactories {
    * {@code fromStaticMethods(ListCoder.class)}
    * will produce a {@code Coder<List<X>>} for any {@code Coder Coder<X>}.
    */
-  public static <T> CoderFactory fromStaticMethods(Class<T> rawType, Class<?> coderClazz) {
+  public static CoderFactory fromStaticMethods(Class<?> rawType, Class<?> coderClazz) {
     return new CoderFactoryFromStaticMethods(rawType, coderClazz);
   }
 
@@ -67,15 +67,15 @@ public final class CoderFactories {
    * Creates a {@link CoderFactory} that always returns the
    * given coder.
    */
-  public static <T> CoderFactory forCoder(TypeDescriptor<T> type, Coder<T> coder) {
-    return new CoderFactoryForCoder<>(type, coder);
+  public static CoderFactory forCoder(TypeDescriptor<?> type, Coder<?> coder) {
+    return new CoderFactoryForCoder(type, coder);
   }
 
   /**
    * See {@link #fromStaticMethods} for a detailed description
    * of the characteristics of this {@link CoderFactory}.
    */
-  private static class CoderFactoryFromStaticMethods<T> implements CoderFactory {
+  private static class CoderFactoryFromStaticMethods implements CoderFactory {
 
     @Override
     public <T> Coder<T> create(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
@@ -103,7 +103,7 @@ public final class CoderFactories {
     ////////////////////////////////////////////////////////////////////////////////
 
     // Type raw type used to filter the incoming type on.
-    private final Class<T> rawType;
+    private final Class<?> rawType;
 
     // Method to create a coder given component coders
     // For a Coder class of kind * -> * -> ... n times ... -> *
@@ -114,7 +114,7 @@ public final class CoderFactories {
      * Returns a CoderFactory that invokes the given static factory method
      * to create the Coder.
      */
-    private CoderFactoryFromStaticMethods(Class<T> rawType, Class<T> coderClazz) {
+    private CoderFactoryFromStaticMethods(Class<?> rawType, Class<?> coderClazz) {
       this.rawType = rawType;
       this.factoryMethod = getFactoryMethod(coderClazz);
     }
@@ -181,11 +181,11 @@ public final class CoderFactories {
   /**
    * See {@link #forCoder} for a detailed description of this {@link CoderFactory}.
    */
-  private static class CoderFactoryForCoder<T> implements CoderFactory {
-    private final Coder<T> coder;
-    private final TypeDescriptor<T> type;
+  private static class CoderFactoryForCoder implements CoderFactory {
+    private final Coder<?> coder;
+    private final TypeDescriptor<?> type;
 
-    public CoderFactoryForCoder(TypeDescriptor<T> type, Coder<T> coder){
+    public CoderFactoryForCoder(TypeDescriptor<?> type, Coder<?> coder){
       this.type = type;
       this.coder = coder;
     }

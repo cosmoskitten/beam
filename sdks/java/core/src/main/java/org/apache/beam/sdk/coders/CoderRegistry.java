@@ -150,6 +150,27 @@ public class CoderRegistry {
   }
 
   /**
+   * Registers the provided {@link Coder} for the given class.
+   *
+   * <p>Note that this is equivalent to {@code registerCoderForType(TypeDescriptor.of(clazz))}. See
+   * {@link #registerCoderForType(TypeDescriptor, Coder)} for further details.
+   */
+  public void registerCoderForClass(Class<?> clazz, Coder<?> coder) {
+    registerCoderForType(TypeDescriptor.of(clazz), coder);
+  }
+
+  /**
+   * Registers the provided {@link Coder} for the given type.
+   *
+   * <p>Note that this is equivalent to
+   * {@code registerCoderFactory(CoderFactories.forCoder(type, coder))}. See
+   * {@link #registerCoderFactory} and {@link CoderFactories#forCoder} for further details.
+   */
+  public void registerCoderForType(TypeDescriptor<?> type, Coder<?> coder) {
+    registerCoderFactory(CoderFactories.forCoder(type, coder));
+  }
+
+  /**
    * Returns the {@link Coder} to use by default for values of the given class.
    */
   public <T> Coder<T> getCoder(Class<T> clazz)
@@ -171,7 +192,7 @@ public class CoderRegistry {
     checkArgument(typeDescriptor != null);
     checkArgument(inputTypeDescriptor != null);
     checkArgument(inputCoder != null);
-    return createCoderFromTypeDescriptor(
+    return getCoderFromTypeDescriptor(
         typeDescriptor, getTypeToCoderBindings(inputTypeDescriptor.getType(), inputCoder));
   }
 
@@ -224,7 +245,7 @@ public class CoderRegistry {
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
   public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
-    return createCoderFromTypeDescriptor(type, Collections.<Type, Coder<?>>emptyMap());
+    return getCoderFromTypeDescriptor(type, Collections.<Type, Coder<?>>emptyMap());
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -252,7 +273,7 @@ public class CoderRegistry {
    * <p>For this reason {@code getDefaultCoders} (plural) does not throw an exception if a
    * {@link Coder} for a particular type variable cannot be inferred, but merely omits the entry
    * from the returned {@code Map}. It is the responsibility of the caller (usually
-   * {@link #createCoderFromTypeDescriptor} to extract the desired coder or throw a
+   * {@link #getCoderFromTypeDescriptor} to extract the desired coder or throw a
    * {@link CannotProvideCoderException} when appropriate.
    *
    * @param subClass the concrete type whose specializations are being inferred
@@ -305,7 +326,7 @@ public class CoderRegistry {
    * <p>For this reason {@code getDefaultCoders} (plural) does not throw an exception if a
    * {@link Coder} for a particular type variable cannot be inferred. Instead, it results in a
    * {@code null} in the array. It is the responsibility of the caller (usually
-   * {@link #createCoderFromTypeDescriptor} to extract the desired coder or throw a
+   * {@link #getCoderFromTypeDescriptor} to extract the desired coder or throw a
    * {@link CannotProvideCoderException} when appropriate.
    *
    * @param subClass the concrete type whose specializations are being inferred
@@ -358,7 +379,7 @@ public class CoderRegistry {
         result[i] = knownCoders[i];
       } else {
         try {
-          result[i] = createCoderFromTypeDescriptor(TypeDescriptor.of(typeArgs[i]), context);
+          result[i] = getCoderFromTypeDescriptor(TypeDescriptor.of(typeArgs[i]), context);
         } catch (CannotProvideCoderException exc) {
           result[i] = null;
         }
@@ -488,12 +509,12 @@ public class CoderRegistry {
   private LinkedList<CoderFactory> coderFactories;
 
   /**
-   * Creates a {@link Coder} to use by default for values of the given type,
+   * Returns a {@link Coder} to use by default for values of the given type,
    * in a context where the given types use the given coders.
    *
    * @throws CannotProvideCoderException if a coder cannot be provided
    */
-  private <T> Coder<T> createCoderFromTypeDescriptor(
+  private <T> Coder<T> getCoderFromTypeDescriptor(
       TypeDescriptor<T> typeDescriptor, Map<Type, Coder<?>> typeCoderBindings)
       throws CannotProvideCoderException {
     Type type = typeDescriptor.getType();
@@ -501,11 +522,11 @@ public class CoderRegistry {
     if (typeCoderBindings.containsKey(type)) {
       coder = typeCoderBindings.get(type);
     } else if (type instanceof Class<?>) {
-      coder = createCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
+      coder = getCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
     } else if (type instanceof ParameterizedType) {
-      coder = createCoderFromParameterizedType((ParameterizedType) type, typeCoderBindings);
+      coder = getCoderFromParameterizedType((ParameterizedType) type, typeCoderBindings);
     } else if (type instanceof TypeVariable) {
-      coder = createCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
+      coder = getCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
     } else if (type instanceof WildcardType) {
       // No default coder for an unknown generic type.
       throw new CannotProvideCoderException(
@@ -526,13 +547,13 @@ public class CoderRegistry {
   }
 
   /**
-   * Creates a {@link Coder} to use for values of the given
+   * Returns a {@link Coder} to use for values of the given
    * parameterized type, in a context where the given types use the
    * given {@link Coder Coders}.
    *
    * @throws CannotProvideCoderException if no coder can be provided
    */
-  private Coder<?> createCoderFromParameterizedType(
+  private Coder<?> getCoderFromParameterizedType(
       ParameterizedType type,
       Map<Type, Coder<?>> typeCoderBindings)
           throws CannotProvideCoderException {
@@ -541,7 +562,7 @@ public class CoderRegistry {
     for (Type typeArgument : type.getActualTypeArguments()) {
       try {
         Coder<?> typeArgumentCoder =
-            createCoderFromTypeDescriptor(TypeDescriptor.of(typeArgument), typeCoderBindings);
+            getCoderFromTypeDescriptor(TypeDescriptor.of(typeArgument), typeCoderBindings);
         typeArgumentCoders.add(typeArgumentCoder);
       } catch (CannotProvideCoderException exc) {
         throw new CannotProvideCoderException(
@@ -551,15 +572,15 @@ public class CoderRegistry {
             exc);
       }
     }
-    return createCoderFromFactories(TypeDescriptor.of(type), typeArgumentCoders);
+    return getCoderFromFactories(TypeDescriptor.of(type), typeArgumentCoders);
   }
 
   /**
    * Attempts to create a {@link Coder} from any registered {@link CoderFactory} returning
    * the first successfully created instance.
    */
-  private Coder<?> createCoderFromFactories(
-      TypeDescriptor typeDescriptor, List<Coder<?>> typeArgumentCoders)
+  private Coder<?> getCoderFromFactories(
+      TypeDescriptor<?> typeDescriptor, List<Coder<?>> typeArgumentCoders)
       throws CannotProvideCoderException {
     for (CoderFactory coderFactory : coderFactories) {
       try {
