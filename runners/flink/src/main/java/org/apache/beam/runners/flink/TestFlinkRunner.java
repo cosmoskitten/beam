@@ -24,7 +24,9 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.joda.time.Duration;
 
 /**
  * Test Flink runner.
@@ -55,7 +57,12 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
   @Override
   public PipelineResult run(Pipeline pipeline) {
     try {
-      return delegate.run(pipeline);
+      PipelineResult job = delegate.run(pipeline);
+
+      job.waitUntilFinish(
+          Duration.standardSeconds(
+              getPipelineOptions().as(TestPipelineOptions.class).getTestTimeoutSeconds()));
+      return job;
     } catch (Throwable t) {
       // Special case hack to pull out assertion errors from PAssert; instead there should
       // probably be a better story along the lines of UserCodeException.

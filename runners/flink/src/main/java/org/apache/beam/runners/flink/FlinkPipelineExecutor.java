@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink;
 
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.beam.sdk.PipelineResult;
 
 /**
  * A {@link FlinkPipelineExecutor} can execute a {@link Pipeline} on Flink.
@@ -31,6 +31,6 @@ interface FlinkPipelineExecutor {
   /**
    * Executes the given pipeline.
    */
-  JobExecutionResult executePipeline(
+  PipelineResult executePipeline(
       FlinkRunner runner, Pipeline pipeline, FlinkPipelineOptions options) throws Exception;
 }
