@@ -95,7 +95,7 @@ class DataflowMetrics(MetricResults):
       # 2. Unable to unpack [step] or [namespace]; which should only happen
       #   for unstructured names.
       step = _get_match(metric.name.context.additionalProperties,
-                        lambda xm: x.key == 'step').value
+                        lambda x: x.key == 'step').value
       step = self._translate_step_name(step)
       namespace = _get_match(metric.name.context.additionalProperties,
                              lambda x: x.key == 'namespace').value
