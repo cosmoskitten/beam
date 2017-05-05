@@ -107,15 +107,23 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     LOG.info("Executing pipeline using FlinkRunner.");
 
-    FlinkPipelineExecutionEnvironment env = new FlinkPipelineExecutionEnvironment(options);
+    PipelineTranslationOptimizer optimizer =
+        new PipelineTranslationOptimizer(TranslationMode.BATCH, options);
 
-    LOG.info("Translating pipeline to Flink program.");
-    env.translate(this, pipeline);
+    optimizer.translate(pipeline);
+    TranslationMode translationMode = optimizer.getTranslationMode();
+
+    FlinkPipelineExecutor executor;
+    if (translationMode == TranslationMode.STREAMING) {
+      executor = new FlinkStreamingPipelineExecutor();
+    } else {
+      executor = new FlinkBatchPipelineExecutor();
+    }
 
     JobExecutionResult result;
     try {
       LOG.info("Starting execution of Flink program.");
-      result = env.executePipeline();
+      result = executor.executePipeline(this, pipeline, options);
     } catch (Exception e) {
       LOG.error("Pipeline execution failed", e);
       throw new RuntimeException("Pipeline execution failed", e);
