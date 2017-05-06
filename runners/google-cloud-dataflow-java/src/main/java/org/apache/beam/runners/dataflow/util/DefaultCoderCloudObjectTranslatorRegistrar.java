@@ -91,7 +91,6 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           ByteCoder.class,
           DoubleCoder.class,
           DurationCoder.class,
-          FileResultCoder.class,
           FooterCoder.class,
           InstantCoder.class,
           IsmShardCoder.class,
