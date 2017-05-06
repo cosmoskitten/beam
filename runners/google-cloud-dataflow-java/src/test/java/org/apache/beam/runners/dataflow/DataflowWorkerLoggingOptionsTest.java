@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import org.apache.beam.runners.dataflow.DataflowWorkerLoggingOptions;
 import org.apache.beam.runners.dataflow.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.Rule;
