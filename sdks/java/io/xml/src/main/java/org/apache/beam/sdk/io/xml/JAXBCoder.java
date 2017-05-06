@@ -87,6 +87,12 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
+  public void encode(T value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     try {
@@ -106,6 +112,11 @@ public class JAXBCoder<T> extends CustomCoder<T> {
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
+  }
+
+  @Override
+  public T decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

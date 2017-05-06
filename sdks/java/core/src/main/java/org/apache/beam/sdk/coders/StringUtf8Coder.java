@@ -69,6 +69,12 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   private StringUtf8Coder() {}
 
   @Override
+  public void encode(String value, OutputStream outStream)
+      throws IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(String value, OutputStream outStream, Context context)
       throws IOException {
     if (value == null) {
@@ -84,6 +90,11 @@ public class StringUtf8Coder extends AtomicCoder<String> {
     } else {
       writeString(value, new DataOutputStream(outStream));
     }
+  }
+
+  @Override
+  public String decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
