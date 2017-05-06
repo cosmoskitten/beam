@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -171,7 +173,12 @@ class SplittableProcessElementsEvaluatorFactory<
             outputWindowedValue,
             evaluationContext.createSideInputReader(transform.getSideInputs()),
             // TODO: For better performance, use a higher-level executor?
-            Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+            Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder()
+                    .setThreadFactory(MoreExecutors.platformThreadFactory())
+                    .setDaemon(true)
+                    .setNameFormat("direct-splittable-process-element-checkpoint-executor")
+                    .build()),
             10000,
             Duration.standardSeconds(10)));
 
