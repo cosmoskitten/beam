@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.flink.metrics.FlinkMetricResults;
@@ -26,6 +28,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.joda.time.Duration;
 import scala.concurrent.Await;
@@ -42,6 +45,20 @@ import scala.concurrent.duration.FiniteDuration;
  * non-blocking job submission.
  */
 abstract class FlinkStreamingPipelineJob implements PipelineResult {
+
+  private static final Map<JobStatus, State> FLINK_STATE_TO_JOB_STATE =
+      ImmutableMap
+          .<JobStatus, State>builder()
+          .put(JobStatus.CANCELLING, State.CANCELLED)
+          .put(JobStatus.CANCELED, State.CANCELLED)
+          .put(JobStatus.CREATED, State.RUNNING)
+          .put(JobStatus.FAILING, State.FAILED)
+          .put(JobStatus.FAILED, State.FAILED)
+          .put(JobStatus.RESTARTING, State.RUNNING)
+          .put(JobStatus.RUNNING, State.RUNNING)
+          .put(JobStatus.FINISHED, State.DONE)
+          .put(JobStatus.SUSPENDED, State.STOPPED)
+          .build();
 
   protected abstract Configuration getConfiguration();
   protected abstract FiniteDuration getClientTimeout();
@@ -75,26 +92,7 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
       if (result instanceof JobManagerMessages.JobNotFound) {
         return State.UNKNOWN;
       } else if (result instanceof JobManagerMessages.CurrentJobStatus) {
-        switch (((JobManagerMessages.CurrentJobStatus) result).status()) {
-          case CANCELED:
-            return State.CANCELLED;
-          case CANCELLING:
-            return State.CANCELLED;
-          case CREATED:
-            return State.RUNNING;
-          case FAILED:
-            return State.FAILED;
-          case FAILING:
-            return State.FAILED;
-          case RESTARTING:
-            return State.RUNNING;
-          case RUNNING:
-            return State.RUNNING;
-          case FINISHED:
-            return State.DONE;
-          case SUSPENDED:
-            return State.UNKNOWN;
-        }
+        return toState(((JobManagerMessages.CurrentJobStatus) result).status());
       }
     } finally {
       if (clusterClient != null) {
@@ -173,5 +171,9 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
     } catch (Exception e) {
       throw new RuntimeException("Could not retrieve Accumulators from JobManager.", e);
     }
+  }
+
+  private static State toState(JobStatus flinkStatus) {
+    return MoreObjects.firstNonNull(FLINK_STATE_TO_JOB_STATE.get(flinkStatus), State.UNKNOWN);
   }
 }
