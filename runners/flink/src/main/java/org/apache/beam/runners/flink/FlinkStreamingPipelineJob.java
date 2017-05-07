@@ -23,7 +23,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.flink.metrics.FlinkMetricResults;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -157,20 +159,26 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    StandaloneClusterClient clusterClient;
-    try {
-      clusterClient = new StandaloneClusterClient(getConfiguration());
-    } catch (Exception e) {
-      throw new RuntimeException("Error retrieving cluster client.", e);
-    }
+    // return a wrapper, so that every time queryMetrics() is called we query
+    // the Flink Accumulators
+    return new MetricResults() {
+      @Override
+      public MetricQueryResults queryMetrics(MetricsFilter filter) {
+        StandaloneClusterClient clusterClient;
+        try {
+          clusterClient = new StandaloneClusterClient(getConfiguration());
+        } catch (Exception e) {
+          throw new RuntimeException("Error retrieving cluster client.", e);
+        }
 
-    try {
-      Map<String, Object> accumulators = clusterClient.getAccumulators(getJobId());
-      return new FlinkMetricResults(accumulators);
-
-    } catch (Exception e) {
-      throw new RuntimeException("Could not retrieve Accumulators from JobManager.", e);
-    }
+        try {
+          Map<String, Object> accumulators = clusterClient.getAccumulators(getJobId());
+          return new FlinkMetricResults(accumulators).queryMetrics(filter);
+        } catch (Exception e) {
+          throw new RuntimeException("Could not retrieve Accumulators from JobManager.", e);
+        }
+      }
+    };
   }
 
   private static State toState(JobStatus flinkStatus) {
