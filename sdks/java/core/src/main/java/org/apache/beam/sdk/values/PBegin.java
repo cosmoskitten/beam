@@ -21,12 +21,11 @@ import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO.Read;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * {@link PBegin} is the "input" to a root {@link PTransform}, such as {@link Read Read} or {@link
- * Create}.
+ * {@link PBegin} is the "input" to a root {@link PTransform}, such as {@link Read Read} or
+ * {@link org.apache.beam.sdk.transforms.Create}.
  *
  * <p>Typically elided by simply calling {@link Pipeline#apply(String, PTransform)} or {@link
  * Pipeline#apply(PTransform)}, but one can be explicitly created by calling {@link Pipeline#begin}

@@ -20,8 +20,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 
@@ -31,7 +29,7 @@ import org.joda.time.Duration;
  *
  * <p>A function that takes the windows of elements in a main input and maps them to the appropriate
  * window in a {@link PCollectionView} consumed as a {@link
- * MultiOutput#withSideInputs(PCollectionView[]) side input}.
+ * org.apache.beam.sdk.transforms.ParDo.MultiOutput#withSideInputs(PCollectionView[]) side input}.
  */
 @Experimental
 public abstract class WindowMappingFn<TargetWindowT extends BoundedWindow> implements Serializable {

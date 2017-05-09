@@ -41,8 +41,8 @@ public enum TimeDomain {
   /**
    * <b>For internal use only; no backwards compatibility guarantees.</b>
    *
-   * Same as the {@link #PROCESSING_TIME} domain, except it won't fire a timer set for time <i>t</i>
-   * until all timers from earlier stages set for a time earlier than <i>t</i> have fired.
+   * <p>Same as the {@link #PROCESSING_TIME} domain, except it won't fire a timer set for time
+   * <i>t</i> until all timers from earlier stages set for a time earlier than <i>t</i> have fired.
    */
   @Internal
   SYNCHRONIZED_PROCESSING_TIME
