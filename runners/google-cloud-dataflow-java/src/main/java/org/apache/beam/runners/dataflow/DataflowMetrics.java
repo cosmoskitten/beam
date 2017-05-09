@@ -123,9 +123,9 @@ class DataflowMetrics extends MetricResults {
   }
 
   private static class DataflowMetricResultExtractor {
-    ImmutableList.Builder<MetricResult<Long>> counterResults;
-    ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults;
-    ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults;
+    private final ImmutableList.Builder<MetricResult<Long>> counterResults;
+    private final ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults;
+    private final ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults;
 
     DataflowMetricResultExtractor() {
       counterResults = ImmutableList.builder();
@@ -140,27 +140,39 @@ class DataflowMetrics extends MetricResults {
       if (committed.getDistribution() != null && attempted.getDistribution() != null) {
         // distribution metric
         distributionResults.add(
-            DataflowMetricResult.create(metricKey.metricName(), metricKey.stepName(),
-            getDistributionValue(committed), getDistributionValue(attempted)));
+            DataflowMetricResult.create(
+                metricKey.metricName(),
+                metricKey.stepName(),
+                getDistributionValue(committed),
+                getDistributionValue(attempted)));
       } else if (committed.getScalar() != null && attempted.getScalar() != null) {
         // counter metric
-        Long committedLong = getCounterValue(committed);
-        Long attemptedLong = getCounterValue(attempted);
         counterResults.add(
             DataflowMetricResult.create(
-                metricKey.metricName(), metricKey.stepName(), committedLong, attemptedLong));
+                metricKey.metricName(),
+                metricKey.stepName(),
+                getCounterValue(committed),
+                getCounterValue(attempted)));
       } else {
-        // warning
-        LOG.warn("Unexpected metric type. Please report JOB ID to Dataflow Support.");
+        // This is exceptionally unexpected. We expect matching user metrics to only have the
+        // value types provided by the Metrics API.
+        LOG.warn("Unexpected metric type. Please report JOB ID to Dataflow Support. Metric key: "
+            + metricKey.toString());
       }
     }
 
     private Long getCounterValue(com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+      if (metricUpdate.getScalar() == null) {
+        return 0L;
+      }
       return ((Number) metricUpdate.getScalar()).longValue();
     }
 
     private DistributionResult getDistributionValue(
         com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+      if (metricUpdate.getDistribution() == null) {
+        return DistributionResult.ZERO;
+      }
       ArrayMap distributionMap = (ArrayMap) metricUpdate.getDistribution();
       Long count = ((Number) distributionMap.get("count")).longValue();
       Long min = ((Number) distributionMap.get("min")).longValue();
@@ -241,15 +253,22 @@ class DataflowMetrics extends MetricResults {
       // If the Context of the metric update does not have a namespace, then these are not
       // actual metrics counters.
       for (com.google.api.services.dataflow.model.MetricUpdate update : metricUpdates) {
-        if (Objects.equal(update.getName().getOrigin(), "user") && isMetricTentative(update)
+        MetricKey updateKey = getMetricHashKey(update);
+        if (!MetricFiltering.matches(filter, updateKey)) {
+          // Skip unmatched metrics early.
+          continue;
+        }
+        if (Objects.equal(update.getName().getOrigin(), "user")
             && update.getName().getContext().containsKey("namespace")) {
-          tentativeByName.put(getMetricHashKey(update), update);
-          metricHashKeys.add(getMetricHashKey(update));
-        } else if (Objects.equal(update.getName().getOrigin(), "user")
-            && update.getName().getContext().containsKey("namespace")
-            && !isMetricTentative(update)) {
-          committedByName.put(getMetricHashKey(update), update);
-          metricHashKeys.add(getMetricHashKey(update));
+          if (isMetricTentative(update)) {
+            assert !tentativeByName.containsKey(updateKey);
+            tentativeByName.put(updateKey, update);
+            metricHashKeys.add(updateKey);
+          } else {
+            assert !committedByName.containsKey(updateKey);
+            committedByName.put(updateKey, update);
+            metricHashKeys.add(updateKey);
+          }
         }
       }
     }
@@ -259,11 +278,6 @@ class DataflowMetrics extends MetricResults {
 
       DataflowMetricResultExtractor extractor = new DataflowMetricResultExtractor();
       for (MetricKey metricKey : metricHashKeys) {
-        if (!MetricFiltering.matches(filter, metricKey)) {
-          // Skip unmatched metrics early.
-          continue;
-        }
-
         String metricName = metricKey.metricName().name();
         if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
             || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
