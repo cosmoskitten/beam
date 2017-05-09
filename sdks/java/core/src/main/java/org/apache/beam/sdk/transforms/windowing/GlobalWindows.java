@@ -23,7 +23,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.joda.time.Instant;
 
 /**
- * Default {@link WindowFn} that assigns all data to the same window.
+ * A default {@link WindowFn} that assigns all data to the same window.
  */
 public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
 

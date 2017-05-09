@@ -28,7 +28,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.joda.time.Instant;
 
 /**
- * Create a {@link Trigger} that fires and finishes once after all of its sub-triggers have fired.
+ * A composite {@link Trigger} that fires and finishes once after all of its sub-triggers have
+ * fired.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterAll extends OnceTrigger {
