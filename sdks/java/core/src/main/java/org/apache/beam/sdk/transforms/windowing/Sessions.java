@@ -25,8 +25,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.Duration;
 
 /**
- * A {@link WindowFn} windowing values into sessions separated by periods with no input for at least
- * the duration specified by {@link #getGapDuration()}.
+ * A {@link WindowFn} that windows values into sessions separated by periods with no input for at
+ * least the duration specified by {@link #getGapDuration()}.
  *
  * <p>For example, in order to window data into session with at least 10 minute gaps in between
  * them:

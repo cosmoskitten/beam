@@ -22,7 +22,7 @@ import java.util.List;
 import org.joda.time.Instant;
 
 /**
- * A composite {@link Trigger} that fires according to its subtrigger forever.
+ * A {@link Trigger} that fires according to its subtrigger forever.
  *
  * <p>For example, to fire after the end of the window, and every time late data arrives:
  * <pre> {@code

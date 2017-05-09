@@ -26,13 +26,14 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 
 /**
- * <b>For internal use only; no backwards compatibility guarantees.</b>
+ * <b>Experimental! This will be ready for users eventually, but should be considered internal for
+ * now. No backwards compatibility guarantees.</b>
  *
- * A function that takes the windows of elements in a main input and maps them to the appropriate
- * window in a {@link PCollectionView} consumed as a
- * {@link MultiOutput#withSideInputs(PCollectionView[]) side input}.
+ * <p>A function that takes the windows of elements in a main input and maps them to the appropriate
+ * window in a {@link PCollectionView} consumed as a {@link
+ * MultiOutput#withSideInputs(PCollectionView[]) side input}.
  */
-@Internal
+@Experimental
 public abstract class WindowMappingFn<TargetWindowT extends BoundedWindow> implements Serializable {
   private final Duration maximumLookback;
 
