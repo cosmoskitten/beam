@@ -434,6 +434,11 @@ public class TransformExecutorTest {
       handledException = e;
       onMethod.countDown();
     }
+
+    @Override
+    public void handleError(Error err) {
+      throw err;
+    }
   }
 
   private static class TestEnforcementFactory implements ModelEnforcementFactory {
@@ -521,4 +526,3 @@ public class TransformExecutorTest {
       }
     }
   }
-}

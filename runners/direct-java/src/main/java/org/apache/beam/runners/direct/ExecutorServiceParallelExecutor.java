@@ -285,8 +285,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
         return pipelineState.get();
-      } else if (update != null && update.exception.isPresent()) {
-        throw update.exception.get();
+      } else if (update != null && update.thrown.isPresent()) {
+        throw update.thrown.get();
       }
     }
     return pipelineState.get();
@@ -380,6 +380,11 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       allUpdates.offer(ExecutorUpdate.fromException(e));
       outstandingWork.decrementAndGet();
     }
+
+    @Override
+    public void handleError(Error err) {
+      visibleUpdates.add(VisibleExecutorUpdate.fromError(err));
+    }
   }
 
   /**
@@ -424,12 +429,16 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
    * return normally or throw an exception.
    */
   private static class VisibleExecutorUpdate {
-    private final Optional<? extends Exception> exception;
+    private final Optional<? extends Throwable> thrown;
     @Nullable
     private final State newState;
 
     public static VisibleExecutorUpdate fromException(Exception e) {
       return new VisibleExecutorUpdate(null, e);
+    }
+
+    public static VisibleExecutorUpdate fromError(Error err) {
+      return new VisibleExecutorUpdate(State.FAILED, err);
     }
 
     public static VisibleExecutorUpdate finished() {
@@ -440,15 +449,14 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       return new VisibleExecutorUpdate(State.CANCELLED, null);
     }
 
-    private VisibleExecutorUpdate(State newState, @Nullable Exception exception) {
-      this.exception = Optional.fromNullable(exception);
+    private VisibleExecutorUpdate(State newState, @Nullable Throwable exception) {
+      this.thrown = Optional.fromNullable(exception);
       this.newState = newState;
     }
 
     public State getNewState() {
       return newState;
     }
-
   }
 
   private class MonitorRunnable implements Runnable {
