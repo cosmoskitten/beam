@@ -23,7 +23,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A utility function for merging overlapping {@link IntervalWindow}s.
+ * <b>For internal use only; no backwards compatibility guarantees.</b>
+ *
+ * <p>A utility function for merging overlapping {@link IntervalWindow}s.
  */
 public class MergeOverlappingIntervalWindows {
 
