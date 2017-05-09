@@ -286,7 +286,14 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         // executor is shutdown
         return pipelineState.get();
       } else if (update != null && update.thrown.isPresent()) {
-        throw update.thrown.get();
+        Throwable thrown = update.thrown.get();
+        if (thrown instanceof Exception) {
+          throw (Exception) thrown;
+        } else if (thrown instanceof Error) {
+          throw (Error) thrown;
+        } else {
+          throw new Exception("Unknown Type of Throwable", thrown);
+        }
       }
     }
     return pipelineState.get();
