@@ -18,14 +18,12 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageForJob;
-import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.both;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -52,17 +50,14 @@ import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.Reader;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -71,26 +66,27 @@ import java.util.regex.Pattern;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -101,6 +97,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
@@ -1130,59 +1127,31 @@ public class DataflowRunnerTest {
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
   }
 
-  static class SimpleFilenamePolicy extends  FilenamePolicy {
-    String baseLocation;
-
-    SimpleFilenamePolicy(String baseLocation) {
-      this.baseLocation = baseLocation;
-    }
-
-    @Override
-    public String windowedFilename(WindowedContext c) {
-      return baseLocation + "-shard-" + c.getShardNumber();
-    }
-
-    @Override
-    public String unwindowedFilename(Context c) {
-      throw new UnsupportedOperationException("Unsupported");
-    }
-
-    @Override
-    public ValueProvider<String> getBaseOutputFilenameProvider() {
-      return StaticValueProvider.of(baseLocation);
-    }
-  };
-
-  PipelineOptions getOptions() {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.setRunner(DataflowRunner.class);
-    options.as(DataflowPipelineOptions.class).setStreaming(true);
-    options.as(DataflowPipelineWorkerPoolOptions.class).setMaxNumWorkers(10);
-    return options;
-  }
-  @Rule public final transient TestPipeline p = TestPipeline.fromOptions(getOptions());
-
   @Test
   public void testStreamingWriteWithNoShardingReturnsNewTransform() {
     TestPipeline p = TestPipeline.create();
     StreamingShardedWriteFactory<Object> factory = new StreamingShardedWriteFactory(p.getOptions());
-    Write<Object> original = Write.to(new TestSink());
+    WriteFiles<Object> original = WriteFiles.to(new TestSink(tmpFolder.toString()));
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
-    AppliedPTransform<PCollection<Object>, PDone, Write<Object>> originalApplication =
+    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object>> originalApplication =
         AppliedPTransform.of(
-            "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
+            "writefiles", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
 
     assertThat(
         factory.getReplacementTransform(originalApplication).getTransform(),
         not(equalTo((Object) original)));
   }
 
-  private static class TestSink extends Sink<Object> {
+  private static class TestSink extends FileBasedSink<Object> {
     @Override
     public void validate(PipelineOptions options) {}
 
+    TestSink(String tmpFolder) {
+      super(StaticValueProvider.of(FileSystems.matchNewResource(tmpFolder, true)),
+          null);
+    }
     @Override
-    public WriteOperation<Object, ?> createWriteOperation(PipelineOptions options) {
+    public FileBasedWriteOperation<Object> createWriteOperation() {
       throw new IllegalArgumentException("Should not be used");
     }
   }
