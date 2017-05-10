@@ -53,6 +53,12 @@ import org.joda.time.Duration;
 /**
  * A {@link PipelineRunner} that executes a {@link Pipeline} within the process that constructed the
  * {@link Pipeline}.
+ *
+ * <p>The {@link DirectRunner} is suitable for running a {@link Pipeline} on small scale, example,
+ * and test data, and should be used for ensuring that processing logic is correct. It also
+ * is appropriate for executing unit tests and performs additional work to ensure that behavior
+ * contained within a {@link Pipeline} does not break assumptions within the Beam model, to improve
+ * the ability to execute a {@link Pipeline} at scale on a distributed backend.
  */
 public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
@@ -268,14 +274,11 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     }
 
     /**
-     * Blocks until the {@link Pipeline} execution represented by this {@link DirectPipelineResult}
-     * is complete, returning the terminal state.
+     * {@inheritDoc}.
      *
      * <p>If the pipeline terminates abnormally by throwing an {@link Exception}, this will rethrow
      * the original {@link Exception}. Future calls to {@link #getState()} will return {@link
      * org.apache.beam.sdk.PipelineResult.State#FAILED}.
-     *
-     * <p>See also {@link PipelineExecutor#waitUntilFinish(Duration)}.
      */
     @Override
     public State waitUntilFinish() {
@@ -293,9 +296,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     }
 
     /**
-     * Blocks until the {@link Pipeline} execution represented by this {@link DirectPipelineResult}
-     * is complete or until the provided {@link Duration} has elapsed, returning the state at that
-     * time.
+     * {@inheritDoc}.
      *
      * <p>If the pipeline terminates abnormally by throwing an {@link Exception}, this will rethrow
      * the original {@link Exception}. Future calls to {@link #getState()} will return {@link
