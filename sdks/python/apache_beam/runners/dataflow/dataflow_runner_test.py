@@ -184,7 +184,7 @@ class DataflowRunnerTest(unittest.TestCase):
     pcoll1 = PCollection(p)
     pcoll2 = PCollection(p)
     pcoll3 = PCollection(p)
-    for transform in [beam.GroupByKeyOnly(), beam.GroupByKey()]:
+    for transform in [beam._GroupByKeyOnly(), beam.GroupByKey()]:
       pcoll1.element_type = None
       pcoll2.element_type = typehints.Any
       pcoll3.element_type = typehints.KV[typehints.Any, typehints.Any]
@@ -198,7 +198,7 @@ class DataflowRunnerTest(unittest.TestCase):
     p = TestPipeline()
     pcoll1 = PCollection(p)
     pcoll2 = PCollection(p)
-    for transform in [beam.GroupByKeyOnly(), beam.GroupByKey()]:
+    for transform in [beam._GroupByKeyOnly(), beam.GroupByKey()]:
       pcoll1.element_type = typehints.TupleSequenceConstraint
       pcoll2.element_type = typehints.Set
       err_msg = "Input to GroupByKey must be of Tuple or Any type"
