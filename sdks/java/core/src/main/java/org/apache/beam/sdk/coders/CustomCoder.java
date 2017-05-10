@@ -22,19 +22,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * An abstract base class for writing a {@link Coder} class that encodes itself via Java
- * serialization.
+ * An abstract base class for writing a {@link Coder} class.
  *
- * <p>To complete an implementation, subclasses must implement {@link Coder#encode}
- * and {@link Coder#decode} methods.
- *
- * <p>Not to be confused with {@link SerializableCoder} that encodes objects that implement the
- * {@link Serializable} interface.
+ * <p>To complete an implementation, subclasses must implement {@link Coder#encode} and {@link
+ * Coder#decode} methods.
  *
  * @param <T> the type of elements handled by this coder
  */
-public abstract class CustomCoder<T> extends Coder<T>
-    implements Serializable {
+public abstract class CustomCoder<T> extends Coder<T> implements Serializable {
 
   /**
    * {@inheritDoc}.

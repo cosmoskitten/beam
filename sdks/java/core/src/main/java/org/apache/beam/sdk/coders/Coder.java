@@ -43,11 +43,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * byte streams.
  *
  * <p>{@link Coder} instances are serialized during job creation and deserialized
- * before use, via JSON serialization. See {@link SerializableCoder} for an example of a
- * {@link Coder} that adds a custom field to
- * the {@link Coder} serialization. It provides a constructor annotated with
- * {@link com.fasterxml.jackson.annotation.JsonCreator}, which is a factory method used when
- * deserializing a {@link Coder} instance.
+ * before use. This will generally be performed by serializing the object via Java Serialization.
  *
  * <p>{@link Coder} classes for compound types are often composed from coder classes for types
  * contains therein. The composition of {@link Coder} instances into a coder for the compound
@@ -57,9 +53,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * inferred. See {@link KvCoder} for an example of a simple compound {@link Coder} that supports
  * automatic composition in the {@link CoderRegistry}.
  *
+ * <p>A {@link CoderProvider} can be automatically registered with the {@link CoderRegistry} by the
+ * creation of a {@link CoderProviderRegistrar} implementation and an associated manifest file. See
+ * {@link CoderProvider} and {@link CoderProviderRegistrar} for more details.
+ *
  * <p>All methods of a {@link Coder} are required to be thread safe.
  *
- * @param <T> the type of the values being transcoded
+ * @param <T> the type of the values being coded
  */
 public abstract class Coder<T> implements Serializable {
   /** The context in which encoding or decoding is being done. */
