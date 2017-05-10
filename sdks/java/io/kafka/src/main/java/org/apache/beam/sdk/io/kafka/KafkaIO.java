@@ -39,6 +39,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -306,6 +307,8 @@ public class KafkaIO {
     abstract long getMaxNumRecords();
     @Nullable abstract Duration getMaxReadTime();
 
+    @Nullable abstract Date getStartReadTime();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -324,6 +327,7 @@ public class KafkaIO {
       abstract Builder<K, V> setWatermarkFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
       abstract Builder<K, V> setMaxNumRecords(long maxNumRecords);
       abstract Builder<K, V> setMaxReadTime(Duration maxReadTime);
+      abstract Builder<K, V> setStartReadTime(Date startReadTime);
 
       abstract Read<K, V> build();
     }
@@ -445,6 +449,15 @@ public class KafkaIO {
      */
     public Read<K, V> withMaxNumRecords(long maxNumRecords) {
       return toBuilder().setMaxNumRecords(maxNumRecords).setMaxReadTime(null).build();
+    }
+
+    /**
+     * Use timestamp to set up start offset.
+     * It is only supported by the client version after 0.10.1
+     * and the message format version after 0.10.0.
+     */
+    public Read<K, V> withStartReadTime(Date startReadTime) {
+      return toBuilder().setStartReadTime(startReadTime).build();
     }
 
     /**
@@ -1041,10 +1054,11 @@ public class KafkaIO {
           consumer.seek(p.topicPartition, p.nextOffset);
         } else {
           // nextOffset is unininitialized here, meaning start reading from latest record as of now
-          // ('latest' is the default, and is configurable). Remember the current position without
-          // waiting until the first record read. This ensures checkpoint is accurate even if the
-          // reader is closed before reading any records.
-          p.nextOffset = consumer.position(p.topicPartition);
+          // ('latest' is the default, and is configurable) or look up the offset by startTime.
+          // Remember the current position without waiting until the first record read. This
+          // ensures checkpoint is accurate even if the reader is closed before reading any records.
+          p.nextOffset =
+              consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
         }
 
         LOG.info("{}: reading from {} starting at offset {}", name, p.topicPartition, p.nextOffset);
