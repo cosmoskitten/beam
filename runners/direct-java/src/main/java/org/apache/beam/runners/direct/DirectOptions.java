@@ -49,7 +49,8 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
   @Default.Boolean(true)
   @Description(
       "Controls whether the DirectRunner should ensure that all of the elements of every "
-          + "PCollection are encodable. All elements in a PCollection must be encodable.")
+          + "PCollection can be encoded by the associated Coder. The associated Coder must be able "
+          + "to encode and decode all elements of a PCollection.")
   boolean isEnforceEncodability();
   void setEnforceEncodability(boolean test);
 

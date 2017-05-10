@@ -51,8 +51,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
 /**
- * An In-Memory implementation of the Dataflow Programming Model. Supports Unbounded
- * {@link PCollection PCollections}.
+ * A {@link PipelineRunner} that executes a {@link Pipeline} within the process that constructed the
+ * {@link Pipeline}.
  */
 public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
@@ -127,6 +127,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private final Set<Enforcement> enabledEnforcements;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
 
+  /**
+   * Construct a {@link DirectRunner} from the provided options.
+   */
   public static DirectRunner fromOptions(PipelineOptions options) {
     return new DirectRunner(options.as(DirectOptions.class));
   }
@@ -134,13 +137,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private DirectRunner(DirectOptions options) {
     this.options = options;
     this.enabledEnforcements = Enforcement.enabled(options);
-  }
-
-  /**
-   * Returns the {@link PipelineOptions} used to create this {@link DirectRunner}.
-   */
-  public DirectOptions getPipelineOptions() {
-    return options;
   }
 
   Supplier<Clock> getClockSupplier() {
@@ -163,12 +159,12 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     pipeline.traverseTopologically(keyedPValueVisitor);
 
     DisplayDataValidator.validatePipeline(pipeline);
-    DisplayDataValidator.validateOptions(getPipelineOptions());
+    DisplayDataValidator.validateOptions(options);
 
     DirectGraph graph = graphVisitor.getGraph();
     EvaluationContext context =
         EvaluationContext.create(
-            getPipelineOptions(),
+            options,
             clockSupplier.get(),
             Enforcement.bundleFactoryFor(enabledEnforcements, graph),
             graph,
@@ -246,8 +242,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
   /**
    * The result of running a {@link Pipeline} with the {@link DirectRunner}.
-   *
-   * <p>Throws {@link UnsupportedOperationException} for all methods.
    */
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
@@ -274,12 +268,12 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     }
 
     /**
-     * Blocks until the {@link Pipeline} execution represented by this
-     * {@link DirectPipelineResult} is complete, returning the terminal state.
+     * Blocks until the {@link Pipeline} execution represented by this {@link DirectPipelineResult}
+     * is complete, returning the terminal state.
      *
-     * <p>If the pipeline terminates abnormally by throwing an exception, this will rethrow the
-     * exception. Future calls to {@link #getState()} will return
-     * {@link org.apache.beam.sdk.PipelineResult.State#FAILED}.
+     * <p>If the pipeline terminates abnormally by throwing an {@link Exception}, this will rethrow
+     * the original {@link Exception}. Future calls to {@link #getState()} will return {@link
+     * org.apache.beam.sdk.PipelineResult.State#FAILED}.
      *
      * <p>See also {@link PipelineExecutor#waitUntilFinish(Duration)}.
      */
@@ -298,6 +292,15 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return executor.getPipelineState();
     }
 
+    /**
+     * Blocks until the {@link Pipeline} execution represented by this {@link DirectPipelineResult}
+     * is complete or until the provided {@link Duration} has elapsed, returning the state at that
+     * time.
+     *
+     * <p>If the pipeline terminates abnormally by throwing an {@link Exception}, this will rethrow
+     * the original {@link Exception}. Future calls to {@link #getState()} will return {@link
+     * org.apache.beam.sdk.PipelineResult.State#FAILED}.
+     */
     @Override
     public State waitUntilFinish(Duration duration) {
       State startState = this.state;
