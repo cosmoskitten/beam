@@ -22,12 +22,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * An abstract base class for writing a {@link Coder} class.
+ * An abstract base class that implements all methods of {@link Coder} except {@link Coder#encode}
+ * and {@link Coder#decode}.
  *
- * <p>To complete an implementation, subclasses must implement {@link Coder#encode} and {@link
- * Coder#decode} methods.
- *
- * @param <T> the type of elements handled by this coder
+ * @param <T> the type of values being encoded and decoded
  */
 public abstract class CustomCoder<T> extends Coder<T> implements Serializable {
 
@@ -56,5 +54,5 @@ public abstract class CustomCoder<T> extends Coder<T> implements Serializable {
 
   // This coder inherits isRegisterByteSizeObserverCheap,
   // getEncodedElementByteSize and registerByteSizeObserver
-  // from StructuredCoder. Override if we can do better.
+  // from Coder. Override if we can do better.
 }

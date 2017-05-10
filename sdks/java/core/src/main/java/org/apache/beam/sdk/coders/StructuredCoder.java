@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -35,20 +36,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *   <li>{@link #getComponents}: the default implementation returns {@link #getCoderArguments}.
  *   <li>{@link #getEncodedElementByteSize} and {@link #isRegisterByteSizeObserverCheap}: the
  *       default implementation encodes values to bytes and counts the bytes, which is considered
- *       expensive.
+ *       expensive. The default element byte size observer uses the value returned by
+ *       {@link #getEncodedElementByteSize}.
  * </ul>
  */
 public abstract class StructuredCoder<T> extends Coder<T> {
-  /**
-   * Create a new {@link StructuredCoder}.
-   */
   protected StructuredCoder() {}
 
   /**
    * Returns the list of {@link Coder Coders} that are components of this {@link Coder}.
    *
-   * <p>The default components will be equal to the value returned by {@link #getCoderArguments()},
-   * or the empty {@link List} if {@link #getCoderArguments()} returns {@code null}.
+   * <p>The default components will be equal to the value returned by {@link #getCoderArguments()}.
    */
   public List<? extends Coder<?>> getComponents() {
     List<? extends Coder<?>> coderArguments = getCoderArguments();

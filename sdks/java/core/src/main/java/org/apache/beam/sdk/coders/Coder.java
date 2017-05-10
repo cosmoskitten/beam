@@ -48,18 +48,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>{@link Coder} classes for compound types are often composed from coder classes for types
  * contains therein. The composition of {@link Coder} instances into a coder for the compound
  * class is the subject of the {@link CoderProvider} type, which enables automatic generic
- * composition of {@link Coder} classes within the {@link CoderRegistry}. With particular
- * static methods on a compound {@link Coder} class, a {@link CoderProvider} can be automatically
- * inferred. See {@link KvCoder} for an example of a simple compound {@link Coder} that supports
- * automatic composition in the {@link CoderRegistry}.
- *
- * <p>A {@link CoderProvider} can be automatically registered with the {@link CoderRegistry} by the
- * creation of a {@link CoderProviderRegistrar} implementation and an associated manifest file. See
- * {@link CoderProvider} and {@link CoderProviderRegistrar} for more details.
+ * composition of {@link Coder} classes within the {@link CoderRegistry}. See {@link CoderProvider}
+ * and {@link CoderRegistry} for more information about how coders are inferred.
  *
  * <p>All methods of a {@link Coder} are required to be thread safe.
  *
- * @param <T> the type of the values being coded
+ * @param <T> the type of values being encoded and decoded
  */
 public abstract class Coder<T> implements Serializable {
   /** The context in which encoding or decoding is being done. */
@@ -167,10 +161,10 @@ public abstract class Coder<T> implements Serializable {
   }
 
   /**
-   * If this is a {@code Coder} for a parameterized type, returns the
-   * list of {@code Coder}s being used for each of the parameters, or
-   * returns {@code null} if this cannot be done or this is not a
-   * parameterized type.
+   * If this is a {@link Coder} for a parameterized type, returns the
+   * list of {@link Coder}s being used for each of the parameters in the same order they appear
+   * within the parameterized type's type signature. If this cannot be done, or this
+   * {@link Coder} does not encode/decode a parameterized type, returns the empty list.
    */
   public abstract List<? extends Coder<?>> getCoderArguments();
 
