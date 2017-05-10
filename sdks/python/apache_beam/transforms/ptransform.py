@@ -303,7 +303,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     # TODO(ccy): further refine this API.
     return None
 
-  def clone(self, new_label):
+  def _clone(self, new_label):
     """Clones the current transform instance under a new label."""
     transform = copy.copy(self)
     transform.label = new_label
