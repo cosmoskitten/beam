@@ -93,8 +93,9 @@ public class EvaluationContextTest {
 
   @Before
   public void setup() {
+    DirectOptions options = PipelineOptionsFactory.create().as(DirectOptions.class);
     DirectRunner runner =
-        DirectRunner.fromOptions(PipelineOptionsFactory.create());
+        DirectRunner.fromOptions(options);
 
     created = p.apply(Create.of(1, 2, 3));
     downstream = created.apply(WithKeys.<String, Integer>of("foo"));
@@ -108,7 +109,7 @@ public class EvaluationContextTest {
     graph = DirectGraphs.getGraph(p);
     context =
         EvaluationContext.create(
-            runner.getPipelineOptions(),
+            options,
             NanosOffsetClock.create(),
             bundleFactory,
             graph,
