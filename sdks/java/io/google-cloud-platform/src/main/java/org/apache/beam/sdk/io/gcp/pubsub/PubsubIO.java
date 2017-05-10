@@ -155,43 +155,6 @@ public class PubsubIO {
   }
 
   /**
-   * Class representing a Pub/Sub message. Each message contains a single message payload and
-   * a map of attached attributes.
-   */
-  public static class PubsubMessage {
-    private byte[] message;
-    private Map<String, String> attributes;
-
-    public PubsubMessage(byte[] message, Map<String, String> attributes) {
-      this.message = message;
-      this.attributes = attributes;
-    }
-
-    /**
-     * Returns the main PubSub message.
-     */
-    public byte[] getMessage() {
-      return message;
-    }
-
-    /**
-     * Returns the given attribute value. If not such attribute exists, returns null.
-     */
-    @Nullable
-    public String getAttribute(String attribute) {
-      checkNotNull(attribute, "attribute");
-      return attributes.get(attribute);
-    }
-
-    /**
-     * Returns the full map of attributes. This is an unmodifiable map.
-     */
-    public Map<String, String> getAttributeMap() {
-      return attributes;
-    }
-  }
-
-  /**
    * Class representing a Cloud Pub/Sub Subscription.
    */
   public static class PubsubSubscription implements Serializable {
@@ -890,7 +853,6 @@ public class PubsubIO {
               getTimestampAttribute(),
               getIdAttribute(),
               100 /* numShards */));
-
       }
       throw new RuntimeException(); // cases are exhaustive.
     }

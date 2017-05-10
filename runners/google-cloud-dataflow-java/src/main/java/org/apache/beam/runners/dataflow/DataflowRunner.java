@@ -89,6 +89,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
@@ -1302,7 +1303,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting
   static class StreamingShardedWriteFactory<T>
-      implements PTransformOverrideFactory<PCollection<T>, PDone, Write<T>> {
+      implements PTransformOverrideFactory<PCollection<T>, PDone, WriteFiles<T>> {
     DataflowPipelineWorkerPoolOptions options;
 
     StreamingShardedWriteFactory(PipelineOptions options) {
@@ -1311,14 +1312,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
-        AppliedPTransform<PCollection<T>, PDone, Write<T>> transform) {
+        AppliedPTransform<PCollection<T>, PDone, WriteFiles<T>> transform) {
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
             transform.getTransform().withNumShards(options.getMaxNumWorkers() * 2));
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
+    public Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs,
+                                                     PDone newOutput) {
       return Collections.emptyMap();
     }
   }
