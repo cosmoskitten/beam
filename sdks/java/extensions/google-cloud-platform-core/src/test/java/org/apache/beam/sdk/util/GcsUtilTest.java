@@ -93,10 +93,10 @@ public class GcsUtilTest {
 
   @Test
   public void testGlobTranslation() {
-    assertEquals("foo", GcsUtil.globToRegexp("foo"));
-    assertEquals("fo.*o", GcsUtil.globToRegexp("fo*o"));
-    assertEquals("f.*o\\..", GcsUtil.globToRegexp("f*o.?"));
-    assertEquals("foo-[0-9].*", GcsUtil.globToRegexp("foo-[0-9]*"));
+    assertEquals("foo", GcsUtil.wildcardToRegexp("foo"));
+    assertEquals("fo.*o", GcsUtil.wildcardToRegexp("fo*o"));
+    assertEquals("f.*o\\..", GcsUtil.wildcardToRegexp("f*o.?"));
+    assertEquals("foo-[0-9].*", GcsUtil.wildcardToRegexp("foo-[0-9]*"));
   }
 
   private static GcsOptions gcsOptionsWithTestCredential() {
@@ -279,11 +279,12 @@ public class GcsUtilTest {
     items.add(new StorageObject().setBucket("testbucket").setName("testdirectory/"));
 
     // Files within the directory
-    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/file1name"));
-    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/file2name"));
-    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/file3name"));
+    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/file1.txt"));
+    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/file2.txt"));
+    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/file3.txt"));
     items.add(new StorageObject().setBucket("testbucket").setName("test/directory/otherfile"));
     items.add(new StorageObject().setBucket("testbucket").setName("test/directory/anotherfile"));
+    items.add(new StorageObject().setBucket("testbucket").setName("test/file4.txt"));
 
     modelObjects.setItems(items);
 
@@ -296,11 +297,12 @@ public class GcsUtilTest {
     when(mockStorageList.execute()).thenReturn(modelObjects);
 
     {
-      GcsPath pattern = GcsPath.fromUri("gs://testbucket/test**/fi*name");
+      GcsPath pattern = GcsPath.fromUri("gs://testbucket/test/**/*.txt");
       List<GcsPath> expectedFiles = ImmutableList.of(
-          GcsPath.fromUri("gs://testbucket/test/directory/file1name"),
-          GcsPath.fromUri("gs://testbucket/test/directory/file2name"),
-          GcsPath.fromUri("gs://testbucket/test/directory/file3name"));
+          GcsPath.fromUri("gs://testbucket/test/directory/file1.txt"),
+          GcsPath.fromUri("gs://testbucket/test/directory/file2.txt"),
+          GcsPath.fromUri("gs://testbucket/test/directory/file3.txt"),
+          GcsPath.fromUri("gs://testbucket/test/file4.txt"));
 
       assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
     }

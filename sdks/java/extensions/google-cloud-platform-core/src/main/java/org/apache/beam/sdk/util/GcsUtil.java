@@ -125,14 +125,6 @@ public class GcsUtil {
   /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
   private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
-  private static final String RECURSIVE_WILDCARD = "[*]{2}";
-
-  /**
-   * A {@link Pattern} for globs with a recursive wildcard.
-   */
-  private static final Pattern RECURSIVE_GCS_PATTERN =
-      Pattern.compile(".*" + RECURSIVE_WILDCARD + ".*");
-
   /**
    * Maximum number of requests permitted in a GCS batch request.
    */
@@ -144,6 +136,8 @@ public class GcsUtil {
 
   private static final FluentBackoff BACKOFF_FACTORY =
       FluentBackoff.DEFAULT.withMaxRetries(3).withInitialBackoff(Duration.millis(200));
+
+  private static final Pattern FLAT_LIST_REGEX = Pattern.compile("(?<prefix>.*?)\\*\\*(?<after>.*)");
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -176,9 +170,9 @@ public class GcsUtil {
    * @param globExp the glob expression to expand
    * @return a string with the regular expression this glob expands to
    */
-  public static String globToRegexp(String globExp) {
+  public static String wildcardToRegexp(String globExp) {
     StringBuilder dst = new StringBuilder();
-    char[] src = globExp.toCharArray();
+    char[] src = globExp.replace("**/*", "**").toCharArray();
     int i = 0;
     while (i < src.length) {
       char c = src[i++];
@@ -213,10 +207,17 @@ public class GcsUtil {
   }
 
   /**
-   * Returns true if the given {@code spec} contains glob.
+   * Returns true if the given {@code spec} contains wildcard.
    */
-  public static boolean isGlob(GcsPath spec) {
+  public static boolean isWildcard(GcsPath spec) {
     return GLOB_PREFIX.matcher(spec.getObject()).matches();
+  }
+
+  /**
+   * Returns true if the given {@code spec} contains recursive wildcard.
+   */
+  public static boolean isRecursiveWildcard(GcsPath spec) {
+    return FLAT_LIST_REGEX.matcher(spec.getObject()).matches();
   }
 
   private GcsUtil(
@@ -243,8 +244,12 @@ public class GcsUtil {
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
     Pattern p = null;
     String prefix = null;
-    if (!isGlob(gcsPattern)) {
-      // Not a glob.
+    if (isWildcard(gcsPattern)) {
+      // Part before the first wildcard character.
+      prefix = getGlobPrefix(gcsPattern.getObject());
+      p = Pattern.compile(wildcardToRegexp(gcsPattern.getObject()));
+    } else {
+      // Not a wildcard.
       try {
         // Use a get request to fetch the metadata of the object, and ignore the return value.
         // The request has strong global consistency.
@@ -254,10 +259,6 @@ public class GcsUtil {
         // If the path was not found, return an empty list.
         return ImmutableList.of();
       }
-    } else {
-      // Part before the first wildcard character.
-      prefix = getGlobPrefix(gcsPattern.getObject());
-      p = Pattern.compile(globToRegexp(gcsPattern.getObject()));
     }
 
     LOG.debug("matching files in bucket {}, prefix {} against pattern {}", gcsPattern.getBucket(),

@@ -72,7 +72,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     List<Boolean> isGlobBooleans = Lists.newArrayList();
 
     for (GcsPath path : gcsPaths) {
-      if (GcsUtil.isGlob(path)) {
+      if (GcsUtil.isWildcard(path)) {
         globs.add(path);
         isGlobBooleans.add(true);
       } else {
@@ -178,7 +178,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @VisibleForTesting
   MatchResult expand(GcsPath gcsPattern) throws IOException {
     String prefix = GcsUtil.getGlobPrefix(gcsPattern.getObject());
-    Pattern p = Pattern.compile(GcsUtil.globToRegexp(gcsPattern.getObject()));
+    Pattern p = Pattern.compile(GcsUtil.wildcardToRegexp(gcsPattern.getObject()));
 
     LOG.debug("matching files in bucket {}, prefix {} against pattern {}", gcsPattern.getBucket(),
         prefix, p.toString());
