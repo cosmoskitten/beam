@@ -560,7 +560,7 @@ class PTransformWithSideInputs(PTransform):
 
       arg_types = [pvalueish.element_type] + [element_type(v) for v in args]
       kwargs_types = {k: element_type(v) for (k, v) in kwargs.items()}
-      argspec_fn = self.process_argspec_fn()
+      argspec_fn = self._process_argspec_fn()
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
       hints = getcallargs_forhints(argspec_fn, *type_hints[0], **type_hints[1])
       for arg, hint in hints.items():
@@ -574,7 +574,7 @@ class PTransformWithSideInputs(PTransform):
               'Type hint violation for \'%s\': requires %s but got %s for %s'
               % (self.label, hint, bindings[arg], arg))
 
-  def process_argspec_fn(self):
+  def _process_argspec_fn(self):
     """Returns an argspec of the function actually consuming the data.
     """
     raise NotImplementedError
