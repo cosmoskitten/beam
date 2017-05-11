@@ -353,7 +353,7 @@ public class Query10 extends NexmarkQuery {
                          Channels.newOutputStream(
                              openWritableGcsFile(options, filename))) {
                   for (OutputFile outputFile : c.element().getValue()) {
-                    output.write(outputFile.toString().getBytes());
+                    output.write(outputFile.toString().getBytes("UTF-8"));
                     n++;
                   }
                 }

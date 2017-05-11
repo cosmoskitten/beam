@@ -29,7 +29,7 @@ import java.util.Objects;
  * programmatically. We only capture properties which may influence the resulting
  * pipeline performance, as captured by {@link NexmarkPerf}.
  */
-public class NexmarkConfiguration implements Serializable {
+public class NexmarkConfiguration implements Serializable, Cloneable {
   public static final NexmarkConfiguration DEFAULT = new NexmarkConfiguration();
 
   /** If {@literal true}, include additional debugging and monitoring stats. */
@@ -363,7 +363,12 @@ public class NexmarkConfiguration implements Serializable {
    */
   @Override
   public NexmarkConfiguration clone() {
-    NexmarkConfiguration result = new NexmarkConfiguration();
+    NexmarkConfiguration result;
+    try {
+      result = (NexmarkConfiguration) super.clone();
+    } catch (CloneNotSupportedException e) {
+      throw new IllegalStateException(e);
+    }
     result.debug = debug;
     result.query = query;
     result.sourceType = sourceType;

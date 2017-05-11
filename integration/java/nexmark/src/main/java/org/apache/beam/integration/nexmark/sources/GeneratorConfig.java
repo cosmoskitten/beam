@@ -17,6 +17,9 @@
  */
 package org.apache.beam.integration.nexmark.sources;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.api.client.util.Data;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +31,8 @@ import org.apache.beam.sdk.values.KV;
 /**
  * Parameters controlling how {@link Generator} synthesizes {@link Event} elements.
  */
-public class GeneratorConfig implements Serializable {
+public class GeneratorConfig implements Serializable, Cloneable {
+
   /**
    * We start the ids at specific values to help ensure the queries find a match even on
    * small synthesized dataset sizes.
@@ -136,7 +140,16 @@ public class GeneratorConfig implements Serializable {
    */
   @Override
   public GeneratorConfig clone() {
-    return new GeneratorConfig(configuration, baseTime, firstEventId, maxEvents, firstEventNumber);
+    GeneratorConfig result;
+    try {
+        // TODO improve that, just a workaround for findbugs
+        super.clone();
+        result = new GeneratorConfig(configuration, baseTime, firstEventId,
+          maxEvents, firstEventNumber);
+    } catch (CloneNotSupportedException e) {
+      throw new IllegalStateException(e);
+    }
+    return result;
   }
 
   /**

@@ -26,7 +26,9 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
+import org.apache.beam.integration.nexmark.NexmarkConfiguration;
 import org.apache.beam.integration.nexmark.model.Auction;
 import org.apache.beam.integration.nexmark.model.Bid;
 import org.apache.beam.integration.nexmark.model.Event;
@@ -52,7 +54,7 @@ import org.joda.time.Instant;
  * <p>This class implements {@link org.apache.beam.sdk.io.UnboundedSource.CheckpointMark}
  * so that we can resume generating events from a saved snapshot.
  */
-public class Generator implements Iterator<TimestampedValue<Event>>, Serializable {
+public class Generator implements Iterator<TimestampedValue<Event>>, Serializable, Cloneable {
   /**
    * Keep the number of categories small so the example queries will find results even with
    * a small batch of events.
@@ -175,6 +177,24 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
           wallclockTimestamp + delayMs, eventTimestamp, event.withAnnotation("LATE"), watermark);
     }
 
+    @Override public boolean equals(Object o) {
+      if (this == o)
+        return true;
+      if (o == null || getClass() != o.getClass())
+        return false;
+
+      NextEvent nextEvent = (NextEvent) o;
+
+      return (wallclockTimestamp == nextEvent.wallclockTimestamp
+          && eventTimestamp == nextEvent.eventTimestamp
+          && watermark == nextEvent.watermark
+          && event.equals(nextEvent.event));
+    }
+
+    @Override public int hashCode() {
+      return Objects.hash(wallclockTimestamp, eventTimestamp, watermark, event);
+    }
+
     @Override
     public int compareTo(NextEvent other) {
       int i = Long.compare(wallclockTimestamp, other.wallclockTimestamp);
@@ -225,7 +245,17 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
    */
   @Override
   public Generator clone() {
-    return new Generator(config.clone(), numEvents, wallclockBaseTime);
+    Generator result;
+    try {
+      result = (Generator) super.clone();
+      checkNotNull(config);
+      result.config = config.clone();
+      result.numEvents = numEvents;
+      result.wallclockBaseTime = wallclockBaseTime;
+    } catch (CloneNotSupportedException e) {
+      throw new IllegalStateException(e);
+    }
+    return result;
   }
 
   /**

@@ -95,12 +95,11 @@ public class UnboundedEventSourceTest {
 
     while (n > 0) {
       int m = Math.min(459 + random.nextInt(455), n);
-      System.out.printf("reading %d...\n", m);
+      System.out.printf("reading %d...%n", m);
       checker.add(m, reader, modelGenerator);
       n -= m;
-      System.out.printf("splitting with %d remaining...\n", n);
+      System.out.printf("splitting with %d remaining...%n", n);
       CheckpointMark checkpointMark = reader.getCheckpointMark();
-      assertTrue(checkpointMark instanceof Generator.Checkpoint);
       reader = source.createReader(options, (Generator.Checkpoint) checkpointMark);
     }
 
