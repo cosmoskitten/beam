@@ -112,9 +112,9 @@ class ConsumerSpEL {
 
     if (!hasOffsetsForTimes) {
       String version = AppInfoParser.getVersion();
-      throw new RuntimeException("Consumer.offsetsForTimes is only supported by " +
-          "Kafka Client 0.10.1.0 onwards, now the version of Kafka Client is " + version +
-          ". You can change \"kafka.clients.version\" of maven properties to 0.10.1.0");
+      throw new RuntimeException("Consumer.offsetsForTimes is only supported by "
+          + "Kafka Client 0.10.1.0 onwards, now the version of Kafka Client is " + version
+          + ". You can change \"kafka.clients.version\" of maven properties to 0.10.1.0");
     }
 
     Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
@@ -128,9 +128,9 @@ class ConsumerSpEL {
       // 2. If the message format version in a partition is before 0.10.0, i.e.
       //    the messages do not have timestamps, null will be returned for that partition.
       if (offsetAndTimestamp == null) {
-        throw new RuntimeException("There is no messages later than the target time or " +
-            "the message format version in this partition is before 0.10.0, topicPartition is: " +
-            topicPartition);
+        throw new RuntimeException("There is no messages later than the target time or "
+            + "the message format version in this partition is before 0.10.0, topicPartition is: "
+            + topicPartition);
       } else {
         return (long) offsetGetterMethod.invoke(offsetAndTimestamp);
       }
