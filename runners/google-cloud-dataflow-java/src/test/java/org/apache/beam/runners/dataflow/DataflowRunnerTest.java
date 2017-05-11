@@ -151,14 +151,14 @@ public class DataflowRunnerTest {
     this.mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .then(new Answer<SeekableByteChannel>() {
-              @Override
-              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
-                return FileChannel.open(
-                    Files.createTempFile("channel-", ".tmp"),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.DELETE_ON_CLOSE);
-              }
-            });
+          @Override
+          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+            return FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.DELETE_ON_CLOSE);
+          }
+        });
     when(mockGcsUtil.expand(any(GcsPath.class)))
         .then(new Answer<List<GcsPath>>() {
               @Override
@@ -200,8 +200,8 @@ public class DataflowRunnerTest {
     Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
     Dataflow.Projects.Locations.Jobs.Create mockRequest =
         mock(Dataflow.Projects.Locations.Jobs.Create.class);
-    Dataflow.Projects.Locations.Jobs.List mockList =
-        mock(Dataflow.Projects.Locations.Jobs.List.class);
+    Dataflow.Projects.Locations.Jobs.List mockList = mock(
+        Dataflow.Projects.Locations.Jobs.List.class);
 
     when(mockDataflowClient.projects()).thenReturn(mockProjects);
     when(mockProjects.locations()).thenReturn(mockLocations);
@@ -229,21 +229,21 @@ public class DataflowRunnerTest {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .then(new Answer<SeekableByteChannel>() {
-              @Override
-              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
-                return FileChannel.open(
-                    Files.createTempFile("channel-", ".tmp"),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.DELETE_ON_CLOSE);
-              }
-            });
+          @Override
+          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+            return FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.DELETE_ON_CLOSE);
+          }
+        });
     when(mockGcsUtil.expand(any(GcsPath.class)))
         .then(new Answer<List<GcsPath>>() {
-              @Override
-              public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
-                return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
-              }
-            });
+          @Override
+          public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
+            return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
+          }
+        });
     return mockGcsUtil;
   }
 
@@ -268,11 +268,11 @@ public class DataflowRunnerTest {
   @Test
   public void testPathValidation() {
     String[] args = new String[] {
-          "--runner=DataflowRunner",
-          "--tempLocation=/tmp/not/a/gs/path",
-          "--project=test-project",
-          "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
-        };
+        "--runner=DataflowRunner",
+        "--tempLocation=/tmp/not/a/gs/path",
+        "--project=test-project",
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
+    };
 
     try {
       Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
@@ -287,11 +287,11 @@ public class DataflowRunnerTest {
   @Test
   public void testPathExistsValidation() {
     String[] args = new String[] {
-          "--runner=DataflowRunner",
-          "--tempLocation=gs://does/not/exist",
-          "--project=test-project",
-          "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
-        };
+        "--runner=DataflowRunner",
+        "--tempLocation=gs://does/not/exist",
+        "--project=test-project",
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
+    };
 
     try {
       Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
@@ -307,12 +307,12 @@ public class DataflowRunnerTest {
   @Test
   public void testPathValidatorOverride() {
     String[] args = new String[] {
-          "--runner=DataflowRunner",
-          "--tempLocation=/tmp/testing",
-          "--project=test-project",
-          "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
-          "--pathValidatorClass=" + NoopPathValidator.class.getName(),
-        };
+        "--runner=DataflowRunner",
+        "--tempLocation=/tmp/testing",
+        "--project=test-project",
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
+        "--pathValidatorClass=" + NoopPathValidator.class.getName(),
+    };
     // Should not crash, because gcpTempLocation should get set from tempLocation
     TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
   }
@@ -385,7 +385,7 @@ public class DataflowRunnerTest {
     Dataflow.Projects.Locations.Jobs.Create mockRequest = mock(
         Dataflow.Projects.Locations.Jobs.Create.class);
     when(mockDataflowClient.projects().locations().jobs()
-            .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
+        .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
         .thenReturn(mockRequest);
     Job resultJob = new Job();
     resultJob.setId("newid");
@@ -399,8 +399,7 @@ public class DataflowRunnerTest {
       fail("Expected DataflowJobAlreadyExistsException");
     } catch (DataflowJobAlreadyExistsException expected) {
       assertThat(expected.getMessage(),
-          containsString(
-              "If you want to submit a second job, try again by setting a "
+          containsString("If you want to submit a second job, try again by setting a "
                   + "different name using --jobName."));
       assertEquals(expected.getJob().getJobId(), resultJob.getId());
     }
@@ -441,7 +440,7 @@ public class DataflowRunnerTest {
     Dataflow.Projects.Locations.Jobs.Create mockRequest = mock(
         Dataflow.Projects.Locations.Jobs.Create.class);
     when(mockDataflowClient.projects().locations().jobs()
-            .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
+        .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
         .thenReturn(mockRequest);
     final Job resultJob = new Job();
     resultJob.setId("newid");
@@ -453,18 +452,17 @@ public class DataflowRunnerTest {
 
     thrown.expect(DataflowJobAlreadyUpdatedException.class);
     thrown.expect(new TypeSafeMatcher<DataflowJobAlreadyUpdatedException>() {
-          @Override
-          public void describeTo(Description description) {
-            description.appendText("Expected job ID: " + resultJob.getId());
-          }
+      @Override
+      public void describeTo(Description description) {
+        description.appendText("Expected job ID: " + resultJob.getId());
+      }
 
-          @Override
-          protected boolean matchesSafely(DataflowJobAlreadyUpdatedException item) {
-            return resultJob.getId().equals(item.getJob().getJobId());
-          }
-        });
-    thrown.expectMessage(
-        "The job named oldjobname with id: oldJobId has already been updated "
+      @Override
+      protected boolean matchesSafely(DataflowJobAlreadyUpdatedException item) {
+        return resultJob.getId().equals(item.getJob().getJobId());
+      }
+    });
+    thrown.expectMessage("The job named oldjobname with id: oldJobId has already been updated "
             + "into job id: newid and cannot be updated again.");
     p.run();
   }
@@ -488,7 +486,8 @@ public class DataflowRunnerTest {
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setFilesToStage(ImmutableList.of(
-            temp1.getAbsolutePath(), overridePackageName + "=" + temp2.getAbsolutePath()));
+        temp1.getAbsolutePath(),
+        overridePackageName + "=" + temp2.getAbsolutePath()));
     options.setStagingLocation(VALID_STAGING_BUCKET);
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setTempDatasetId(cloudDataflowDataset);
@@ -556,7 +555,8 @@ public class DataflowRunnerTest {
     File file = tmpFolder.newFile("file");
     File file2 = tmpFolder.newFile("file2");
     URLClassLoader classLoader = new URLClassLoader(new URL[] {
-        file.toURI().toURL(), file2.toURI().toURL()
+        file.toURI().toURL(),
+        file2.toURI().toURL()
     });
 
     assertEquals(ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
@@ -619,8 +619,7 @@ public class DataflowRunnerTest {
     options.setTempLocation("file://temp/location");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "DataflowRunner requires gcpTempLocation, "
+    thrown.expectMessage("DataflowRunner requires gcpTempLocation, "
             + "but failed to retrieve a value from PipelineOptions");
     DataflowRunner.fromOptions(options);
   }
@@ -1123,8 +1122,7 @@ public class DataflowRunnerTest {
 
     // default image set
     options.setWorkerHarnessContainerImage("some-container");
-    assertThat(
-        getContainerImageForJob(options), equalTo("some-container"));
+    assertThat(getContainerImageForJob(options), equalTo("some-container"));
 
     // batch, legacy
     options.setWorkerHarnessContainerImage("gcr.io/IMAGE/foo");
@@ -1138,7 +1136,8 @@ public class DataflowRunnerTest {
         getContainerImageForJob(options), equalTo("gcr.io/beam-java-streaming/foo"));
     // streaming, fnapi
     options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
+    assertThat(
+        getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
   }
 
   @Test
