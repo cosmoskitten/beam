@@ -39,7 +39,6 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -307,7 +306,7 @@ public class KafkaIO {
     abstract long getMaxNumRecords();
     @Nullable abstract Duration getMaxReadTime();
 
-    @Nullable abstract Date getStartReadTime();
+    @Nullable abstract Instant getStartReadTime();
 
     abstract Builder<K, V> toBuilder();
 
@@ -327,7 +326,7 @@ public class KafkaIO {
       abstract Builder<K, V> setWatermarkFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
       abstract Builder<K, V> setMaxNumRecords(long maxNumRecords);
       abstract Builder<K, V> setMaxReadTime(Duration maxReadTime);
-      abstract Builder<K, V> setStartReadTime(Date startReadTime);
+      abstract Builder<K, V> setStartReadTime(Instant startReadTime);
 
       abstract Read<K, V> build();
     }
@@ -453,10 +452,18 @@ public class KafkaIO {
 
     /**
      * Use timestamp to set up start offset.
-     * It is only supported by the client version after 0.10.1
-     * and the message format version after 0.10.0.
+     * It is only supported by Kafka Client 0.10.1.0 onwards and the message format version
+     * after 0.10.0.
+     *
+     * <p>If you set this, this would ignore {@code ConsumerConfig.AUTO_OFFSET_RESET_CONFIG}
+     * in configuration and any committed offsets.
+     *
+     * <p>There is a failure in the following two cases:
+     * 1.If no message has a timestamp that is greater than or equals to the target time.
+     * 2.If the message format version in a partition is before 0.10.0, i.e. the messages
+     * do not have timestamps.
      */
-    public Read<K, V> withStartReadTime(Date startReadTime) {
+    public Read<K, V> withStartReadTime(Instant startReadTime) {
       return toBuilder().setStartReadTime(startReadTime).build();
     }
 
@@ -1057,8 +1064,13 @@ public class KafkaIO {
           // ('latest' is the default, and is configurable) or look up the offset by startTime.
           // Remember the current position without waiting until the first record read. This
           // ensures checkpoint is accurate even if the reader is closed before reading any records.
-          p.nextOffset =
-              consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
+          Instant startReadTime = spec.getStartReadTime();
+          if (startReadTime == null) {
+            p.nextOffset = consumer.position(p.topicPartition);
+          } else {
+            p.nextOffset =
+                consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
+          }
         }
 
         LOG.info("{}: reading from {} starting at offset {}", name, p.topicPartition, p.nextOffset);

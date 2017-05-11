@@ -21,14 +21,13 @@ import com.google.common.collect.Iterables;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.utils.AppInfoParser;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.expression.Expression;
@@ -57,9 +56,8 @@ class ConsumerSpEL {
   private Method timestampMethod;
   private boolean hasRecordTimestamp = false;
 
+  private Method offsetGetterMethod;
   private Method offsetsForTimesMethod;
-  private Method endOffsetsMethod;
-  private Method offsetMethod;
   private boolean hasOffsetsForTimes = false;
 
   public ConsumerSpEL() {
@@ -71,11 +69,10 @@ class ConsumerSpEL {
     }
 
     try {
-      offsetsForTimesMethod = KafkaConsumer.class.getMethod("offsetsForTimes", Map.class);
-      hasOffsetsForTimes = offsetsForTimesMethod.getReturnType().equals(Map.class);
-      endOffsetsMethod = KafkaConsumer.class.getMethod("endOffsets", Collection.class);
-      offsetMethod = Class.forName("org.apache.kafka.clients.consumer.OffsetAndTimestamp")
+      offsetGetterMethod = Class.forName("org.apache.kafka.clients.consumer.OffsetAndTimestamp")
           .getMethod("offset", (Class<?>[]) null);
+      offsetsForTimesMethod = Consumer.class.getMethod("offsetsForTimes", Map.class);
+      hasOffsetsForTimes = offsetsForTimesMethod.getReturnType().equals(Map.class);
     } catch (NoSuchMethodException | SecurityException | ClassNotFoundException e) {
       LOG.debug("OffsetsForTimes is not available.");
     }
@@ -111,32 +108,36 @@ class ConsumerSpEL {
   }
 
   @SuppressWarnings("unchecked")
-  public long offsetForTime(Consumer<?, ?> consumer, TopicPartition topicPartition, Date time) {
-    if (hasOffsetsForTimes && time != null) {
-      Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
-      timestampsToSearch.put(topicPartition, time.getTime());
-      try {
-        Map offsetsByTimes = (Map) offsetsForTimesMethod.invoke(consumer, timestampsToSearch);
-        Object offsetAndTimestamp = Iterables.getOnlyElement(offsetsByTimes.values());
+  public long offsetForTime(Consumer<?, ?> consumer, TopicPartition topicPartition, Instant time) {
 
-        // 1. If no message has a timestamp that is greater than or equals to the target time,
-        //    a null will be returned.
-        // 2. If the message format version in a partition is before 0.10.0, i.e.
-        //    the messages do not have timestamps, null will be returned for that partition.
-        if (offsetAndTimestamp == null) {
-          Map<TopicPartition, Long> endOffsets =
-              (Map<TopicPartition, Long>) endOffsetsMethod.invoke(
-                  consumer, Collections.singleton(topicPartition));
-          return Iterables.getOnlyElement(endOffsets.values());
-        } else {
-          return (long) offsetMethod.invoke(offsetAndTimestamp);
-        }
-      } catch (IllegalAccessException | InvocationTargetException e) {
-        throw new RuntimeException(e);
-      }
-    } else {
-      return consumer.position(topicPartition);
+    if (!hasOffsetsForTimes) {
+      String version = AppInfoParser.getVersion();
+      throw new RuntimeException("Consumer.offsetsForTimes is only supported by " +
+          "Kafka Client 0.10.1.0 onwards, now the version of Kafka Client is " + version +
+          ". You can change \"kafka.clients.version\" of maven properties to 0.10.1.0");
     }
+
+    Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
+    timestampsToSearch.put(topicPartition, time.getMillis());
+    try {
+      Map offsetsByTimes = (Map) offsetsForTimesMethod.invoke(consumer, timestampsToSearch);
+      Object offsetAndTimestamp = Iterables.getOnlyElement(offsetsByTimes.values());
+
+      // 1. If no message has a timestamp that is greater than or equals to the target time,
+      //    a null will be returned.
+      // 2. If the message format version in a partition is before 0.10.0, i.e.
+      //    the messages do not have timestamps, null will be returned for that partition.
+      if (offsetAndTimestamp == null) {
+        throw new RuntimeException("There is no messages later than the target time or " +
+            "the message format version in this partition is before 0.10.0, topicPartition is: " +
+            topicPartition);
+      } else {
+        return (long) offsetGetterMethod.invoke(offsetAndTimestamp);
+      }
+    } catch (IllegalAccessException | InvocationTargetException e) {
+      throw new RuntimeException(e);
+    }
+
   }
 
 }
