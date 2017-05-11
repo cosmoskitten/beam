@@ -19,6 +19,8 @@
 import platform
 import subprocess
 
+__all__ = []
+
 # On Windows, we need to use shell=True when creating subprocesses for binary
 # paths to be resolved correctly.
 force_shell = platform.system() == 'Windows'

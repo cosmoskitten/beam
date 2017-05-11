@@ -19,7 +19,7 @@
 """
 
 # This module is carefully crafted to have optimal performance when
-# compiled whiel still being valid Python.  Care needs to be taken when
+# compiled while still being valid Python.  Care needs to be taken when
 # editing this file as WindowedValues are created for every element for
 # every step in a Beam pipeline.
 
@@ -28,6 +28,8 @@
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+
+__all__ = []
 
 
 class WindowedValue(object):

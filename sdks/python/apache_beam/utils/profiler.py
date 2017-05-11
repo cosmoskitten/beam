@@ -27,6 +27,8 @@ import time
 import warnings
 from threading import Timer
 
+__all__ = []
+
 
 class Profile(object):
   """cProfile wrapper context for saving and logging profiler results."""

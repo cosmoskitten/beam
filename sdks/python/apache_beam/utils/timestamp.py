@@ -21,6 +21,8 @@ from __future__ import absolute_import
 
 import datetime
 
+__all__ = []
+
 
 class Timestamp(object):
   """Represents a Unix second timestamp with microsecond granularity.

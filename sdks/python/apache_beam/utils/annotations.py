@@ -62,6 +62,8 @@ import warnings
 from functools import partial
 from functools import wraps
 
+__all__ = []
+
 # Produce only the first occurrence of matching warnings regardless of
 # location per line of execution. Since the number of lines of execution
 # depends on the concrete runner, the number of warnings produced will

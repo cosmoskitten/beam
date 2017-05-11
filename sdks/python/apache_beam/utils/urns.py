@@ -23,6 +23,8 @@ from google.protobuf import wrappers_pb2
 from apache_beam.internal import pickler
 from apache_beam.utils import proto_utils
 
+__all__ = []
+
 
 PICKLED_WINDOW_FN = "beam:window_fn:pickled_python:v0.1"
 GLOBAL_WINDOWS_FN = "beam:window_fn:global_windows:v0.1"
