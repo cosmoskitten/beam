@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -27,7 +26,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.joda.time.Duration;
 
 /**
  * <b>For internal use only; no backwards compatibility guarantees.</b>
@@ -69,7 +67,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
             .triggering(new ReshuffleTrigger<>())
             .discardingFiredPanes()
             .withTimestampCombiner(TimestampCombiner.EARLIEST)
-            .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+            .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness());
 
     return input.apply(rewindow)
         .apply("ReifyOriginalTimestamps", ReifyTimestamps.<K, V>inValues())
