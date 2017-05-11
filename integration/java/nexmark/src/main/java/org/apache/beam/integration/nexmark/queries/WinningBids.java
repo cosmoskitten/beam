@@ -141,13 +141,15 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     @Override public boolean equals(Object o) {
-      if (this == o)
+      if (this == o) {
         return true;
-      if (o == null || getClass() != o.getClass())
+      }
+      if (o == null || getClass() != o.getClass()) {
         return false;
-      if (!super.equals(o))
+      }
+      if (!super.equals(o)) {
         return false;
-
+      }
       AuctionOrBidWindow that = (AuctionOrBidWindow) o;
       return (isAuctionWindow == that.isAuctionWindow) && (auction == that.auction);
     }
@@ -397,10 +399,12 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
   }
 
   @Override public boolean equals(Object o) {
-    if (this == o)
+    if (this == o) {
       return true;
-    if (o == null || getClass() != o.getClass())
+    }
+    if (o == null || getClass() != o.getClass()) {
       return false;
+    }
 
     WinningBids that = (WinningBids) o;
     return auctionOrBidWindowFn.equals(that.auctionOrBidWindowFn);

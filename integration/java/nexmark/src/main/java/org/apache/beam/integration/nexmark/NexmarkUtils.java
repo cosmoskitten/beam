@@ -18,14 +18,12 @@
 package org.apache.beam.integration.nexmark;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
-import java.util.List;
 import org.apache.beam.integration.nexmark.model.Auction;
 import org.apache.beam.integration.nexmark.model.AuctionBid;
 import org.apache.beam.integration.nexmark.model.AuctionCount;
@@ -289,8 +287,8 @@ public class NexmarkUtils {
   private static final boolean LOG_ERROR = true;
 
   /**
-   * Set to true to log directly to stdout. If run using Google Dataflow, you can watch the results in real-time with:
-   * tail -f /var/log/dataflow/streaming-harness/harness-stdout.log
+   * Set to true to log directly to stdout. If run using Google Dataflow, you can watch the results
+   * in real-time with: tail -f /var/log/dataflow/streaming-harness/harness-stdout.log
    */
   private static final boolean LOG_TO_CONSOLE = false;
 

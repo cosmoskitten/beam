@@ -28,7 +28,6 @@ import java.util.Set;
 
 import org.apache.beam.integration.nexmark.NexmarkConfiguration;
 import org.apache.beam.integration.nexmark.model.Event;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
