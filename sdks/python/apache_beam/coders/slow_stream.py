@@ -15,9 +15,16 @@
 # limitations under the License.
 #
 
-"""A pure Python implementation of stream.pyx."""
+"""A pure Python implementation of stream.pyx.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import struct
+
+
+__all__ = ['InputStream', 'OutputStream', 'ByteCountingOutputStream',
+           'get_varint_size']
 
 
 class OutputStream(object):

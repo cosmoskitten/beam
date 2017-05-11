@@ -15,8 +15,17 @@
 # limitations under the License.
 #
 
+"""Compiled version of the Stream objects used by CoderImpl.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
+
 cimport libc.stdlib
 cimport libc.string
+
+
+__all__ = ['InputStream', 'OutputStream', 'ByteCountingOutputStream',
+           'get_varint_size']
 
 
 cdef class OutputStream(object):
