@@ -155,17 +155,15 @@ public class DataflowRunnerTest {
           public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
             return FileChannel.open(
                 Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.DELETE_ON_CLOSE);
+                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
           }
         });
-    when(mockGcsUtil.expand(any(GcsPath.class)))
-        .then(new Answer<List<GcsPath>>() {
-              @Override
-              public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
-                return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
-              }
-            });
+    when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
+      @Override
+      public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
+        return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
+      }
+    });
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET))).thenReturn(true);
@@ -233,17 +231,15 @@ public class DataflowRunnerTest {
           public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
             return FileChannel.open(
                 Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.DELETE_ON_CLOSE);
+                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
           }
         });
-    when(mockGcsUtil.expand(any(GcsPath.class)))
-        .then(new Answer<List<GcsPath>>() {
-          @Override
-          public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
-            return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
-          }
-        });
+    when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
+      @Override
+      public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
+        return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
+      }
+    });
     return mockGcsUtil;
   }
 
@@ -400,7 +396,7 @@ public class DataflowRunnerTest {
     } catch (DataflowJobAlreadyExistsException expected) {
       assertThat(expected.getMessage(),
           containsString("If you want to submit a second job, try again by setting a "
-                  + "different name using --jobName."));
+              + "different name using --jobName."));
       assertEquals(expected.getJob().getJobId(), resultJob.getId());
     }
   }
@@ -463,7 +459,7 @@ public class DataflowRunnerTest {
       }
     });
     thrown.expectMessage("The job named oldjobname with id: oldJobId has already been updated "
-            + "into job id: newid and cannot be updated again.");
+        + "into job id: newid and cannot be updated again.");
     p.run();
   }
 
@@ -619,7 +615,8 @@ public class DataflowRunnerTest {
     options.setTempLocation("file://temp/location");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("DataflowRunner requires gcpTempLocation, "
+    thrown.expectMessage(
+        "DataflowRunner requires gcpTempLocation, "
             + "but failed to retrieve a value from PipelineOptions");
     DataflowRunner.fromOptions(options);
   }
@@ -808,7 +805,7 @@ public class DataflowRunnerTest {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("DataflowRunner requires gcpTempLocation, "
-            + "but failed to retrieve a value from PipelineOption");
+        + "but failed to retrieve a value from PipelineOption");
     DataflowRunner.fromOptions(options);
   }
 
