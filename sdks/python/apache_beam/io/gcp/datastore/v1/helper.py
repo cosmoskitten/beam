@@ -36,6 +36,7 @@ except ImportError:
 from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
 
+__all__ = []
 
 def key_comparator(k1, k2):
   """A comparator for Datastore keys.
