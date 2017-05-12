@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""File-based sources and sinks."""
+"""File-based sources and sinks.
+
+This module is deprecated, no backwards-compatibility guarantees.
+"""
 
 from __future__ import absolute_import
 
