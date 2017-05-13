@@ -220,15 +220,18 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
    */
   @SuppressWarnings("rawtypes")
   private List<PTransformOverride> defaultTransformOverrides() {
-    return ImmutableList.<PTransformOverride>builder()
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.writeWithRunnerDeterminedSharding(),
-                new WriteWithShardingFactory())) /* Uses a view internally. */
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.classEqualTo(CreatePCollectionView.class),
-                new ViewOverrideFactory())) /* Uses pardos and GBKs */
+    ImmutableList.Builder<PTransformOverride> builder =
+     ImmutableList.<PTransformOverride>builder();
+    if (!options.isUnitTest()) {
+      builder.add(
+          PTransformOverride.of(
+              PTransformMatchers.writeWithRunnerDeterminedSharding(),
+              new WriteWithShardingFactory())); /* Uses a view internally. */
+    }
+    builder = builder.add(
+        PTransformOverride.of(
+            PTransformMatchers.classEqualTo(CreatePCollectionView.class),
+            new ViewOverrideFactory())) /* Uses pardos and GBKs */
         .add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(TestStream.class),
@@ -249,8 +252,8 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
         .add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(GroupByKey.class),
-                new DirectGroupByKeyOverrideFactory())) /* returns two chained primitives. */
-        .build();
+                new DirectGroupByKeyOverrideFactory())); /* returns two chained primitives. */
+    return builder.build();
   }
 
   /**
