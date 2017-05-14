@@ -32,7 +32,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
   public void testSimpleGroupExplain() throws Exception {
     String sql = "SELECT COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 ";
-    String plan = runner.explainQuery(sql);
+    String plan = runner.executionPlan(sql);
   }
 
   /**
@@ -42,7 +42,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
   public void testSimpleGroup2Explain() throws Exception {
     String sql = "SELECT site_id" + ", COUNT(*) " + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY site_id";
-    String plan = runner.explainQuery(sql);
+    String plan = runner.executionPlan(sql);
   }
 
   /**
@@ -53,7 +53,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", TUMBLE(order_time, INTERVAL '1' HOUR)";
-    String plan = runner.explainQuery(sql);
+    String plan = runner.executionPlan(sql);
   }
 
   /**
@@ -65,7 +65,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
         + "TUMBLE_START(order_time, INTERVAL '1' HOUR, TIME '00:00:01')"
         + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 "
         + "GROUP BY order_id, site_id" + ", TUMBLE(order_time, INTERVAL '1' HOUR, TIME '00:00:01')";
-    String plan = runner.explainQuery(sql);
+    String plan = runner.executionPlan(sql);
   }
 
   /**
@@ -76,7 +76,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", HOP(order_time, INTERVAL '5' MINUTE, INTERVAL '1' HOUR)";
-    String plan = runner.explainQuery(sql);
+    String plan = runner.executionPlan(sql);
   }
 
   /**
@@ -87,7 +87,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", SESSION(order_time, INTERVAL '5' MINUTE)";
-    String plan = runner.explainQuery(sql);
+    String plan = runner.executionPlan(sql);
   }
 
 }
