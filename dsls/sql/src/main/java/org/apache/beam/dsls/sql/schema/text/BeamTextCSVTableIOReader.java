@@ -25,11 +25,9 @@ import java.io.StringReader;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
@@ -42,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * IOReader for {@code BeamTextCSVTable}.
  */
 public class BeamTextCSVTableIOReader
-    extends PTransform<PBegin, PCollection<BeamSQLRow>>
+    extends PTransform<PCollection<String>, PCollection<BeamSQLRow>>
     implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(BeamTextCSVTableIOReader.class);
   private String filePattern;
@@ -57,9 +55,8 @@ public class BeamTextCSVTableIOReader
   }
 
   @Override
-  public PCollection<BeamSQLRow> expand(PBegin input) {
-    return input.apply("decodeRecord", TextIO.Read.from(filePattern))
-        .apply(ParDo.of(new DoFn<String, BeamSQLRow>() {
+  public PCollection<BeamSQLRow> expand(PCollection<String> input) {
+    return input.apply(ParDo.of(new DoFn<String, BeamSQLRow>() {
           @ProcessElement
           public void processElement(ProcessContext ctx) {
             String str = ctx.element();

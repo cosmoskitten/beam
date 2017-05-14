@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -56,8 +57,8 @@ public class MockedBeamSQLTable extends BaseBeamTable {
   }
 
   @Override
-  public PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader() {
-    return Create.of(inputRecords);
+  public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
+    return PBegin.in(pipeline).apply(Create.of(inputRecords));
   }
 
   @Override
