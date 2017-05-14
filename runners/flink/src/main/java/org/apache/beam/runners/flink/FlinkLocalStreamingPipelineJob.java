@@ -197,7 +197,11 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
           } else {
             StandaloneClusterClient clusterClient;
             try {
-              clusterClient = new StandaloneClusterClient(getConfiguration());
+              Configuration localConfig = new Configuration();
+              localConfig.addAll(getConfiguration());
+              localConfig.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, "120 s");
+              localConfig.setString(ConfigConstants.AKKA_CLIENT_TIMEOUT, "120 s");
+              clusterClient = new StandaloneClusterClient(localConfig);
             } catch (Exception e) {
               throw new RuntimeException("Error retrieving cluster client.", e);
             }
