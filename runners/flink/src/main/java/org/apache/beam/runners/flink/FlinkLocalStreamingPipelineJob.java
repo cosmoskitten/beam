@@ -131,7 +131,7 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
             if (e instanceof JobCancellationException) {
               finalState = PipelineResult.State.CANCELLED;
             } else {
-              finalState = PipelineResult.State.CANCELLED;
+              finalState = PipelineResult.State.FAILED;
             }
             flinkMiniCluster.stop();
           }
