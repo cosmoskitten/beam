@@ -24,22 +24,34 @@ class common_job_properties {
 
   // Sets common top-level job properties for website repository jobs.
   static void setTopLevelWebsiteJobProperties(context) {
-    setTopLevelJobProperties(context, 'beam-site', 'asf-site', 30)
+    setTopLevelJobProperties(
+            context,
+            'beam-site',
+            'asf-site',
+            'beam',
+            30)
   }
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(context,
-                                           String defaultBranch = 'master',
-                                           int defaultTimeout = 100) {
-    setTopLevelJobProperties(context, 'beam', defaultBranch, defaultTimeout)
+                                           String branch = 'master',
+                                           int timeout = 100,
+                                           String label = 'beam') {
+    setTopLevelJobProperties(
+            context,
+            'beam',
+            branch,
+            label,
+            timeout)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
   // methods to protect jobs from internal details of param defaults.
   private static void setTopLevelJobProperties(context,
                                                String repositoryName,
-                                               String defaultBranch,
-                                               int defaultTimeout) {
+                                               String branch,
+                                               String label,
+                                               int timeout) {
 
     // GitHub project.
     context.properties {
@@ -49,9 +61,8 @@ class common_job_properties {
     // Set JDK version.
     context.jdk('JDK 1.8 (latest)')
 
-    // Restrict this project to run only on Jenkins executors dedicated to the
-    // Apache Beam project.
-    context.label('beam')
+    // Restrict this project to run only on Jenkins executors as specified
+    context.label(label)
 
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
@@ -78,14 +89,14 @@ class common_job_properties {
       // ${sha1} parameter needs to be provided, and defaults to the main branch.
       stringParam(
           'sha1',
-          defaultBranch,
+          branch,
           'Commit id or refname (eg: origin/pr/9/head) you want to build.')
     }
 
     context.wrappers {
       // Abort the build if it's stuck for more minutes than specified.
       timeout {
-        absolute(defaultTimeout)
+        absolute(timeout)
         abortBuild()
       }
 
@@ -163,8 +174,8 @@ class common_job_properties {
   }
 
   // Sets common config for Maven jobs.
-  static void setMavenConfig(context) {
-    context.mavenInstallation('Maven 3.3.3')
+  static void setMavenConfig(context, mavenInstallation='Maven 3.3.3') {
+    context.mavenInstallation(mavenInstallation)
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
     // The -XX:+TieredCompilation -XX:TieredStopAtLevel=1 JVM options enable
