@@ -26,7 +26,7 @@ mavenJob('beam_PostCommit_Java_MavenInstall_Windows') {
   concurrentBuild()
 
   // Set common parameters. Note the usage of the Windows label to filter Jenkins executors.
-  common_job_properties.setTopLevelMainJobProperties(delegate, 100, 'Windows')
+  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 100, 'Windows')
 
   // Set Maven parameters. Note the usage of the Windows Maven installation
   common_job_properties.setMavenConfig(delegate, 'Maven 3.3.3 (Windows)')
