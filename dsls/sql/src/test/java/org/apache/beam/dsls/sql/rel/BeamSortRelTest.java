@@ -63,7 +63,6 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc limit 4";
 
-    System.out.println(sql);
     runner.submitQuery(sql);
 
     assertEquals(
