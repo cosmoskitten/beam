@@ -315,6 +315,19 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- 
+    bytebuddy has provided scope dep on SuppressFBWarnings 
+    annotations (to avoid a real dep) and these are
+    retained on certain .class files, necessitating
+    this provided dependency to instantiate those classes
+    -->
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>annotations</artifactId>
+      <version>${findbugs.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
