@@ -1077,6 +1077,7 @@ public class KafkaIO {
           if (startReadTime != null) {
             p.nextOffset =
                 consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
+            consumer.seek(p.topicPartition, p.nextOffset);
           } else {
             p.nextOffset = consumer.position(p.topicPartition);
           }
