@@ -30,7 +30,22 @@ mavenJob('beam_PostCommit_Java_MavenInstall_Windows') {
 
   // Overwrite the 'beam' label so that this executes on a Jenkins instance on Windows
   delegate.label('Windows')
+  delegate.wrappers {
+    // Abort the build if it's stuck for more minutes than specified.
+    timeout {
+      absolute(defaultTimeout)
+      abortBuild()
+    }
 
+    // Set SPARK_LOCAL_IP for spark tests.
+    environmentVariables {
+      env('M')
+      env('SPARK_LOCAL_IP', '127.0.0.1')
+    }
+    credentialsBinding {
+      string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+    }
+  }
   // Set Maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
@@ -42,7 +57,7 @@ mavenJob('beam_PostCommit_Java_MavenInstall_Windows') {
           delegate,
           'Java SDK Windows PostCommit Tests',
           'Run Java Windows PostCommit')
-
+  delegate.mavenInstallation('Default')
   // Maven goals for this job.
   goals('-B -e -Prelease,direct-runner -DrepoToken=$COVERALLS_REPO_TOKEN -DpullRequest=$ghprbPullId help:effective-settings clean install coveralls:report')
 }
