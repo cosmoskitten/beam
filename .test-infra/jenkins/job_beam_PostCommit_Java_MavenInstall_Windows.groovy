@@ -25,14 +25,11 @@ mavenJob('beam_PostCommit_Java_MavenInstall_Windows') {
   // Execute concurrent builds if necessary.
   concurrentBuild()
 
-  // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  // Set common parameters. Note the usage of the Windows label to filter Jenkins executors.
+  common_job_properties.setTopLevelMainJobProperties(delegate, 100, 'Windows')
 
-  // Overwrite the 'beam' label so that this executes on a Jenkins instance on Windows
-  delegate.label('Windows')
-
-  // Set Maven parameters.
-  common_job_properties.setMavenConfig(delegate)
+  // Set Maven parameters. Note the usage of the Windows Maven installation
+  common_job_properties.setMavenConfig(delegate, 'Maven 3.3.3 (Windows)')
 
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
@@ -42,7 +39,7 @@ mavenJob('beam_PostCommit_Java_MavenInstall_Windows') {
           delegate,
           'Java SDK Windows PostCommit Tests',
           'Run Java Windows PostCommit')
-  delegate.mavenInstallation('Maven 3.3.3 (Windows)')
+
   // Maven goals for this job.
   goals('-B -e -Prelease,direct-runner -DrepoToken=$COVERALLS_REPO_TOKEN -DpullRequest=$ghprbPullId help:effective-settings clean install coveralls:report')
 }

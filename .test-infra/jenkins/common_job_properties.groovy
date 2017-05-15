@@ -24,18 +24,12 @@ class common_job_properties {
 
   // Sets common top-level job properties for website repository jobs.
   static void setTopLevelWebsiteJobProperties(context) {
-//    setTopLevelJobProperties(
-//            context,
-//            'beam-site',
-//            'asf-site',
-//            'beam',
-//            30)
     setTopLevelJobProperties(
-            context: context,
-            repositoryName: 'beam-site',
-            branch: 'asf-site',
-            label: 'beam',
-            timeout: 30)
+            context,
+            'beam-site',
+            'asf-site',
+            'beam',
+            30)
   }
 
   // Sets common top-level job properties for main repository jobs.
@@ -44,11 +38,11 @@ class common_job_properties {
                                            int timeout = 100,
                                            String label = 'beam') {
     setTopLevelJobProperties(
-            context: context,
-            repositoryName: 'beam',
-            branch: branch,
-            label: label,
-            timeout: timeout)
+            context,
+            'beam',
+            branch,
+            label,
+            timeout)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
