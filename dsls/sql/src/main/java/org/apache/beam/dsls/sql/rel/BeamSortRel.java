@@ -50,25 +50,28 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
  *
- * <p>
- * Since Beam does not fully supported global sort we are using {@link Top} to implement
- * the {@code Sort} algebra.
+ * <p>Since Beam does not fully supported global sort we are using {@link Top} to implement
+ * the {@code Sort} algebra. The following types of ORDER BY are supported:
  *
- * The following types of ORDER BY are supported:
- *
- *   <pre>{@code
+ * <pre>{@code
  *     select * from t order by id desc limit 10;
  *     select * from t order by id desc limit 10, 5;
- *   }</pre>
+ * }</pre>
  *
- *   but Order BY without a limit is NOT supported:
+ * <p>but Order BY without a limit is NOT supported:
  *
- *   <pre>{@code
- *     select * from t order by id desc
- *   }</pre>
+ * <pre>{@code
+ *   select * from t order by id desc
+ * }</pre>
  *
- * NOTE: Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT` must fit into
- * the memory of a single machine.
+ * <h3>Constraints</h3>
+ * <ul>
+ *   <li>Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT`
+ *   must fit into the memory of a single machine.</li>
+ *   <li>Since `WINDOW`(HOP, TUMBLE, SESSION etc) is always associated with `GroupBy`,
+ *   it does not make much sense to use `ORDER BY` with `WINDOW`.
+ *   </li>
+ * </ul>
  */
 public class BeamSortRel extends Sort implements BeamRelNode {
   private List<Integer> fieldIndices = new ArrayList<>();
