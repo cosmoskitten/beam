@@ -101,6 +101,7 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.utils.AppInfoParser;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -455,13 +456,14 @@ public class KafkaIO {
      * It is only supported by Kafka Client 0.10.1.0 onwards and the message format version
      * after 0.10.0.
      *
-     * <p>If you set this, this would ignore {@code ConsumerConfig.AUTO_OFFSET_RESET_CONFIG}
-     * in configuration and any committed offsets.
+     * <p>Note that this take priority over start offset configuration
+     * {@code ConsumerConfig.AUTO_OFFSET_RESET_CONFIG} and any auto committed offsets.
      *
-     * <p>There is a failure in the following two cases:
-     * 1.If no message has a timestamp that is greater than or equals to the target time.
-     * 2.If the message format version in a partition is before 0.10.0, i.e. the messages
-     * do not have timestamps.
+     * <p>This results in hard failures in either of the following two cases :
+     * 1. If one of more partitions do not contain any messages with timestamp larger than or
+     * equal to desired timestamp.
+     * 2. If the message format version in a partition is before 0.10.0, i.e. the messages do
+     * not have timestamps.
      */
     public Read<K, V> withStartReadTime(Instant startReadTime) {
       return toBuilder().setStartReadTime(startReadTime).build();
@@ -528,6 +530,13 @@ public class KafkaIO {
           "Kafka topics or topic_partitions are required");
       checkNotNull(getKeyDeserializer(), "Key deserializer must be set");
       checkNotNull(getValueDeserializer(), "Value deserializer must be set");
+      if (getStartReadTime() != null) {
+        checkArgument(new ConsumerSpEL().hasOffsetsForTimes(),
+            "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
+                + "current version of Kafka Client is " + AppInfoParser.getVersion()
+                + ". If you are building with maven, set \"kafka.clients.version\" "
+                + "maven property to 0.10.1.0 or newer.");
+      }
     }
 
     @Override
@@ -1061,15 +1070,15 @@ public class KafkaIO {
           consumer.seek(p.topicPartition, p.nextOffset);
         } else {
           // nextOffset is unininitialized here, meaning start reading from latest record as of now
-          // ('latest' is the default, and is configurable) or look up the offset by startTime.
-          // Remember the current position without waiting until the first record read. This
+          // ('latest' is the default, and is configurable) or 'look up offset by startReadTime.
+          // Remember the current position without waiting until the first record is read. This
           // ensures checkpoint is accurate even if the reader is closed before reading any records.
           Instant startReadTime = spec.getStartReadTime();
-          if (startReadTime == null) {
-            p.nextOffset = consumer.position(p.topicPartition);
-          } else {
+          if (startReadTime != null) {
             p.nextOffset =
                 consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
+          } else {
+            p.nextOffset = consumer.position(p.topicPartition);
           }
         }
 

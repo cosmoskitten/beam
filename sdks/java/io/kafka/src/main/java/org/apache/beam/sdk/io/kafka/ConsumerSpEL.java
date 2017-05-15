@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.Iterables;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -26,7 +28,6 @@ import java.util.Map;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.utils.AppInfoParser;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,15 +108,19 @@ class ConsumerSpEL {
     return timestamp;
   }
 
+  public boolean hasOffsetsForTimes() {
+    return hasOffsetsForTimes;
+  }
+
+  /**
+   * Look up the offset for the given partition by timestamp.
+   * Throw RuntimeException if there is no messages later than timestamp or this partition
+   * does not support timestamp based offset.
+   */
   @SuppressWarnings("unchecked")
   public long offsetForTime(Consumer<?, ?> consumer, TopicPartition topicPartition, Instant time) {
 
-    if (!hasOffsetsForTimes) {
-      String version = AppInfoParser.getVersion();
-      throw new RuntimeException("Consumer.offsetsForTimes is only supported by "
-          + "Kafka Client 0.10.1.0 onwards, now the version of Kafka Client is " + version
-          + ". You can change \"kafka.clients.version\" of maven properties to 0.10.1.0");
-    }
+    checkArgument(hasOffsetsForTimes);
 
     Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
     timestampsToSearch.put(topicPartition, time.getMillis());
@@ -123,14 +128,10 @@ class ConsumerSpEL {
       Map offsetsByTimes = (Map) offsetsForTimesMethod.invoke(consumer, timestampsToSearch);
       Object offsetAndTimestamp = Iterables.getOnlyElement(offsetsByTimes.values());
 
-      // 1. If no message has a timestamp that is greater than or equals to the target time,
-      //    a null will be returned.
-      // 2. If the message format version in a partition is before 0.10.0, i.e.
-      //    the messages do not have timestamps, null will be returned for that partition.
       if (offsetAndTimestamp == null) {
-        throw new RuntimeException("There is no messages later than the target time or "
-            + "the message format version in this partition is before 0.10.0, topicPartition is: "
-            + topicPartition);
+        throw new RuntimeException("There is no messages has a timestamp that is greater than or "
+            + "equals to the target time or the message format version in this partition is "
+            + "before 0.10.0, topicPartition is: " + topicPartition);
       } else {
         return (long) offsetGetterMethod.invoke(offsetAndTimestamp);
       }
