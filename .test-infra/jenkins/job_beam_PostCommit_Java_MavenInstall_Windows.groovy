@@ -42,7 +42,7 @@ mavenJob('beam_PostCommit_Java_MavenInstall_Windows') {
           delegate,
           'Java SDK Windows PostCommit Tests',
           'Run Java Windows PostCommit')
-  delegate.mavenInstallation('Maven 3.3.9')
+  delegate.mavenInstallation('Maven 3.3.3 (Windows)')
   // Maven goals for this job.
   goals('-B -e -Prelease,direct-runner -DrepoToken=$COVERALLS_REPO_TOKEN -DpullRequest=$ghprbPullId help:effective-settings clean install coveralls:report')
 }
