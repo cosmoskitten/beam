@@ -138,7 +138,7 @@ public class ParDosTest {
       SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
       PCollectionView<?> restoredView =
           ParDos.fromProto(
-              view.getTagInternal().getId(), sideInput, protoTransform, protoComponents);
+              sideInput, view.getTagInternal().getId(), protoTransform, protoComponents);
       assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
       assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
       assertThat(
