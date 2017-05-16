@@ -129,7 +129,7 @@ class ConsumerSpEL {
       Object offsetAndTimestamp = Iterables.getOnlyElement(offsetsByTimes.values());
 
       if (offsetAndTimestamp == null) {
-        throw new RuntimeException("There is no messages has a timestamp that is greater than or "
+        throw new RuntimeException("There are no messages has a timestamp that is greater than or "
             + "equals to the target time or the message format version in this partition is "
             + "before 0.10.0, topicPartition is: " + topicPartition);
       } else {
