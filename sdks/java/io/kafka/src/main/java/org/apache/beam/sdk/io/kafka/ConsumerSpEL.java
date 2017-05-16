@@ -114,7 +114,7 @@ class ConsumerSpEL {
 
   /**
    * Look up the offset for the given partition by timestamp.
-   * Throw RuntimeException if there is no messages later than timestamp or this partition
+   * Throws RuntimeException if there are no messages later than timestamp or if this partition
    * does not support timestamp based offset.
    */
   @SuppressWarnings("unchecked")
