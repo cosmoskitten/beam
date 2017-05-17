@@ -112,6 +112,7 @@ public class MockedBeamSQLTable extends BaseBeamTable {
       }
       rows.add(row);
     }
+
     return new MockedBeamSQLTable(protoRowType).withInputRecords(rows);
   }
 
