@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
+
 import org.apache.beam.dsls.sql.exception.BeamInvalidOperatorException;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
@@ -129,6 +130,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
     case TIME:
       return value instanceof GregorianCalendar;
     case TIMESTAMP:
+    case DATE:
       return value instanceof Date;
     case INTERVAL_HOUR:
       return value instanceof BigDecimal;
