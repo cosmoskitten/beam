@@ -30,7 +30,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -41,10 +41,11 @@ public class BeamPlannerAggregationSubmitTest {
   public static DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
   public static BeamSqlRunner runner = new BeamSqlRunner();
 
-  @BeforeClass
-  public static void prepare() throws ParseException {
+  @Before
+  public void prepare() throws ParseException {
     runner.addTable("ORDER_DETAILS", getOrderTable());
     runner.addTable("ORDER_SUMMARY", getSummaryTable());
+    MockedBeamSQLTable.CONTENT.clear();
   }
 
   private static BaseBeamTable getOrderTable() throws ParseException {

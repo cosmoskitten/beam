@@ -27,6 +27,7 @@ import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -217,9 +218,11 @@ public class BeamSortRelTest {
     runner.submitQuery(sql);
   }
 
-  public static void prepare() {
+  @Before
+  public void prepare() {
     runner.addTable("ORDER_DETAILS", orderDetailTable);
     runner.addTable("SUB_ORDER_RAM", subOrderRamTable);
+    MockedBeamSQLTable.CONTENT.clear();
   }
 
   private void assertEquals(List<BeamSQLRow> rows1, List<BeamSQLRow> rows2) {
