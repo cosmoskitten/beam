@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Optional;
 import com.google.protobuf.Any;
@@ -28,6 +29,7 @@ import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransforms.TransformPayloadTranslator;
@@ -46,19 +48,14 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi.TimerSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
@@ -98,20 +95,29 @@ public class ParDos {
    */
   public static class ParDoPayloadTranslator
       implements PTransforms.TransformPayloadTranslator<ParDo.MultiOutput<?, ?>> {
-    public static TransformPayloadTranslator create() {
-      return new ParDoPayloadTranslator();
-    }
-
     private ParDoPayloadTranslator() {}
 
     @Override
-    public FunctionSpec translate(
+    public FunctionSpec toProto(
         AppliedPTransform<?, ?, MultiOutput<?, ?>> transform, SdkComponents components) {
-      ParDoPayload payload = toProto(transform.getTransform(), components);
+      ParDoPayload payload = ParDos.toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(PAR_DO_PAYLOAD_URN)
           .setParameter(Any.pack(payload))
           .build();
+    }
+
+    /**
+     * The {@link TransformPayloadTranslatorRegistrar} for {@link ParDoPayloadTranslator}.
+     */
+    @AutoService(TransformPayloadTranslatorRegistrar.class)
+    public static class Registrar implements TransformPayloadTranslatorRegistrar {
+      @Override
+      public Map<Class<? extends PTransform>, TransformPayloadTranslator<?>>
+          getTransformPayloadTranslators() {
+        return Collections.<Class<? extends PTransform>, TransformPayloadTranslator<?>>singletonMap(
+            ParDo.MultiOutput.class, new ParDoPayloadTranslator());
+      }
     }
   }
 
@@ -200,27 +206,7 @@ public class ParDos {
 
   private static Optional<RunnerApi.Parameter> toProto(Parameter parameter) {
     return parameter.match(
-        new Cases<Optional<RunnerApi.Parameter>>() {
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(StartBundleContextParameter p) {
-            return Optional.absent();
-          }
-
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(FinishBundleContextParameter p) {
-            return Optional.absent();
-          }
-
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(ProcessContextParameter p) {
-            return Optional.absent();
-          }
-
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(OnTimerContextParameter p) {
-            return Optional.absent();
-          }
-
+        new Cases.WithDefault<Optional<RunnerApi.Parameter>>() {
           @Override
           public Optional<RunnerApi.Parameter> dispatch(WindowParameter p) {
             return Optional.of(RunnerApi.Parameter.newBuilder().setType(Type.WINDOW).build());
@@ -233,12 +219,7 @@ public class ParDos {
           }
 
           @Override
-          public Optional<RunnerApi.Parameter> dispatch(StateParameter p) {
-            return Optional.absent();
-          }
-
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(TimerParameter p) {
+          protected Optional<RunnerApi.Parameter> dispatchDefault(Parameter p) {
             return Optional.absent();
           }
         });
