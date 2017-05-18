@@ -171,12 +171,19 @@ public class GcsUtil {
   public static String wildcardToRegexp(String globExp) {
     StringBuilder dst = new StringBuilder();
     char[] src = globExp.replace("**/*", "**").toCharArray();
+
     int i = 0;
     while (i < src.length) {
       char c = src[i++];
       switch (c) {
         case '*':
-          dst.append(".*");
+          // One char lookahead for **
+          if (i < src.length && src[i] == '*') {
+            dst.append(".*");
+            ++i;
+          } else {
+            dst.append("[^/]*");
+          }
           break;
         case '?':
           dst.append("[^/]");
