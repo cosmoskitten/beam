@@ -171,15 +171,23 @@ public class GcsUtil {
   public static String wildcardToRegexp(String globExp) {
     StringBuilder dst = new StringBuilder();
     char[] src = globExp.replace("**/*", "**").toCharArray();
+
     int i = 0;
     while (i < src.length) {
-      char c = src[i++];
+      char c = src[i];
       switch (c) {
         case '*':
-          dst.append(".*");
+          if (i + 1 < src.length && src[i+1] == '*') {
+            dst.append(".*");
+            i = i + 2;
+          } else {
+            dst.append("[^/]*");
+            ++i;
+          }
           break;
         case '?':
           dst.append("[^/]");
+          ++i;
           break;
         case '.':
         case '+':
@@ -192,12 +200,14 @@ public class GcsUtil {
         case '$':
           // These need to be escaped in regular expressions
           dst.append('\\').append(c);
+          ++i;
           break;
         case '\\':
-          i = doubleSlashes(dst, src, i);
+          i = doubleSlashes(dst, src, i+1);
           break;
         default:
           dst.append(c);
+          ++i;
           break;
       }
     }
