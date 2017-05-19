@@ -24,7 +24,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -38,20 +37,13 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
-import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
-import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -83,8 +75,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   /** The context used for running the {@link DoFn}. */
   private final DoFnContext<InputT, OutputT> context;
 
-  private final OutputManager outputManager;
-
   private final TupleTag<OutputT> mainOutputTag;
 
   private final boolean observesWindow;
@@ -111,7 +101,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.signature = DoFnSignatures.getSignature(fn.getClass());
     this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
     this.invoker = DoFnInvokers.invokerFor(fn);
-    this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
     this.stepContext = stepContext;
 
@@ -131,14 +120,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             outputManager,
             mainOutputTag,
             additionalOutputTags,
-            stepContext,
-            windowingStrategy.getWindowFn());
+            stepContext);
   }
 
   @Override
   public void startBundle() {
-    DoFnStartBundleContext<InputT, OutputT> startBundleContext =
-        createStartBundleContext(fn, context);
+    DoFnStartBundleContext startBundleContext = createStartBundleContext(fn, context);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       invoker.invokeStartBundle(startBundleContext);
@@ -183,14 +170,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             String.format("Unknown time domain: %s", timeDomain));
     }
 
-    OnTimerArgumentProvider<InputT, OutputT> argumentProvider =
-        new OnTimerArgumentProvider<>(
+    OnTimerArgumentProvider argumentProvider =
+        new OnTimerArgumentProvider(
             fn, context, window, allowedLateness, effectiveTimestamp, timeDomain);
     invoker.invokeOnTimer(timerId, argumentProvider);
   }
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
-    final DoFnProcessContext<InputT, OutputT> processContext = createProcessContext(elem);
+    final DoFnProcessContext processContext = createProcessContext(elem);
 
     // This can contain user code. Wrap it in case it throws an exception.
     try {
@@ -202,7 +189,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void finishBundle() {
-    DoFnFinishBundleContext<InputT, OutputT> finishBundleContext =
+    DoFnFinishBundleContext finishBundleContext =
         createFinishBundleContext(fn, context);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
@@ -213,19 +200,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
   }
 
-  private DoFnStartBundleContext<InputT, OutputT> createStartBundleContext(
+  private DoFnStartBundleContext createStartBundleContext(
       DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
-    return new DoFnStartBundleContext<>(fn, context);
+    return new DoFnStartBundleContext(fn, context);
   }
 
-  private DoFnFinishBundleContext<InputT, OutputT> createFinishBundleContext(
+  private DoFnFinishBundleContext createFinishBundleContext(
       DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
-    return new DoFnFinishBundleContext<>(fn, context);
+    return new DoFnFinishBundleContext(fn, context);
   }
 
   /** Returns a new {@link DoFn.ProcessContext} for the given element. */
-  private DoFnProcessContext<InputT, OutputT> createProcessContext(WindowedValue<InputT> elem) {
-    return new DoFnProcessContext<InputT, OutputT>(fn, context, elem, allowedLateness);
+  private DoFnProcessContext createProcessContext(WindowedValue<InputT> elem) {
+    return new DoFnProcessContext(fn, context, elem, allowedLateness);
   }
 
   private RuntimeException wrapUserCodeException(Throwable t) {
@@ -243,20 +230,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
   private static class DoFnContext<InputT, OutputT> {
-    private static final int MAX_SIDE_OUTPUTS = 1000;
-
     final PipelineOptions options;
     final DoFn<InputT, OutputT> fn;
     final SideInputReader sideInputReader;
     final OutputManager outputManager;
     final TupleTag<OutputT> mainOutputTag;
     final StepContext stepContext;
-    final WindowFn<?, ?> windowFn;
 
-    /**
-     * The set of known output tags, some of which may be undeclared, so we can throw an exception
-     * when it exceeds {@link #MAX_SIDE_OUTPUTS}.
-     */
+    /** The set of known output tags. */
     private Set<TupleTag<?>> outputTags;
 
     public DoFnContext(
@@ -266,8 +247,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         OutputManager outputManager,
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
-        StepContext stepContext,
-        WindowFn<?, ?> windowFn) {
+        StepContext stepContext) {
       this.options = options;
       this.fn = fn;
       this.sideInputReader = sideInputReader;
@@ -276,64 +256,15 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.outputTags = Sets.newHashSet();
 
       outputTags.add(mainOutputTag);
-      for (TupleTag<?> additionalOutputTag : additionalOutputTags) {
-        outputTags.add(additionalOutputTag);
-      }
+      outputTags.addAll(additionalOutputTags);
 
       this.stepContext = stepContext;
-      this.windowFn = windowFn;
     }
 
     //////////////////////////////////////////////////////////////////////////////
 
     public PipelineOptions getPipelineOptions() {
       return options;
-    }
-
-    <T, W extends BoundedWindow> WindowedValue<T> makeWindowedValue(
-        T output, Instant timestamp, Collection<W> windows, PaneInfo pane) {
-      final Instant inputTimestamp = timestamp;
-
-      if (timestamp == null) {
-        timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
-      }
-
-      if (windows == null) {
-        try {
-          // The windowFn can never succeed at accessing the element, so its type does not
-          // matter here
-          @SuppressWarnings("unchecked")
-          WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
-          windows =
-              objectWindowFn.assignWindows(
-                  objectWindowFn.new AssignContext() {
-                    @Override
-                    public Object element() {
-                      throw new UnsupportedOperationException(
-                          "WindowFn attempted to access input element when none was available");
-                    }
-
-                    @Override
-                    public Instant timestamp() {
-                      if (inputTimestamp == null) {
-                        throw new UnsupportedOperationException(
-                            "WindowFn attempted to access input timestamp when none was available");
-                      }
-                      return inputTimestamp;
-                    }
-
-                    @Override
-                    public W window() {
-                      throw new UnsupportedOperationException(
-                          "WindowFn attempted to access input windows when none were available");
-                    }
-                  });
-        } catch (Exception e) {
-          throw UserCodeException.wrap(e);
-        }
-      }
-
-      return WindowedValue.of(output, timestamp, windows, pane);
     }
 
     public <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow) {
@@ -348,14 +279,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      outputWindowedValue(makeWindowedValue(output, timestamp, windows, pane));
+      outputWindowedValue(mainOutputTag, output, timestamp, windows, pane);
     }
 
     void outputWindowedValue(WindowedValue<OutputT> windowedElem) {
-      outputManager.output(mainOutputTag, windowedElem);
-      if (stepContext != null) {
-        stepContext.noteOutput(windowedElem);
-      }
+      outputWindowedValue(mainOutputTag, windowedElem);
     }
 
     private <T> void outputWindowedValue(
@@ -364,22 +292,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      outputWindowedValue(tag, makeWindowedValue(output, timestamp, windows, pane));
+      checkNotNull(windows);
+      checkNotNull(timestamp);
+      outputWindowedValue(tag, WindowedValue.of(output, timestamp, windows, pane));
     }
 
     private <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
-      if (!outputTags.contains(tag)) {
-        // This tag wasn't declared nor was it seen before during this execution.
-        // Thus, this must be a new, undeclared and unconsumed output.
-        // To prevent likely user errors, enforce the limit on the number of side
-        // outputs.
-        if (outputTags.size() >= MAX_SIDE_OUTPUTS) {
-          throw new IllegalArgumentException(
-              "the number of outputs has exceeded a limit of " + MAX_SIDE_OUTPUTS);
-        }
-        outputTags.add(tag);
-      }
-
+      checkArgument(outputTags.contains(tag), "Unknown output tag %s", tag);
       outputManager.output(tag, windowedElem);
       if (stepContext != null) {
         stepContext.noteOutput(tag, windowedElem);
@@ -391,15 +310,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   /**
    * A concrete implementation of {@link DoFn.StartBundleContext}.
    */
-  private class DoFnStartBundleContext<InputT, OutputT>
+  private class DoFnStartBundleContext
       extends DoFn<InputT, OutputT>.StartBundleContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
-    private final DoFn<InputT, OutputT> fn;
     private final DoFnContext<InputT, OutputT> context;
 
     private DoFnStartBundleContext(DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
       fn.super();
-      this.fn = fn;
       this.context = context;
     }
 
@@ -415,24 +332,25 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       return this;
     }
 
     @Override
-    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access FinishBundleContext outside of @FinishBundle method.");
     }
 
     @Override
-    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access ProcessContext outside of @ProcessElement method.");
     }
 
     @Override
-    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
     }
@@ -460,7 +378,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * B
    * A concrete implementation of {@link DoFn.FinishBundleContext}.
    */
-  private class DoFnFinishBundleContext<InputT, OutputT>
+  private class DoFnFinishBundleContext
       extends DoFn<InputT, OutputT>.FinishBundleContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
     private final DoFnContext<InputT, OutputT> context;
@@ -483,24 +401,25 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access StartBundleContext outside of @StartBundle method.");
     }
 
     @Override
-    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
       return this;
     }
 
     @Override
-    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access ProcessContext outside of @ProcessElement method.");
     }
 
     @Override
-    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
     }
@@ -525,7 +444,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void output(OutputT output, Instant timestamp, BoundedWindow window) {
-      context.outputWindowedValue(WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+      output(mainOutputTag, output, timestamp, window);
     }
 
     @Override
@@ -538,11 +457,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   /**
    * A concrete implementation of {@link DoFn.ProcessContext} used for running a {@link DoFn} over a
    * single element.
-   *
-   * @param <InputT> the type of the {@link DoFn} (main) input elements
-   * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
-  private class DoFnProcessContext<InputT, OutputT> extends DoFn<InputT, OutputT>.ProcessContext
+  private class DoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
 
     final DoFn<InputT, OutputT> fn;
@@ -556,7 +472,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     /**
      * The state namespace for this context.
      *
-     * <p>Any call to {@link #getNamespace()} when more than one window is present will crash; this
+     * <p>Any call to this method when more than one window is present will crash; this
      * represents a bug in the runner or the {@link DoFnSignature}, since values must be in exactly
      * one window when state or timers are relevant.
      */
@@ -592,24 +508,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
       checkNotNull(view, "View passed to sideInput cannot be null");
-      Iterator<? extends BoundedWindow> windowIter = windows().iterator();
-      BoundedWindow window;
-      if (!windowIter.hasNext()) {
-        if (context.windowFn instanceof GlobalWindows) {
-          // TODO: Remove this once GroupByKeyOnly no longer outputs elements
-          // without windows
-          window = GlobalWindow.INSTANCE;
-        } else {
-          throw new IllegalStateException(
-              "sideInput called when main input element is not in any windows");
-        }
-      } else {
-        window = windowIter.next();
-        if (windowIter.hasNext()) {
-          throw new IllegalStateException(
-              "sideInput called when main input element is in multiple windows");
-        }
-      }
+      BoundedWindow window = Iterables.getOnlyElement(windows());
       return context.sideInput(
           view, view.getWindowMappingFn().getSideInputWindow(window));
     }
@@ -683,12 +582,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("StartBundleContext parameters are not supported.");
     }
 
     @Override
-    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("FinishBundleContext parameters are not supported.");
     }
 
@@ -698,7 +598,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
     }
@@ -737,11 +637,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   /**
    * A concrete implementation of {@link DoFnInvoker.ArgumentProvider} used for running a {@link
    * DoFn} on a timer.
-   *
-   * @param <InputT> the type of the {@link DoFn} (main) input elements
-   * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
-  private class OnTimerArgumentProvider<InputT, OutputT>
+  private class OnTimerArgumentProvider
       extends DoFn<InputT, OutputT>.OnTimerContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
 
@@ -758,7 +655,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     /**
      * The state namespace for this context.
      *
-     * <p>Any call to {@link #getNamespace()} when more than one window is present will crash; this
+     * <p>Any call to this method when more than one window is present will crash; this
      * represents a bug in the runner or the {@link DoFnSignature}, since values must be in exactly
      * one window when state or timers are relevant.
      */
@@ -796,12 +693,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("StartBundleContext parameters are not supported.");
     }
 
     @Override
-    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("FinishBundleContext parameters are not supported.");
     }
 
@@ -812,12 +710,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
 
     @Override
-    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("ProcessContext parameters are not supported.");
     }
 
     @Override
-    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       return this;
     }
 
