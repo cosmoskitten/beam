@@ -305,7 +305,6 @@ def get_coder_from_spec(coder_spec):
   assert coder_spec is not None
 
   # Ignore the wrappers in these encodings.
-  # TODO(silviuc): Make sure with all the renamings that names below are ok.
   ignored_wrappers = (
       'com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder')
   if coder_spec['@type'] in ignored_wrappers:
@@ -330,11 +329,11 @@ def get_coder_from_spec(coder_spec):
     return coders.WindowedValueCoder(value_coder, window_coder=window_coder)
   elif coder_spec['@type'] == 'kind:interval_window':
     assert ('component_encodings' not in coder_spec
-            or len(coder_spec['component_encodings'] == 0))
+            or not coder_spec['component_encodings'])
     return coders.IntervalWindowCoder()
   elif coder_spec['@type'] == 'kind:global_window':
     assert ('component_encodings' not in coder_spec
-            or len(coder_spec['component_encodings'] == 0))
+            or not coder_spec['component_encodings'])
     return coders.coders.GlobalWindowCoder()
   elif coder_spec['@type'] == 'kind:length_prefix':
     assert len(coder_spec['component_encodings']) == 1
