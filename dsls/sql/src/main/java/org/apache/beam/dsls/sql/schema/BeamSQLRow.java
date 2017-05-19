@@ -25,8 +25,12 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.dsls.sql.exception.InvalidFieldException;
+import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 
@@ -35,6 +39,10 @@ import org.joda.time.Instant;
  *
  */
 public class BeamSQLRow implements Serializable {
+  /**
+   * Used in {@link org.apache.beam.dsls.sql.rel.BeamIntersectRel} to do join.
+   */
+  public static final BeamSQLRow EMPTY_ROW = new BeamSQLRow();
 
   private List<Integer> nullFields = new ArrayList<>();
   private List<Object> dataValues;
@@ -42,6 +50,18 @@ public class BeamSQLRow implements Serializable {
 
   private Instant windowStart = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
   private Instant windowEnd = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
+
+  /**
+   * Construct an empty row.
+   */
+  private BeamSQLRow() {
+    this(BeamSQLRecordType.from(new RelProtoDataType() {
+      @Override public RelDataType apply(RelDataTypeFactory a0) {
+        RelDataTypeFactory.FieldInfoBuilder builder = a0.builder();
+        return builder.build();
+      }
+    }.apply(BeamQueryPlanner.TYPE_FACTORY)));
+  }
 
   public BeamSQLRow(BeamSQLRecordType dataType) {
     this.dataType = dataType;
