@@ -28,6 +28,7 @@ import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransforms.TransformPayloadTranslator;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi.TimerSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ViewFn;
@@ -106,6 +108,15 @@ public class ParDos {
           .setUrn(PAR_DO_PAYLOAD_URN)
           .setParameter(Any.pack(payload))
           .build();
+    }
+
+    @AutoService(TransformPayloadTranslatorRegistrar.class)
+    public static class Registrar implements TransformPayloadTranslatorRegistrar {
+      @Override
+      public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+          getTransformPayloadTranslators() {
+        return Collections.singletonMap(ParDo.MultiOutput.class, new ParDoPayloadTranslator());
+      }
     }
   }
 
