@@ -23,6 +23,7 @@ import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
