@@ -19,9 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
@@ -171,12 +169,7 @@ public class WindowingStrategies implements Serializable {
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_WINDOWFN_URN)
                 .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(windowFn)))
-                            .build())))
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowFn))))
         .build();
   }
 
@@ -255,8 +248,7 @@ public class WindowingStrategies implements Serializable {
 
     Object deserializedWindowFn =
         SerializableUtils.deserializeFromByteArray(
-            windowFnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray(),
-            "WindowFn");
+            windowFnSpec.getSpec().getParameter().toByteArray(), "WindowFn");
 
     WindowFn<?, ?> windowFn = (WindowFn<?, ?>) deserializedWindowFn;
     TimestampCombiner timestampCombiner = timestampCombinerFromProto(proto.getOutputTime());

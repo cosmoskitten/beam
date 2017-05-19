@@ -131,9 +131,8 @@ public class ParDosTest {
             Collections.<AppliedPTransform<?, ?, ?>>emptyList());
 
     Components protoComponents = components.toComponents();
-    RunnerApi.PTransform protoTransform =
-        protoComponents.getTransformsOrThrow(transformId);
-    ParDoPayload parDoPayload = protoTransform.getSpec().getParameter().unpack(ParDoPayload.class);
+    RunnerApi.PTransform protoTransform = protoComponents.getTransformsOrThrow(transformId);
+    ParDoPayload parDoPayload = ParDoPayload.parseFrom(protoTransform.getSpec().getParameter());
     for (PCollectionView<?> view : parDo.getSideInputs()) {
       SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
       PCollectionView<?> restoredView =
@@ -162,7 +161,7 @@ public class ParDosTest {
       return other instanceof DropElementsFn;
     }
 
-    @Override
+    @Overridoe
     public int hashCode() {
       return DropElementsFn.class.hashCode();
     }

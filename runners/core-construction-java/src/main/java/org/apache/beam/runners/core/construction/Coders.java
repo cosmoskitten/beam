@@ -24,9 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -140,12 +138,7 @@ public class Coders {
                     FunctionSpec.newBuilder()
                         .setUrn(JAVA_SERIALIZED_CODER_URN)
                         .setParameter(
-                            Any.pack(
-                                BytesValue.newBuilder()
-                                    .setValue(
-                                        ByteString.copyFrom(
-                                            SerializableUtils.serializeToByteArray(coder)))
-                                    .build()))))
+                            ByteString.copyFrom(SerializableUtils.serializeToByteArray(coder)))))
         .build();
   }
 
@@ -185,8 +178,6 @@ public class Coders {
                 .getSpec()
                 .getSpec()
                 .getParameter()
-                .unpack(BytesValue.class)
-                .getValue()
                 .toByteArray(),
             "Custom Coder Bytes");
   }
