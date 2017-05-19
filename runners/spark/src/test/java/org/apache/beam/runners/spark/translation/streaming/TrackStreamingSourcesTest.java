@@ -156,7 +156,7 @@ public class TrackStreamingSourcesTest {
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       PTransform transform = node.getTransform();
       if (transform.getClass() == transformClassToAssert) {
-        AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
+        AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());
         ctxt.setCurrentTransform(appliedTransform);
         //noinspection unchecked
         Dataset dataset = ctxt.borrowDataset((PTransform<? extends PValue, ?>) transform);
