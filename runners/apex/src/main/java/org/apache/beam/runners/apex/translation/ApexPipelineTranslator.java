@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * into Apex logical plan {@link DAG}.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
+public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private static final Logger LOG = LoggerFactory.getLogger(ApexPipelineTranslator.class);
 
   /**
@@ -88,6 +88,11 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
   public void translate(Pipeline pipeline, DAG dag) {
     pipeline.traverseTopologically(this);
     translationContext.populateDAG(dag);
+  }
+
+  @Override
+  public void visitPipeline(Pipeline p) {
+    translationContext.setPipeline(p);
   }
 
   @Override

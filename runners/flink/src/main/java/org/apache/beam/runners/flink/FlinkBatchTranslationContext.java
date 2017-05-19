@@ -21,6 +21,7 @@ import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -54,6 +55,7 @@ class FlinkBatchTranslationContext {
   private final ExecutionEnvironment env;
   private final PipelineOptions options;
 
+  private Pipeline pipeline;
   private AppliedPTransform<?, ?, ?> currentTransform;
 
   // ------------------------------------------------------------------------
@@ -93,6 +95,14 @@ class FlinkBatchTranslationContext {
       dataSets.put(value, set);
       danglingDataSets.put(value, set);
     }
+  }
+
+  public Pipeline getPipeline() {
+    return pipeline;
+  }
+
+  public void setPipeline(Pipeline pipeline) {
+    this.pipeline = pipeline;
   }
 
   /**

@@ -62,6 +62,11 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @Override
+  public void visitPipeline(Pipeline p) {
+    batchContext.setPipeline(p);
+  }
+
+  @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
     LOG.info("{} enterCompositeTransform- {}", genSpaces(this.depth), node.getFullName());
     this.depth++;
@@ -112,7 +117,7 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     BatchTransformTranslator<T> typedTranslator = (BatchTransformTranslator<T>) translator;
 
     // create the applied PTransform on the batchContext
-    batchContext.setCurrentTransform(node.toAppliedPTransform());
+    batchContext.setCurrentTransform(node.toAppliedPTransform(batchContext.getPipeline()));
     typedTranslator.translateNode(typedTransform, batchContext);
   }
 
