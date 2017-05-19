@@ -205,7 +205,7 @@ public class Pipeline {
           public CompositeBehavior enterCompositeTransform(Node node) {
             if (!node.isRootNode()) {
               for (PTransformOverride override : overrides) {
-                if (override.getMatcher().matches(node.toAppliedPTransform())) {
+                if (override.getMatcher().matches(node.toAppliedPTransform(Pipeline.this))) {
                   matched.put(node, override);
                 }
               }
@@ -227,7 +227,7 @@ public class Pipeline {
           @Override
           public void visitPrimitiveTransform(Node node) {
             for (PTransformOverride override : overrides) {
-              if (override.getMatcher().matches(node.toAppliedPTransform())) {
+              if (override.getMatcher().matches(node.toAppliedPTransform(Pipeline.this))) {
                 matched.put(node, override);
               }
             }
@@ -247,7 +247,8 @@ public class Pipeline {
               freedNodes.add(node);
               return CompositeBehavior.ENTER_TRANSFORM;
             }
-            if (!node.isRootNode() && override.getMatcher().matches(node.toAppliedPTransform())) {
+            if (!node.isRootNode()
+                && override.getMatcher().matches(node.toAppliedPTransform(Pipeline.this))) {
               matches.add(node);
               // This node will be freed. When we visit any of its children, they will also be freed
               freedNodes.add(node);
@@ -259,7 +260,7 @@ public class Pipeline {
           public void visitPrimitiveTransform(Node node) {
             if (freedNodes.contains(node.getEnclosingNode())) {
               freedNodes.add(node);
-            } else if (override.getMatcher().matches(node.toAppliedPTransform())) {
+            } else if (override.getMatcher().matches(node.toAppliedPTransform(Pipeline.this))) {
               matches.add(node);
               freedNodes.add(node);
             }
@@ -334,8 +335,14 @@ public class Pipeline {
   @Internal
   public interface PipelineVisitor {
     /**
-     * Called for each composite transform after all topological predecessors have been visited
-     * but before any of its component transforms.
+     * Called before visiting anything values or transforms, as many uses of a visitor require
+     * access to the {@link Pipeline} object itself.
+     */
+    void visitPipeline(Pipeline p);
+
+    /**
+     * Called for each composite transform after all topological predecessors have been visited but
+     * before any of its component transforms.
      *
      * <p>The return value controls whether or not child transforms are visited.
      */
@@ -374,6 +381,9 @@ public class Pipeline {
      */
     class Defaults implements PipelineVisitor {
       @Override
+      public void visitPipeline(Pipeline p) {}
+
+      @Override
       public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
         return CompositeBehavior.ENTER_TRANSFORM;
       }
@@ -406,6 +416,7 @@ public class Pipeline {
    */
   @Internal
   public void traverseTopologically(PipelineVisitor visitor) {
+    visitor.visitPipeline(this);
     transforms.visit(visitor);
   }
 
@@ -444,7 +455,7 @@ public class Pipeline {
   /////////////////////////////////////////////////////////////////////////////
   // Below here are internal operations, never called by users.
 
-  private final TransformHierarchy transforms = new TransformHierarchy(this);
+  private final TransformHierarchy transforms = new TransformHierarchy();
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
   private final List<String> unstableNames = new ArrayList<>();
@@ -495,7 +506,7 @@ public class Pipeline {
           PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) {
     PTransformReplacement<InputT, OutputT> replacement =
         replacementFactory.getReplacementTransform(
-            (AppliedPTransform<InputT, OutputT, TransformT>) original.toAppliedPTransform());
+            (AppliedPTransform<InputT, OutputT, TransformT>) original.toAppliedPTransform(this));
     if (replacement.getTransform() == original.getTransform()) {
       return;
     }

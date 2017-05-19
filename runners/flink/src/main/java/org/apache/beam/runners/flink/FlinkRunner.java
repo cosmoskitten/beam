@@ -199,10 +199,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     // have just recorded the full names during apply time.
     if (!ptransformViewsWithNonDeterministicKeyCoders.isEmpty()) {
       final SortedSet<String> ptransformViewNamesWithNonDeterministicKeyCoders = new TreeSet<>();
-      pipeline.traverseTopologically(new Pipeline.PipelineVisitor() {
-        @Override
-        public void visitValue(PValue value, TransformHierarchy.Node producer) {
-        }
+      pipeline.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {
 
         @Override
         public void visitPrimitiveTransform(TransformHierarchy.Node node) {
@@ -217,10 +214,6 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
             ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
           }
           return CompositeBehavior.ENTER_TRANSFORM;
-        }
-
-        @Override
-        public void leaveCompositeTransform(TransformHierarchy.Node node) {
         }
       });
 

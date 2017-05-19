@@ -34,6 +34,7 @@ import org.apache.beam.runners.apex.translation.utils.ApexStateInternals;
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.CoderAdapterStreamCodec;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -57,6 +58,7 @@ class TranslationContext {
 
   private final ApexPipelineOptions pipelineOptions;
   private AppliedPTransform<?, ?, ?> currentTransform;
+  private Pipeline pipeline;
   private final Map<PCollection, Pair<OutputPortInfo, List<InputPortInfo>>> streams =
           new HashMap<>();
   private final Map<String, Operator> operators = new HashMap<>();
@@ -77,8 +79,12 @@ class TranslationContext {
     this.pipelineOptions = pipelineOptions;
   }
 
+  public void setPipeline(Pipeline pipeline) {
+    this.pipeline = pipeline;
+  }
+
   public void setCurrentTransform(TransformHierarchy.Node treeNode) {
-    this.currentTransform = treeNode.toAppliedPTransform();
+    this.currentTransform = treeNode.toAppliedPTransform(pipeline);
   }
 
   public ApexPipelineOptions getPipelineOptions() {

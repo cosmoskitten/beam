@@ -23,6 +23,7 @@ import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -53,6 +54,7 @@ class FlinkStreamingTranslationContext {
    * */
   private final Map<PValue, DataStream<?>> dataStreams;
 
+  private Pipeline pipeline;
   private AppliedPTransform<?, ?, ?> currentTransform;
 
   public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options) {
@@ -78,6 +80,14 @@ class FlinkStreamingTranslationContext {
     if (!dataStreams.containsKey(value)) {
       dataStreams.put(value, set);
     }
+  }
+
+  public Pipeline getPipeline() {
+    return pipeline;
+  }
+
+  public void setPipeline(Pipeline pipeline) {
+    this.pipeline = pipeline;
   }
 
   /**

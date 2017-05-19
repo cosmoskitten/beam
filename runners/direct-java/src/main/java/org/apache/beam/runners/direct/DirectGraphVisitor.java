@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.PValue;
  * input after the upstream transform has produced and committed output.
  */
 class DirectGraphVisitor extends PipelineVisitor.Defaults {
+
   private Map<POutput, AppliedPTransform<?, ?, ?>> producers = new HashMap<>();
 
   private ListMultimap<PInput, AppliedPTransform<?, ?, ?>> primitiveConsumers =
@@ -51,6 +52,12 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
   private Map<AppliedPTransform<?, ?, ?>, String> stepNames = new HashMap<>();
   private int numTransforms = 0;
   private boolean finalized = false;
+  private Pipeline pipeline;
+
+  @Override
+  public void visitPipeline(Pipeline p) {
+    this.pipeline = p;
+  }
 
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
@@ -101,7 +108,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
 
   private AppliedPTransform<?, ?, ?> getAppliedTransform(TransformHierarchy.Node node) {
     @SuppressWarnings({"rawtypes", "unchecked"})
-    AppliedPTransform<?, ?, ?> application = node.toAppliedPTransform();
+    AppliedPTransform<?, ?, ?> application = node.toAppliedPTransform(pipeline);
     return application;
   }
 

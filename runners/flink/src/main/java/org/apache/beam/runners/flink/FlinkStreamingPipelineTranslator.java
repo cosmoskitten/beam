@@ -129,6 +129,11 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @Override
+  public void visitPipeline(Pipeline p) {
+    streamingContext.setPipeline(p);
+  }
+
+  @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
     LOG.info("{} enterCompositeTransform- {}", genSpaces(this.depth), node.getFullName());
     this.depth++;
@@ -188,7 +193,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
     // create the applied PTransform on the streamingContext
-    streamingContext.setCurrentTransform(node.toAppliedPTransform());
+    streamingContext.setCurrentTransform(node.toAppliedPTransform(streamingContext.getPipeline()));
     typedTranslator.translateNode(typedTransform, streamingContext);
   }
 
@@ -203,7 +208,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     @SuppressWarnings("unchecked")
     StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
-    streamingContext.setCurrentTransform(node.toAppliedPTransform());
+    streamingContext.setCurrentTransform(node.toAppliedPTransform(streamingContext.getPipeline()));
 
     return typedTranslator.canTranslate(typedTransform, streamingContext);
   }
