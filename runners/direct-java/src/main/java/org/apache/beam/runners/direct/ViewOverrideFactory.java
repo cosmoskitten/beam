@@ -18,12 +18,17 @@
 
 package org.apache.beam.runners.direct;
 
+import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PTransforms;
+import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -109,6 +114,34 @@ class ViewOverrideFactory<ElemT, ViewT>
     @SuppressWarnings("deprecation")
     public PCollectionView<ViewT> getView() {
       return og.getView();
+    }
+  }
+
+  public static final String DIRECT_WRITE_VIEW_URN = "urn:beam:directrunner:transforms:write_view:v1";
+
+  static class WriteViewTranslator implements PTransforms.TransformPayloadTranslator<WriteView<?, ?>> {
+    @Override
+    public String getUrn() {
+      return DIRECT_WRITE_VIEW_URN;
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec translate(AppliedPTransform transform, SdkComponents components) {
+      throw new UnsupportedOperationException(
+          String.format("%s should never be actually translated"));
+    }
+  }
+
+  /**
+   * Registers {@link WriteViewTranslator}.
+   */
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class Registrar implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<
+            ? extends Class<? extends PTransform>, ? extends PTransforms.TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return Collections.singletonMap(WriteView.class, new WriteViewTranslator());
     }
   }
 }
