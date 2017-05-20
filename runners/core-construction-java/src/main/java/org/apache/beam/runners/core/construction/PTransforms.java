@@ -25,11 +25,14 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -125,7 +128,41 @@ public class PTransforms {
    * FunctionSpec for a distinguished or primitive transform within the Beam runner API.
    */
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
-    String getUrn();
+    String getUrn(T transform);
     FunctionSpec translate(AppliedPTransform<?, ?, T> transform, SdkComponents components);
+  }
+
+  public abstract static class RawPTransform<
+          InputT extends PInput, OutputT extends POutput, PayloadT>
+      extends PTransform<InputT, OutputT> {
+
+    public abstract String getUrn();
+
+    @Nullable
+    PayloadT getPayload() {
+      return null;
+    }
+  }
+
+  public static class RawPTransformTranslator<PayloadT>
+      implements TransformPayloadTranslator<RawPTransform<?, ?, PayloadT>> {
+    @Override
+    public String getUrn(RawPTransform<?, ?, PayloadT> transform) {
+      return transform.getUrn();
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, RawPTransform<?, ?, PayloadT>> transform,
+        SdkComponents components) {
+      PayloadT payload = transform.getTransform().getPayload();
+
+      if (payload != null) {
+        // TODO: add it
+      } else {
+        // TODO: don't add it
+      }
+      return null;
+    }
   }
 }
