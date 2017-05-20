@@ -111,4 +111,7 @@ class ViewOverrideFactory<ElemT, ViewT>
       return og.getView();
     }
   }
+
+  public static final String DIRECT_WRITE_VIEW_URN =
+      "urn:beam:directrunner:transforms:write_view:v1";
 }
