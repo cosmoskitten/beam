@@ -19,6 +19,7 @@ package org.apache.beam.dsls.sql.planner;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
@@ -122,7 +123,9 @@ public class MockedBeamSQLTable extends BaseBeamTable {
 
   @Override
   public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline).apply(Create.of(inputRecords));
+    return PBegin.in(pipeline).apply(
+        UUID.randomUUID().toString() + "_MockedBeamSQLTable_buildIOReader",
+        Create.of(inputRecords));
   }
 
   @Override

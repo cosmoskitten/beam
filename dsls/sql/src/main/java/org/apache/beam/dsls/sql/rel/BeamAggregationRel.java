@@ -18,6 +18,7 @@
 package org.apache.beam.dsls.sql.rel;
 
 import java.util.List;
+
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
@@ -79,37 +80,39 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     PCollection<BeamSQLRow> upstream =
         BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
     if (windowFieldIdx != -1) {
-      upstream = upstream.apply("assignEventTimestamp", WithTimestamps
+      upstream = upstream.apply(stageName + "_assignEventTimestamp", WithTimestamps
           .<BeamSQLRow>of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)))
           .setCoder(upstream.getCoder());
     }
 
-    PCollection<BeamSQLRow> windowStream = upstream.apply("window",
+    PCollection<BeamSQLRow> windowStream = upstream.apply(stageName + "_window",
         Window.<BeamSQLRow>into(windowFn)
         .triggering(trigger)
         .withAllowedLateness(allowedLatence)
         .accumulatingFiredPanes());
 
     BeamSqlRowCoder keyCoder = new BeamSqlRowCoder(exKeyFieldsSchema(input.getRowType()));
-    PCollection<KV<BeamSQLRow, BeamSQLRow>> exGroupByStream = windowStream.apply("exGroupBy",
+    PCollection<KV<BeamSQLRow, BeamSQLRow>> exGroupByStream = windowStream.apply(
+        stageName + "_exGroupBy",
         WithKeys
             .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(
                 windowFieldIdx, groupSet)))
         .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, upstream.getCoder()));
 
     PCollection<KV<BeamSQLRow, Iterable<BeamSQLRow>>> groupedStream = exGroupByStream
-        .apply("groupBy", GroupByKey.<BeamSQLRow, BeamSQLRow>create())
+        .apply(stageName + "_groupBy", GroupByKey.<BeamSQLRow, BeamSQLRow>create())
         .setCoder(KvCoder.<BeamSQLRow, Iterable<BeamSQLRow>>of(keyCoder,
             IterableCoder.<BeamSQLRow>of(upstream.getCoder())));
 
     BeamSqlRowCoder aggCoder = new BeamSqlRowCoder(exAggFieldsSchema());
-    PCollection<KV<BeamSQLRow, BeamSQLRow>> aggregatedStream = groupedStream.apply("aggregation",
+    PCollection<KV<BeamSQLRow, BeamSQLRow>> aggregatedStream = groupedStream.apply(
+        stageName + "_aggregation",
         Combine.<BeamSQLRow, BeamSQLRow, BeamSQLRow>groupedValues(
             new BeamAggregationTransforms.AggregationCombineFn(getAggCallList(),
                 BeamSQLRecordType.from(input.getRowType()))))
         .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, aggCoder));
 
-    PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply("mergeRecord",
+    PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply(stageName + "_mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
             BeamSQLRecordType.from(getRowType()), getAggCallList())));
     mergedStream.setCoder(new BeamSqlRowCoder(BeamSQLRecordType.from(getRowType())));
