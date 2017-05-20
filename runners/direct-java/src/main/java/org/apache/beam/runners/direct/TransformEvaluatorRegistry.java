@@ -19,23 +19,27 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.runners.core.construction.PTransforms.FLATTEN_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransforms.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransforms.READ_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransforms.WINDOW_TRANSFORM_URN;
+import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GABW_URN;
+import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GBKO_URN;
+import static org.apache.beam.runners.direct.ParDoMultiOverrideFactory.DIRECT_STATEFUL_PAR_DO_URN;
+import static org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DIRECT_TEST_STREAM_URN;
+import static org.apache.beam.runners.direct.ViewOverrideFactory.DIRECT_WRITE_VIEW_URN;
 
+import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
-import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
-import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
-import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
-import org.apache.beam.runners.direct.ViewOverrideFactory.WriteView;
-import org.apache.beam.sdk.io.Read;
+import org.apache.beam.runners.core.construction.PTransforms;
+import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,43 +49,71 @@ import org.slf4j.LoggerFactory;
  */
 class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
+
+  private static final String SPLITTABLE_PROCESS_URN =
+      "urn:beam:runners_core:transforms:splittable_process:v1";
+
   public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
-    @SuppressWarnings({"rawtypes"})
-    ImmutableMap<Class<? extends PTransform>, TransformEvaluatorFactory> primitives =
-        ImmutableMap.<Class<? extends PTransform>, TransformEvaluatorFactory>builder()
-            .put(Read.Bounded.class, new BoundedReadEvaluatorFactory(ctxt))
-            .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory(ctxt))
+    ImmutableMap<String, TransformEvaluatorFactory> primitives =
+        ImmutableMap.<String, TransformEvaluatorFactory>builder()
+            // Beam primitives
+            .put(READ_TRANSFORM_URN, new BoundedReadEvaluatorFactory(ctxt))
             .put(
-                ParDo.MultiOutput.class,
+                PAR_DO_TRANSFORM_URN,
                 new ParDoEvaluatorFactory<>(ctxt, ParDoEvaluator.defaultRunnerFactory()))
-            .put(StatefulParDo.class, new StatefulParDoEvaluatorFactory<>(ctxt))
-            .put(PCollections.class, new FlattenEvaluatorFactory(ctxt))
-            .put(WriteView.class, new ViewEvaluatorFactory(ctxt))
-            .put(Window.Assign.class, new WindowEvaluatorFactory(ctxt))
-            // Runner-specific primitives used in expansion of GroupByKey
-            .put(DirectGroupByKeyOnly.class, new GroupByKeyOnlyEvaluatorFactory(ctxt))
-            .put(DirectGroupAlsoByWindow.class, new GroupAlsoByWindowEvaluatorFactory(ctxt))
-            .put(
-                TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream.class,
-                new TestStreamEvaluatorFactory(ctxt))
-            // Runner-specific primitive used in expansion of SplittableParDo
-            .put(
-                SplittableParDoViaKeyedWorkItems.ProcessElements.class,
-                new SplittableProcessElementsEvaluatorFactory<>(ctxt))
+            .put(FLATTEN_TRANSFORM_URN, new FlattenEvaluatorFactory(ctxt))
+            .put(WINDOW_TRANSFORM_URN, new WindowEvaluatorFactory(ctxt))
+
+            // Runner-specific primitives
+            .put(DIRECT_WRITE_VIEW_URN, new ViewEvaluatorFactory(ctxt))
+            .put(DIRECT_STATEFUL_PAR_DO_URN, new StatefulParDoEvaluatorFactory<>(ctxt))
+            .put(DIRECT_GBKO_URN, new GroupByKeyOnlyEvaluatorFactory(ctxt))
+            .put(DIRECT_GABW_URN, new GroupAlsoByWindowEvaluatorFactory(ctxt))
+            .put(DIRECT_TEST_STREAM_URN, new TestStreamEvaluatorFactory(ctxt))
+
+            // Runners-core primitives
+            .put(SPLITTABLE_PROCESS_URN, new SplittableProcessElementsEvaluatorFactory<>(ctxt))
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
 
+  /** Registers classes specialized to the direct runner. */
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class DirectTransformsRegistrar implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<
+        ? extends Class<? extends PTransform>, ? extends PTransforms.TransformPayloadTranslator>
+    getTransformPayloadTranslators() {
+      return ImmutableMap
+          .<Class<? extends PTransform>, PTransforms.TransformPayloadTranslator>builder()
+          .put(
+              DirectGroupByKey.DirectGroupByKeyOnly.class,
+              new PTransforms.RawPTransformTranslator<>())
+          .put(
+              DirectGroupByKey.DirectGroupAlsoByWindow.class,
+              new PTransforms.RawPTransformTranslator())
+          .put(
+              ParDoMultiOverrideFactory.StatefulParDo.class,
+              new PTransforms.RawPTransformTranslator<>())
+          .put(
+              ViewOverrideFactory.WriteView.class,
+              new PTransforms.RawPTransformTranslator<>())
+          .put(
+              DirectTestStream.class,
+              new PTransforms.RawPTransformTranslator<>())
+          .build();
+    }
+  }
+
   // the TransformEvaluatorFactories can construct instances of all generic types of transform,
   // so all instances of a primitive can be handled with the same evaluator factory.
-  @SuppressWarnings("rawtypes")
-  private final Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories;
+  private final Map<String, TransformEvaluatorFactory> factories;
 
   private final AtomicBoolean finished = new AtomicBoolean(false);
 
   private TransformEvaluatorRegistry(
       @SuppressWarnings("rawtypes")
-      Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories) {
+      Map<String, TransformEvaluatorFactory> factories) {
     this.factories = factories;
   }
 
@@ -91,10 +123,12 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
       throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
-    Class<? extends PTransform> transformClass = application.getTransform().getClass();
+
+    String urn = PTransforms.urnForTransform(application.getTransform());
+
     TransformEvaluatorFactory factory =
         checkNotNull(
-            factories.get(transformClass), "No evaluator for PTransform type %s", transformClass);
+            factories.get(urn), "No evaluator for PTransform \"%s\"", urn);
     return factory.forApplication(application, inputBundle);
   }
 
