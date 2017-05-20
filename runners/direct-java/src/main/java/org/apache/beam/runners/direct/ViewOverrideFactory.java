@@ -18,12 +18,17 @@
 
 package org.apache.beam.runners.direct;
 
+import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PTransforms;
+import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -111,4 +116,6 @@ class ViewOverrideFactory<ElemT, ViewT>
       return og.getView();
     }
   }
+
+  public static final String DIRECT_WRITE_VIEW_URN = "urn:beam:directrunner:transforms:write_view:v1";
 }
