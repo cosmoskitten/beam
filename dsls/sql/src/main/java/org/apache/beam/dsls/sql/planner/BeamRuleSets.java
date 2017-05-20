@@ -30,6 +30,7 @@ import org.apache.beam.dsls.sql.rule.BeamIntersectRule;
 import org.apache.beam.dsls.sql.rule.BeamMinusRule;
 import org.apache.beam.dsls.sql.rule.BeamProjectRule;
 import org.apache.beam.dsls.sql.rule.BeamSortRule;
+import org.apache.beam.dsls.sql.rule.BeamUnionRule;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.RuleSet;
@@ -43,8 +44,8 @@ public class BeamRuleSets {
   private static final ImmutableSet<RelOptRule> calciteToBeamConversionRules = ImmutableSet
       .<RelOptRule>builder().add(BeamIOSourceRule.INSTANCE, BeamProjectRule.INSTANCE,
           BeamFilterRule.INSTANCE, BeamIOSinkRule.INSTANCE,
-          BeamAggregationRule.INSTANCE, BeamSortRule.INSTANCE, BeamIntersectRule.INSTANCE,
-          BeamMinusRule.INSTANCE)
+          BeamAggregationRule.INSTANCE, BeamSortRule.INSTANCE,
+          BeamIntersectRule.INSTANCE, BeamMinusRule.INSTANCE, BeamUnionRule.INSTANCE)
       .build();
 
   public static RuleSet[] getRuleSets() {
