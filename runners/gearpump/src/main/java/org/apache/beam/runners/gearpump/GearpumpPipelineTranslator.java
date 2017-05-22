@@ -34,7 +34,6 @@ import org.apache.beam.runners.gearpump.translators.CreatePCollectionViewTransla
 import org.apache.beam.runners.gearpump.translators.FlattenPCollectionsTranslator;
 import org.apache.beam.runners.gearpump.translators.GroupByKeyTranslator;
 import org.apache.beam.runners.gearpump.translators.ParDoMultiOutputTranslator;
-import org.apache.beam.runners.gearpump.translators.ParDoSingleOutputTranslator;
 import org.apache.beam.runners.gearpump.translators.ReadBoundedTranslator;
 import org.apache.beam.runners.gearpump.translators.ReadUnboundedTranslator;
 import org.apache.beam.runners.gearpump.translators.TransformTranslator;
@@ -89,7 +88,6 @@ public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
 
   static {
     // register TransformTranslators
-    registerTransformTranslator(ParDo.SingleOutput.class, new ParDoSingleOutputTranslator());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());
