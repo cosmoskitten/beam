@@ -19,7 +19,7 @@
 package org.apache.beam.fn.harness.fake;
 
 import java.io.IOException;
-import org.apache.beam.runners.core.ExecutionContext.StepContext;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.coders.Coder;
