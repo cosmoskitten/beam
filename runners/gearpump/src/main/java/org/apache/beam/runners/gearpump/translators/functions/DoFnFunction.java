@@ -57,7 +57,7 @@ import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
  */
 @SuppressWarnings("unchecked")
 public class DoFnFunction<InputT, OutputT> extends
-    FlatMapFunction<List<RawUnionValue>, RawUnionValue> {
+    FlatMapFunction<RawUnionValue, RawUnionValue> {
 
   private static final long serialVersionUID = -5701440128544343353L;
   private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
@@ -119,30 +119,28 @@ public class DoFnFunction<InputT, OutputT> extends
   }
 
   @Override
-  public Iterator<TranslatorUtils.RawUnionValue> flatMap(List<RawUnionValue> inputs) {
+  public Iterator<TranslatorUtils.RawUnionValue> flatMap(RawUnionValue unionValue) {
     outputManager.clear();
 
     doFnRunner.startBundle();
 
-    for (RawUnionValue unionValue: inputs) {
-      final String tag = unionValue.getUnionTag();
-      if (tag.equals("0")) {
-        // main input
-        pushedBackValues.add((WindowedValue<InputT>) unionValue.getValue());
-      } else {
-        // side input
-        PCollectionView<?> sideInput = tagsToSideInputs.get(unionValue.getUnionTag());
-        WindowedValue<?> sideInputValue =
-            (WindowedValue<?>) unionValue.getValue();
-        Object value = sideInputValue.getValue();
-        if (!(value instanceof Iterable)) {
-          sideInputValue = sideInputValue.withValue(Lists.newArrayList(value));
-        }
-        if (!sideInputValues.containsKey(sideInput)) {
-          sideInputValues.put(sideInput, new LinkedList<WindowedValue<Iterable<?>>>());
-        }
-        sideInputValues.get(sideInput).add((WindowedValue<Iterable<?>>) sideInputValue);
+    final String tag = unionValue.getUnionTag();
+    if (tag.equals("0")) {
+      // main input
+      pushedBackValues.add((WindowedValue<InputT>) unionValue.getValue());
+    } else {
+      // side input
+      PCollectionView<?> sideInput = tagsToSideInputs.get(unionValue.getUnionTag());
+      WindowedValue<?> sideInputValue =
+          (WindowedValue<?>) unionValue.getValue();
+      Object value = sideInputValue.getValue();
+      if (!(value instanceof Iterable)) {
+        sideInputValue = sideInputValue.withValue(Lists.newArrayList(value));
       }
+      if (!sideInputValues.containsKey(sideInput)) {
+        sideInputValues.put(sideInput, new LinkedList<WindowedValue<Iterable<?>>>());
+      }
+      sideInputValues.get(sideInput).add((WindowedValue<Iterable<?>>) sideInputValue);
     }
 
     for (PCollectionView<?> sideInput: sideInputs) {
