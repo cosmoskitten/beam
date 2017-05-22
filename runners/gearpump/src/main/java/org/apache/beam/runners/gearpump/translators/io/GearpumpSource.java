@@ -113,7 +113,7 @@ public abstract class GearpumpSource<T> implements DataSource {
       }
     } else {
       if (available) {
-        return Watermark.MIN();
+        return Instant.now();
       } else {
         return Watermark.MAX();
       }
