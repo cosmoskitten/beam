@@ -1171,46 +1171,54 @@ class Count(beam.PTransform):
         | beam.CombinePerKey(sum))
 # [END model_library_transforms_count]
 
-def examples_troubleshooting_metrics(renames):
+def examples_troubleshooting_metrics(number_list, output_path):
   """DebuggingWordCount example snippets."""
-  import re
-
   import apache_beam as beam
 
-  # [START metrics_usage_example]
-  class FilterTextFn(beam.DoFn):
-    """A DoFn that filters for a specific key based on a regular expression."""
+  p = TestPipeline()  # Use TestPipeline for testing.
 
-    def __init__(self, pattern):
-      self.pattern = pattern
+  # [START metrics_usage_example]
+  class FilterPairsFn(beam.DoFn):
+    """A DoFn that filters for pairs, and uses metrics.
+
+    Metrics are used to count number of pairs, and measure the distribution
+    of elements in the input PCollection."""
+
+    def __init__(self):
       # A custom metric can track values in your pipeline as it runs. Create
-      # custom metrics matched_words and unmatched_words.
-      self.matched_words = Metrics.counter(self.__class__, 'matched_words')
-      self.umatched_words = Metrics.counter(self.__class__, 'umatched_words')
+      # custom metrics pair_counter and collection_distribution
+      self.pair_counter = Metrics.counter(self.__class__, 'pair_counter')
+      self.collection_distribution = Metrics.distribution(
+          self.__class__, 'collection_distribution')
 
     def process(self, element):
-      word, _ = element
-      if re.match(self.pattern, word):
-        # Add 1 to the custom metric counter matched_words
-        self.matched_words.inc()
+      self.collection_distribution.update(element)
+      if element % 2 == 0:
+        self.pair_counter.inc()
         yield element
-      else:
-        # Add 1 to the custom metric counter umatched_words
-        self.umatched_words.inc()
 
-  p = TestPipeline()  # Use TestPipeline for testing.
-  filtered_words = (
+
+  filtered_numbers = (
       p
-      | beam.io.ReadFromText(
-          'gs://dataflow-samples/shakespeare/kinglear.txt')
-      | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-      | beam.combiners.Count.PerElement()
-      | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
+      | beam.Create(number_list)
+      | 'FilterPairs`' >> beam.ParDo(FilterPairsFn()))
   # [END metrics_usage_example]
 
-  output = (filtered_words
-            | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
-            | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
+  output = (filtered_numbers
+            | 'format' >> beam.Map(lambda c: str(c))
+            | 'Write' >> beam.io.WriteToText(output_path))
 
-  p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  # [START metrics_check_values_example]
+  result = p.run()
+  result.wait_until_finish()
+  custom_metrics = result.metrics().query(
+      MetricsFilter().with_names(
+          ['pair_counter', 'collection_distribution']))
+
+  if custom_metrics['distributions']:
+    logging.info('The average number was %d',
+                 custom_metrics['distributions'][0].committed.mean)
+  if custom_metrics['counters']:
+    logging.info('There were %d pairs.',
+                 custom_metrics['counters'][0].committed)
+  # [END metrics_check_values_example]
