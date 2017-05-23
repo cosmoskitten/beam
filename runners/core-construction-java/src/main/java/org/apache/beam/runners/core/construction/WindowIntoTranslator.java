@@ -91,7 +91,7 @@ public class WindowIntoTranslator {
         AppliedPTransform<?, ?, Window.Assign<?>> transform, SdkComponents components) {
       WindowIntoPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
-          .setUrn(PTransforms.WINDOW_TRANSFORM_URN)
+          .setUrn(getUrn(transform.getTransform()))
           .setParameter(Any.pack(payload))
           .build();
     }
