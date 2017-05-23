@@ -219,6 +219,12 @@
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch-hadoop</artifactId>
       <version>${elasticsearch.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>cascading</groupId>
+          <artifactId>cascading-hadoop</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.datastax.cassandra</groupId>
