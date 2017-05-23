@@ -18,30 +18,39 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.date;
 
-import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.calcite.avatica.util.DateTimeUtils;
+import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSqlExpression} for CURRENT_TIME.
+ * {@code BeamSqlExpression} for CEIL(date).
  *
- * <p>Returns the current time in the session time zone, in a value of datatype
- * TIMESTAMP WITH TIME ZONE.
+ * <p>NOTE: only support CEIL for {@link TimeUnitRange#YEAR} and {@link TimeUnitRange#MONTH}.
  */
-public class BeamSqlCurrentTimeExpression extends BeamSqlExpression {
-  public BeamSqlCurrentTimeExpression() {
-    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.TIMESTAMP);
+public class BeamSqlDateCeilExpression extends BeamSqlExpression {
+  public BeamSqlDateCeilExpression(List<BeamSqlExpression> operands) {
+    super(operands, SqlTypeName.TIMESTAMP);
   }
   @Override public boolean accept() {
-    // CURRENT_TIME has no param.
-    return true;
+    return operands.size() == 2
+        && opType(1) == SqlTypeName.SYMBOL;
   }
 
   @Override public BeamSqlPrimitive evaluate(BeamSQLRow inputRecord) {
-    return BeamSqlPrimitive.of(outputType, new Date());
+    Date date = opValueEvaluated(0, inputRecord);
+    long time = date.getTime();
+    time -= 8 * 3600;
+    TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(1)).getValue();
+
+    long newTime = DateTimeUtils.unixTimestampCeil(unit, time);
+    Date newDate = new Date(newTime);
+
+    return BeamSqlPrimitive.of(outputType, newDate);
   }
 }

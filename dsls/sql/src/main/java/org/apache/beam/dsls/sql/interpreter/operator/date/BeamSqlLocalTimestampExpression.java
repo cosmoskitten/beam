@@ -18,8 +18,8 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.date;
 
-import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
@@ -27,18 +27,20 @@ import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSqlExpression} for CURRENT_TIME.
+ * {@code BeamSqlExpression} for LOCALTIMESTAMP and LOCALTIMESTAMP(precision).
  *
- * <p>Returns the current time in the session time zone, in a value of datatype
- * TIMESTAMP WITH TIME ZONE.
+ * <p>Returns the current date and time in the session time zone in a value of datatype TIMESTAMP,
+ * with precision digits of precision.
+ *
+ * <p>NOTE: for simplicity, we will ignore the {@code precision} param.
  */
-public class BeamSqlCurrentTimeExpression extends BeamSqlExpression {
-  public BeamSqlCurrentTimeExpression() {
-    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.TIMESTAMP);
+public class BeamSqlLocalTimestampExpression extends BeamSqlExpression {
+  public BeamSqlLocalTimestampExpression(List<BeamSqlExpression> operands) {
+    super(operands, SqlTypeName.TIMESTAMP);
   }
   @Override public boolean accept() {
-    // CURRENT_TIME has no param.
-    return true;
+    int opCount = getOperands().size();
+    return opCount <= 1;
   }
 
   @Override public BeamSqlPrimitive evaluate(BeamSQLRow inputRecord) {

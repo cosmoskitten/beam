@@ -18,30 +18,32 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.date;
 
-import java.util.Collections;
-import java.util.Date;
+import static org.junit.Assert.assertEquals;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.Test;
 
 /**
- * {@code BeamSqlExpression} for CURRENT_TIME.
- *
- * <p>Returns the current time in the session time zone, in a value of datatype
- * TIMESTAMP WITH TIME ZONE.
+ * Test for {@code BeamSqlDateCeilExpression}.
  */
-public class BeamSqlCurrentTimeExpression extends BeamSqlExpression {
-  public BeamSqlCurrentTimeExpression() {
-    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.TIMESTAMP);
-  }
-  @Override public boolean accept() {
-    // CURRENT_TIME has no param.
-    return true;
-  }
+public class BeamSqlDateCeilExpressionTest extends BeamSqlDateExpressionTestBase {
+  @Test public void evaluate() throws Exception {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DATE,
+        str2DateTime("2017-05-22 09:10:11")));
+    // YEAR
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.YEAR));
+    assertEquals(str2DateTime("2018-01-01 00:00:00"),
+        new BeamSqlDateCeilExpression(operands).evaluate(record).getDate());
 
-  @Override public BeamSqlPrimitive evaluate(BeamSQLRow inputRecord) {
-    return BeamSqlPrimitive.of(outputType, new Date());
+    operands.set(1, BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.MONTH));
+    assertEquals(str2DateTime("2017-06-01 00:00:00"),
+        new BeamSqlDateCeilExpression(operands).evaluate(record).getDate());
   }
 }

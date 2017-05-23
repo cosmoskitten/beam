@@ -18,30 +18,18 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.date;
 
-import java.util.Collections;
-import java.util.Date;
+import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.Test;
 
 /**
- * {@code BeamSqlExpression} for CURRENT_TIME.
- *
- * <p>Returns the current time in the session time zone, in a value of datatype
- * TIMESTAMP WITH TIME ZONE.
+ * Test for BeamSqlCurrentTimestampExpression.
  */
-public class BeamSqlCurrentTimeExpression extends BeamSqlExpression {
-  public BeamSqlCurrentTimeExpression() {
-    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.TIMESTAMP);
-  }
-  @Override public boolean accept() {
-    // CURRENT_TIME has no param.
-    return true;
-  }
-
-  @Override public BeamSqlPrimitive evaluate(BeamSQLRow inputRecord) {
-    return BeamSqlPrimitive.of(outputType, new Date());
+public class BeamSqlCurrentTimestampExpressionTest extends BeamSqlDateExpressionTestBase {
+  @Test
+  public void test() {
+    assertEquals(SqlTypeName.TIMESTAMP,
+        new BeamSqlCurrentTimestampExpression().evaluate(record).getOutputType());
   }
 }
