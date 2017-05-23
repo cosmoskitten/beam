@@ -18,14 +18,19 @@
 
 package org.apache.beam.runners.core.construction;
 
+import com.google.auto.service.AutoService;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransforms.TransformPayloadTranslator;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -64,5 +69,42 @@ public class WindowIntoTranslator {
       throws InvalidProtocolBufferException {
     SdkFunctionSpec spec = payload.getWindowFn();
     return WindowingStrategies.windowFnFromProto(spec);
+  }
+
+  /**
+   * A {@link TransformPayloadTranslator} for {@link Window}.
+   */
+  public static class WindowIntoPayloadTranslator
+      implements PTransforms.TransformPayloadTranslator<Window.Assign<?>> {
+    public static TransformPayloadTranslator create() {
+      return new WindowIntoPayloadTranslator();
+    }
+
+    private WindowIntoPayloadTranslator() {}
+
+    @Override
+    public String getUrn(Window.Assign<?> transform) {
+      return PTransforms.WINDOW_TRANSFORM_URN;
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, Window.Assign<?>> transform, SdkComponents components) {
+      WindowIntoPayload payload = toProto(transform.getTransform(), components);
+      return RunnerApi.FunctionSpec.newBuilder()
+          .setUrn(PTransforms.WINDOW_TRANSFORM_URN)
+          .setParameter(Any.pack(payload))
+          .build();
+    }
+  }
+
+  /** Registers {@link WindowIntoPayloadTranslator}. */
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class Registrar implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return Collections.singletonMap(Window.Assign.class, new WindowIntoPayloadTranslator());
+    }
   }
 }
