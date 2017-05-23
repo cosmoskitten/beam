@@ -27,9 +27,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTest;
 import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
-import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
@@ -71,7 +69,8 @@ public class BeamSqlReinterpretExpressionTest extends BeamSQLFnExecutorTestBase 
     Date d = new Date();
     d.setTime(1000);
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DATE, d));
-    assertEquals(1000L, new BeamSqlReinterpretExpression(operands, SqlTypeName.BIGINT).evaluate(record).getValue());
+    assertEquals(1000L, new BeamSqlReinterpretExpression(operands, SqlTypeName.BIGINT)
+        .evaluate(record).getValue());
   }
 
 }
