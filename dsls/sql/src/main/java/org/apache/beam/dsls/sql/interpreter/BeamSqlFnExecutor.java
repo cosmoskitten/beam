@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlAndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
@@ -33,7 +32,6 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLargerThanExpression
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlNotEqualExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlOrExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlUdfExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowEndExpression;
@@ -44,6 +42,9 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpr
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlAndExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlNotExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlOrExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAbsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSqrtExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
@@ -122,10 +123,13 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         subExps.add(buildExpression(subNode));
       }
       switch (opName) {
+        // logical operators
         case "AND":
-        return new BeamSqlAndExpression(subExps);
+          return new BeamSqlAndExpression(subExps);
         case "OR":
           return new BeamSqlOrExpression(subExps);
+        case "NOT":
+          return new BeamSqlNotExpression(subExps);
 
         case "=":
           return new BeamSqlEqualExpression(subExps);
