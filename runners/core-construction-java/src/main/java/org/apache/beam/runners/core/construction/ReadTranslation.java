@@ -40,6 +40,8 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * Methods for translating {@link Read.Bounded} and {@link Read.Unbounded}
@@ -102,6 +104,24 @@ public class ReadTranslation {
         "BoundedSource");
   }
 
+  public static <T> BoundedSource<T> boundedSourceFromTransform(
+      AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
+      throws InvalidProtocolBufferException {
+
+    ReadPayload payload =
+        PTransformTranslation.payloadForTransform(transform).unpack(ReadPayload.class);
+    return (BoundedSource<T>) boundedSourceFromProto(payload);
+  }
+
+  public static <T, CheckpointT extends UnboundedSource.CheckpointMark>
+      UnboundedSource<T, CheckpointT> unboundedSourceFromTransform(
+          AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
+          throws InvalidProtocolBufferException {
+    ReadPayload payload =
+        PTransformTranslation.payloadForTransform(transform).unpack(ReadPayload.class);
+    return (UnboundedSource<T, CheckpointT>) unboundedSourceFromProto(payload);
+  }
+
   private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source) {
     return SdkFunctionSpec.newBuilder()
         .setSpec(
@@ -128,6 +148,18 @@ public class ReadTranslation {
             .getValue()
             .toByteArray(),
         "BoundedSource");
+  }
+
+  public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {
+    ReadPayload payload;
+    try {
+      payload =
+          PTransformTranslation.payloadForTransform(transform).unpack(ReadPayload.class);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Internal error determining boundedness of Read", e);
+    }
+
+    return PCollectionTranslation.fromProto(payload.getIsBounded());
   }
 
   /**
