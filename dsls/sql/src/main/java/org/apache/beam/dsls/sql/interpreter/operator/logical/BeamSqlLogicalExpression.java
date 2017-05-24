@@ -15,21 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.interpreter.operator;
+
+package org.apache.beam.dsls.sql.interpreter.operator.logical;
 
 import java.util.List;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSqlExpression} for 'AND' operation.
+ * {@code BeamSqlExpression} for Logical operators.
  */
-public class BeamSqlAndExpression extends BeamSqlExpression {
-
-  private BeamSqlAndExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
+public abstract class BeamSqlLogicalExpression extends BeamSqlExpression {
+  private BeamSqlLogicalExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
-  public BeamSqlAndExpression(List<BeamSqlExpression> operands) {
+  public BeamSqlLogicalExpression(List<BeamSqlExpression> operands) {
     this(operands, SqlTypeName.BOOLEAN);
   }
 
@@ -37,24 +38,10 @@ public class BeamSqlAndExpression extends BeamSqlExpression {
   public boolean accept() {
     for (BeamSqlExpression exp : operands) {
       // only accept BOOLEAN expression as operand
-      if (!exp.outputType.equals(SqlTypeName.BOOLEAN)) {
+      if (!exp.getOutputType().equals(SqlTypeName.BOOLEAN)) {
         return false;
       }
     }
     return true;
   }
-
-  @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamSQLRow inputRecord) {
-    boolean result = true;
-    for (BeamSqlExpression exp : operands) {
-      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRecord);
-      result = result && expOut.getValue();
-      if (!result) {
-        break;
-      }
-    }
-    return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, result);
-  }
-
 }
