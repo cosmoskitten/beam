@@ -53,6 +53,9 @@ public class PTransformTranslation {
   // Less well-known. And where shall these live?
   public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
 
+  @Deprecated
+  public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
+
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
 
@@ -137,9 +140,7 @@ public class PTransformTranslation {
     return tag.getId();
   }
 
-  /**
-   * Returns the URN for the transform if it is known, otherwise {@code null}.
-   */
+  /** Returns the URN for the transform if it is known, otherwise {@code null}. */
   @Nullable
   public static String urnForTransformOrNull(PTransform<?, ?> transform) {
 
@@ -156,12 +157,9 @@ public class PTransformTranslation {
     return translator.getUrn(transform);
   }
 
-  /**
-   * Returns the URN for the transform if it is known, otherwise throws.
-   */
+  /** Returns the URN for the transform if it is known, otherwise throws. */
   public static String urnForTransform(PTransform<?, ?> transform) {
-    TransformPayloadTranslator translator =
-    KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
+    TransformPayloadTranslator translator = KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
     if (translator == null) {
       throw new IllegalStateException(
           String.format("No translator known for %s", transform.getClass().getName()));
@@ -176,6 +174,7 @@ public class PTransformTranslation {
    */
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
     String getUrn(T transform);
+
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
         throws IOException;
   }
@@ -187,8 +186,7 @@ public class PTransformTranslation {
    * #expand} method since the definition of the transform may be lost. The transform is already
    * fully expanded in the pipeline proto.
    */
-  public abstract static class RawPTransform<
-          InputT extends PInput, OutputT extends POutput>
+  public abstract static class RawPTransform<InputT extends PInput, OutputT extends POutput>
       extends PTransform<InputT, OutputT> {
 
     @Nullable
@@ -200,9 +198,7 @@ public class PTransformTranslation {
     }
   }
 
-  /**
-   * A translator that uses the explicit URN and payload from a {@link RawPTransform}.
-   */
+  /** A translator that uses the explicit URN and payload from a {@link RawPTransform}. */
   public static class RawPTransformTranslator
       implements TransformPayloadTranslator<RawPTransform<?, ?>> {
     @Override
@@ -212,8 +208,7 @@ public class PTransformTranslation {
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, RawPTransform<?, ?>> transform,
-        SdkComponents components) {
+        AppliedPTransform<?, ?, RawPTransform<?, ?>> transform, SdkComponents components) {
 
       // Anonymous composites have no spec
       if (transform.getTransform().getUrn() == null) {
