@@ -272,23 +272,6 @@ public class WindowingStrategyTranslation implements Serializable {
 
   public static WindowFn<?, ?> windowFnFromProto(SdkFunctionSpec windowFnSpec)
       throws InvalidProtocolBufferException {
-    checkArgument(
-        windowFnSpec.getSpec().getUrn().equals(CUSTOM_WINDOWFN_URN),
-        "Only Java-serialized %s instances are supported, with URN %s. But found URN %s",
-        WindowFn.class.getSimpleName(),
-        CUSTOM_WINDOWFN_URN,
-        windowFnSpec.getSpec().getUrn());
-
-    Object deserializedWindowFn =
-        SerializableUtils.deserializeFromByteArray(
-            windowFnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray(),
-            "WindowFn");
-
-    return (WindowFn<?, ?>) deserializedWindowFn;
-  }
-
-  private static WindowFn<?, ?> windowFnFromProto(SdkFunctionSpec windowFnSpec)
-      throws InvalidProtocolBufferException {
     switch (windowFnSpec.getSpec().getUrn()) {
       case GLOBAL_WINDOWS_FN:
         return new GlobalWindows();
