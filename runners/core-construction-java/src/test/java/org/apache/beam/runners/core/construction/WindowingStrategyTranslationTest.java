@@ -23,12 +23,8 @@ import static org.junit.Assert.assertThat;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.hamcrest.Matchers;
@@ -62,6 +58,13 @@ public class WindowingStrategyTranslationTest {
   public static Iterable<ToProtoAndBackSpec> data() {
     return ImmutableList.of(
         toProtoAndBackSpec(WindowingStrategy.globalDefault()),
+        toProtoAndBackSpec(WindowingStrategy.of(
+            FixedWindows.of(Duration.millis(11)).withOffset(Duration.millis(3)))),
+        toProtoAndBackSpec(WindowingStrategy.of(
+            SlidingWindows.of(Duration.millis(37)).every(Duration.millis(3))
+                .withOffset(Duration.millis(2)))),
+        toProtoAndBackSpec(WindowingStrategy.of(
+            Sessions.withGapDuration(Duration.millis(389)))),
         toProtoAndBackSpec(
             WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
                 .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS)

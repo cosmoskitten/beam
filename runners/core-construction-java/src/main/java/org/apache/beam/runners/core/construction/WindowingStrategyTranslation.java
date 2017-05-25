@@ -173,19 +173,61 @@ public class WindowingStrategyTranslation implements Serializable {
    */
   public static SdkFunctionSpec toProto(
       WindowFn<?, ?> windowFn, @SuppressWarnings("unused") SdkComponents components) {
-    return SdkFunctionSpec.newBuilder()
-        // TODO: Set environment ID
-        .setSpec(
-            FunctionSpec.newBuilder()
-                .setUrn(SERIALIZED_JAVA_WINDOWFN_URN)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(windowFn)))
-                            .build())))
-        .build();
+    // TODO: Set environment IDs
+    if (windowFn instanceof GlobalWindows) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(FunctionSpec.newBuilder().setUrn(GLOBAL_WINDOWS_FN))
+          .build();
+    } else if (windowFn instanceof FixedWindows) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(FIXED_WINDOWS_FN)
+                  .setParameter(
+                      Any.pack(
+                          RunnerApiPayloads.FixedWindowsPayload.newBuilder()
+                              .setSize(Durations.fromMillis(((FixedWindows) windowFn).getSize().getMillis()))
+                              .setOffset(Timestamps.fromMillis(((FixedWindows) windowFn).getOffset().getMillis()))
+                              .build())))
+          .build();
+    } else if (windowFn instanceof SlidingWindows) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(SLIDING_WINDOWS_FN)
+                  .setParameter(
+                      Any.pack(
+                          RunnerApiPayloads.SlidingWindowsPayload.newBuilder()
+                              .setSize(Durations.fromMillis(((SlidingWindows) windowFn).getSize().getMillis()))
+                              .setOffset(Timestamps.fromMillis(((SlidingWindows) windowFn).getOffset().getMillis()))
+                              .setPeriod(Durations.fromMillis(((SlidingWindows) windowFn).getPeriod().getMillis()))
+                              .build())))
+          .build();
+    } else if (windowFn instanceof Sessions) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(SESSION_WINDOWS_FN)
+                  .setParameter(
+                      Any.pack(
+                          RunnerApiPayloads.SessionsPayload.newBuilder()
+                              .setGapSize(Durations.fromMillis(((Sessions) windowFn).getGapDuration().getMillis()))
+                              .build())))
+          .build();
+    } else {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(SERIALIZED_JAVA_WINDOWFN_URN)
+                  .setParameter(
+                      Any.pack(
+                          BytesValue.newBuilder()
+                              .setValue(
+                                  ByteString.copyFrom(
+                                      SerializableUtils.serializeToByteArray(windowFn)))
+                              .build())))
+          .build();
+    }
   }
 
   /**
