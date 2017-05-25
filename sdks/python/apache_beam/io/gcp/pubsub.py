@@ -22,9 +22,6 @@ pipelines, during remote execution.
 
 from __future__ import absolute_import
 
-from apache_beam import coders
-from apache_beam.coders.coder_impl import create_InputStream
-from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
@@ -37,7 +34,7 @@ __all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub']
 
 
 class ReadStringsFromPubSub(PTransform):
-  """A ``PTransform`` for reading a string payload from Cloud Pub/Sub."""
+  """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub."""
 
   def __init__(self, topic, subscription=None, id_label=None):
     """Initializes ``ReadStringsFromPubSub``.
@@ -62,14 +59,13 @@ class ReadStringsFromPubSub(PTransform):
   def expand(self, pvalue):
     pcoll = pvalue.pipeline | Read(self._source)
     pcoll.element_type = bytes
-    pcoll = pcoll | 'parse payload' >> ParDo(
-        _PubSubReadPayloadTransformer(coders.StrUtf8Coder()).transform_value)
-    pcoll.element_type = str
+    pcoll = pcoll | 'decode string' >> ParDo(_decodeUtf8String)
+    pcoll.element_type = unicode
     return pcoll
 
 
 class WriteStringsToPubSub(PTransform):
-  """A ``PTransform`` for writing string payloads to Cloud Pub/Sub."""
+  """A ``PTransform`` for writing utf-8 string payloads to Cloud Pub/Sub."""
 
   def __init__(self, topic):
     """Initializes ``WriteStringsToPubSub``.
@@ -81,8 +77,7 @@ class WriteStringsToPubSub(PTransform):
     self._sink = _PubSubSink(topic)
 
   def expand(self, pcoll):
-    pcoll = pcoll | 'format payload' >> ParDo(
-        _PubSubWritePayloadTransformer(coders.StrUtf8Coder()).transform_value)
+    pcoll = pcoll | 'encode string' >> ParDo(_encodeUtf8String)
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 
@@ -147,28 +142,11 @@ class _PubSubSink(dataflow_io.NativeSink):
         'PubSubSink is not supported in local execution.')
 
 
-class _PubSubReadPayloadTransformer(object):
-  """Converts from a payload of bytes encoded in the nested context to
-  the type produced by the supplied coder when decoded in the outer context.
-  """
-  def __init__(self, value_coder):
-    self._value_coder = value_coder
-
-  def transform_value(self, nested_payload_bytes):
-    payload_bytes = coders.BytesCoder().decode(nested_payload_bytes)
-    return self._value_coder.get_impl().decode_from_stream(
-        create_InputStream(payload_bytes),
-        False)
+def _decodeUtf8String(encoded_value):
+  """Decodes a string in utf-8 format from bytes"""
+  return encoded_value.decode('utf-8')
 
 
-class _PubSubWritePayloadTransformer(object):
-  """Converts to a payload of bytes encoded in the nested context from
-  the type produced by the supplied coder when encoded in the outer context.
-  """
-  def __init__(self, value_coder):
-    self._value_coder = value_coder
-
-  def transform_value(self, value):
-    out = create_OutputStream()
-    self._value_coder.get_impl().encode_to_stream(value, out, False)
-    return coders.BytesCoder().encode(out.get())
+def _encodeUtf8String(value):
+  """Encodes a string in utf-8 format to bytes"""
+  return value.encode('utf-8')

@@ -22,11 +22,10 @@ import unittest
 
 import hamcrest as hc
 
-from apache_beam import coders
+from apache_beam.io.gcp.pubsub import _decodeUtf8String
+from apache_beam.io.gcp.pubsub import _encodeUtf8String
 from apache_beam.io.gcp.pubsub import _PubSubSink
 from apache_beam.io.gcp.pubsub import _PubSubSource
-from apache_beam.io.gcp.pubsub import _PubSubReadPayloadTransformer
-from apache_beam.io.gcp.pubsub import _PubSubWritePayloadTransformer
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
 from apache_beam.io.gcp.pubsub import WriteStringsToPubSub
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -39,7 +38,7 @@ class TestReadStringsFromPubSub(unittest.TestCase):
     p = TestPipeline()
     pcoll = p | ReadStringsFromPubSub('a_topic', 'a_subscription', 'a_label')
     # Ensure that the output type is str
-    self.assertEqual(str, pcoll.element_type)
+    self.assertEqual(unicode, pcoll.element_type)
 
     # Ensure that the type on the intermediate read output PCollection is bytes
     read_pcoll = pcoll.producer.inputs[0]
@@ -64,7 +63,7 @@ class TestWriteStringsToPubSub(unittest.TestCase):
     # Ensure that the type on the intermediate payload transformer output
     # PCollection is bytes
     write_pcoll = pdone.producer.inputs[0]
-    self.assertEqual(str, write_pcoll.element_type)
+    self.assertEqual(bytes, write_pcoll.element_type)
 
 
 class TestPubSubSource(unittest.TestCase):
@@ -97,42 +96,12 @@ class TestPubSubSink(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
-class TestPubSubReadPayloadTransformer(unittest.TestCase):
-  def test_transforming_payload_context_sensitive(self):
-    test_data = b'test_data'
-    encoded_test_data = coders.BytesCoder().encode(test_data)
-    transformer = _PubSubReadPayloadTransformer(coders.BytesCoder())
-    # transformer will double decode the bytes first in a nested context
-    # removing the length prefix and a second time in an outer context
-    self.assertEqual(test_data, transformer.transform_value(encoded_test_data))
+class TestEncodeDecodeUtf8String(unittest.TestCase):
+  def test_encode(self):
+    self.assertEqual(b'test_data', _encodeUtf8String('test_data'))
 
-  def test_transforming_payload_context_insensitive(self):
-    test_data = 'test_data'
-    encoded_test_data = coders.BytesCoder().encode(
-        coders.StrUtf8Coder().encode(test_data))
-    transformer = _PubSubReadPayloadTransformer(coders.StrUtf8Coder())
-    # transformer will double decode the bytes first in a nested context
-    # removing the length prefix and a second time in an outer context
-    self.assertEqual(test_data, transformer.transform_value(encoded_test_data))
-
-
-class TestPubSubWritePayloadTransformer(unittest.TestCase):
-  def test_transforming_payload_context_sensitive(self):
-    test_data = b'test_data'
-    encoded_test_data = coders.BytesCoder().encode(test_data)
-    transformer = _PubSubWritePayloadTransformer(coders.BytesCoder())
-    # transformer will double encode the bytes first in an outer context
-    # and then a second time in a nested context adding the length prefix
-    self.assertEqual(encoded_test_data, transformer.transform_value(test_data))
-
-  def test_transforming_payload_context_insensitive(self):
-    test_data = 'test_data'
-    encoded_test_data = coders.BytesCoder().encode(
-        coders.StrUtf8Coder().encode(test_data))
-    transformer = _PubSubWritePayloadTransformer(coders.StrUtf8Coder())
-    # transformer will double encode the bytes first in an outer context
-    # and then a second time in a nested context adding the length prefix
-    self.assertEqual(encoded_test_data, transformer.transform_value(test_data))
+  def test_decode(self):
+    self.assertEqual('test_data', _decodeUtf8String(b'test_data'))
 
 
 if __name__ == '__main__':
