@@ -27,6 +27,8 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Collections;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy;
@@ -95,9 +97,14 @@ public class PTransformMatchersTest implements Serializable {
     PCollection<KV<String, Integer>> input =
         PCollection.createPrimitiveOutputInternal(
             p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+    input.setName("dummy input");
+    input.setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+
     PCollection<Integer> output =
         PCollection.createPrimitiveOutputInternal(
             p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+    output.setName("dummy output");
+    output.setCoder(VarIntCoder.of());
 
     return AppliedPTransform.of("pardo", input.expand(), output.expand(), pardo, p);
   }
@@ -265,6 +272,18 @@ public class PTransformMatchersTest implements Serializable {
         getAppliedTransform(
             ParDo.of(splittableDoFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(true));
+
+    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
+    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
+    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
+  }
+
+  @Test
+  public void parDoSplittable() {
+    AppliedPTransform<?, ?, ?> parDoApplication =
+        getAppliedTransform(
+            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
+    assertThat(PTransformMatchers.splittableParDo().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
