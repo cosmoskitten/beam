@@ -128,15 +128,28 @@ public class PTransformTranslation {
     return tag.getId();
   }
 
-  public static String urnForTransform(PTransform<?, ?> transform) {
-    TransformPayloadTranslator translator =
-    KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
+  /**
+   * Returns the URN for the transform if it is known, otherwise {@code null}.
+   */
+  @Nullable
+  public static String urnForTransformOrNull(PTransform<?, ?> transform) {
+    TransformPayloadTranslator translator = KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
     if (translator == null) {
+      return null;
+    }
+    return translator.getUrn(transform);
+  }
+
+  /**
+   * Returns the URN for the transform if it is known, otherwise throws.
+   */
+  public static String urnForTransform(PTransform<?, ?> transform) {
+    String urn = urnForTransformOrNull(transform);
+    if (urn == null) {
       throw new IllegalStateException(
           String.format("No translator known for %s", transform.getClass().getName()));
     }
-
-    return translator.getUrn(transform);
+    return urn;
   }
 
   /**
