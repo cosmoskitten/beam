@@ -67,6 +67,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   public static final String SPLITTABLE_PROCESS_URN =
       "urn:beam:runners_core:transforms:splittable_process:v1";
 
+  public static final String SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN =
+      "urn:beam:runners_core:transforms:splittable_process_keyed_elements:v1";
+
+  public static final String SPLITTABLE_GBKIKWI_URN =
+      "urn:beam:runners_core:transforms:splittable_gbkikwi:v1";
+
   /**
    * Creates the transform for the given original multi-output {@link ParDo}.
    *
