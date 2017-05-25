@@ -496,6 +496,25 @@ public class ParDoTranslation {
         .build();
   }
 
+  private static <T> ParDoPayload getParDoPayload(AppliedPTransform<?, ?, ?> transform)
+      throws IOException {
+    return PTransformTranslation.toProto(
+            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create())
+        .getSpec()
+        .getParameter()
+        .unpack(ParDoPayload.class);
+  }
+
+  public static boolean usesStateOrTimers(AppliedPTransform<?, ?, ?> transform) throws IOException {
+    ParDoPayload payload = getParDoPayload(transform);
+    return payload.getStateSpecsCount() > 0 || payload.getTimerSpecsCount() > 0;
+  }
+
+  public static boolean isSplittable(AppliedPTransform<?, ?, ?> transform) throws IOException {
+    ParDoPayload payload = getParDoPayload(transform);
+    return payload.getSplittable();
+  }
+
   private static ViewFn<?, ?> viewFnFromProto(SdkFunctionSpec viewFn)
       throws InvalidProtocolBufferException {
     FunctionSpec spec = viewFn.getSpec();
