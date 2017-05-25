@@ -144,17 +144,32 @@ public class PTransformTranslation {
     return tag.getId();
   }
 
-  /**
-   * Returns the URN for the transform if it is known, otherwise throws.
-   */
-  public static String urnForTransform(PTransform<?, ?> transform) {
+  /** Returns the URN for the transform if it is known, otherwise {@code null}. */
+  @Nullable
+  public static String urnForTransformOrNull(PTransform<?, ?> transform) {
+
+    // A RawPTransform directly vends its URN. Because it will generally be
+    // a subclass, we cannot do dictionary lookup in KNOWN_PAYLOAD_TRANSLATORS.
+    if (transform instanceof RawPTransform) {
+      return ((RawPTransform) transform).getUrn();
+    }
+
     TransformPayloadTranslator translator = KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
     if (translator == null) {
-      throw new IllegalStateException(
-          String.format("No translator known for %s", transform.getClass().getName()));
+      return null;
     }
 
     return translator.getUrn(transform);
+  }
+
+
+    public static String urnForTransform(PTransform<?, ?> transform) {
+    String urn = urnForTransformOrNull(transform);
+    if (urn == null) {
+      throw new IllegalStateException(
+          String.format("No translator known for %s", transform.getClass().getName()));
+    }
+    return urn;
   }
 
   /**
