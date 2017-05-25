@@ -186,8 +186,10 @@ public class WindowingStrategyTranslation implements Serializable {
                   .setParameter(
                       Any.pack(
                           RunnerApiPayloads.FixedWindowsPayload.newBuilder()
-                              .setSize(Durations.fromMillis(((FixedWindows) windowFn).getSize().getMillis()))
-                              .setOffset(Timestamps.fromMillis(((FixedWindows) windowFn).getOffset().getMillis()))
+                              .setSize(Durations.fromMillis(
+                                  ((FixedWindows) windowFn).getSize().getMillis()))
+                              .setOffset(Timestamps.fromMillis(
+                                  ((FixedWindows) windowFn).getOffset().getMillis()))
                               .build())))
           .build();
     } else if (windowFn instanceof SlidingWindows) {
@@ -198,9 +200,12 @@ public class WindowingStrategyTranslation implements Serializable {
                   .setParameter(
                       Any.pack(
                           RunnerApiPayloads.SlidingWindowsPayload.newBuilder()
-                              .setSize(Durations.fromMillis(((SlidingWindows) windowFn).getSize().getMillis()))
-                              .setOffset(Timestamps.fromMillis(((SlidingWindows) windowFn).getOffset().getMillis()))
-                              .setPeriod(Durations.fromMillis(((SlidingWindows) windowFn).getPeriod().getMillis()))
+                              .setSize(Durations.fromMillis(
+                                  ((SlidingWindows) windowFn).getSize().getMillis()))
+                              .setOffset(Timestamps.fromMillis(
+                                  ((SlidingWindows) windowFn).getOffset().getMillis()))
+                              .setPeriod(Durations.fromMillis(
+                                  ((SlidingWindows) windowFn).getPeriod().getMillis()))
                               .build())))
           .build();
     } else if (windowFn instanceof Sessions) {
@@ -211,7 +216,8 @@ public class WindowingStrategyTranslation implements Serializable {
                   .setParameter(
                       Any.pack(
                           RunnerApiPayloads.SessionsPayload.newBuilder()
-                              .setGapSize(Durations.fromMillis(((Sessions) windowFn).getGapDuration().getMillis()))
+                              .setGapSize(Durations.fromMillis(
+                                  ((Sessions) windowFn).getGapDuration().getMillis()))
                               .build())))
           .build();
     } else {
