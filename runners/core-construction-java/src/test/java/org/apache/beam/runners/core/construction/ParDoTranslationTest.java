@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
@@ -154,6 +155,54 @@ public class ParDoTranslationTest {
     assertThat(
         ParDoTranslation.getMainInput(protoTransform, protoComponents),
         equalTo(protoComponents.getPcollectionsOrThrow(mainInputId)));
+  }
+
+  @Test
+  public void testValueStateSpecToFromProto() throws Exception {
+    SdkComponents sdkComponents = SdkComponents.create();
+    StateSpec<?> stateSpec = StateSpecs.value(VarIntCoder.of());
+    StateSpec<?> deserializedStateSpec =
+        ParDoTranslation.fromProto(
+            ParDoTranslation.toProto(
+                stateSpec, sdkComponents),
+            sdkComponents.toComponents());
+    assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+  }
+
+  @Test
+  public void testBagStateSpecToFromProto() throws Exception {
+    SdkComponents sdkComponents = SdkComponents.create();
+    StateSpec<?> stateSpec = StateSpecs.bag(VarIntCoder.of());
+    StateSpec<?> deserializedStateSpec =
+        ParDoTranslation.fromProto(
+            ParDoTranslation.toProto(
+                stateSpec, sdkComponents),
+            sdkComponents.toComponents());
+    assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+  }
+
+  @Test
+  public void testSetStateSpecToFromProto() throws Exception {
+    SdkComponents sdkComponents = SdkComponents.create();
+    StateSpec<?> stateSpec = StateSpecs.set(VarIntCoder.of());
+    StateSpec<?> deserializedStateSpec =
+        ParDoTranslation.fromProto(
+            ParDoTranslation.toProto(
+                stateSpec, sdkComponents),
+            sdkComponents.toComponents());
+    assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+  }
+
+  @Test
+  public void testMapStateSpecToFromProto() throws Exception {
+    SdkComponents sdkComponents = SdkComponents.create();
+    StateSpec<?> stateSpec = StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
+    StateSpec<?> deserializedStateSpec =
+        ParDoTranslation.fromProto(
+            ParDoTranslation.toProto(
+                stateSpec, sdkComponents),
+            sdkComponents.toComponents());
+    assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
   }
 
   private static class DropElementsFn extends DoFn<KV<Long, String>, Void> {
