@@ -136,6 +136,7 @@ public class PTransformTranslation {
         }
         transformBuilder.setSpec(payload);
       }
+      rawPTransform.registerComponents(components);
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
       FunctionSpec payload =
           KNOWN_PAYLOAD_TRANSLATORS
@@ -225,6 +226,8 @@ public class PTransformTranslation {
     public Any getPayload() {
       return null;
     }
+
+    public void registerComponents(SdkComponents components) {}
   }
 
   /**
@@ -254,6 +257,10 @@ public class PTransformTranslation {
       if (payload != null) {
         transformSpec.setParameter(payload);
       }
+
+      // Transforms like Combine may have Coders that need to be added but do not
+      // occur in a black-box traversal
+      transform.getTransform().registerComponents(components);
 
       return transformSpec.build();
     }
