@@ -36,6 +36,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.values.PCollection;
@@ -67,7 +68,7 @@ public class ViewOverrideFactoryTest implements Serializable {
             factory.getReplacementTransform(
                 AppliedPTransform
                     .<PCollection<Integer>, PCollection<Integer>,
-                        CreatePCollectionView<Integer, List<Integer>>>
+                        PTransform<PCollection<Integer>, PCollection<Integer>>>
                         of(
                             "foo",
                             ints.expand(),
@@ -102,7 +103,7 @@ public class ViewOverrideFactoryTest implements Serializable {
         factory.getReplacementTransform(
             AppliedPTransform
                 .<PCollection<Integer>, PCollection<Integer>,
-                    CreatePCollectionView<Integer, List<Integer>>>
+                    PTransform<PCollection<Integer>, PCollection<Integer>>>
                     of(
                         "foo",
                         ints.expand(),
