@@ -43,17 +43,25 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
   private BigEndianLongCoder() {}
 
   @Override
-  public void encode(Long value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Long value, OutputStream outStream) throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }
-    new DataOutputStream(outStream).writeLong(value);
+    encodeLong(value, outStream);
   }
 
   @Override
-  public Long decode(InputStream inStream)
-      throws IOException, CoderException {
+  public Long decode(InputStream inStream) throws IOException, CoderException {
+    return decodeLong(inStream);
+  }
+
+  /** A primitive version of {@link #encode(Long, OutputStream)}. */
+  public void encodeLong(long value, OutputStream outStream) throws IOException, CoderException {
+    new DataOutputStream(outStream).writeLong(value);
+  }
+
+  /** A primitive version of {@link #decode(InputStream)}. */
+  public long decodeLong(InputStream inStream) throws IOException, CoderException {
     try {
       return new DataInputStream(inStream).readLong();
     } catch (EOFException | UTFDataFormatException exn) {
@@ -97,8 +105,7 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
    * @return {@code 8}, the byte size of a big-endian encoded {@code Long}.
    */
   @Override
-  protected long getEncodedElementByteSize(Long value)
-      throws Exception {
+  protected long getEncodedElementByteSize(Long value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }
