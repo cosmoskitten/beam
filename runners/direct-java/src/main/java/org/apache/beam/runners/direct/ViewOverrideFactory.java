@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.direct;
 
-import com.google.protobuf.Message;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
@@ -95,7 +95,7 @@ class ViewOverrideFactory<ElemT, ViewT>
    * to {@link ViewT}.
    */
   static final class WriteView<ElemT, ViewT>
-      extends RawPTransform<PCollection<Iterable<ElemT>>, PCollectionView<ViewT>, Message> {
+      extends RawPTransform<PCollection<Iterable<ElemT>>, PCollectionView<ViewT>> {
     private final CreatePCollectionView<ElemT, ViewT> og;
 
     WriteView(CreatePCollectionView<ElemT, ViewT> og) {
