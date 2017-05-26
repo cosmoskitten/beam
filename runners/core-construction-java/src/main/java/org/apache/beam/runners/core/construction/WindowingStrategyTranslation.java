@@ -165,6 +165,9 @@ public class WindowingStrategyTranslation implements Serializable {
   // This URN says that the WindowFn is just a UDF blob the Java SDK understands
   // TODO: standardize such things
   public static final String SERIALIZED_JAVA_WINDOWFN_URN = "beam:windowfn:javasdk:v0.1";
+  public static final String OLD_SERIALIZED_JAVA_WINDOWFN_URN = "urn:beam:windowfn:javasdk:0.1";
+  // Remove this once the dataflow worker understands all the above formats.
+  private static final boolean USE_OLD_SERIALIZED_JAVA_WINDOWFN_URN = true;
 
   /**
    * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where {@link
@@ -174,7 +177,21 @@ public class WindowingStrategyTranslation implements Serializable {
   public static SdkFunctionSpec toProto(
       WindowFn<?, ?> windowFn, @SuppressWarnings("unused") SdkComponents components) {
     // TODO: Set environment IDs
-    if (windowFn instanceof GlobalWindows) {
+    if (USE_OLD_SERIALIZED_JAVA_WINDOWFN_URN) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(OLD_SERIALIZED_JAVA_WINDOWFN_URN)
+                  .setParameter(
+                      Any.pack(
+                          BytesValue.newBuilder()
+                              .setValue(
+                                  ByteString.copyFrom(
+                                      SerializableUtils.serializeToByteArray(windowFn)))
+                              .build())))
+          .build();
+    }
+    else if (windowFn instanceof GlobalWindows) {
       return SdkFunctionSpec.newBuilder()
           .setSpec(FunctionSpec.newBuilder().setUrn(GLOBAL_WINDOWS_FN))
           .build();
@@ -343,6 +360,7 @@ public class WindowingStrategyTranslation implements Serializable {
         return Sessions.withGapDuration(
             Duration.millis(Durations.toMillis(sessionParams.getGapSize())));
       case SERIALIZED_JAVA_WINDOWFN_URN:
+      case OLD_SERIALIZED_JAVA_WINDOWFN_URN:
         return (WindowFn<?, ?>) SerializableUtils.deserializeFromByteArray(
             windowFnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray(),
             "WindowFn");
