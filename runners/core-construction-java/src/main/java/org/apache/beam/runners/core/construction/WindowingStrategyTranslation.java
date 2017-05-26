@@ -190,8 +190,7 @@ public class WindowingStrategyTranslation implements Serializable {
                                       SerializableUtils.serializeToByteArray(windowFn)))
                               .build())))
           .build();
-    }
-    else if (windowFn instanceof GlobalWindows) {
+    } else if (windowFn instanceof GlobalWindows) {
       return SdkFunctionSpec.newBuilder()
           .setSpec(FunctionSpec.newBuilder().setUrn(GLOBAL_WINDOWS_FN))
           .build();
