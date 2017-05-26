@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior;
@@ -96,6 +97,48 @@ public class TransformHierarchy {
     current.addComposite(node);
     current = node;
     return current;
+  }
+
+  @Internal
+  public Node pushFinalizedNode(
+      String name,
+      Map<TupleTag<?>, PValue> inputs,
+      PTransform<?, ?> transform,
+      Map<TupleTag<?>, PValue> outputs) {
+    checkNotNull(
+        transform, "A %s must be provided for all Nodes", PTransform.class.getSimpleName());
+    checkNotNull(
+        name, "A name must be provided for all %s Nodes", PTransform.class.getSimpleName());
+    checkNotNull(
+        inputs, "An input must be provided for all %s Nodes", PTransform.class.getSimpleName());
+    Node node = new Node(current, transform, name, inputs, outputs);
+    node.finishedSpecifying = true;
+    current.addComposite(node);
+    current = node;
+    return current;
+  }
+
+  @Internal
+  public Node addFinalizedPrimitiveNode(
+      String name,
+      Map<TupleTag<?>, PValue> inputs,
+      PTransform<?, ?> transform,
+      Map<TupleTag<?>, PValue> outputs) {
+    checkNotNull(
+        transform, "A %s must be provided for all Nodes", PTransform.class.getSimpleName());
+    checkNotNull(
+        name, "A name must be provided for all %s Nodes", PTransform.class.getSimpleName());
+    checkNotNull(
+        inputs, "Inputs must be provided for all %s Nodes", PTransform.class.getSimpleName());
+    checkNotNull(
+        outputs, "Outputs must be provided for all %s Nodes", PTransform.class.getSimpleName());
+    Node node = new Node(current, transform, name, inputs, outputs);
+    node.finishedSpecifying = true;
+    for (PValue output : outputs.values()) {
+      producers.put(output, node);
+    }
+    current.addComposite(node);
+    return node;
   }
 
   public Node replaceNode(Node existing, PInput input, PTransform<?, ?> transform) {
@@ -282,7 +325,8 @@ public class TransformHierarchy {
 
     private final String fullName;
 
-    // Nodes for sub-transforms of a composite transform.
+    // Nodes for sub-transforms of a composite transform, in shallow topological
+    // order so visiting in this order yields a recursively topological traversal.
     private final List<Node> parts = new ArrayList<>();
 
     // Input to the transform, in expanded form.
@@ -307,7 +351,8 @@ public class TransformHierarchy {
     }
 
     /**
-     * Creates a new Node with the given parent and transform.
+     * Creates a new {@link Node} with the given parent and transform, where the output has not yet
+     * been set.
      *
      * @param enclosingNode the composite node containing this node
      * @param transform the PTransform tracked by this node
@@ -326,6 +371,32 @@ public class TransformHierarchy {
       inputs.putAll(input.expand());
       inputs.putAll(transform.getAdditionalInputs());
       this.inputs = inputs.build();
+    }
+
+    /**
+     * Creates a new {@link Node} with the given parent and transform, where inputs and outputs
+     * are already known.
+     *
+     * <p>EnclosingNode and transform may both be null for a root-level node, which holds all other
+     * nodes.
+     *
+     * @param enclosingNode the composite node containing this node
+     * @param transform the PTransform tracked by this node
+     * @param fullName the fully qualified name of the transform
+     * @param inputs the expanded inputs to the transform
+     * @param outputs the expanded outputs of the transform
+     */
+    private Node(
+        @Nullable Node enclosingNode,
+        @Nullable PTransform<?, ?> transform,
+        String fullName,
+        @Nullable Map<TupleTag<?>, PValue> inputs,
+        @Nullable Map<TupleTag<?>, PValue> outputs) {
+      this.enclosingNode = enclosingNode;
+      this.transform = transform;
+      this.fullName = fullName;
+      this.inputs = inputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : inputs;
+      this.outputs = outputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : outputs;
     }
 
     /**
