@@ -30,7 +30,7 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.OutputTime;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.sdk.common.runner.v1.RunnerApiPayloads;
+import org.apache.beam.sdk.common.runner.v1.StandardWindowFns;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -185,7 +185,7 @@ public class WindowingStrategyTranslation implements Serializable {
                   .setUrn(FIXED_WINDOWS_FN)
                   .setParameter(
                       Any.pack(
-                          RunnerApiPayloads.FixedWindowsPayload.newBuilder()
+                          StandardWindowFns.FixedWindowsPayload.newBuilder()
                               .setSize(Durations.fromMillis(
                                   ((FixedWindows) windowFn).getSize().getMillis()))
                               .setOffset(Timestamps.fromMillis(
@@ -199,7 +199,7 @@ public class WindowingStrategyTranslation implements Serializable {
                   .setUrn(SLIDING_WINDOWS_FN)
                   .setParameter(
                       Any.pack(
-                          RunnerApiPayloads.SlidingWindowsPayload.newBuilder()
+                          StandardWindowFns.SlidingWindowsPayload.newBuilder()
                               .setSize(Durations.fromMillis(
                                   ((SlidingWindows) windowFn).getSize().getMillis()))
                               .setOffset(Timestamps.fromMillis(
@@ -215,7 +215,7 @@ public class WindowingStrategyTranslation implements Serializable {
                   .setUrn(SESSION_WINDOWS_FN)
                   .setParameter(
                       Any.pack(
-                          RunnerApiPayloads.SessionsPayload.newBuilder()
+                          StandardWindowFns.SessionsPayload.newBuilder()
                               .setGapSize(Durations.fromMillis(
                                   ((Sessions) windowFn).getGapDuration().getMillis()))
                               .build())))
@@ -322,24 +322,24 @@ public class WindowingStrategyTranslation implements Serializable {
       case GLOBAL_WINDOWS_FN:
         return new GlobalWindows();
       case FIXED_WINDOWS_FN:
-        RunnerApiPayloads.FixedWindowsPayload fixedParams =
+        StandardWindowFns.FixedWindowsPayload fixedParams =
             windowFnSpec.getSpec().getParameter().unpack(
-                RunnerApiPayloads.FixedWindowsPayload.class);
+                StandardWindowFns.FixedWindowsPayload.class);
         return FixedWindows.of(
             Duration.millis(Durations.toMillis(fixedParams.getSize())))
             .withOffset(Duration.millis(Timestamps.toMillis(fixedParams.getOffset())));
       case SLIDING_WINDOWS_FN:
-        RunnerApiPayloads.SlidingWindowsPayload slidingParams =
+        StandardWindowFns.SlidingWindowsPayload slidingParams =
             windowFnSpec.getSpec().getParameter().unpack(
-                RunnerApiPayloads.SlidingWindowsPayload.class);
+                StandardWindowFns.SlidingWindowsPayload.class);
         return SlidingWindows.of(
             Duration.millis(Durations.toMillis(slidingParams.getSize())))
             .every(Duration.millis(Durations.toMillis(slidingParams.getPeriod())))
             .withOffset(Duration.millis(Timestamps.toMillis(slidingParams.getOffset())));
       case SESSION_WINDOWS_FN:
-        RunnerApiPayloads.SessionsPayload sessionParams =
+        StandardWindowFns.SessionsPayload sessionParams =
             windowFnSpec.getSpec().getParameter().unpack(
-                RunnerApiPayloads.SessionsPayload.class);
+                StandardWindowFns.SessionsPayload.class);
         return Sessions.withGapDuration(
             Duration.millis(Durations.toMillis(sessionParams.getGapSize())));
       case SERIALIZED_JAVA_WINDOWFN_URN:
