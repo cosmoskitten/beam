@@ -17,13 +17,14 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
+
 import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 
 /**
@@ -359,10 +361,18 @@ public class PTransformMatchers {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        if (PTransformTranslation.WRITE_FILES_TRANSFORM_URN.equals(
+        if (WRITE_FILES_TRANSFORM_URN.equals(
             PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
-          WriteFiles write = (WriteFiles) application.getTransform();
-          return write.getSharding() == null && write.getNumShards() == null;
+          try {
+            return WriteFilesTranslation.isRunnerDeterminedSharding(
+                (AppliedPTransform) application);
+          } catch (IOException exc) {
+            throw new RuntimeException(
+                String.format(
+                    "Transform with URN %s failed to parse: %s",
+                    WRITE_FILES_TRANSFORM_URN, application.getTransform()),
+                exc);
+          }
         }
         return false;
       }
