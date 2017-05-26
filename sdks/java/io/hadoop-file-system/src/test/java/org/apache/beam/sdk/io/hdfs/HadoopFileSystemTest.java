@@ -158,6 +158,18 @@ public class HadoopFileSystemTest {
   }
 
   @Test
+  public void testMatchForNonExistentFile() throws Exception {
+    create("testFileAA", "testDataAA".getBytes());
+
+    // ensure files exist
+    assertArrayEquals("testDataAA".getBytes(), read("testFileAA"));
+
+    List<MatchResult> matchResults = fileSystem.match(
+            ImmutableList.of(testPath("testFileA").toString()));
+    assertEquals(Status.NOT_FOUND, Iterables.getOnlyElement(matchResults).status());
+  }
+
+  @Test
   public void testRename() throws Exception {
     create("testFileA", "testDataA".getBytes());
     create("testFileB", "testDataB".getBytes());
