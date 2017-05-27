@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -75,6 +76,11 @@ public interface FlinkPipelineOptions
   @Default.Enum("AT_LEAST_ONCE")
   CheckpointingMode getCheckpointingMode();
   void setCheckpointingMode(CheckpointingMode mode);
+
+  @Description("The maximum time that a checkpoint may take before being discarded.")
+  @Default.Long(20 * 60 * 1000)
+  Long getCheckpointTimeoutMillis();
+  void setCheckpointTimeoutMillis(Long checkpointTimeoutMillis);
 
   @Description("Sets the number of times that failed tasks are re-executed. "
       + "A value of zero effectively disables fault tolerance. A value of -1 indicates "
