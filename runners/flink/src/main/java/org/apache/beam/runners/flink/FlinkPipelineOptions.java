@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -127,4 +128,8 @@ public interface FlinkPipelineOptions
   @Default.Boolean(false)
   Boolean getRetainExternalizedCheckpointsOnCancellation();
   void setRetainExternalizedCheckpointsOnCancellation(Boolean retainOnCancellation);
+
+  @Description("The degree of parallelism fo each transform.")
+  Map<String, Integer> getPerTransformParallelism();
+  void setPerTransformParallelism(Map<String, Integer> perTransformParallelism);
 }
