@@ -21,6 +21,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -330,7 +331,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   /**
    * Coders used in aggregation steps.
    */
-  private void prepareTypeAndCoder() {
+  private void TprepareTypeAndCoder() {
     inRecordCoder = new BeamSqlRowCoder(inputRowType);
 
     keyType = initTypeOfSqlRow(Arrays.asList(KV.of("f_int", SqlTypeName.INTEGER)));
