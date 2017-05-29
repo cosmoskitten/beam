@@ -364,4 +364,7 @@ public class BeamSqlRow implements Serializable {
     return toString().equals(other.toString());
   }
 
+  @Override public int hashCode() {
+    return 31 * (31 * dataType.hashCode() + dataValues.hashCode()) + nullFields.hashCode();
+  }
 }

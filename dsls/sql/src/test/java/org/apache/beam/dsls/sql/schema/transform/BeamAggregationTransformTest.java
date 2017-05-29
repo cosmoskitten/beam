@@ -332,7 +332,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   /**
    * Coders used in aggregation steps.
    */
-  private void TprepareTypeAndCoder() {
+  private void prepareTypeAndCoder() {
     inRecordCoder = new BeamSqlRowCoder(inputRowType);
 
     keyType = initTypeOfSqlRow(Arrays.asList(KV.of("f_int", SqlTypeName.INTEGER)));

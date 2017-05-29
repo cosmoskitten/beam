@@ -200,5 +200,9 @@
       <artifactId>auto-value</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-join-library</artifactId>
+    </dependency>
   </dependencies>
 </project>
