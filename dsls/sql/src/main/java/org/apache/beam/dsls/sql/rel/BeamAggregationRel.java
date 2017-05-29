@@ -70,38 +70,40 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   public PCollection<BeamSQLRow> buildBeamPipeline(BeamPipelineCreator planCreator)
       throws Exception {
     RelNode input = getInput();
-    String stageName = BeamSQLRelUtils.getStageName(this);
+    String stageName = BeamSQLRelUtils.getStageName(this) + "_";
 
     PCollection<BeamSQLRow> upstream =
         BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
     if (windowFieldIdx != -1) {
-      upstream = upstream.apply("assignEventTimestamp", WithTimestamps
+      upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
           .<BeamSQLRow>of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)));
     }
 
-    PCollection<BeamSQLRow> windowStream = upstream.apply("window",
+    PCollection<BeamSQLRow> windowStream = upstream.apply(stageName + "window",
         Window.<BeamSQLRow>into(windowFn)
         .triggering(trigger)
         .withAllowedLateness(allowedLatence)
         .accumulatingFiredPanes());
 
     //1. extract fields in group-by key part
-    PCollection<KV<BeamSQLRow, BeamSQLRow>> exGroupByStream = windowStream.apply("exGroupBy",
+    PCollection<KV<BeamSQLRow, BeamSQLRow>> exGroupByStream = windowStream.apply(
+        stageName + "exGroupBy",
         WithKeys
             .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(windowFieldIdx, groupSet)));
 
     //2. apply a GroupByKey.
     PCollection<KV<BeamSQLRow, Iterable<BeamSQLRow>>> groupedStream = exGroupByStream
-        .apply("groupBy", GroupByKey.<BeamSQLRow, BeamSQLRow>create());
+        .apply(stageName + "groupBy", GroupByKey.<BeamSQLRow, BeamSQLRow>create());
 
     //3. run aggregation functions
-    PCollection<KV<BeamSQLRow, BeamSQLRow>> aggregatedStream = groupedStream.apply("aggregation",
+    PCollection<KV<BeamSQLRow, BeamSQLRow>> aggregatedStream = groupedStream.apply(
+        stageName + "aggregation",
         Combine.<BeamSQLRow, BeamSQLRow, BeamSQLRow>groupedValues(
             new BeamAggregationTransforms.AggregationCombineFn(getAggCallList(),
                 BeamSQLRecordType.from(input.getRowType()))));
 
     //4. flat KV to a single record
-    PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply("mergeRecord",
+    PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply(stageName + "mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
             BeamSQLRecordType.from(getRowType()), getAggCallList())));
 
