@@ -18,9 +18,11 @@
 package org.apache.beam.dsls.sql.schema.kafka;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;

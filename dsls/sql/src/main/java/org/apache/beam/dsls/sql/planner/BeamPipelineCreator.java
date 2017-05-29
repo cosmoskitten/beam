@@ -18,6 +18,7 @@
 package org.apache.beam.dsls.sql.planner;
 
 import java.util.Map;
+
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.Pipeline;
