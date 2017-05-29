@@ -15,28 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.transform;
+
+package org.apache.beam.dsls.sql;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * A test PTransform to display output in console.
- *
+ * Test utilities.
  */
-public class BeamSQLOutputToConsoleFn extends DoFn<BeamSQLRow, Void> {
+public class TestUtils {
 
-  private String stepName;
-
-  public BeamSQLOutputToConsoleFn(String stepName) {
-    super();
-    this.stepName = stepName;
+  /**
+   * A {@code DoFn} to convert a {@code BeamSQLRow} to a comparable {@code}.
+   */
+  public static class BeamSqlRow2StringDoFn extends DoFn<BeamSQLRow, String> {
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      ctx.output(ctx.element().valueInString());
+    }
   }
 
-  @ProcessElement
-  public void processElement(ProcessContext c) {
-    //System.out.println(c.element().getDataType().getFieldsName());
-    System.out.println("Output: " + c.element().getDataValues());
-  }
+  /**
+   * Convert list of {@code BeamSQLRow} to list of {@code String}.
+   */
+  public static List<String> beamSqlRows2Strings(List<BeamSQLRow> rows) {
+    List<String> strs = new ArrayList<>();
+    for (BeamSQLRow row : rows) {
+      strs.add(row.valueInString());
+    }
 
+    return strs;
+  }
 }

@@ -20,6 +20,7 @@ package org.apache.beam.dsls.sql.schema;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeFactory.FieldInfoBuilder;
@@ -94,4 +95,17 @@ public class BeamSQLRecordType implements Serializable {
     return "RecordType [fieldsName=" + fieldsName + ", fieldsType=" + fieldsType + "]";
   }
 
+  @Override public boolean equals(Object obj) {
+    if (obj == null || !(obj instanceof BeamSQLRecordType)) {
+      return false;
+    }
+
+    BeamSQLRecordType that = (BeamSQLRecordType) obj;
+    return this.fieldsName.equals(that.fieldsName)
+        && this.fieldsType.equals(that.fieldsType);
+  }
+
+  @Override public int hashCode() {
+    return 31 * this.fieldsName.hashCode() + this.fieldsType.hashCode();
+  }
 }

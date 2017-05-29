@@ -19,6 +19,7 @@ package org.apache.beam.dsls.sql.planner;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
@@ -47,6 +48,7 @@ public class MockedBeamSQLTable extends BaseBeamTable {
   public static final ConcurrentLinkedQueue<BeamSQLRow> CONTENT = new ConcurrentLinkedQueue<>();
 
   private List<BeamSQLRow> inputRecords;
+  private PCollection.IsBounded isBounded = PCollection.IsBounded.BOUNDED;
 
   public MockedBeamSQLTable(RelProtoDataType protoRowType) {
     super(protoRowType);
@@ -117,12 +119,17 @@ public class MockedBeamSQLTable extends BaseBeamTable {
 
   @Override
   public BeamIOType getSourceType() {
-    return BeamIOType.UNBOUNDED;
+    if (isBounded == PCollection.IsBounded.BOUNDED) {
+      return BeamIOType.BOUNDED;
+    } else {
+      return BeamIOType.UNBOUNDED;
+    }
   }
 
   @Override
   public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline).apply(Create.of(inputRecords));
+    return PBegin.in(pipeline).apply(UUID.randomUUID().toString(), Create.of(inputRecords))
+        .setIsBoundedInternal(isBounded);
   }
 
   @Override
@@ -134,6 +141,10 @@ public class MockedBeamSQLTable extends BaseBeamTable {
     return inputRecords;
   }
 
+  public MockedBeamSQLTable withIsBounded(PCollection.IsBounded isBounded) {
+    this.isBounded = isBounded;
+    return this;
+  }
   /**
    * Keep output in {@code CONTENT} for validation.
    *
