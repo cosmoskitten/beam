@@ -17,8 +17,9 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
+import static org.junit.Assert.assertEquals;
+
 import org.apache.beam.dsls.sql.BeamSqlCli;
-import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -34,7 +35,7 @@ public class BeamPlannerExplainTest extends BasePlanner {
     String expectedPlan =
         "BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2], order_time=[$3])\n"
         + "  BeamIOSourceRel(table=[[ORDER_DETAILS]])\n";
-    Assert.assertEquals("explain doesn't match", expectedPlan, plan);
+    assertEquals("explain doesn't match", expectedPlan, plan);
   }
 
   @Test
@@ -46,7 +47,7 @@ public class BeamPlannerExplainTest extends BasePlanner {
     String expectedPlan = "BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2])\n"
         + "  BeamFilterRel(condition=[AND(=($1, 0), >($2, 20))])\n"
         + "    BeamIOSourceRel(table=[[ORDER_DETAILS]])\n";
-    Assert.assertEquals("explain doesn't match", expectedPlan, plan);
+    assertEquals("explain doesn't match", expectedPlan, plan);
   }
 
   @Test
@@ -62,6 +63,20 @@ public class BeamPlannerExplainTest extends BasePlanner {
         + "    BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2])\n"
         + "      BeamFilterRel(condition=[AND(=($1, 0), >($2, 20))])\n"
         + "        BeamIOSourceRel(table=[[ORDER_DETAILS]])\n";
-    Assert.assertEquals("explain doesn't match", expectedPlan, plan);
+    assertEquals("explain doesn't match", expectedPlan, plan);
+  }
+
+  @Test
+  public void join() throws Exception {
+    String sql = "SELECT * FROM ORDER_DETAILS"
+        + " JOIN "
+        + "SUB_ORDER_RAM "
+        + "on ORDER_DETAILS.order_id = SUB_ORDER_RAM.order_id";
+    String plan = BeamSqlCli.explainQuery(sql);
+    assertEquals("BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2], "
+        + "order_time=[$3], order_id0=[$4], site_id0=[$5], price0=[$6], order_time0=[$7])\n"
+        + "  BeamJoinRel(condition=[=($0, $4)], joinType=[inner])\n"
+        + "    BeamIOSourceRel(table=[[ORDER_DETAILS]])\n"
+        + "    BeamIOSourceRel(table=[[SUB_ORDER_RAM]])\n", plan);
   }
 }
