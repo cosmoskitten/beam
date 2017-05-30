@@ -338,14 +338,6 @@ public class NexmarkUtils {
    * Setup pipeline with codes and some other options.
    */
   public static void setupPipeline(CoderStrategy coderStrategy, Pipeline p) {
-    //TODO Ismael check
-//    PipelineRunner<?> runner = p.getRunner();
-//    if (runner instanceof DirectRunner) {
-//      // Disable randomization of output since we want to check batch and streaming match the
-//      // model both locally and on the cloud.
-//      ((DirectRunner) runner).withUnorderednessTesting(false);
-//    }
-
     CoderRegistry registry = p.getCoderRegistry();
     switch (coderStrategy) {
       case HAND:
