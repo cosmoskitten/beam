@@ -1120,7 +1120,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
           sinkEventsToAvro(source);
         }
 
-        // Special hacks for Query 10 (big logger).
+        // Query 10 logs all events to Google Cloud storage files. It could generate a lot of logs,
+        // so, set parallelism. Also set the output path where to write log files.
         if (configuration.query == 10) {
           String path = null;
           if (options.getOutputPath() != null && !options.getOutputPath().isEmpty()) {
