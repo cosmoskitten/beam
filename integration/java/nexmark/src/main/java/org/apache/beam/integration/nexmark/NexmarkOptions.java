@@ -118,7 +118,7 @@ public interface NexmarkOptions
   @Nullable
   Integer getStreamTimeout();
 
-  void setStreamTimeout(Integer preloadSeconds);
+  void setStreamTimeout(Integer streamTimeout);
 
   @Description("Number of unbounded sources to create events.")
   @Nullable

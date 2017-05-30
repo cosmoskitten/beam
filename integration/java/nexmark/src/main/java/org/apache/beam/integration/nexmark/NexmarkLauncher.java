@@ -437,16 +437,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    */
   private void invokeBuilderForPublishOnlyPipeline(PipelineBuilder<NexmarkOptions> builder) {
     builder.build(options);
-//    throw new UnsupportedOperationException(
-//        "Cannot use --pubSubMode=COMBINED with DirectRunner");
-  }
-
-  /**
-   * If monitoring, wait until the publisher pipeline has run long enough to establish
-   * a backlog on the Pubsub topic. Otherwise, return immediately.
-   */
-  private void waitForPublisherPreload() {
-    throw new UnsupportedOperationException();
   }
 
   /**
@@ -1158,9 +1148,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         sink(results, now);
       }
 
-      if (publisherResult != null) {
-        waitForPublisherPreload();
-      }
       mainResult = p.run();
       mainResult.waitUntilFinish(Duration.standardSeconds(configuration.streamTimeout));
       return monitor(query);
