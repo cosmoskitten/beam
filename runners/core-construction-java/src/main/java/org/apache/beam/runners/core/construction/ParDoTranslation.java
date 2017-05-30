@@ -144,6 +144,7 @@ public class ParDoTranslation {
 
     ParDoPayload.Builder builder = ParDoPayload.newBuilder();
     builder.setDoFn(toProto(parDo.getFn(), parDo.getMainOutputTag()));
+    builder.setSplittable(signature.processElement().isSplittable());
     for (PCollectionView<?> sideInput : parDo.getSideInputs()) {
       builder.putSideInputs(sideInput.getTagInternal().getId(), toProto(sideInput));
     }
