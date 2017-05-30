@@ -53,6 +53,9 @@ public class PTransformTranslation {
   @Deprecated
   public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
 
+  // Less well-known. And where shall these live?
+  public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
+
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
 
