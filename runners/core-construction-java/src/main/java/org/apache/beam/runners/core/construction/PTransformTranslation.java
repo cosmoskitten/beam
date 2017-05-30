@@ -50,6 +50,9 @@ public class PTransformTranslation {
   public static final String WINDOW_TRANSFORM_URN = "urn:beam:transform:window:v1";
   public static final String TEST_STREAM_TRANSFORM_URN = "urn:beam:transform:teststream:v1";
 
+  @Deprecated
+  public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
+
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
 
