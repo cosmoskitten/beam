@@ -19,7 +19,6 @@ package org.apache.beam.integration.nexmark;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
@@ -29,7 +28,7 @@ import java.util.Objects;
  * programmatically. We only capture properties which may influence the resulting
  * pipeline performance, as captured by {@link NexmarkPerf}.
  */
-public class NexmarkConfiguration implements Serializable, Cloneable {
+public class NexmarkConfiguration implements Serializable {
   public static final NexmarkConfiguration DEFAULT = new NexmarkConfiguration();
 
   /** If {@literal true}, include additional debugging and monitoring stats. */
@@ -359,16 +358,11 @@ public class NexmarkConfiguration implements Serializable, Cloneable {
   }
 
   /**
-   * Return clone of configuration with given label.
+   * Return copy of configuration with given label.
    */
-  @Override
-  public NexmarkConfiguration clone() {
+  public NexmarkConfiguration copy() {
     NexmarkConfiguration result;
-    try {
-      result = (NexmarkConfiguration) super.clone();
-    } catch (CloneNotSupportedException e) {
-      throw new IllegalStateException(e);
-    }
+    result = new NexmarkConfiguration();
     result.debug = debug;
     result.query = query;
     result.sourceType = sourceType;

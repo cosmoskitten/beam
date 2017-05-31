@@ -87,11 +87,13 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
+import org.slf4j.LoggerFactory;
 
 /**
  * Run a single Nexmark query using a given configuration.
  */
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
+  private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(NexmarkLauncher.class);
   /**
    * Minimum number of samples needed for 'stead-state' rate calculation.
    */
@@ -185,7 +187,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    */
   private long getCounterMetric(PipelineResult result, String namespace, String name,
     long defaultValue) {
-    //TODO Ismael calc this only once
     MetricQueryResults metrics = result.metrics().queryMetrics(
         MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build());
     Iterable<MetricResult<Long>> counters = metrics.counters();
@@ -193,7 +194,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       MetricResult<Long> metricResult = counters.iterator().next();
       return metricResult.attempted();
     } catch (NoSuchElementException e) {
-      //TODO Ismael
+      LOG.error("Failed to get metric {}, from namespace {}", name, namespace);
     }
     return defaultValue;
   }
@@ -209,15 +210,20 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     Iterable<MetricResult<DistributionResult>> distributions = metrics.distributions();
     try {
       MetricResult<DistributionResult> distributionResult = distributions.iterator().next();
-      if (distType.equals(DistributionType.MIN)) {
-        return distributionResult.attempted().min();
-      } else if (distType.equals(DistributionType.MAX)) {
-        return distributionResult.attempted().max();
-      } else {
-        //TODO Ismael
+      switch (distType)
+      {
+        case MIN:
+          return distributionResult.attempted().min();
+        case MAX:
+          return distributionResult.attempted().max();
+        default:
+          return defaultValue;
       }
     } catch (NoSuchElementException e) {
-      //TODO Ismael
+      LOG.error(
+          "Failed to get distribution metric {} for namespace {}",
+          name,
+          namespace);
     }
     return defaultValue;
   }
@@ -228,7 +234,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Return the current value for a time counter, or -1 if can't be retrieved.
    */
   private long getTimestampMetric(long now, long value) {
-    //TODO Ismael improve doc
+    // timestamp metrics are used to monitor time of execution of transforms.
+    // If result timestamp metric is too far from now, consider that metric is erroneous
+
     if (Math.abs(value - now) > Duration.standardDays(10000).getMillis()) {
       return -1;
     }
@@ -596,11 +604,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         publisherJob.waitUntilFinish(Duration.standardMinutes(5));
       } catch (IOException e) {
         throw new RuntimeException("Unable to cancel publisher job: ", e);
-      } //TODO Ismael
-//      catch (InterruptedException e) {
-//        Thread.interrupted();
-//        throw new RuntimeException("Interrupted: publish job still running.", e);
-//      }
+      }
     }
 
     return perf;
@@ -745,7 +749,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
             c.output(event);
           } catch (CoderException e) {
-            // TODO Log decoding Event error
+            LOG.error("Error while decoding Event from pusbSub message: serialization error");
           }
         }
       }));
@@ -788,7 +792,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
                   byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
                   c.output(new PubsubMessage(payload, new HashMap<String, String>()));
                 } catch (CoderException e1) {
-                  // TODO Log encoding Event error
+                  LOG.error("Error while sending Event {} to pusbSub: serialization error",
+                      c.element().toString());
                 }
               }
             })

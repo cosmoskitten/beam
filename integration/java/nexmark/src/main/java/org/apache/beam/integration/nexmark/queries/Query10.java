@@ -128,12 +128,9 @@ public class Query10 extends NexmarkQuery {
    */
   private WritableByteChannel openWritableGcsFile(GcsOptions options, String filename)
       throws IOException {
-    //TODO Decide what to do about this one
-//    WritableByteChannel channel =
-//            GcsIOChannelFactory.fromOptions(options).create(filename, "text/plain");
-//    checkState(channel instanceof GoogleCloudStorageWriteChannel);
-//    ((GoogleCloudStorageWriteChannel) channel).setUploadBufferSize(CHANNEL_BUFFER);
-//    return channel;
+    //TODO
+    // Fix after PR: right now this is a specific Google added use case
+    // Discuss it on ML: shall we keep GCS or use HDFS or use a generic beam filesystem way.
     throw new UnsupportedOperationException("Disabled after removal of GcsIOChannelFactory");
   }
 
