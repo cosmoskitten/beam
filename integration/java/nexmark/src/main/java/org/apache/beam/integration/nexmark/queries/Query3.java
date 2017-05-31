@@ -243,9 +243,9 @@ public class Query3 extends NexmarkQuery {
           theNewPerson = newPerson;
         } else {
           if (theNewPerson.equals(newPerson)) {
-            LOG.error("**** duplicate person {} ****", theNewPerson);
+            LOG.error("Duplicate person {}", theNewPerson);
           } else {
-            LOG.error("**** conflicting persons {} and {} ****", theNewPerson, newPerson);
+            LOG.error("Conflicting persons {} and {}", theNewPerson, newPerson);
           }
           fatalCounter.inc();
           continue;

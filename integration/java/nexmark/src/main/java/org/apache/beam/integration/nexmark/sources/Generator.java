@@ -28,7 +28,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
-import org.apache.beam.integration.nexmark.NexmarkConfiguration;
 import org.apache.beam.integration.nexmark.model.Auction;
 import org.apache.beam.integration.nexmark.model.Bid;
 import org.apache.beam.integration.nexmark.model.Event;
@@ -54,7 +53,7 @@ import org.joda.time.Instant;
  * <p>This class implements {@link org.apache.beam.sdk.io.UnboundedSource.CheckpointMark}
  * so that we can resume generating events from a saved snapshot.
  */
-public class Generator implements Iterator<TimestampedValue<Event>>, Serializable, Cloneable {
+public class Generator implements Iterator<TimestampedValue<Event>>, Serializable {
   /**
    * Keep the number of categories small so the example queries will find results even with
    * a small batch of events.
@@ -169,7 +168,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     }
 
     /**
-     * Return a deep clone of next event with delay added to wallclock timestamp and
+     * Return a deep copy of next event with delay added to wallclock timestamp and
      * event annotate as 'LATE'.
      */
     public NextEvent withDelay(long delayMs) {
@@ -243,20 +242,11 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
   }
 
   /**
-   * Return a deep clone of this generator.
+   * Return a deep copy of this generator.
    */
-  @Override
-  public Generator clone() {
-    Generator result;
-    try {
-      result = (Generator) super.clone();
-      checkNotNull(config);
-      result.config = config.clone();
-      result.numEvents = numEvents;
-      result.wallclockBaseTime = wallclockBaseTime;
-    } catch (CloneNotSupportedException e) {
-      throw new IllegalStateException(e);
-    }
+  public Generator copy() {
+    checkNotNull(config);
+    Generator result = new Generator(config, numEvents, wallclockBaseTime);
     return result;
   }
 
@@ -275,9 +265,9 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
    */
   public GeneratorConfig splitAtEventId(long eventId) {
     long newMaxEvents = eventId - (config.firstEventId + config.firstEventNumber);
-    GeneratorConfig remainConfig = config.cloneWith(config.firstEventId,
+    GeneratorConfig remainConfig = config.copyWith(config.firstEventId,
         config.maxEvents - newMaxEvents, config.firstEventNumber + newMaxEvents);
-    config = config.cloneWith(config.firstEventId, newMaxEvents, config.firstEventNumber);
+    config = config.copyWith(config.firstEventId, newMaxEvents, config.firstEventNumber);
     return remainConfig;
   }
 

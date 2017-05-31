@@ -19,7 +19,6 @@ package org.apache.beam.integration.nexmark.sources;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.Data;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +30,7 @@ import org.apache.beam.sdk.values.KV;
 /**
  * Parameters controlling how {@link Generator} synthesizes {@link Event} elements.
  */
-public class GeneratorConfig implements Serializable, Cloneable {
+public class GeneratorConfig implements Serializable {
 
   /**
    * We start the ids at specific values to help ensure the queries find a match even on
@@ -136,27 +135,13 @@ public class GeneratorConfig implements Serializable, Cloneable {
   }
 
   /**
-   * Return a clone of this config.
+   * Return a copy of this config.
    */
-  @Override
-  public GeneratorConfig clone() {
+  public GeneratorConfig copy() {
     GeneratorConfig result;
-    try {
-        // TODO improve that, just a workaround for findbugs
-        super.clone();
-        result = new GeneratorConfig(configuration, baseTime, firstEventId,
+      result = new GeneratorConfig(configuration, baseTime, firstEventId,
           maxEvents, firstEventNumber);
-    } catch (CloneNotSupportedException e) {
-      throw new IllegalStateException(e);
-    }
     return result;
-  }
-
-  /**
-   * Return clone of this config except with given parameters.
-   */
-  public GeneratorConfig cloneWith(long firstEventId, long maxEvents, long firstEventNumber) {
-    return new GeneratorConfig(configuration, baseTime, firstEventId, maxEvents, firstEventNumber);
   }
 
   /**
@@ -177,11 +162,18 @@ public class GeneratorConfig implements Serializable, Cloneable {
           // Don't loose any events to round-down.
           subMaxEvents = maxEvents - subMaxEvents * (n - 1);
         }
-        results.add(cloneWith(subFirstEventId, subMaxEvents, firstEventNumber));
+        results.add(copyWith(subFirstEventId, subMaxEvents, firstEventNumber));
         subFirstEventId += subMaxEvents;
       }
     }
     return results;
+  }
+
+  /**
+   * Return copy of this config except with given parameters.
+   */
+  public GeneratorConfig copyWith(long firstEventId, long maxEvents, long firstEventNumber) {
+    return new GeneratorConfig(configuration, baseTime, firstEventId, maxEvents, firstEventNumber);
   }
 
   /**
