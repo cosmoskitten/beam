@@ -168,13 +168,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   /**
-   * Return number of cores per worker.
-   */
-  protected int coresPerWorker() {
-    return 4;
-  }
-
-  /**
    * Return maximum number of workers.
    */
   private int maxNumWorkers() {
