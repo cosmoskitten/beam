@@ -97,7 +97,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
    */
   @Test
   public void testUdf() throws Exception {
-    BeamSql.addUDFFunction("negative", BeamSqlUdfExpressionTest.UdfFn.class, "negative");
+    BeamSql.registerUdf("negative", BeamSqlUdfExpressionTest.UdfFn.class, "negative");
     String sql = "select site_id, negative(site_id) as nsite_id from ORDER_DETAILS";
 
     String plan = BeamSql.explainQuery(sql);
