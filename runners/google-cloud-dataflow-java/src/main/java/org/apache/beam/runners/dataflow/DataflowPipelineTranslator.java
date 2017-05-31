@@ -607,7 +607,7 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public long addOutput(PValue value) {
+    public long addOutput(PCollection<?> value) {
       Coder<?> coder;
       if (value instanceof PCollection) {
         coder = ((PCollection<?>) value).getCoder();
@@ -626,7 +626,8 @@ public class DataflowPipelineTranslator {
 
     @Override
     public long addCollectionToSingletonOutput(
-        PValue inputValue, PValue outputValue) {
+        PCollection<?> inputValue, PCollectionView<?> outputValue) {
+      translator.producers.put(outputValue, translator.currentTransform);
       Coder<?> inputValueCoder =
           checkNotNull(translator.outputCoders.get(inputValue));
       // The inputValueCoder for the input PCollection should be some
