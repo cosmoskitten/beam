@@ -66,14 +66,6 @@ interface TransformTranslator<TransformT extends PTransform> {
      */
     StepTranslationContext addStep(PTransform<?, ?> transform, String type);
 
-    /**
-     * Adds a pre-defined step to the Dataflow workflow. The given PTransform should be consistent
-     * with the Step, in terms of input, output and coder types.
-     *
-     * <p>This is a low-level operation, when using this method it is up to the caller to ensure
-     * that names do not collide.
-     */
-    Step addStep(PTransform<?, ? extends PValue> transform, Step step);
     /** Encode a PValue reference as an output reference. */
     OutputReference asOutputReference(PValue value, AppliedPTransform<?, ?, ?> producer);
 
