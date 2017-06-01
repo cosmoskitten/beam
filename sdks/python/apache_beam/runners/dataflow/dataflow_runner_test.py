@@ -247,9 +247,9 @@ class DataflowRunnerTest(unittest.TestCase):
     # are in window_test.py.
     strategy = Windowing(window.FixedWindows(10))
     self.assertEqual(
-      strategy,
-      DataflowRunner.deserialize_windowing_strategy(
-          DataflowRunner.serialize_windwoing_strategy(strategy)))
+        strategy,
+        DataflowRunner.deserialize_windowing_strategy(
+            DataflowRunner.serialize_windwoing_strategy(strategy)))
 
 
 if __name__ == '__main__':

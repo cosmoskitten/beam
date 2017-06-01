@@ -706,7 +706,7 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.runners.api import beam_runner_api_pb2
     context = pipeline_context.PipelineContext()
     windowing_proto = windowing.to_runner_api(context)
-    return cls.byteArrayToJsonString(
+    return cls.byte_array_to_json_string(
         beam_runner_api_pb2.MessageWithComponents(
             components=context.to_runner_api(),
             windowing_strategy=windowing_proto).SerializeToString())
@@ -714,7 +714,7 @@ class DataflowRunner(PipelineRunner):
   @classmethod
   def deserialize_windowing_strategy(cls, serialized_data):
     proto = beam_runner_api_pb2.MessageWithComponents()
-    proto.ParseFromString(cls.jsonStringToByteArray(serialized_data))
+    proto.ParseFromString(cls.json_string_to_byte_array(serialized_data))
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Windowing
@@ -723,12 +723,12 @@ class DataflowRunner(PipelineRunner):
         pipeline_context.PipelineContext(proto.components))
 
   @staticmethod
-  def byteArrayToJsonString(raw_bytes):
+  def byte_array_to_json_string(raw_bytes):
     """Implements org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString."""
     return urllib.quote(raw_bytes)
 
   @staticmethod
-  def jsonStringToByteArray(encoded_string):
+  def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
     return urllib.unquote(encoded_string)
 
