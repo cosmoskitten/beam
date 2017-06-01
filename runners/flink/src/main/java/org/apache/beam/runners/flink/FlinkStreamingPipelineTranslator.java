@@ -63,12 +63,16 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private FlinkRunner flinkRunner;
 
+  private final FlinkPipelineOptions options;
+
   public FlinkStreamingPipelineTranslator(
       FlinkRunner flinkRunner,
       StreamExecutionEnvironment env,
-      PipelineOptions options) {
-    this.streamingContext = new FlinkStreamingTranslationContext(env, options);
+      PipelineOptions options,
+      PipelineTranslationOptimizer optimizer) {
+    this.streamingContext = new FlinkStreamingTranslationContext(env, options, optimizer);
     this.flinkRunner = flinkRunner;
+    this.options = options.as(FlinkPipelineOptions.class);
   }
 
   @Override
@@ -189,6 +193,14 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
     // create the applied PTransform on the streamingContext
     streamingContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
+
+    // Override the streamingContext parallelism if perTransformParallelism is found.
+    Integer perTransformParallelism =
+        streamingContext.getOptimizer().getPerTransformParallelism(node.getFullName());
+    if (perTransformParallelism != null) {
+      streamingContext.getExecutionEnvironment().setParallelism(perTransformParallelism);
+    }
+
     typedTranslator.translateNode(typedTransform, streamingContext);
   }
 
