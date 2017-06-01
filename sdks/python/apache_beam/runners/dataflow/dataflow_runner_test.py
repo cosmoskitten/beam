@@ -249,7 +249,7 @@ class DataflowRunnerTest(unittest.TestCase):
     self.assertEqual(
         strategy,
         DataflowRunner.deserialize_windowing_strategy(
-            DataflowRunner.serialize_windwoing_strategy(strategy)))
+            DataflowRunner.serialize_windowing_strategy(strategy)))
 
 
 if __name__ == '__main__':
