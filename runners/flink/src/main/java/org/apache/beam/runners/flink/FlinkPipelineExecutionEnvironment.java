@@ -84,6 +84,9 @@ class FlinkPipelineExecutionEnvironment {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
+    PipelineTranslationRewriter rewriter = new PipelineTranslationRewriter(flinkRunner);
+    rewriter.translate(pipeline);
+
     PipelineTranslationOptimizer optimizer =
         new PipelineTranslationOptimizer(TranslationMode.BATCH, options);
 
@@ -93,7 +96,7 @@ class FlinkPipelineExecutionEnvironment {
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
       this.flinkStreamEnv = createStreamExecutionEnvironment();
-      translator = new FlinkStreamingPipelineTranslator(flinkRunner, flinkStreamEnv, options);
+      translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
       this.flinkBatchEnv = createBatchExecutionEnvironment();
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
