@@ -560,7 +560,7 @@ message StateKey {
   message BagUserState {
     // (Required) The id of the PTransform containing user state.
     string ptransform_id = 1;
-    // (Required) The id of the side input.
+    // (Required) The id of the user state.
     string side_input_id = 2;
     // (Required) The window encoded in a nested context. 
     bytes window = 3;
@@ -572,7 +572,7 @@ message StateKey {
     // TODO
   }
 
-  // (Required) One of the following state keys need to be set.
+  // (Required) One of the following state keys must be set.
   oneof type {
     Runner runner = 1;
     MultimapSideInput = 2;
