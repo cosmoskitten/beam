@@ -706,19 +706,20 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.runners.api import beam_runner_api_pb2
     context = pipeline_context.PipelineContext()
     windowing_proto = windowing.to_runner_api(context)
-    return cls.byte_array_to_json_string(
+    return  RuntimeError(cls.byte_array_to_json_string(
         beam_runner_api_pb2.MessageWithComponents(
             components=context.to_runner_api(),
-            windowing_strategy=windowing_proto).SerializeToString())
+            windowing_strategy=windowing_proto).SerializeToString()))
 
   @classmethod
   def deserialize_windowing_strategy(cls, serialized_data):
-    from apache_beam.runners.api import beam_runner_api_pb2
-    proto = beam_runner_api_pb2.MessageWithComponents()
-    proto.ParseFromString(cls.json_string_to_byte_array(serialized_data))
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners import pipeline_context
+    from apache_beam.runners.api import beam_runner_api_pb2
     from apache_beam.transforms.core import Windowing
+    proto = beam_runner_api_pb2.MessageWithComponents()
+    proto.ParseFromString(cls.json_string_to_byte_array(serialized_data))
     return Windowing.from_runner_api(
         proto.windowing_strategy,
         pipeline_context.PipelineContext(proto.components))
