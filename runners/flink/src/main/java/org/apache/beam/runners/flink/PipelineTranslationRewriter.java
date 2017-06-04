@@ -51,12 +51,11 @@ public class PipelineTranslationRewriter extends FlinkPipelineTranslator {
 
   @Override
   public void translate(Pipeline pipeline) {
-    pipeline.replaceAll(getOverrides());
-  }
-
-  private List<PTransformOverride> getOverrides() {
-    if (isStreaming) {
-      return ImmutableList.<PTransformOverride>builder()
+    List<PTransformOverride> overrides;
+    if (!isStreaming) {
+      overrides = ImmutableList.of();
+    } else {
+      overrides = ImmutableList.<PTransformOverride>builder()
           .add(
               PTransformOverride.of(
                   PTransformMatchers.splittableParDoMulti(),
@@ -99,9 +98,8 @@ public class PipelineTranslationRewriter extends FlinkPipelineTranslator {
                       FlinkStreamingViewOverrides.StreamingCombineGloballyAsSingletonView.class,
                       flinkRunner)))
           .build();
-    } else {
-      return ImmutableList.of();
     }
+    pipeline.replaceAll(overrides);
   }
 
   private static class ReflectiveOneToOneOverrideFactory<
