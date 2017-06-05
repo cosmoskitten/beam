@@ -32,9 +32,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -75,14 +73,18 @@ public class FnApiDoFnRunnerTest {
 
   static {
     try {
-      STRING_CODER_SPEC = RunnerApi.Coder.newBuilder()
-          .setSpec(RunnerApi.SdkFunctionSpec.newBuilder()
-              .setSpec(RunnerApi.FunctionSpec.newBuilder()
-                  .setParameter(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-                      OBJECT_MAPPER.writeValueAsBytes(CloudObjects.asCloudObject(STRING_CODER))))
-                      .build())))
-              .build())
-          .build();
+      STRING_CODER_SPEC =
+          RunnerApi.Coder.newBuilder()
+              .setSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setSpec(
+                          RunnerApi.FunctionSpec.newBuilder()
+                              .setParameter(
+                                  ByteString.copyFrom(
+                                      OBJECT_MAPPER.writeValueAsBytes(
+                                          CloudObjects.asCloudObject(STRING_CODER)))))
+                      .build())
+              .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
     }
@@ -131,12 +133,11 @@ public class FnApiDoFnRunnerTest {
         ImmutableMap.of(
             Long.parseLong(mainOutputId), TestDoFn.mainOutput,
             Long.parseLong(additionalOutputId), TestDoFn.additionalOutput));
-    RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
-        .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
-        .setParameter(Any.pack(BytesValue.newBuilder()
-            .setValue(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
-            .build()))
-        .build();
+    RunnerApi.FunctionSpec functionSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
+            .setParameter(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
+            .build();
     RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
         .setSpec(functionSpec)
         .putInputs("inputA", "inputATarget")

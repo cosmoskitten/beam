@@ -29,9 +29,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
@@ -123,7 +121,7 @@ public class ParDoTranslation {
       ParDoPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(PAR_DO_TRANSFORM_URN)
-          .setParameter(Any.pack(payload))
+          .setParameter(payload.toByteString())
           .build();
     }
 
@@ -288,7 +286,7 @@ public class ParDoTranslation {
         ptransform.getSpec().getUrn().equals(PAR_DO_TRANSFORM_URN),
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
-    ParDoPayload payload = ptransform.getSpec().getParameter().unpack(ParDoPayload.class);
+    ParDoPayload payload = ParDoPayload.parseFrom(ptransform.getSpec().getParameter());
     String mainInputId =
         Iterables.getOnlyElement(
             Sets.difference(
@@ -381,7 +379,7 @@ public class ParDoTranslation {
         Combine.CombineFn<?, ?, ?> combineFn =
             (Combine.CombineFn<?, ?, ?>)
                 SerializableUtils.deserializeFromByteArray(
-                    combineFnSpec.getParameter().unpack(BytesValue.class).toByteArray(),
+                    combineFnSpec.getParameter().toByteArray(),
                     Combine.CombineFn.class.getSimpleName());
 
         // Rawtype coder cast because it is required to be a valid accumulator coder
@@ -458,13 +456,9 @@ public class ParDoTranslation {
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_DO_FN_URN)
                 .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(
-                                        DoFnAndMainOutput.of(fn, tag))))
-                            .build())))
+                    ByteString.copyFrom(
+                        SerializableUtils.serializeToByteArray(DoFnAndMainOutput.of(fn, tag))))
+                .build())
         .build();
   }
 
@@ -472,7 +466,7 @@ public class ParDoTranslation {
       throws InvalidProtocolBufferException {
     checkArgument(fnSpec.getSpec().getUrn().equals(CUSTOM_JAVA_DO_FN_URN));
     byte[] serializedFn =
-        fnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray();
+        fnSpec.getSpec().getParameter().toByteArray();
     return (DoFnAndMainOutput)
         SerializableUtils.deserializeFromByteArray(serializedFn, "Custom DoFn And Main Output tag");
   }
@@ -583,22 +577,17 @@ public class ParDoTranslation {
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_VIEW_FN_URN)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(SerializableUtils.serializeToByteArray(viewFn)))
-                            .build())))
+                .setParameter(ByteString.copyFrom(SerializableUtils.serializeToByteArray(viewFn)))
+                .build())
         .build();
   }
 
   private static <T> ParDoPayload getParDoPayload(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
-    return PTransformTranslation.toProto(
-            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create())
-        .getSpec()
-        .getParameter()
-        .unpack(ParDoPayload.class);
+    RunnerApi.PTransform parDoPTransform =
+        PTransformTranslation.toProto(
+            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create());
+    return ParDoPayload.parseFrom(parDoPTransform.getSpec().getParameter());
   }
 
   public static boolean usesStateOrTimers(AppliedPTransform<?, ?, ?> transform) throws IOException {
@@ -621,7 +610,7 @@ public class ParDoTranslation {
         spec.getUrn());
     return (ViewFn<?, ?>)
         SerializableUtils.deserializeFromByteArray(
-            spec.getParameter().unpack(BytesValue.class).getValue().toByteArray(), "Custom ViewFn");
+            spec.getParameter().toByteArray(), "Custom ViewFn");
   }
 
   private static SdkFunctionSpec toProto(WindowMappingFn<?> windowMappingFn) {
@@ -630,12 +619,8 @@ public class ParDoTranslation {
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_WINDOW_MAPPING_FN_URN)
                 .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(windowMappingFn)))
-                            .build())))
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowMappingFn)))
+                .build())
         .build();
   }
 
@@ -649,7 +634,6 @@ public class ParDoTranslation {
         spec.getUrn());
     return (WindowMappingFn<?>)
         SerializableUtils.deserializeFromByteArray(
-            spec.getParameter().unpack(BytesValue.class).getValue().toByteArray(),
-            "Custom WinodwMappingFn");
+            spec.getParameter().toByteArray(), "Custom WinodwMappingFn");
   }
 }
