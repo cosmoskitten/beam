@@ -280,7 +280,7 @@ class BeamTransformFactory(object):
     transform_proto = self.descriptor.transforms[transform_id]
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
     parameter = proto_utils.unpack_Any(
-        transform_proto.spec.parameter, parameter_type)
+        transform_proto.spec.any_param, parameter_type)
     return creator(self, transform_id, transform_proto, parameter, consumers)
 
   def get_coder(self, coder_id):
@@ -291,7 +291,7 @@ class BeamTransformFactory(object):
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
           json.loads(
-              proto_utils.unpack_Any(coder_proto.spec.spec.parameter,
+              proto_utils.unpack_Any(coder_proto.spec.spec.any_param,
                                      wrappers_pb2.BytesValue).value))
 
   def get_output_coders(self, transform_proto):
