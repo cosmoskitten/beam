@@ -156,8 +156,11 @@ public class MergingCustomWindowsTest {
           bigWindow = customWindow;
         }
       }
-      // merge small windows into big windows
-      c.merge(toBeMerged, bigWindow);
+      // in case bigWindow has not been seen yet
+      if (bigWindow != null) {
+        // merge small windows into big windows
+        c.merge(toBeMerged, bigWindow);
+      }
     }
 
     @Override
