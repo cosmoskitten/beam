@@ -26,8 +26,6 @@ import collections
 import json
 import logging
 
-from google.protobuf import wrappers_pb2
-
 from apache_beam.coders import coder_impl
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.internal import pickler
@@ -279,9 +277,9 @@ class BeamTransformFactory(object):
   def create_operation(self, transform_id, consumers):
     transform_proto = self.descriptor.transforms[transform_id]
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
-    parameter = proto_utils.unpack_Any(
-        transform_proto.spec.parameter, parameter_type)
-    return creator(self, transform_id, transform_proto, parameter, consumers)
+    payload = proto_utils.parse_Bytes(
+        transform_proto.spec.payload, parameter_type)
+    return creator(self, transform_id, transform_proto, payload, consumers)
 
   def get_coder(self, coder_id):
     coder_proto = self.descriptor.coders[coder_id]
@@ -290,9 +288,7 @@ class BeamTransformFactory(object):
     else:
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
-          json.loads(
-              proto_utils.unpack_Any(coder_proto.spec.spec.parameter,
-                                     wrappers_pb2.BytesValue).value))
+          json.loads(coder_proto.spec.spec.payload))
 
   def get_output_coders(self, transform_proto):
     return {
@@ -357,10 +353,10 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
 
-@BeamTransformFactory.register_urn(PYTHON_SOURCE_URN, wrappers_pb2.BytesValue)
+@BeamTransformFactory.register_urn(PYTHON_SOURCE_URN, None)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   # The Dataflow runner harness strips the base64 encoding.
-  source = pickler.loads(base64.b64encode(parameter.value))
+  source = pickler.loads(base64.b64encode(parameter))
   spec = operation_specs.WorkerRead(
       iobase.SourceBundle(1.0, source, None, None),
       [WindowedValueCoder(source.default_output_coder())])
@@ -374,15 +370,15 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       consumers)
 
 
-@BeamTransformFactory.register_urn(PYTHON_DOFN_URN, wrappers_pb2.BytesValue)
+@BeamTransformFactory.register_urn(PYTHON_DOFN_URN, None)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  dofn_data = pickler.loads(parameter.value)
+  dofn_data = pickler.loads(parameter)
   if len(dofn_data) == 2:
     # Has side input data.
     serialized_fn, side_input_data = dofn_data
   else:
     # No side input data.
-    serialized_fn, side_input_data = parameter.value, []
+    serialized_fn, side_input_data = parameter, []
 
   def create_side_input(tag, coder):
     # TODO(robertwb): Extract windows (and keys) out of element data.
