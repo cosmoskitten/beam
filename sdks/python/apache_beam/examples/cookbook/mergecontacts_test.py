@@ -22,6 +22,7 @@ import tempfile
 import unittest
 
 from apache_beam.examples.cookbook import mergecontacts
+from apache_beam.testing.util import open_shards
 
 
 class MergeContactsTest(unittest.TestCase):
@@ -92,6 +93,8 @@ class MergeContactsTest(unittest.TestCase):
     lines_in = tsv_data.strip().split('\n')
     lines_out = []
     for line in lines_in:
+      if not line:
+        continue
       name, email, phone, snailmail = line.split('\t')
       lines_out.append('\t'.join(
           [name,
@@ -115,7 +118,7 @@ class MergeContactsTest(unittest.TestCase):
         '--output_stats=%s.stats' % result_prefix], assert_results=(2, 1, 3))
     result.wait_until_finish()
 
-    with open('%s.tsv-00000-of-00001' % result_prefix) as f:
+    with open_shards('%s.tsv-*-of-*' % result_prefix) as f:
       contents = f.read()
       self.assertEqual(self.EXPECTED_TSV, self.normalize_tsv_results(contents))
 
