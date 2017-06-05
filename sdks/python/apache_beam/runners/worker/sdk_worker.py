@@ -165,9 +165,7 @@ def unpack_and_deserialize_py_fn(function_spec):
 
 def unpack_function_spec_data(function_spec):
   """Returns unpacked data from function spec proto."""
-  data = wrappers_pb2.BytesValue()
-  function_spec.data.Unpack(data)
-  return data.value
+  return function_spec.data
 
 
 # pylint: disable=redefined-builtin
@@ -180,9 +178,7 @@ def serialize_and_pack_py_fn(fn, urn, id=None):
 # pylint: disable=redefined-builtin
 def pack_function_spec_data(value, urn, id=None):
   """Returns packed data in a function spec proto."""
-  data = wrappers_pb2.BytesValue(value=value)
-  fn_proto = beam_fn_api_pb2.FunctionSpec(urn=urn)
-  fn_proto.data.Pack(data)
+  fn_proto = beam_fn_api_pb2.FunctionSpec(urn=urn, data=value)
   if id:
     fn_proto.id = id
   return fn_proto
