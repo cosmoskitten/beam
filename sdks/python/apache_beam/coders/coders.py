@@ -210,17 +210,14 @@ class Coder(object):
         spec=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=urns.PICKLED_CODER,
-                parameter=proto_utils.pack_Any(
-                    google.protobuf.wrappers_pb2.BytesValue(
-                        value=serialize_coder(self))))))
+                parameter=google.protobuf.wrappers_pb2.BytesValue(
+                              value=serialize_coder(self)))))
 
   @staticmethod
   def from_runner_api(proto, context):
     """For internal use only; no backwards-compatibility guarantees.
     """
     any_proto = proto.spec.spec.parameter
-    bytes_proto = google.protobuf.wrappers_pb2.BytesValue()
-    any_proto.Unpack(bytes_proto)
     return deserialize_coder(bytes_proto.value)
 
 
