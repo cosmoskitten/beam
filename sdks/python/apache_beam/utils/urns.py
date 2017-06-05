@@ -111,10 +111,16 @@ class RunnerApiFn(object):
     """
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
+    if typed_param is None:
+        return beam_runner_api_pb2.SdkFunctionSpec(
+            spec=beam_runner_api_pb2.FunctionSpec(
+                urn=urn
+            )
+        )
     return beam_runner_api_pb2.SdkFunctionSpec(
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
-            parameter=proto_utils.pack_Any(typed_param)))
+            payload=typed_param.SerializeToString()))
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
@@ -123,6 +129,9 @@ class RunnerApiFn(object):
     Prefer registering a urn with its parameter type and constructor.
     """
     parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
-    return constructor(
-        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
-        context)
+    if parameter_type is None:
+        parameter = None
+    else:
+        parameter = parameter_type()
+        parameter.ParseFromString(fn_proto.spec.payload)
+    return constructor(parameter, context)
