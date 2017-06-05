@@ -188,7 +188,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         runner_sinks[(transform_id, target_name)] = operation
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=bundle_processor.DATA_OUTPUT_URN,
-            parameter=proto_utils.pack_Any(data_operation_spec))
+            any_param=proto_utils.pack_Any(data_operation_spec),
+            payload=data_operation_spec.SerializeToString() \
+                if data_operation_spec is not None else None)
 
       elif isinstance(operation, operation_specs.WorkerRead):
         # A Read from an in-memory source is done over the data plane.
@@ -202,19 +204,22 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               operation.source.source.default_output_coder())
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=bundle_processor.DATA_INPUT_URN,
-              parameter=proto_utils.pack_Any(data_operation_spec))
+              any_param=proto_utils.pack_Any(data_operation_spec),
+              payload=data_operation_spec.SerializeToString() \
+                  if data_operation_spec is not None else None)
 
         else:
           # Otherwise serialize the source and execute it there.
           # TODO: Use SDFs with an initial impulse.
           # The Dataflow runner harness strips the base64 encoding. do the same
           # here until we get the same thing back that we sent in.
+          source_bytes = base64.b64decode(pickler.dumps(operation.source.source))
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=bundle_processor.PYTHON_SOURCE_URN,
-              parameter=proto_utils.pack_Any(
+              any_param=proto_utils.pack_Any(
                   wrappers_pb2.BytesValue(
-                      value=base64.b64decode(
-                          pickler.dumps(operation.source.source)))))
+                      value=source_bytes)),
+              payload=source_bytes)
 
       elif isinstance(operation, operation_specs.WorkerDoFn):
         # Record the contents of each side input for access via the state api.
@@ -233,8 +238,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             (operation.serialized_fn, side_input_extras))
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=bundle_processor.PYTHON_DOFN_URN,
-            parameter=proto_utils.pack_Any(
-                wrappers_pb2.BytesValue(value=augmented_serialized_fn)))
+            any_param=proto_utils.pack_Any(
+                wrappers_pb2.BytesValue(value=augmented_serialized_fn)),
+            payload=augmented_serialized_fn)
 
       elif isinstance(operation, operation_specs.WorkerFlatten):
         # Flatten is nice and simple.
