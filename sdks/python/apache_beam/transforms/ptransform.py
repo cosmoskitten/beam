@@ -439,18 +439,23 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   def to_runner_api(self, context):
     from apache_beam.portability.api import beam_runner_api_pb2
-    urn, typed_param = self.to_runner_api_parameter(context)
+    urn, typed_payload = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
-        parameter=proto_utils.pack_Any(typed_param))
+        payload=typed_payload.SerializeToString() if typed_payload is not None else None)
 
   @classmethod
   def from_runner_api(cls, proto, context):
     if proto is None or not proto.urn:
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
+    if parameter_type is None:
+      parameter = None
+    else:
+      parameter = parameter_type()
+      parameter.ParseFromString(proto.payload)
     return constructor(
-        proto_utils.unpack_Any(proto.parameter, parameter_type),
+        parameter,
         context)
 
   def to_runner_api_parameter(self, context):
