@@ -163,6 +163,33 @@ class SideInputSource(native_iobase.NativeSource,
       yield self._coder.get_impl().decode_from_stream(input_stream, True)
 
 
+def unpack_and_deserialize_py_fn(function_spec):
+  """Returns unpacked and deserialized object from function spec proto."""
+  return pickler.loads(unpack_function_spec_data(function_spec))
+
+
+def unpack_function_spec_data(function_spec):
+  """Returns unpacked data from function spec proto."""
+  return function_spec.data
+
+
+# pylint: disable=redefined-builtin
+def serialize_and_pack_py_fn(fn, urn, id=None):
+  """Returns serialized and packed function in a function spec proto."""
+  return pack_function_spec_data(pickler.dumps(fn), urn, id)
+# pylint: enable=redefined-builtin
+
+
+# pylint: disable=redefined-builtin
+def pack_function_spec_data(value, urn, id=None):
+  """Returns packed data in a function spec proto."""
+  fn_proto = beam_fn_api_pb2.FunctionSpec(urn=urn, data=value)
+  if id:
+    fn_proto.id = id
+  return fn_proto
+
+# pylint: enable=redefined-builtin
+
 def memoize(func):
   cache = {}
   missing = object()
