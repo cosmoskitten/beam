@@ -33,7 +33,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -107,8 +106,7 @@ public class BoundedSourceRunnerTest {
 
     BoundedSourceRunner<BoundedSource<Long>, Long> runner = new BoundedSourceRunner<>(
         PipelineOptionsFactory.create(),
-        RunnerApi.FunctionSpec.newBuilder().setParameter(
-            Any.pack(BytesValue.newBuilder().setValue(encodedSource).build())).build(),
+        RunnerApi.FunctionSpec.newBuilder().setParameter(encodedSource).build(),
         consumers);
 
     runner.start();

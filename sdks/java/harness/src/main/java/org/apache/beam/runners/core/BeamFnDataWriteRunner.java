@@ -119,8 +119,8 @@ public class BeamFnDataWriteRunner<InputT> {
       RunnerApi.Coder coderSpec,
       BeamFnDataClient beamFnDataClientFactory)
           throws IOException {
-    this.apiServiceDescriptor = functionSpec.getParameter().unpack(BeamFnApi.RemoteGrpcPort.class)
-        .getApiServiceDescriptor();
+    this.apiServiceDescriptor =
+        BeamFnApi.RemoteGrpcPort.parseFrom(functionSpec.getParameter()).getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.outputTarget = outputTarget;
@@ -135,8 +135,6 @@ public class BeamFnDataWriteRunner<InputT> {
                             .getSpec()
                             .getSpec()
                             .getParameter()
-                            .unpack(BytesValue.class)
-                            .getValue()
                             .newInput(),
                         Map.class)));
     this.coder = coder;

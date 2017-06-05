@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -99,7 +98,7 @@ public class TestStreamTranslation {
         TestStream.class.getSimpleName(),
         transformProto.getSpec().getUrn());
     RunnerApi.TestStreamPayload testStreamPayload =
-        transformProto.getSpec().getParameter().unpack(RunnerApi.TestStreamPayload.class);
+        RunnerApi.TestStreamPayload.parseFrom(transformProto.getSpec().getParameter());
 
     return (TestStream<T>) fromProto(testStreamPayload, sdkComponents.toComponents());
   }
@@ -186,7 +185,7 @@ public class TestStreamTranslation {
         throws IOException {
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(Any.pack(testStreamToPayload(transform.getTransform(), components)))
+          .setParameter(testStreamToPayload(transform.getTransform(), components).toByteString())
           .build();
     }
   }
