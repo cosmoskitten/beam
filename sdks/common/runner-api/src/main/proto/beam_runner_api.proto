@@ -755,9 +755,12 @@ message FunctionSpec {
   // passed as-is.
   string urn = 1;
 
+  // (Deprecated)
+  google.protobuf.Any any = 2;
+
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  google.protobuf.Any parameter = 2;
+  bytes parameter = 3;
 }
 
 // TODO: transfer javadoc here

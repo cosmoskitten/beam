@@ -21,7 +21,6 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collections;
@@ -55,7 +54,7 @@ public class WindowIntoTranslation {
       return FunctionSpec.newBuilder()
           .setUrn("urn:beam:transform:window:v1")
           .setParameter(
-              Any.pack(WindowIntoTranslation.toProto(transform.getTransform(), components)))
+              WindowIntoTranslation.toProto(transform.getTransform(), components).toByteString())
           .build();
     }
   }
@@ -88,7 +87,7 @@ public class WindowIntoTranslation {
 
     WindowIntoPayload windowIntoPayload;
     try {
-      return transformProto.getSpec().getParameter().unpack(WindowIntoPayload.class);
+      return WindowIntoPayload.parseFrom(transformProto.getSpec().getParameter());
     } catch (InvalidProtocolBufferException exc) {
       throw new IllegalStateException(
           String.format(
@@ -128,7 +127,7 @@ public class WindowIntoTranslation {
       WindowIntoPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(Any.pack(payload))
+          .setParameter(payload.toByteString())
           .build();
     }
   }
