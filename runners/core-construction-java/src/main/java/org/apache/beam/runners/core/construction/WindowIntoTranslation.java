@@ -19,7 +19,6 @@
 package org.apache.beam.runners.core.construction;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collections;
 import java.util.Map;
@@ -53,7 +52,7 @@ public class WindowIntoTranslation {
       return FunctionSpec.newBuilder()
           .setUrn("urn:beam:transform:window:v1")
           .setParameter(
-              Any.pack(WindowIntoTranslation.toProto(transform.getTransform(), components)))
+              WindowIntoTranslation.toProto(transform.getTransform(), components).toByteString())
           .build();
     }
   }
@@ -92,7 +91,7 @@ public class WindowIntoTranslation {
       WindowIntoPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(Any.pack(payload))
+          .setParameter(payload.toByteString())
           .build();
     }
   }

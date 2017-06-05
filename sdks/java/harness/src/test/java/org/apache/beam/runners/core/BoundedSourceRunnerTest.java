@@ -25,9 +25,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -100,10 +98,9 @@ public class BoundedSourceRunnerTest {
 
     BoundedSourceRunner<BoundedSource<Long>, Long> runner =
         new BoundedSourceRunner<>(
-        PipelineOptionsFactory.create(),
-            RunnerApi.FunctionSpec.newBuilder().setParameter(
-            Any.pack(BytesValue.newBuilder().setValue(encodedSource).build())).build(),
-        outputMap);
+            PipelineOptionsFactory.create(),
+            RunnerApi.FunctionSpec.newBuilder().setParameter(encodedSource).build(),
+            outputMap);
 
     runner.start();
 

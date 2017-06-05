@@ -21,9 +21,7 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Iterables;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -93,12 +91,8 @@ public class CombineTranslation {
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
                 .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(combineFn)))
-                            .build())))
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(combineFn)))
+                .build())
         .build();
   }
 
@@ -117,8 +111,6 @@ public class CombineTranslation {
                 .getCombineFn()
                 .getSpec()
                 .getParameter()
-                .unpack(BytesValue.class)
-                .getValue()
                 .toByteArray(),
             "CombineFn");
   }

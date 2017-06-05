@@ -21,7 +21,6 @@ package org.apache.beam.runners.core;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -69,8 +68,8 @@ public class BeamFnDataReadRunner<OutputT> {
       BeamFnDataClient beamFnDataClientFactory,
       Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap)
           throws IOException {
-    this.apiServiceDescriptor = functionSpec.getParameter().unpack(BeamFnApi.RemoteGrpcPort.class)
-        .getApiServiceDescriptor();
+    this.apiServiceDescriptor =
+        BeamFnApi.RemoteGrpcPort.parseFrom(functionSpec.getParameter()).getApiServiceDescriptor();
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClientFactory = beamFnDataClientFactory;
@@ -86,8 +85,6 @@ public class BeamFnDataReadRunner<OutputT> {
                             .getSpec()
                             .getSpec()
                             .getParameter()
-                            .unpack(BytesValue.class)
-                            .getValue()
                             .newInput(),
                         Map.class)));
     this.coder = coder;

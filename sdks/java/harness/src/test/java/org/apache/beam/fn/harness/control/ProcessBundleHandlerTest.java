@@ -41,9 +41,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -107,20 +105,20 @@ public class ProcessBundleHandlerTest {
       STRING_CODER_SPEC = RunnerApi.Coder.newBuilder()
           .setSpec(RunnerApi.SdkFunctionSpec.newBuilder()
               .setSpec(RunnerApi.FunctionSpec.newBuilder()
-                  .setParameter(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-                      OBJECT_MAPPER.writeValueAsBytes(CloudObjects.asCloudObject(STRING_CODER))))
-                      .build())))
+                  .setParameter(ByteString.copyFrom(
+                      OBJECT_MAPPER.writeValueAsBytes(CloudObjects.asCloudObject(STRING_CODER)))
+                      ))
               .build())
           .build();
       LONG_CODER_SPEC = RunnerApi.Coder.newBuilder()
           .setSpec(RunnerApi.SdkFunctionSpec.newBuilder()
               .setSpec(RunnerApi.FunctionSpec.newBuilder()
-                  .setParameter(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
+                  .setParameter(ByteString.copyFrom(
                       OBJECT_MAPPER.writeValueAsBytes(
                           CloudObjects.asCloudObject(WindowedValue.getFullCoder(VarLongCoder.of(),
-                              GlobalWindow.Coder.INSTANCE)))))
-                      .build())))
-              .build())
+                              GlobalWindow.Coder.INSTANCE)))
+                      ))
+              .build()))
           .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
@@ -351,12 +349,11 @@ public class ProcessBundleHandlerTest {
         ImmutableMap.of(
             Long.parseLong(mainOutputId), TestDoFn.mainOutput,
             Long.parseLong(additionalOutputId), TestDoFn.additionalOutput));
-    RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
-        .setUrn(JAVA_DO_FN_URN)
-        .setParameter(Any.pack(BytesValue.newBuilder()
-            .setValue(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
-            .build()))
-        .build();
+    RunnerApi.FunctionSpec functionSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setUrn(JAVA_DO_FN_URN)
+            .setParameter(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
+            .build();
     RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
         .setSpec(functionSpec)
         .putInputs("inputA", "inputATarget")
@@ -427,13 +424,12 @@ public class ProcessBundleHandlerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
-        .setUrn(JAVA_SOURCE_URN)
-        .setParameter(Any.pack(BytesValue.newBuilder()
-            .setValue(ByteString.copyFrom(
-                SerializableUtils.serializeToByteArray(CountingSource.upTo(3))))
-            .build()))
-        .build();
+    RunnerApi.FunctionSpec functionSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setUrn(JAVA_SOURCE_URN)
+            .setParameter(
+                ByteString.copyFrom(SerializableUtils.serializeToByteArray(CountingSource.upTo(3))))
+            .build();
 
     RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
         .setSpec(functionSpec)
@@ -489,10 +485,11 @@ public class ProcessBundleHandlerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
-        .setUrn(DATA_INPUT_URN)
-        .setParameter(Any.pack(REMOTE_PORT))
-        .build();
+    RunnerApi.FunctionSpec functionSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setUrn(DATA_INPUT_URN)
+            .setParameter(REMOTE_PORT.toByteString())
+            .build();
 
     RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
         .setSpec(functionSpec)
@@ -553,7 +550,7 @@ public class ProcessBundleHandlerTest {
 
     RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
         .setUrn(DATA_OUTPUT_URN)
-        .setParameter(Any.pack(REMOTE_PORT))
+        .setParameter(REMOTE_PORT.toByteString())
         .build();
 
     RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()

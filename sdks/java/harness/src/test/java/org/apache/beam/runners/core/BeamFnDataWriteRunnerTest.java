@@ -29,9 +29,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
@@ -61,21 +59,25 @@ public class BeamFnDataWriteRunnerTest {
   private static final BeamFnApi.RemoteGrpcPort PORT_SPEC = BeamFnApi.RemoteGrpcPort.newBuilder()
       .setApiServiceDescriptor(BeamFnApi.ApiServiceDescriptor.getDefaultInstance()).build();
   private static final RunnerApi.FunctionSpec FUNCTION_SPEC = RunnerApi.FunctionSpec.newBuilder()
-      .setParameter(Any.pack(PORT_SPEC)).build();
+      .setParameter(PORT_SPEC.toByteString()).build();
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final RunnerApi.Coder CODER_SPEC;
   static {
     try {
-      CODER_SPEC = RunnerApi.Coder.newBuilder().setSpec(
-          RunnerApi.SdkFunctionSpec.newBuilder().setSpec(
-              RunnerApi.FunctionSpec.newBuilder().setParameter(
-                  Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-                      OBJECT_MAPPER.writeValueAsBytes(CloudObjects.asCloudObject(CODER))))
-                      .build()))
-                  .build())
-              .build())
-          .build();
+      CODER_SPEC =
+          RunnerApi.Coder.newBuilder()
+              .setSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setSpec(
+                          RunnerApi.FunctionSpec.newBuilder()
+                              .setParameter(
+                                  ByteString.copyFrom(
+                                      OBJECT_MAPPER.writeValueAsBytes(
+                                          CloudObjects.asCloudObject(CODER))))
+                              .build())
+                      .build())
+              .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
     }

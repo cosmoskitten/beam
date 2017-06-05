@@ -28,8 +28,6 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -306,13 +304,7 @@ public class ProcessBundleHandler {
   private <InputT, OutputT> DoFnRunner<InputT, OutputT> createDoFnRunner(
       RunnerApi.FunctionSpec functionSpec,
       Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap) {
-    ByteString serializedFn;
-    try {
-      serializedFn = functionSpec.getParameter().unpack(BytesValue.class).getValue();
-    } catch (InvalidProtocolBufferException e) {
-      throw new IllegalArgumentException(
-          String.format("Unable to unwrap DoFn %s", functionSpec), e);
-    }
+    ByteString serializedFn = functionSpec.getParameter();
     DoFnInfo<?, ?> doFnInfo =
         (DoFnInfo<?, ?>)
             SerializableUtils.deserializeFromByteArray(serializedFn.toByteArray(), "DoFnInfo");
