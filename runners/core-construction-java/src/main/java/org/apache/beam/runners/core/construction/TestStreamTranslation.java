@@ -19,7 +19,6 @@
 package org.apache.beam.runners.core.construction;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -139,7 +138,7 @@ public class TestStreamTranslation {
         throws IOException {
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(Any.pack(testStreamToPayload(transform.getTransform(), components)))
+          .setParameter(testStreamToPayload(transform.getTransform(), components).toByteString())
           .build();
     }
   }

@@ -728,7 +728,7 @@ message FunctionSpec {
 
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  google.protobuf.Any parameter = 2;
+  bytes parameter = 2;
 }
 
 // TODO: transfer javadoc here

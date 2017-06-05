@@ -21,7 +21,6 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.util.Collections;
@@ -197,7 +196,7 @@ public class PTransformTranslation {
           FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform()));
 
       if (payload != null) {
-        transformSpec.setParameter(Any.pack(payload));
+        transformSpec.setParameter(payload.toByteString());
       }
 
       return transformSpec.build();
