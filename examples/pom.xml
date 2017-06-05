@@ -34,6 +34,7 @@
 
   <modules>
     <module>java</module>
+    <module>java8</module>
   </modules>
 
   <profiles>
