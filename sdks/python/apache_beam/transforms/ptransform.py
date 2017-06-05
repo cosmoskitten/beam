@@ -442,7 +442,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
-        parameter=proto_utils.pack_Any(typed_param))
+        parameter=typed_param)
 
   @classmethod
   def from_runner_api(cls, proto, context):
@@ -450,7 +450,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
     return constructor(
-        proto_utils.unpack_Any(proto.parameter, parameter_type),
+        parameter_type.ParseFromString(proto.parameter),
         context)
 
   def to_runner_api_parameter(self, context):
