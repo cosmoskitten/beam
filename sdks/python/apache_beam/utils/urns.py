@@ -111,7 +111,7 @@ class RunnerApiFn(object):
     return beam_runner_api_pb2.SdkFunctionSpec(
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
-            parameter=proto_utils.pack_Any(typed_param)))
+            parameter=typed_param))
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
@@ -121,5 +121,5 @@ class RunnerApiFn(object):
     """
     parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
     return constructor(
-        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
+        parameter_type.ParseFromString(fn_proto.spec.parameter),
         context)
