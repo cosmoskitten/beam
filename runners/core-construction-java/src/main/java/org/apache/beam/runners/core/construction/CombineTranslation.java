@@ -23,9 +23,7 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.CO
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.Iterables;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -79,7 +77,7 @@ public class CombineTranslation {
       CombinePayload payload = toProto(transform, components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(COMBINE_TRANSFORM_URN)
-          .setParameter(Any.pack(payload))
+          .setParameter(payload.toByteString())
           .build();
     }
 
@@ -139,12 +137,8 @@ public class CombineTranslation {
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
                 .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(combineFn)))
-                            .build())))
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(combineFn)))
+                .build())
         .build();
   }
 
@@ -172,8 +166,6 @@ public class CombineTranslation {
                 .getCombineFn()
                 .getSpec()
                 .getParameter()
-                .unpack(BytesValue.class)
-                .getValue()
                 .toByteArray(),
             "CombineFn");
   }
@@ -190,10 +182,10 @@ public class CombineTranslation {
 
   private static CombinePayload getCombinePayload(
       AppliedPTransform<?, ?, ?> transform, SdkComponents components) throws IOException {
-    return PTransformTranslation.toProto(
-            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), components)
-        .getSpec()
-        .getParameter()
-        .unpack(CombinePayload.class);
+    return CombinePayload.parseFrom(
+        PTransformTranslation.toProto(
+                transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), components)
+            .getSpec()
+            .getParameter());
   }
 }
