@@ -48,6 +48,7 @@ import org.apache.beam.sdk.util.CombineContextFactory;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.joda.time.Instant;
@@ -127,8 +128,8 @@ public class FlinkStateInternals<K> implements StateInternals {
           @Override
           public <T> SetState<T> bindSet(
               StateTag<SetState<T>> address, Coder<T> elemCoder) {
-            throw new UnsupportedOperationException(
-                String.format("%s is not supported", SetState.class.getSimpleName()));
+            return new FlinkSetState<>(
+                flinkStateBackend, address, namespace, elemCoder);
           }
 
           @Override
@@ -1037,6 +1038,174 @@ public class FlinkStateInternals<K> implements StateInternals {
       }
 
       FlinkMapState<?, ?> that = (FlinkMapState<?, ?>) o;
+
+      return namespace.equals(that.namespace) && address.equals(that.address);
+
+    }
+
+    @Override
+    public int hashCode() {
+      int result = namespace.hashCode();
+      result = 31 * result + address.hashCode();
+      return result;
+    }
+  }
+
+  private static class FlinkSetState<T> implements SetState<T> {
+
+    private final StateNamespace namespace;
+    private final StateTag<SetState<T>> address;
+    private final MapStateDescriptor<T, Boolean> flinkStateDescriptor;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+
+    FlinkSetState(
+        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        StateTag<SetState<T>> address,
+        StateNamespace namespace,
+        Coder<T> coder) {
+      this.namespace = namespace;
+      this.address = address;
+      this.flinkStateBackend = flinkStateBackend;
+      this.flinkStateDescriptor = new MapStateDescriptor<>(address.getId(),
+          new CoderTypeSerializer<>(coder), new BooleanSerializer());
+    }
+
+    @Override
+    public ReadableState<Boolean> contains(final T t) {
+      return new ReadableState<Boolean>() {
+        @Override
+        public Boolean read() {
+          try {
+            Boolean result = flinkStateBackend.getPartitionedState(
+                namespace.stringKey(),
+                StringSerializer.INSTANCE,
+                flinkStateDescriptor).get(t);
+            return result != null ? result : false;
+          } catch (Exception e) {
+            throw new RuntimeException("Error contains value from state.", e);
+          }
+        }
+
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public ReadableState<Boolean> addIfAbsent(final T t) {
+      return new ReadableState<Boolean>() {
+        @Override
+        public Boolean read() {
+          try {
+            org.apache.flink.api.common.state.MapState<T, Boolean> state =
+                flinkStateBackend.getPartitionedState(
+                    namespace.stringKey(),
+                    StringSerializer.INSTANCE,
+                    flinkStateDescriptor);
+            boolean alreadyContained = state.contains(t);
+            state.put(t, true);
+            return !alreadyContained;
+          } catch (Exception e) {
+            throw new RuntimeException("Error addIfAbsent value to state.", e);
+          }
+        }
+
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public void remove(T t) {
+      try {
+        flinkStateBackend.getPartitionedState(
+            namespace.stringKey(),
+            StringSerializer.INSTANCE,
+            flinkStateDescriptor).remove(t);
+      } catch (Exception e) {
+        throw new RuntimeException("Error remove value to state.", e);
+      }
+    }
+
+    @Override
+    public SetState<T> readLater() {
+      return this;
+    }
+
+    @Override
+    public void add(T value) {
+      try {
+        flinkStateBackend.getPartitionedState(
+            namespace.stringKey(),
+            StringSerializer.INSTANCE,
+            flinkStateDescriptor).put(value, true);
+      } catch (Exception e) {
+        throw new RuntimeException("Error add value to state.", e);
+      }
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public Boolean read() {
+          try {
+            Iterable<T> result = flinkStateBackend.getPartitionedState(
+                namespace.stringKey(),
+                StringSerializer.INSTANCE,
+                flinkStateDescriptor).keys();
+            return result == null;
+          } catch (Exception e) {
+            throw new RuntimeException("Error isEmpty from state.", e);
+          }
+        }
+
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public Iterable<T> read() {
+      try {
+        Iterable<T> result = flinkStateBackend.getPartitionedState(
+            namespace.stringKey(),
+            StringSerializer.INSTANCE,
+            flinkStateDescriptor).keys();
+        return result != null ? result : Collections.<T>emptyList();
+      } catch (Exception e) {
+        throw new RuntimeException("Error read from state.", e);
+      }
+    }
+
+    @Override
+    public void clear() {
+      try {
+        flinkStateBackend.getPartitionedState(
+            namespace.stringKey(),
+            StringSerializer.INSTANCE,
+            flinkStateDescriptor).clear();
+      } catch (Exception e) {
+        throw new RuntimeException("Error clearing state.", e);
+      }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      FlinkSetState<?> that = (FlinkSetState<?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
 
