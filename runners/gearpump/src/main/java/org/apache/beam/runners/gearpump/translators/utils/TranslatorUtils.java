@@ -37,6 +37,7 @@ import org.apache.gearpump.streaming.dsl.api.functions.FoldFunction;
 import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.dsl.window.impl.Window;
+import org.apache.gearpump.streaming.source.Watermark;
 
 /**
  * Utility methods for translators.
@@ -58,8 +59,7 @@ public class TranslatorUtils {
       Instant start = TranslatorUtils.jodaTimeToJava8Time(intervalWindow.start());
       return new Window(start, end);
     } else if (window instanceof GlobalWindow) {
-      return new Window(TranslatorUtils.jodaTimeToJava8Time(BoundedWindow.TIMESTAMP_MIN_VALUE),
-          end);
+      return new Window(Watermark.MIN(), Watermark.MAX());
     } else {
       throw new RuntimeException("unknown window " + window.getClass().getName());
     }
@@ -114,6 +114,7 @@ public class TranslatorUtils {
   /**
    * Converts @link{RawUnionValue} to @link{WindowedValue}.
    */
+  @SuppressWarnings({"unchecked"})
   public static class FromRawUnionValue<OutputT> extends
       MapFunction<RawUnionValue, WindowedValue<OutputT>> {
 
