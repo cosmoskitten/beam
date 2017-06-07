@@ -956,10 +956,11 @@ public class FlinkStateInternals<K> implements StateInternals {
         @Override
         public Iterable<KeyT> read() {
           try {
-            return flinkStateBackend.getPartitionedState(
+            Iterable<KeyT> result = flinkStateBackend.getPartitionedState(
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).keys();
+            return result != null ? result : Collections.<KeyT>emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state keys.", e);
           }
@@ -978,10 +979,11 @@ public class FlinkStateInternals<K> implements StateInternals {
         @Override
         public Iterable<ValueT> read() {
           try {
-            return flinkStateBackend.getPartitionedState(
+            Iterable<ValueT> result = flinkStateBackend.getPartitionedState(
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).values();
+            return result != null ? result : Collections.<ValueT>emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state values.", e);
           }
@@ -1000,10 +1002,11 @@ public class FlinkStateInternals<K> implements StateInternals {
         @Override
         public Iterable<Map.Entry<KeyT, ValueT>> read() {
           try {
-            return flinkStateBackend.getPartitionedState(
+            Iterable<Map.Entry<KeyT, ValueT>> result = flinkStateBackend.getPartitionedState(
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).entries();
+            return result != null ? result : Collections.<Map.Entry<KeyT, ValueT>>emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state entries.", e);
           }
