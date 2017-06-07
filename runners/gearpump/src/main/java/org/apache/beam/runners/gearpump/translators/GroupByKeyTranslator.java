@@ -89,7 +89,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
 
     private final boolean isNonMerging;
 
-    public GearpumpWindowFn(boolean isNonMerging) {
+    GearpumpWindowFn(boolean isNonMerging) {
       this.isNonMerging = isNonMerging;
     }
 
