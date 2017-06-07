@@ -18,9 +18,12 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.service.AutoService;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -68,6 +71,24 @@ public class WindowIntoTranslation {
       throws InvalidProtocolBufferException {
     SdkFunctionSpec spec = payload.getWindowFn();
     return WindowingStrategyTranslation.windowFnFromProto(spec);
+  }
+
+  public static WindowFn<?, ?> getWindowFn(AppliedPTransform<?, ?, ?> application) throws IOException {
+    RunnerApi.PTransform transformProto =
+        PTransformTranslation.toProto(
+            application,
+            Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+            SdkComponents.create());
+
+    checkArgument(
+        PTransformTranslation.WINDOW_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),
+        "Illegal attempt to extract %s from transform %s with name \"%s\" and URN \"%s\"",
+        Window.Assign.class.getSimpleName(),
+        application.getTransform(),
+        application.getFullName(),
+        transformProto.getSpec().getUrn());
+
+    return getWindowFn(transformProto.getSpec().getParameter().unpack(WindowIntoPayload.class));
   }
 
   /**
