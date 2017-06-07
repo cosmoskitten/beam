@@ -17,13 +17,20 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.runners.core.StateMerging;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
@@ -35,7 +42,9 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
+import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Sum;
@@ -62,6 +71,9 @@ import org.junit.runners.JUnit4;
 /**
  * Tests for {@link FlinkStateInternals}. This is based on the tests for
  * {@code InMemoryStateInternals}.
+ *
+ * <p>Unlike InMemoryStateInternalsTest, there is no Matchers.sameInstance here. Because each
+ * call in {@link FlinkStateInternals} creates a new State java Object.
  */
 @RunWith(JUnit4.class)
 public class FlinkStateInternalsTest {
@@ -77,6 +89,10 @@ public class FlinkStateInternalsTest {
           "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
   private static final StateTag<BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
+  private static final StateTag<SetState<String>> STRING_SET_ADDR =
+      StateTags.set("stringSet", StringUtf8Coder.of());
+  private static final StateTag<MapState<String, Integer>> STRING_MAP_ADDR =
+      StateTags.map("stringMap", StringUtf8Coder.of(), VarIntCoder.of());
   private static final StateTag<WatermarkHoldState> WATERMARK_EARLIEST_ADDR =
       StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
   private static final StateTag<WatermarkHoldState> WATERMARK_LATEST_ADDR =
@@ -111,41 +127,41 @@ public class FlinkStateInternalsTest {
   public void testValue() throws Exception {
     ValueState<String> value = underTest.state(NAMESPACE_1, STRING_VALUE_ADDR);
 
-    assertEquals(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), value);
-    assertNotEquals(
+    // State instances are cached, but depend on the namespace.
+    assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), equalTo(value));
+    assertThat(
         underTest.state(NAMESPACE_2, STRING_VALUE_ADDR),
-        value);
+        Matchers.not(Matchers.sameInstance(value)));
 
     assertThat(value.read(), Matchers.nullValue());
     value.write("hello");
-    assertThat(value.read(), Matchers.equalTo("hello"));
+    assertThat(value.read(), equalTo("hello"));
     value.write("world");
-    assertThat(value.read(), Matchers.equalTo("world"));
+    assertThat(value.read(), equalTo("world"));
 
     value.clear();
     assertThat(value.read(), Matchers.nullValue());
-    assertEquals(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), value);
-
+    assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), equalTo(value));
   }
 
   @Test
   public void testBag() throws Exception {
     BagState<String> value = underTest.state(NAMESPACE_1, STRING_BAG_ADDR);
 
-    assertEquals(value, underTest.state(NAMESPACE_1, STRING_BAG_ADDR));
-    assertFalse(value.equals(underTest.state(NAMESPACE_2, STRING_BAG_ADDR)));
+    // State instances are cached, but depend on the namespace.
+    assertThat(value, equalTo(underTest.state(NAMESPACE_1, STRING_BAG_ADDR)));
+    assertThat(value, not(equalTo(underTest.state(NAMESPACE_2, STRING_BAG_ADDR))));
 
     assertThat(value.read(), Matchers.emptyIterable());
     value.add("hello");
-    assertThat(value.read(), Matchers.containsInAnyOrder("hello"));
+    assertThat(value.read(), containsInAnyOrder("hello"));
 
     value.add("world");
-    assertThat(value.read(), Matchers.containsInAnyOrder("hello", "world"));
+    assertThat(value.read(), containsInAnyOrder("hello", "world"));
 
     value.clear();
     assertThat(value.read(), Matchers.emptyIterable());
-    assertEquals(underTest.state(NAMESPACE_1, STRING_BAG_ADDR), value);
-
+    assertThat(underTest.state(NAMESPACE_1, STRING_BAG_ADDR), equalTo(value));
   }
 
   @Test
@@ -173,7 +189,7 @@ public class FlinkStateInternalsTest {
     StateMerging.mergeBags(Arrays.asList(bag1, bag2), bag1);
 
     // Reading the merged bag gets both the contents
-    assertThat(bag1.read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
+    assertThat(bag1.read(), containsInAnyOrder("Hello", "World", "!"));
     assertThat(bag2.read(), Matchers.emptyIterable());
   }
 
@@ -190,9 +206,204 @@ public class FlinkStateInternalsTest {
     StateMerging.mergeBags(Arrays.asList(bag1, bag2, bag3), bag3);
 
     // Reading the merged bag gets both the contents
-    assertThat(bag3.read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
+    assertThat(bag3.read(), containsInAnyOrder("Hello", "World", "!"));
     assertThat(bag1.read(), Matchers.emptyIterable());
     assertThat(bag2.read(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testSet() throws Exception {
+    SetState<String> value = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
+
+    // State instances are cached, but depend on the namespace.
+    assertThat(value, equalTo(underTest.state(NAMESPACE_1, STRING_SET_ADDR)));
+    assertThat(value, not(equalTo(underTest.state(NAMESPACE_2, STRING_SET_ADDR))));
+
+    // empty
+    assertThat(value.read(), Matchers.emptyIterable());
+    assertFalse(value.contains("A").read());
+
+    // add
+    value.add("A");
+    value.add("B");
+    value.add("A");
+    assertFalse(value.addIfAbsent("B").read());
+    assertThat(value.read(), containsInAnyOrder("A", "B"));
+
+    // remove
+    value.remove("A");
+    assertThat(value.read(), containsInAnyOrder("B"));
+    value.remove("C");
+    assertThat(value.read(), containsInAnyOrder("B"));
+
+    // contains
+    assertFalse(value.contains("A").read());
+    assertTrue(value.contains("B").read());
+    value.add("C");
+    value.add("D");
+
+    // readLater
+    assertThat(value.readLater().read(), containsInAnyOrder("B", "C", "D"));
+    SetState<String> later = value.readLater();
+    assertThat(later.read(), hasItems("C", "D"));
+    assertFalse(later.contains("A").read());
+
+    // clear
+    value.clear();
+    assertThat(value.read(), Matchers.emptyIterable());
+    assertThat(underTest.state(NAMESPACE_1, STRING_SET_ADDR), equalTo(value));
+
+  }
+
+  @Test
+  public void testSetIsEmpty() throws Exception {
+    SetState<String> value = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
+
+    assertThat(value.isEmpty().read(), Matchers.is(true));
+    ReadableState<Boolean> readFuture = value.isEmpty();
+    value.add("hello");
+    assertThat(readFuture.read(), Matchers.is(false));
+
+    value.clear();
+    assertThat(readFuture.read(), Matchers.is(true));
+  }
+
+  @Test
+  public void testMergeSetIntoSource() throws Exception {
+    SetState<String> set1 = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
+    SetState<String> set2 = underTest.state(NAMESPACE_2, STRING_SET_ADDR);
+
+    set1.add("Hello");
+    set2.add("Hello");
+    set2.add("World");
+    set1.add("!");
+
+    StateMerging.mergeSets(Arrays.asList(set1, set2), set1);
+
+    // Reading the merged set gets both the contents
+    assertThat(set1.read(), containsInAnyOrder("Hello", "World", "!"));
+    assertThat(set2.read(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testMergeSetIntoNewNamespace() throws Exception {
+    SetState<String> set1 = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
+    SetState<String> set2 = underTest.state(NAMESPACE_2, STRING_SET_ADDR);
+    SetState<String> set3 = underTest.state(NAMESPACE_3, STRING_SET_ADDR);
+
+    set1.add("Hello");
+    set2.add("Hello");
+    set2.add("World");
+    set1.add("!");
+
+    StateMerging.mergeSets(Arrays.asList(set1, set2, set3), set3);
+
+    // Reading the merged set gets both the contents
+    assertThat(set3.read(), containsInAnyOrder("Hello", "World", "!"));
+    assertThat(set1.read(), Matchers.emptyIterable());
+    assertThat(set2.read(), Matchers.emptyIterable());
+  }
+
+  // for testMap
+  private static class MapEntry<K, V> implements Map.Entry<K, V> {
+    private K key;
+    private V value;
+
+    private MapEntry(K key, V value) {
+      this.key = key;
+      this.value = value;
+    }
+
+    static <K, V> Map.Entry<K, V> of(K k, V v) {
+      return new MapEntry<>(k, v);
+    }
+
+    public final K getKey() {
+      return key;
+    }
+    public final V getValue() {
+      return value;
+    }
+
+    public final String toString() {
+      return key + "=" + value;
+    }
+
+    public final int hashCode() {
+      return Objects.hashCode(key) ^ Objects.hashCode(value);
+    }
+
+    public final V setValue(V newValue) {
+      V oldValue = value;
+      value = newValue;
+      return oldValue;
+    }
+
+    public final boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      }
+      if (o instanceof Map.Entry) {
+        Map.Entry<?, ?> e = (Map.Entry<?, ?>) o;
+        if (Objects.equals(key, e.getKey())
+            && Objects.equals(value, e.getValue())) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  @Test
+  public void testMap() throws Exception {
+    MapState<String, Integer> value = underTest.state(NAMESPACE_1, STRING_MAP_ADDR);
+
+    // State instances are cached, but depend on the namespace.
+    assertThat(value, equalTo(underTest.state(NAMESPACE_1, STRING_MAP_ADDR)));
+    assertThat(value, not(equalTo(underTest.state(NAMESPACE_2, STRING_MAP_ADDR))));
+
+    // put
+    assertThat(value.entries().read(), Matchers.emptyIterable());
+    value.put("A", 1);
+    value.put("B", 2);
+    value.put("A", 11);
+    assertThat(value.putIfAbsent("B", 22).read(), equalTo(2));
+    assertThat(value.entries().read(), containsInAnyOrder(MapEntry.of("A", 11),
+        MapEntry.of("B", 2)));
+
+    // remove
+    value.remove("A");
+    assertThat(value.entries().read(), containsInAnyOrder(MapEntry.of("B", 2)));
+    value.remove("C");
+    assertThat(value.entries().read(), containsInAnyOrder(MapEntry.of("B", 2)));
+
+    // get
+    assertNull(value.get("A").read());
+    assertThat(value.get("B").read(), equalTo(2));
+    value.put("C", 3);
+    value.put("D", 4);
+    assertThat(value.get("C").read(), equalTo(3));
+
+    // iterate
+    value.put("E", 5);
+    value.remove("C");
+    assertThat(value.keys().read(), containsInAnyOrder("B", "D", "E"));
+    assertThat(value.values().read(), containsInAnyOrder(2, 4, 5));
+    assertThat(
+        value.entries().read(),
+        containsInAnyOrder(MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
+
+    // readLater
+    assertThat(value.get("B").readLater().read(), equalTo(2));
+    assertNull(value.get("A").readLater().read());
+    assertThat(
+        value.entries().readLater().read(),
+        containsInAnyOrder(MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
+
+    // clear
+    value.clear();
+    assertThat(value.entries().read(), Matchers.emptyIterable());
+    assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), equalTo(value));
   }
 
   @Test
@@ -203,16 +414,16 @@ public class FlinkStateInternalsTest {
     assertEquals(value, underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR));
     assertFalse(value.equals(underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR)));
 
-    assertThat(value.read(), Matchers.equalTo(0));
+    assertThat(value.read(), equalTo(0));
     value.add(2);
-    assertThat(value.read(), Matchers.equalTo(2));
+    assertThat(value.read(), equalTo(2));
 
     value.add(3);
-    assertThat(value.read(), Matchers.equalTo(5));
+    assertThat(value.read(), equalTo(5));
 
     value.clear();
-    assertThat(value.read(), Matchers.equalTo(0));
-    assertEquals(underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR), value);
+    assertThat(value.read(), equalTo(0));
+    assertThat(underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR), equalTo(value));
   }
 
   @Test
@@ -239,14 +450,14 @@ public class FlinkStateInternalsTest {
     value2.add(10);
     value1.add(6);
 
-    assertThat(value1.read(), Matchers.equalTo(11));
-    assertThat(value2.read(), Matchers.equalTo(10));
+    assertThat(value1.read(), equalTo(11));
+    assertThat(value2.read(), equalTo(10));
 
     // Merging clears the old values and updates the result value.
     StateMerging.mergeCombiningValues(Arrays.asList(value1, value2), value1);
 
-    assertThat(value1.read(), Matchers.equalTo(21));
-    assertThat(value2.read(), Matchers.equalTo(0));
+    assertThat(value1.read(), equalTo(21));
+    assertThat(value2.read(), equalTo(0));
   }
 
   @Test
@@ -265,9 +476,9 @@ public class FlinkStateInternalsTest {
     StateMerging.mergeCombiningValues(Arrays.asList(value1, value2), value3);
 
     // Merging clears the old values and updates the result value.
-    assertThat(value1.read(), Matchers.equalTo(0));
-    assertThat(value2.read(), Matchers.equalTo(0));
-    assertThat(value3.read(), Matchers.equalTo(21));
+    assertThat(value1.read(), equalTo(0));
+    assertThat(value2.read(), equalTo(0));
+    assertThat(value3.read(), equalTo(21));
   }
 
   @Test
@@ -281,17 +492,17 @@ public class FlinkStateInternalsTest {
 
     assertThat(value.read(), Matchers.nullValue());
     value.add(new Instant(2000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.read(), equalTo(new Instant(2000)));
 
     value.add(new Instant(3000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.read(), equalTo(new Instant(2000)));
 
     value.add(new Instant(1000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(1000)));
+    assertThat(value.read(), equalTo(new Instant(1000)));
 
     value.clear();
-    assertThat(value.read(), Matchers.equalTo(null));
-    assertEquals(underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR), value);
+    assertThat(value.read(), equalTo(null));
+    assertThat(underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR), equalTo(value));
   }
 
   @Test
@@ -305,17 +516,17 @@ public class FlinkStateInternalsTest {
 
     assertThat(value.read(), Matchers.nullValue());
     value.add(new Instant(2000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.read(), equalTo(new Instant(2000)));
 
     value.add(new Instant(3000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(3000)));
+    assertThat(value.read(), equalTo(new Instant(3000)));
 
     value.add(new Instant(1000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(3000)));
+    assertThat(value.read(), equalTo(new Instant(3000)));
 
     value.clear();
-    assertThat(value.read(), Matchers.equalTo(null));
-    assertEquals(underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR), value);
+    assertThat(value.read(), equalTo(null));
+    assertThat(underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR), equalTo(value));
   }
 
   @Test
@@ -328,11 +539,11 @@ public class FlinkStateInternalsTest {
 
     assertThat(value.read(), Matchers.nullValue());
     value.add(new Instant(2000));
-    assertThat(value.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.read(), equalTo(new Instant(2000)));
 
     value.clear();
-    assertThat(value.read(), Matchers.equalTo(null));
-    assertEquals(underTest.state(NAMESPACE_1, WATERMARK_EOW_ADDR), value);
+    assertThat(value.read(), equalTo(null));
+    assertThat(underTest.state(NAMESPACE_1, WATERMARK_EOW_ADDR), equalTo(value));
   }
 
   @Test
@@ -364,8 +575,8 @@ public class FlinkStateInternalsTest {
     // Merging clears the old values and updates the merged value.
     StateMerging.mergeWatermarks(Arrays.asList(value1, value2), value1, WINDOW_1);
 
-    assertThat(value1.read(), Matchers.equalTo(new Instant(2000)));
-    assertThat(value2.read(), Matchers.equalTo(null));
+    assertThat(value1.read(), equalTo(new Instant(2000)));
+    assertThat(value2.read(), equalTo(null));
   }
 
   @Test
@@ -386,8 +597,8 @@ public class FlinkStateInternalsTest {
     StateMerging.mergeWatermarks(Arrays.asList(value1, value2), value3, WINDOW_1);
 
     // Merging clears the old values and updates the result value.
-    assertThat(value3.read(), Matchers.equalTo(new Instant(5000)));
-    assertThat(value1.read(), Matchers.equalTo(null));
-    assertThat(value2.read(), Matchers.equalTo(null));
+    assertThat(value3.read(), equalTo(new Instant(5000)));
+    assertThat(value1.read(), equalTo(null));
+    assertThat(value2.read(), equalTo(null));
   }
 }
