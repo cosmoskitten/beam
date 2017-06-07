@@ -21,6 +21,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.model.JobMetrics;
+import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
@@ -29,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.MetricFiltering;
 import org.apache.beam.runners.core.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -135,9 +137,13 @@ class DataflowMetrics extends MetricResults {
 
     public void addMetricResult(
         MetricKey metricKey,
-        com.google.api.services.dataflow.model.MetricUpdate committed,
-        com.google.api.services.dataflow.model.MetricUpdate attempted) {
-      if (committed.getDistribution() != null && attempted.getDistribution() != null) {
+        @Nullable com.google.api.services.dataflow.model.MetricUpdate committed,
+        @Nullable com.google.api.services.dataflow.model.MetricUpdate attempted) {
+      if (committed == null || attempted == null) {
+        LOG.warn(
+            "Unexpected metric {} did not have both a committed ({}) and tentative value ({}).",
+            metricKey, committed, attempted);
+      } else if (committed.getDistribution() != null && attempted.getDistribution() != null) {
         // distribution metric
         distributionResults.add(
             DataflowMetricResult.create(
@@ -196,12 +202,14 @@ class DataflowMetrics extends MetricResults {
   }
 
   private static class DataflowMetricQueryResultsFactory {
-    Iterable<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates;
-    MetricsFilter filter;
-    HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate> tentativeByName;
-    HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate> committedByName;
-    HashSet<MetricKey> metricHashKeys;
-    private DataflowPipelineJob dataflowPipelineJob;
+    private final Iterable<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates;
+    private final MetricsFilter filter;
+    private final HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
+        tentativeByName;
+    private final HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
+        committedByName;
+    private final HashSet<MetricKey> metricHashKeys;
+    private final DataflowPipelineJob dataflowPipelineJob;
 
     public static DataflowMetricQueryResultsFactory create(DataflowPipelineJob dataflowPipelineJob,
         Iterable<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates,
@@ -258,16 +266,24 @@ class DataflowMetrics extends MetricResults {
           // Skip unmatched metrics early.
           continue;
         }
-        if (Objects.equal(update.getName().getOrigin(), "user")
+
+        if (update.getName().getOrigin() != null
+            && update.getName().getOrigin().toLowerCase().equals("user")
             && update.getName().getContext().containsKey("namespace")) {
-          if (isMetricTentative(update)) {
-            assert !tentativeByName.containsKey(updateKey);
-            tentativeByName.put(updateKey, update);
-            metricHashKeys.add(updateKey);
-          } else {
-            assert !committedByName.containsKey(updateKey);
-            committedByName.put(updateKey, update);
-            metricHashKeys.add(updateKey);
+          // Skip non-user metrics, which should have both a "user" origin and a namespace.
+          continue;
+        }
+
+        metricHashKeys.add(updateKey);
+        if (isMetricTentative(update)) {
+          MetricUpdate previousUpdate = tentativeByName.put(updateKey, update);
+          if (previousUpdate != null) {
+            LOG.warn("Metric {} alreday had a tentative value of {}", updateKey, previousUpdate);
+          }
+        } else {
+          MetricUpdate previousUpdate = committedByName.put(updateKey, update);
+          if (previousUpdate != null) {
+            LOG.warn("Metric {} alreday had a committed value of {}", updateKey, previousUpdate);
           }
         }
       }
