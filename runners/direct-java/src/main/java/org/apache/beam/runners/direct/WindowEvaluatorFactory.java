@@ -18,8 +18,10 @@
 package org.apache.beam.runners.direct;
 
 import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.util.Collection;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.WindowIntoTranslation;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -52,7 +54,18 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
   private <InputT> TransformEvaluator<InputT> createTransformEvaluator(
       AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Assign<InputT>>
           transform) {
-    WindowFn<? super InputT, ?> fn = transform.getTransform().getWindowFn();
+
+    WindowFn<? super InputT, ?> fn;
+    try {
+      fn = (WindowFn) WindowIntoTranslation.getWindowFn(transform);
+    } catch (IOException exc) {
+      throw new IllegalArgumentException(
+          String.format(
+              "%s received transform that did not contain a Java-serialized %s: %s",
+              getClass().getSimpleName(), WindowFn.class.getSimpleName(), transform),
+          exc);
+    }
+
     UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(
             (PCollection<InputT>) Iterables.getOnlyElement(transform.getOutputs().values()));
