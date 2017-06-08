@@ -73,8 +73,7 @@ public class TranslatorUtils {
         inputStream.map(new ToRawUnionValue<InputT>("0"), "map_to_RawUnionValue");
 
     for (Map.Entry<String, PCollectionView<?>> tagToSideInput: tagsToSideInputs.entrySet()) {
-      // actually JavaStream<WindowedValue<List<?>>>
-      JavaStream<WindowedValue<Object>> sideInputStream = context.getInputStream(
+      JavaStream<WindowedValue<List<?>>> sideInputStream = context.getInputStream(
           tagToSideInput.getValue());
       mainStream = mainStream.merge(sideInputStream.map(new ToRawUnionValue<>(
           tagToSideInput.getKey()), "map_to_RawUnionValue"), "merge_to_MainStream");
