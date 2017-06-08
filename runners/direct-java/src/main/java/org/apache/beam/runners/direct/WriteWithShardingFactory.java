@@ -64,7 +64,7 @@ class WriteWithShardingFactory<InputT>
     try {
       WriteFiles<InputT> replacement = WriteFiles.to(WriteFilesTranslation.getSink(transform));
       if (WriteFilesTranslation.isWindowedWrites(transform)) {
-        replacement.withWindowedWrites();
+        replacement = replacement.withWindowedWrites();
       }
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
