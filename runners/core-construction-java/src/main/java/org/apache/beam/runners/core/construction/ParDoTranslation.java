@@ -277,6 +277,32 @@ public class ParDoTranslation {
     return views;
   }
 
+  /** */
+  public static List<PCollectionView<?>> getSideInputsWithOriginalPCollections(
+      AppliedPTransform<?, ?, ?> application) throws IOException {
+
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.PTransform parDoProto =
+        PTransformTranslation.toProto(application, sdkComponents);
+    ParDoPayload payload = parDoProto.getSpec().getParameter().unpack(ParDoPayload.class);
+
+    List<PCollectionView<?>> views = new ArrayList<>();
+    for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
+      String sideInputTag = sideInputEntry.getKey();
+      RunnerApi.SideInput sideInput = sideInputEntry.getValue();
+      PCollection<?> originalPCollection =
+          checkNotNull((PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)));
+      views.add(
+          fromProtoAndPCollection(
+              sideInput,
+              sideInputTag,
+              originalPCollection,
+              parDoProto,
+              sdkComponents.toComponents()));
+    }
+    return views;
+  }
+
   public static RunnerApi.PCollection getMainInput(
       RunnerApi.PTransform ptransform, Components components) throws IOException {
     checkArgument(
