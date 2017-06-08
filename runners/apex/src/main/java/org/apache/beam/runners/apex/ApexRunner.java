@@ -380,8 +380,9 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
         AppliedPTransform<PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
           transform) {
-      return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform),
-          new SplittableParDo<>(transform.getTransform()));
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          (SplittableParDo<InputT, OutputT, ?>) SplittableParDo.forAppliedParDo(transform));
     }
 
     @Override
