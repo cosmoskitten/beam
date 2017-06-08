@@ -80,7 +80,7 @@ public abstract class GearpumpSource<T> implements DataSource {
         org.joda.time.Instant timestamp = reader.getCurrentTimestamp();
         message = Message.apply(
             WindowedValue.timestampedValueInGlobalWindow(data, timestamp),
-            timestamp.getMillis());
+            Watermark.MAX().minusMillis(1));
       }
       available = reader.advance();
     } catch (Exception e) {
