@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -271,6 +272,32 @@ public class ParDoTranslation {
               application.getPipeline(),
               sideInput.getValue(),
               sideInput.getKey(),
+              parDoProto,
+              sdkComponents.toComponents()));
+    }
+    return views;
+  }
+
+  /** */
+  public static List<PCollectionView<?>> getSideInputsWithOriginalPCollections(
+      AppliedPTransform<?, ?, ?> application) throws IOException {
+
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.PTransform parDoProto =
+        PTransformTranslation.toProto(application, sdkComponents);
+    ParDoPayload payload = parDoProto.getSpec().getParameter().unpack(ParDoPayload.class);
+
+    List<PCollectionView<?>> views = new ArrayList<>();
+    for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
+      String sideInputTag = sideInputEntry.getKey();
+      RunnerApi.SideInput sideInput = sideInputEntry.getValue();
+      PCollection<?> originalPCollection =
+          checkNotNull((PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)));
+      views.add(
+          fromProtoAndPCollection(
+              sideInput,
+              sideInputTag,
+              originalPCollection,
               parDoProto,
               sdkComponents.toComponents()));
     }
