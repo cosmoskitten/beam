@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Ordering;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -287,9 +288,94 @@ public class SplittableDoFnTest implements Serializable {
     PAssert.that(res).containsInAnyOrder("a:0", "a:1", "a:2", "a:3", "b:4", "b:5", "b:6", "b:7");
 
     p.run();
+  }
 
-    // TODO: also add test coverage when the SDF checkpoints - the resumed call should also
-    // properly access side inputs.
+  @BoundedPerElement
+  private static class SDFWithMultipleOutputsPerBlockAndSideInput
+      extends DoFn<Integer, KV<String, Integer>> {
+    private static final int MAX_INDEX = 98765;
+    private final PCollectionView<String> sideInput;
+
+    public SDFWithMultipleOutputsPerBlockAndSideInput(PCollectionView<String> sideInput) {
+      this.sideInput = sideInput;
+    }
+
+    private static int snapToNextBlock(int index, int[] blockStarts) {
+      for (int i = 1; i < blockStarts.length; ++i) {
+        if (index > blockStarts[i - 1] && index <= blockStarts[i]) {
+          return i;
+        }
+      }
+      throw new IllegalStateException("Shouldn't get here");
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+      int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
+      int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
+      for (int i = trueStart; tracker.tryClaim(blockStarts[i]); ++i) {
+        for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
+          c.output(KV.of(c.sideInput(sideInput) + ":" + c.element(), index));
+        }
+      }
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRange(Integer element) {
+      return new OffsetRange(0, MAX_INDEX);
+    }
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    UsesSplittableParDo.class,
+    UsesSplittableParDoWithWindowedSideInputs.class
+  })
+  public void testWindowedSideInputWithCheckpoints() throws Exception {
+    PCollection<Integer> mainInput =
+        p.apply("main",
+                Create.timestamped(
+                    TimestampedValue.of(0, new Instant(0)),
+                    TimestampedValue.of(1, new Instant(1)),
+                    TimestampedValue.of(2, new Instant(2)),
+                    TimestampedValue.of(3, new Instant(3))))
+            .apply("window 1", Window.<Integer>into(FixedWindows.of(Duration.millis(1))));
+
+    PCollectionView<String> sideInput =
+        p.apply("side",
+                Create.timestamped(
+                    TimestampedValue.of("a", new Instant(0)),
+                    TimestampedValue.of("b", new Instant(2))))
+            .apply("window 2", Window.<String>into(FixedWindows.of(Duration.millis(2))))
+            .apply("singleton", View.<String>asSingleton());
+
+    PCollection<KV<String, Iterable<Integer>>> res =
+        mainInput
+            .apply(
+                ParDo.of(new SDFWithMultipleOutputsPerBlockAndSideInput(sideInput))
+                    .withSideInputs(sideInput))
+            .apply(GroupByKey.<String, Integer>create());
+
+    PAssert.that(res.apply(Keys.<String>create())).containsInAnyOrder("a:0", "a:1", "b:2", "b:3");
+    PAssert.that(res)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>() {
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<Integer>>> input) {
+                List<Integer> expected = new ArrayList<>();
+                for (int i = 0; i < SDFWithMultipleOutputsPerBlockAndSideInput.MAX_INDEX; ++i) {
+                  expected.add(i);
+                }
+                for (KV<String, Iterable<Integer>> kv : input) {
+                  assertEquals(expected, Ordering.<Integer>natural().sortedCopy(kv.getValue()));
+                }
+                return null;
+              }
+            });
+
+    p.run();
+
     // TODO: also test coverage when some of the windows of the side input are not ready.
   }
 
