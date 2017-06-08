@@ -28,7 +28,6 @@ import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-// import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -80,7 +79,7 @@ public abstract class GearpumpSource<T> implements DataSource {
         org.joda.time.Instant timestamp = reader.getCurrentTimestamp();
         message = Message.apply(
             WindowedValue.timestampedValueInGlobalWindow(data, timestamp),
-            timestamp.getMillis());
+            TranslatorUtils.jodaTimeToJava8Time(timestamp));
       }
       available = reader.advance();
     } catch (Exception e) {
