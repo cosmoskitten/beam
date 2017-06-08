@@ -194,14 +194,18 @@ class _TransformWatermarks(object):
 
   def refresh(self):
     with self._lock:
-      pending_holder = WatermarkManager.WATERMARK_POS_INF
+      min_pending_timestamp = WatermarkManager.WATERMARK_POS_INF
       for input_bundle in self._pending:
         # TODO(ccy): we can have the Bundle class keep track of the minimum
         # timestamp so we don't have to do an iteration here.
         for wv in input_bundle.get_elements_iterable():
-          advanceable_timestamp = wv.timestamp - TIME_GRANULARITY
-          if advanceable_timestamp < pending_holder:
-            pending_holder = advanceable_timestamp
+          if wv.timestamp < min_pending_timestamp:
+            min_pending_timestamp = wv.timestamp
+
+      # If there is a pending element with a certain timestamp, we can at most
+      # advance our watermark to the maximum timestamp less than that
+      # timestamp.
+      pending_holder = min_pending_timestamp - TIME_GRANULARITY
 
       input_watermarks = [
           tw.output_watermark for tw in self._input_transform_watermarks]
