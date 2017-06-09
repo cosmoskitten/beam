@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
@@ -74,10 +75,10 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos.
@@ -265,6 +266,7 @@ public class ParDoTranslation {
     for (Map.Entry<String, SideInput> sideInput : payload.getSideInputsMap().entrySet()) {
       views.add(
           fromProto(
+              application.getPipeline(),
               sideInput.getValue(), sideInput.getKey(), parDoProto, sdkComponents.toComponents()));
     }
     return views;
@@ -498,26 +500,28 @@ public class ParDoTranslation {
   }
 
   public static PCollectionView<?> fromProto(
-      SideInput sideInput, String id, RunnerApi.PTransform parDoTransform, Components components)
+      Pipeline pipeline,
+      SideInput sideInput,
+      String id,
+      RunnerApi.PTransform parDoTransform,
+      Components components)
       throws IOException {
     TupleTag<?> tag = new TupleTag<>(id);
     WindowMappingFn<?> windowMappingFn = windowMappingFnFromProto(sideInput.getWindowMappingFn());
     ViewFn<?, ?> viewFn = viewFnFromProto(sideInput.getViewFn());
 
-    RunnerApi.PCollection inputCollection =
-        components.getPcollectionsOrThrow(parDoTransform.getInputsOrThrow(id));
-    WindowingStrategy<?, ?> windowingStrategy =
-        WindowingStrategyTranslation.fromProto(
-            components.getWindowingStrategiesOrThrow(inputCollection.getWindowingStrategyId()),
+    PCollection<?> pCollection =
+        PCollectionTranslation.fromProto(
+            components.getPcollectionsOrThrow(parDoTransform.getInputsOrThrow(id)),
+            pipeline,
             components);
-    Coder<?> elemCoder =
-        CoderTranslation
-            .fromProto(components.getCodersOrThrow(inputCollection.getCoderId()), components);
+
     Coder<Iterable<WindowedValue<?>>> coder =
         (Coder)
             IterableCoder.of(
                 FullWindowedValueCoder.of(
-                    elemCoder, windowingStrategy.getWindowFn().windowCoder()));
+                    pCollection.getCoder(),
+                    pCollection.getWindowingStrategy().getWindowFn().windowCoder()));
     checkArgument(
         sideInput.getAccessPattern().getUrn().equals(Materializations.ITERABLE_MATERIALIZATION_URN),
         "Unknown View Materialization URN %s",
@@ -525,10 +529,11 @@ public class ParDoTranslation {
 
     PCollectionView<?> view =
         new RunnerPCollectionView<>(
+            pCollection,
             (TupleTag<Iterable<WindowedValue<?>>>) tag,
             (ViewFn<Iterable<WindowedValue<?>>, ?>) viewFn,
             windowMappingFn,
-            windowingStrategy,
+            pCollection.getWindowingStrategy(),
             coder);
     return view;
   }
