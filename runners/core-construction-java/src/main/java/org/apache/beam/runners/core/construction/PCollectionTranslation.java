@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.values.PCollection;
@@ -53,8 +54,8 @@ public class PCollectionTranslation {
 
   public static Coder<?> getCoder(
       RunnerApi.PCollection pCollection, RunnerApi.Components components) throws IOException {
-    return CoderTranslation
-        .fromProto(components.getCodersOrThrow(pCollection.getCoderId()), components);
+    return CoderTranslation.fromProto(
+        components.getCodersOrThrow(pCollection.getCoderId()), components);
   }
 
   public static WindowingStrategy<?, ?> getWindowingStrategy(
@@ -94,5 +95,23 @@ public class PCollectionTranslation {
                 IsBounded.class.getCanonicalName(),
                 isBounded));
     }
+  }
+
+  static PCollection<?> fromProto(
+      RunnerApi.PCollection pCollectionProto, Pipeline pipeline, RunnerApi.Components components)
+      throws IOException {
+
+    WindowingStrategy<?, ?> windowingStrategy =
+        WindowingStrategyTranslation.fromProto(
+            components.getWindowingStrategiesOrThrow(pCollectionProto.getWindowingStrategyId()),
+            components);
+
+    Coder<?> elemCoder =
+        CoderTranslation.fromProto(
+            components.getCodersOrThrow(pCollectionProto.getCoderId()), components);
+
+    return PCollection.createPrimitiveOutputInternal(
+            pipeline, windowingStrategy, fromProto(pCollectionProto.getIsBounded()))
+        .setCoder((Coder) elemCoder);
   }
 }
