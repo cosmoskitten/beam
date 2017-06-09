@@ -94,6 +94,16 @@ public class PTransformTranslation {
           toProto(taggedInput.getKey()),
           components.registerPCollection((PCollection<?>) taggedInput.getValue()));
     }
+    for (Map.Entry<TupleTag<?>, PValue> taggedInput :
+        appliedPTransform.getTransform().getAdditionalInputs().entrySet()) {
+      checkArgument(
+          taggedInput.getValue() instanceof PCollection,
+          "Unexpected input type %s",
+          taggedInput.getValue().getClass());
+      transformBuilder.putInputs(
+          toProto(taggedInput.getKey()),
+          components.registerPCollection((PCollection<?>) taggedInput.getValue()));
+    }
     for (Map.Entry<TupleTag<?>, PValue> taggedOutput : appliedPTransform.getOutputs().entrySet()) {
       // TODO: Remove gating
       if (taggedOutput.getValue() instanceof PCollection) {
