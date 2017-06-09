@@ -19,8 +19,10 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -167,6 +170,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             additionalOutputTags));
   }
 
+  @Override
+  public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+    ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+    for (PCollectionView<?> sideInput : sideInputs) {
+      additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
+    }
+    return additionalInputs.build();
+  }
+
   /**
    * A {@link DoFn} that forces each of its outputs to be in a single window, by indicating to the
    * runner that it observes the window of its input element, so the runner is forced to apply it to
@@ -274,6 +286,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       outputs.get(mainOutputTag).setTypeDescriptor(fn.getOutputTypeDescriptor());
 
       return outputs;
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+      for (PCollectionView<?> sideInput : sideInputs) {
+        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
+      }
+      return additionalInputs.build();
     }
 
     @Override
