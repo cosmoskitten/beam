@@ -20,6 +20,7 @@ package org.apache.beam.sdk.runners;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
@@ -555,11 +556,11 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.setOutput(done);
     hierarchy.popNode();
 
+    final Set<Node> visitedNodes = new HashSet<>();
+    final Set<Node> exitedNodes = new HashSet<>();
+    final Set<PValue> visitedValues = new HashSet<>();
     hierarchy.visit(
         new PipelineVisitor.Defaults() {
-          private final Set<Node> visitedNodes = new HashSet<>();
-          private final Set<Node> exitedNodes = new HashSet<>();
-          private final Set<PValue> visitedValues = new HashSet<>();
 
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
@@ -610,6 +611,8 @@ public class TransformHierarchyTest implements Serializable {
             visitedValues.add(value);
           }
         });
+    assertThat(visitedNodes.size(), equalTo(5));
+    assertThat(exitedNodes.size(), equalTo(4));
   }
 
   @Test
@@ -684,6 +687,7 @@ public class TransformHierarchyTest implements Serializable {
           }
         });
 
+    assertThat(visitedNodes, hasItem(enclosing));
     assertThat(visitedNodes, not(hasItem(enclosed)));
   }
 }
