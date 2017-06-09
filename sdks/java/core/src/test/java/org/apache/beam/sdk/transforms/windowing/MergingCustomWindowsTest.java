@@ -131,19 +131,18 @@ public class MergingCustomWindowsTest {
 
   private static class CustomWindowFn extends WindowFn<String, CustomWindow> {
 
-    @Override
-    public Collection<CustomWindow> assignWindows(AssignContext c) throws Exception {
+    @Override public Collection<CustomWindow> assignWindows(AssignContext c) throws Exception {
       String element = c.element();
-      CustomWindow customWindow;
       // put big elements in windows of 30s and small ones in windows of 5s
       if ("big".equals(element)) {
-        customWindow =
-            new CustomWindow(c.timestamp(), c.timestamp().plus(Duration.standardSeconds(30)), true);
+        return Collections.singletonList(
+            new CustomWindow(c.timestamp(), c.timestamp().plus(Duration.standardSeconds(30)),
+                true));
       } else {
-        customWindow =
-            new CustomWindow(c.timestamp(), c.timestamp().plus(Duration.standardSeconds(5)), false);
+        return Collections.singletonList(
+            new CustomWindow(c.timestamp(), c.timestamp().plus(Duration.standardSeconds(5)),
+                false));
       }
-      return Collections.singletonList(customWindow);
     }
 
     @Override
