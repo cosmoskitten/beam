@@ -555,11 +555,11 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.setOutput(done);
     hierarchy.popNode();
 
+    final Set<Node> visitedNodes = new HashSet<>();
+    final Set<Node> exitedNodes = new HashSet<>();
+    final Set<PValue> visitedValues = new HashSet<>();
     hierarchy.visit(
         new PipelineVisitor.Defaults() {
-          private final Set<Node> visitedNodes = new HashSet<>();
-          private final Set<Node> exitedNodes = new HashSet<>();
-          private final Set<PValue> visitedValues = new HashSet<>();
 
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
@@ -684,6 +684,7 @@ public class TransformHierarchyTest implements Serializable {
           }
         });
 
+    assertThat(visitedNodes, hasItem(enclosing));
     assertThat(visitedNodes, not(hasItem(enclosed)));
   }
 }
