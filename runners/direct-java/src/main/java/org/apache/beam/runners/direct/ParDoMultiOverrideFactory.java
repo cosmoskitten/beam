@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -133,6 +134,15 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     }
 
     @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+      for (PCollectionView<?> sideInput : sideInputs) {
+        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
+      }
+      return additionalInputs.build();
+    }
+
+    @Override
     public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
 
       WindowingStrategy<?, ?> inputWindowingStrategy = input.getWindowingStrategy();
@@ -229,6 +239,15 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
 
     public TupleTagList getAdditionalOutputTags() {
       return additionalOutputTags;
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+      for (PCollectionView<?> sideInput : sideInputs) {
+        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
+      }
+      return additionalInputs.build();
     }
 
     @Override
