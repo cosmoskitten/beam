@@ -111,17 +111,18 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       extractKeyRowType.addField("c" + i,
           leftRowType.getFieldsType().get(pairs.get(i).getKey()));
     }
+    Coder extractKeyRowCoder = new BeamSqlRowCoder(extractKeyRowType);
 
     // BeamSQLRow -> KV<BeamSQLRow, BeamSQLRow>
     PCollection<KV<BeamSQLRow, BeamSQLRow>> extractedLeftRows = leftRows
         .apply(stageName + "_left_ExtractJoinFields",
             MapElements.via(new BeamJoinTransforms.ExtractJoinFields(true, pairs)))
-        .setCoder(KvCoder.of(new BeamSqlRowCoder(extractKeyRowType), leftRows.getCoder()));
+        .setCoder(KvCoder.of(extractKeyRowCoder, leftRows.getCoder()));
 
     PCollection<KV<BeamSQLRow, BeamSQLRow>> extractedRightRows = rightRows
         .apply(stageName + "_right_ExtractJoinFields",
             MapElements.via(new BeamJoinTransforms.ExtractJoinFields(false, pairs)))
-        .setCoder(KvCoder.of(new BeamSqlRowCoder(extractKeyRowType), rightRows.getCoder()));
+        .setCoder(KvCoder.of(extractKeyRowCoder, rightRows.getCoder()));
 
     // prepare the NullRows
     BeamSQLRow leftNullRow = buildNullRow(leftRelNode);
@@ -193,17 +194,10 @@ public class BeamJoinRel extends Join implements BeamRelNode {
             rightNullRow);
     }
 
-    Coder<BeamSQLRow> resultCoder = null;
-    Coder upstreamCoder = joinedRows.getCoder();
-    KvCoder kvCoder = (KvCoder) upstreamCoder;
-    KvCoder valueCoder = (KvCoder) kvCoder.getValueCoder();
-    Coder
-
-
     PCollection<BeamSQLRow> ret = joinedRows
         .apply(stageName + "_JoinParts2WholeRow",
             MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
-        .setCoder();
+        .setCoder(new BeamSqlRowCoder(BeamSQLRecordType.from(getRowType())));
 
     return ret;
   }
@@ -229,9 +223,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<BeamSQLRow> ret = realLeftRows
         .apply(ParDo.of(new BeamJoinTransforms.SideInputJoinDoFn(
             realJoinType, realRightNullRow, rowsView, swapped)).withSideInputs(rowsView))
-        .setCoder(KvCoder.of(((KvCoder) leftCollection.getCoder()).getKeyCoder(),
-            KvCoder.of(((KvCoder) leftCollection.getCoder()).getValueCoder(),
-                ((KvCoder) rightCollection.getCoder()).getValueCoder())));
+        .setCoder(new BeamSqlRowCoder(BeamSQLRecordType.from(getRowType())));
 
     return ret;
   }
