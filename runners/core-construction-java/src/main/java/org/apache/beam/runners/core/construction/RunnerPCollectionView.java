@@ -39,7 +39,9 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   private final WindowMappingFn<?> windowMappingFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Coder<Iterable<WindowedValue<?>>> coder;
-  private final PCollection<?> pCollection;
+
+  // This is never serialized and deserialized, but can go to/from a SideInput proto
+  private final transient PCollection<?> pCollection;
 
   /**
    * Create a new {@link RunnerPCollectionView} from the provided components.
