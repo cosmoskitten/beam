@@ -39,16 +39,19 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   private final WindowMappingFn<?> windowMappingFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Coder<Iterable<WindowedValue<?>>> coder;
+  private final PCollection<?> pCollection;
 
   /**
    * Create a new {@link RunnerPCollectionView} from the provided components.
    */
   RunnerPCollectionView(
+      PCollection<?> pCollection,
       TupleTag<Iterable<WindowedValue<?>>> tag,
       ViewFn<Iterable<WindowedValue<?>>, T> viewFn,
       WindowMappingFn<?> windowMappingFn,
       @Nullable WindowingStrategy<?, ?> windowingStrategy,
       @Nullable Coder<Iterable<WindowedValue<?>>> coder) {
+    this.pCollection = pCollection;
     this.tag = tag;
     this.viewFn = viewFn;
     this.windowMappingFn = windowMappingFn;
@@ -59,8 +62,7 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   @Nullable
   @Override
   public PCollection<?> getPCollection() {
-    throw new IllegalStateException(
-        String.format("Cannot call getPCollection on a %s", getClass().getSimpleName()));
+    return pCollection;
   }
 
   @Override
