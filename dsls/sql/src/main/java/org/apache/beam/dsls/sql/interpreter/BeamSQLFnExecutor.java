@@ -45,6 +45,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpres
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAbsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPowerExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRoundExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSqrtExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
@@ -159,6 +160,10 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
           return new BeamSqlSqrtExpression(subExps);
         case "ROUND":
           return new BeamSqlRoundExpression(subExps);
+        case "POWER":
+          return new BeamSqlPowerExpression(subExps);
+        case "POW":
+          return new BeamSqlPowerExpression(subExps);
 
         // string operators
         case "||":
