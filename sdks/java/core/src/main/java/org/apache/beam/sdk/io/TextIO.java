@@ -28,6 +28,9 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy.Config;
+import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
@@ -439,14 +442,20 @@ public class TextIO {
 
       FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
       if (usedFilenamePolicy == null) {
-        usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
-            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
+        usedFilenamePolicy = DefaultFilenamePolicy.fromConfig(
+            Config.fromStandardParameters(getFilenamePrefix(),
+            getShardTemplate(),
+            getFilenameSuffix(), getWindowedWrites()));
       }
-      WriteFiles<String> write =
+
+      DynamicDestinations<String, Void> dynamicDestinations =
+          new ConstantFilenamePolicy<>(usedFilenamePolicy);
+
+      WriteFiles<String, Void> write =
           WriteFiles.to(
-              new TextSink(
+              new TextSink<>(
                   getFilenamePrefix(),
-                  usedFilenamePolicy,
+                  dynamicDestinations,
                   getHeader(),
                   getFooter(),
                   getWritableByteChannelFactory()));
