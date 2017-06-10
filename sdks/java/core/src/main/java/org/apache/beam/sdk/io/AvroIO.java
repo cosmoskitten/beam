@@ -35,6 +35,8 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -450,14 +452,16 @@ public class AvroIO {
 
       FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
       if (usedFilenamePolicy == null) {
-        usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
-            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
+        usedFilenamePolicy = DefaultFilenamePolicy.fromConfig(
+            DefaultFilenamePolicy.Config.fromStandardParameters(
+            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites()));
       }
-
-      WriteFiles<T> write = WriteFiles.to(
+      DynamicDestinations<T, Void> dynamicDestinations =
+          new ConstantFilenamePolicy<>(usedFilenamePolicy);
+      WriteFiles<T, Void> write = WriteFiles.to(
             new AvroSink<>(
                 getFilenamePrefix(),
-                usedFilenamePolicy,
+                dynamicDestinations,
                 AvroCoder.of(getRecordClass(), getSchema()),
                 getCodec(),
                 getMetadata()));

@@ -214,7 +214,7 @@ public class WriteFilesTest {
     }
 
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String> write = WriteFiles.to(sink).withSharding(new LargestInt());
+    WriteFiles<String, ?> write = WriteFiles.to(sink).withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
         .apply(write);
@@ -280,7 +280,7 @@ public class WriteFilesTest {
   @Test
   public void testBuildWrite() {
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String> write = WriteFiles.to(sink).withNumShards(3);
+    WriteFiles<String, ?> write = WriteFiles.to(sink).withNumShards(3);
     assertThat((SimpleSink) write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
         write.getSharding();
@@ -290,12 +290,12 @@ public class WriteFilesTest {
     assertThat(write.getNumShards().get(), equalTo(3));
     assertThat(write.getSharding(), equalTo(originalSharding));
 
-    WriteFiles<String> write2 = write.withSharding(SHARDING_TRANSFORM);
+    WriteFiles<String, ?> write2 = write.withSharding(SHARDING_TRANSFORM);
     assertThat((SimpleSink) write2.getSink(), is(sink));
     assertThat(write2.getSharding(), equalTo(SHARDING_TRANSFORM));
     // original unchanged
 
-    WriteFiles<String> writeUnsharded = write2.withRunnerDeterminedSharding();
+    WriteFiles<String, ?> writeUnsharded = write2.withRunnerDeterminedSharding();
     assertThat(writeUnsharded.getSharding(), nullValue());
     assertThat(write.getSharding(), equalTo(originalSharding));
   }
@@ -308,7 +308,7 @@ public class WriteFilesTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    WriteFiles<String> write = WriteFiles.to(sink);
+    WriteFiles<String, ?> write = WriteFiles.to(sink);
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
@@ -323,7 +323,7 @@ public class WriteFilesTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    WriteFiles<String> write = WriteFiles.to(sink).withNumShards(1);
+    WriteFiles<String, ?> write = WriteFiles.to(sink).withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
@@ -338,7 +338,7 @@ public class WriteFilesTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    WriteFiles<String> write =
+    WriteFiles<String, ?> write =
         WriteFiles.to(sink)
             .withSharding(
                 new PTransform<PCollection<String>, PCollectionView<Integer>>() {
@@ -392,7 +392,7 @@ public class WriteFilesTest {
     }
 
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String> write = WriteFiles.to(sink);
+    WriteFiles<String, ?> write = WriteFiles.to(sink);
     if (numConfiguredShards.isPresent()) {
       write = write.withNumShards(numConfiguredShards.get());
     }
