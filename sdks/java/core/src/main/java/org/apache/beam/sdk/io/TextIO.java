@@ -113,6 +113,7 @@ public class TextIO {
         .setShardTemplate(null)
         .setFilenameSuffix(null)
         .setFilenamePolicy(null)
+        .setDynamicDestinations(null)
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNumShards(0)
@@ -253,6 +254,9 @@ public class TextIO {
     /** A policy for naming output files. */
     @Nullable abstract FilenamePolicy getFilenamePolicy();
 
+    /** Allows for value-dependent {@link DynamicDestinations} to be vended. */
+    @Nullable abstract DynamicDestinations<String, ?> getDynamicDestinations();
+
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
 
@@ -272,6 +276,8 @@ public class TextIO {
       abstract Builder setHeader(@Nullable String header);
       abstract Builder setFooter(@Nullable String footer);
       abstract Builder setFilenamePolicy(@Nullable FilenamePolicy filenamePolicy);
+      abstract Builder setDynamicDestinations(@Nullable DynamicDestinations<String, ?>
+                                              dynamicDestinations);
       abstract Builder setNumShards(int numShards);
       abstract Builder setWindowedWrites(boolean windowedWrites);
       abstract Builder setWritableByteChannelFactory(
@@ -362,10 +368,18 @@ public class TextIO {
     }
 
     /**
-     * Configures the {@link FileBasedSink.FilenamePolicy} that will be used to name written files.
+     * Use a {@link FileBasedSink.FilenamePolicy} to name written files.
      */
     public Write withFilenamePolicy(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
+    }
+
+    /**
+     * Use a {@link DynamicDestinations} object to vend {@link FilenamePolicy} objects. These
+     * objects can
+     */
+    public Write withDynamicDestinations(DynamicDestinations<String, ?> dynamicDestinations) {
+      return toBuilder().setDynamicDestinations(dynamicDestinations).build();
     }
 
     /**
@@ -439,19 +453,26 @@ public class TextIO {
           (getFilenamePolicy() == null)
               || (getShardTemplate() == null && getFilenameSuffix() == null),
           "Cannot set a filename policy and also a filename template or suffix.");
+      // CHECK ABOUT DYNAMIC DESTINATIONS.
 
-      FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
-      if (usedFilenamePolicy == null) {
-        usedFilenamePolicy = DefaultFilenamePolicy.fromConfig(
-            Config.fromStandardParameters(getFilenamePrefix(),
-            getShardTemplate(),
-            getFilenameSuffix(), getWindowedWrites()));
+      DynamicDestinations<String, ?> dynamicDestinations = getDynamicDestinations();
+      if (dynamicDestinations == null) {
+        FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
+        if (usedFilenamePolicy == null) {
+          usedFilenamePolicy = DefaultFilenamePolicy.fromConfig(
+              Config.fromStandardParameters(getFilenamePrefix(),
+                  getShardTemplate(),
+                  getFilenameSuffix(), getWindowedWrites()));
+        }
+        dynamicDestinations =
+            new ConstantFilenamePolicy<>(usedFilenamePolicy);
       }
+      return expandTyped(input, dynamicDestinations);
+    }
 
-      DynamicDestinations<String, Void> dynamicDestinations =
-          new ConstantFilenamePolicy<>(usedFilenamePolicy);
-
-      WriteFiles<String, Void> write =
+    public <DestinationT> PDone expandTyped(
+        PCollection<String> input, DynamicDestinations<String, DestinationT> dynamicDestinations) {
+      WriteFiles<String, DestinationT> write =
           WriteFiles.to(
               new TextSink<>(
                   getFilenamePrefix(),
