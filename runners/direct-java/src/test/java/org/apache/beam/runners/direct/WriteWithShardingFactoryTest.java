@@ -74,7 +74,7 @@ import org.junit.runners.JUnit4;
 public class WriteWithShardingFactoryTest {
   private static final int INPUT_SIZE = 10000;
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
-  private WriteWithShardingFactory<Object> factory = new WriteWithShardingFactory<>();
+  private WriteWithShardingFactory<Object, Void> factory = new WriteWithShardingFactory<>();
   @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
@@ -129,24 +129,18 @@ public class WriteWithShardingFactoryTest {
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
     ResourceId outputDirectory = LocalResources.fromString("/foo", true /* isDirectory */);
-    FilenamePolicy policy =
-        DefaultFilenamePolicy.constructUsingStandardParameters(
-            StaticValueProvider.of(outputDirectory),
-            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
-            "",
-            false);
-    WriteFiles<Object> original =
+    WriteFiles<Object, Void> original =
         WriteFiles.to(
-            new FileBasedSink<Object>(StaticValueProvider.of(outputDirectory), policy) {
+            new FileBasedSink<Object, Void>(StaticValueProvider.of(outputDirectory)) {
               @Override
-              public WriteOperation<Object> createWriteOperation() {
+              public WriteOperation<Object, Void> createWriteOperation() {
                 throw new IllegalArgumentException("Should not be used");
               }
             });
     @SuppressWarnings("unchecked")
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 
-    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object>> originalApplication =
+    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object, Void>> originalApplication =
         AppliedPTransform.of(
             "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
 

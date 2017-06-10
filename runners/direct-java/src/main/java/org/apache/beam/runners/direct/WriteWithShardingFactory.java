@@ -48,14 +48,15 @@ import org.apache.beam.sdk.values.TupleTag;
  * specified number of shards. The number of shards is the log base 10 of the number of input
  * records, with up to 2 additional shards.
  */
-class WriteWithShardingFactory<InputT>
-    implements PTransformOverrideFactory<PCollection<InputT>, PDone, WriteFiles<InputT>> {
+class WriteWithShardingFactory<InputT, DestinationT>
+    implements PTransformOverrideFactory<PCollection<InputT>, PDone,
+    WriteFiles<InputT, DestinationT>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
   public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
-      AppliedPTransform<PCollection<InputT>, PDone, WriteFiles<InputT>> transform) {
+      AppliedPTransform<PCollection<InputT>, PDone, WriteFiles<InputT, DestinationT>> transform) {
 
     return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
