@@ -39,6 +39,8 @@ import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.io.TextIO.Write;
+import org.apache.beam.sdk.io.TextIO.Write.Builder;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -265,6 +267,8 @@ public class AvroIO {
     @Nullable abstract Schema getSchema();
     abstract boolean getWindowedWrites();
     @Nullable abstract FilenamePolicy getFilenamePolicy();
+    @Nullable abstract DynamicDestinations<T, ?> getDynamicDestinations();
+
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
      * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
@@ -285,6 +289,8 @@ public class AvroIO {
       abstract Builder<T> setSchema(Schema schema);
       abstract Builder<T> setWindowedWrites(boolean windowedWrites);
       abstract Builder<T> setFilenamePolicy(FilenamePolicy filenamePolicy);
+      abstract Builder<T> setDynamicDestinations(
+          @Nullable DynamicDestinations<T, ?> dynamicDestinations);
       abstract Builder<T> setCodec(SerializableAvroCodecFactory codec);
       abstract Builder<T> setMetadata(ImmutableMap<String, Object> metadata);
 
@@ -350,6 +356,13 @@ public class AvroIO {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
     }
 
+    /**
+     * Use a {@link DynamicDestinations} object to vend {@link FilenamePolicy} objects. These
+     * objects can
+     */
+    public Write<T> withDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations) {
+      return toBuilder().setDynamicDestinations(dynamicDestinations).build();
+    }
     /**
      * Uses the given {@link ShardNameTemplate} for naming output files. This option may only be
      * used when {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
@@ -449,16 +462,26 @@ public class AvroIO {
           "Need to set the schema of an AvroIO.Write transform.");
       checkState(!getWindowedWrites() || (getFilenamePolicy() != null),
           "When using windowed writes, a filename policy must be set via withFilenamePolicy().");
+      // CHECK DYNAMIC DESTINATIONS
 
-      FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
-      if (usedFilenamePolicy == null) {
-        usedFilenamePolicy = DefaultFilenamePolicy.fromConfig(
-            DefaultFilenamePolicy.Config.fromStandardParameters(
-            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites()));
+      DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
+      if (dynamicDestinations == null) {
+        FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
+        if (usedFilenamePolicy == null) {
+          usedFilenamePolicy = DefaultFilenamePolicy.fromConfig(
+              DefaultFilenamePolicy.Config.fromStandardParameters(
+                  getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(),
+                  getWindowedWrites()));
+        }
+        dynamicDestinations = new ConstantFilenamePolicy<>(usedFilenamePolicy);
       }
-      DynamicDestinations<T, Void> dynamicDestinations =
-          new ConstantFilenamePolicy<>(usedFilenamePolicy);
-      WriteFiles<T, Void> write = WriteFiles.to(
+      return expandTyped(input, dynamicDestinations);
+    }
+
+    public <DestinationT> PDone expandTyped(
+        PCollection<T> input,
+        DynamicDestinations<T, DestinationT> dynamicDestinations) {
+      WriteFiles<T, DestinationT> write = WriteFiles.to(
             new AvroSink<>(
                 getFilenamePrefix(),
                 dynamicDestinations,
