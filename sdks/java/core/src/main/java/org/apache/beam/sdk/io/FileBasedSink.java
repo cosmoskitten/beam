@@ -1104,8 +1104,8 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
       String tempFilename = FILENAME_CODER.decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PANE_INFO_CODER.decode(inStream);
-      DestinationT destination = destinationCoder.decode(inStream);
       int shard = SHARD_CODER.decode(inStream);
+      DestinationT destination = destinationCoder.decode(inStream);
       return new FileResult<>(FileSystems.matchNewResource(tempFilename,
           false /* isDirectory */), shard, window, paneInfo, destination);
     }
