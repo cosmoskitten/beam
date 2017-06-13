@@ -20,8 +20,8 @@ package org.apache.beam.dsls.sql.rel;
 
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -47,8 +47,8 @@ public class BeamJoinRelBoundedVsBoundedTest {
         + " o1.order_id=o2.site_id AND o2.price=o1.site_id"
         ;
 
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
         SqlTypeName.INTEGER, "order_id",
         SqlTypeName.INTEGER, "site_id",
         SqlTypeName.INTEGER, "price",
@@ -71,8 +71,8 @@ public class BeamJoinRelBoundedVsBoundedTest {
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id"
         ;
 
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
         SqlTypeName.INTEGER, "order_id",
         SqlTypeName.INTEGER, "site_id",
         SqlTypeName.INTEGER, "price",
@@ -97,8 +97,8 @@ public class BeamJoinRelBoundedVsBoundedTest {
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id"
         ;
 
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
         SqlTypeName.INTEGER, "order_id",
         SqlTypeName.INTEGER, "site_id",
         SqlTypeName.INTEGER, "price",
@@ -123,8 +123,8 @@ public class BeamJoinRelBoundedVsBoundedTest {
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id"
         ;
 
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
         SqlTypeName.INTEGER, "order_id",
         SqlTypeName.INTEGER, "site_id",
         SqlTypeName.INTEGER, "price",
@@ -144,7 +144,7 @@ public class BeamJoinRelBoundedVsBoundedTest {
   @BeforeClass
   public static void prepare() {
     BeamSqlEnv.registerTable("ORDER_DETAILS",
-        MockedBeamSQLTable
+        MockedBeamSqlTable
         .of(SqlTypeName.INTEGER, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.INTEGER, "price",

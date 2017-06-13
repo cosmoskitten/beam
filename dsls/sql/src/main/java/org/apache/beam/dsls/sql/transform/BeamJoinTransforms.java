@@ -22,8 +22,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
@@ -41,7 +41,7 @@ public class BeamJoinTransforms {
    * A {@code SimpleFunction} to extract join fields from the specified row.
    */
   public static class ExtractJoinFields
-      extends SimpleFunction<BeamSQLRow, KV<BeamSQLRow, BeamSQLRow>> {
+      extends SimpleFunction<BeamSqlRow, KV<BeamSqlRow, BeamSqlRow>> {
     private boolean isLeft;
     private List<Pair<Integer, Integer>> joinColumns;
 
@@ -50,8 +50,8 @@ public class BeamJoinTransforms {
       this.joinColumns = joinColumns;
     }
 
-    @Override public KV<BeamSQLRow, BeamSQLRow> apply(BeamSQLRow input) {
-      BeamSQLRecordType type = new BeamSQLRecordType();
+    @Override public KV<BeamSqlRow, BeamSqlRow> apply(BeamSqlRow input) {
+      BeamSqlRecordType type = new BeamSqlRecordType();
       // build the type
       // the name of the join field is not important
       for (int i = 0; i < joinColumns.size(); i++) {
@@ -61,7 +61,7 @@ public class BeamJoinTransforms {
       }
 
       // build the row
-      BeamSQLRow row = new BeamSQLRow(type);
+      BeamSqlRow row = new BeamSqlRow(type);
       for (int i = 0; i < joinColumns.size(); i++) {
         row.addField(i, input
             .getFieldValue(isLeft ? joinColumns.get(i).getKey() : joinColumns.get(i).getValue()));
@@ -74,14 +74,14 @@ public class BeamJoinTransforms {
   /**
    * A {@code DoFn} which implement the sideInput-JOIN.
    */
-  public static class SideInputJoinDoFn extends DoFn<KV<BeamSQLRow, BeamSQLRow>, BeamSQLRow> {
-    private PCollectionView<Map<BeamSQLRow, Iterable<BeamSQLRow>>> sideInputView;
+  public static class SideInputJoinDoFn extends DoFn<KV<BeamSqlRow, BeamSqlRow>, BeamSqlRow> {
+    private PCollectionView<Map<BeamSqlRow, Iterable<BeamSqlRow>>> sideInputView;
     private JoinRelType joinType;
-    private BeamSQLRow rightNullRow;
+    private BeamSqlRow rightNullRow;
     private boolean swap;
 
-    public SideInputJoinDoFn(JoinRelType joinType, BeamSQLRow rightNullRow,
-        PCollectionView<Map<BeamSQLRow, Iterable<BeamSQLRow>>> sideInputView,
+    public SideInputJoinDoFn(JoinRelType joinType, BeamSqlRow rightNullRow,
+        PCollectionView<Map<BeamSqlRow, Iterable<BeamSqlRow>>> sideInputView,
         boolean swap) {
       this.joinType = joinType;
       this.rightNullRow = rightNullRow;
@@ -90,13 +90,13 @@ public class BeamJoinTransforms {
     }
 
     @ProcessElement public void processElement(ProcessContext context) {
-      BeamSQLRow key = context.element().getKey();
-      BeamSQLRow leftRow = context.element().getValue();
-      Map<BeamSQLRow, Iterable<BeamSQLRow>> key2Rows = context.sideInput(sideInputView);
-      Iterable<BeamSQLRow> rightRowsIterable = key2Rows.get(key);
+      BeamSqlRow key = context.element().getKey();
+      BeamSqlRow leftRow = context.element().getValue();
+      Map<BeamSqlRow, Iterable<BeamSqlRow>> key2Rows = context.sideInput(sideInputView);
+      Iterable<BeamSqlRow> rightRowsIterable = key2Rows.get(key);
 
       if (rightRowsIterable != null && rightRowsIterable.iterator().hasNext()) {
-        Iterator<BeamSQLRow> it = rightRowsIterable.iterator();
+        Iterator<BeamSqlRow> it = rightRowsIterable.iterator();
         while (it.hasNext()) {
           context.output(combineTwoRowsIntoOne(leftRow, it.next(), swap));
         }
@@ -113,26 +113,26 @@ public class BeamJoinTransforms {
    * A {@code SimpleFunction} to combine two rows into one.
    */
   public static class JoinParts2WholeRow
-      extends SimpleFunction<KV<BeamSQLRow, KV<BeamSQLRow, BeamSQLRow>>, BeamSQLRow> {
-    @Override public BeamSQLRow apply(KV<BeamSQLRow, KV<BeamSQLRow, BeamSQLRow>> input) {
-      KV<BeamSQLRow, BeamSQLRow> parts = input.getValue();
-      BeamSQLRow leftRow = parts.getKey();
-      BeamSQLRow rightRow = parts.getValue();
+      extends SimpleFunction<KV<BeamSqlRow, KV<BeamSqlRow, BeamSqlRow>>, BeamSqlRow> {
+    @Override public BeamSqlRow apply(KV<BeamSqlRow, KV<BeamSqlRow, BeamSqlRow>> input) {
+      KV<BeamSqlRow, BeamSqlRow> parts = input.getValue();
+      BeamSqlRow leftRow = parts.getKey();
+      BeamSqlRow rightRow = parts.getValue();
       return combineTwoRowsIntoOne(leftRow, rightRow);
     }
   }
 
-  private static BeamSQLRow combineTwoRowsIntoOne(BeamSQLRow leftRow, BeamSQLRow rightRow) {
+  private static BeamSqlRow combineTwoRowsIntoOne(BeamSqlRow leftRow, BeamSqlRow rightRow) {
     return combineTwoRowsIntoOne(leftRow, rightRow, false);
   }
 
   /**
    * As the method name suggests: combine two rows into one wide row.
    */
-  private static BeamSQLRow combineTwoRowsIntoOne(BeamSQLRow leftRow,
-      BeamSQLRow rightRow, boolean swap) {
+  private static BeamSqlRow combineTwoRowsIntoOne(BeamSqlRow leftRow,
+      BeamSqlRow rightRow, boolean swap) {
     // build the type
-    BeamSQLRecordType type = new BeamSQLRecordType();
+    BeamSqlRecordType type = new BeamSqlRecordType();
     List<String> names =
         swap ? rightRow.getDataType().getFieldsName() : leftRow.getDataType().getFieldsName();
     List<SqlTypeName> types =
@@ -147,8 +147,8 @@ public class BeamJoinTransforms {
       type.addField(names.get(i), types.get(i));
     }
 
-    BeamSQLRow row = new BeamSQLRow(type);
-    BeamSQLRow currentRow = swap ? rightRow : leftRow;
+    BeamSqlRow row = new BeamSqlRow(type);
+    BeamSqlRow currentRow = swap ? rightRow : leftRow;
     int leftRowSize = currentRow.size();
     // build the row
     for (int i = 0; i < currentRow.size(); i++) {
