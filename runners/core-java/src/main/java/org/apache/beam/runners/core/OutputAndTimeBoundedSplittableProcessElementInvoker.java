@@ -96,7 +96,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       final WindowedValue<InputT> element,
       final TrackerT tracker) {
     final ProcessContext processContext = new ProcessContext(element, tracker);
-    invoker.invokeProcessElement(
+    DoFn.ProcessContinuation cont = invoker.invokeProcessElement(
         new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
           @Override
           public DoFn<InputT, OutputT>.ProcessContext processContext(
@@ -150,10 +150,19 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
                 "Access to timers not supported in Splittable DoFn");
           }
         });
-
+    // TODO: verify that if there was a failed tryClaim() call, then cont.shouldResume() is false.
+    // Currently we can't verify this because there are no hooks into tryClaim().
+    RestrictionT residual = processContext.extractCheckpoint();
+    if (cont.shouldResume()) {
+      if (residual == null) {
+        residual = tracker.checkpoint();
+      } else {
+        // This is ok - checkpoint taken by processContext is equivalent to the one we could have
+        // taken here. TODO: document more
+      }
+    }
     tracker.checkDone();
-    return new Result(
-        processContext.extractCheckpoint(), processContext.getLastReportedWatermark());
+    return new Result(residual, cont, processContext.getLastReportedWatermark());
   }
 
   private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
