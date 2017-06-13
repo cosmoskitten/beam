@@ -95,11 +95,11 @@ public class BeamSqlRecordType implements Serializable {
   }
 
   @Override public boolean equals(Object obj) {
-    if (obj == null || !(obj instanceof BeamSQLRecordType)) {
+    if (obj == null || !(obj instanceof BeamSqlRecordType)) {
       return false;
     }
 
-    BeamSQLRecordType that = (BeamSQLRecordType) obj;
+    BeamSqlRecordType that = (BeamSqlRecordType) obj;
     return this.fieldsName.equals(that.fieldsName)
         && this.fieldsType.equals(that.fieldsType);
   }

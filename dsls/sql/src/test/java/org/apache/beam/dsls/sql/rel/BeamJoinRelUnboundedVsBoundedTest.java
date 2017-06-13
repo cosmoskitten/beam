@@ -26,9 +26,9 @@ import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.TestUtils;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.dsls.sql.transform.BeamSQLOutputToConsoleFn;
+import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -53,14 +53,14 @@ public class BeamJoinRelUnboundedVsBoundedTest {
     FIRST_DATE.setTime(1);
     SECOND_DATE.setTime(1 + 3600 * 1000);
     THIRD_DATE.setTime(1 + 3600 * 1000 + 3600 * 1000 + 1);
-    BeamSqlEnv.registerTable("ORDER_DETAILS", MockedBeamSQLTable
+    BeamSqlEnv.registerTable("ORDER_DETAILS", MockedBeamSqlTable
         .of(SqlTypeName.INTEGER, "order_id", SqlTypeName.INTEGER, "site_id", SqlTypeName.INTEGER,
             "price", SqlTypeName.TIMESTAMP, "order_time",
 
             1, 1, 1, FIRST_DATE, 1, 2, 2, FIRST_DATE, 2, 2, 3, SECOND_DATE, 2, 3, 3, SECOND_DATE, 3,
             3, 3, THIRD_DATE).withIsBounded(PCollection.IsBounded.UNBOUNDED));
 
-    BeamSqlEnv.registerTable("ORDER_DETAILS1", MockedBeamSQLTable
+    BeamSqlEnv.registerTable("ORDER_DETAILS1", MockedBeamSqlTable
         .of(SqlTypeName.INTEGER, "order_id",
             SqlTypeName.VARCHAR, "buyer",
 
@@ -80,9 +80,9 @@ public class BeamJoinRelUnboundedVsBoundedTest {
         + " o1.order_id=o2.order_id"
         ;
 
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
-        .containsInAnyOrder(beamSqlRows2Strings(MockedBeamSQLTable.of(
+        .containsInAnyOrder(beamSqlRows2Strings(MockedBeamSqlTable.of(
         SqlTypeName.INTEGER, "order_id",
         SqlTypeName.INTEGER, "sum_site_id",
         SqlTypeName.VARCHAR, "buyer",
@@ -103,10 +103,10 @@ public class BeamJoinRelUnboundedVsBoundedTest {
         + " o1.order_id=o2.order_id"
         ;
 
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
-    rows.apply(ParDo.of(new BeamSQLOutputToConsoleFn("helloworld")));
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    rows.apply(ParDo.of(new BeamSqlOutputToConsoleFn("helloworld")));
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
-        .containsInAnyOrder(beamSqlRows2Strings(MockedBeamSQLTable.of(
+        .containsInAnyOrder(beamSqlRows2Strings(MockedBeamSqlTable.of(
             SqlTypeName.INTEGER, "order_id",
             SqlTypeName.INTEGER, "sum_site_id",
             SqlTypeName.VARCHAR, "buyer",
@@ -142,9 +142,9 @@ public class BeamJoinRelUnboundedVsBoundedTest {
         + " on "
         + " o1.order_id=o2.order_id"
         ;
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
-        .containsInAnyOrder(beamSqlRows2Strings(MockedBeamSQLTable.of(
+        .containsInAnyOrder(beamSqlRows2Strings(MockedBeamSqlTable.of(
             SqlTypeName.INTEGER, "order_id",
             SqlTypeName.INTEGER, "sum_site_id",
             SqlTypeName.VARCHAR, "buyer",

@@ -21,7 +21,7 @@ package org.apache.beam.dsls.sql;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
@@ -30,9 +30,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 public class TestUtils {
 
   /**
-   * A {@code DoFn} to convert a {@code BeamSQLRow} to a comparable {@code}.
+   * A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code}.
    */
-  public static class BeamSqlRow2StringDoFn extends DoFn<BeamSQLRow, String> {
+  public static class BeamSqlRow2StringDoFn extends DoFn<BeamSqlRow, String> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       ctx.output(ctx.element().valueInString());
@@ -40,11 +40,11 @@ public class TestUtils {
   }
 
   /**
-   * Convert list of {@code BeamSQLRow} to list of {@code String}.
+   * Convert list of {@code BeamSqlRow} to list of {@code String}.
    */
-  public static List<String> beamSqlRows2Strings(List<BeamSQLRow> rows) {
+  public static List<String> beamSqlRows2Strings(List<BeamSqlRow> rows) {
     List<String> strs = new ArrayList<>();
-    for (BeamSQLRow row : rows) {
+    for (BeamSqlRow row : rows) {
       strs.add(row.valueInString());
     }
 

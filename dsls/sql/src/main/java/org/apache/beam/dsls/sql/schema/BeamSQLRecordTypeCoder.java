@@ -29,10 +29,10 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * A {@link Coder} for {@link BeamSQLRecordType}.
+ * A {@link Coder} for {@link BeamSqlRecordType}.
  *
  */
-public class BeamSQLRecordTypeCoder extends CustomCoder<BeamSQLRecordType> {
+public class BeamSQLRecordTypeCoder extends CustomCoder<BeamSqlRecordType> {
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
   private static final VarIntCoder intCoder = VarIntCoder.of();
 
@@ -44,7 +44,7 @@ public class BeamSQLRecordTypeCoder extends CustomCoder<BeamSQLRecordType> {
   }
 
   @Override
-  public void encode(BeamSQLRecordType value, OutputStream outStream)
+  public void encode(BeamSqlRecordType value, OutputStream outStream)
       throws CoderException, IOException {
     intCoder.encode(value.size(), outStream);
     for (String fieldName : value.getFieldsName()) {
@@ -58,8 +58,8 @@ public class BeamSQLRecordTypeCoder extends CustomCoder<BeamSQLRecordType> {
   }
 
   @Override
-  public BeamSQLRecordType decode(InputStream inStream) throws CoderException, IOException {
-    BeamSQLRecordType typeRecord = new BeamSQLRecordType();
+  public BeamSqlRecordType decode(InputStream inStream) throws CoderException, IOException {
+    BeamSqlRecordType typeRecord = new BeamSqlRecordType();
     int size = intCoder.decode(inStream);
     for (int idx = 0; idx < size; ++idx) {
       typeRecord.getFieldsName().add(stringCoder.decode(inStream));
