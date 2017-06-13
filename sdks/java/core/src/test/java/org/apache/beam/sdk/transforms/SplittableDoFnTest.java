@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -67,10 +69,16 @@ public class SplittableDoFnTest implements Serializable {
 
   static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
-    public void process(ProcessContext c, OffsetRangeTracker tracker) {
-      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+    public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
+      for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
+          tracker.tryClaim(i);
+          ++i, ++numIterations) {
         c.output(KV.of(c.element(), (int) i));
+        if (numIterations % 3 == 0) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -182,6 +190,12 @@ public class SplittableDoFnTest implements Serializable {
   private static class SDFWithMultipleOutputsPerBlock extends DoFn<String, Integer> {
     private static final int MAX_INDEX = 98765;
 
+    private final int numClaimsPerCall;
+
+    private SDFWithMultipleOutputsPerBlock(int numClaimsPerCall) {
+      this.numClaimsPerCall = numClaimsPerCall;
+    }
+
     private static int snapToNextBlock(int index, int[] blockStarts) {
       for (int i = 1; i < blockStarts.length; ++i) {
         if (index > blockStarts[i - 1] && index <= blockStarts[i]) {
@@ -192,14 +206,20 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
-      for (int i = trueStart; tracker.tryClaim(blockStarts[i]); ++i) {
+      for (int i = trueStart, numIterations = 1;
+          tracker.tryClaim(blockStarts[i]);
+          ++i, ++numIterations) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(index);
         }
+        if (numIterations == numClaimsPerCall) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -212,7 +232,7 @@ public class SplittableDoFnTest implements Serializable {
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testOutputAfterCheckpoint() throws Exception {
     PCollection<Integer> outputs = p.apply(Create.of("foo"))
-        .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock()));
+        .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock(3)));
     PAssert.thatSingleton(outputs.apply(Count.<Integer>globally()))
         .isEqualTo((long) SDFWithMultipleOutputsPerBlock.MAX_INDEX);
     p.run();

@@ -634,6 +634,17 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * {@link ProcessElement} method.
    */
   private static final class ProcessElementDelegation extends DoFnMethodDelegation {
+    private static final MethodDescription PROCESS_CONTINUATION_STOP_METHOD;
+
+    static {
+      try {
+        PROCESS_CONTINUATION_STOP_METHOD =
+            new MethodDescription.ForLoadedMethod(DoFn.ProcessContinuation.class.getMethod("stop"));
+      } catch (NoSuchMethodException e) {
+        throw new RuntimeException("Failed to locate ProcessContinuation.stop()");
+      }
+    }
+
     private final DoFnSignature.ProcessElementMethod signature;
 
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
@@ -666,6 +677,16 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 pushExtraContextFactory, getExtraContextParameter(param, pushDelegate)));
       }
       return new StackManipulation.Compound(pushParameters);
+    }
+
+    @Override
+    protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
+      if (TypeDescription.VOID.equals(targetMethod.getReturnType().asErasure())) {
+        return new StackManipulation.Compound(
+            MethodInvocation.invoke(PROCESS_CONTINUATION_STOP_METHOD), MethodReturn.REFERENCE);
+      } else {
+        return MethodReturn.of(targetMethod.getReturnType().asErasure());
+      }
     }
   }
 

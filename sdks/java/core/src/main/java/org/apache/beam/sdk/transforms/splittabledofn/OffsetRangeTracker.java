@@ -99,4 +99,16 @@ public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
         lastAttemptedOffset + 1,
         range.getTo());
   }
+
+  @Override
+  public String toString() {
+    return "OffsetRangeTracker{"
+        + "range="
+        + range
+        + ", lastClaimedOffset="
+        + lastClaimedOffset
+        + ", lastAttemptedOffset="
+        + lastAttemptedOffset
+        + '}';
+  }
 }
