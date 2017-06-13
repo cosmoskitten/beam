@@ -84,7 +84,10 @@ import org.joda.time.Instant;
 public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayData {
   /**
    * Information accessible while within the {@link StartBundle} method.
+   *
+   * @deprecated This just provides {@link PipelineOptions}, which can be requested directly.
    */
+  @Deprecated
   public abstract class StartBundleContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
