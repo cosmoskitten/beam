@@ -41,11 +41,11 @@ class SimpleSink extends FileBasedSink<String, Void> {
                     WritableByteChannelFactory writableByteChannelFactory) {
     super(
         StaticValueProvider.of(baseOutputDirectory),
+        new ConstantFilenamePolicy<String>(
+            DefaultFilenamePolicy.fromConfig(new Config(
+                baseOutputDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE),
+                template, suffix))),
         writableByteChannelFactory);
-    dynamicDestinations = new ConstantFilenamePolicy<>(
-        DefaultFilenamePolicy.fromConfig(new Config(
-            baseOutputDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE),
-            template, suffix)));
   }
 
   @Override
@@ -60,11 +60,11 @@ class SimpleSink extends FileBasedSink<String, Void> {
   static final class SimpleWriteOperation extends WriteOperation<String, Void> {
     public SimpleWriteOperation(SimpleSink sink,
                                 ResourceId tempOutputDirectory) {
-      super(sink, sink.dynamicDestinations, tempOutputDirectory);
+      super(sink, tempOutputDirectory);
     }
 
     public SimpleWriteOperation(SimpleSink sink) {
-      super(sink, sink.dynamicDestinations);
+      super(sink);
     }
 
     @Override
