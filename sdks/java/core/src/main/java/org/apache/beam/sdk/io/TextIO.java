@@ -455,11 +455,13 @@ public class TextIO {
       checkState(getFilenamePrefix() != null || getTempDirectory() != null,
           "Need to set either the filename prefix or the tempDirectory of a TextIO.Write "
            + "transform.");
-      checkState(
-          (getFilenamePolicy() == null)
-              || (getShardTemplate() == null && getFilenameSuffix() == null),
-          "Cannot set a filename policy and also a filename template or suffix.");
-      // CHECK ABOUT DYNAMIC DESTINATIONS.
+      checkState(getFilenamePolicy() == null || getDynamicDestinations() == null,
+      "Cannot specify both a filename policy and dynamic destinations");
+      if (getFilenamePolicy() != null || getDynamicDestinations() != null) {
+        checkState(getShardTemplate() == null && getFilenameSuffix() == null,
+        "shardTemplate and filenameSuffix should only be used with the default "
+        + "filename policy");
+      }
 
       DynamicDestinations<String, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {

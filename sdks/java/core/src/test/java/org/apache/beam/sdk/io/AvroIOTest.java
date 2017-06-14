@@ -577,15 +577,4 @@ public class AvroIOTest {
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("codec", CodecFactory.snappyCodec().toString()));
   }
-
-  @Test
-  public void testWindowedWriteRequiresFilenamePolicy() {
-    PCollection<String> emptyInput = p.apply(Create.empty(StringUtf8Coder.of()));
-    AvroIO.Write write = AvroIO.write(String.class).to("/tmp/some/file").withWindowedWrites();
-
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage(
-        "When using windowed writes, a filename policy must be set via withFilenamePolicy()");
-    emptyInput.apply(write);
-  }
 }
