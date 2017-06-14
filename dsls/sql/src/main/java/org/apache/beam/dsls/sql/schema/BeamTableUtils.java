@@ -24,6 +24,7 @@ import java.io.StringWriter;
 import java.math.BigDecimal;
 
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
@@ -80,7 +81,7 @@ public final class BeamTableUtils {
       return;
     }
 
-    SqlTypeName columnType = row.getDataType().getFieldsType().get(idx);
+    SqlTypeName columnType = CalciteUtils.getFieldType(row.getDataType(), idx);
     // auto-casting for numberics
     if ((rawObj instanceof String && SqlTypeName.NUMERIC_TYPES.contains(columnType))
         || (rawObj instanceof BigDecimal && columnType != SqlTypeName.DECIMAL)) {

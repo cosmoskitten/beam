@@ -18,77 +18,17 @@
 package org.apache.beam.dsls.sql.schema;
 
 import java.io.Serializable;
-import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.calcite.DataContext;
-import org.apache.calcite.linq4j.Enumerable;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelProtoDataType;
-import org.apache.calcite.schema.ScannableTable;
-import org.apache.calcite.schema.Schema.TableType;
-import org.apache.calcite.schema.Statistic;
-import org.apache.calcite.schema.Statistics;
 
 /**
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
  */
-public abstract class BaseBeamTable implements ScannableTable, Serializable {
-  private RelDataType relDataType;
-
+public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
   protected BeamSqlRecordType beamSqlRecordType;
-
-  public BaseBeamTable(RelProtoDataType protoRowType) {
-    this.relDataType = protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY);
-    this.beamSqlRecordType = BeamSqlRecordType.from(relDataType);
+  public BaseBeamTable(BeamSqlRecordType beamSqlRecordType) {
+    this.beamSqlRecordType = beamSqlRecordType;
   }
 
-  /**
-   * In Beam SQL, there's no difference between a batch query and a streaming
-   * query. {@link BeamIOType} is used to validate the sources.
-   */
-  public abstract BeamIOType getSourceType();
-
-  /**
-   * create a {@code PCollection<BeamSqlRow>} from source.
-   *
-   */
-  public abstract PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline);
-
-  /**
-   * create a {@code IO.write()} instance to write to target.
-   *
-   */
-  public abstract PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter();
-
-  @Override
-  public Enumerable<Object[]> scan(DataContext root) {
-    // not used as Beam SQL uses its own execution engine
-    return null;
+  @Override public BeamSqlRecordType getRecordType() {
+    return beamSqlRecordType;
   }
-
-  @Override
-  public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-    return relDataType;
-  }
-
-  /**
-   * Not used {@link Statistic} to optimize the plan.
-   */
-  @Override
-  public Statistic getStatistic() {
-    return Statistics.UNKNOWN;
-  }
-
-  /**
-   * all sources are treated as TABLE in Beam SQL.
-   */
-  @Override
-  public TableType getJdbcTableType() {
-    return TableType.TABLE;
-  }
-
 }

@@ -15,19 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.dsls.sql.schema;
 
-import org.apache.beam.dsls.sql.utils.CalciteUtils;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 
 /**
- * Exception when sql type is not supported.
- *
+ * This interface defines a Beam Sql Table.
  */
-public class UnsupportedDataTypeException extends RuntimeException {
+public interface BeamSqlTable {
+  /**
+   * In Beam SQL, there's no difference between a batch query and a streaming
+   * query. {@link BeamIOType} is used to validate the sources.
+   */
+  BeamIOType getSourceType();
 
-  public UnsupportedDataTypeException(int unsupportedType){
-    super(String.format("Not support data type [%s]",
-        CalciteUtils.getSqlTypeName(unsupportedType)));
-  }
+  /**
+   * create a {@code PCollection<BeamSqlRow>} from source.
+   *
+   */
+  PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline);
 
+  /**
+   * create a {@code IO.write()} instance to write to target.
+   *
+   */
+   PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter();
+
+  /**
+   * Get the schema info of the table.
+   */
+   BeamSqlRecordType getRecordType();
 }

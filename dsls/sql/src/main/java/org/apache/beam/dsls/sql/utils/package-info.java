@@ -16,27 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.dsls.sql.schema.text;
-
-import java.io.Serializable;
-
-import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
-
 /**
- * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).
+ * Utility classes.
  */
-public abstract class BeamTextTable extends BaseBeamTable implements Serializable {
-  protected String filePattern;
-
-  protected BeamTextTable(BeamSqlRecordType beamSqlRecordType, String filePattern) {
-    super(beamSqlRecordType);
-    this.filePattern = filePattern;
-  }
-
-  @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.BOUNDED;
-  }
-}
+package org.apache.beam.dsls.sql.utils;
