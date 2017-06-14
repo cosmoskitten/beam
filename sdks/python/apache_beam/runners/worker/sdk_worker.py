@@ -226,6 +226,11 @@ def memoize(func):
   return wrapper
 
 
+def only_element(iterable):
+  element, = iterable
+  return element
+
+
 class SdkHarness(object):
 
   def __init__(self, control_channel):
@@ -266,11 +271,6 @@ class SdkHarness(object):
     responses.put(no_more_work)
     self._data_channel_factory.close()
     logging.info('Done consuming work.')
-
-
-def only_element(iterable):
-  element, = iterable
-  return element
 
 
 class SdkWorker(object):
@@ -342,13 +342,13 @@ class SdkWorker(object):
 
     @memoize
     def get_operation(transform_id):
-      transform_proto = descriptor.transforms[transform_id]
       transform_consumers = {
           tag: [get_operation(op) for op in pcoll_consumers[pcoll_id]]
-          for tag, pcoll_id in transform_proto.outputs.items()
+          for tag, pcoll_id
+          in descriptor.transforms[transform_id].outputs.items()
       }
       return transform_factory.create_operation(
-          transform_id, transform_proto, transform_consumers)
+          transform_id, transform_consumers)
 
     # Operations must be started (hence returned) in order.
     @memoize
@@ -543,7 +543,8 @@ class BeamTransformFactory(object):
       return func
     return wrapper
 
-  def create_operation(self, transform_id, transform_proto, consumers):
+  def create_operation(self, transform_id, consumers):
+    transform_proto = self.descriptor.transforms[transform_id]
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
     parameter = proto_utils.unpack_Any(
         transform_proto.spec.parameter, parameter_type)
