@@ -473,16 +473,13 @@ public class AvroIO {
       checkState(getFilenamePrefix() != null || getTempDirectory() != null,
           "Need to set either the filename prefix or the tempDirectory of a AvroIO.Write "
               + "transform.");
-
-      checkState(
-          (getFilenamePolicy() == null)
-              || (getShardTemplate() == null && getFilenameSuffix() == null),
-          "Cannot set a filename policy and also a filename template or suffix.");
-      checkState(getSchema() != null,
-          "Need to set the schema of an AvroIO.Write transform.");
-      checkState(!getWindowedWrites() || (getFilenamePolicy() != null),
-          "When using windowed writes, a filename policy must be set via withFilenamePolicy().");
-      // CHECK DYNAMIC DESTINATIONS
+      checkState(getFilenamePolicy() == null || getDynamicDestinations() == null,
+          "Cannot specify both a filename policy and dynamic destinations");
+      if (getFilenamePolicy() != null || getDynamicDestinations() != null) {
+        checkState(getShardTemplate() == null && getFilenameSuffix() == null,
+            "shardTemplate and filenameSuffix should only be used with the default "
+                + "filename policy");
+      }
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
