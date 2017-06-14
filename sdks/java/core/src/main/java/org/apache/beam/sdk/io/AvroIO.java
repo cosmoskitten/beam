@@ -52,6 +52,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import sun.awt.SunHints.Value;
 
 /**
  * {@link PTransform}s for reading and writing Avro files.
@@ -262,6 +263,7 @@ public class AvroIO {
     @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
     @Nullable abstract String getShardTemplate();
     @Nullable abstract String getFilenameSuffix();
+    @Nullable abstract ValueProvider<ResourceId> getTempDirectory();
     abstract int getNumShards();
     @Nullable abstract Class<T> getRecordClass();
     @Nullable abstract Schema getSchema();
@@ -283,6 +285,7 @@ public class AvroIO {
     abstract static class Builder<T> {
       abstract Builder<T> setFilenamePrefix(ValueProvider<ResourceId> filenamePrefix);
       abstract Builder<T> setFilenameSuffix(String filenameSuffix);
+      abstract Builder<T> setTempDirectory(ValueProvider<ResourceId> tempDirectory);
       abstract Builder<T> setNumShards(int numShards);
       abstract Builder<T> setShardTemplate(String shardTemplate);
       abstract Builder<T> setRecordClass(Class<T> recordClass);
@@ -314,14 +317,21 @@ public class AvroIO {
 
     /**
      * Writes to file(s) with the given output prefix. See {@link FileSystems} for information on
-     * supported file systems.
-     *
-     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
+     * supported file systems. This prefix is used by the {@link DefaultFilenamePolicy}
+     * to generate filenames.
      *
      * <p>By default, a {@link DefaultFilenamePolicy} will build output filenames using the
      * specified prefix, a shard name template (see {@link #withShardNameTemplate(String)}, and
      * a common suffix (if supplied using {@link #withSuffix(String)}). This default can be
      * overridden using {@link #withFilenamePolicy(FilenamePolicy)}.
+     *
+     * <p>This default policy can be overridden using {@link #withFilenamePolicy(FilenamePolicy)},
+     * in which case {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should
+     * not be set. Custom filename policies do not automatically see this prefix - you should
+     * explicitly pass the prefix into your {@link FilenamePolicy} object if you need this.
+     *
+     * <p>If {@link #withTempDirectory} has not been called, this filename prefix will be used to
+     * infer a directory for temporary files.
      */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> to(ResourceId outputPrefix) {
@@ -347,6 +357,14 @@ public class AvroIO {
     @Experimental(Kind.FILESYSTEM)
     public Write<T> toResource(ValueProvider<ResourceId> outputPrefix) {
       return toBuilder().setFilenamePrefix(outputPrefix).build();
+    }
+
+    /**
+     * Set the base directory used to generate temporary files.
+     */
+    @Experimental(Kind.FILESYSTEM)
+    public Write<T> withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
+      return toBuilder().setTempDirectory(tempDirectory).build();
     }
 
     /**
@@ -452,8 +470,10 @@ public class AvroIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkState(getFilenamePrefix() != null,
-          "Need to set the filename prefix of an AvroIO.Write transform.");
+      checkState(getFilenamePrefix() != null || getTempDirectory() != null,
+          "Need to set either the filename prefix or the tempDirectory of a AvroIO.Write "
+              + "transform.");
+
       checkState(
           (getFilenamePolicy() == null)
               || (getShardTemplate() == null && getFilenameSuffix() == null),
@@ -481,9 +501,13 @@ public class AvroIO {
     public <DestinationT> PDone expandTyped(
         PCollection<T> input,
         DynamicDestinations<T, DestinationT> dynamicDestinations) {
+      ValueProvider<ResourceId> tempDirectory = getTempDirectory();
+      if (tempDirectory == null) {
+        tempDirectory = getFilenamePrefix();
+      }
       WriteFiles<T, DestinationT> write = WriteFiles.to(
             new AvroSink<>(
-                getFilenamePrefix(),
+                tempDirectory,
                 dynamicDestinations,
                 AvroCoder.of(getRecordClass(), getSchema()),
                 getCodec(),
