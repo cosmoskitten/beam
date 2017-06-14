@@ -490,7 +490,8 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
       public ResourceId apply(ResourceId tempDirectory) {
         // Temp directory has a timestamp and a unique ID
         String tempDirName = String.format(".temp-beam-%s-%s", timestamp, tempId);
-        return tempDirectory.resolve(tempDirName, StandardResolveOptions.RESOLVE_DIRECTORY);
+        return tempDirectory.getCurrentDirectory().resolve(
+            tempDirName, StandardResolveOptions.RESOLVE_DIRECTORY);
       }
     }
 
