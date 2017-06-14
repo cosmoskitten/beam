@@ -69,18 +69,18 @@ import org.apache.beam.sdk.values.PDone;
  * {@link TextIO.Write#to(String)} to specify the output prefix of the files to write.
  *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
- * desired - for example, when using a streaming runner -
- * {@link TextIO.Write#withWindowedWrites()} will cause windowing and triggering to be
- * preserved. When producing windowed writes, the number of output shards must be set explicitly
- * using {@link TextIO.Write#withNumShards(int)}; some runners may set this for you to a
- * runner-chosen value, so you may need not set it yourself. A {@link FilenamePolicy} can also be
- * set in case you need better control over naming files created by unique windows.
- * {@link DefaultFilenamePolicy} policy for producing unique filenames might not be appropriate
- * for your use case.
+ * desired - for example, when using a streaming runner - {@link TextIO.Write#withWindowedWrites()}
+ * will cause windowing and triggering to be preserved. When producing windowed writes with a
+ * streaming runner that supports triggers, the number of output shards must be set explicitly using
+ * {@link TextIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
+ * value, so you may need not set it yourself. A {@link FilenamePolicy} can also be set in case you
+ * need better control over naming files created by unique windows. {@link DefaultFilenamePolicy}
+ * policy for producing unique filenames might not be appropriate for your use case.
  *
  * <p>Any existing files with the same names as generated output files will be overwritten.
  *
  * <p>For example:
+ *
  * <pre>{@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<String> lines = ...;
