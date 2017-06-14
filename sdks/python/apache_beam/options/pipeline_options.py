@@ -554,6 +554,13 @@ class SetupOptions(PipelineOptions):
          'worker will install the resulting package before running any custom '
          'code.'))
     parser.add_argument(
+        '--beam_plugins',
+        default=None,
+        help=
+        ('Bootstrap the python process before executing any code by importing '
+         'all the plugins used in the pipeline. This is currently an '
+         'experimental flag and provides no stability.'))
+    parser.add_argument(
         '--save_main_session',
         default=False,
         action='store_true',
