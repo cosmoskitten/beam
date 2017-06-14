@@ -110,6 +110,7 @@ public class TextIO {
   public static Write write() {
     return new AutoValue_TextIO_Write.Builder()
         .setFilenamePrefix(null)
+        .setTempDirectory(null)
         .setShardTemplate(null)
         .setFilenameSuffix(null)
         .setFilenamePolicy(null)
@@ -239,6 +240,9 @@ public class TextIO {
     /** The suffix of each file written, combined with prefix and shardTemplate. */
     @Nullable abstract String getFilenameSuffix();
 
+    /** The base directory used for generating temporary files. */
+    @Nullable abstract ValueProvider<ResourceId> getTempDirectory();
+
     /** An optional header to add to each file. */
     @Nullable abstract String getHeader();
 
@@ -271,6 +275,7 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilenamePrefix(ValueProvider<ResourceId> filenamePrefix);
+      abstract Builder setTempDirectory(ValueProvider<ResourceId> tempDirectory);
       abstract Builder setShardTemplate(@Nullable String shardTemplate);
       abstract Builder setFilenameSuffix(@Nullable String filenameSuffix);
       abstract Builder setHeader(@Nullable String header);
@@ -288,9 +293,8 @@ public class TextIO {
 
     /**
      * Writes to text files with the given prefix. The given {@code prefix} can reference any
-     * {@link FileSystem} on the classpath.
-     *
-     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
+     * {@link FileSystem} on the classpath. This prefix is used by the {@link DefaultFilenamePolicy}
+     * to generate filenames.
      *
      * <p>By default, a {@link DefaultFilenamePolicy} will be used built using the specified prefix
      * to define the base output directory and file prefix, a shard identifier (see
@@ -299,25 +303,18 @@ public class TextIO {
      *
      * <p>This default policy can be overridden using {@link #withFilenamePolicy(FilenamePolicy)},
      * in which case {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should
-     * not be set.
+     * not be set. Custom filename policies do not automatically see this prefix - you should
+     * explicitly pass the prefix into your {@link FilenamePolicy} object if you need this.
+     *
+     * <p>If {@link #withTempDirectory} has not been called, this filename prefix will be used to
+     * infer a directory for temporary files.
      */
     public Write to(String filenamePrefix) {
       return to(FileBasedSink.convertToFileResourceIfPossible(filenamePrefix));
     }
 
     /**
-     * Writes to text files with prefix from the given resource.
-     *
-     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
-     *
-     * <p>By default, a {@link DefaultFilenamePolicy} will be used built using the specified prefix
-     * to define the base output directory and file prefix, a shard identifier (see
-     * {@link #withNumShards(int)}), and a common suffix (if supplied using
-     * {@link #withSuffix(String)}).
-     *
-     * <p>This default policy can be overridden using {@link #withFilenamePolicy(FilenamePolicy)},
-     * in which case {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should
-     * not be set.
+     * Like {@link #to(String)}.
      */
     @Experimental(Kind.FILESYSTEM)
     public Write to(ResourceId filenamePrefix) {
@@ -343,6 +340,14 @@ public class TextIO {
     @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
+    }
+
+    /**
+     * Set the base directory used to generate temporary files.
+     */
+    @Experimental(Kind.FILESYSTEM)
+    public Write withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
+      return toBuilder().setTempDirectory(tempDirectory).build();
     }
 
     /**
@@ -447,8 +452,9 @@ public class TextIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
-      checkState(getFilenamePrefix() != null,
-          "Need to set the filename prefix of a TextIO.Write transform.");
+      checkState(getFilenamePrefix() != null || getTempDirectory() != null,
+          "Need to set either the filename prefix or the tempDirectory of a TextIO.Write "
+           + "transform.");
       checkState(
           (getFilenamePolicy() == null)
               || (getShardTemplate() == null && getFilenameSuffix() == null),
@@ -472,10 +478,14 @@ public class TextIO {
 
     public <DestinationT> PDone expandTyped(
         PCollection<String> input, DynamicDestinations<String, DestinationT> dynamicDestinations) {
+      ValueProvider<ResourceId> tempDirectory = getTempDirectory();
+      if (tempDirectory == null) {
+        tempDirectory = getFilenamePrefix();
+      }
       WriteFiles<String, DestinationT> write =
           WriteFiles.to(
               new TextSink<>(
-                  getFilenamePrefix(),
+                  tempDirectory,
                   dynamicDestinations,
                   getHeader(),
                   getFooter(),
