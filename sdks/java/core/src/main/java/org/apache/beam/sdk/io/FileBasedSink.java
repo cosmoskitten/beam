@@ -351,15 +351,6 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
   /** The directory to which files will be written. */
   private final ValueProvider<ResourceId> tempDirectoryProvider;
 
-  /**
-   * Construct a {@link FileBasedSink} with the given filename policy, producing uncompressed files.
-   */
-  @Experimental(Kind.FILESYSTEM)
-  public FileBasedSink(
-      ValueProvider<ResourceId> tempDirectoryProvider) {
-    this(tempDirectoryProvider, CompressionType.UNCOMPRESSED);
-  }
-
   private static class ExtractDirectory implements SerializableFunction<ResourceId, ResourceId> {
     @Override
     public ResourceId apply(ResourceId input) {
@@ -368,7 +359,17 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
   }
 
   /**
-   * Construct a {@link FileBasedSink} with the given filename policy and output channel type.
+   * Construct a {@link FileBasedSink} with the given temp directory, producing uncompressed
+   * files.
+   */
+  @Experimental(Kind.FILESYSTEM)
+  public FileBasedSink(ValueProvider<ResourceId> tempDirectoryProvider) {
+    this(tempDirectoryProvider, CompressionType.UNCOMPRESSED);
+
+  }
+
+  /**
+   * Construct a {@link FileBasedSink} with the given temp directory and output channel type.
    */
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
