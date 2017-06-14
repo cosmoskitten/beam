@@ -39,8 +39,6 @@ import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
-import org.apache.beam.sdk.io.TextIO.Write;
-import org.apache.beam.sdk.io.TextIO.Write.Builder;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -52,23 +50,23 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import sun.awt.SunHints.Value;
 
 /**
  * {@link PTransform}s for reading and writing Avro files.
  *
- * <p>To read a {@link PCollection} from one or more Avro files, use {@code AvroIO.read()},
- * using {@link AvroIO.Read#from} to specify the filename or filepattern to read from.
- * See {@link FileSystems} for information on supported file systems and filepatterns.
+ * <p>To read a {@link PCollection} from one or more Avro files, use {@code AvroIO.read()}, using
+ * {@link AvroIO.Read#from} to specify the filename or filepattern to read from. See {@link
+ * FileSystems} for information on supported file systems and filepatterns.
  *
- * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}.
- * To read {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes
- * a {@link Schema} object, or {@link #readGenericRecords(String)} which takes an Avro schema in a
+ * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}. To read
+ * {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes a
+ * {@link Schema} object, or {@link #readGenericRecords(String)} which takes an Avro schema in a
  * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
  * schema.
  *
  * <p>For example:
- * <pre> {@code
+ *
+ * <pre>{@code
  * Pipeline p = ...;
  *
  * // A simple Read of a local file (only runs locally):
@@ -80,34 +78,34 @@ import sun.awt.SunHints.Value;
  * PCollection<GenericRecord> records =
  *     p.apply(AvroIO.readGenericRecords(schema)
  *                .from("gs://my_bucket/path/to/records-*.avro"));
- * } </pre>
+ * }
+ * </pre>
  *
  * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, using
- * {@code AvroIO.write().to(String)} to specify the output filename prefix. The default
- * {@link DefaultFilenamePolicy} will use this prefix, in conjunction with a
- * {@link ShardNameTemplate} (set via {@link Write#withShardNameTemplate(String)}) and optional
- * filename suffix (set via {@link Write#withSuffix(String)}, to generate output filenames in a
- * sharded way. You can override this default write filename policy using
- * {@link Write#withFilenamePolicy(FileBasedSink.FilenamePolicy)} to specify a custom file naming
- * policy.
+ * {@code AvroIO.write().to(String)} to specify the output filename prefix. The default {@link
+ * DefaultFilenamePolicy} will use this prefix, in conjunction with a {@link ShardNameTemplate} (set
+ * via {@link Write#withShardNameTemplate(String)}) and optional filename suffix (set via {@link
+ * Write#withSuffix(String)}, to generate output filenames in a sharded way. You can override this
+ * default write filename policy using {@link
+ * Write#withFilenamePolicy(FileBasedSink.FilenamePolicy)} to specify a custom file naming policy.
  *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
- * desired - for example, when using a streaming runner -
- * {@link AvroIO.Write#withWindowedWrites()} will cause windowing and triggering to be
- * preserved. When producing windowed writes, the number of output shards must be set explicitly
- * using {@link AvroIO.Write#withNumShards(int)}; some runners may set this for you to a
- * runner-chosen value, so you may need not set it yourself. A
- * {@link FileBasedSink.FilenamePolicy} must be set, and unique windows and triggers must produce
- * unique filenames.
+ * desired - for example, when using a streaming runner - {@link AvroIO.Write#withWindowedWrites()}
+ * will cause windowing and triggering to be preserved. When producing windowed writes with a
+ * streaming runner that supports triggers, the number of output shards must be set explicitly using
+ * {@link AvroIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
+ * value, so you may need not set it yourself. A {@link FileBasedSink.FilenamePolicy} must be set,
+ * and unique windows and triggers must produce unique filenames.
  *
- * <p>To write specific records, such as Avro-generated classes, use {@link #write(Class)}.
- * To write {@link GenericRecord GenericRecords}, use either {@link #writeGenericRecords(Schema)}
- * which takes a {@link Schema} object, or {@link #writeGenericRecords(String)} which takes a schema
- * in a JSON-encoded string form. An exception will be thrown if a record doesn't match the
- * specified schema.
+ * <p>To write specific records, such as Avro-generated classes, use {@link #write(Class)}. To write
+ * {@link GenericRecord GenericRecords}, use either {@link #writeGenericRecords(Schema)} which takes
+ * a {@link Schema} object, or {@link #writeGenericRecords(String)} which takes a schema in a
+ * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
+ * schema.
  *
  * <p>For example:
- * <pre> {@code
+ *
+ * <pre>{@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records = ...;
  * records.apply(AvroIO.write(AvroAutoGenClass.class).to("/path/to/file.avro"));
@@ -118,11 +116,12 @@ import sun.awt.SunHints.Value;
  * records.apply("WriteToAvro", AvroIO.writeGenericRecords(schema)
  *     .to("gs://my_bucket/path/to/numbers")
  *     .withSuffix(".avro"));
- * } </pre>
+ * }
+ * </pre>
  *
- * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the
- * {@link org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can
- * be changed or overridden using {@link AvroIO.Write#withCodec}.
+ * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the {@link
+ * org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can be changed or
+ * overridden using {@link AvroIO.Write#withCodec}.
  */
 public class AvroIO {
   /**
