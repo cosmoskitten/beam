@@ -18,7 +18,6 @@
 package org.apache.beam.dsls.sql.planner;
 
 import org.apache.beam.dsls.sql.BeamSqlCli;
-import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlUdfExpressionTest;
 import org.junit.Test;
 
@@ -35,7 +34,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
   public void testSimpleGroupExplain() throws Exception {
     String sql = "SELECT COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 ";
-    String plan = BeamSqlCli.explainQuery(sql);
+    String plan = BeamSqlCli.explainQuery(sql, sqlEnv);
   }
 
   /**
@@ -45,7 +44,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
   public void testSimpleGroup2Explain() throws Exception {
     String sql = "SELECT site_id" + ", COUNT(*) " + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY site_id";
-    String plan = BeamSqlCli.explainQuery(sql);
+    String plan = BeamSqlCli.explainQuery(sql, sqlEnv);
   }
 
   /**
@@ -56,7 +55,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", TUMBLE(order_time, INTERVAL '1' HOUR)";
-    String plan = BeamSqlCli.explainQuery(sql);
+    String plan = BeamSqlCli.explainQuery(sql, sqlEnv);
   }
 
   /**
@@ -68,7 +67,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
         + "TUMBLE_START(order_time, INTERVAL '1' HOUR, TIME '00:00:01')"
         + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 "
         + "GROUP BY order_id, site_id" + ", TUMBLE(order_time, INTERVAL '1' HOUR, TIME '00:00:01')";
-    String plan = BeamSqlCli.explainQuery(sql);
+    String plan = BeamSqlCli.explainQuery(sql, sqlEnv);
   }
 
   /**
@@ -79,7 +78,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", HOP(order_time, INTERVAL '5' MINUTE, INTERVAL '1' HOUR)";
-    String plan = BeamSqlCli.explainQuery(sql);
+    String plan = BeamSqlCli.explainQuery(sql, sqlEnv);
   }
 
   /**
@@ -90,7 +89,7 @@ public class BeamGroupByExplainTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", SESSION(order_time, INTERVAL '5' MINUTE)";
-    String plan = BeamSqlCli.explainQuery(sql);
+    String plan = BeamSqlCli.explainQuery(sql, sqlEnv);
   }
 
   /**
@@ -98,9 +97,9 @@ public class BeamGroupByExplainTest extends BasePlanner {
    */
   @Test
   public void testUdf() throws Exception {
-    BeamSqlEnv.registerUdf("negative", BeamSqlUdfExpressionTest.UdfFn.class, "negative");
+    sqlEnv.registerUdf("negative", BeamSqlUdfExpressionTest.UdfFn.class, "negative");
     String sql = "select site_id, negative(site_id) as nsite_id from ORDER_DETAILS";
 
-    String plan = BeamSqlCli.explainQuery(sql);
+    String plan = BeamSqlCli.explainQuery(sql, sqlEnv);
   }
 }

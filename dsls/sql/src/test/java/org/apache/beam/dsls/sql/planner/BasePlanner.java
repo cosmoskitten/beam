@@ -38,11 +38,13 @@ import org.junit.BeforeClass;
  *
  */
 public class BasePlanner {
+  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
+
   @BeforeClass
   public static void prepareClass() {
-    BeamSqlEnv.registerTable("ORDER_DETAILS", getTable());
-    BeamSqlEnv.registerTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
-    BeamSqlEnv.registerTable("SUB_ORDER_RAM", getTable());
+    sqlEnv.registerTable("ORDER_DETAILS", getTable());
+    sqlEnv.registerTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
+    sqlEnv.registerTable("SUB_ORDER_RAM", getTable());
   }
 
   private static BaseBeamTable getTable() {

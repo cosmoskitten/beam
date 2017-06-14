@@ -45,7 +45,7 @@ public class BeamPlannerSubmitTest extends BasePlanner {
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
 
-    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
 
     pipeline.run().waitUntilFinish();
 

@@ -37,6 +37,8 @@ import org.junit.Test;
  * Test case for BeamPCollectionTable.
  */
 public class BeamPCollectionTableTest extends BasePlanner{
+  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
+
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
@@ -55,14 +57,14 @@ public class BeamPCollectionTableTest extends BasePlanner{
     row.addField(0, 1);
     row.addField(1, "hello world.");
     PCollection<BeamSqlRow> inputStream = PBegin.in(pipeline).apply(Create.of(row));
-    BeamSqlEnv.registerTable("COLLECTION_TABLE",
+    sqlEnv.registerTable("COLLECTION_TABLE",
         new BeamPCollectionTable(inputStream, protoRowType));
   }
 
   @Test
   public void testSelectFromPCollectionTable() throws Exception{
     String sql = "select c1, c2 from COLLECTION_TABLE";
-    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
 
     pipeline.run().waitUntilFinish();
   }

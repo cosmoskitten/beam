@@ -102,33 +102,45 @@ public class BeamSql {
    * A {@link PTransform} representing an execution plan for a SQL query.
    */
   public static class QueryTransform extends PTransform<PCollectionTuple, PCollection<BeamSqlRow>> {
+    private BeamSqlEnv sqlEnv;
     private String sqlQuery;
+
     public QueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
+      sqlEnv = new BeamSqlEnv();
+    }
+
+    public QueryTransform(String sqlQuery, BeamSqlEnv sqlEnv) {
+      this.sqlQuery = sqlQuery;
+      this.sqlEnv = sqlEnv;
     }
 
     @Override
     public PCollection<BeamSqlRow> expand(PCollectionTuple input) {
-      //register tables
-      for (TupleTag<?> sourceTag : input.getAll().keySet()) {
-        PCollection<BeamSqlRow> sourceStream = (PCollection<BeamSqlRow>) input.get(sourceTag);
-        BeamSqlRowCoder sourceCoder = (BeamSqlRowCoder) sourceStream.getCoder();
-
-        BeamSqlEnv.registerTable(sourceTag.getId(),
-            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema().toRelDataType()));
-      }
+      registerTables(input);
 
       BeamRelNode beamRelNode = null;
       try {
-        beamRelNode = BeamSqlEnv.planner.convertToBeamRel(sqlQuery);
+        beamRelNode = sqlEnv.planner.convertToBeamRel(sqlQuery);
       } catch (ValidationException | RelConversionException | SqlParseException e) {
         throw new IllegalStateException(e);
       }
 
       try {
-        return beamRelNode.buildBeamPipeline(input);
+        return beamRelNode.buildBeamPipeline(input, sqlEnv);
       } catch (Exception e) {
         throw new IllegalStateException(e);
+      }
+    }
+
+  //register tables, related with input PCollections.
+    private void registerTables(PCollectionTuple input){
+      for (TupleTag<?> sourceTag : input.getAll().keySet()) {
+        PCollection<BeamSqlRow> sourceStream = (PCollection<BeamSqlRow>) input.get(sourceTag);
+        BeamSqlRowCoder sourceCoder = (BeamSqlRowCoder) sourceStream.getCoder();
+
+        sqlEnv.registerTable(sourceTag.getId(),
+            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema().toRelDataType()));
       }
     }
   }
@@ -139,7 +151,9 @@ public class BeamSql {
    */
   public static class SimpleQueryTransform
       extends PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>> {
+    BeamSqlEnv sqlEnv = new BeamSqlEnv();
     private String sqlQuery;
+
     public SimpleQueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
     }
@@ -152,8 +166,8 @@ public class BeamSql {
     public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
       SqlNode sqlNode;
       try {
-        sqlNode = BeamSqlEnv.planner.parseQuery(sqlQuery);
-        BeamSqlEnv.planner.getPlanner().close();
+        sqlNode = sqlEnv.planner.parseQuery(sqlQuery);
+        sqlEnv.planner.getPlanner().close();
       } catch (SqlParseException e) {
         throw new IllegalStateException(e);
       }
@@ -162,7 +176,7 @@ public class BeamSql {
         SqlSelect select = (SqlSelect) sqlNode;
         String tableName = select.getFrom().toString();
         return PCollectionTuple.of(new TupleTag<BeamSqlRow>(tableName), input)
-            .apply(BeamSql.query(sqlQuery));
+            .apply(new QueryTransform(sqlQuery, sqlEnv));
       } else {
         throw new UnsupportedOperationException(
             "Sql operation: " + sqlNode.toString() + " is not supported!");
