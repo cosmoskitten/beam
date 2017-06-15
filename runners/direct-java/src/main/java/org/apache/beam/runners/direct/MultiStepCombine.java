@@ -1,0 +1,307 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.beam.runners.direct;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.collect.Iterables;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
+import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Combine.PerKey;
+import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Instant;
+
+/** A {@link Combine} that performs the combine in multiple steps. */
+class MultiStepCombine<K, InputT, AccumT, OutputT>
+    extends RawPTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
+  public static PTransformMatcher matcher() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (application.getTransform() instanceof Combine.PerKey) {
+          GlobalCombineFn fn = ((PerKey) application.getTransform()).getFn();
+          return fn instanceof CombineFn && isApplicable(application.getInputs(), fn);
+        }
+        return false;
+      }
+
+      private <InputT> boolean isApplicable(
+          Map<TupleTag<?>, PValue> inputs, GlobalCombineFn<InputT, ?, ?> fn) {
+        if (inputs.size() == 1) {
+          PCollection<InputT> input =
+              (PCollection<InputT>) Iterables.getOnlyElement(inputs.values());
+          WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+          // Triggering with count based triggers is not appropriately handled here. Disabling
+          // most triggers is safe, though more broad than is technically required.
+          boolean triggerApplicable = DefaultTrigger.of().equals(windowingStrategy.getTrigger());
+          boolean accumulatorCoderAvailable;
+          try {
+            Coder<?> accumulatorCoder =
+                fn.getAccumulatorCoder(input.getPipeline().getCoderRegistry(), input.getCoder());
+            accumulatorCoderAvailable = accumulatorCoder != null;
+          } catch (CannotProvideCoderException e) {
+            throw new RuntimeException(
+                String.format(
+                    "Could not construct an accumulator %s for %s. Accumulator %s for a %s may be"
+                        + " null, but may not throw an exception",
+                    Coder.class.getSimpleName(),
+                    fn,
+                    Coder.class.getSimpleName(),
+                    Combine.class.getSimpleName()),
+                e);
+          }
+          return triggerApplicable && accumulatorCoderAvailable;
+        }
+        return false;
+      }
+    };
+  }
+
+  static class Factory<K, InputT, AccumT, OutputT>
+      extends SingleInputOutputOverrideFactory<
+            PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
+            PerKey<K, InputT, OutputT>> {
+    public static PTransformOverrideFactory create() {
+      return new Factory<>();
+    }
+
+    private Factory() {}
+
+    @Override
+    public PTransformReplacement<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>
+    getReplacementTransform(
+        AppliedPTransform<
+            PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
+            PerKey<K, InputT, OutputT>>
+            transform) {
+      checkState(
+          transform.getTransform().getFn() instanceof CombineFn,
+          "%s.matcher() should only match %s instances using %s, got %s",
+          MultiStepCombine.class.getSimpleName(),
+          Combine.PerKey.class.getSimpleName(),
+          CombineFn.class.getSimpleName(),
+          transform.getTransform().getFn().getClass().getName());
+      @SuppressWarnings("unchecked")
+      CombineFn<InputT, AccumT, OutputT> fn =
+          (CombineFn<InputT, AccumT, OutputT>) transform.getTransform().getFn();
+      @SuppressWarnings("unchecked")
+      PCollection<KV<K, InputT>> input =
+          (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(transform.getInputs().values());
+      @SuppressWarnings("unchecked")
+      PCollection<KV<K, OutputT>> output =
+          (PCollection<KV<K, OutputT>>) Iterables.getOnlyElement(transform.getOutputs().values());
+      return PTransformReplacement.of(
+          input, new MultiStepCombine<>(fn, output.getCoder()));
+    }
+  }
+
+  // ===========================================================================================
+
+  private final CombineFn<InputT, AccumT, OutputT> combineFn;
+  private final Coder<KV<K, OutputT>> outputCoder;
+
+  public static <K, InputT, AccumT, OutputT> MultiStepCombine<K, InputT, AccumT, OutputT> of(
+      CombineFn<InputT, AccumT, OutputT> combineFn, Coder<KV<K, OutputT>> outputCoder) {
+    return new MultiStepCombine<>(combineFn, outputCoder);
+  }
+
+  private MultiStepCombine(
+      CombineFn<InputT, AccumT, OutputT> combineFn, Coder<KV<K, OutputT>> outputCoder) {
+    this.combineFn = combineFn;
+    this.outputCoder = outputCoder;
+  }
+
+  @Nullable
+  @Override
+  public String getUrn() {
+    return "urn:beam::directrunner:transforms:multistepcombine:v1";
+  }
+
+  @Override
+  public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
+    checkArgument(
+        input.getCoder() instanceof KvCoder,
+        "Expected input to have a %s of type %s, got %s",
+        Coder.class.getSimpleName(),
+        KvCoder.class.getSimpleName(),
+        input.getCoder());
+    KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
+    Coder<InputT> inputValueCoder = inputCoder.getValueCoder();
+    Coder<AccumT> accumulatorCoder;
+    try {
+      accumulatorCoder =
+          combineFn.getAccumulatorCoder(input.getPipeline().getCoderRegistry(), inputValueCoder);
+    } catch (CannotProvideCoderException e) {
+      throw new IllegalStateException(
+          String.format(
+              "Could not construct an Accumulator Coder with the provided %s %s",
+              CombineFn.class.getSimpleName(), combineFn),
+          e);
+    }
+    return input
+        .apply(
+            ParDo.of(
+                new CombineInputs<>(
+                    combineFn,
+                    input.getWindowingStrategy().getTimestampCombiner(),
+                    inputCoder.getKeyCoder())))
+        .setCoder(KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder))
+        .apply(GroupByKey.<K, AccumT>create())
+        .apply(ParDo.of(new MergeGroupedAccumulators<K, AccumT, OutputT>(combineFn)))
+        .setCoder(outputCoder);
+  }
+
+  private static class CombineInputs<K, InputT, AccumT> extends DoFn<KV<K, InputT>, KV<K, AccumT>> {
+    private final CombineFn<InputT, AccumT, ?> combineFn;
+    private final TimestampCombiner timestampCombiner;
+    private final Coder<K> keyCoder;
+
+    private Map<WindowedStructuralKey<K>, AccumT> accumulators;
+    private Map<WindowedStructuralKey<K>, Instant> timestamps;
+
+    private CombineInputs(
+        CombineFn<InputT, AccumT, ?> combineFn,
+        TimestampCombiner timestampCombiner,
+        Coder<K> keyCoder) {
+      this.combineFn = combineFn;
+      this.timestampCombiner = timestampCombiner;
+      this.keyCoder = keyCoder;
+    }
+
+    @StartBundle
+    public void startBundle() {
+      accumulators = new LinkedHashMap<>();
+      timestamps = new LinkedHashMap<>();
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context, BoundedWindow window) {
+      WindowedStructuralKey<K>
+          key = WindowedStructuralKey.create(keyCoder, context.element().getKey(), window);
+      AccumT accumulator = accumulators.get(key);
+      Instant assignedTs = timestampCombiner.assign(window, context.timestamp());
+      if (accumulator == null) {
+        accumulator = combineFn.createAccumulator();
+        accumulators.put(key, accumulator);
+        timestamps.put(key, assignedTs);
+      }
+      accumulators.put(key, combineFn.addInput(accumulator, context.element().getValue()));
+      timestamps.put(key, timestampCombiner.combine(assignedTs, timestamps.get(key)));
+    }
+
+    @FinishBundle
+    public void outputAccumulators(FinishBundleContext context) {
+      for (Map.Entry<WindowedStructuralKey<K>, AccumT> preCombineEntry : accumulators.entrySet()) {
+        context.output(
+            KV.of(preCombineEntry.getKey().getKey(), combineFn.compact(preCombineEntry.getValue())),
+            timestamps.get(preCombineEntry.getKey()),
+            preCombineEntry.getKey().getWindow());
+      }
+      accumulators = null;
+      timestamps = null;
+    }
+  }
+
+  static class WindowedStructuralKey<K> {
+    public static <K> WindowedStructuralKey<K> create(
+        Coder<K> keyCoder, K key, BoundedWindow window) {
+      return new WindowedStructuralKey<>(StructuralKey.of(key, keyCoder), window);
+    }
+
+    private final StructuralKey<K> key;
+    private final BoundedWindow window;
+
+    private WindowedStructuralKey(StructuralKey<K> key, BoundedWindow window) {
+      this.key = checkNotNull(key, "key cannot be null");
+      this.window = checkNotNull(window, "Window cannot be null");
+    }
+
+    public K getKey() {
+      return key.getKey();
+    }
+
+    public BoundedWindow getWindow() {
+      return window;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof MultiStepCombine.WindowedStructuralKey)) {
+        return false;
+      }
+      WindowedStructuralKey that = (WindowedStructuralKey<?>) other;
+      return this.window.equals(that.window) && this.key.equals(that.key);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(window, key);
+    }
+  }
+
+  private static class MergeGroupedAccumulators<K, AccumT, OutputT>
+      extends DoFn<KV<K, Iterable<AccumT>>, KV<K, OutputT>> {
+    private final CombineFn<?, AccumT, OutputT> combineFn;
+
+    private MergeGroupedAccumulators(CombineFn<?, AccumT, OutputT> combineFn) {
+      this.combineFn = combineFn;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      KV<K, Iterable<AccumT>> accumulators = context.element();
+      // Empty accumulators should be handled. TODO: Determine if this is appropriate to inline here
+      AccumT first = combineFn.createAccumulator();
+      AccumT merged =
+          combineFn.mergeAccumulators(
+              Iterables.concat(
+                  Collections.singleton(first),
+                  accumulators.getValue(),
+                  Collections.singleton(combineFn.createAccumulator())));
+      OutputT output = combineFn.extractOutput(merged);
+      context.output(KV.of(context.element().getKey(), output));
+    }
+  }
+}
