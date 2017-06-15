@@ -136,13 +136,14 @@ public class PipelineOptionsTest {
 
   @Test(expected = Exception.class)
   public void parDoBaseClassPipelineOptionsNullTest() {
+    TupleTag<String> mainTag = new TupleTag<>("main-output");
     DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
         "stepName",
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
-        new TupleTag<String>("main-output"),
+        mainTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.DefaultOutputManagerFactory<String>(),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
         Collections.<PCollectionView<?>>emptyList(),
@@ -157,13 +158,15 @@ public class PipelineOptionsTest {
   @Test
   public void parDoBaseClassPipelineOptionsSerializationTest() throws Exception {
 
+    TupleTag<String> mainTag = new TupleTag<>("main-output");
+
     DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
         "stepName",
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
-        new TupleTag<String>("main-output"),
+        mainTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.DefaultOutputManagerFactory<String>(),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
         Collections.<PCollectionView<?>>emptyList(),
@@ -181,7 +184,6 @@ public class PipelineOptionsTest {
     OneInputStreamOperatorTestHarness<WindowedValue<Object>, WindowedValue<Object>> testHarness =
         new OneInputStreamOperatorTestHarness<>(deserialized,
             typeInformation.createSerializer(new ExecutionConfig()));
-
     testHarness.open();
 
     // execute once to access options
