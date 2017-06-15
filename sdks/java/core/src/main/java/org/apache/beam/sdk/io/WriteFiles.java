@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -69,13 +70,12 @@ import org.slf4j.LoggerFactory;
  * global initialization of a sink, followed by a parallel write, and ends with a sequential
  * finalization of the write. The output of a write is {@link PDone}.
  *
- * <p>By default, every bundle in the input {@link PCollection} will be processed by a
- * {@link WriteOperation}, so the number of output
- * will vary based on runner behavior, though at least 1 output will always be produced. The
- * exact parallelism of the write stage can be controlled using {@link WriteFiles#withNumShards},
- * typically used to control how many files are produced or to globally limit the number of
- * workers connecting to an external service. However, this option can often hurt performance: it
- * adds an additional {@link GroupByKey} to the pipeline.
+ * <p>By default, every bundle in the input {@link PCollection} will be processed by a {@link
+ * WriteOperation}, so the number of output will vary based on runner behavior, though at least 1
+ * output will always be produced. The exact parallelism of the write stage can be controlled using
+ * {@link WriteFiles#withNumShards}, typically used to control how many files are produced or to
+ * globally limit the number of workers connecting to an external service. However, this option can
+ * often hurt performance: it adds an additional {@link GroupByKey} to the pipeline.
  *
  * <p>Example usage with runner-determined sharding:
  *
@@ -86,16 +86,18 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code p.apply(WriteFiles.to(new MySink(...)).withNumShards(3));}</pre>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDone> {
+public class WriteFiles<UserT, DestinationT, OutputT>
+    extends PTransform<PCollection<UserT>, PDone> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);
 
   static final int UNKNOWN_SHARDNUM = -1;
-  private FileBasedSink<T, DestinationT> sink;
-  private WriteOperation<T, DestinationT> writeOperation;
+  private FileBasedSink<OutputT, DestinationT> sink;
+  SerializableFunction<UserT, OutputT> formatFunction;
+  private WriteOperation<OutputT, DestinationT> writeOperation;
   // This allows the number of shards to be dynamically computed based on the input
   // PCollection.
   @Nullable
-  private final PTransform<PCollection<T>, PCollectionView<Integer>> computeNumShards;
+  private final PTransform<PCollection<UserT>, PCollectionView<Integer>> computeNumShards;
   // We don't use a side input for static sharding, as we want this value to be updatable
   // when a pipeline is updated.
   @Nullable
@@ -106,25 +108,29 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
    * Creates a {@link WriteFiles} transform that writes to the given {@link FileBasedSink}, letting
    * the runner control how many different shards are produced.
    */
-  public static <T, DestinationT> WriteFiles<T, DestinationT> to(
-      FileBasedSink<T, DestinationT> sink) {
+  public static <InT, DestT, OutT> WriteFiles<InT, DestT, OutT> to(FileBasedSink<OutT, DestT>
+  sink,
+  SerializableFunction<InT, OutT> formatFunction) {
     checkNotNull(sink, "sink");
-    return new WriteFiles<>(sink, null /* runner-determined sharding */, null, false);
+    return new WriteFiles<>(
+        sink, formatFunction, null /* runner-determined sharding */, null, false);
   }
 
   private WriteFiles(
-      FileBasedSink<T, DestinationT> sink,
-      @Nullable PTransform<PCollection<T>, PCollectionView<Integer>> computeNumShards,
+      FileBasedSink<OutputT, DestinationT> sink,
+      SerializableFunction<UserT, OutputT> formatFunction,
+      @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> computeNumShards,
       @Nullable ValueProvider<Integer> numShardsProvider,
       boolean windowedWrites) {
     this.sink = sink;
+    this.formatFunction = formatFunction;
     this.computeNumShards = computeNumShards;
     this.numShardsProvider = numShardsProvider;
     this.windowedWrites = windowedWrites;
   }
 
   @Override
-  public PDone expand(PCollection<T> input) {
+  public PDone expand(PCollection<UserT> input) {
     if (input.isBounded() == IsBounded.UNBOUNDED) {
       checkArgument(windowedWrites,
           "Must use windowed writes when applying %s to an unbounded PCollection",
@@ -166,8 +172,15 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
   /**
    * Returns the {@link FileBasedSink} associated with this PTransform.
    */
-  public FileBasedSink<T, DestinationT> getSink() {
+  public FileBasedSink<OutputT, DestinationT> getSink() {
     return sink;
+  }
+
+  /**
+   * Returns the link to the format function that maps the user type to the record written to files.
+   */
+  public SerializableFunction<UserT, OutputT> getFormatFunction() {
+    return formatFunction;
   }
 
   /**
@@ -184,7 +197,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
    * #withRunnerDeterminedSharding()}.
    */
   @Nullable
-  public PTransform<PCollection<T>, PCollectionView<Integer>> getSharding() {
+  public PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding() {
     return computeNumShards;
   }
 
@@ -202,7 +215,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
    * <p>A value less than or equal to 0 will be equivalent to the default behavior of
    * runner-determined sharding.
    */
-  public WriteFiles<T, DestinationT> withNumShards(int numShards) {
+  public WriteFiles<UserT, DestinationT, OutputT> withNumShards(int numShards) {
     if (numShards > 0) {
       return withNumShards(StaticValueProvider.of(numShards));
     }
@@ -216,8 +229,9 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
    * <p>This option should be used sparingly as it can hurt performance. See {@link WriteFiles} for
    * more information.
    */
-  public WriteFiles<T, DestinationT> withNumShards(ValueProvider<Integer> numShardsProvider) {
-    return new WriteFiles<>(sink, null, numShardsProvider, windowedWrites);
+  public WriteFiles<UserT, DestinationT, OutputT> withNumShards(
+      ValueProvider<Integer> numShardsProvider) {
+    return new WriteFiles<>(sink, formatFunction, null, numShardsProvider, windowedWrites);
   }
 
   /**
@@ -227,19 +241,19 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
    * <p>This option should be used sparingly as it can hurt performance. See {@link WriteFiles} for
    * more information.
    */
-  public WriteFiles<T, DestinationT> withSharding(PTransform<PCollection<T>,
+  public WriteFiles<UserT, DestinationT, OutputT> withSharding(PTransform<PCollection<UserT>,
       PCollectionView<Integer>> sharding) {
     checkNotNull(
         sharding, "Cannot provide null sharding. Use withRunnerDeterminedSharding() instead");
-    return new WriteFiles<>(sink, sharding, null, windowedWrites);
+    return new WriteFiles<>(sink, formatFunction, sharding, null, windowedWrites);
   }
 
   /**
    * Returns a new {@link WriteFiles} that will write to the current {@link FileBasedSink} with
    * runner-determined sharding.
    */
-  public WriteFiles<T, DestinationT> withRunnerDeterminedSharding() {
-    return new WriteFiles<>(sink, null, null, windowedWrites);
+  public WriteFiles<UserT, DestinationT, OutputT> withRunnerDeterminedSharding() {
+    return new WriteFiles<>(sink, formatFunction, null, null, windowedWrites);
   }
 
   /**
@@ -256,11 +270,11 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
    * <p>This option can only be used if {@link #withNumShards(int)} is also set to a
    * positive value.
    */
-  public WriteFiles<T, DestinationT> withWindowedWrites() {
-    return new WriteFiles<>(sink, computeNumShards, numShardsProvider, true);
+  public WriteFiles<UserT, DestinationT, OutputT> withWindowedWrites() {
+    return new WriteFiles<>(sink, formatFunction, computeNumShards, numShardsProvider, true);
   }
 
-  private class WriterKey<DestinationT> {
+  private static class WriterKey<DestinationT> {
     BoundedWindow window;
     PaneInfo paneInfo;
     DestinationT destination;
@@ -287,11 +301,11 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
   }
 
   /**
-   * Writes all the elements in a bundle using a {@link Writer} produced by the
-   * {@link WriteOperation} associated with the {@link FileBasedSink} with windowed writes enabled.
+   * Writes all the elements in a bundle using a {@link Writer} produced by the {@link
+   * WriteOperation} associated with the {@link FileBasedSink} with windowed writes enabled.
    */
-  private class WriteBundles extends DoFn<T, FileResult<DestinationT>> {
-    private Map<WriterKey<DestinationT>, Writer<T, DestinationT>> writers;
+  private class WriteBundles extends DoFn<UserT, FileResult<DestinationT>> {
+    private Map<WriterKey<DestinationT>, Writer<OutputT, DestinationT>> writers;
     private boolean windowedWrites;
 
     WriteBundles(boolean windowedWrites) {
@@ -314,7 +328,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
       // the map will only have a single element.
       DestinationT destination = sink.getDynamicDestinations().getDestination(c.element());
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
-      Writer<T, DestinationT> writer = writers.get(key);
+      Writer<OutputT, DestinationT> writer = writers.get(key);
       if (writer == null) {
         String uuid = UUID.randomUUID().toString();
         LOG.info(
@@ -334,12 +348,12 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
         LOG.debug("Done opening writer");
       }
 
-      writeOrClose(writer, c.element());
+      writeOrClose(writer, formatFunction.apply(c.element()));
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      for (Map.Entry<WriterKey<DestinationT>, Writer<T, DestinationT>> entry
+      for (Map.Entry<WriterKey<DestinationT>, Writer<OutputT, DestinationT>> entry
           : writers.entrySet()) {
         FileResult<DestinationT> result = entry.getValue().close();
         BoundedWindow window = entry.getKey().window;
@@ -358,7 +372,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
    * single iterable.
    */
   private class WriteShardedBundles
-      extends DoFn<KV<ShardedKey<DestinationT>, Iterable<T>>, FileResult<DestinationT>> {
+      extends DoFn<KV<ShardedKey<DestinationT>, Iterable<UserT>>, FileResult<DestinationT>> {
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       // In a sharded write, single input element represents one shard. We can open and close
@@ -368,7 +382,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
       DestinationT destination = c.element().getKey().getKey();
       int shard = c.element().getKey().getShardNumber();
       LOG.info("Opening writer for write operation {}", writeOperation);
-      Writer<T, DestinationT> writer = writeOperation.createWriter();
+      Writer<OutputT, DestinationT> writer = writeOperation.createWriter();
       if (windowedWrites) {
         writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), shard, destination);
       } else {
@@ -377,8 +391,8 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
       LOG.debug("Done opening writer");
 
       try {
-        for (T t : c.element().getValue()) {
-          writeOrClose(writer, t);
+        for (UserT inputT : c.element().getValue()) {
+          writeOrClose(writer, formatFunction.apply(inputT));
         }
 
         // Close the writer; if this throws let the error propagate.
@@ -397,7 +411,8 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
     }
   }
 
-  private static <T, DestinationT> void writeOrClose(Writer<T, DestinationT> writer, T t)
+  private static <UserT, OutputT, DestinationT> void writeOrClose(
+      Writer<OutputT, DestinationT> writer, OutputT t)
       throws Exception {
     try {
       writer.write(t);
@@ -416,7 +431,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
     }
   }
 
-  private class ApplyShardingKey extends DoFn<T, KV<ShardedKey<DestinationT>, T>> {
+  private class ApplyShardingKey extends DoFn<UserT, KV<ShardedKey<DestinationT>, UserT>> {
     private final PCollectionView<Integer> numShardsView;
     private final ValueProvider<Integer> numShardsProvider;
     private int shardNumber;
@@ -481,14 +496,14 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
    * phase. This is why implementations should guarantee that
    * {@link WriteOperation#createWriter} does not mutate WriteOperation).
    */
-  private PDone createWrite(PCollection<T> input) {
+  private PDone createWrite(PCollection<UserT> input) {
     Pipeline p = input.getPipeline();
 
     if (!windowedWrites) {
       // Re-window the data into the global window and remove any existing triggers.
       input =
           input.apply(
-              Window.<T>into(new GlobalWindows())
+              Window.<UserT>into(new GlobalWindows())
                   .triggering(DefaultTrigger.of())
                   .discardingFiredPanes());
     }
@@ -520,14 +535,14 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
       }
 
 
-      PCollection<KV<ShardedKey<DestinationT>, Iterable<T>>> sharded =
+      PCollection<KV<ShardedKey<DestinationT>, Iterable<UserT>>> sharded =
           input
               .apply("ApplyShardLabel", ParDo.of(
                   new ApplyShardingKey(numShardsView,
                       (numShardsView != null) ? null : numShardsProvider))
                   .withSideInputs(sideInputs))
               .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), input.getCoder()))
-              .apply("GroupIntoShards", GroupByKey.<ShardedKey<DestinationT>, T>create());
+              .apply("GroupIntoShards", GroupByKey.<ShardedKey<DestinationT>, UserT>create());
       shardedWindowCoder =
           (Coder<BoundedWindow>) sharded.getWindowingStrategy().getWindowFn().windowCoder();
       results = sharded.apply("WriteShardedBundles", ParDo.of(new WriteShardedBundles()));
@@ -601,7 +616,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
                     "Creating {} empty output shards in addition to {} written for a total of {}.",
                     extraShardsNeeded, results.size(), minShardsNeeded);
                 for (int i = 0; i < extraShardsNeeded; ++i) {
-                  Writer<T, DestinationT> writer = writeOperation.createWriter();
+                  Writer<OutputT, DestinationT> writer = writeOperation.createWriter();
                   writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM,
                       sink.getDynamicDestinations().getDefaultDestination());
                   FileResult<DestinationT> emptyWrite = writer.close();

@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
@@ -197,6 +198,13 @@ public class WriteFilesTest {
     return new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "simple");
   }
 
+  private static class IdentityFormatter<T> implements SerializableFunction<T, T> {
+    @Override
+    public T apply(T input) {
+      return input;
+    }
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testCustomShardedWrite() throws IOException {
@@ -214,7 +222,8 @@ public class WriteFilesTest {
     }
 
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String, ?> write = WriteFiles.to(sink).withSharding(new LargestInt());
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink, new IdentityFormatter<String>())
+        .withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
         .apply(write);
@@ -280,7 +289,8 @@ public class WriteFilesTest {
   @Test
   public void testBuildWrite() {
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String, ?> write = WriteFiles.to(sink).withNumShards(3);
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink, new IdentityFormatter<String>())
+      .withNumShards(3);
     assertThat((SimpleSink) write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
         write.getSharding();
@@ -290,25 +300,28 @@ public class WriteFilesTest {
     assertThat(write.getNumShards().get(), equalTo(3));
     assertThat(write.getSharding(), equalTo(originalSharding));
 
-    WriteFiles<String, ?> write2 = write.withSharding(SHARDING_TRANSFORM);
+    WriteFiles<String, ?, ?> write2 = write.withSharding(SHARDING_TRANSFORM);
     assertThat((SimpleSink) write2.getSink(), is(sink));
     assertThat(write2.getSharding(), equalTo(SHARDING_TRANSFORM));
     // original unchanged
 
-    WriteFiles<String, ?> writeUnsharded = write2.withRunnerDeterminedSharding();
+    WriteFiles<String, ?, ?> writeUnsharded = write2.withRunnerDeterminedSharding();
     assertThat(writeUnsharded.getSharding(), nullValue());
     assertThat(write.getSharding(), equalTo(originalSharding));
   }
 
   @Test
   public void testDisplayData() {
-    SimpleSink sink = new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "") {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    WriteFiles<String, ?> write = WriteFiles.to(sink);
+    SimpleSink sink =
+        new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "") {
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "bar"));
+          }
+        };
+    WriteFiles<String, ?, String> write =
+        WriteFiles.to(sink, new IdentityFormatter<String>());
+
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
@@ -323,7 +336,8 @@ public class WriteFilesTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    WriteFiles<String, ?> write = WriteFiles.to(sink).withNumShards(1);
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink,  new IdentityFormatter<String>())
+      .withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
@@ -338,8 +352,8 @@ public class WriteFilesTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    WriteFiles<String, ?> write =
-        WriteFiles.to(sink)
+    WriteFiles<String, ?, String> write =
+        WriteFiles.to(sink, new IdentityFormatter<String>())
             .withSharding(
                 new PTransform<PCollection<String>, PCollectionView<Integer>>() {
                   @Override
@@ -392,7 +406,7 @@ public class WriteFilesTest {
     }
 
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String, ?> write = WriteFiles.to(sink);
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink, new IdentityFormatter<String>());
     if (numConfiguredShards.isPresent()) {
       write = write.withNumShards(numConfiguredShards.get());
     }
