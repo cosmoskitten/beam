@@ -17,6 +17,9 @@
  */
 package org.apache.beam.dsls.sql;
 
+import static org.apache.beam.dsls.sql.BeamSqlEnv.planner;
+import static org.apache.beam.dsls.sql.BeamSqlEnv.registerTable;
+
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamPCollectionTable;
@@ -71,7 +74,7 @@ p.run().waitUntilFinish();
  * </pre>
  */
 @Experimental
-public class BeamSql extends BeamSqlEnv {
+public class BeamSql {
 
   /**
    * Transforms a SQL query into a {@link PTransform} representing an equivalent execution plan.
