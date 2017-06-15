@@ -21,7 +21,6 @@ import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutor;
-import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
