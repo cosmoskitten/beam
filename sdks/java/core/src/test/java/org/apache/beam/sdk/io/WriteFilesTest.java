@@ -96,7 +96,7 @@ public class WriteFilesTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @SuppressWarnings("unchecked") // covariant cast
-  private static final PTransform<PCollection<String>, PCollection<String>> IDENTITY_MAP =
+  private static final PTransform<PCollection<String> , PCollection<String>> IDENTITY_MAP =
       (PTransform)
           MapElements.via(
               new SimpleFunction<String, String>() {
