@@ -183,19 +183,19 @@ Open issues are tracked [here](https://github.com../../../../../issues):
 
 | Query | Direct | Spark                                                        | Flink                                                      | Apex                                                         |
 | ----: | ------ | ------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------ |
-|     0 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     1 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     2 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     3 | ok     | [BEAM-1035](https://issues.apache.org/jira/browse/BEAM-1035) | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | [BEAM-1037](https://issues.apache.org/jira/browse/BEAM-1037) |
-|     4 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     5 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     6 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     7 | ok     | [BEAM-2112](https://issues.apache.org/jira/browse/BEAM-2112) | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     8 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     9 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|    10 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|    11 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|    12 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
+|     0 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     1 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     2 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     3 | ok     | [BEAM-1035](https://issues.apache.org/jira/browse/BEAM-1035) | ok                                                         | [BEAM-1037](https://issues.apache.org/jira/browse/BEAM-1037) |
+|     4 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     5 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     6 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     7 | ok     | [BEAM-2112](https://issues.apache.org/jira/browse/BEAM-2112) | ok                                                         | ok                                                           |
+|     8 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     9 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|    10 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|    11 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|    12 | ok     | ok                                                           | ok                                                         | ok                                                           |
 
 ## Batch / Synthetic / Cluster
 
