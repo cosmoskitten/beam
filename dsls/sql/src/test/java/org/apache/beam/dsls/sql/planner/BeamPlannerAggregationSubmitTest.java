@@ -45,14 +45,15 @@ import org.junit.Test;
  */
 public class BeamPlannerAggregationSubmitTest {
   public static DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
-    BeamSqlEnv.registerTable("ORDER_DETAILS", getOrderTable());
-    BeamSqlEnv.registerTable("ORDER_SUMMARY", getSummaryTable());
+    sqlEnv.registerTable("ORDER_DETAILS", getOrderTable());
+    sqlEnv.registerTable("ORDER_SUMMARY", getSummaryTable());
   }
 
   @Before
@@ -124,7 +125,7 @@ public class BeamPlannerAggregationSubmitTest {
         + "WHERE SITE_ID = 1 " + "GROUP BY site_id"
         + ", TUMBLE(order_time, INTERVAL '1' HOUR, TIME '00:00:01')";
 
-    BeamSqlCli.compilePipeline(sql, pipeline);
+    BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
 
     pipeline.run().waitUntilFinish();
 
@@ -141,7 +142,7 @@ public class BeamPlannerAggregationSubmitTest {
         + "SELECT site_id, COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY site_id";
 
-    BeamSqlCli.compilePipeline(sql, pipeline);
+    BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
 
     pipeline.run().waitUntilFinish();
 

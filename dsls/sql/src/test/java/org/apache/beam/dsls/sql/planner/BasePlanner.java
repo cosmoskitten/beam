@@ -17,13 +17,13 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
-import static org.apache.beam.dsls.sql.BeamSqlEnv.registerTable;
+//import static org.apache.beam.dsls.sql.BeamSqlEnv.registerTable;
 
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -41,11 +41,19 @@ import org.junit.BeforeClass;
  *
  */
 public class BasePlanner {
+  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
+
   @BeforeClass
   public static void prepareClass() {
-    registerTable("ORDER_DETAILS", getTable());
-    registerTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
-    registerTable("SUB_ORDER_RAM", getTable());
+//<<<<<<< HEAD
+//    registerTable("ORDER_DETAILS", getTable());
+//    registerTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
+//    registerTable("SUB_ORDER_RAM", getTable());
+//=======
+    sqlEnv.registerTable("ORDER_DETAILS", getTable());
+    sqlEnv.registerTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
+    sqlEnv.registerTable("SUB_ORDER_RAM", getTable());
+//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
   }
 
   private static BaseBeamTable getTable() {

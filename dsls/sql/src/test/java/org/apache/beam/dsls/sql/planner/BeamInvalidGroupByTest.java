@@ -37,7 +37,7 @@ public class BeamInvalidGroupByTest extends BasePlanner {
   public void testTumble2Explain() throws Exception {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id" + ", TUMBLE(order_time, INTERVAL '1' HOUR)";
-    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
   }
 
   @Test(expected = ValidationException.class)
@@ -45,7 +45,7 @@ public class BeamInvalidGroupByTest extends BasePlanner {
     String sql = "SELECT order_id, site_id, TUMBLE(order_time, INTERVAL '1' HOUR)"
         + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 "
         + "GROUP BY order_id, site_id" + ", TUMBLE(order_time, INTERVAL '1' HOUR)";
-    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
   }
 
 }
