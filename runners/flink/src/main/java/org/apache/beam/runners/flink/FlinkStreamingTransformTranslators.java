@@ -561,24 +561,24 @@ class FlinkStreamingTransformTranslators {
             public DoFnOperator<
                 KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
                 OutputT> createDoFnOperator(
-                DoFn<
-                    KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
-                    OutputT> doFn,
-                String stepName,
-                List<PCollectionView<?>> sideInputs,
-                TupleTag<OutputT> mainOutputTag,
-                List<TupleTag<?>> additionalOutputTags,
-                FlinkStreamingTranslationContext context,
-                WindowingStrategy<?, ?> windowingStrategy,
-                Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
-                Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
-                Coder<
-                WindowedValue<
-                    KeyedWorkItem<
-                        String,
-                        ElementAndRestriction<InputT, RestrictionT>>>> inputCoder,
-                Coder keyCoder,
-                Map<Integer, PCollectionView<?>> transformedSideInputs) {
+                    DoFn<
+                        KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
+                        OutputT> doFn,
+                    String stepName,
+                    List<PCollectionView<?>> sideInputs,
+                    TupleTag<OutputT> mainOutputTag,
+                    List<TupleTag<?>> additionalOutputTags,
+                    FlinkStreamingTranslationContext context,
+                    WindowingStrategy<?, ?> windowingStrategy,
+                    Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
+                    Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
+                    Coder<
+                        WindowedValue<
+                            KeyedWorkItem<
+                                String,
+                                ElementAndRestriction<InputT, RestrictionT>>>> inputCoder,
+                    Coder keyCoder,
+                    Map<Integer, PCollectionView<?>> transformedSideInputs) {
               return new SplittableDoFnOperator<>(
                   doFn,
                   stepName,
