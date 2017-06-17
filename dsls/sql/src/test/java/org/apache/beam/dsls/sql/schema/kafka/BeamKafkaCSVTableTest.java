@@ -20,6 +20,7 @@ package org.apache.beam.dsls.sql.schema.kafka;
 
 import java.io.Serializable;
 
+import org.apache.beam.dsls.sql.meta.provider.kafka.BeamKafkaCSVTable;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;

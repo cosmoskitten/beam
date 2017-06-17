@@ -17,6 +17,6 @@
  */
 
 /**
- * table schema for KafkaIO.
+ * Table providers.
  */
-package org.apache.beam.dsls.sql.schema.kafka;
+package org.apache.beam.dsls.sql.meta.provider;

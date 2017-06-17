@@ -16,45 +16,45 @@
  * limitations under the License.
  */
 
-package org.apache.beam.dsls.sql.schema.text;
+package org.apache.beam.dsls.sql.meta.provider.text;
 
-import static org.apache.beam.dsls.sql.schema.BeamTableUtils.beamSqlRow2CsvLine;
+import static org.apache.beam.dsls.sql.schema.BeamTableUtils.csvLine2BeamSqlRow;
 
 import java.io.Serializable;
 
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.csv.CSVFormat;
 
 /**
- * IOWriter for {@code BeamTextCSVTable}.
+ * IOReader for {@code BeamTextCSVTable}.
  */
-public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamSqlRow>, PDone>
+public class BeamTextCSVTableIOReader
+    extends PTransform<PCollection<String>, PCollection<BeamSqlRow>>
     implements Serializable {
   private String filePattern;
   protected BeamSqlRecordType beamSqlRecordType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOWriter(BeamSqlRecordType beamSqlRecordType, String filePattern,
+  public BeamTextCSVTableIOReader(BeamSqlRecordType beamSqlRecordType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
     this.beamSqlRecordType = beamSqlRecordType;
     this.csvFormat = csvFormat;
   }
 
-  @Override public PDone expand(PCollection<BeamSqlRow> input) {
-    return input.apply("encodeRecord", ParDo.of(new DoFn<BeamSqlRow, String>() {
-
-      @ProcessElement public void processElement(ProcessContext ctx) {
-        BeamSqlRow row = ctx.element();
-        ctx.output(beamSqlRow2CsvLine(row, csvFormat));
-      }
-    })).apply(TextIO.write().to(filePattern));
+  @Override
+  public PCollection<BeamSqlRow> expand(PCollection<String> input) {
+    return input.apply(ParDo.of(new DoFn<String, BeamSqlRow>() {
+          @ProcessElement
+          public void processElement(ProcessContext ctx) {
+            String str = ctx.element();
+            ctx.output(csvLine2BeamSqlRow(csvFormat, str, beamSqlRecordType));
+          }
+        }));
   }
 }
