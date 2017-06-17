@@ -215,8 +215,7 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
-  # TODO(mariagh): Make this method take pipepline_options
-  def run(self, pipeline):
+  def _run(self, pipeline, dry_run):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
     try:
@@ -239,6 +238,10 @@ class DataflowRunner(PipelineRunner):
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowRunner, self).run(pipeline)
 
+    # If it is a dry run, return without submitting the job.
+    if dry_run:
+      return None
+
     standard_options = pipeline._options.view_as(StandardOptions)
     if standard_options.streaming:
       job_version = DataflowRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION
@@ -256,6 +259,18 @@ class DataflowRunner(PipelineRunner):
     self._metrics = DataflowMetrics(self.dataflow_client, result, self.job)
     result.metric_results = self._metrics
     return result
+
+  # TODO(mariagh): Make this method take pipepline_options
+  def run(self, pipeline):
+    """Remotely executes entire pipeline or parts reachable from node."""
+    self._run(pipeline, dry_run=False)
+
+  def dry_run(self, pipeline):
+    """Run the pipeline to generate a job description but does not submit it.
+
+    For testing purposes only.
+    """
+    self._run(pipeline, dry_run=True)
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""

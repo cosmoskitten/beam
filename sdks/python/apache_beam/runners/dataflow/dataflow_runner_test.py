@@ -108,8 +108,7 @@ class DataflowRunnerTest(unittest.TestCase):
     (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
      | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
      | ptransform.GroupByKey())
-    remote_runner.job = apiclient.Job(p._options)
-    super(DataflowRunner, remote_runner).run(p)
+    remote_runner.dry_run(p)
 
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
@@ -142,8 +141,7 @@ class DataflowRunnerTest(unittest.TestCase):
     (p | ptransform.Create([1, 2, 3, 4, 5])
      | 'Do' >> SpecialParDo(SpecialDoFn(), now))
 
-    remote_runner.job = apiclient.Job(p._options)
-    super(DataflowRunner, remote_runner).run(p)
+    remote_runner.dry_run(p)
     job_dict = json.loads(str(remote_runner.job))
     steps = [step
              for step in job_dict['steps']
