@@ -146,7 +146,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       boolean windowedWrites,
       int maxNumWritersPerBundle) {
     this.sink = sink;
-    this.formatFunction = formatFunction;
+    this.formatFunction = checkNotNull(formatFunction);
     this.computeNumShards = computeNumShards;
     this.numShardsProvider = numShardsProvider;
     this.windowedWrites = windowedWrites;
@@ -255,7 +255,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withNumShards(
       ValueProvider<Integer> numShardsProvider) {
-    return new WriteFiles<>(sink, null, computeNumShards, numShardsProvider,
+    return new WriteFiles<>(sink, formatFunction, computeNumShards, numShardsProvider,
         windowedWrites, maxNumWritersPerBundle);
   }
 
@@ -264,7 +264,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
       int maxNumWritersPerBundle) {
-    return new WriteFiles<>(sink, null, computeNumShards, numShardsProvider,
+    return new WriteFiles<>(sink, formatFunction, computeNumShards, numShardsProvider,
         windowedWrites, maxNumWritersPerBundle);
   }
 
@@ -288,7 +288,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * runner-determined sharding.
    */
   public WriteFiles<UserT, DestinationT, OutputT> withRunnerDeterminedSharding() {
-    return new WriteFiles<>(sink, null, null, null,
+    return new WriteFiles<>(sink, formatFunction, null, null,
       windowedWrites, maxNumWritersPerBundle);
   }
 
