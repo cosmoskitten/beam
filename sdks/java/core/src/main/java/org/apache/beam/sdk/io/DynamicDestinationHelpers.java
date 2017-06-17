@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.io;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -76,10 +78,16 @@ public class DynamicDestinationHelpers {
    */
   public static class DefaultDynamicDestinations
   extends DynamicDestinations<KV<Params, String>, Params> {
-    Params emptyDestination;
+    byte[] emptyDestination;
 
     public DefaultDynamicDestinations(Params emptyDestination) {
-      this.emptyDestination = emptyDestination;
+      try {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ParamsCoder.of().encode(emptyDestination, outputStream);
+        this.emptyDestination = outputStream.toByteArray();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
@@ -89,7 +97,11 @@ public class DynamicDestinationHelpers {
 
     @Override
     public Params getDefaultDestination() {
-      return null;
+      try {
+        return ParamsCoder.of().decode(new ByteArrayInputStream(emptyDestination));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Nullable
