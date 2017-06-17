@@ -16,7 +16,25 @@
  * limitations under the License.
  */
 
+package org.apache.beam.dsls.sql.meta.provider;
+
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.dsls.sql.meta.Column;
+import org.apache.beam.dsls.sql.meta.Table;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+
 /**
- * Table schema for text files.
+ * Utility methods for metadata.
  */
-package org.apache.beam.dsls.sql.schema.text;
+public class MetaUtils {
+  public static BeamSqlRecordType getBeamSqlRecordTypeFromTable(Table table) {
+    List<String> columnNames = new ArrayList<>(table.getColumns().size());
+    List<Integer> columnTypes = new ArrayList<>(table.getColumns().size());
+    for (Column column : table.getColumns()) {
+      columnNames.add(column.getName());
+      columnTypes.add(column.getType());
+    }
+    return BeamSqlRecordType.create(columnNames, columnTypes);
+  }
+}
