@@ -178,7 +178,7 @@ public class WriteFilesTest {
   @Category(NeedsRunner.class)
   public void testEmptyWrite() throws IOException {
     runWrite(Collections.<String>emptyList(), IDENTITY_MAP, getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>());
+        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()));
     checkFileContents(getBaseOutputFilename(), Collections.<String>emptyList(),
         Optional.of(1));
   }
@@ -266,7 +266,7 @@ public class WriteFilesTest {
   public void testWriteWithEmptyPCollection() throws IOException {
     List<String> inputs = new ArrayList<>();
     runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename(), WriteFiles.to(
-        makeSimpleSink(), new IdentityFormatter<String>());
+        makeSimpleSink(), new IdentityFormatter<String>()));
   }
 
   /**

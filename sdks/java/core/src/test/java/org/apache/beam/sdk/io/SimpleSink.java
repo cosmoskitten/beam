@@ -47,7 +47,9 @@ class SimpleSink extends FileBasedSink<String, Void> {
   }
 
   public SimpleSink(ResourceId baseOutputDirectory, FilenamePolicy filenamePolicy) {
-    super(StaticValueProvider.of(baseOutputDirectory), filenamePolicy);
+    super(
+        StaticValueProvider.of(baseOutputDirectory),
+        new ConstantFilenamePolicy<String>(filenamePolicy));
   }
 
   @Override
