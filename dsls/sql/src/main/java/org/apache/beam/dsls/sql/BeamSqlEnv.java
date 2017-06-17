@@ -18,10 +18,9 @@
 package org.apache.beam.dsls.sql;
 
 import java.io.Serializable;
-
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
-import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlTable;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.linq4j.Enumerable;
@@ -58,18 +57,18 @@ public class BeamSqlEnv {
   }
 
   /**
-   * Registers a {@link BaseBeamTable} which can be used for all subsequent queries.
+   * Registers a {@link BeamSqlTable} which can be used for all subsequent queries.
    *
    */
-  public void registerTable(String tableName, BaseBeamTable table) {
+  public void registerTable(String tableName, BeamSqlTable table) {
     schema.add(tableName, new BeamCalciteTable(table.getRecordType()));
     planner.getSourceTables().put(tableName, table);
   }
 
   /**
-   * Find {@link BaseBeamTable} by table name.
+   * Find {@link BeamSqlTable} by table name.
    */
-  public BaseBeamTable findTable(String tableName){
+  public BeamSqlTable findTable(String tableName){
     return planner.getSourceTables().get(tableName);
   }
 
