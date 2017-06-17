@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.dsls.sql.schema.text;
+package org.apache.beam.dsls.sql.meta.provider.text;
 
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
@@ -41,6 +41,7 @@ public class BeamTextCSVTable extends BeamTextTable {
   private static final Logger LOG = LoggerFactory
       .getLogger(BeamTextCSVTable.class);
 
+  private String filePattern;
   private CSVFormat csvFormat;
 
   /**
@@ -53,6 +54,7 @@ public class BeamTextCSVTable extends BeamTextTable {
   public BeamTextCSVTable(BeamSqlRowType beamSqlRowType, String filePattern,
       CSVFormat csvFormat) {
     super(beamSqlRowType, filePattern);
+    this.filePattern = filePattern;
     this.csvFormat = csvFormat;
   }
 
@@ -66,5 +68,13 @@ public class BeamTextCSVTable extends BeamTextTable {
   @Override
   public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
     return new BeamTextCSVTableIOWriter(beamSqlRowType, filePattern, csvFormat);
+  }
+
+  public CSVFormat getCsvFormat() {
+    return csvFormat;
+  }
+
+  public String getFilePattern() {
+    return filePattern;
   }
 }
