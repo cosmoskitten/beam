@@ -46,6 +46,7 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TestOptions
 
 
 __all__ = ['DataflowRunner']
@@ -215,7 +216,6 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
-  # TODO(mariagh): Make this method take pipepline_options
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
@@ -238,6 +238,11 @@ class DataflowRunner(PipelineRunner):
 
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowRunner, self).run(pipeline)
+
+    test_options = pipeline._options.view_as(TestOptions)
+    # If it is a dry run, return without submitting the job.
+    if test_options.dry_run:
+      return None
 
     standard_options = pipeline._options.view_as(StandardOptions)
     if standard_options.streaming:
