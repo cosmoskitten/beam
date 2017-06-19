@@ -87,7 +87,6 @@
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
-                  <threadCount>4</threadCount>
                 </configuration>
               </execution>
             </executions>
