@@ -160,6 +160,7 @@
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
+    <gax-grpc.version>0.20.0</gax-grpc.version>
   </properties>
 
   <packaging>pom</packaging>
@@ -631,6 +632,12 @@
       </dependency>
 
       <dependency>
+        <groupId>com.google.api</groupId>
+        <artifactId>gax-grpc</artifactId>
+        <version>${gax-grpc.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.google.api-client</groupId>
         <artifactId>google-api-client</artifactId>
         <version>${google-clients.version}</version>
@@ -844,6 +851,11 @@
         </exclusions>
       </dependency>
 
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-core-grpc</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
       <dependency>
         <groupId>com.google.cloud.bigtable</groupId>
         <artifactId>bigtable-protos</artifactId>
