@@ -70,25 +70,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   @Override
   public void translate(Pipeline pipeline) {
-    List<PTransformOverride> transformOverrides =
-        ImmutableList.<PTransformOverride>builder()
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.splittableParDoMulti(),
-                    new SplittableParDoOverrideFactory()))
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(SplittableParDo.ProcessKeyedElements.class),
-                    new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(CreatePCollectionView.class),
-                    new CreateStreamingFlinkView.Factory()))
-            .build();
-
     // Ensure all outputs of all reads are consumed.
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
-    pipeline.replaceAll(transformOverrides);
     super.translate(pipeline);
   }
 
