@@ -18,10 +18,10 @@
 
 package org.apache.beam.dsls.sql.transform;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -29,7 +29,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
 
 /**
@@ -51,14 +50,17 @@ public class BeamJoinTransforms {
     }
 
     @Override public KV<BeamSqlRow, BeamSqlRow> apply(BeamSqlRow input) {
-      BeamSqlRecordType type = new BeamSqlRecordType();
       // build the type
       // the name of the join field is not important
+      List<String> fieldNames = new ArrayList<>();
+      List<Integer> fieldTypes = new ArrayList<>();
       for (int i = 0; i < joinColumns.size(); i++) {
-        type.addField("c" + i, isLeft
+        fieldNames.add("c" + i);
+        fieldTypes.add(isLeft
             ? input.getDataType().getFieldsType().get(joinColumns.get(i).getKey()) :
             input.getDataType().getFieldsType().get(joinColumns.get(i).getValue()));
       }
+      BeamSqlRecordType type = BeamSqlRecordType.create(fieldNames, fieldTypes);
 
       // build the row
       BeamSqlRow row = new BeamSqlRow(type);
@@ -132,20 +134,15 @@ public class BeamJoinTransforms {
   private static BeamSqlRow combineTwoRowsIntoOne(BeamSqlRow leftRow,
       BeamSqlRow rightRow, boolean swap) {
     // build the type
-    BeamSqlRecordType type = new BeamSqlRecordType();
     List<String> names =
         swap ? rightRow.getDataType().getFieldsName() : leftRow.getDataType().getFieldsName();
-    List<SqlTypeName> types =
+    List<Integer> types =
         swap ? rightRow.getDataType().getFieldsType() : leftRow.getDataType().getFieldsType();
-    for (int i = 0; i < names.size(); i++) {
-      type.addField(names.get(i), types.get(i));
-    }
-
-    names = swap ? leftRow.getDataType().getFieldsName() : rightRow.getDataType().getFieldsName();
-    types = swap ? leftRow.getDataType().getFieldsType() : rightRow.getDataType().getFieldsType();
-    for (int i = 0; i < names.size(); i++) {
-      type.addField(names.get(i), types.get(i));
-    }
+    names.addAll(
+        swap ? leftRow.getDataType().getFieldsName() : rightRow.getDataType().getFieldsName());
+    types.addAll(
+        swap ? leftRow.getDataType().getFieldsType() : rightRow.getDataType().getFieldsType());
+    BeamSqlRecordType type = BeamSqlRecordType.create(names, types);
 
     BeamSqlRow row = new BeamSqlRow(type);
     BeamSqlRow currentRow = swap ? rightRow : leftRow;

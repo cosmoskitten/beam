@@ -22,13 +22,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.transform.BeamJoinTransforms;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -87,12 +85,12 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   @Override public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections)
       throws Exception {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-    BeamSqlRecordType leftRowType = BeamSqlRecordType.from(left.getRowType());
+    BeamSqlRecordType leftRowType = CalciteUtils.toBeamRecordType(left.getRowType());
     PCollection<BeamSqlRow> leftRows = leftRelNode.buildBeamPipeline(inputPCollections);
     leftRows.setCoder(new BeamSqlRowCoder(leftRowType));
 
     final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
-    BeamSqlRecordType rightRowType = BeamSqlRecordType.from(right.getRowType());
+    BeamSqlRecordType rightRowType = CalciteUtils.toBeamRecordType(right.getRowType());
     PCollection<BeamSqlRow> rightRows = rightRelNode.buildBeamPipeline(inputPCollections);
     rightRows.setCoder(new BeamSqlRowCoder(rightRowType));
 
@@ -104,13 +102,15 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     List<Pair<Integer, Integer>> pairs = extractJoinColumns(
         leftRelNode.getRowType().getFieldCount());
 
-    BeamSqlRecordType extractKeyRowType = new BeamSqlRecordType();
     // build the extract key type
     // the name of the join field is not important
+    List<String> fieldNames = new ArrayList<>();
+    List<Integer> fieldTypes = new ArrayList<>();
     for (int i = 0; i < pairs.size(); i++) {
-      extractKeyRowType.addField("c" + i,
-          leftRowType.getFieldsType().get(pairs.get(i).getKey()));
+      fieldNames.add("c" + i);
+      fieldTypes.add(leftRowType.getFieldsType().get(pairs.get(i).getKey()));
     }
+    BeamSqlRecordType extractKeyRowType = BeamSqlRecordType.create(fieldNames, fieldTypes);
     Coder extractKeyRowCoder = new BeamSqlRowCoder(extractKeyRowType);
 
     // BeamSqlRow -> KV<BeamSqlRow, BeamSqlRow>
@@ -150,7 +150,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       // Only support INNER JOIN & LEFT OUTER JOIN where left side of the join must be
       // the unbounded
       if (joinType == JoinRelType.FULL) {
-        throw new BeamSqlUnsupportedException("FULL OUTER JOIN is not supported when join "
+        throw new UnsupportedOperationException("FULL OUTER JOIN is not supported when join "
             + "a bounded table with an unbounded table.");
       }
 
@@ -158,14 +158,14 @@ public class BeamJoinRel extends Join implements BeamRelNode {
           && leftRows.isBounded() == PCollection.IsBounded.BOUNDED)
           || (joinType == JoinRelType.RIGHT
           && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)) {
-        throw new BeamSqlUnsupportedException(
+        throw new UnsupportedOperationException(
             "LEFT side of an OUTER JOIN must be Unbounded table.");
       }
 
       return sideInputJoin(extractedLeftRows, extractedRightRows,
           leftNullRow, rightNullRow);
     } else {
-      throw new BeamSqlUnsupportedException(
+      throw new UnsupportedOperationException(
           "The inputs to the JOIN have un-joinnable windowFns: " + leftWinFn + ", " + rightWinFn);
     }
   }
@@ -197,7 +197,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<BeamSqlRow> ret = joinedRows
         .apply(stageName + "_JoinParts2WholeRow",
             MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
-        .setCoder(new BeamSqlRowCoder(BeamSqlRecordType.from(getRowType())));
+        .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
 
     return ret;
   }
@@ -223,13 +223,13 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<BeamSqlRow> ret = realLeftRows
         .apply(ParDo.of(new BeamJoinTransforms.SideInputJoinDoFn(
             realJoinType, realRightNullRow, rowsView, swapped)).withSideInputs(rowsView))
-        .setCoder(new BeamSqlRowCoder(BeamSqlRecordType.from(getRowType())));
+        .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
 
     return ret;
   }
 
   private BeamSqlRow buildNullRow(BeamRelNode relNode) {
-    BeamSqlRecordType leftType = BeamSqlRecordType.from(relNode.getRowType());
+    BeamSqlRecordType leftType = CalciteUtils.toBeamRecordType(relNode.getRowType());
     BeamSqlRow nullRow = new BeamSqlRow(leftType);
     for (int i = 0; i < leftType.size(); i++) {
       nullRow.addField(i, null);
@@ -249,7 +249,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     } else if ("=".equals(call.getOperator().getName())) {
       pairs.add(extractOneJoinColumn(call, separator));
     } else {
-      throw new BeamSqlUnsupportedException(
+      throw new UnsupportedOperationException(
           "Operator " + call.getOperator().getName() + " is not supported in join condition");
     }
 
