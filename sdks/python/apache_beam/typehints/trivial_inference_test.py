@@ -60,6 +60,12 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(any_tuple,
                           reverse, [trivial_inference.Const((1, 2, 3))])
 
+  def testFakeReturn(self):
+    def func(a):
+      if a == 5:
+        return a
+    self.assertReturnType(typehints.Union[int, type(None)], func, [int])
+
   def testListComprehension(self):
     self.assertReturnType(
         typehints.List[int],
