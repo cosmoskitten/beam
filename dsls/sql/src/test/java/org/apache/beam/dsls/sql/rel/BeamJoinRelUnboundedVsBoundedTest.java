@@ -21,11 +21,9 @@ package org.apache.beam.dsls.sql.rel;
 import static org.apache.beam.dsls.sql.TestUtils.beamSqlRows2Strings;
 
 import java.util.Date;
-
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.TestUtils;
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.transform.BeamSqlOutputToConsoleFn;
@@ -117,7 +115,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
     pipeline.run();
   }
 
-  @Test(expected = BeamSqlUnsupportedException.class)
+  @Test(expected = UnsupportedOperationException.class)
   public void testLeftOuterJoinError() throws Exception {
     String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
         + " ORDER_DETAILS1 o2 "
@@ -155,7 +153,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
     pipeline.run();
   }
 
-  @Test(expected = BeamSqlUnsupportedException.class)
+  @Test(expected = UnsupportedOperationException.class)
   public void testRightOuterJoinError() throws Exception {
     String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
         + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
@@ -171,7 +169,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
     pipeline.run();
   }
 
-  @Test(expected = BeamSqlUnsupportedException.class)
+  @Test(expected = UnsupportedOperationException.class)
   public void testFullOuterJoinError() throws Exception {
     String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
         + " ORDER_DETAILS1 o2 "

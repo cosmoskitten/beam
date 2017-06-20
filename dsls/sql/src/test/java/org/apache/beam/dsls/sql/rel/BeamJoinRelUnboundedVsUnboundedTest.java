@@ -21,11 +21,9 @@ package org.apache.beam.dsls.sql.rel;
 import static org.apache.beam.dsls.sql.TestUtils.beamSqlRows2Strings;
 
 import java.util.Date;
-
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.TestUtils;
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
@@ -186,7 +184,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
     pipeline.run();
   }
 
-  @Test(expected = BeamSqlUnsupportedException.class)
+  @Test(expected = UnsupportedOperationException.class)
   public void testWindowsMismatch() throws Exception {
     String sql = "SELECT * FROM "
         + "(select site_id as order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
