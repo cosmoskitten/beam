@@ -52,8 +52,8 @@ public class BeamJoinTransforms {
     @Override public KV<BeamSqlRow, BeamSqlRow> apply(BeamSqlRow input) {
       // build the type
       // the name of the join field is not important
-      List<String> fieldNames = new ArrayList<>();
-      List<Integer> fieldTypes = new ArrayList<>();
+      List<String> fieldNames = new ArrayList<>(joinColumns.size());
+      List<Integer> fieldTypes = new ArrayList<>(joinColumns.size());
       for (int i = 0; i < joinColumns.size(); i++) {
         fieldNames.add("c" + i);
         fieldTypes.add(isLeft
@@ -136,10 +136,11 @@ public class BeamJoinTransforms {
     // build the type
     List<String> names =
         swap ? rightRow.getDataType().getFieldsName() : leftRow.getDataType().getFieldsName();
-    List<Integer> types =
-        swap ? rightRow.getDataType().getFieldsType() : leftRow.getDataType().getFieldsType();
     names.addAll(
         swap ? leftRow.getDataType().getFieldsName() : rightRow.getDataType().getFieldsName());
+
+    List<Integer> types =
+        swap ? rightRow.getDataType().getFieldsType() : leftRow.getDataType().getFieldsType();
     types.addAll(
         swap ? leftRow.getDataType().getFieldsType() : rightRow.getDataType().getFieldsType());
     BeamSqlRecordType type = BeamSqlRecordType.create(names, types);

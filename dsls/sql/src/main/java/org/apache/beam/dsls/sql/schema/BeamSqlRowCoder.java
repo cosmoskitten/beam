@@ -57,7 +57,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   @Override
   public void encode(BeamSqlRow value, OutputStream outStream) throws CoderException, IOException {
     listCoder.encode(value.getNullFields(), outStream);
-
+    System.out.println("Encode: nullFields: " + value.getNullFields());
     for (int idx = 0; idx < value.size(); ++idx) {
       if (value.getNullFields().contains(idx)) {
         continue;
@@ -112,7 +112,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
 
     BeamSqlRow record = new BeamSqlRow(tableSchema);
     record.setNullFields(nullFields);
-
+    System.out.println("Decode: nullFields: " + nullFields);
     for (int idx = 0; idx < tableSchema.size(); ++idx) {
       if (nullFields.contains(idx)) {
         continue;
@@ -120,6 +120,11 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
 
       switch (CalciteUtils.getFieldType(tableSchema, idx)) {
         case INTEGER:
+          System.out.println("BeamSqlRowCoder, idx: " + idx + ", name: "
+              + tableSchema.getFieldsName().get(idx) + ", type:"
+              + CalciteUtils.toCalciteType(tableSchema.getFieldsType().get(idx))
+              + ", nullValues: " + nullFields
+          );
           record.addField(idx, intCoder.decode(inStream));
           break;
         case SMALLINT:

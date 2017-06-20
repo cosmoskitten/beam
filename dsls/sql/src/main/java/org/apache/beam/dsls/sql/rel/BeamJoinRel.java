@@ -220,6 +220,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
     final PCollectionView<Map<BeamSqlRow, Iterable<BeamSqlRow>>> rowsView = realRightRows
         .apply(View.<BeamSqlRow, BeamSqlRow>asMultimap());
+
     PCollection<BeamSqlRow> ret = realLeftRows
         .apply(ParDo.of(new BeamJoinTransforms.SideInputJoinDoFn(
             realJoinType, realRightNullRow, rowsView, swapped)).withSideInputs(rowsView))
