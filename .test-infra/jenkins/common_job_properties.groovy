@@ -266,10 +266,18 @@ class common_job_properties {
         // TODO: Using Perfkit feature branch is only for testing. Must change
         // back to GoogleCloudPlatform master branch once the branch is merged.
         shell('git clone -b improve-beam-benchmark https://github.com/markflyhigh/PerfKitBenchmarker.git')
+        // Install virtualenv in case INFRA does not install it
+        shell('pip install virtualenv --user')
+        // TODO: Need to remove
+        shell('find /home/jenkins/.local/lib/python2.7/site-packages /usr/lib/python2.7/dist-packages -name virtualenv')
+        // Create a virtualenv for Perfkit benchmark test
+        shell('/home/jenkins/.local/lib/python2.7/site-packages/bin/virtualenv PerfKitBenchmarker/pkb')
+        // Activate virtualenv
+        shell('. PerfKitBenchmarker/pkb/bin/activate')
         // Install basic job requirements.
-        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
+        shell('pip install -r PerfKitBenchmarker/requirements.txt')
         // Install job requirements for Python SDK.
-        shell('pip install --user -e sdks/python/[gcp,test]')
+        shell('pip install -e sdks/python/[gcp,test]')
         // Launch performance test.
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
