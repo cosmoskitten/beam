@@ -35,7 +35,6 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
-import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -55,7 +55,7 @@ class SplittableProcessElementsEvaluatorFactory<
         InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
     implements TransformEvaluatorFactory {
   private final ParDoEvaluatorFactory<
-          KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+          KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
   private final EvaluationContext evaluationContext;
 
@@ -84,10 +84,10 @@ class SplittableProcessElementsEvaluatorFactory<
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private TransformEvaluator<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
+  private TransformEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>>
       createEvaluator(
           AppliedPTransform<
-                  PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
+                  PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>,
                   PCollectionTuple, ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
               application,
           CommittedBundle<InputT> inputBundle)
@@ -102,7 +102,7 @@ class SplittableProcessElementsEvaluatorFactory<
     processFn =
         ((ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
             fnManager
-                .<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+                .<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
                     get());
 
     String stepName = evaluationContext.getStepName(application);
@@ -111,12 +111,12 @@ class SplittableProcessElementsEvaluatorFactory<
             .getExecutionContext(application, inputBundle.getKey())
             .getStepContext(stepName);
 
-    final ParDoEvaluator<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
+    final ParDoEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>>
         parDoEvaluator =
             delegateFactory.createParDoEvaluator(
                 application,
                 inputBundle.getKey(),
-                (PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>)
+                (PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>)
                     inputBundle.getPCollection(),
                 transform.getSideInputs(),
                 transform.getMainOutputTag(),
@@ -190,16 +190,16 @@ class SplittableProcessElementsEvaluatorFactory<
 
   private static <InputT, OutputT, RestrictionT>
   ParDoEvaluator.DoFnRunnerFactory<
-                KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+                KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
           processFnRunnerFactory() {
     return new ParDoEvaluator.DoFnRunnerFactory<
-            KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>() {
+            KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>() {
       @Override
       public PushbackSideInputDoFnRunner<
-          KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+          KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       createRunner(
           PipelineOptions options,
-          DoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT> fn,
+          DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> fn,
           List<PCollectionView<?>> sideInputs,
           ReadyCheckingSideInputReader sideInputReader,
           OutputManager outputManager,

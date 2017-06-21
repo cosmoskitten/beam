@@ -24,11 +24,11 @@ import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Instant;
 
@@ -38,15 +38,15 @@ import org.joda.time.Instant;
  */
 public class ProcessFnRunner<InputT, OutputT, RestrictionT>
     implements PushbackSideInputDoFnRunner<
-        KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT> {
+        KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
   private final DoFnRunner<
-          KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+          KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       underlying;
   private final Collection<PCollectionView<?>> views;
   private final ReadyCheckingSideInputReader sideInputReader;
 
   ProcessFnRunner(
-      DoFnRunner<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+      DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
           underlying,
       Collection<PCollectionView<?>> views,
       ReadyCheckingSideInputReader sideInputReader) {
@@ -61,9 +61,9 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public Iterable<WindowedValue<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>>
+  public Iterable<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>>
       processElementInReadyWindows(
-          WindowedValue<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
+          WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>
               windowedKWI) {
     checkTrivialOuterWindows(windowedKWI);
     BoundedWindow window = getUnderlyingWindow(windowedKWI.getValue());
