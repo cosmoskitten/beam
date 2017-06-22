@@ -440,7 +440,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       // TODO: This forces us to shuffle the entire destination on each element. We could instead
       // just shuffle a hash, and keep a (small) map of writers->destination here.
       DestinationT destination = c.element().getKey().getKey();
-      int shard = c.element().getKey().getShardNumber();
       LOG.info("Opening writer for write operation {}", writeOperation);
       Writer<OutputT, DestinationT> writer = writeOperation.createWriter();
       if (windowedWrites) {
