@@ -201,6 +201,13 @@ class CompressedFile(object):
             assert False, 'Possible file corruption.'
           except EOFError:
             pass  # All is as expected!
+        if self._compression_type == CompressionTypes.GZIP:
+          if self._decompressor.unused_data != '':
+            buf = self._decompressor.unused_data
+            self._decompressor = zlib.decompressobj(self._gzip_mask)
+            decompressed = self._decompressor.decompress(buf)
+            self._read_buffer.write(decompressed)
+            continue
         else:
           self._read_buffer.write(self._decompressor.flush())
 
