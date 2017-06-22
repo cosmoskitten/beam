@@ -145,6 +145,7 @@ public class BatchStatefulParDoOverrides {
     public PCollection<OutputT> expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
+      verifyNonMerging(input.getWindowingStrategy());
 
       PTransform<
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
@@ -169,6 +170,7 @@ public class BatchStatefulParDoOverrides {
     public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
+      verifyNonMerging(input.getWindowingStrategy());
 
       PTransform<
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
@@ -281,5 +283,15 @@ public class BatchStatefulParDoOverrides {
         "%s used for %s that does not use state or timers.",
         BatchStatefulParDoOverrides.class.getSimpleName(),
         ParDo.class.getSimpleName());
+  }
+
+  private static <InputT, OutputT> void verifyNonMerging(
+      WindowingStrategy<?, ?> windowingStrategy) {
+    if (!windowingStrategy.getWindowFn().isNonMerging()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support state or timers with merging windows",
+              DataflowRunner.class.getSimpleName()));
+    }
   }
 }

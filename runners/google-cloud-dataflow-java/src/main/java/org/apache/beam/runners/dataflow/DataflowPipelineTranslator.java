@@ -972,6 +972,14 @@ public class DataflowPipelineTranslator {
               fn));
     }
 
+    if ((signature.usesState() || signature.usesTimers())
+        && !windowingStrategy.getWindowFn().isNonMerging()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support state or timers with merging windows",
+              DataflowRunner.class.getSimpleName()));
+    }
+
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     stepContext.addInput(
         PropertyNames.SERIALIZED_FN,
