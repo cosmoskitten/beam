@@ -692,6 +692,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       @SuppressWarnings("unchecked")
         WindowNamespace<W> windowNamespace = (WindowNamespace<W>) timer.getNamespace();
       W window = windowNamespace.getWindow();
+
+      if (windowIsExpired(window)) {
+        continue;
+      }
+
       ReduceFn<K, InputT, OutputT, W>.Context directContext =
           contextFactory.base(window, StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =
@@ -1084,4 +1089,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
+  private boolean windowIsExpired(BoundedWindow w) {
+    return timerInternals
+        .currentInputWatermarkTime()
+        .isAfter(w.maxTimestamp().plus(windowingStrategy.getAllowedLateness()));
+  }
 }
