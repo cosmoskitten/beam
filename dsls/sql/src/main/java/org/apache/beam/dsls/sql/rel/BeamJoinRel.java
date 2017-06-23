@@ -104,8 +104,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
     // build the extract key type
     // the name of the join field is not important
-    List<String> fieldNames = new ArrayList<>();
-    List<Integer> fieldTypes = new ArrayList<>();
+    List<String> fieldNames = new ArrayList<>(pairs.size());
+    List<Integer> fieldTypes = new ArrayList<>(pairs.size());
     for (int i = 0; i < pairs.size(); i++) {
       fieldNames.add("c" + i);
       fieldTypes.add(leftRowType.getFieldsType().get(pairs.get(i).getKey()));

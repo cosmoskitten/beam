@@ -134,13 +134,15 @@ public class BeamJoinTransforms {
   private static BeamSqlRow combineTwoRowsIntoOne(BeamSqlRow leftRow,
       BeamSqlRow rightRow, boolean swap) {
     // build the type
-    List<String> names =
-        swap ? rightRow.getDataType().getFieldsName() : leftRow.getDataType().getFieldsName();
+    List<String> names = new ArrayList<>(leftRow.size() + rightRow.size());
+    names.addAll(
+        swap ? rightRow.getDataType().getFieldsName() : leftRow.getDataType().getFieldsName());
     names.addAll(
         swap ? leftRow.getDataType().getFieldsName() : rightRow.getDataType().getFieldsName());
 
-    List<Integer> types =
-        swap ? rightRow.getDataType().getFieldsType() : leftRow.getDataType().getFieldsType();
+    List<Integer> types = new ArrayList<>(leftRow.size() + rightRow.size());
+    types.addAll(
+        swap ? rightRow.getDataType().getFieldsType() : leftRow.getDataType().getFieldsType());
     types.addAll(
         swap ? leftRow.getDataType().getFieldsType() : rightRow.getDataType().getFieldsType());
     BeamSqlRecordType type = BeamSqlRecordType.create(names, types);
