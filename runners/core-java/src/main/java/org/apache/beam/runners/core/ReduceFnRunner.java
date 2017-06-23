@@ -29,7 +29,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -641,7 +640,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    * common queries about a timer.
    */
   private class EnrichedTimerData {
-    public final Instant timestamp;
     public final ReduceFn<K, InputT, OutputT, W>.Context directContext;
     public final ReduceFn<K, InputT, OutputT, W>.Context renamedContext;
     // If this is an end-of-window timer then we may need to set a garbage collection timer
@@ -653,18 +651,32 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     public final boolean isGarbageCollection;
 
     EnrichedTimerData(
-        TimerData timer,
         ReduceFn<K, InputT, OutputT, W>.Context directContext,
         ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
-      this.timestamp = timer.getTimestamp();
       this.directContext = directContext;
       this.renamedContext = renamedContext;
       W window = directContext.window();
-      this.isEndOfWindow = TimeDomain.EVENT_TIME == timer.getDomain()
-          && timer.getTimestamp().equals(window.maxTimestamp());
-      Instant cleanupTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
+
+      // The output watermark is before the end of the window if it is either unknown
+      // or it is known to be before it. If it is unknown, that means that there hasn't been
+      // enough data to advance it.
+      boolean outputWatermarkBeforeEOW =
+              timerInternals.currentOutputWatermarkTime() == null
+          || !timerInternals.currentOutputWatermarkTime().isAfter(window.maxTimestamp());
+
+      // The "end of the window" is reached when the input watermark surpasses it but
+      // the output watermark has not. After data is emitted and the watermark is released,
+      // it is necessarily the case that the output watermark will exceed the end of the window.
+      this.isEndOfWindow =
+          timerInternals.currentInputWatermarkTime().isAfter(window.maxTimestamp())
+              && outputWatermarkBeforeEOW;
+
+      // The "GC time" is reached when the input watermark surpasses the end of the window
+      // plus allowed lateness. After this, the window is expired and expunged.
       this.isGarbageCollection =
-          TimeDomain.EVENT_TIME == timer.getDomain() && !timer.getTimestamp().isBefore(cleanupTime);
+          timerInternals
+              .currentInputWatermarkTime()
+              .isAfter(LateDataUtils.garbageCollectionTime(window, windowingStrategy));
     }
 
     // Has this window had its trigger finish?
@@ -683,9 +695,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       return;
     }
 
-    // Create a reusable context for each timer and begin prefetching necessary
+    // Create a reusable context for each window and begin prefetching necessary
     // state.
-    List<EnrichedTimerData> enrichedTimers = new LinkedList();
+    Map<BoundedWindow, EnrichedTimerData> enrichedTimers = new HashMap();
+
     for (TimerData timer : timers) {
       checkArgument(timer.getNamespace() instanceof WindowNamespace,
           "Expected timer to be in WindowNamespace, but was in %s", timer.getNamespace());
@@ -693,7 +706,24 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         WindowNamespace<W> windowNamespace = (WindowNamespace<W>) timer.getNamespace();
       W window = windowNamespace.getWindow();
 
+      WindowTracing.debug("{}: Received timer key:{}; window:{}; data:{} with "
+              + "inputWatermark:{}; outputWatermark:{}",
+          ReduceFnRunner.class.getSimpleName(),
+          key, window, timer,
+          timerInternals.currentInputWatermarkTime(),
+          timerInternals.currentOutputWatermarkTime());
+
+      // Processing time timers for an expired window are ignored, just like elements
+      // that show up too late
       if (TimeDomain.PROCESSING_TIME == timer.getDomain() && windowIsExpired(window)) {
+        continue;
+      }
+
+      // How a window is processed is a function only of the current state, not the details
+      // of the timer. This makes us robust to large leaps in processing time and watermark
+      // time, where both EOW and GC timers come in together and we need to GC and emit
+      // the final pane.
+      if (enrichedTimers.containsKey(window)) {
         continue;
       }
 
@@ -701,8 +731,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           contextFactory.base(window, StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =
           contextFactory.base(window, StateStyle.RENAMED);
-      EnrichedTimerData enrichedTimer = new EnrichedTimerData(timer, directContext, renamedContext);
-      enrichedTimers.add(enrichedTimer);
+      EnrichedTimerData enrichedTimer = new EnrichedTimerData(directContext, renamedContext);
+      enrichedTimers.put(window, enrichedTimer);
 
       // Perform prefetching of state to determine if the trigger should fire.
       if (enrichedTimer.isGarbageCollection) {
@@ -713,7 +743,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     // For those windows that are active and open, prefetch the triggering or emitting state.
-    for (EnrichedTimerData timer : enrichedTimers) {
+    for (EnrichedTimerData timer : enrichedTimers.values()) {
       if (timer.windowIsActiveAndOpen()) {
         ReduceFn<K, InputT, OutputT, W>.Context directContext = timer.directContext;
         if (timer.isGarbageCollection) {
@@ -726,14 +756,16 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     // Perform processing now that everything is prefetched.
-    for (EnrichedTimerData timer : enrichedTimers) {
+    for (EnrichedTimerData timer : enrichedTimers.values()) {
       ReduceFn<K, InputT, OutputT, W>.Context directContext = timer.directContext;
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext = timer.renamedContext;
 
       if (timer.isGarbageCollection) {
-        WindowTracing.debug("ReduceFnRunner.onTimer: Cleaning up for key:{}; window:{} at {} with "
-                + "inputWatermark:{}; outputWatermark:{}",
-            key, directContext.window(), timer.timestamp,
+        WindowTracing.debug(
+            "{}: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
+            ReduceFnRunner.class.getSimpleName(),
+            key,
+            directContext.window(),
             timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
 
@@ -752,9 +784,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         // see elements for it again.
         clearAllState(directContext, renamedContext, windowIsActiveAndOpen);
       } else {
-        WindowTracing.debug("ReduceFnRunner.onTimer: Triggering for key:{}; window:{} at {} with "
+        WindowTracing.debug(
+            "{}.onTimers: Triggering for key:{}; window:{} at {} with "
                 + "inputWatermark:{}; outputWatermark:{}",
-            key, directContext.window(), timer.timestamp,
+            key,
+            directContext.window(),
             timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
         if (timer.windowIsActiveAndOpen()
