@@ -79,7 +79,6 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -458,7 +457,6 @@ public class ReduceFnRunnerTest {
    * marked as final.
    */
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-2505")
   public void testCombiningAccumulatingEventTime() throws Exception {
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(100)))
