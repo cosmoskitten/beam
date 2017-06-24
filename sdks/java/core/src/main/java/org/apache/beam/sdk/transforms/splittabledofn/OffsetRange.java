@@ -20,6 +20,8 @@ package org.apache.beam.sdk.transforms.splittabledofn;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 /** A restriction represented by a range of integers [from, to). */
 public class OffsetRange
@@ -73,5 +75,24 @@ public class OffsetRange
     int result = (int) (from ^ (from >>> 32));
     result = 31 * result + (int) (to ^ (to >>> 32));
     return result;
+  }
+
+  public List<OffsetRange> split(long desiredNumOffsetsPerSplit, long minNumOffsetPerSplit) {
+    List<OffsetRange> res = new ArrayList<>();
+    long start = getFrom();
+    long maxEnd = getTo();
+
+    while (start < maxEnd) {
+      long end = start + desiredNumOffsetsPerSplit;
+      end = Math.min(end, maxEnd);
+      // Avoid having a too small range at the end and ensure that we respect minNumOffsetPerSplit.
+      long remaining = maxEnd - end;
+      if ((remaining < desiredNumOffsetsPerSplit / 4) || (remaining < minNumOffsetPerSplit)) {
+        end = maxEnd;
+      }
+      res.add(new OffsetRange(start, end));
+      start = end;
+    }
+    return res;
   }
 }

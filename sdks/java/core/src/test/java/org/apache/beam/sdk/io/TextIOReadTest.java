@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.sdk.TestUtils.LINES2_ARRAY;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.AUTO;
@@ -69,10 +67,8 @@ import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -103,10 +99,10 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link TextIO.Read}. */
 @RunWith(JUnit4.class)
 public class TextIOReadTest {
-  private static final String[] EMPTY = new String[] {};
-  private static final String[] TINY =
-      new String[] {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
-  private static final String[] LARGE = makeLines(1000);
+  private static final List<String> EMPTY = Collections.emptyList();
+  private static final List<String> TINY =
+      Arrays.asList("Irritable eagle", "Optimistic jay", "Fanciful hawk");
+  private static final List<String> LARGE = makeLines(1000);
 
   private static Path tempFolder;
   private static File emptyTxt;
@@ -129,7 +125,7 @@ public class TextIOReadTest {
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
-  private static File writeToFile(String[] lines, String filename, CompressionType compression)
+  private static File writeToFile(List<String> lines, String filename, CompressionType compression)
       throws IOException {
     File file = tempFolder.resolve(filename).toFile();
     OutputStream output = new FileOutputStream(file);
@@ -385,7 +381,7 @@ public class TextIOReadTest {
    * Helper that writes the given lines (adding a newline in between) to a stream, then closes the
    * stream.
    */
-  private static void writeToStreamAndClose(String[] lines, OutputStream outputStream) {
+  private static void writeToStreamAndClose(List<String> lines, OutputStream outputStream) {
     try (PrintStream writer = new PrintStream(outputStream)) {
       for (String line : lines) {
         writer.println(line);
@@ -395,23 +391,31 @@ public class TextIOReadTest {
 
   /**
    * Helper method that runs TextIO.read().from(filename).withCompressionType(compressionType) and
+   * TextIO.readAll().withCompressionType(compressionType) applied to the single filename, and
    * asserts that the results match the given expected output.
    */
   private void assertReadingCompressedFileMatchesExpected(
-      File file, CompressionType compressionType, String[] expected) {
+      File file, CompressionType compressionType, List<String> expected) {
 
     TextIO.Read read = TextIO.read().from(file.getPath()).withCompressionType(compressionType);
-    PCollection<String> output = p.apply("Read_" + file + "_" + compressionType.toString(), read);
+    PAssert.that(p.apply("Read_" + file + "_" + compressionType.toString(), read))
+        .containsInAnyOrder(expected);
 
-    PAssert.that(output).containsInAnyOrder(expected);
+    TextIO.ReadAll readAll =
+        TextIO.readAll().withCompressionType(compressionType).withDesiredBundleSizeBytes(10);
+    PAssert.that(
+            p.apply("Create_" + file, Create.of(file.getPath()))
+                .apply("Read_" + compressionType.toString(), readAll))
+        .containsInAnyOrder(expected);
+
     p.run();
   }
 
   /** Helper to make an array of compressible strings. Returns ["word"i] for i in range(0,n). */
-  private static String[] makeLines(int n) {
-    String[] ret = new String[n];
+  private static List<String> makeLines(int n) {
+    List<String> ret = new ArrayList<>();
     for (int i = 0; i < n; ++i) {
-      ret[i] = "word" + i;
+      ret.add("word" + i);
     }
     return ret;
   }
@@ -591,7 +595,7 @@ public class TextIOReadTest {
 
     String filename = createZipFile(expected, "multiple entries", entry0, entry1, entry2);
     assertReadingCompressedFileMatchesExpected(
-        new File(filename), CompressionType.ZIP, expected.toArray(new String[] {}));
+        new File(filename), CompressionType.ZIP, expected);
   }
 
   /**
@@ -611,7 +615,7 @@ public class TextIOReadTest {
             new String[] {"dog"});
 
     assertReadingCompressedFileMatchesExpected(
-        new File(filename), CompressionType.ZIP, new String[] {"cat", "dog"});
+        new File(filename), CompressionType.ZIP, Arrays.asList("cat", "dog"));
   }
 
   @Test
@@ -925,5 +929,21 @@ public class TextIOReadTest {
     // Exactly 1 split using .gz extension and using GZIP mode.
     assertThat(splits, hasSize(equalTo(1)));
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
+  }
+
+  @Test
+  public void testReadAll() throws IOException {
+    writeToFile(TINY, "readAllTiny1.zip", ZIP);
+    writeToFile(TINY, "readAllTiny2.zip", ZIP);
+    writeToFile(LARGE, "readAllLarge1.zip", ZIP);
+    writeToFile(LARGE, "readAllLarge2.zip", ZIP);
+    PCollection<String> lines =
+        p.apply(
+                Create.of(
+                    tempFolder.resolve("readAllTiny*").toString(),
+                    tempFolder.resolve("readAllLarge*").toString()))
+            .apply(TextIO.readAll().withCompressionType(AUTO));
+    PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
+    p.run();
   }
 }
