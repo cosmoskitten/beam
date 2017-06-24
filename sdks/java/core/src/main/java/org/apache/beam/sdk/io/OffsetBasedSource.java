@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,8 +111,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   @Override
   public List<? extends OffsetBasedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-    // Split the range into bundles based on the desiredBundleSizeBytes. Final bundle is adjusted to
-    // make sure that we do not end up with a too small bundle at the end. If the desired bundle
+    // Split the range into bundles based on the desiredBundleSizeBytes. If the desired bundle
     // size is smaller than the minBundleSize of the source then minBundleSize will be used instead.
 
     long desiredBundleSizeOffsetUnits = Math.max(
@@ -119,20 +119,10 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
         minBundleSize);
 
     List<OffsetBasedSource<T>> subSources = new ArrayList<>();
-    long start = startOffset;
-    long maxEnd = Math.min(endOffset, getMaxEndOffset(options));
-
-    while (start < maxEnd) {
-      long end = start + desiredBundleSizeOffsetUnits;
-      end = Math.min(end, maxEnd);
-      // Avoid having a too small bundle at the end and ensure that we respect minBundleSize.
-      long remaining = maxEnd - end;
-      if ((remaining < desiredBundleSizeOffsetUnits / 4) || (remaining < minBundleSize)) {
-        end = maxEnd;
-      }
-      subSources.add(createSourceForSubrange(start, end));
-
-      start = end;
+    for (OffsetRange range :
+        new OffsetRange(startOffset, Math.min(endOffset, getMaxEndOffset(options)))
+            .split(desiredBundleSizeOffsetUnits, minBundleSize)) {
+      subSources.add(createSourceForSubrange(range.getFrom(), range.getTo()));
     }
     return subSources;
   }
