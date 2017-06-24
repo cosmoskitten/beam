@@ -42,8 +42,8 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.SimpleSink.SimpleWriter;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -60,7 +60,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
@@ -168,7 +168,7 @@ public class WriteFilesTest {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
     runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename(), WriteFiles.to(
-        makeSimpleSink(), new IdentityFormatter<String>()));
+        makeSimpleSink(), SerializableFunctions.<String>identity()));
   }
 
   /**
@@ -178,7 +178,7 @@ public class WriteFilesTest {
   @Category(NeedsRunner.class)
   public void testEmptyWrite() throws IOException {
     runWrite(Collections.<String>emptyList(), IDENTITY_MAP, getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()));
+        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
     checkFileContents(getBaseOutputFilename(), Collections.<String>emptyList(),
         Optional.of(1));
   }
@@ -194,7 +194,7 @@ public class WriteFilesTest {
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         IDENTITY_MAP,
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()).withNumShards(1));
+        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()).withNumShards(1));
   }
 
   private ResourceId getBaseOutputDirectory() {
@@ -207,13 +207,6 @@ public class WriteFilesTest {
         getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE),
          "simple");
     return new SimpleSink(getBaseOutputDirectory(), filenamePolicy);
-  }
-
-  private static class IdentityFormatter<T> implements SerializableFunction<T, T> {
-    @Override
-    public T apply(T input) {
-      return input;
-    }
   }
 
   @Test
@@ -233,7 +226,8 @@ public class WriteFilesTest {
     }
 
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String, ?, String> write = WriteFiles.to(sink, new IdentityFormatter<String>())
+    WriteFiles<String, ?, String> write = WriteFiles.to(
+        sink, SerializableFunctions.<String>identity())
         .withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
@@ -255,7 +249,8 @@ public class WriteFilesTest {
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         IDENTITY_MAP,
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()).withNumShards(20));
+        WriteFiles.to(makeSimpleSink(),
+        SerializableFunctions.<String>identity()).withNumShards(20));
   }
 
   /**
@@ -266,7 +261,7 @@ public class WriteFilesTest {
   public void testWriteWithEmptyPCollection() throws IOException {
     List<String> inputs = new ArrayList<>();
     runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename(), WriteFiles.to(
-        makeSimpleSink(), new IdentityFormatter<String>()));
+        makeSimpleSink(), SerializableFunctions.<String>identity()));
   }
 
   /**
@@ -279,7 +274,8 @@ public class WriteFilesTest {
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
     runWrite(
         inputs, new WindowAndReshuffle<>(Window.<String>into(FixedWindows.of(Duration.millis(2)))),
-        getBaseOutputFilename(), WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()));
+        getBaseOutputFilename(), WriteFiles.to(
+            makeSimpleSink(), SerializableFunctions.<String>identity()));
   }
 
   /**
@@ -296,7 +292,7 @@ public class WriteFilesTest {
         new WindowAndReshuffle<>(
             Window.<String>into(Sessions.withGapDuration(Duration.millis(1)))),
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()));
+        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
   }
 
   @Test
@@ -310,13 +306,14 @@ public class WriteFilesTest {
         inputs, Window.<String>into(FixedWindows.of(Duration.millis(2))),
         getBaseOutputFilename(),
         WriteFiles
-          .to(makeSimpleSink(), new IdentityFormatter<String>())
+          .to(makeSimpleSink(), SerializableFunctions.<String>identity())
           .withMaxNumWritersPerBundle(2).withWindowedWrites());
   }
 
   public void testBuildWrite() {
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String, ?, String> write = WriteFiles.to(sink, new IdentityFormatter<String>())
+    WriteFiles<String, ?, String> write = WriteFiles.to(
+        sink, SerializableFunctions.<String>identity())
       .withNumShards(3);
     assertThat((SimpleSink) write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
@@ -347,7 +344,7 @@ public class WriteFilesTest {
           }
         };
     WriteFiles<String, ?, String> write =
-        WriteFiles.to(sink, new IdentityFormatter<String>());
+        WriteFiles.to(sink, SerializableFunctions.<String>identity());
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -363,7 +360,8 @@ public class WriteFilesTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    WriteFiles<String, ?, String> write = WriteFiles.to(sink,  new IdentityFormatter<String>())
+    WriteFiles<String, ?, String> write = WriteFiles.to(
+        sink,  SerializableFunctions.<String>identity())
       .withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
@@ -380,7 +378,7 @@ public class WriteFilesTest {
       }
     };
     WriteFiles<String, ?, String> write =
-        WriteFiles.to(sink, new IdentityFormatter<String>())
+        WriteFiles.to(sink, SerializableFunctions.<String>identity())
             .withSharding(
                 new PTransform<PCollection<String>, PCollectionView<Integer>>() {
                   @Override
@@ -429,25 +427,25 @@ public class WriteFilesTest {
 
     @Override
     public ResourceId windowedFilename(WindowedContext context,
-                                       FileMetadataProvider fileMetadataProvider) {
+                                       OutputFileHints outputFileHints) {
       IntervalWindow window = (IntervalWindow) context.getWindow();
       String filename = String.format(
           "%s-%s-of-%s%s%s",
           filenamePrefixForWindow(window), context.getShardNumber(), context.getNumShards(),
-          fileMetadataProvider.getSuggestedFilenameSuffix(), suffix);
+          outputFileHints.getSuggestedFilenameSuffix(), suffix);
       return baseFilename.getCurrentDirectory().resolve(
           filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
     public ResourceId unwindowedFilename(Context context,
-                                         FileMetadataProvider fileMetadataProvider) {
+                                         OutputFileHints outputFileHints) {
       String prefix = baseFilename.isDirectory()
           ? "" : firstNonNull(baseFilename.getFilename(), "");
       String filename = String.format(
           "%s%s-of-%s%s%s",
           prefix, context.getShardNumber(), context.getNumShards(),
-          fileMetadataProvider.getSuggestedFilenameSuffix(), suffix);
+          outputFileHints.getSuggestedFilenameSuffix(), suffix);
       return baseFilename.getCurrentDirectory().resolve(
           filename, StandardResolveOptions.RESOLVE_FILE);
     }
