@@ -263,7 +263,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
 
     // Gets the destination coder. If the user does not provide one, try to find one in the coder
     // registry. If no coder can be found, throws CannotProvideCoderException.
-    Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+    final Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
         throws CannotProvideCoderException {
       Coder<DestinationT> destinationCoder = getDestinationCoder();
       if (destinationCoder != null) {
