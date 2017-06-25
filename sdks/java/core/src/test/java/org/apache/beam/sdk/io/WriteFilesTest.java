@@ -406,6 +406,7 @@ public class WriteFilesTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testDynamicDestinations() throws Exception {
     TestDestinations dynamicDestinations = new TestDestinations(getBaseOutputDirectory());
     SimpleSink<Integer> sink =

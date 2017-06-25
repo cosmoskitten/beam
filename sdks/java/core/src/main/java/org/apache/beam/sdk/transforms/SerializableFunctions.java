@@ -29,8 +29,22 @@ public class SerializableFunctions {
     }
   }
 
+  private static class Constant<InT, OutT> implements SerializableFunction<InT, OutT> {
+    OutT value;
+    Constant(OutT value) {
+      this.value = value;
+    }
+    @Override
+    public OutT apply(InT input) {
+      return value;
+    }
+  }
 
   public static <T> SerializableFunction<T, T> identity() {
     return new Identity<>();
+  }
+
+  public static <InT, OutT> SerializableFunction<InT, OutT> constant(OutT value) {
+    return new Constant<>(value);
   }
 }
