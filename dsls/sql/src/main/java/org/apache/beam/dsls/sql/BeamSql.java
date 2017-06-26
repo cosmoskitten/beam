@@ -102,7 +102,7 @@ public class BeamSql {
    */
   private static class QueryTransform extends
       PTransform<PCollectionTuple, PCollection<BeamSqlRow>> {
-    private BeamSqlEnv sqlEnv;
+    private transient BeamSqlEnv sqlEnv;
     private String sqlQuery;
 
     public QueryTransform(String sqlQuery) {
@@ -151,7 +151,7 @@ public class BeamSql {
    */
   private static class SimpleQueryTransform
       extends PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>> {
-    BeamSqlEnv sqlEnv = new BeamSqlEnv();
+    private transient BeamSqlEnv sqlEnv = new BeamSqlEnv();
     private String sqlQuery;
 
     public SimpleQueryTransform(String sqlQuery) {

@@ -80,12 +80,10 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
 
   private double getDouble(BeamSqlRow inputRecord, BeamSqlExpression op) {
     Object raw = op.evaluate(inputRecord).getValue();
-    Double ret = null;
     if (SqlTypeName.NUMERIC_TYPES.contains(op.getOutputType())) {
-      ret = ((Number) raw).doubleValue();
+      return ((Number) raw).doubleValue();
     }
-
-    return ret;
+    return 0d;
   }
 
   /**
