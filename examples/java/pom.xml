@@ -108,6 +108,12 @@
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-sdks-java-io-hadoop-file-system</artifactId>
           <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>javax.servlet</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
