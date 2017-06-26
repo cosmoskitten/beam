@@ -1625,9 +1625,14 @@
                 <includes>
                   <include>**/*.pyc</include>
                   <include>**/*.egg-info/</include>
+                  <include>**/sdks/python/nose-*.egg/**/*</include>
+                  <include>**/sdks/python/.tox/**/*</include>
+                  <include>**/sdks/python/.eggs/**/*</include>
                   <include>**/sdks/python/LICENSE</include>
                   <include>**/sdks/python/NOTICE</include>
                   <include>**/sdks/python/README.md</include>
+                  <include>**/sdks/python/dist/**/*</include>
+                  <include>**/sdks/python/build/**/*</include>
                 </includes>
                 <followSymlinks>false</followSymlinks>
               </fileset>
