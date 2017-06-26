@@ -50,8 +50,7 @@ public class PipelineOptionsValidatorTest {
   public void testWhenRequiredOptionIsSetAndCleared() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for "
-        + "[public abstract java.lang.String org.apache.beam."
-        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
+        + "[--object, \"Fake Description\"].");
 
     Required required = PipelineOptionsFactory.as(Required.class);
     required.setObject("blah");
@@ -63,8 +62,7 @@ public class PipelineOptionsValidatorTest {
   public void testWhenRequiredOptionIsNeverSet() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for "
-        + "[public abstract java.lang.String org.apache.beam."
-        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
+        + "[--object, \"Fake Description\"].");
 
     Required required = PipelineOptionsFactory.as(Required.class);
     PipelineOptionsValidator.validate(Required.class, required);
@@ -74,8 +72,7 @@ public class PipelineOptionsValidatorTest {
   public void testWhenRequiredOptionIsNeverSetOnSuperInterface() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for "
-        + "[public abstract java.lang.String org.apache.beam."
-        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
+        + "[--object, \"Fake Description\"].");
 
     PipelineOptions options = PipelineOptionsFactory.create();
     PipelineOptionsValidator.validate(Required.class, options);
@@ -93,8 +90,7 @@ public class PipelineOptionsValidatorTest {
   public void testValidationOnOverriddenMethods() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for "
-        + "[public abstract java.lang.String org.apache.beam."
-        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
+        + "[--object, \"Fake Description\"].");
 
     SubClassValidation required = PipelineOptionsFactory.as(SubClassValidation.class);
     PipelineOptionsValidator.validate(Required.class, required);

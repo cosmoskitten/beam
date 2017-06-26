@@ -68,8 +68,8 @@ public class PipelineOptionsValidator {
           }
         } else {
           checkArgument(handler.invoke(asClassOptions, method, null) != null,
-              "Missing required value for [%s, \"%s\"]. ",
-              method, getDescription(method));
+              "Missing required value for [--%s, \"%s\"]. ",
+              handler.getOptionName(method), getDescription(method));
         }
       }
     }
