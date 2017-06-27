@@ -180,6 +180,13 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   }
 
   /**
+   * Returns true if this {@link WindowFn} always assigns an element to exactly one window.
+   */
+  public boolean assignsToOneWindow() {
+    return false;
+  }
+
+  /**
    * Returns a {@link TypeDescriptor} capturing what is known statically about the window type of
    * this {@link WindowFn} instance's most-derived class.
    *
