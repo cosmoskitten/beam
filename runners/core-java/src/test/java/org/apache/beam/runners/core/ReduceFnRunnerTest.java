@@ -1309,6 +1309,7 @@ public class ReduceFnRunnerTest {
                             .plusDelayOf(new Duration(25)))))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
+            .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS)
             .withOnTimeBehavior(Window.OnTimeBehavior.FIRE_IF_NON_EMPTY);
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
@@ -1337,6 +1338,66 @@ public class ReduceFnRunnerTest {
     assertThat(
         output.get(0),
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
+  }
+
+  /**
+   * Test that it won't fire an empty on-time pane when OnTimeBehavior is FIRE_IF_NON_EMPTY
+   * and when receiving late data.
+   */
+  @Test
+  public void testEmptyOnTimeWithOnTimeBehaviorFireIfNonEmptyAndLateData() throws Exception {
+
+    WindowingStrategy<?, IntervalWindow> strategy =
+        WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
+            .withTrigger(
+                AfterEach.<IntervalWindow>inOrder(
+                    Repeatedly.forever(
+                        AfterProcessingTime.pastFirstElementInPane()
+                            .plusDelayOf(new Duration(5)))
+                        .orFinally(AfterWatermark.pastEndOfWindow()),
+                    Repeatedly.forever(
+                        AfterProcessingTime.pastFirstElementInPane()
+                            .plusDelayOf(new Duration(25)))))
+            .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .withAllowedLateness(Duration.millis(100))
+            .withOnTimeBehavior(Window.OnTimeBehavior.FIRE_IF_NON_EMPTY);
+
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
+
+    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceProcessingTime(new Instant(0));
+
+    // Processing time timer for 5
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(1, new Instant(3)),
+        TimestampedValue.of(1, new Instant(7)),
+        TimestampedValue.of(1, new Instant(5)));
+
+    // Should fire early pane
+    tester.advanceProcessingTime(new Instant(6));
+
+    // Should not fire empty on time pane
+    tester.advanceInputWatermark(new Instant(11));
+
+    // Processing late data, and should fire late pane
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(9)));
+
+    List<WindowedValue<Integer>> output = tester.extractOutput();
+    assertEquals(2, output.size());
+
+    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(1, 9, 0, 10));
+
+    assertThat(
+        output.get(0),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
+    assertThat(
+        output.get(1),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE, 1, -1)));
   }
 
   /**
