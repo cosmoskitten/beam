@@ -190,7 +190,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                        maptask_executor_runner.InMemorySource)
             and isinstance(operation.source.source.default_output_coder(),
                            WindowedValueCoder)):
-          input_data[(transform_id, 'input')] = self._reencode_elements(
+          input_data[(transform_id, 'out')] = self._reencode_elements(
               operation.source.source.read(None),
               operation.source.source.default_output_coder())
           transform_spec = beam_runner_api_pb2.FunctionSpec(
@@ -309,7 +309,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             sink_op.output_buffer.append(e)
         return
 
-  def execute_map_tasks(self, ordered_map_tasks, direct=True):
+  def execute_map_tasks(self, ordered_map_tasks, direct=False):
     if direct:
       controller = FnApiRunner.DirectController()
     else:
