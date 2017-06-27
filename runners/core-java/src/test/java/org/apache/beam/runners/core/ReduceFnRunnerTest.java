@@ -1385,19 +1385,20 @@ public class ReduceFnRunnerTest {
     // Processing late data, and should fire late pane
     tester.injectElements(
         TimestampedValue.of(1, new Instant(9)));
+    tester.advanceProcessingTime(new Instant(6 + 25 + 1));
 
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
     assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
-    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(1, 9, 0, 10));
+    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(5, 9, 0, 10));
 
     assertThat(
         output.get(0),
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
     assertThat(
         output.get(1),
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE, 1, -1)));
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE, 1, 0)));
   }
 
   /**
