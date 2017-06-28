@@ -636,10 +636,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Enriches TimerData with state necessary for processing a timer as well as
-   * common queries about a timer.
+   * A descriptor of the activation for a window based on a timer.
    */
-  private class EnrichedTimerData {
+  private class WindowActivation {
     public final ReduceFn<K, InputT, OutputT, W>.Context directContext;
     public final ReduceFn<K, InputT, OutputT, W>.Context renamedContext;
     // If this is an end-of-window timer then we may need to set a garbage collection timer
@@ -650,7 +649,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // end-of-window time to be a signal to garbage collect.
     public final boolean isGarbageCollection;
 
-    EnrichedTimerData(
+    WindowActivation(
         ReduceFn<K, InputT, OutputT, W>.Context directContext,
         ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
       this.directContext = directContext;
@@ -664,9 +663,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
               timerInternals.currentOutputWatermarkTime() == null
           || !timerInternals.currentOutputWatermarkTime().isAfter(window.maxTimestamp());
 
-      // The "end of the window" is reached when the input watermark surpasses it but
-      // the output watermark has not. After data is emitted and the watermark is released,
-      // it is necessarily the case that the output watermark will exceed the end of the window.
+      // The "end of the window" is reached when the local input watermark (for this key) surpasses
+      // it but the local output watermark (also for this key) has not. After data is emitted and
+      // the output watermark hold is released, the output watermark on this key will immediately
+      // exceed the end of the window (otherwise we could see multiple ON_TIME outputs)
       this.isEndOfWindow =
           timerInternals.currentInputWatermarkTime().isAfter(window.maxTimestamp())
               && outputWatermarkBeforeEOW;
@@ -697,7 +697,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     // Create a reusable context for each window and begin prefetching necessary
     // state.
-    Map<BoundedWindow, EnrichedTimerData> enrichedTimers = new HashMap();
+    Map<BoundedWindow, WindowActivation> windowActivations = new HashMap();
 
     for (TimerData timer : timers) {
       checkArgument(timer.getNamespace() instanceof WindowNamespace,
@@ -714,8 +714,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           timerInternals.currentOutputWatermarkTime());
 
       // Processing time timers for an expired window are ignored, just like elements
-      // that show up too late
-      if (TimeDomain.PROCESSING_TIME == timer.getDomain() && windowIsExpired(window)) {
+      // that show up too late. Window GC is management by an event time timer
+      if (TimeDomain.EVENT_TIME != timer.getDomain() && windowIsExpired(window)) {
         continue;
       }
 
@@ -723,7 +723,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // of the timer. This makes us robust to large leaps in processing time and watermark
       // time, where both EOW and GC timers come in together and we need to GC and emit
       // the final pane.
-      if (enrichedTimers.containsKey(window)) {
+      if (windowActivations.containsKey(window)) {
         continue;
       }
 
@@ -731,11 +731,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           contextFactory.base(window, StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =
           contextFactory.base(window, StateStyle.RENAMED);
-      EnrichedTimerData enrichedTimer = new EnrichedTimerData(directContext, renamedContext);
-      enrichedTimers.put(window, enrichedTimer);
+      WindowActivation windowActivation = new WindowActivation(directContext, renamedContext);
+      windowActivations.put(window, windowActivation);
 
       // Perform prefetching of state to determine if the trigger should fire.
-      if (enrichedTimer.isGarbageCollection) {
+      if (windowActivation.isGarbageCollection) {
         triggerRunner.prefetchIsClosed(directContext.state());
       } else {
         triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
@@ -743,7 +743,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     // For those windows that are active and open, prefetch the triggering or emitting state.
-    for (EnrichedTimerData timer : enrichedTimers.values()) {
+    for (WindowActivation timer : windowActivations.values()) {
       if (timer.windowIsActiveAndOpen()) {
         ReduceFn<K, InputT, OutputT, W>.Context directContext = timer.directContext;
         if (timer.isGarbageCollection) {
@@ -756,11 +756,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     // Perform processing now that everything is prefetched.
-    for (EnrichedTimerData timer : enrichedTimers.values()) {
-      ReduceFn<K, InputT, OutputT, W>.Context directContext = timer.directContext;
-      ReduceFn<K, InputT, OutputT, W>.Context renamedContext = timer.renamedContext;
+    for (WindowActivation windowActivation : windowActivations.values()) {
+      ReduceFn<K, InputT, OutputT, W>.Context directContext = windowActivation.directContext;
+      ReduceFn<K, InputT, OutputT, W>.Context renamedContext = windowActivation.renamedContext;
 
-      if (timer.isGarbageCollection) {
+      if (windowActivation.isGarbageCollection) {
         WindowTracing.debug(
             "{}: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
             ReduceFnRunner.class.getSimpleName(),
@@ -769,14 +769,14 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
 
-        boolean windowIsActiveAndOpen = timer.windowIsActiveAndOpen();
+        boolean windowIsActiveAndOpen = windowActivation.windowIsActiveAndOpen();
         if (windowIsActiveAndOpen) {
           // We need to call onTrigger to emit the final pane if required.
           // The final pane *may* be ON_TIME if no prior ON_TIME pane has been emitted,
           // and the watermark has passed the end of the window.
           @Nullable
           Instant newHold = onTrigger(
-              directContext, renamedContext, true /* isFinished */, timer.isEndOfWindow);
+              directContext, renamedContext, true /* isFinished */, windowActivation.isEndOfWindow);
           checkState(newHold == null, "Hold placed at %s despite isFinished being true.", newHold);
         }
 
@@ -791,13 +791,13 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             directContext.window(),
             timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
-        if (timer.windowIsActiveAndOpen()
+        if (windowActivation.windowIsActiveAndOpen()
             && triggerRunner.shouldFire(
                    directContext.window(), directContext.timers(), directContext.state())) {
           emit(directContext, renamedContext);
         }
 
-        if (timer.isEndOfWindow) {
+        if (windowActivation.isEndOfWindow) {
           // If the window strategy trigger includes a watermark trigger then at this point
           // there should be no data holds, either because we'd already cleared them on an
           // earlier onTrigger, or because we just cleared them on the above emit.
