@@ -1330,14 +1330,21 @@ public class ReduceFnRunnerTest {
 
     // Should not fire empty on time pane
     tester.advanceInputWatermark(new Instant(11));
+
+    // Should fire final GC pane
+    tester.advanceInputWatermark(new Instant(10 + 100));
     List<WindowedValue<Integer>> output = tester.extractOutput();
-    assertEquals(1, output.size());
+    assertEquals(2, output.size());
 
     assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(4, 9, 0, 10));
 
     assertThat(
         output.get(0),
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
+    assertThat(
+        output.get(1),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 1, 0)));
   }
 
   /**
