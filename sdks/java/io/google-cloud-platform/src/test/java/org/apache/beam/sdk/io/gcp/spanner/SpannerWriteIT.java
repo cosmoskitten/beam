@@ -42,6 +42,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.commons.text.CharacterPredicate;
+import org.apache.commons.text.CharacterPredicates;
 import org.apache.commons.text.RandomStringGenerator;
 
 import org.junit.After;
@@ -116,9 +118,12 @@ public class SpannerWriteIT {
   }
 
   private String generateDatabaseName() {
-    String random = new RandomStringGenerator.Builder().build()
-        .generate(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length())
-        .toLowerCase();
+    String random =
+        new RandomStringGenerator.Builder()
+            .withinRange('a', 'z')
+            .build()
+            .generate(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length())
+            .toLowerCase();
     return options.getDatabaseIdPrefix() + "-" + random;
   }
 
