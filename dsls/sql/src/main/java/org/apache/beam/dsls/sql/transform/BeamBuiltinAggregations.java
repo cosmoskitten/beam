@@ -17,6 +17,7 @@
  */
 package org.apache.beam.dsls.sql.transform;
 
+import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.Arrays;
 import java.util.List;
@@ -26,11 +27,11 @@ import org.apache.beam.dsls.sql.schema.BeamSqlUdaf;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 
 /**
- * Build-in aggregations functions for COUNT/MAX/MIN/SUM/AVG.
+ * Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG.
  */
 class BeamBuiltinAggregations {
   /**
-   * Build-in aggregation for COUNT.
+   * Built-in aggregation for COUNT.
    */
   public static class Count<T> extends BeamSqlUdaf<T, Long> {
     private BeamSqlRecordType accType;
@@ -65,7 +66,7 @@ class BeamBuiltinAggregations {
   }
 
   /**
-   * Build-in aggregation for MAX.
+   * Built-in aggregation for MAX.
    */
   public static class Max<T extends Comparable<T>> extends BeamSqlUdaf<T, T> {
     private BeamSqlRecordType accType;
@@ -106,7 +107,7 @@ class BeamBuiltinAggregations {
   }
 
   /**
-   * Build-in aggregation for MIN.
+   * Built-in aggregation for MIN.
    */
   public static class Min<T extends Comparable<T>> extends BeamSqlUdaf<T, T> {
     private BeamSqlRecordType accType;
@@ -147,12 +148,12 @@ class BeamBuiltinAggregations {
   }
 
   /**
-   * Build-in aggregation for SUM.
+   * Built-in aggregation for SUM.
    */
   public static class Sum<T> extends BeamSqlUdaf<T, T> {
     private static List<Integer> supportedType = Arrays.asList(Types.INTEGER,
         Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.DOUBLE,
-        Types.FLOAT);
+        Types.FLOAT, Types.DECIMAL);
 
     private int outputFieldType;
     private BeamSqlRecordType accType;
@@ -165,68 +166,69 @@ class BeamBuiltinAggregations {
 
       this.outputFieldType = outputFieldType;
       this.accType = BeamSqlRecordType.create(Arrays.asList("__sum"),
-          Arrays.asList(Types.DOUBLE)); //by default use DOUBLE to store the value.
+          Arrays.asList(Types.DECIMAL)); //by default use DOUBLE to store the value.
     }
 
     @Override
     public BeamSqlRow init() {
-      return new BeamSqlRow(accType, Arrays.<Object>asList(0.0));
+      return new BeamSqlRow(accType, Arrays.<Object>asList(new BigDecimal(0)));
     }
 
     @Override
     public BeamSqlRow add(BeamSqlRow accumulator, T input) {
-      return new BeamSqlRow(accType, Arrays.<Object>asList(accumulator.getDouble(0)
-          + Double.valueOf(input.toString())));
+      return new BeamSqlRow(accType, Arrays.<Object>asList(accumulator.getBigDecimal(0)
+          .add(new BigDecimal(input.toString()))));
     }
 
     @Override
     public BeamSqlRow merge(Iterable<BeamSqlRow> accumulators) {
-      double v = 0.0;
+      BigDecimal v = new BigDecimal(0);
       while (accumulators.iterator().hasNext()) {
-        v += accumulators.iterator().next().getDouble(0);
+        v.add(accumulators.iterator().next().getBigDecimal(0));
       }
       return new BeamSqlRow(accType, Arrays.<Object>asList(v));
     }
 
     @Override
     public T result(BeamSqlRow accumulator) {
-      BeamSqlRow result = new BeamSqlRow(
-          BeamSqlRecordType.create(Arrays.asList("__sum"), Arrays.asList(outputFieldType)));
+      Object result = null;
       switch (outputFieldType) {
       case Types.INTEGER:
-        result.addField(0, (int) accumulator.getDouble(0));
+        result = accumulator.getBigDecimal(0).intValue();
         break;
       case Types.BIGINT:
-        result.addField(0, (long) accumulator.getDouble(0));
+        result = accumulator.getBigDecimal(0).longValue();
         break;
       case Types.SMALLINT:
-        result.addField(0, (short) accumulator.getDouble(0));
+        result = accumulator.getBigDecimal(0).shortValue();
         break;
       case Types.TINYINT:
-        result.addField(0, (byte) accumulator.getDouble(0));
+        result = accumulator.getBigDecimal(0).byteValue();
         break;
       case Types.DOUBLE:
-        result.addField(0, accumulator.getDouble(0));
+        result = accumulator.getBigDecimal(0).doubleValue();
         break;
       case Types.FLOAT:
-        result.addField(0, (float) accumulator.getDouble(0));
+        result = accumulator.getBigDecimal(0).floatValue();
         break;
-
+      case Types.DECIMAL:
+        result = accumulator.getBigDecimal(0);
+        break;
       default:
         break;
       }
-      return (T) result.getFieldValue(0);
+      return (T) result;
     }
 
   }
 
   /**
-   * Build-in aggregation for AVG.
+   * Built-in aggregation for AVG.
    */
   public static class Avg<T> extends BeamSqlUdaf<T, T> {
     private static List<Integer> supportedType = Arrays.asList(Types.INTEGER,
         Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.DOUBLE,
-        Types.FLOAT);
+        Types.FLOAT, Types.DECIMAL);
 
     private int outputFieldType;
     private BeamSqlRecordType accType;
@@ -239,30 +241,29 @@ class BeamBuiltinAggregations {
 
       this.outputFieldType = outputFieldType;
       this.accType = BeamSqlRecordType.create(Arrays.asList("__sum", "size"),
-          Arrays.asList(Types.DOUBLE, Types.BIGINT)); //by default use DOUBLE to store the value.
+          Arrays.asList(Types.DECIMAL, Types.BIGINT)); //by default use DOUBLE to store the value.
     }
 
     @Override
     public BeamSqlRow init() {
-      return new BeamSqlRow(accType, Arrays.<Object>asList(0.0, 0L));
+      return new BeamSqlRow(accType, Arrays.<Object>asList(new BigDecimal(0), 0L));
     }
 
     @Override
     public BeamSqlRow add(BeamSqlRow accumulator, T input) {
       return new BeamSqlRow(accType,
           Arrays.<Object>asList(
-              accumulator.getDouble(0)
-                  + Double.valueOf(input.toString()),
+              accumulator.getBigDecimal(0).add(new BigDecimal(input.toString())),
               accumulator.getLong(1) + 1));
     }
 
     @Override
     public BeamSqlRow merge(Iterable<BeamSqlRow> accumulators) {
-      double v = 0.0;
+      BigDecimal v = new BigDecimal(0);
       long s = 0;
       while (accumulators.iterator().hasNext()) {
         BeamSqlRow r = accumulators.iterator().next();
-        v += r.getDouble(0);
+        v.add(r.getBigDecimal(0));
         s += r.getLong(1);
       }
       return new BeamSqlRow(accType, Arrays.<Object>asList(v, s));
@@ -270,32 +271,35 @@ class BeamBuiltinAggregations {
 
     @Override
     public T result(BeamSqlRow accumulator) {
-      BeamSqlRow result = new BeamSqlRow(
-          BeamSqlRecordType.create(Arrays.asList("__avg"), Arrays.asList(outputFieldType)));
+      Object result = null;
+      BigDecimal decimalAvg = accumulator.getBigDecimal(0).divide(
+          new BigDecimal(accumulator.getLong(1)));
       switch (outputFieldType) {
       case Types.INTEGER:
-        result.addField(0, (int) (accumulator.getDouble(0) / accumulator.getLong(1)));
+        result = decimalAvg.intValue();
         break;
       case Types.BIGINT:
-        result.addField(0, (long) (accumulator.getDouble(0) / accumulator.getLong(1)));
+        result = decimalAvg.longValue();
         break;
       case Types.SMALLINT:
-        result.addField(0, (short) (accumulator.getDouble(0) / accumulator.getLong(1)));
+        result = decimalAvg.shortValue();
         break;
       case Types.TINYINT:
-        result.addField(0, (byte) (accumulator.getDouble(0) / accumulator.getLong(1)));
+        result = decimalAvg.byteValue();
         break;
       case Types.DOUBLE:
-        result.addField(0, accumulator.getDouble(0) / accumulator.getLong(1));
+        result = decimalAvg.doubleValue();
         break;
       case Types.FLOAT:
-        result.addField(0, (float) (accumulator.getDouble(0) / accumulator.getLong(1)));
+        result = decimalAvg.floatValue();
         break;
-
+      case Types.DECIMAL:
+        result = decimalAvg;
+        break;
       default:
         break;
       }
-      return (T) result.getFieldValue(0);
+      return (T) result;
     }
 
   }

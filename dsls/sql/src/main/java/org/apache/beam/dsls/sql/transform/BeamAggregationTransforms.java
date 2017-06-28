@@ -18,6 +18,7 @@
 package org.apache.beam.dsls.sql.transform;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -184,6 +185,9 @@ public class BeamAggregationTransforms implements Serializable{
           case TIMESTAMP:
             aggregators.add(new BeamBuiltinAggregations.Max<Date>(outFieldType));
             break;
+          case DECIMAL:
+            aggregators.add(new BeamBuiltinAggregations.Max<BigDecimal>(outFieldType));
+            break;
           default:
             throw new UnsupportedOperationException();
           }
@@ -211,6 +215,9 @@ public class BeamAggregationTransforms implements Serializable{
           case TIMESTAMP:
             aggregators.add(new BeamBuiltinAggregations.Min<Date>(outFieldType));
             break;
+          case DECIMAL:
+            aggregators.add(new BeamBuiltinAggregations.Min<BigDecimal>(outFieldType));
+            break;
           default:
             throw new UnsupportedOperationException();
           }
@@ -235,6 +242,9 @@ public class BeamAggregationTransforms implements Serializable{
           case DOUBLE:
             aggregators.add(new BeamBuiltinAggregations.Sum<Double>(outFieldType));
             break;
+          case DECIMAL:
+            aggregators.add(new BeamBuiltinAggregations.Sum<BigDecimal>(outFieldType));
+            break;
           default:
             throw new UnsupportedOperationException();
           }
@@ -258,6 +268,9 @@ public class BeamAggregationTransforms implements Serializable{
             break;
           case DOUBLE:
             aggregators.add(new BeamBuiltinAggregations.Avg<Double>(outFieldType));
+            break;
+          case DECIMAL:
+            aggregators.add(new BeamBuiltinAggregations.Avg<BigDecimal>(outFieldType));
             break;
           default:
             throw new UnsupportedOperationException();
