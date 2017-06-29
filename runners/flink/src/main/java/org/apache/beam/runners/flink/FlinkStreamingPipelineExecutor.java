@@ -139,20 +139,6 @@ class FlinkStreamingPipelineExecutor implements FlinkPipelineExecutor {
 
     JobExecutionResult jobResult = env.execute(options.getJobName());
 
-    if (jobResult instanceof DetachedEnvironment.DetachedJobExecutionResult) {
-      LOG.info("Pipeline submitted in Detached mode");
-      return new FlinkDetachedRunnerResult();
-    } else {
-      LOG.info("Execution finished in {} msecs", jobResult.getNetRuntime());
-      Map<String, Object> accumulators = jobResult.getAllAccumulatorResults();
-      if (accumulators != null && !accumulators.isEmpty()) {
-        LOG.info("Final accumulator values:");
-        for (Map.Entry<String, Object> entry : jobResult.getAllAccumulatorResults().entrySet()) {
-          LOG.info("{} : {}", entry.getKey(), entry.getValue());
-        }
-      }
-
-      return new FlinkRunnerResult(accumulators, jobResult.getNetRuntime());
-    }
+    return FlinkRunnerResultUtil.wrapFlinkRunnerResult(LOG, jobResult);
   }
 }
