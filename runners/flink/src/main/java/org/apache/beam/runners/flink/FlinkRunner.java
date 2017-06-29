@@ -108,6 +108,8 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
 
+    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options.isStreaming()));
+
     FlinkPipelineExecutor executor;
     if (streaming) {
       executor = new FlinkStreamingPipelineExecutor();
