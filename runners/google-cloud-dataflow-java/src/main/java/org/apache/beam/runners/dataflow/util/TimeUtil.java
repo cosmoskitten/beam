@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Strings;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -105,7 +107,10 @@ public final class TimeUtil {
   }
 
   private static int computeMillis(String frac) {
-    return frac != null ? (int) (Integer.valueOf(frac) * Math.pow(10, 3 - frac.length())) : 0;
+    if (frac == null) {
+      return 0;
+    }
+    return Integer.valueOf(frac.length() > 3 ? frac.substring(0, 3) : Strings.padEnd(frac, 3, '0'));
   }
 
   /**
