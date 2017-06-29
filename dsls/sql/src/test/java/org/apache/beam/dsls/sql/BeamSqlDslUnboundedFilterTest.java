@@ -25,9 +25,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
 /**
- * Tests for WHERE queries.
+ * Tests for WHERE queries with UNBOUNDED PCollection.
  */
-public class BeamSqlDslFilterTest extends BeamSqlDslBase {
+public class BeamSqlDslUnboundedFilterTest extends BeamSqlDslBase {
   /**
    * single filter.
    */
@@ -36,7 +36,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
     PCollection<BeamSqlRow> result =
-        inputA1.apply("testSingleFilter", BeamSql.simpleQuery(sql));
+        unboundedInput1.apply("testSingleFilter", BeamSql.simpleQuery(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(0));
 
@@ -52,7 +52,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
         + " WHERE f_int > 1 AND (f_long < 3000 OR f_string = 'string_row3')";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), unboundedInput1)
         .apply("testCompositeFilter", BeamSql.query(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(1), recordsInTableA.get(2));
@@ -68,7 +68,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM TABLE_A WHERE f_int < 1";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), unboundedInput1)
         .apply("testNoReturnFilter", BeamSql.query(sql));
 
     PAssert.that(result).empty();

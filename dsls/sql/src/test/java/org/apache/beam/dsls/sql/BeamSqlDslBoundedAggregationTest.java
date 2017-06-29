@@ -29,9 +29,10 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /**
- * Tests for GROUP-BY/aggregation, with global_window/fix_time_window/sliding_window/session_window.
+ * Tests for GROUP-BY/aggregation, with global_window/fix_time_window/sliding_window/session_window
+ * with BOUNDED PCollection.
  */
-public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
+public class BeamSqlDslBoundedAggregationTest extends BeamSqlDslBase {
   /**
    * GROUP-BY with single aggregation function.
    */
@@ -40,7 +41,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<BeamSqlRow> result =
-        inputA1.apply("testAggregationWithoutWindow", BeamSql.simpleQuery(sql));
+        boundedInput1.apply("testAggregationWithoutWindow", BeamSql.simpleQuery(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
@@ -70,7 +71,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + "FROM TABLE_A group by f_int2";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), boundedInput1)
         .apply("testAggregationFunctions", BeamSql.query(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(
@@ -128,7 +129,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     String sql = "SELECT distinct f_int, f_long FROM PCOLLECTION ";
 
     PCollection<BeamSqlRow> result =
-        inputA1.apply("testDistinct", BeamSql.simpleQuery(sql));
+        boundedInput1.apply("testDistinct", BeamSql.simpleQuery(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
@@ -162,7 +163,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     String sql = "SELECT f_int2, COUNT(*) AS `size` FROM TABLE_A "
         + "GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), boundedInput1)
         .apply("testTumbleWindow", BeamSql.query(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
@@ -193,7 +194,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION "
         + "GROUP BY f_int2, HOP(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE)";
     PCollection<BeamSqlRow> result =
-        inputA1.apply("testHopWindow", BeamSql.simpleQuery(sql));
+        boundedInput1.apply("testHopWindow", BeamSql.simpleQuery(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
@@ -235,7 +236,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     String sql = "SELECT f_int2, COUNT(*) AS `size` FROM TABLE_A "
         + "GROUP BY f_int2, SESSION(f_timestamp, INTERVAL '5' MINUTE)";
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), boundedInput1)
         .apply("testSessionWindow", BeamSql.query(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
