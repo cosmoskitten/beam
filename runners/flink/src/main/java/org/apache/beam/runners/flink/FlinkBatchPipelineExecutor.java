@@ -18,13 +18,11 @@
 package org.apache.beam.runners.flink;
 
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.DetachedEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,21 +45,7 @@ class FlinkBatchPipelineExecutor implements FlinkPipelineExecutor {
 
     JobExecutionResult result = env.execute(options.getJobName());
 
-    if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
-      LOG.info("Pipeline submitted in Detached mode");
-      return new FlinkDetachedRunnerResult();
-    } else {
-      LOG.info("Execution finished in {} msecs", result.getNetRuntime());
-      Map<String, Object> accumulators = result.getAllAccumulatorResults();
-      if (accumulators != null && !accumulators.isEmpty()) {
-        LOG.info("Final accumulator values:");
-        for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
-          LOG.info("{} : {}", entry.getKey(), entry.getValue());
-        }
-      }
-
-      return new FlinkRunnerResult(accumulators, result.getNetRuntime());
-    }
+    return FlinkRunnerResultUtil.wrapFlinkRunnerResult(LOG, result);
   }
 
   private ExecutionEnvironment createBatchExecutionEnvironment(FlinkPipelineOptions options) {
