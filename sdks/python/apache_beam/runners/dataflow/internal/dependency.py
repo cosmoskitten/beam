@@ -50,8 +50,6 @@ shared staging location.
 
 TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
-
-TODO(tvalentyn): Use enumerated type instead of strings for job types.
 """
 
 import functools
@@ -490,8 +488,9 @@ def get_default_container_image_for_current_sdk(job_type):
 
   Returns:
     str: Google Cloud Dataflow container image for remote execution.
-  """
-  if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+  """  
+# TODO(tvalentyn): Use enumerated type instead of strings for job types.
+if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
     image_name = 'dataflow.gcr.io/v1beta3/python-fnapi'
   else:
     image_name = 'dataflow.gcr.io/v1beta3/python'
