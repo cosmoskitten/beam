@@ -1348,6 +1348,47 @@ public class ReduceFnRunnerTest {
   }
 
   /**
+   * Test that it fires an empty on-time isFinished pane when OnTimeBehavior is FIRE_ALWAYS
+   * and ClosingBehavior is FIRE_IF_NON_EMPTY.
+   *
+   * <p>This is a test just for backward compatibility.
+   */
+  @Test
+  public void testEmptyOnTimeWithOnTimeBehaviorBackwardCompatibility() throws Exception {
+
+    WindowingStrategy<?, IntervalWindow> strategy =
+        WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
+            .withTrigger(AfterWatermark.pastEndOfWindow()
+                .withEarlyFirings(AfterPane.elementCountAtLeast(1)))
+            .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .withAllowedLateness(Duration.millis(0))
+            .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY);
+
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
+
+    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceProcessingTime(new Instant(0));
+
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)));
+
+    // Should fire empty on time isFinished pane
+    tester.advanceInputWatermark(new Instant(11));
+
+    List<WindowedValue<Integer>> output = tester.extractOutput();
+    assertEquals(2, output.size());
+
+    assertThat(
+        output.get(0),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
+    assertThat(
+        output.get(1),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.ON_TIME, 1, 0)));
+  }
+
+  /**
    * Test that it won't fire an empty on-time pane when OnTimeBehavior is FIRE_IF_NON_EMPTY
    * and when receiving late data.
    */
