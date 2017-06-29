@@ -18,11 +18,9 @@
 package org.apache.beam.runners.flink;
 
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.DetachedEnvironment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
