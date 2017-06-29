@@ -90,7 +90,10 @@ import org.junit.runners.JUnit4;
 public class AvroIOTest {
 
   @Rule
-  public TestPipeline p = TestPipeline.create();
+  public TestPipeline writePipeline = TestPipeline.create();
+
+  @Rule
+  public TestPipeline readPipeline = TestPipeline.create();
 
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -141,19 +144,19 @@ public class AvroIOTest {
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
-    p.apply(Create.of(values))
+    writePipeline.apply(Create.of(values))
      .apply(AvroIO.write(GenericClass.class)
          .to(outputFile.getAbsolutePath())
          .withoutSharding());
-    p.run();
+    writePipeline.run().waitUntilFinish();
 
     PCollection<GenericClass> input =
-        p.apply(
+        readPipeline.apply(
             AvroIO.read(GenericClass.class)
                 .from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(values);
-    p.run();
+    readPipeline.run();
   }
 
   @Test
@@ -164,19 +167,19 @@ public class AvroIOTest {
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
-    p.apply(Create.of(values))
+    writePipeline.apply(Create.of(values))
      .apply(AvroIO.write(GenericClass.class)
          .to(outputFile.getAbsolutePath())
          .withoutSharding()
          .withCodec(CodecFactory.deflateCodec(9)));
-    p.run();
+    writePipeline.run().waitUntilFinish();
 
-    PCollection<GenericClass> input = p
+    PCollection<GenericClass> input = readPipeline
         .apply(AvroIO.read(GenericClass.class)
             .from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(values);
-    p.run();
+    readPipeline.run();
     DataFileStream dataFileStream = new DataFileStream(new FileInputStream(outputFile),
         new GenericDatumReader());
     assertEquals("deflate", dataFileStream.getMetaString("avro.codec"));
@@ -190,19 +193,19 @@ public class AvroIOTest {
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
-    p.apply(Create.of(values))
+    writePipeline.apply(Create.of(values))
       .apply(AvroIO.write(GenericClass.class)
           .to(outputFile.getAbsolutePath())
           .withoutSharding()
           .withCodec(CodecFactory.nullCodec()));
-    p.run();
+    writePipeline.run().waitUntilFinish();
 
-    PCollection<GenericClass> input = p
+    PCollection<GenericClass> input = readPipeline
         .apply(AvroIO.read(GenericClass.class)
             .from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(values);
-    p.run();
+    readPipeline.run();
     DataFileStream dataFileStream = new DataFileStream(new FileInputStream(outputFile),
         new GenericDatumReader());
     assertEquals("null", dataFileStream.getMetaString("avro.codec"));
@@ -257,22 +260,22 @@ public class AvroIOTest {
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
-    p.apply(Create.of(values))
+    writePipeline.apply(Create.of(values))
       .apply(AvroIO.write(GenericClass.class)
           .to(outputFile.getAbsolutePath())
           .withoutSharding());
-    p.run();
+    writePipeline.run().waitUntilFinish();
 
     List<GenericClassV2> expected = ImmutableList.of(new GenericClassV2(3, "hi", null),
         new GenericClassV2(5, "bar", null));
 
     PCollection<GenericClassV2> input =
-        p.apply(
+        readPipeline.apply(
             AvroIO.read(GenericClassV2.class)
                 .from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(expected);
-    p.run();
+    readPipeline.run();
   }
 
   private static class WindowedFilenamePolicy extends FilenamePolicy {
@@ -444,7 +447,7 @@ public class AvroIOTest {
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
-    p.apply(Create.of(values))
+    writePipeline.apply(Create.of(values))
         .apply(AvroIO.write(GenericClass.class)
             .to(outputFile.getAbsolutePath())
             .withoutSharding()
@@ -452,7 +455,7 @@ public class AvroIOTest {
                 "stringKey", "stringValue",
                 "longKey", 100L,
                 "bytesKey", "bytesValue".getBytes())));
-    p.run();
+    writePipeline.run();
 
     DataFileStream dataFileStream = new DataFileStream(new FileInputStream(outputFile),
         new GenericDatumReader());
@@ -475,8 +478,8 @@ public class AvroIOTest {
       System.out.println("no sharding");
       write = write.withoutSharding();
     }
-    p.apply(Create.of(ImmutableList.copyOf(expectedElements))).apply(write);
-    p.run();
+    writePipeline.apply(Create.of(ImmutableList.copyOf(expectedElements))).apply(write);
+    writePipeline.run();
 
     String shardNameTemplate =
         firstNonNull(write.getShardTemplate(),
@@ -575,7 +578,7 @@ public class AvroIOTest {
 
   @Test
   public void testWindowedWriteRequiresFilenamePolicy() {
-    PCollection<String> emptyInput = p.apply(Create.empty(StringUtf8Coder.of()));
+    PCollection<String> emptyInput = writePipeline.apply(Create.empty(StringUtf8Coder.of()));
     AvroIO.Write write = AvroIO.write(String.class).to("/tmp/some/file").withWindowedWrites();
 
     expectedException.expect(IllegalStateException.class);
