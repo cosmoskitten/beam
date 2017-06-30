@@ -63,6 +63,9 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   protected List<MatchResult> match(List<String> specs) throws IOException {
     ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
     for (String spec : specs) {
+      if (spec.startsWith("file:")) {
+        spec = spec.substring("file:".length());
+      }
       ret.add(matchOne(spec));
     }
     return ret.build();
@@ -176,6 +179,8 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   private MatchResult matchOne(String spec) throws IOException {
+    LOG.error("********* LocalFileSystem inside matchOne, spec: " + spec);
+    LOG.error("********* LocalFileSystem inside matchOne, Paths.get(spec): " + Paths.get(spec));
     File file = Paths.get(spec).toFile();
 
     if (file.exists()) {

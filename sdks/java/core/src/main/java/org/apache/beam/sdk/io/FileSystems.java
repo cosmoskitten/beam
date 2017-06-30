@@ -62,6 +62,8 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Clients facing {@link FileSystem} utility.
@@ -69,9 +71,9 @@ import org.apache.beam.sdk.values.KV;
 @Experimental(Kind.FILESYSTEM)
 public class FileSystems {
 
-  public static final String DEFAULT_SCHEME = "default";
   private static final Pattern FILE_SCHEME_PATTERN =
       Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):.*");
+  private static final Logger LOG = LoggerFactory.getLogger(FileSystems.class);
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<Map<String, FileSystem>>(
@@ -108,6 +110,8 @@ public class FileSystems {
    * metadata with {@link MatchResult#metadata()}.
    */
   public static List<MatchResult> match(List<String> specs) throws IOException {
+    LOG.error("********* FileSystems inside match, specs: " + specs);
+    LOG.error("********* FileSystems inside match, getOnlyScheme: " + getOnlyScheme(specs));
     return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
   }
 
@@ -440,7 +444,7 @@ public class FileSystems {
     if (rval != null) {
       return rval;
     }
-    rval = schemeToFileSystem.get(DEFAULT_SCHEME);
+    rval = schemeToFileSystem.get("file");
     if (rval != null) {
       return rval;
     }
