@@ -249,8 +249,6 @@ class SdkWorker(object):
   def register(self, request, unused_instruction_id=None):
     for process_bundle_descriptor in request.process_bundle_descriptor:
       self.fns[process_bundle_descriptor.id] = process_bundle_descriptor
-      for p_transform in list(process_bundle_descriptor.primitive_transform):
-        self.fns[p_transform.function_spec.id] = p_transform.function_spec
     return beam_fn_api_pb2.RegisterResponse()
 
   def create_execution_tree(self, descriptor):
