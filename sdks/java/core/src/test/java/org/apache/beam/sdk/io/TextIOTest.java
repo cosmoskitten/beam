@@ -305,11 +305,10 @@ public class TextIOTest {
 
     @Override
     public FilenamePolicy getFilenamePolicy(String destination) {
-      DefaultFilenamePolicy.Params params = DefaultFilenamePolicy.Params.fromStandardParameters(
+      return DefaultFilenamePolicy.fromStandardParameters(
           StaticValueProvider.of(baseDir.resolve("file_" + destination + ".txt",
               StandardResolveOptions.RESOLVE_FILE)),
           null, null, false);
-      return DefaultFilenamePolicy.fromParams(params);
     }
   }
 
