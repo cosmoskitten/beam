@@ -43,7 +43,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
-import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -343,12 +342,12 @@ public class WriteFilesTest {
   @Test
   public void testDisplayData() {
     DynamicDestinations<String, Void> dynamicDestinations =
-        new ConstantFilenamePolicy<>(
+        DynamicFileDestinations.constant(
             DefaultFilenamePolicy.fromParams(
-                new Params(
-                    getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE),
-                    "-SS-of-NN",
-                    "")));
+                new Params()
+                    .withBaseFilename(getBaseOutputDirectory().resolve(
+                        "file", StandardResolveOptions.RESOLVE_FILE))
+                    .withShardTemplate("-SS-of-NN")));
     SimpleSink<Void> sink =
         new SimpleSink<Void>(
             getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED) {
@@ -443,12 +442,12 @@ public class WriteFilesTest {
   @Test
   public void testShardedDisplayData() {
     DynamicDestinations<String, Void> dynamicDestinations =
-        new ConstantFilenamePolicy<>(
+        DynamicFileDestinations.constant(
             DefaultFilenamePolicy.fromParams(
-                new Params(
-                    getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE),
-                    "-SS-of-NN",
-                    "")));
+                new Params()
+                    .withBaseFilename(getBaseOutputDirectory().resolve(
+                        "file", StandardResolveOptions.RESOLVE_FILE))
+                    .withShardTemplate("-SS-of-NN")));
     SimpleSink<Void> sink =
         new SimpleSink<Void>(
             getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED) {
@@ -469,12 +468,12 @@ public class WriteFilesTest {
   @Test
   public void testCustomShardStrategyDisplayData() {
     DynamicDestinations<String, Void> dynamicDestinations =
-        new ConstantFilenamePolicy<>(
+        DynamicFileDestinations.constant(
             DefaultFilenamePolicy.fromParams(
-                new Params(
-                    getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE),
-                    "-SS-of-NN",
-                    "")));
+                new Params()
+                    .withBaseFilename(getBaseOutputDirectory().resolve(
+                        "file", StandardResolveOptions.RESOLVE_FILE))
+                    .withShardTemplate("-SS-of-NN")));
     SimpleSink<Void> sink =
         new SimpleSink<Void>(
             getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED) {
