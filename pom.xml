@@ -1703,6 +1703,7 @@
             </goals>
             <configuration>
               <rules>
+                <dependencyConvergence/>
                 <enforceBytecodeVersion>
                   <maxJdkVersion>1.7</maxJdkVersion>
                   <excludes>
