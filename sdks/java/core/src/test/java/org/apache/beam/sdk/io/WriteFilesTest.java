@@ -76,6 +76,7 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormatter;
@@ -365,6 +366,33 @@ public class WriteFilesTest {
     assertThat(displayData, includesDisplayDataFor("sink", sink));
   }
 
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnboundedNeedsWindowed() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Must use windowed writes when applying WriteFiles to an unbounded PCollection");
+
+    SimpleSink<Void> sink = makeSimpleSink();
+    p.apply(Create.of("foo")).setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(WriteFiles.to(sink, SerializableFunctions.<String>identity()));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnboundedNeedsSharding() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("When applying WriteFiles to an unbounded PCollection, "
+            + "must specify number of output shards explicitly");
+
+    SimpleSink<Void> sink = makeSimpleSink();
+    p.apply(Create.of("foo")).setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(WriteFiles.to(sink, SerializableFunctions.<String>identity())
+            .withWindowedWrites());
+    p.run();
+  }
+
   // Test DynamicDestinations class. Expects user values to be string-encoded integers.
   // Stores the integer mod 5 as the destination, and uses that in the file prefix.
   static class TestDestinations extends DynamicDestinations<String, Integer> {
@@ -406,7 +434,17 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testDynamicDestinations() throws Exception {
+  public void testDynamicDestinationsBounded() throws Exception {
+    testDynamicDestinationsHelper(true);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinationsUnbounded() throws Exception {
+    testDynamicDestinationsHelper(false);
+  }
+
+  private void testDynamicDestinationsHelper(boolean bounded) throws IOException {
     TestDestinations dynamicDestinations = new TestDestinations(getBaseOutputDirectory());
     SimpleSink<Integer> sink =
         new SimpleSink<>(
@@ -427,8 +465,14 @@ public class WriteFilesTest {
     WriteFiles<String, Integer, String> writeFiles = WriteFiles.to(
         sink, new TestDynamicFormatFunction()).withNumShards(1);
 
-    p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
-     .apply(writeFiles);
+    PCollection<String> input = p.apply(Create.timestamped(inputs, timestamps));
+    if (!bounded) {
+      input.setIsBoundedInternal(IsBounded.UNBOUNDED);
+      input = input.apply(Window.<String>into(FixedWindows.of(Duration.standardDays(1))));
+      input.apply(writeFiles.withWindowedWrites());
+    } else {
+      input.apply(writeFiles);
+    }
     p.run();
 
     for (int i = 0; i < 5; ++i) {
@@ -548,7 +592,7 @@ public class WriteFilesTest {
       String prefix = baseFilename.isDirectory()
           ? "" : firstNonNull(baseFilename.getFilename(), "");
       String filename = String.format(
-          "%s%s-of-%s%s%s",
+          "%s-%s-of-%s%s%s",
           prefix, context.getShardNumber(), context.getNumShards(),
           outputFileHints.getSuggestedFilenameSuffix(), suffix);
       return baseFilename.getCurrentDirectory().resolve(
