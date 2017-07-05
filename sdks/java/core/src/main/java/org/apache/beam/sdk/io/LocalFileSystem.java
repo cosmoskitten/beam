@@ -179,8 +179,6 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   private MatchResult matchOne(String spec) throws IOException {
-    LOG.error("********* LocalFileSystem inside matchOne, spec: " + spec);
-    LOG.error("********* LocalFileSystem inside matchOne, Paths.get(spec): " + Paths.get(spec));
     File file = Paths.get(spec).toFile();
 
     if (file.exists()) {
