@@ -113,10 +113,7 @@ public class BeamSql {
       PTransform<PCollectionTuple, PCollection<BeamSqlRow>> {
     abstract BeamSqlEnv getSqlEnv();
     abstract String getSqlQuery();
-
-    static Builder builder() {
-      return new AutoValue_BeamSql_QueryTransform.Builder();
-    }
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -129,16 +126,16 @@ public class BeamSql {
      * register a UDF function used in this query.
      */
      public QueryTransform withUdf(String functionName, Class<?> clazz, String methodName){
-       this.getSqlEnv().registerUdf(functionName, clazz, methodName);
-       return this;
+       getSqlEnv().registerUdf(functionName, clazz, methodName);
+       return toBuilder().build();
      }
 
      /**
       * register a UDAF function used in this query.
       */
      public QueryTransform withUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz){
-       this.getSqlEnv().registerUdaf(functionName, clazz);
-       return this;
+       getSqlEnv().registerUdaf(functionName, clazz);
+       return toBuilder().build();
      }
 
     @Override
@@ -181,10 +178,7 @@ public class BeamSql {
     private static final String PCOLLECTION_TABLE_NAME = "PCOLLECTION";
     abstract BeamSqlEnv getSqlEnv();
     abstract String getSqlQuery();
-
-    static Builder builder() {
-      return new AutoValue_BeamSql_SimpleQueryTransform.Builder();
-    }
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -197,16 +191,16 @@ public class BeamSql {
      * register a UDF function used in this query.
      */
      public SimpleQueryTransform withUdf(String functionName, Class<?> clazz, String methodName){
-       this.getSqlEnv().registerUdf(functionName, clazz, methodName);
-       return this;
+       getSqlEnv().registerUdf(functionName, clazz, methodName);
+       return toBuilder().build();
      }
 
      /**
       * register a UDAF function used in this query.
       */
      public SimpleQueryTransform withUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz){
-       this.getSqlEnv().registerUdaf(functionName, clazz);
-       return this;
+       getSqlEnv().registerUdaf(functionName, clazz);
+       return toBuilder().build();
      }
 
     private void validateQuery() {
