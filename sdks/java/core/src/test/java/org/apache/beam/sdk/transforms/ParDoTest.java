@@ -1595,8 +1595,6 @@ public class ParDoTest implements Serializable {
   @Test
   public void testStateNotKeyed() {
     final String stateId = "foo";
-    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<String, Integer> fn =
         new DoFn<String, Integer>() {
@@ -1620,8 +1618,6 @@ public class ParDoTest implements Serializable {
   @Test
   public void testStateNotDeterministic() {
     final String stateId = "foo";
-    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     // DoubleCoder is not deterministic, so this should crash
     DoFn<KV<Double, String>, Integer> fn =
