@@ -128,11 +128,13 @@ class DataflowMetrics extends MetricResults {
     private final ImmutableList.Builder<MetricResult<Long>> counterResults;
     private final ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults;
     private final ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults;
+    private final boolean isStreamingJob;
 
-    DataflowMetricResultExtractor() {
+    DataflowMetricResultExtractor(boolean isStreamingJob) {
       counterResults = ImmutableList.builder();
       distributionResults = ImmutableList.builder();
       gaugeResults = ImmutableList.builder();
+      this.isStreamingJob = isStreamingJob;
     }
 
     public void addMetricResult(
@@ -145,20 +147,28 @@ class DataflowMetrics extends MetricResults {
             metricKey, committed, attempted);
       } else if (committed.getDistribution() != null && attempted.getDistribution() != null) {
         // distribution metric
+        DistributionResult value = getDistributionValue(committed);
         distributionResults.add(
             DataflowMetricResult.create(
                 metricKey.metricName(),
                 metricKey.stepName(),
-                getDistributionValue(committed),
-                getDistributionValue(attempted)));
+                isStreamingJob ? null : value, // Committed
+                isStreamingJob ? value : null)); // Attempted
+        /* In streaming jobs, only ATTEMPTED metrics are available.
+         * In batch jobs, only COMMITTED metrics are available.
+         */
       } else if (committed.getScalar() != null && attempted.getScalar() != null) {
         // counter metric
+        Long value = getCounterValue(committed);
         counterResults.add(
             DataflowMetricResult.create(
                 metricKey.metricName(),
                 metricKey.stepName(),
-                getCounterValue(committed),
-                getCounterValue(attempted)));
+                isStreamingJob ? null : value, // Committed
+                isStreamingJob ? value : null)); // Attempted
+        /* In streaming jobs, only ATTEMPTED metrics are available.
+         * In batch jobs, only COMMITTED metrics are available.
+         */
       } else {
         // This is exceptionally unexpected. We expect matching user metrics to only have the
         // value types provided by the Metrics API.
@@ -183,9 +193,8 @@ class DataflowMetrics extends MetricResults {
       Long count = ((Number) distributionMap.get("count")).longValue();
       Long min = ((Number) distributionMap.get("min")).longValue();
       Long max = ((Number) distributionMap.get("max")).longValue();
-      Long mean = ((Number) distributionMap.get("mean")).longValue();
-      // TODO: Switch to use sum when it's available in the service.
-      return DistributionResult.create(count * mean, count, min, max);
+      Long sum = ((Number) distributionMap.get("sum")).longValue();
+      return DistributionResult.create(sum, count, min, max);
     }
 
     public Iterable<MetricResult<DistributionResult>> getDistributionResults() {
@@ -261,16 +270,16 @@ class DataflowMetrics extends MetricResults {
       // If the Context of the metric update does not have a namespace, then these are not
       // actual metrics counters.
       for (com.google.api.services.dataflow.model.MetricUpdate update : metricUpdates) {
-        MetricKey updateKey = getMetricHashKey(update);
-        if (!MetricFiltering.matches(filter, updateKey)) {
-          // Skip unmatched metrics early.
-          continue;
-        }
-
         if (update.getName().getOrigin() != null
             && (!update.getName().getOrigin().toLowerCase().equals("user")
             || !update.getName().getContext().containsKey("namespace"))) {
           // Skip non-user metrics, which should have both a "user" origin and a namespace.
+          continue;
+        }
+
+        MetricKey updateKey = getMetricHashKey(update);
+        if (!MetricFiltering.matches(filter, updateKey)) {
+          // Skip unmatched metrics early.
           continue;
         }
 
@@ -292,7 +301,8 @@ class DataflowMetrics extends MetricResults {
     public MetricQueryResults build() {
       buildMetricsIndex();
 
-      DataflowMetricResultExtractor extractor = new DataflowMetricResultExtractor();
+      DataflowMetricResultExtractor extractor = new DataflowMetricResultExtractor(
+          dataflowPipelineJob.getDataflowOptions().isStreaming());
       for (MetricKey metricKey : metricHashKeys) {
         String metricName = metricKey.metricName().name();
         if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
@@ -330,7 +340,9 @@ class DataflowMetrics extends MetricResults {
     // and the generated constructor is usable and consistent
     public abstract MetricName name();
     public abstract String step();
+    @Nullable
     public abstract T committed();
+    @Nullable
     public abstract T attempted();
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
