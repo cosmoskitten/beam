@@ -146,7 +146,14 @@ class Environment(object):
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
-      job_type = 'PYTHON_BATCH'
+      use_fnapi_for_batch = (
+          self.debug_options.experiments
+          and 'beam_fn_api' in self.debug_options.experiments
+      )
+      if use_fnapi_for_batch:
+        job_type = 'FNAPI_BATCH'
+      else:
+        job_type = 'PYTHON_BATCH'
     self.proto.version.additionalProperties.extend([
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='job_type',

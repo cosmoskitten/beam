@@ -42,7 +42,7 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions()
     apiclient.DataflowApplicationClient(
         pipeline_options,
-        DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
+        DataflowRunner.LEGACY_ENVIRONMENT_MAJOR_VERSION)
 
   def test_set_network(self):
     pipeline_options = PipelineOptions(

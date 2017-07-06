@@ -46,8 +46,9 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
-from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.utils.plugin import BeamPlugin
 
@@ -68,8 +69,8 @@ class DataflowRunner(PipelineRunner):
   # Environment version information. It is passed to the service during a
   # a job submission and is used by the service to establish what features
   # are expected by the workers.
-  BATCH_ENVIRONMENT_MAJOR_VERSION = '6'
-  STREAMING_ENVIRONMENT_MAJOR_VERSION = '1'
+  LEGACY_ENVIRONMENT_MAJOR_VERSION = '6'
+  FNAPI_ENVIRONMENT_MAJOR_VERSION = '1'
 
   # A list of PTransformOverride objects to be applied before running a pipeline
   # using DataflowRunner.
@@ -269,10 +270,15 @@ class DataflowRunner(PipelineRunner):
       return None
 
     standard_options = pipeline._options.view_as(StandardOptions)
-    if standard_options.streaming:
-      job_version = DataflowRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION
+    debug_options = pipeline._options.view_as(DebugOptions)
+
+    use_fnapi_for_batch = (debug_options.experiments
+                           and 'beam_fn_api' in debug_options.experiments)
+
+    if use_fnapi_for_batch or standard_options.streaming:
+      job_version = DataflowRunner.FNAPI_ENVIRONMENT_MAJOR_VERSION
     else:
-      job_version = DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION
+      job_version = DataflowRunner.LEGACY_ENVIRONMENT_MAJOR_VERSION
 
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
