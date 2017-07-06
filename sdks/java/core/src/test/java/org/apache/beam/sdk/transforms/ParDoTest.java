@@ -1593,6 +1593,59 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  public void testStateNotKeyed() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
+
+    DoFn<String, Integer> fn =
+        new DoFn<String, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("state");
+    thrown.expectMessage("KvCoder");
+
+    pipeline.apply(Create.of("hello", "goodbye", "hello again")).apply(ParDo.of(fn));
+  }
+
+  @Test
+  public void testStateNotDeterministic() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
+
+    // DoubleCoder is not deterministic, so this should crash
+    DoFn<KV<Double, String>, Integer> fn =
+        new DoFn<KV<Double, String>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("state");
+    thrown.expectMessage("deterministic");
+
+    pipeline
+        .apply(Create.of(KV.of(1.0, "hello"), KV.of(5.4, "goodbye"), KV.of(7.2, "hello again")))
+        .apply(ParDo.of(fn));
+  }
+
+  @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateCoderInference() {
     final String stateId = "foo";
