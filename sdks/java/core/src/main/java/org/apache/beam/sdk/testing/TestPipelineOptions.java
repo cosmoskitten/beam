@@ -52,14 +52,6 @@ public interface TestPipelineOptions extends PipelineOptions {
   Long getTestTimeoutSeconds();
   void setTestTimeoutSeconds(Long value);
 
-  @Default.Boolean(false)
-  @Internal
-  @Hidden
-  @org.apache.beam.sdk.options.Description(
-      "Indicates whether this is an automatically-run unit test.")
-  boolean isUnitTest();
-  void setUnitTest(boolean unitTest);
-
   /**
    * Factory for {@link PipelineResult} matchers which always pass.
    */
