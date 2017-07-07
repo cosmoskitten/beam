@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Sets;
 import com.google.protobuf.Any;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -165,7 +166,12 @@ public class PipelineTranslation {
             transformSpec.getParameter(),
             additionalInputs);
 
-    if (transformProto.getSubtransformsCount() > 0) {
+    // HACK: A primitive is something with outputs that are not in its input
+    if (transformProto.getSubtransformsCount() > 0
+        || transformProto
+            .getInputsMap()
+            .values()
+            .containsAll(transformProto.getOutputsMap().values())) {
       transforms.pushFinalizedNode(
           transformProto.getUniqueName(),
           rehydratedInputs,
