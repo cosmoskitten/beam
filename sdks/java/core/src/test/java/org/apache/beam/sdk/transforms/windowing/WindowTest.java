@@ -591,9 +591,31 @@ public class WindowTest implements Serializable {
     input.add(TimestampedValue.of("small", startInstant.plus(Duration.standardSeconds(30))));
     PCollection<String> inputCollection = pipeline.apply(Create.timestamped(input));
     PCollection<String> windowedCollection = inputCollection
-        .apply(Window.into(new CustomWindowFn()));
+        .apply(Window.into(new CustomWindowFn<String>()));
     PCollection<Long> count = windowedCollection
         .apply(Combine.globally(Count.<String>combineFn()).withoutDefaults());
+    PAssert.thatSingleton("Wrong number of elements in output collection", count).isEqualTo(3L);
+    pipeline.run();
+  }
+
+  //  This test is usefull because some runners have a special merge implementation
+  // for keyed collections
+  @Test
+  @Category({ValidatesRunner.class, UsesCustomWindowMerging.class})
+  public void testMergingCustomWindowsKeyedCollection() {
+    Instant startInstant = new Instant(0L);
+    List<TimestampedValue<KV<Integer, String>>> input = new ArrayList<>();
+    input
+        .add(TimestampedValue.of(KV.of(0, "big"), startInstant.plus(Duration.standardSeconds(10))));
+    input.add(
+        TimestampedValue.of(KV.of(1, "small"), startInstant.plus(Duration.standardSeconds(20))));
+    input.add(
+        TimestampedValue.of(KV.of(2, "small"), startInstant.plus(Duration.standardSeconds(30))));
+    PCollection<KV<Integer, String>> inputCollection = pipeline.apply(Create.timestamped(input));
+    PCollection<KV<Integer, String>> windowedCollection = inputCollection
+        .apply(Window.into(new CustomWindowFn<KV<Integer, String>>()));
+    PCollection<Long> count = windowedCollection
+        .apply(Combine.globally(Count.<KV<Integer, String>>combineFn()).withoutDefaults());
     PAssert.thatSingleton("Wrong number of elements in output collection", count).isEqualTo(3L);
     pipeline.run();
   }
@@ -602,7 +624,13 @@ public class WindowTest implements Serializable {
 
     private boolean isBig;
 
-    private CustomWindow(Instant start, Instant end, boolean isBig) {
+
+    CustomWindow(Instant start, Instant end) {
+      super(start, end);
+      this.isBig = false;
+    }
+
+    CustomWindow(Instant start, Instant end, boolean isBig) {
       super(start, end);
       this.isBig = isBig;
     }
@@ -658,10 +686,17 @@ public class WindowTest implements Serializable {
     }
   }
 
-  private static class CustomWindowFn extends WindowFn<String, CustomWindow> {
+  private static class CustomWindowFn<T> extends WindowFn<T, CustomWindow> {
 
     @Override public Collection<CustomWindow> assignWindows(AssignContext c) throws Exception {
-      String element = c.element();
+      String element;
+      // It loses genericity of type T but this is not a big deal for a test.
+      // And it allows to avoid duplicating CustomWindowFn to support PCollection<KV>
+      if (c.element() instanceof KV){
+        element = ((KV<Integer, String>) c.element()).getValue();
+      } else {
+        element = (String) c.element();
+      }
       // put big elements in windows of 30s and small ones in windows of 5s
       if ("big".equals(element)) {
         return Collections.singletonList(
