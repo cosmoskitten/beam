@@ -24,10 +24,12 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.protobuf.Any;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
@@ -41,6 +43,8 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
@@ -136,9 +140,30 @@ public class PipelineTranslation {
 
     RunnerApi.FunctionSpec transformSpec = transformProto.getSpec();
 
-    // TODO: consider little specializations with unpacked payloads
+    // By default, no "additional" inputs, since that is an SDK-specific thing.
+    // Only ParDo really separates main from side inputs
+    Map<TupleTag<?>, PValue> additionalInputs = Collections.emptyMap();
+
+    // TODO: move this ownership into the ParDoTranslator
+    if (transformSpec.getUrn().equals(PTransformTranslation.PAR_DO_TRANSFORM_URN)) {
+      RunnerApi.ParDoPayload payload =
+          transformSpec.getParameter().unpack(RunnerApi.ParDoPayload.class);
+
+      List<PCollectionView<?>> views = new ArrayList<>();
+      for (Map.Entry<String, RunnerApi.SideInput> sideInput :
+          payload.getSideInputsMap().entrySet()) {
+        views.add(
+            ParDoTranslation.fromProto(
+                pipeline, sideInput.getValue(), sideInput.getKey(), transformProto, components));
+      }
+      additionalInputs = PCollectionViews.toAdditionalInputs(views);
+    }
+
     RehydratedPTransform transform =
-        RehydratedPTransform.of(transformSpec.getUrn(), transformSpec.getParameter());
+        RehydratedPTransform.of(
+            transformSpec.getUrn(),
+            transformSpec.getParameter(),
+            additionalInputs);
 
     if (transformProto.getSubtransformsCount() > 0) {
       transforms.pushFinalizedNode(
@@ -226,8 +251,12 @@ public class PipelineTranslation {
     @Nullable
     public abstract Any getPayload();
 
-    public static RehydratedPTransform of(String urn, Any payload) {
-      return new AutoValue_PipelineTranslation_RehydratedPTransform(urn, payload);
+    @Override
+    public abstract Map<TupleTag<?>, PValue> getAdditionalInputs();
+
+    public static RehydratedPTransform of(
+        String urn, Any payload, Map<TupleTag<?>, PValue> additionalInputs) {
+      return new AutoValue_PipelineTranslation_RehydratedPTransform(urn, payload, additionalInputs);
     }
 
     @Override
