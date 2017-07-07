@@ -170,8 +170,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       pipeline = PipelineTranslation.rehydratePipeline(
           PipelineTranslation.translatePipeline(originalPipeline));
     } catch (IOException exception) {
-      throw new RuntimeException(
-          String.format("Error preparing pipeline for direct execution.", exception));
+      throw new RuntimeException("Error preparing pipeline for direct execution.", exception);
     }
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
