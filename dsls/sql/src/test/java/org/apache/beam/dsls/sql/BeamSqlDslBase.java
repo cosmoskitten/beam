@@ -75,28 +75,28 @@ public class BeamSqlDslBase {
     boundedInput2 = PBegin.in(pipeline).apply("boundedInput2",
         Create.of(recordsInTableA.get(0)).withCoder(new BeamSqlRowCoder(recordTypeInTableA)));
 
-    unboundedInput1 = prepareUnBoundedPCollection1();
-    unboundedInput2 = prepareUnBoundedPCollection2();
+    unboundedInput1 = prepareUnboundedPCollection1();
+    unboundedInput2 = prepareUnboundedPCollection2();
   }
 
-  private static PCollection<BeamSqlRow> prepareUnBoundedPCollection1() {
+  private static PCollection<BeamSqlRow> prepareUnboundedPCollection1() {
     TestStream.Builder<BeamSqlRow> values = TestStream
         .create(new BeamSqlRowCoder(recordTypeInTableA));
 
     for (BeamSqlRow row : recordsInTableA) {
-      values = values.advanceWatermarkTo(new Instant(row.getDate(7)));
+      values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
       values = values.addElements(row);
     }
 
     return PBegin.in(pipeline).apply("unboundedInput1", values.advanceWatermarkToInfinity());
   }
 
-  private static PCollection<BeamSqlRow> prepareUnBoundedPCollection2() {
+  private static PCollection<BeamSqlRow> prepareUnboundedPCollection2() {
     TestStream.Builder<BeamSqlRow> values = TestStream
         .create(new BeamSqlRowCoder(recordTypeInTableA));
 
     BeamSqlRow row = recordsInTableA.get(0);
-    values = values.advanceWatermarkTo(new Instant(row.getDate(7)));
+    values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
     values = values.addElements(row);
 
     return PBegin.in(pipeline).apply("unboundedInput2", values.advanceWatermarkToInfinity());

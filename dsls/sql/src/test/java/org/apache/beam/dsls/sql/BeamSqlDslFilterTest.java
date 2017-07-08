@@ -25,18 +25,23 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
 /**
- * Tests for WHERE queries with UNBOUNDED PCollection.
+ * Tests for WHERE queries with BOUNDED PCollection.
  */
-public class BeamSqlDslUnboundedFilterTest extends BeamSqlDslBase {
+public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   /**
    * single filter.
    */
   @Test
   public void testSingleFilter() throws Exception {
+    runSingleFilter(boundedInput1);
+    runSingleFilter(unboundedInput1);
+  }
+
+  private void runSingleFilter(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
     PCollection<BeamSqlRow> result =
-        unboundedInput1.apply("testSingleFilter", BeamSql.simpleQuery(sql));
+        input.apply("testSingleFilter", BeamSql.simpleQuery(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(0));
 
@@ -48,11 +53,16 @@ public class BeamSqlDslUnboundedFilterTest extends BeamSqlDslBase {
    */
   @Test
   public void testCompositeFilter() throws Exception {
+    runCompositeFilter(boundedInput1);
+    runCompositeFilter(unboundedInput1);
+  }
+
+  private void runCompositeFilter(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT * FROM TABLE_A"
         + " WHERE f_int > 1 AND (f_long < 3000 OR f_string = 'string_row3')";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), unboundedInput1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testCompositeFilter", BeamSql.query(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(1), recordsInTableA.get(2));
@@ -65,10 +75,15 @@ public class BeamSqlDslUnboundedFilterTest extends BeamSqlDslBase {
    */
   @Test
   public void testNoReturnFilter() throws Exception {
+    runNoReturnFilter(boundedInput1);
+    runNoReturnFilter(unboundedInput1);
+  }
+
+  private void runNoReturnFilter(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT * FROM TABLE_A WHERE f_int < 1";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), unboundedInput1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testNoReturnFilter", BeamSql.query(sql));
 
     PAssert.that(result).empty();
