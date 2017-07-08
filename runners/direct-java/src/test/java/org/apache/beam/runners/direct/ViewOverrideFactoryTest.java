@@ -62,42 +62,6 @@ public class ViewOverrideFactoryTest implements Serializable {
       new ViewOverrideFactory<>();
 
   @Test
-  public void replacementSucceeds() {
-    PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
-    final PCollectionView<List<Integer>> view =
-        PCollectionViews.listView(ints, WindowingStrategy.globalDefault(), ints.getCoder());
-    PTransformReplacement<PCollection<Integer>, PCollection<Integer>>
-        replacementTransform =
-            factory.getReplacementTransform(
-                AppliedPTransform
-                    .<PCollection<Integer>, PCollection<Integer>,
-                        PTransform<PCollection<Integer>, PCollection<Integer>>>
-                        of(
-                            "foo",
-                            ints.expand(),
-                            view.expand(),
-                            CreatePCollectionView.<Integer, List<Integer>>of(view),
-                            p));
-    ints.apply(replacementTransform.getTransform());
-
-    PCollection<Set<Integer>> outputViewContents =
-        p.apply("CreateSingleton", Create.of(0))
-            .apply(
-                "OutputContents",
-                ParDo.of(
-                        new DoFn<Integer, Set<Integer>>() {
-                          @ProcessElement
-                          public void outputSideInput(ProcessContext context) {
-                            context.output(ImmutableSet.copyOf(context.sideInput(view)));
-                          }
-                        })
-                    .withSideInputs(view));
-    PAssert.thatSingleton(outputViewContents).isEqualTo(ImmutableSet.of(1, 2, 3));
-
-    p.run();
-  }
-
-  @Test
   public void replacementGetViewReturnsOriginal() {
     final PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
     final PCollectionView<List<Integer>> view =
