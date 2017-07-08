@@ -96,7 +96,7 @@ public class BeamSqlDslBase {
         .create(new BeamSqlRowCoder(recordTypeInTableA));
 
     BeamSqlRow row = recordsInTableA.get(0);
-    values = values.advanceWatermarkTo(new Instant(row.getDate(7)));
+    values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
     values = values.addElements(row);
 
     return PBegin.in(pipeline).apply("unboundedInput2", values.advanceWatermarkToInfinity());
