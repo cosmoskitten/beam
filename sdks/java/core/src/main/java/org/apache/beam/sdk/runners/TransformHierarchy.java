@@ -145,7 +145,6 @@ public class TransformHierarchy {
       Node producerNode = getProducer(inputValue);
       PInput input = producerInput.remove(inputValue);
       inputValue.finishSpecifying(input, producerNode.getTransform());
-      checkState(getProducer(inputValue) != null, "Producer unknown for input %s", inputValue);
     }
   }
 
