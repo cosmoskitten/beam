@@ -267,7 +267,10 @@ public class ParDoTranslation {
       String sideInputTag = sideInputEntry.getKey();
       RunnerApi.SideInput sideInput = sideInputEntry.getValue();
       PCollection<?> originalPCollection =
-          checkNotNull((PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)));
+          checkNotNull(
+              (PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)),
+              "no input with tag %s",
+              sideInputTag);
       views.add(
           viewFromProto(
               sideInput,
