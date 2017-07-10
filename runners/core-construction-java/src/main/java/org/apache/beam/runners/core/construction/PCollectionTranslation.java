@@ -51,14 +51,16 @@ public class PCollectionTranslation {
   public static PCollection<?> fromProto(
       Pipeline pipeline, RunnerApi.PCollection pCollection, RunnerApi.Components components)
       throws IOException {
-    return new RawPCollection<>(
-        pipeline,
-        CoderTranslation.fromProto(
-            components.getCodersOrThrow(pCollection.getCoderId()), components),
-        fromProto(pCollection.getIsBounded()),
-        WindowingStrategyTranslation.fromProto(
-            components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()),
-            components));
+    return PCollection.createPrimitiveOutputInternal(
+            pipeline,
+            WindowingStrategyTranslation.fromProto(
+                components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()),
+                components),
+            fromProto(pCollection.getIsBounded()))
+        .setCoder(
+            (Coder)
+                CoderTranslation.fromProto(
+                    components.getCodersOrThrow(pCollection.getCoderId()), components));
   }
 
   public static IsBounded isBounded(RunnerApi.PCollection pCollection) {
