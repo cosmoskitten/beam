@@ -326,8 +326,7 @@ public class PCollection<T> extends PValueBase implements PValue {
    */
   private final TupleTag<?> tag = new TupleTag<>();
 
-  @Internal
-  protected PCollection(Pipeline p) {
+  private PCollection(Pipeline p) {
     super(p);
   }
 
