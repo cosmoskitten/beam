@@ -128,7 +128,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       return new SplittableParDo<>(
           ParDoTranslation.getDoFn(parDo),
           (TupleTag) ParDoTranslation.getMainOutputTag(parDo),
-          ParDoTranslation.getSideInputsWithOriginalPCollections(parDo),
+          ParDoTranslation.getSideInputs(parDo),
           ParDoTranslation.getAdditionalOutputTags(parDo));
     } catch (IOException exc) {
       throw new RuntimeException(exc);

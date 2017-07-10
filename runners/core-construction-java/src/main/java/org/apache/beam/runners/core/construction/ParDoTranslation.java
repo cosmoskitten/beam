@@ -263,28 +263,6 @@ public class ParDoTranslation {
     ParDoPayload payload = parDoProto.getSpec().getParameter().unpack(ParDoPayload.class);
 
     List<PCollectionView<?>> views = new ArrayList<>();
-    for (Map.Entry<String, SideInput> sideInput : payload.getSideInputsMap().entrySet()) {
-      views.add(
-          fromProto(
-              application.getPipeline(),
-              sideInput.getValue(),
-              sideInput.getKey(),
-              parDoProto,
-              sdkComponents.toComponents()));
-    }
-    return views;
-  }
-
-  /** */
-  public static List<PCollectionView<?>> getSideInputsWithOriginalPCollections(
-      AppliedPTransform<?, ?, ?> application) throws IOException {
-
-    SdkComponents sdkComponents = SdkComponents.create();
-    RunnerApi.PTransform parDoProto =
-        PTransformTranslation.toProto(application, sdkComponents);
-    ParDoPayload payload = parDoProto.getSpec().getParameter().unpack(ParDoPayload.class);
-
-    List<PCollectionView<?>> views = new ArrayList<>();
     for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
       String sideInputTag = sideInputEntry.getKey();
       RunnerApi.SideInput sideInput = sideInputEntry.getValue();

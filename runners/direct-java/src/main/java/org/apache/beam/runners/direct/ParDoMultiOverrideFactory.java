@@ -102,7 +102,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
           fn,
           ParDoTranslation.getMainOutputTag(application),
           ParDoTranslation.getAdditionalOutputTags(application),
-          ParDoTranslation.getSideInputsWithOriginalPCollections(application));
+          ParDoTranslation.getSideInputs(application));
     } else {
       return application.getTransform();
     }
