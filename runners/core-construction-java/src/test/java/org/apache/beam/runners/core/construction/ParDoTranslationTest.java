@@ -164,7 +164,7 @@ public class ParDoTranslationTest {
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
-            ParDoTranslation.fromProto(
+            ParDoTranslation.viewFromProto(
                 rehydratedPipeline,
                 sideInput,
                 view.getTagInternal().getId(),

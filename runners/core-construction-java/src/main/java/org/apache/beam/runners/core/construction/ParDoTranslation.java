@@ -269,7 +269,7 @@ public class ParDoTranslation {
       PCollection<?> originalPCollection =
           checkNotNull((PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)));
       views.add(
-          fromProtoAndPCollection(
+          viewFromProto(
               sideInput,
               sideInputTag,
               originalPCollection,
@@ -506,7 +506,7 @@ public class ParDoTranslation {
     return builder.build();
   }
 
-  public static PCollectionView<?> fromProto(
+  public static PCollectionView<?> viewFromProto(
       Pipeline pipeline,
       SideInput sideInput,
       String localName,
@@ -523,14 +523,14 @@ public class ParDoTranslation {
         PCollectionTranslation.fromProto(
             pipeline, components.getPcollectionsOrThrow(pCollectionId), components);
 
-    return fromProtoAndPCollection(sideInput, localName, pCollection, parDoTransform, components);
+    return viewFromProto(sideInput, localName, pCollection, parDoTransform, components);
   }
 
   /**
    * Create a {@link PCollectionView} from a side input spec and an already-deserialized {@link
    * PCollection} that should be wired up.
    */
-  public static PCollectionView<?> fromProtoAndPCollection(
+  public static PCollectionView<?> viewFromProto(
       SideInput sideInput,
       String id,
       PCollection<?> pCollection,
