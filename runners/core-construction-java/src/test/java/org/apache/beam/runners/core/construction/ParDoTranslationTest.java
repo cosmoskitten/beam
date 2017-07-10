@@ -146,9 +146,6 @@ public class ParDoTranslationTest {
       SdkComponents sdkComponents = SdkComponents.create();
 
       // Encode
-      for (PValue input : inputs.values()) {
-        sdkComponents.registerPCollection((PCollection<?>) input);
-      }
       RunnerApi.PTransform protoTransform =
           PTransformTranslation.toProto(
               AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
