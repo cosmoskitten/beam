@@ -111,17 +111,4 @@ public class PCollectionTranslation {
                 isBounded));
     }
   }
-
-  private static class RawPCollection<T> extends PCollection<T> {
-    private RawPCollection(
-        Pipeline p,
-        Coder<T> coder,
-        IsBounded isBounded,
-        WindowingStrategy<?, ?> windowingStrategy) {
-      super(p);
-      setCoder(coder);
-      setIsBoundedInternal(isBounded);
-      setWindowingStrategyInternal(windowingStrategy);
-    }
-  }
 }
