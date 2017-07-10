@@ -532,18 +532,18 @@ public class ParDoTranslation {
    */
   public static PCollectionView<?> viewFromProto(
       SideInput sideInput,
-      String id,
+      String localName,
       PCollection<?> pCollection,
       RunnerApi.PTransform parDoTransform,
       Components components)
       throws IOException {
-    checkNotNull(id);
-    TupleTag<?> tag = new TupleTag<>(id);
+    checkArgument(localName != null, "%s.viewFromProto: localName must not be null");
+    TupleTag<?> tag = new TupleTag<>(localName);
     WindowMappingFn<?> windowMappingFn = windowMappingFnFromProto(sideInput.getWindowMappingFn());
     ViewFn<?, ?> viewFn = viewFnFromProto(sideInput.getViewFn());
 
     RunnerApi.PCollection inputCollection =
-        components.getPcollectionsOrThrow(parDoTransform.getInputsOrThrow(id));
+        components.getPcollectionsOrThrow(parDoTransform.getInputsOrThrow(localName));
     WindowingStrategy<?, ?> windowingStrategy =
         WindowingStrategyTranslation.fromProto(
             components.getWindowingStrategiesOrThrow(inputCollection.getWindowingStrategyId()),
