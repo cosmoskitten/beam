@@ -242,12 +242,10 @@ public class ParDoTranslation {
         PTransformTranslation.toProto(application, SdkComponents.create());
 
     ParDoPayload payload = protoTransform.getSpec().getParameter().unpack(ParDoPayload.class);
-
     TupleTag<?> mainOutputTag = getMainOutputTag(payload);
-
-    Set<String> outputTags = protoTransform.getOutputsMap().keySet();
-
-    outputTags = Sets.difference(outputTags, Collections.singleton(mainOutputTag.getId()));
+    Set<String> outputTags =
+        Sets.difference(
+            protoTransform.getOutputsMap().keySet(), Collections.singleton(mainOutputTag.getId()));
 
     ArrayList<TupleTag<?>> additionalOutputTags = new ArrayList<>();
     for (String outputTag : outputTags) {
