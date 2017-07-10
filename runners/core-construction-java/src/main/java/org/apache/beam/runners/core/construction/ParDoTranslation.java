@@ -540,7 +540,10 @@ public class ParDoTranslation {
       RunnerApi.PTransform parDoTransform,
       Components components)
       throws IOException {
-    checkArgument(localName != null, "%s.viewFromProto: localName must not be null");
+    checkArgument(
+        localName != null,
+        "%s.viewFromProto: localName must not be null",
+        ParDoTranslation.class.getSimpleName());
     TupleTag<?> tag = new TupleTag<>(localName);
     WindowMappingFn<?> windowMappingFn = windowMappingFnFromProto(sideInput.getWindowMappingFn());
     ViewFn<?, ?> viewFn = viewFnFromProto(sideInput.getViewFn());
