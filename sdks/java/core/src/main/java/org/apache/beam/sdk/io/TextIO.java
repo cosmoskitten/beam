@@ -23,10 +23,11 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import java.util.Arrays;
-import java.util.HashSet;
+import com.google.common.collect.ImmutableSet;
+
 import java.util.Set;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -163,10 +164,9 @@ import org.apache.beam.sdk.values.PDone;
  */
 public class TextIO {
   /**
-   * The {@link TextIO#DEFAULT_DELIMITERS} delimit newline and return characters.
+   * {@link TextIO#DEFAULT_DELIMITERS} delimits newline and return characters.
    */
-  public static final Set<String> DEFAULT_DELIMITERS = new HashSet<>(Arrays.asList(
-          new String[] {"\n", "\r", "\r\n"}));
+  public static final Set<String> DEFAULT_DELIMITERS = ImmutableSet.of("\n", "\r", "\r\n");
 
   /**
    * A {@link PTransform} that reads from one or more text files and returns a bounded
