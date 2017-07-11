@@ -29,7 +29,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * Base class for all arithmetic operators.
  */
 public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
-  private BeamSqlArithmeticExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
+  protected BeamSqlArithmeticExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
 
