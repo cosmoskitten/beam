@@ -27,7 +27,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
  */
 public class BeamSqlModExpression extends BeamSqlArithmeticExpression {
   public BeamSqlModExpression(List<BeamSqlExpression> operands) {
-    super(operands);
+    super(operands, operands.get(0).getOutputType());
   }
 
   @Override public Long calc(Long left, Long right) {
