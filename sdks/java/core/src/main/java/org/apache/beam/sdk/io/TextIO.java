@@ -23,6 +23,9 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -64,6 +67,42 @@ import org.apache.beam.sdk.values.PDone;
  *
  * // A simple Read of a local file (only runs locally):
  * PCollection<String> lines = p.apply(TextIO.read().from("/local/path/to/file.txt"));
+ * }</pre>
+ *
+ * <p>The default delimiters may be replaced with a custom {@link Set} of {@link String Strings}.
+ * Given an empty {@link Set}, {@link TextIO.Read} returns a  {@link PCollection} of
+ * {@link String Strings}, each corresponding to the entire content of an input UTF-8 text file.
+ *
+ * <p>Examples with custom delimiters:
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // A Read of a local file delimited by ',' and newlines:
+ * Set<String> delimiters = new HashSet<>();
+ * delimiters.add(",");
+ * delimiters.addAll(TextIO.DEFAULT_DELIMITERS);
+ * PCollection<String> commaSeparatedValues = p.apply(TextIO.read().from("/local/path/to/file.txt")
+ *                                                           .withDelimiters(delimiters));
+ * }</pre>
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // A Read of a local file without delimiters, returning a PCollection with only one element:
+ * Set<String> delimiters = new HashSet<>();
+ * PCollection<String> wholeFileText = p.apply(TextIO.read().from("/local/path/to/file.txt")
+ *                                                  .withDelimiters(delimiters));
+ * }</pre>
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // A Read of multiple local files without delimiters, returning a PCollection containing the
+ * //   same number of elements as the number of files captured by the file glob.
+ * Set<String> delimiters = new HashSet<>();
+ * PCollection<String> wholeFileText = p.apply(TextIO.read().from("/local/path/to/files/*.txt")
+ *                                                  .withDelimiters(delimiters));
  * }</pre>
  *
  * <p>To write a {@link PCollection} to one or more text files, use {@code TextIO.write()}, using
@@ -124,11 +163,18 @@ import org.apache.beam.sdk.values.PDone;
  */
 public class TextIO {
   /**
+   * The {@link TextIO#DEFAULT_DELIMITERS} delimit newline and return characters.
+   */
+  public static final Set<String> DEFAULT_DELIMITERS = new HashSet<>(Arrays.asList(
+          new String[] {"\n", "\r", "\r\n"}));
+
+  /**
    * A {@link PTransform} that reads from one or more text files and returns a bounded
    * {@link PCollection} containing one element for each line of the input files.
    */
   public static Read read() {
-    return new AutoValue_TextIO_Read.Builder().setCompressionType(CompressionType.AUTO).build();
+    return new AutoValue_TextIO_Read.Builder().setCompressionType(CompressionType.AUTO)
+            .setDelimiters(DEFAULT_DELIMITERS).build();
   }
 
   /**
@@ -171,6 +217,7 @@ public class TextIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
     @Nullable abstract ValueProvider<String> getFilepattern();
     abstract CompressionType getCompressionType();
+    abstract Set<String> getDelimiters();
 
     abstract Builder toBuilder();
 
@@ -178,6 +225,7 @@ public class TextIO {
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
       abstract Builder setCompressionType(CompressionType compressionType);
+      abstract Builder setDelimiters(Set<String> delimiters);
 
       abstract Read build();
     }
@@ -213,6 +261,17 @@ public class TextIO {
       return toBuilder().setCompressionType(compressionType).build();
     }
 
+    /**
+     * Returns a new transform for reading text from files that's like this one but
+     * delimits by the specified Strings.
+     *
+     * <p>If no delimiters are specified, the default is {@link TextIO#DEFAULT_DELIMITERS}.
+     * If an empty set of delimiters is specified, TextSource will delimit at EOF.
+     */
+    public Read withDelimiters(Set<String> delimiters) {
+      return toBuilder().setDelimiters(delimiters).build();
+    }
+
     @Override
     public PCollection<String> expand(PBegin input) {
       if (getFilepattern() == null) {
@@ -230,24 +289,24 @@ public class TextIO {
     protected FileBasedSource<String> getSource() {
       switch (getCompressionType()) {
         case UNCOMPRESSED:
-          return new TextSource(getFilepattern());
+          return new TextSource(getFilepattern(), getDelimiters());
         case AUTO:
-          return CompressedSource.from(new TextSource(getFilepattern()));
+          return CompressedSource.from(new TextSource(getFilepattern(), getDelimiters()));
         case BZIP2:
           return
-              CompressedSource.from(new TextSource(getFilepattern()))
+              CompressedSource.from(new TextSource(getFilepattern(), getDelimiters()))
                   .withDecompression(CompressedSource.CompressionMode.BZIP2);
         case GZIP:
           return
-              CompressedSource.from(new TextSource(getFilepattern()))
+              CompressedSource.from(new TextSource(getFilepattern(), getDelimiters()))
                   .withDecompression(CompressedSource.CompressionMode.GZIP);
         case ZIP:
           return
-              CompressedSource.from(new TextSource(getFilepattern()))
+              CompressedSource.from(new TextSource(getFilepattern(), getDelimiters()))
                   .withDecompression(CompressedSource.CompressionMode.ZIP);
         case DEFLATE:
           return
-              CompressedSource.from(new TextSource(getFilepattern()))
+              CompressedSource.from(new TextSource(getFilepattern(), getDelimiters()))
                   .withDecompression(CompressedSource.CompressionMode.DEFLATE);
         default:
           throw new IllegalArgumentException("Unknown compression type: " + getFilepattern());
@@ -263,6 +322,8 @@ public class TextIO {
       builder
           .add(DisplayData.item("compressionType", getCompressionType().toString())
             .withLabel("Compression Type"))
+          .add(DisplayData.item("delimiters", getDelimiters().toString())
+            .withLabel("Delimiters"))
           .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
             .withLabel("File Pattern"));
     }
