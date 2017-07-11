@@ -29,6 +29,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,7 +42,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -564,28 +564,34 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      *
      * @param writerResults the results of writes (FileResult).
      */
-    public void finalize(Iterable<FileResult<DestinationT>> writerResults) throws Exception {
+    public Set<ResourceId> finalize(
+        Iterable<FileResult<DestinationT>> writerResults) throws Exception {
       // Collect names of temporary files and rename them.
       Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames);
+      return outputFilenames.keySet();
+    }
 
-      // Optionally remove temporary files.
-      // We remove the entire temporary directory, rather than specifically removing the files
-      // from writerResults, because writerResults includes only successfully completed bundles,
-      // and we'd like to clean up the failed ones too.
-      // Note that due to GCS eventual consistency, matching files in the temp directory is also
-      // currently non-perfect and may fail to delete some files.
-      //
-      // When windows or triggers are specified, files are generated incrementally so deleting
-      // the entire directory in finalize is incorrect.
-      removeTemporaryFiles(outputFilenames.keySet(), !windowedWrites);
+    /**
+     * Remove temporary files.
+     *
+     * <p>We remove the entire temporary directory, rather than specifically removing the files from
+     * writerResults, because writerResults includes only successfully completed bundles, and we'd
+     * like to clean up the failed ones too. Note that due to GCS eventual consistency, matching
+     * files in the temp directory is also currently non-perfect and may fail to delete some files.
+     *
+     * <p>When windows or triggers are specified, files are generated incrementally so deleting the
+     * entire directory in finalize is incorrect.
+     */
+    public void removeTemporaryFiles(Set<ResourceId> filenames) throws IOException {
+      removeTemporaryFiles(filenames, !windowedWrites);
     }
 
     @Experimental(Kind.FILESYSTEM)
     protected final Map<ResourceId, ResourceId> buildOutputFilenames(
         Iterable<FileResult<DestinationT>> writerResults) {
       int numShards = Iterables.size(writerResults);
-      Map<ResourceId, ResourceId> outputFilenames = new HashMap<>();
+      Map<ResourceId, ResourceId> outputFilenames = Maps.newHashMap();
 
       // Either all results have a shard number set (if the sink is configured with a fixed
       // number of shards), or they all don't (otherwise).
@@ -641,6 +647,10 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
                 getSink().getDynamicDestinations(),
                 numShards,
                 getSink().getWritableByteChannelFactory()));
+        System.out.println("BOOM " + result.getDestinationFile(
+            getSink().getDynamicDestinations(),
+            numShards,
+            getSink().getWritableByteChannelFactory()));
       }
 
       int numDistinctShards = new HashSet<>(outputFilenames.values()).size();
@@ -649,7 +659,6 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
           "Only generated %s distinct file names for %s files.",
           numDistinctShards,
           outputFilenames.size());
-
       return outputFilenames;
     }
 
