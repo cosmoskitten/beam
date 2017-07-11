@@ -18,25 +18,18 @@
 package org.apache.beam.dsls.sql.integrationtest;
 
 import java.sql.Types;
-import org.apache.beam.dsls.sql.BeamSqlCli;
-import org.apache.beam.dsls.sql.BeamSqlEnv;
+import org.apache.beam.dsls.sql.BeamSql;
 import org.apache.beam.dsls.sql.TestUtils;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.Rule;
 import org.junit.Test;
 
 /**
  * Integration test for string functions.
  */
-public class BeamSqlStringFunctionsIntegrationTest {
-  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
-
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
-
+public class BeamSqlStringFunctionsIntegrationTest
+    extends BeamSqlBuiltinFunctionsIntegrationTestBase {
   @Test
   public void testStringFunctions() throws Exception {
     String sql = "SELECT "
@@ -55,9 +48,11 @@ public class BeamSqlStringFunctionsIntegrationTest {
         + "SUBSTRING('hello' FROM 2) as ss,"
         + "SUBSTRING('hello' FROM 2 FOR 2) as ss1,"
         + "INITCAP('hello world') as ss1"
+        + " FROM PCOLLECTION"
     ;
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<BeamSqlRow> rows = getTestPCollection()
+        .apply(BeamSql.simpleQuery(sql));
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             // 1 -> 5
@@ -88,5 +83,4 @@ public class BeamSqlStringFunctionsIntegrationTest {
         ).getRows());
     pipeline.run();
   }
-
 }
