@@ -270,6 +270,7 @@ public class BeamSqlRow implements Serializable {
           return fieldValue;
         }
       case TIMESTAMP:
+      case DATE:
         if (!(fieldValue instanceof Date)) {
           throw new IllegalArgumentException(
               String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
