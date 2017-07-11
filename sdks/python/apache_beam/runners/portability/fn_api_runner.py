@@ -187,7 +187,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         runner_sinks[(transform_id, target_name)] = operation
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=sdk_worker.DATA_OUTPUT_URN,
-            parameter=proto_utils.pack_Any(data_operation_spec))
+            parameter=data_operation_spec)
 
       elif isinstance(operation, operation_specs.WorkerRead):
         # A Read from an in-memory source is done over the data plane.
@@ -201,7 +201,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               operation.source.source.default_output_coder())
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=sdk_worker.DATA_INPUT_URN,
-              parameter=proto_utils.pack_Any(data_operation_spec))
+              parameter=proto_utils.data_operation_spec)
 
         else:
           # Otherwise serialize the source and execute it there.
@@ -210,10 +210,10 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           # here until we get the same thing back that we sent in.
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=sdk_worker.PYTHON_SOURCE_URN,
-              parameter=proto_utils.pack_Any(
+              parameter=
                   wrappers_pb2.BytesValue(
                       value=base64.b64decode(
-                          pickler.dumps(operation.source.source)))))
+                          pickler.dumps(operation.source.source))))
 
       elif isinstance(operation, operation_specs.WorkerDoFn):
         # Record the contents of each side input for access via the state api.
@@ -231,8 +231,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             (operation.serialized_fn, side_input_extras))
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=sdk_worker.PYTHON_DOFN_URN,
-            parameter=proto_utils.pack_Any(
-                wrappers_pb2.BytesValue(value=augmented_serialized_fn)))
+            parameter=wrappers_pb2.BytesValue(value=augmented_serialized_fn))
 
       elif isinstance(operation, operation_specs.WorkerFlatten):
         # Flatten is nice and simple.

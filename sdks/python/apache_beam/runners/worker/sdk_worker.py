@@ -162,24 +162,6 @@ class SideInputSource(native_iobase.NativeSource,
     while input_stream.size() > 0:
       yield self._coder.get_impl().decode_from_stream(input_stream, True)
 
-
-def unpack_and_deserialize_py_fn(function_spec):
-  """Returns unpacked and deserialized object from function spec proto."""
-  return pickler.loads(unpack_function_spec_data(function_spec))
-
-
-def unpack_function_spec_data(function_spec):
-  """Returns unpacked data from function spec proto."""
-  return function_spec.data
-
-
-# pylint: disable=redefined-builtin
-def serialize_and_pack_py_fn(fn, urn, id=None):
-  """Returns serialized and packed function in a function spec proto."""
-  return pack_function_spec_data(pickler.dumps(fn), urn, id)
-# pylint: enable=redefined-builtin
-
-
 # pylint: disable=redefined-builtin
 def pack_function_spec_data(value, urn, id=None):
   """Returns packed data in a function spec proto."""
@@ -377,8 +359,7 @@ class BeamTransformFactory(object):
   def create_operation(self, transform_id, consumers):
     transform_proto = self.descriptor.transforms[transform_id]
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
-    parameter = proto_utils.unpack_Any(
-        transform_proto.spec.parameter, parameter_type)
+    parameter = parameter_type.ParseFromString(transform_proto.spec.parameter)
     return creator(self, transform_id, transform_proto, parameter, consumers)
 
   def get_coder(self, coder_id):
@@ -389,8 +370,8 @@ class BeamTransformFactory(object):
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
           json.loads(
-              proto_utils.unpack_Any(coder_proto.spec.spec.parameter,
-                                     wrappers_pb2.BytesValue).value))
+              wrappers_pb2.BytesValue.ParseFromString(
+                  coder_proto.spec.spec.parameter))
 
   def get_output_coders(self, transform_proto):
     return {
