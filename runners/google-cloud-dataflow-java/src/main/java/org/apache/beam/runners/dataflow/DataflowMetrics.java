@@ -143,7 +143,7 @@ class DataflowMetrics extends MetricResults {
         @Nullable com.google.api.services.dataflow.model.MetricUpdate attempted) {
       if (committed == null || attempted == null) {
         LOG.warn(
-            "Unexpected metric {} did not have both a committed ({}) and tentative value ({}).",
+            "Metric {} did not have both a committed ({}) and tentative value ({}).",
             metricKey, committed, attempted);
       } else if (committed.getDistribution() != null && attempted.getDistribution() != null) {
         // distribution metric
@@ -154,8 +154,9 @@ class DataflowMetrics extends MetricResults {
                 metricKey.stepName(),
                 isStreamingJob ? null : value, // Committed
                 isStreamingJob ? value : null)); // Attempted
-        /* In streaming jobs, only ATTEMPTED metrics are available.
-         * In batch jobs, only COMMITTED metrics are available.
+        /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
+         * In Dataflow batch jobs, only COMMITTED metrics are available.
+         * Reporting the appropriate metric depending on whether it's a batch/streaming job.
          */
       } else if (committed.getScalar() != null && attempted.getScalar() != null) {
         // counter metric
@@ -166,14 +167,17 @@ class DataflowMetrics extends MetricResults {
                 metricKey.stepName(),
                 isStreamingJob ? null : value, // Committed
                 isStreamingJob ? value : null)); // Attempted
-        /* In streaming jobs, only ATTEMPTED metrics are available.
-         * In batch jobs, only COMMITTED metrics are available.
+        /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
+         * In Dataflow batch jobs, only COMMITTED metrics are available.
+         * Reporting the appropriate metric depending on whether it's a batch/streaming job.
          */
       } else {
         // This is exceptionally unexpected. We expect matching user metrics to only have the
         // value types provided by the Metrics API.
-        LOG.warn("Unexpected metric type. Please report JOB ID to Dataflow Support. Metric key: "
-            + metricKey.toString());
+        LOG.warn("Unexpected / mismatched metric types."
+            + " Please report JOB ID to Dataflow Support. Metric key: {}."
+            + " Committed / attempted Metric updates: {} / {}",
+            metricKey.toString(), committed.toString(), attempted.toString());
       }
     }
 
@@ -287,12 +291,12 @@ class DataflowMetrics extends MetricResults {
         if (isMetricTentative(update)) {
           MetricUpdate previousUpdate = tentativeByName.put(updateKey, update);
           if (previousUpdate != null) {
-            LOG.warn("Metric {} alreday had a tentative value of {}", updateKey, previousUpdate);
+            LOG.warn("Metric {} already had a tentative value of {}", updateKey, previousUpdate);
           }
         } else {
           MetricUpdate previousUpdate = committedByName.put(updateKey, update);
           if (previousUpdate != null) {
-            LOG.warn("Metric {} alreday had a committed value of {}", updateKey, previousUpdate);
+            LOG.warn("Metric {} already had a committed value of {}", updateKey, previousUpdate);
           }
         }
       }
