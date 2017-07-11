@@ -509,26 +509,6 @@ public class ParDoTranslation {
     return builder.build();
   }
 
-  public static PCollectionView<?> viewFromProto(
-      Pipeline pipeline,
-      SideInput sideInput,
-      String localName,
-      RunnerApi.PTransform parDoTransform,
-      Components components)
-      throws IOException {
-
-    String pCollectionId = parDoTransform.getInputsOrThrow(localName);
-
-    // This may be a PCollection defined in another language, but we should be
-    // able to rehydrate it enough to stick it in a side input. The coder may not
-    // be grokkable in Java.
-    PCollection<?> pCollection =
-        PCollectionTranslation.fromProto(
-            pipeline, components.getPcollectionsOrThrow(pCollectionId), components);
-
-    return viewFromProto(sideInput, localName, pCollection, parDoTransform, components);
-  }
-
   /**
    * Create a {@link PCollectionView} from a side input spec and an already-deserialized {@link
    * PCollection} that should be wired up.
