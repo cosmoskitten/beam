@@ -69,6 +69,8 @@ import org.apache.beam.sdk.values.KV;
 @Experimental(Kind.FILESYSTEM)
 public class FileSystems {
 
+
+  public static final String DEFAULT_SCHEME = "file";
   private static final Pattern FILE_SCHEME_PATTERN =
       Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):.*");
 

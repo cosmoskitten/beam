@@ -793,6 +793,7 @@ public class DataflowPipelineTranslator {
                 context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
             boolean disallowCombinerLifting =
                 !windowingStrategy.getWindowFn().isNonMerging()
+                    || !windowingStrategy.getWindowFn().assignsToOneWindow()
                     || (isStreaming && !transform.fewKeys())
                     // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
                     || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
@@ -972,7 +973,10 @@ public class DataflowPipelineTranslator {
               fn));
     }
 
-    DataflowRunner.verifyStateSupported(fn);
+    if (signature.usesState() || signature.usesTimers()) {
+      DataflowRunner.verifyStateSupported(fn);
+      DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
+    }
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     stepContext.addInput(

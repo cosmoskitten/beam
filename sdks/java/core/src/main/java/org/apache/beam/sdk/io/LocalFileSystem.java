@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,8 +180,15 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   private MatchResult matchOne(String spec) throws IOException {
-    File file = Paths.get(spec).toFile();
+    if (spec.toLowerCase().startsWith("file:")) {
+      spec = spec.substring("file:".length());
+    }
 
+    if (SystemUtils.IS_OS_WINDOWS) {
+      spec = spec.replaceAll("^/+", "");
+    }
+
+    File file = Paths.get(spec).toFile();
     if (file.exists()) {
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }

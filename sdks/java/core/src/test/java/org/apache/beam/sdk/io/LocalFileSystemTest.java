@@ -242,6 +242,24 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testMatchWithFilePrefix() throws Exception {
+    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
+    temporaryFolder.newFile("aa");
+    temporaryFolder.newFile("ab");
+
+    String file = "file:" + temporaryFolder.getRoot().toPath().resolve("a").toString();
+    String fileSlashes = "file:///" + temporaryFolder.getRoot().toPath().resolve("a").toString();
+    List<MatchResult> results = localFileSystem.match(ImmutableList.of(file));
+    List<MatchResult> resultsSlashes = localFileSystem.match(ImmutableList.of(fileSlashes));
+    assertThat(
+            toFilenames(results),
+            containsInAnyOrder(expected.toArray(new String[expected.size()])));
+    assertThat(
+            toFilenames(resultsSlashes),
+            containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
   public void testMatchMultipleWithoutSubdirectoryExpansion() throws Exception {
     File unmatchedSubDir = temporaryFolder.newFolder("aaa");
     File unmatchedSubDirFile = File.createTempFile("sub-dir-file", "", unmatchedSubDir);

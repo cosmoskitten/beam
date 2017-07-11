@@ -49,6 +49,7 @@ import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.constant.NullConstant;
 import net.bytebuddy.implementation.bytecode.constant.TextConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
@@ -89,6 +90,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
   public static final String WINDOW_PARAMETER_METHOD = "window";
+  public static final String PIPELINE_OPTIONS_PARAMETER_METHOD = "pipelineOptions";
   public static final String RESTRICTION_TRACKER_PARAMETER_METHOD = "restrictionTracker";
   public static final String STATE_PARAMETER_METHOD = "state";
   public static final String TIMER_PARAMETER_METHOD = "timer";
@@ -626,6 +628,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     getExtraContextFactoryMethodDescription(TIMER_PARAMETER_METHOD, String.class)),
                 TypeCasting.to(new TypeDescription.ForLoadedType(Timer.class)));
           }
+
+          @Override
+          public StackManipulation dispatch(DoFnSignature.Parameter.PipelineOptionsParameter p) {
+            return simpleExtraContextParameter(PIPELINE_OPTIONS_PARAMETER_METHOD);
+          }
         });
   }
 
@@ -666,6 +673,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 pushExtraContextFactory, getExtraContextParameter(param, pushDelegate)));
       }
       return new StackManipulation.Compound(pushParameters);
+    }
+
+    @Override
+    protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
+      return new StackManipulation.Compound(NullConstant.INSTANCE, MethodReturn.REFERENCE);
     }
   }
 

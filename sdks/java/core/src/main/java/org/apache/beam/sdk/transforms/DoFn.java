@@ -385,7 +385,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
    *
    *  {@literal @StateId("my-state-id")}
-   *  {@literal private final StateSpec<K, ValueState<MyState>>} myStateSpec =
+   *  {@literal private final StateSpec<ValueState<MyState>>} myStateSpec =
    *       StateSpecs.value(new MyStateCoder());
    *
    *  {@literal @ProcessElement}
@@ -676,6 +676,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.TYPE)
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface UnboundedPerElement {}
+
+  /** Temporary, do not use. See https://issues.apache.org/jira/browse/BEAM-1904 */
+  public class ProcessContinuation {}
 
   /**
    * Finalize the {@link DoFn} construction to prepare for processing.

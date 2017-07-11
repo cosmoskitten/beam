@@ -223,6 +223,9 @@ public class FileSystemsTest {
     boolean isDirectory;
     if (SystemUtils.IS_OS_WINDOWS) {
       isDirectory = str.endsWith("\\");
+      if (str.toLowerCase().startsWith("file:")) {
+        str = str.substring("file:".length());
+      }
     } else {
       isDirectory = str.endsWith("/");
     }
