@@ -110,11 +110,6 @@ class common_job_properties {
     }
   }
 
-  private static void setPipelineDownstreamJobProperties(context,
-                                                         String sdkLang) {
-
-  }
-
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
   private static void setPullRequestBuildTrigger(context,
@@ -342,4 +337,20 @@ class common_job_properties {
     }
   }
 
+  static def setPipelineDownstreamJobProperties(def context, String jobName) {
+    context.parameters {
+      stringParam(
+              'buildNum',
+              'N/A',
+              "Build number of ${jobName} to copy from.")
+    }
+
+    context.preBuildSteps {
+      copyArtifacts(jobName) {
+        buildSelector {
+          buildNumber('${buildNum}')
+        }
+      }
+    }
+  }
 }
