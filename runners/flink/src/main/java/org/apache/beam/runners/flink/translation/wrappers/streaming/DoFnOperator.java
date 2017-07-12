@@ -483,7 +483,7 @@ public class DoFnOperator<InputT, OutputT>
       // hold back by the pushed back values waiting for side inputs
       long pushedBackInputWatermark = Math.min(getPushbackWatermarkHold(), mark.getTimestamp());
 
-      timerService.advanceWatermark(pushedBackInputWatermark);
+      timerService.advanceWatermark(pushedBackInputWatermark - 1);
 
       Instant watermarkHold = stateInternals.watermarkHold();
 
