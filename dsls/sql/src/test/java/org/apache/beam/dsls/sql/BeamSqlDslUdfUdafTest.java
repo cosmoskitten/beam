@@ -87,6 +87,8 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         .apply("testUdf2",
             BeamSql.query(sql2).withUdf("cubic2", CubicInteger.class, "cubic"));
     PAssert.that(result2).containsInAnyOrder(record);
+
+    pipeline.run().waitUntilFinish();
   }
 
   /**
