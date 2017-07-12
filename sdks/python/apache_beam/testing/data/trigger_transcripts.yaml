@@ -20,7 +20,7 @@ window_fn: FixedWindows(10)       # Python names/syntax, unless otherwise noted.
 trigger_fn: Default               # Same. Empty () may be omitted.
 transcript:                       # Ordered list of events.
   - input: [1, 2, 3, 10, 11]      # The elements are the timestamps.
-  - watermark: 25
+  - pollWatermark: 25
   - expect:                       # Every expected output from the last action.
       - {window: [0, 9], values: [1, 2, 3]}
       - {window: [10, 19], values: [10, 11]}   # Partial match on attributes OK.
@@ -32,7 +32,7 @@ trigger_fn: Default
 timestamp_combiner: OUTPUT_AT_EOW
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
-  - watermark: 100
+  - pollWatermark: 100
   - expect:
       - {window: [0, 9], values: [1, 2, 3], timestamp: 10, final: false}
       - {window: [10, 19], values: [10, 11], timestamp: 20}
@@ -48,7 +48,7 @@ trigger_fn: Default
 timestamp_combiner: OUTPUT_AT_EARLIEST
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
-  - watermark: 100
+  - pollWatermark: 100
   - expect:
       - {window: [0, 9], values: [1, 2, 3], timestamp: 1, final: false}
       - {window: [10, 19], values: [10, 11], timestamp: 10}
@@ -61,7 +61,7 @@ trigger_fn: Default
 timestamp_combiner: OUTPUT_AT_LATEST
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
-  - watermark: 100
+  - pollWatermark: 100
   - expect:
       - {window: [0, 9], values: [1, 2, 3], timestamp: 3, final: false}
       - {window: [10, 19], values: [10, 11], timestamp: 11}
@@ -75,7 +75,7 @@ trigger_fn: Default
 timestamp_combiner: OUTPUT_AT_EOW
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
-  - watermark: 100
+  - pollWatermark: 100
   - expect:
       - {window: [0, 9], values: [1, 2, 3], timestamp: 10, final: false}
       - {window: [10, 19], values: [10, 11], timestamp: 20}
@@ -89,7 +89,7 @@ trigger_fn: Default
 timestamp_combiner: OUTPUT_AT_EARLIEST
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
-  - watermark: 100
+  - pollWatermark: 100
   - expect:
       - {window: [0, 9], values: [1, 2, 3], timestamp: 1, final: false}
       - {window: [10, 19], values: [10, 11], timestamp: 10}
@@ -103,7 +103,7 @@ trigger_fn: Default
 timestamp_combiner: OUTPUT_AT_EARLIEST_TRANSFORMED
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
-  - watermark: 100
+  - pollWatermark: 100
   - expect:
       - {window: [0, 9], values: [1, 2, 3], timestamp: 101, final: false}
       - {window: [10, 19], values: [10, 11], timestamp: 110}
@@ -123,7 +123,7 @@ transcript:
     - expect:
         - {window: [1, 14], values: [1, 2, 3, 4, 5], timestamp: 14, early: true}
     - input: [6]
-    - watermark: 100
+    - pollWatermark: 100
     - expect:
         - {window: [1, 15], values:[1, 2, 3, 4, 5, 6], timestamp: 16,
            final: true}
@@ -155,9 +155,9 @@ window_fn: FixedWindows(10)
 trigger_fn: Default
 timestamp_combiner: OUTPUT_AT_EARLIEST
 transcript:
-  - watermark: 5
+  - pollWatermark: 5
   - input: [2, 3, 7, 8]
-  - watermark: 11
+  - pollWatermark: 11
   - expect:
       - {window: [0, 9], values: [2, 3, 7, 8], timestamp: 7}
 
@@ -167,9 +167,9 @@ window_fn: FixedWindows(10)
 trigger_fn: Default
 timestamp_combiner: OUTPUT_AT_EARLIEST
 transcript:
-  - watermark: 8
+  - pollWatermark: 8
   - input: [2, 3, 7]
-  - watermark: 11
+  - pollWatermark: 11
   - expect:
       - {window: [0, 9], values: [2, 3, 7], timestamp: 10}
 
@@ -182,7 +182,7 @@ transcript:
   - input: [1, 2, 3]
   - expect:
       - {window: [0, 9], values: [1, 2, 3]}  # bad
-  - watermark: 100
+  - pollWatermark: 100
 
 ---
 name: bad_expected_values
@@ -190,7 +190,7 @@ error: Unmatched output
 window_fn: FixedWindows(10)
 transcript:
   - input: [1, 2, 3]
-  - watermark: 100
+  - pollWatermark: 100
   - expect:
       - {window: [0, 9], values: [1, 2]}  # bad values
 
@@ -200,7 +200,7 @@ error: Unmatched output
 window_fn: FixedWindows(10)
 transcript:
   - input: [1, 2, 3]
-  - watermark: 100
+  - pollWatermark: 100
   - expect:
       - {window: [0, 19], values: [1, 2, 3]}  # bad window
 
@@ -210,9 +210,9 @@ error: Unexpected output
 window_fn: FixedWindows(10)
 transcript:
    - input: [1, 2, 3]
-   - watermark: 100
+   - pollWatermark: 100
    # missing output
-   - watermark: 200
+   - pollWatermark: 200
 
 ---
 name: missing_output_at_end
@@ -220,5 +220,5 @@ error: Unexpected output
 window_fn: FixedWindows(10)
 transcript:
    - input: [1, 2, 3]
-   - watermark: 100
+   - pollWatermark: 100
    # missing output
