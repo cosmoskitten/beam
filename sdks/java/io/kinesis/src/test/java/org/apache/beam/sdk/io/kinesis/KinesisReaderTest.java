@@ -19,11 +19,15 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,6 +50,8 @@ public class KinesisReaderTest {
   private ShardRecordsIterator firstIterator, secondIterator;
   @Mock
   private KinesisRecord a, b, c, d;
+  @Mock
+  private KinesisSource kinesisSource;
 
   private KinesisReader reader;
 
@@ -59,7 +65,7 @@ public class KinesisReaderTest {
     when(firstIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
     when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
 
-    reader = new KinesisReader(kinesis, generator, null);
+    reader = new KinesisReader(kinesis, generator, kinesisSource, Duration.ZERO);
   }
 
   @Test
@@ -119,4 +125,17 @@ public class KinesisReaderTest {
     assertThat(reader.advance()).isFalse();
   }
 
+  @Test
+  public void getTotalBacklogBytesShouldReturnLastSeenValueWhenKinesisExceptionsOccur()
+      throws TransientKinesisException {
+    when(kinesisSource.getStreamName()).thenReturn("stream1");
+    when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
+        .thenReturn(10L)
+        .thenThrow(TransientKinesisException.class)
+        .thenReturn(20L);
+
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(20);
+  }
 }

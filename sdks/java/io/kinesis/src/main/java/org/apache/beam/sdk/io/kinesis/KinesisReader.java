@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,18 +39,22 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(KinesisReader.class);
 
   private final SimplifiedKinesisClient kinesis;
-  private final UnboundedSource<KinesisRecord, ?> source;
+  private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
   private RoundRobin<ShardRecordsIterator> shardIterators;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
+  private long lastBacklogBytes;
+  private Duration allowedRecordLateness;
 
-  public KinesisReader(SimplifiedKinesisClient kinesis,
+  KinesisReader(SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
-      UnboundedSource<KinesisRecord, ?> source) {
+      KinesisSource source,
+      Duration allowedRecordLateness) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
-    this.initialCheckpointGenerator =
-        checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
+    this.initialCheckpointGenerator = checkNotNull(initialCheckpointGenerator,
+        "initialCheckpointGenerator");
     this.source = source;
+    this.allowedRecordLateness = allowedRecordLateness;
   }
 
   /**
@@ -142,4 +147,26 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     return source;
   }
 
+  /**
+   * Returns total size of all records that remain in Kinesis stream after current watermark.
+   * When currently processed record is not further behind than {@link #allowedRecordLateness}
+   * then this method returns 0.
+   */
+  @Override
+  public long getTotalBacklogBytes() {
+    Instant watermark = getWatermark();
+    if (watermark.plus(allowedRecordLateness).isAfterNow()) {
+      return 0L;
+    }
+    long backlogBytes = lastBacklogBytes;
+    try {
+      backlogBytes = kinesis.getBacklogBytes(source.getStreamName(), watermark);
+    } catch (TransientKinesisException e) {
+      LOG.warn("Transient exception occurred.", e);
+    }
+    LOG.info("Total backlog bytes for {} stream with {} watermark: {}", source.getStreamName(),
+        watermark, backlogBytes);
+    lastBacklogBytes = backlogBytes;
+    return backlogBytes;
+  }
 }
