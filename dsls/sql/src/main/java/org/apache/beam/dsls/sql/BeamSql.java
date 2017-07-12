@@ -234,7 +234,7 @@ public class BeamSql {
     public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
       validateQuery();
       return PCollectionTuple.of(new TupleTag<BeamSqlRow>(PCOLLECTION_TABLE_NAME), input)
-          .apply(new AutoValue_BeamSql_QueryTransform.Builder()
+          .apply(QueryTransform.builder()
               .setSqlEnv(getSqlEnv())
               .setSqlQuery(getSqlQuery())
               .build());
