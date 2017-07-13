@@ -35,7 +35,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 public class MeterCell implements Meter, MetricCell<MeterData> {
 
   private final DirtyState dirty = new DirtyState();
-  private final com.codahale.metrics.Meter value = new com.codahale.metrics.Meter();
+  private transient final com.codahale.metrics.Meter value = new com.codahale.metrics.Meter();
   private final MetricName name;
 
   public MeterCell(MetricName name) {
