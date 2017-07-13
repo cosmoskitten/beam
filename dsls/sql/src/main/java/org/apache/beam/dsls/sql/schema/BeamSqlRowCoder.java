@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
@@ -49,6 +50,8 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   private static final DoubleCoder doubleCoder = DoubleCoder.of();
   private static final InstantCoder instantCoder = InstantCoder.of();
   private static final BigDecimalCoder bigDecimalCoder = BigDecimalCoder.of();
+  private static final SerializableCoder<Boolean> booleanCoder =
+      SerializableCoder.of(Boolean.class);
 
   public BeamSqlRowCoder(BeamSqlRecordType tableSchema) {
     this.tableSchema = tableSchema;
@@ -93,6 +96,9 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
           break;
         case TIMESTAMP:
           longCoder.encode(value.getDate(idx).getTime(), outStream);
+          break;
+        case BOOLEAN:
+          booleanCoder.encode(value.getBoolean(idx), outStream);
           break;
 
         default:
@@ -149,6 +155,9 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
           break;
         case TIMESTAMP:
           record.addField(idx, new Date(longCoder.decode(inStream)));
+          break;
+        case BOOLEAN:
+          record.addField(idx, booleanCoder.decode(inStream));
           break;
 
         default:

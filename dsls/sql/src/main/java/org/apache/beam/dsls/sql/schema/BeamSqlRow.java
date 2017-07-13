@@ -146,6 +146,12 @@ public class BeamSqlRow implements Serializable {
               String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
         }
         break;
+      case BOOLEAN:
+        if (!(fieldValue instanceof Boolean)) {
+          throw new IllegalArgumentException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
       default:
         throw new UnsupportedOperationException("Data type: " + fieldType + " not supported yet!");
     }
@@ -194,6 +200,10 @@ public class BeamSqlRow implements Serializable {
 
   public BigDecimal getBigDecimal(String fieldName) {
     return (BigDecimal) getFieldValue(fieldName);
+  }
+
+  public boolean getBoolean(String fieldName) {
+    return (boolean) getFieldValue(fieldName);
   }
 
   public Object getFieldValue(int fieldIdx) {
@@ -276,6 +286,13 @@ public class BeamSqlRow implements Serializable {
         } else {
           return fieldValue;
         }
+      case BOOLEAN:
+        if (!(fieldValue instanceof Boolean)) {
+          throw new IllegalArgumentException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
       default:
         throw new UnsupportedOperationException("Data type: " + fieldType + " not supported yet!");
     }
@@ -319,6 +336,10 @@ public class BeamSqlRow implements Serializable {
 
   public BigDecimal getBigDecimal(int idx) {
     return (BigDecimal) getFieldValue(idx);
+  }
+
+  public boolean getBoolean(int idx) {
+    return (boolean) getFieldValue(idx);
   }
 
   public int size() {
