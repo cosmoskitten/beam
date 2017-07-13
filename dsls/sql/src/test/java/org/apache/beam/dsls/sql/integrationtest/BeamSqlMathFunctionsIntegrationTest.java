@@ -19,6 +19,7 @@ package org.apache.beam.dsls.sql.integrationtest;
 
 import java.io.Serializable;
 import java.util.Iterator;
+import java.util.Random;
 import org.apache.beam.dsls.sql.BeamSql;
 import org.apache.beam.dsls.sql.BeamSqlDslBase;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -35,8 +36,8 @@ public class BeamSqlMathFunctionsIntegrationTest extends BeamSqlDslBase implemen
 
   @Test
   public void testRandRandInteger() throws Exception {
-    String sql = "SELECT RAND(f_int) as a, RAND(100) as b, "
-        + "RAND_INTEGER(10) as c, RAND_INTEGER(10, 100) as d "
+    String sql = "SELECT RAND(f_int) as a, RAND(100) as b, RAND() as c, "
+        + "RAND_INTEGER(10) as d, RAND_INTEGER(10, 100) as e "
         + "FROM PCOLLECTION";
 
     PCollection<BeamSqlRow> result = boundedInput2
@@ -49,11 +50,12 @@ public class BeamSqlMathFunctionsIntegrationTest extends BeamSqlDslBase implemen
         Assert.assertTrue(ite.hasNext());
         BeamSqlRow row = ite.next();
 
-        Assert.assertTrue(row.getDouble(0) >= 0 && row.getDouble(0) < 1);
-        Assert.assertTrue(row.getDouble(1) >= 0 && row.getDouble(1) < 1);
+        Assert.assertEquals(new Random(1).nextDouble(), row.getDouble(0), 0);
+        Assert.assertEquals(new Random(100).nextDouble(), row.getDouble(1), 0);
+        Assert.assertTrue(row.getDouble(2) >= 0 && row.getDouble(2) < 1);
 
-        Assert.assertTrue(row.getInteger(2) >= 0 && row.getInteger(2) < 10);
-        Assert.assertTrue(row.getInteger(3) >= 0 && row.getInteger(3) < 100);
+        Assert.assertTrue(row.getInteger(3) >= 0 && row.getInteger(3) < 10);
+        Assert.assertEquals(new Random(10).nextInt(100), row.getInteger(4));
 
         Assert.assertFalse(ite.hasNext());
         return null;

@@ -30,8 +30,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * function.
  */
 public class BeamSqlRandIntegerExpression extends BeamSqlExpression {
-  public static final Random RAND = new Random();
-  private int seed = Integer.MAX_VALUE;
+  private Random rand = new Random();
+  private Integer seed = null;
 
   public BeamSqlRandIntegerExpression(List<BeamSqlExpression> subExps) {
     super(subExps, SqlTypeName.INTEGER);
@@ -44,17 +44,15 @@ public class BeamSqlRandIntegerExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+    int numericIdx = 0;
     if (operands.size() == 2) {
-      int rowSeed = op(0).evaluate(inputRecord).getInteger();
-      if (seed != rowSeed) {
-        RAND.setSeed(rowSeed);
+      int rowSeed = opValueEvaluated(0, inputRecord);
+      if (seed == null || seed != rowSeed) {
+        rand.setSeed(rowSeed);
       }
-
-      return BeamSqlPrimitive.of(SqlTypeName.INTEGER,
-          RAND.nextInt(op(1).evaluate(inputRecord).getInteger()));
-    } else {
-      return BeamSqlPrimitive.of(SqlTypeName.INTEGER,
-          RAND.nextInt(op(0).evaluate(inputRecord).getInteger()));
+      numericIdx = 1;
     }
+    return BeamSqlPrimitive.of(SqlTypeName.INTEGER,
+        rand.nextInt((int) opValueEvaluated(numericIdx, inputRecord)));
   }
 }

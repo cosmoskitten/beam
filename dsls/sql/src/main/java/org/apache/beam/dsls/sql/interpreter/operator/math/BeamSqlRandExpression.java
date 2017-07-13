@@ -29,8 +29,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * {@code BeamSqlMathUnaryExpression} for 'RAND([seed])' function.
  */
 public class BeamSqlRandExpression extends BeamSqlExpression {
-  public static final Random RAND = new Random();
-  private int seed = Integer.MAX_VALUE;
+  private Random rand = new Random();
+  private Integer seed = null;
 
   public BeamSqlRandExpression(List<BeamSqlExpression> subExps) {
     super(subExps, SqlTypeName.DOUBLE);
@@ -44,11 +44,11 @@ public class BeamSqlRandExpression extends BeamSqlExpression {
   @Override
   public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
     if (operands.size() == 1) {
-      int rowSeed = op(0).evaluate(inputRecord).getInteger();
-      if (seed != rowSeed) {
-        RAND.setSeed(rowSeed);
+      int rowSeed = opValueEvaluated(0, inputRecord);
+      if (seed == null || seed != rowSeed) {
+        rand.setSeed(rowSeed);
       }
     }
-    return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, RAND.nextDouble());
+    return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, rand.nextDouble());
   }
 }
