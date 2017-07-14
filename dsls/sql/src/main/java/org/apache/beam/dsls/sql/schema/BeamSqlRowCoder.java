@@ -27,13 +27,13 @@ import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
@@ -50,8 +50,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   private static final DoubleCoder doubleCoder = DoubleCoder.of();
   private static final InstantCoder instantCoder = InstantCoder.of();
   private static final BigDecimalCoder bigDecimalCoder = BigDecimalCoder.of();
-  private static final SerializableCoder<Boolean> booleanCoder =
-      SerializableCoder.of(Boolean.class);
+  private static final ByteCoder byteCoder = ByteCoder.of();
 
   public BeamSqlRowCoder(BeamSqlRecordType tableSchema) {
     this.tableSchema = tableSchema;
@@ -73,7 +72,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
           intCoder.encode((int) value.getShort(idx), outStream);
           break;
         case TINYINT:
-          intCoder.encode((int) value.getByte(idx), outStream);
+          byteCoder.encode(value.getByte(idx), outStream);
           break;
         case DOUBLE:
           doubleCoder.encode(value.getDouble(idx), outStream);
@@ -98,7 +97,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
           longCoder.encode(value.getDate(idx).getTime(), outStream);
           break;
         case BOOLEAN:
-          booleanCoder.encode(value.getBoolean(idx), outStream);
+          byteCoder.encode((byte) (value.getBoolean(idx) ? 1 : 0), outStream);
           break;
 
         default:
@@ -130,7 +129,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
           record.addField(idx, intCoder.decode(inStream).shortValue());
           break;
         case TINYINT:
-          record.addField(idx, intCoder.decode(inStream).byteValue());
+          record.addField(idx, byteCoder.decode(inStream));
           break;
         case DOUBLE:
           record.addField(idx, doubleCoder.decode(inStream));
@@ -157,7 +156,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
           record.addField(idx, new Date(longCoder.decode(inStream)));
           break;
         case BOOLEAN:
-          record.addField(idx, booleanCoder.decode(inStream));
+          record.addField(idx, byteCoder.decode(inStream) == 1);
           break;
 
         default:
