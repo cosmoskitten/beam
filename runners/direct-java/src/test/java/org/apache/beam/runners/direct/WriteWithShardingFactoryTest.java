@@ -140,14 +140,14 @@ public class WriteWithShardingFactoryTest implements Serializable {
 
     PTransform<PCollection<Object>, PDone> original =
         WriteFiles.to(
-            new FileBasedSink<Object, Void>(
-                StaticValueProvider.of(outputDirectory), DynamicFileDestinations.constant(null)) {
+            new FileBasedSink<Object, Void, Object>(
+                StaticValueProvider.of(outputDirectory),
+                DynamicFileDestinations.constant(null, SerializableFunctions.identity())) {
               @Override
               public WriteOperation<Object, Void> createWriteOperation() {
                 throw new IllegalArgumentException("Should not be used");
               }
-            },
-            SerializableFunctions.identity());
+            });
     @SuppressWarnings("unchecked")
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 
