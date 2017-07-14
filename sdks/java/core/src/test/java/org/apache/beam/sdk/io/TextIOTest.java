@@ -285,11 +285,16 @@ public class TextIOTest {
         displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
   }
 
-  static class TestDynamicDestinations extends DynamicDestinations<String, String> {
+  static class TestDynamicDestinations extends DynamicDestinations<String, String, String> {
     ResourceId baseDir;
 
     TestDynamicDestinations(ResourceId baseDir) {
       this.baseDir = baseDir;
+    }
+
+    @Override
+    public String formatRecord(String record) {
+      return record;
     }
 
     @Override
@@ -439,8 +444,9 @@ public class TextIOTest {
             new UserWriteType("caab", "sixth"));
     PCollection<UserWriteType> input = p.apply(Create.of(elements));
     input.apply(
-        TextIO.writeCustomType(new SerializeUserWrite())
+        TextIO.<UserWriteType>writeCustomType()
             .to(new UserWriteDestination(baseDir), new Params())
+            .withFormatFunction(new SerializeUserWrite())
             .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
     p.run();
 

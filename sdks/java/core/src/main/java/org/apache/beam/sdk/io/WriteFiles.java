@@ -56,7 +56,6 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -119,8 +118,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
 
   static final int UNKNOWN_SHARDNUM = -1;
-  private FileBasedSink<OutputT, DestinationT> sink;
-  private SerializableFunction<UserT, OutputT> formatFunction;
+  private FileBasedSink<UserT, DestinationT, OutputT> sink;
   private WriteOperation<OutputT, DestinationT> writeOperation;
   // This allows the number of shards to be dynamically computed based on the input
   // PCollection.
@@ -137,12 +135,10 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * the runner control how many different shards are produced.
    */
   public static <UserT, DestinationT, OutputT> WriteFiles<UserT, DestinationT, OutputT> to(
-      FileBasedSink<OutputT, DestinationT> sink,
-      SerializableFunction<UserT, OutputT> formatFunction) {
+      FileBasedSink<UserT, DestinationT, OutputT> sink) {
     checkNotNull(sink, "sink");
     return new WriteFiles<>(
         sink,
-        formatFunction,
         null /* runner-determined sharding */,
         null,
         false,
@@ -150,14 +146,12 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   private WriteFiles(
-      FileBasedSink<OutputT, DestinationT> sink,
-      SerializableFunction<UserT, OutputT> formatFunction,
+      FileBasedSink<UserT, DestinationT, OutputT> sink,
       @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> computeNumShards,
       @Nullable ValueProvider<Integer> numShardsProvider,
       boolean windowedWrites,
       int maxNumWritersPerBundle) {
     this.sink = sink;
-    this.formatFunction = checkNotNull(formatFunction);
     this.computeNumShards = computeNumShards;
     this.numShardsProvider = numShardsProvider;
     this.windowedWrites = windowedWrites;
@@ -210,13 +204,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   /** Returns the {@link FileBasedSink} associated with this PTransform. */
-  public FileBasedSink<OutputT, DestinationT> getSink() {
+  public FileBasedSink<UserT, DestinationT, OutputT> getSink() {
     return sink;
-  }
-
-  /** Returns the the format function that maps the user type to the record written to files. */
-  public SerializableFunction<UserT, OutputT> getFormatFunction() {
-    return formatFunction;
   }
 
   /**
@@ -269,7 +258,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       ValueProvider<Integer> numShardsProvider) {
     return new WriteFiles<>(
         sink,
-        formatFunction,
         computeNumShards,
         numShardsProvider,
         windowedWrites,
@@ -281,7 +269,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       int maxNumWritersPerBundle) {
     return new WriteFiles<>(
         sink,
-        formatFunction,
         computeNumShards,
         numShardsProvider,
         windowedWrites,
@@ -300,7 +287,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     checkNotNull(
         sharding, "Cannot provide null sharding. Use withRunnerDeterminedSharding() instead");
     return new WriteFiles<>(
-        sink, formatFunction, sharding, null, windowedWrites, maxNumWritersPerBundle);
+        sink, sharding, null, windowedWrites, maxNumWritersPerBundle);
   }
 
   /**
@@ -309,7 +296,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withRunnerDeterminedSharding() {
     return new WriteFiles<>(
-        sink, formatFunction, null, null, windowedWrites, maxNumWritersPerBundle);
+        sink, null, null, windowedWrites, maxNumWritersPerBundle);
   }
 
   /**
@@ -326,7 +313,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withWindowedWrites() {
     return new WriteFiles<>(
-        sink, formatFunction, computeNumShards, numShardsProvider, true, maxNumWritersPerBundle);
+        sink, computeNumShards, numShardsProvider, true, maxNumWritersPerBundle);
   }
 
   private static class WriterKey<DestinationT> {
@@ -397,13 +384,13 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+      sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
       PaneInfo paneInfo = c.pane();
       // If we are doing windowed writes, we need to ensure that we have separate files for
       // data in different windows/panes. Similar for dynamic writes, make sure that different
       // destinations go to different writers.
       // In the case of unwindowed writes, the window and the pane will always be the same, and
       // the map will only have a single element.
-      sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
       DestinationT destination = sink.getDynamicDestinations().getDestination(c.element());
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
       Writer<OutputT, DestinationT> writer = writers.get(key);
@@ -440,7 +427,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           return;
         }
       }
-      writeOrClose(writer, formatFunction.apply(c.element()));
+      writeOrClose(writer, getSink().getDynamicDestinations().formatRecord(c.element()));
     }
 
     @FinishBundle
@@ -506,7 +493,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           LOG.debug("Done opening writer");
           writers.put(destination, writer);
         }
-        writeOrClose(writer, formatFunction.apply(input));
+        writeOrClose(writer, getSink().getDynamicDestinations().formatRecord(input));
       }
 
       // Close all writers.
