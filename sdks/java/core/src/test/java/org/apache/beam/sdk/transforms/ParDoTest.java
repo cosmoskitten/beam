@@ -2603,21 +2603,22 @@ public class ParDoTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testGbkFollowedByUserTimers() throws Exception {
-    final String timerId = "foo";
 
     DoFn<KV<String, Iterable<Integer>>, Integer> fn =
         new DoFn<KV<String, Iterable<Integer>>, Integer>() {
 
-          @TimerId(timerId)
+          public static final String TIMER_ID = "foo";
+
+          @TimerId(TIMER_ID)
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @ProcessElement
-          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+          public void processElement(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
             timer.offset(Duration.standardSeconds(1)).setRelative();
             context.output(3);
           }
 
-          @OnTimer(timerId)
+          @OnTimer(TIMER_ID)
           public void onTimer(OnTimerContext context) {
             context.output(42);
           }
