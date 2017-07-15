@@ -510,6 +510,14 @@ public class TextIO {
     @Nullable
     abstract DynamicDestinations<UserT, ?, String> getDynamicDestinations();
 
+    @Nullable
+    /** A destination function for using {@link DefaultFilenamePolicy} */
+    abstract SerializableFunction<UserT, Params> getDestinationFunction();
+
+    @Nullable
+    /** A default destination for empty PCollections. */
+    abstract Params getEmptyDestination();
+
     /** A function that converts UserT to a String, for writing to the file. */
     @Nullable
     abstract SerializableFunction<UserT, String> getFormatFunction();
@@ -543,6 +551,11 @@ public class TextIO {
 
       abstract Builder<UserT> setDynamicDestinations(
           @Nullable DynamicDestinations<UserT, ?, String> dynamicDestinations);
+
+      abstract Builder<UserT> setDestinationFunction(
+          @Nullable SerializableFunction<UserT, Params> destinationFunction);
+
+      abstract Builder<UserT> setEmptyDestination(Params emptyDestination);
 
       abstract Builder<UserT> setFormatFunction(SerializableFunction<UserT, String> formatFunction);
 
@@ -620,8 +633,10 @@ public class TextIO {
      */
     public TypedWrite<UserT> to(
         SerializableFunction<UserT, Params> destinationFunction, Params emptyDestination) {
-      return to(DynamicFileDestinations.toDefaultPolicies(
-          destinationFunction, emptyDestination, getFormatFunction()));
+      return toBuilder()
+          .setDestinationFunction(destinationFunction)
+          .setEmptyDestination(emptyDestination)
+          .build();
     }
 
     /** Like {@link #to(ResourceId)}. */
@@ -747,17 +762,22 @@ public class TextIO {
     private DynamicDestinations<UserT, ?, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, ?, String> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
-        FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
-        if (usedFilenamePolicy == null) {
-          usedFilenamePolicy =
-              DefaultFilenamePolicy.fromStandardParameters(
-                  getFilenamePrefix(),
-                  getShardTemplate(),
-                  getFilenameSuffix(),
-                  getWindowedWrites());
+        if (getDestinationFunction() != null) {
+          dynamicDestinations = DynamicFileDestinations.toDefaultPolicies(
+              getDestinationFunction(), getEmptyDestination(), getFormatFunction());
+        } else {
+          FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
+          if (usedFilenamePolicy == null) {
+            usedFilenamePolicy =
+                DefaultFilenamePolicy.fromStandardParameters(
+                    getFilenamePrefix(),
+                    getShardTemplate(),
+                    getFilenameSuffix(),
+                    getWindowedWrites());
+          }
+          dynamicDestinations = DynamicFileDestinations.constant(
+              usedFilenamePolicy, getFormatFunction());
         }
-        dynamicDestinations = DynamicFileDestinations.constant(
-            usedFilenamePolicy, getFormatFunction());
       }
       return dynamicDestinations;
     }
