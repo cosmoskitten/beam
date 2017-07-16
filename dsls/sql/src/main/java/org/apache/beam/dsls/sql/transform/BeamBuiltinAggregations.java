@@ -17,6 +17,7 @@
  */
 package org.apache.beam.dsls.sql.transform;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Iterator;
@@ -380,6 +381,144 @@ class BeamBuiltinAggregations {
     public Coder<KV<BigDecimal, Long>> getAccumulatorCoder(CoderRegistry registry)
         throws CannotProvideCoderException {
       return KvCoder.of(BigDecimalCoder.of(), VarLongCoder.of());
+    }
+  }
+
+  static class VarAgg implements Serializable {
+    long count; // number of elements
+    double sum; // sum of elements
+
+    public VarAgg(long count, double sum) {
+      this.count = count;
+      this.sum = sum;
+    }
+  }
+
+  public static final class Var<T> extends BeamSqlUdaf<T, KV<BigDecimal, VarAgg>, T> {
+    public static Var create(SqlTypeName fieldType, boolean isSamp) {
+      switch (fieldType) {
+        case INTEGER:
+          return new Var<Integer>(fieldType, isSamp);
+        case SMALLINT:
+          return new Var<Short>(fieldType, isSamp);
+        case TINYINT:
+          return new Var<Byte>(fieldType, isSamp);
+        case BIGINT:
+          return new Var<Long>(fieldType, isSamp);
+        case FLOAT:
+          return new Var<Float>(fieldType, isSamp);
+        case DOUBLE:
+          return new Var<Double>(fieldType, isSamp);
+        case DECIMAL:
+          return new Var<BigDecimal>(fieldType, isSamp);
+        default:
+          throw new UnsupportedOperationException(
+                  String.format("[%s] is not support in Var", fieldType));
+      }
+    }
+
+    private SqlTypeName fieldType;
+    private boolean isSamp;
+
+    private Var(SqlTypeName fieldType, boolean isSamp) {
+      this.fieldType = fieldType;
+      this.isSamp = isSamp;
+    }
+
+    @Override
+    public KV<BigDecimal, VarAgg> init() {
+      VarAgg varagg = new VarAgg(0L, 0);
+      return KV.of(new BigDecimal(0), varagg);
+    }
+
+    @Override
+    public KV<BigDecimal, VarAgg> add(KV<BigDecimal, VarAgg> accumulator, T input) {
+      double v;
+      if (input == null) {
+        return accumulator;
+      } else {
+        v = new BigDecimal(input.toString()).doubleValue();
+        accumulator.getValue().count++;
+        accumulator.getValue().sum += v;
+
+        double variance;
+        if (accumulator.getValue().count > 1) {
+          double t = accumulator.getValue().count * v - accumulator.getValue().sum;
+          variance = (t*t)/(accumulator.getValue().count * (accumulator.getValue().count - 1));
+        } else {
+          variance = 0;
+        }
+        return KV.of(accumulator.getKey().add(new BigDecimal(variance)), accumulator.getValue());
+      }
+    }
+
+    @Override
+    public KV<BigDecimal, VarAgg> merge(Iterable<KV<BigDecimal, VarAgg>> accumulators) {
+      BigDecimal variance = new BigDecimal(0);
+      long count = 0;
+      double sum = 0;
+
+      Iterator<KV<BigDecimal, VarAgg>> ite = accumulators.iterator();
+      while (ite.hasNext()) {
+        KV<BigDecimal, VarAgg> r = ite.next();
+
+        double b = r.getValue().sum;
+
+        count += r.getValue().count;
+        sum += b;
+
+        double t = (r.getValue().count/(double)count)*sum - b;
+        double d = ((count/(double)r.getValue().count)/((double)count+r.getValue().count))*t*t;
+        variance.add(r.getKey().add(new BigDecimal(d)));
+      }
+
+      return KV.of(variance, new VarAgg(count, sum));
+    }
+
+    @Override
+    public T result(KV<BigDecimal, VarAgg> accumulator) {
+      BigDecimal decimalVar = null;
+
+      if (accumulator.getValue().count > 1) {
+        decimalVar = accumulator.getKey().divide(
+                new BigDecimal(accumulator.getValue().count - (this.isSamp? 1 : 0)));
+      } else {
+        decimalVar = new BigDecimal(0);
+      }
+      Object result = null;
+
+      switch (fieldType) {
+        case INTEGER:
+          result = decimalVar.intValue();
+          break;
+        case BIGINT:
+          result = decimalVar.longValue();
+          break;
+        case SMALLINT:
+          result = decimalVar.shortValue();
+          break;
+        case TINYINT:
+          result = decimalVar.byteValue();
+          break;
+        case DOUBLE:
+          result = decimalVar.doubleValue();
+          break;
+        case FLOAT:
+          result = decimalVar.floatValue();
+          break;
+        case DECIMAL:
+          result = decimalVar;
+          break;
+        default:
+          break;
+      }
+      return (T) result;
+    }
+
+    @Override
+    public Coder<KV<BigDecimal, VarAgg>> getAccumulatorCoder(CoderRegistry registry)
+            throws CannotProvideCoderException {
+      return KvCoder.of(BigDecimalCoder.of(), SerializableCoder.of(VarAgg.class));
     }
   }
 

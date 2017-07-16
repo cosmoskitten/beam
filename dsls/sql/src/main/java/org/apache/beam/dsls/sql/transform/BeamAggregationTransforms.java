@@ -188,6 +188,12 @@ public class BeamAggregationTransforms implements Serializable{
           case "AVG":
             aggregators.add(BeamBuiltinAggregations.Avg.create(call.type.getSqlTypeName()));
             break;
+          case "VAR_POP":
+            aggregators.add(BeamBuiltinAggregations.Var.create(call.type.getSqlTypeName(), false));
+            break;
+          case "VAR_SAMP":
+            aggregators.add(BeamBuiltinAggregations.Var.create(call.type.getSqlTypeName(), true));
+            break;
           default:
             if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
               // handle UDAF.
