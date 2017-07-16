@@ -444,7 +444,7 @@ class BeamBuiltinAggregations {
         double variance;
         if (accumulator.getValue().count > 1) {
           double t = accumulator.getValue().count * v - accumulator.getValue().sum;
-          variance = (t*t)/(accumulator.getValue().count * (accumulator.getValue().count - 1));
+          variance = (t * t) / (accumulator.getValue().count * (accumulator.getValue().count - 1));
         } else {
           variance = 0;
         }
@@ -467,8 +467,9 @@ class BeamBuiltinAggregations {
         count += r.getValue().count;
         sum += b;
 
-        double t = (r.getValue().count/(double)count)*sum - b;
-        double d = ((count/(double)r.getValue().count)/((double)count+r.getValue().count))*t*t;
+        double t = (r.getValue().count / (double) count) * sum - b;
+        double d = t * t
+                * ((count / (double) r.getValue().count) / ((double) count + r.getValue().count));
         variance.add(r.getKey().add(new BigDecimal(d)));
       }
 
@@ -481,7 +482,7 @@ class BeamBuiltinAggregations {
 
       if (accumulator.getValue().count > 1) {
         decimalVar = accumulator.getKey().divide(
-                new BigDecimal(accumulator.getValue().count - (this.isSamp? 1 : 0)));
+                new BigDecimal(accumulator.getValue().count - (this.isSamp ? 1 : 0)));
       } else {
         decimalVar = new BigDecimal(0);
       }
