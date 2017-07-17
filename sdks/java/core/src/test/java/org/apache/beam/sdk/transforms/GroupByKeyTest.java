@@ -33,6 +33,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -82,13 +84,13 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class GroupByKeyTest {
+public class GroupByKeyTest implements Serializable {
 
   @Rule
-  public final TestPipeline p = TestPipeline.create();
+  public transient TestPipeline p = TestPipeline.create();
 
   @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(ValidatesRunner.class)
@@ -170,6 +172,74 @@ public class GroupByKeyTest {
           isKv(is("k3"), containsInAnyOrder(0))));
       return null;
     }
+  }
+
+  @Test
+  @Category(ValidatesRunner.class) public void testGroupByKeyMultipleWindows() {
+    PCollection<KV<String, Integer>> windowedInput =
+        p.apply(
+                Create.timestamped(
+                    TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
+                    TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
+                    TimestampedValue.of(KV.of("bar", 3), new Instant(3))))
+            .apply(
+                Window.<KV<String, Integer>>into(
+                    SlidingWindows.of(Duration.millis(5L)).every(Duration.millis(3L))));
+
+    PCollection<KV<String, Iterable<Integer>>> output =
+        windowedInput.apply(GroupByKey.<String, Integer>create());
+
+    PAssert.that(output)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>() {
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<Integer>>> input) {
+                assertThat(
+                    input,
+                    containsInAnyOrder(
+                        isKv(equalTo("foo"), containsInAnyOrder(1, 4)),
+                        isKv(equalTo("foo"), containsInAnyOrder(1)),
+                        isKv(equalTo("foo"), containsInAnyOrder(4)),
+                        isKv(equalTo("bar"), containsInAnyOrder(3)),
+                        isKv(equalTo("bar"), containsInAnyOrder(3))));
+                return null;
+              }
+            });
+
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testGroupByKeyMergingWindows() {
+    PCollection<KV<String, Integer>> windowedInput =
+        p.apply(
+                Create.timestamped(
+                    TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
+                    TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
+                    TimestampedValue.of(KV.of("bar", 3), new Instant(3)),
+                    TimestampedValue.of(KV.of("foo", 9), new Instant(9))))
+            .apply(Window.<KV<String, Integer>>into(Sessions.withGapDuration(Duration.millis(4L))));
+
+    PCollection<KV<String, Iterable<Integer>>> output =
+        windowedInput.apply(GroupByKey.<String, Integer>create());
+
+    PAssert.that(output)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>() {
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<Integer>>> input) {
+                assertThat(
+                    input,
+                    containsInAnyOrder(
+                        isKv(equalTo("foo"), containsInAnyOrder(1, 4)),
+                        isKv(equalTo("foo"), containsInAnyOrder(9)),
+                        isKv(equalTo("bar"), containsInAnyOrder(3))));
+                return null;
+              }
+            });
+
+    p.run();
   }
 
   @Test
