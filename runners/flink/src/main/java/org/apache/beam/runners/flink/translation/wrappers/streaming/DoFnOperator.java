@@ -917,8 +917,6 @@ public class DoFnOperator<InputT, OutputT>
     private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping;
     private Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping;
 
-    public MultiOutputOutputManagerFactory(TupleTag<OutputT> mainTag){}
-
     // There is no side output.
     @SuppressWarnings("unchecked")
     public MultiOutputOutputManagerFactory(
