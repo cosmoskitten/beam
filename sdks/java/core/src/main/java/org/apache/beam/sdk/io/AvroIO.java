@@ -974,7 +974,8 @@ public class AvroIO {
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
       }
-      return input.apply("Write", write);
+      input.apply("Write", write);
+      return PDone.in(input.getPipeline());
     }
 
     @Override
