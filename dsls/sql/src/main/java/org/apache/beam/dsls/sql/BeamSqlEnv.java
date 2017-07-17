@@ -21,7 +21,7 @@ import java.io.Serializable;
 
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.schema.BeamSqlUdaf;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.calcite.DataContext;
@@ -84,13 +84,13 @@ public class BeamSqlEnv implements Serializable{
   }
 
   private static class BeamCalciteTable implements ScannableTable, Serializable {
-    private BeamSqlRecordType beamSqlRecordType;
-    public BeamCalciteTable(BeamSqlRecordType beamSqlRecordType) {
-      this.beamSqlRecordType = beamSqlRecordType;
+    private BeamSqlRowType beamSqlRowType;
+    public BeamCalciteTable(BeamSqlRowType beamSqlRowType) {
+      this.beamSqlRowType = beamSqlRowType;
     }
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-      return CalciteUtils.toCalciteRecordType(this.beamSqlRecordType)
+      return CalciteUtils.toCalciteRecordType(this.beamSqlRowType)
           .apply(BeamQueryPlanner.TYPE_FACTORY);
     }
 
