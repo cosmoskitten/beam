@@ -40,6 +40,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -505,6 +506,35 @@ public class TextIOTest {
     runTestWrite(elems, header, footer, 1);
   }
 
+  private static class MatchesFilesystem implements SerializableFunction<Iterable<String>, Void> {
+    private final ResourceId baseFilename;
+
+    MatchesFilesystem(ResourceId baseFilename) {
+      this.baseFilename = baseFilename;
+    }
+
+    @Override
+    public Void apply(Iterable<String> values) {
+      try {
+        String pattern = baseFilename.toString() + "*";
+        Iterable<String> matches =
+            Iterables.transform(
+                Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(pattern)))
+                    .metadata(),
+                new Function<Metadata, String>() {
+                  @Override
+                  public String apply(@Nullable Metadata input) {
+                    return input.resourceId().toString();
+                  }
+                });
+        assertThat(values, containsInAnyOrder(Iterables.toArray(matches, String.class)));
+      } catch (Exception e) {
+        fail("Exception caught " + e);
+      }
+      return null;
+    }
+  }
+
   private void runTestWrite(
       String[] elems, String header, String footer, int numShards) throws Exception {
     String outputName = "file.txt";
@@ -515,10 +545,8 @@ public class TextIOTest {
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(elems)).withCoder(StringUtf8Coder.of()));
 
-    TextIO.Write write =
-        TextIO.write().to(baseFilename)
-            .withHeader(header)
-            .withFooter(footer);
+    TextIO.TypedWrite<String> write =
+        TextIO.write().to(baseFilename).withHeader(header).withFooter(footer).withOutputFilenames();
 
     if (numShards == 1) {
       write = write.withoutSharding();
@@ -526,8 +554,8 @@ public class TextIOTest {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
 
-    input.apply(write);
-
+    PCollection<String> outputFilenames = input.apply(write).getOutputFilenames();
+    PAssert.that(outputFilenames).satisfies(new MatchesFilesystem(baseFilename));
     p.run();
 
     assertOutputFiles(
@@ -537,7 +565,7 @@ public class TextIOTest {
         numShards,
         baseFilename,
         firstNonNull(
-            write.inner.getShardTemplate(),
+            write.getShardTemplate(),
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
   }
 
