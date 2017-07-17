@@ -470,7 +470,7 @@ class BeamBuiltinAggregations {
         double t = (r.getValue().count / (double) count) * sum - b;
         double d = t * t
                 * ((count / (double) r.getValue().count) / ((double) count + r.getValue().count));
-        variance.add(r.getKey().add(new BigDecimal(d)));
+        variance = variance.add(r.getKey().add(new BigDecimal(d)));
       }
 
       return KV.of(variance, new VarAgg(count, sum));
