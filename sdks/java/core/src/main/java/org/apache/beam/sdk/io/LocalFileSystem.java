@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -52,6 +53,20 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@link FileSystem} implementation for local files.
+ *
+ * {@link #match} should interpret {@code spec} and resolve paths correctly according to OS being
+ * used. In order to do that specs should be defined in one of the below formats:
+ * Linux/Mac:
+ * - pom.xml
+ * - /Users/user/Documents/pom.xml
+ * - file:/Users/user/Documents/pom.xml
+ * - file:///Users/user/Documents/pom.xml
+ * Windows OS:
+ * - pom.xml
+ * - C:/Users/user/Documents/pom.xml
+ * - file:/C:/Users/user/Documents/pom.xml
+ * - file:///C:/Users/user/Documents/pom.xml
+ *
  */
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
@@ -64,9 +79,6 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   protected List<MatchResult> match(List<String> specs) throws IOException {
     ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
     for (String spec : specs) {
-      if (spec.startsWith("file:")) {
-        spec = spec.substring("file:".length());
-      }
       ret.add(matchOne(spec));
     }
     return ret.build();
@@ -185,7 +197,12 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     }
 
     if (SystemUtils.IS_OS_WINDOWS) {
-      spec = spec.replaceAll("^/+", "");
+      List<String> prefixes = Arrays.asList("///", "/");
+      for (String prefix : prefixes) {
+        if (spec.toLowerCase().startsWith(prefix)) {
+          spec = spec.substring(prefix.length());
+        }
+      }
     }
 
     File file = Paths.get(spec).toFile();
