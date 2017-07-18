@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -46,11 +47,26 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * {@link FileSystem} implementation for local files.
+ *
+ * {@link #match} should interpret {@code spec} and resolve paths correctly according to OS being
+ * used. In order to do that specs should be defined in one of the below formats:
+ * Linux/Mac:
+ * - pom.xml
+ * - /Users/user/Documents/pom.xml
+ * - file:/Users/user/Documents/pom.xml
+ * - file:///Users/user/Documents/pom.xml
+ * Windows OS:
+ * - pom.xml
+ * - C:/Users/user/Documents/pom.xml
+ * - file:/C:/Users/user/Documents/pom.xml
+ * - file:///C:/Users/user/Documents/pom.xml
+ *
  */
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
@@ -63,9 +79,6 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   protected List<MatchResult> match(List<String> specs) throws IOException {
     ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
     for (String spec : specs) {
-      if (spec.startsWith("file:")) {
-        spec = spec.substring("file:".length());
-      }
       ret.add(matchOne(spec));
     }
     return ret.build();
@@ -90,7 +103,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   protected ReadableByteChannel open(LocalResourceId resourceId) throws IOException {
     LOG.debug("opening file {}", resourceId);
     @SuppressWarnings("resource") // The caller is responsible for closing the channel.
-    FileInputStream inputStream = new FileInputStream(resourceId.getPath().toFile());
+        FileInputStream inputStream = new FileInputStream(resourceId.getPath().toFile());
     // Use this method for creating the channel (rather than new FileChannel) so that we get
     // regular FileNotFoundException. Closing the underyling channel will close the inputStream.
     return inputStream.getChannel();
@@ -179,8 +192,20 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   private MatchResult matchOne(String spec) throws IOException {
-    File file = Paths.get(spec).toFile();
+    if (spec.toLowerCase().startsWith("file:")) {
+      spec = spec.substring("file:".length());
+    }
 
+    if (SystemUtils.IS_OS_WINDOWS) {
+      List<String> prefixes = Arrays.asList("///", "/");
+      for (String prefix : prefixes) {
+        if (spec.toLowerCase().startsWith(prefix)) {
+          spec = spec.substring(prefix.length());
+        }
+      }
+    }
+
+    File file = Paths.get(spec).toFile();
     if (file.exists()) {
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }
