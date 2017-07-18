@@ -1268,7 +1268,7 @@ public class DataflowRunnerTest implements Serializable {
     StreamingShardedWriteFactory<Object, Void, Object> factory =
         new StreamingShardedWriteFactory<>(p.getOptions());
     WriteFiles<Object, Void, Object> original =
-        WriteFiles.to(new TestSink(tmpFolder.toString()), SerializableFunctions.identity());
+        WriteFiles.to(new TestSink(tmpFolder.toString()));
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object, Void, Object>>
         originalApplication =
@@ -1286,14 +1286,14 @@ public class DataflowRunnerTest implements Serializable {
     assertThat(replacement.getNumShards().get(), equalTo(expectedNumShards));
   }
 
-  private static class TestSink extends FileBasedSink<Object, Void> {
+  private static class TestSink extends FileBasedSink<Object, Void, Object> {
     @Override
     public void validate(PipelineOptions options) {}
 
     TestSink(String tmpFolder) {
       super(
           StaticValueProvider.of(FileSystems.matchNewResource(tmpFolder, true)),
-          DynamicFileDestinations.constant(null));
+          DynamicFileDestinations.constant(null, SerializableFunctions.identity()));
     }
 
     @Override
