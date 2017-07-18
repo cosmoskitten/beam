@@ -56,6 +56,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
@@ -94,6 +95,7 @@ public class TextIOReadTest {
   private static final List<String> TINY =
       Arrays.asList("Irritable eagle", "Optimistic jay", "Fanciful hawk");
   private static final List<String> LARGE = makeLines(1000);
+  private static int uniquifier = 0;
 
   private static Path tempFolder;
   private static File emptyTxt;
@@ -296,15 +298,18 @@ public class TextIOReadTest {
   private void assertReadingCompressedFileMatchesExpected(
       File file, CompressionType compressionType, List<String> expected) {
 
+    int thisUniquifier = ++uniquifier;
+
     TextIO.Read read = TextIO.read().from(file.getPath()).withCompressionType(compressionType);
-    PAssert.that(p.apply("Read_" + file + "_" + compressionType.toString(), read))
+    PAssert.that(
+            p.apply("Read_" + file + "_" + compressionType.toString() + "_" + thisUniquifier, read))
         .containsInAnyOrder(expected);
 
     TextIO.ReadAll readAll =
         TextIO.readAll().withCompressionType(compressionType).withDesiredBundleSizeBytes(10);
     PAssert.that(
-            p.apply("Create_" + file, Create.of(file.getPath()))
-                .apply("Read_" + compressionType.toString(), readAll))
+            p.apply("Create_" + file + "_" + thisUniquifier, Create.of(file.getPath()))
+                .apply("Read_" + compressionType.toString() + "_" + thisUniquifier, readAll))
         .containsInAnyOrder(expected);
     p.run();
   }
