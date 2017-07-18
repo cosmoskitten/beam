@@ -443,11 +443,7 @@ public class FileSystems {
     if (rval != null) {
       return rval;
     }
-    rval = schemeToFileSystem.get(DEFAULT_SCHEME);
-    if (rval != null) {
-      return rval;
-    }
-    throw new IllegalStateException("Unable to find registrar for " + scheme);
+    return schemeToFileSystem.get(DEFAULT_SCHEME);
   }
 
   /********************************** METHODS FOR REGISTRATION **********************************/
