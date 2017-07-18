@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -252,6 +253,9 @@ public class LocalFileSystemTest {
 
     String expectedFile = expected.get(0);
     int slashIndex = expectedFile.lastIndexOf('/');
+    if (SystemUtils.IS_OS_WINDOWS) {
+        slashIndex = expectedFile.lastIndexOf('\\');
+    }
     String directory = expectedFile.substring(0, slashIndex);
     String relative = expectedFile.substring(slashIndex + 1);
     System.setProperty("user.dir", directory);
