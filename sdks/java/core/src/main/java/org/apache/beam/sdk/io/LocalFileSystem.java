@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
  * Windows OS:
  * - pom.xml
  * - C:/Users/user/Documents/pom.xml
+ * - C:\Users\user\Documents\pom.xml
  * - file:/C:/Users/user/Documents/pom.xml
  * - file:///C:/Users/user/Documents/pom.xml
  *
