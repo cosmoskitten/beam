@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -52,6 +54,7 @@ import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.OffsetBasedSource.OffsetBasedReader;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -197,6 +200,14 @@ public class Create<T> {
       kvs.add(KV.of(entry.getKey(), entry.getValue()));
     }
     return of(kvs);
+  }
+
+  /**
+   * Returns an {@link OfValueProvider} transform that produces a {@link PCollection}
+   * of a single element provided by the given {@link ValueProvider}.
+   */
+  public static <T> OfValueProvider<T> ofProvider(ValueProvider<T> provider, Coder<T> coder) {
+    return new OfValueProvider<>(provider, coder);
   }
 
   /**
@@ -480,6 +491,44 @@ public class Create<T> {
                 CoderUtils.decodeFromByteArray(source.coder, source.allElementsBytes.get(index)));
         return true;
       }
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /** Implementation of {@link #ofProvider}. */
+  public static class OfValueProvider<T> extends PTransform<PBegin, PCollection<T>> {
+    private final ValueProvider<T> provider;
+    private final Coder<T> coder;
+
+    private OfValueProvider(ValueProvider<T> provider, Coder<T> coder) {
+      checkNotNull(provider, "provider");
+      checkNotNull(coder, "coder");
+      this.provider = provider;
+      this.coder = coder;
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      if (provider.isAccessible()) {
+        Values<T> values = Create.of(provider.get());
+        return input.apply(values.withCoder(coder));
+      }
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      SerializableCoder<ValueProvider<T>> providerCoder =
+          SerializableCoder.of((Class) provider.getClass());
+      return input
+          .apply(Create.of(provider).withCoder(providerCoder))
+          .apply(ParDo.of(new GetFromValueProviderFn<T>()))
+          .setCoder(coder);
+    }
+  }
+
+  private static class GetFromValueProviderFn<T> extends DoFn<ValueProvider<T>, T> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(c.element().get());
     }
   }
 
