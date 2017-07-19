@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.dsls.sql.meta.Table;
 import org.apache.beam.dsls.sql.meta.provider.TableProvider;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.schema.BeamSqlTable;
 
 /**
@@ -29,7 +29,7 @@ import org.apache.beam.dsls.sql.schema.BeamSqlTable;
  */
 public class KafkaTableProvider implements TableProvider {
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    BeamSqlRecordType recordType = getBeamSqlRecordTypeFromTable(table);
+    BeamSqlRowType recordType = getBeamSqlRecordTypeFromTable(table);
 
     JSONObject properties = table.getProperties();
     String bootstrapServers = properties.getString("bootstrap.servers");

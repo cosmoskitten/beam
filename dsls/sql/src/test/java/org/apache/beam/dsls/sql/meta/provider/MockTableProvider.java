@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.dsls.sql.meta.Table;
 import org.apache.beam.dsls.sql.mock.MockedBoundedTable;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.schema.BeamSqlTable;
 
 /**
@@ -29,7 +29,7 @@ public class MockTableProvider  implements TableProvider {
   }
 
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    BeamSqlRecordType type = MetaUtils.getBeamSqlRecordTypeFromTable(table);
+    BeamSqlRowType type = MetaUtils.getBeamSqlRecordTypeFromTable(table);
     return new MockedBoundedTable(type);
   }
 
