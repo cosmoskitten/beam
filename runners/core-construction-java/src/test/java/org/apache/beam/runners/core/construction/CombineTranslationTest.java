@@ -38,7 +38,9 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -80,6 +82,38 @@ public class CombineTranslationTest {
           }
         });
     checkState(combine.get() != null);
+    assertEquals(combineFn, CombineTranslation.getCombineFn(combine.get()));
+
+    SdkComponents sdkComponents = SdkComponents.create();
+    CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
+    RunnerApi.Components componentsProto = sdkComponents.toComponents();
+
+    assertEquals(
+        combineFn.getAccumulatorCoder(pipeline.getCoderRegistry(), input.getCoder()),
+        CombineTranslation.getAccumulatorCoder(combineProto, componentsProto));
+    assertEquals(combineFn, CombineTranslation.getCombineFn(combineProto));
+  }
+
+  @Test
+  public void testToFromProtoWithSideInputs() throws Exception {
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3));
+    PCollectionView<String> sideInput =
+        pipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
+    input.apply(Combine.globally(combineFn).withSideInputs(sideInput));
+    final AtomicReference<AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>>> combine =
+        new AtomicReference<>();
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public void leaveCompositeTransform(Node node) {
+            if (node.getTransform() instanceof Combine.PerKey) {
+              checkState(combine.get() == null);
+              combine.set((AppliedPTransform) node.toAppliedPTransform(getPipeline()));
+            }
+          }
+        });
+    checkState(combine.get() != null);
+    assertEquals(combineFn, CombineTranslation.getCombineFn(combine.get()));
 
     SdkComponents sdkComponents = SdkComponents.create();
     CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
