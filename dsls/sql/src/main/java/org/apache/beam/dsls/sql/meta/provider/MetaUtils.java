@@ -22,19 +22,19 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.dsls.sql.meta.Column;
 import org.apache.beam.dsls.sql.meta.Table;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 
 /**
  * Utility methods for metadata.
  */
 public class MetaUtils {
-  public static BeamSqlRecordType getBeamSqlRecordTypeFromTable(Table table) {
+  public static BeamSqlRowType getBeamSqlRecordTypeFromTable(Table table) {
     List<String> columnNames = new ArrayList<>(table.getColumns().size());
     List<Integer> columnTypes = new ArrayList<>(table.getColumns().size());
     for (Column column : table.getColumns()) {
       columnNames.add(column.getName());
       columnTypes.add(column.getType());
     }
-    return BeamSqlRecordType.create(columnNames, columnTypes);
+    return BeamSqlRowType.create(columnNames, columnTypes);
   }
 }

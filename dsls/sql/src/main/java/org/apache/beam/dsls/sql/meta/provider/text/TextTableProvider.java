@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.dsls.sql.meta.Table;
 import org.apache.beam.dsls.sql.meta.provider.TableProvider;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.schema.BeamSqlTable;
 import org.apache.commons.csv.CSVFormat;
 
@@ -50,7 +50,7 @@ public class TextTableProvider implements TableProvider {
   }
 
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    BeamSqlRecordType recordType = getBeamSqlRecordTypeFromTable(table);
+    BeamSqlRowType rowType = getBeamSqlRecordTypeFromTable(table);
 
     String filePattern = table.getLocation().getPath();
     CSVFormat format = CSVFormat.DEFAULT;
@@ -60,7 +60,7 @@ public class TextTableProvider implements TableProvider {
       format = CSVFormat.valueOf(csvFormatStr);
     }
 
-    BeamTextCSVTable txtTable = new BeamTextCSVTable(recordType, filePattern, format);
+    BeamTextCSVTable txtTable = new BeamTextCSVTable(rowType, filePattern, format);
     return txtTable;
   }
 
