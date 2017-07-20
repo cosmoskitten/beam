@@ -211,6 +211,10 @@ public class Watch {
      * A strategy for determining whether it is time to stop polling the current input regardless of
      * whether its output is complete or not.
      *
+     * <p>Some built-in termination conditions are {@link #never}, {@link #afterTotalOf} and
+     * {@link #afterTimeSinceNewOutput}. Conditions can be combined using {@link #eitherOf}
+     * and {@link #allOf}. Users can also develop custom termination conditions.
+     *
      * <p>Some built-in termination conditions are {@link #never}, {@link #afterTotalOf} and {@link
      * #afterTimeSinceNewOutput}. Conditions can be combined using {@link #eitherOf} and {@link
      * #allOf}. Users can also develop custom termination conditions, for example, one might imagine
