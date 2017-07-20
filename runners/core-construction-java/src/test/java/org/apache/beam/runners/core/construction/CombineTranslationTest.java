@@ -87,7 +87,8 @@ public class CombineTranslationTest {
 
     assertEquals(
         combineFn.getAccumulatorCoder(pipeline.getCoderRegistry(), input.getCoder()),
-        CombineTranslation.getAccumulatorCoder(combineProto, componentsProto));
+        CombineTranslation.getAccumulatorCoder(
+            combineProto, RehydratedComponents.forComponents(componentsProto)));
     assertEquals(combineFn, CombineTranslation.getCombineFn(combineProto));
   }
 
