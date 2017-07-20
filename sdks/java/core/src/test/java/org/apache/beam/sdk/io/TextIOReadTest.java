@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.io.TextIO.CompressionType.DEFLATE;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.GZIP;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.ZIP;
+import static org.apache.beam.sdk.transforms.Watch.Growth.afterTimeSinceNewOutput;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -70,6 +71,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -78,6 +80,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -843,5 +846,52 @@ public class TextIOReadTest {
             .apply(TextIO.readAll().withCompressionType(AUTO));
     PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
     p.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesSplittableParDo.class})
+  public void testReadWatchForNewFiles() throws IOException, InterruptedException {
+    final Path basePath = tempFolder.resolve("readWatch");
+    basePath.toFile().mkdir();
+    PCollection<String> lines =
+        p.apply(
+            TextIO.read()
+                .from(basePath.resolve("*").toString())
+                // Make sure that compression type propagates into readAll()
+                .withCompressionType(ZIP)
+                .watchForNewFiles(
+                    Duration.millis(100), afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+
+    Thread writer =
+        new Thread() {
+          @Override
+          public void run() {
+            try {
+              Thread.sleep(1000);
+              writeToFile(
+                  Arrays.asList("a.1", "a.2"),
+                  basePath.resolve("fileA").toString(),
+                  CompressionType.ZIP);
+              Thread.sleep(300);
+              writeToFile(
+                  Arrays.asList("b.1", "b.2"),
+                  basePath.resolve("fileB").toString(),
+                  CompressionType.ZIP);
+              Thread.sleep(300);
+              writeToFile(
+                  Arrays.asList("c.1", "c.2"),
+                  basePath.resolve("fileC").toString(),
+                  CompressionType.ZIP);
+            } catch (IOException | InterruptedException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        };
+    writer.start();
+
+    PAssert.that(lines).containsInAnyOrder("a.1", "a.2", "b.1", "b.2", "c.1", "c.2");
+    p.run();
+
+    writer.join();
   }
 }
