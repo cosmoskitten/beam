@@ -108,13 +108,13 @@ public class WindowingStrategyTranslationTest {
     SdkComponents components = SdkComponents.create();
     RunnerApi.WindowingStrategy proto =
         WindowingStrategyTranslation.toProto(windowingStrategy, components);
-    RunnerApi.Components protoComponents = components.toComponents();
+    RehydratedComponents protoComponents = RehydratedComponents.create(components.toComponents());
 
     assertThat(
         WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
         Matchers.<WindowingStrategy<?, ?>>equalTo(windowingStrategy.fixDefaults()));
 
-    protoComponents.getCodersOrThrow(
+    protoComponents.getCoder(
         components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
     assertThat(
         proto.getAssignsToOneWindow(),
