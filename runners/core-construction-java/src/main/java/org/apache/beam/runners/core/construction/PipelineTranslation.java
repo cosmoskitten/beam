@@ -71,7 +71,6 @@ public class PipelineTranslation {
               }
             } else {
               // TODO: Include DisplayData in the proto
-              evaluateDisplayData(node.getTransform());
               children.put(node.getEnclosingNode(), node.toAppliedPTransform(pipeline));
               try {
                 components.registerPTransform(
@@ -85,7 +84,6 @@ public class PipelineTranslation {
           @Override
           public void visitPrimitiveTransform(Node node) {
             // TODO: Include DisplayData in the proto
-            evaluateDisplayData(node.getTransform());
             children.put(node.getEnclosingNode(), node.toAppliedPTransform(pipeline));
             try {
               components.registerPTransform(
@@ -102,8 +100,8 @@ public class PipelineTranslation {
         .build();
   }
 
-  private static void evaluateDisplayData(HasDisplayData component) {
-    DisplayData.from(component);
+  private static DisplayData evaluateDisplayData(HasDisplayData component) {
+    return DisplayData.from(component);
   }
 
   public static Pipeline fromProto(final RunnerApi.Pipeline pipelineProto)
@@ -180,12 +178,10 @@ public class PipelineTranslation {
         RehydratedPTransform.of(
             transformSpec.getUrn(), transformSpec.getParameter(), additionalInputs);
 
-    // HACK: A primitive is something with outputs that are not in its input
-    if (transformProto.getSubtransformsCount() > 0
-        || transformProto
-            .getInputsMap()
-            .values()
-            .containsAll(transformProto.getOutputsMap().values())) {
+    if (isPrimitive(transformProto)) {
+      transforms.addFinalizedPrimitiveNode(
+          transformProto.getUniqueName(), rehydratedInputs, transform, rehydratedOutputs);
+    } else {
       transforms.pushFinalizedNode(
           transformProto.getUniqueName(), rehydratedInputs, transform, rehydratedOutputs);
 
@@ -199,10 +195,17 @@ public class PipelineTranslation {
       }
 
       transforms.popNode();
-    } else {
-      transforms.addFinalizedPrimitiveNode(
-          transformProto.getUniqueName(), rehydratedInputs, transform, rehydratedOutputs);
     }
+  }
+
+  // A primitive transform is one with outputs that are not in its input and also
+  // not produced by a subtransform.
+  private static boolean isPrimitive(RunnerApi.PTransform transformProto) {
+    return transformProto.getSubtransformsCount() == 0
+        && !transformProto
+        .getInputsMap()
+        .values()
+        .containsAll(transformProto.getOutputsMap().values());
   }
 
   private static PCollection<?> rehydratePCollection(
