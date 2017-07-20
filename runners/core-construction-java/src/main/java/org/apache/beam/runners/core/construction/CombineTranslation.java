@@ -103,9 +103,9 @@ public class CombineTranslation {
   }
 
   public static Coder<?> getAccumulatorCoder(
-      CombinePayload payload, RunnerApi.Components components) throws IOException {
+      CombinePayload payload, RehydratedComponents components) throws IOException {
     String id = payload.getAccumulatorCoderId();
-    return CoderTranslation.fromProto(components.getCodersOrThrow(id), components);
+    return components.getCoder(id);
   }
 
   public static GlobalCombineFn<?, ?, ?> getCombineFn(CombinePayload payload)
