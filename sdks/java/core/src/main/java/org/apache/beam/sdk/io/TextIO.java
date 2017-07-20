@@ -20,23 +20,29 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.fs.MatchResult.Status.NOT_FOUND;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
-import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
@@ -45,6 +51,7 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -52,11 +59,15 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.Watch;
+import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * {@link PTransform}s for reading and writing text files.
@@ -217,6 +228,8 @@ public class TextIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
     @Nullable abstract ValueProvider<String> getFilepattern();
     abstract CompressionType getCompressionType();
+    @Nullable abstract Duration getWatchForNewFilesInterval();
+    @Nullable abstract Watch.Growth.TerminationCondition getWatchForNewFilesTerminationCondition();
 
     abstract Builder toBuilder();
 
@@ -224,6 +237,9 @@ public class TextIO {
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
       abstract Builder setCompressionType(CompressionType compressionType);
+      abstract Builder setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
+      abstract Builder setWatchForNewFilesTerminationCondition(
+          Watch.Growth.TerminationCondition condition);
 
       abstract Read build();
     }
@@ -250,13 +266,30 @@ public class TextIO {
     }
 
     /**
-     * Returns a new transform for reading from text files that's like this one but
-     * reads from input sources using the specified compression type.
+     * Reads from input sources using the specified compression type.
      *
      * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
      */
     public Read withCompressionType(TextIO.CompressionType compressionType) {
       return toBuilder().setCompressionType(compressionType).build();
+    }
+
+    /**
+     * Continuously watches for new files matching the filepattern, polling it at the given
+     * interval, until the given termination condition is reached. The returned {@link PCollection}
+     * is unbounded.
+     *
+     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
+     *
+     * @see Watch
+     */
+    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public Read watchForNewFiles(
+        Duration pollInterval, Watch.Growth.TerminationCondition terminationCondition) {
+      return toBuilder()
+          .setWatchForNewFilesInterval(pollInterval)
+          .setWatchForNewFilesTerminationCondition(terminationCondition)
+          .build();
     }
 
     @Override
@@ -265,11 +298,19 @@ public class TextIO {
         throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
       }
 
-      final Bounded<String> read = org.apache.beam.sdk.io.Read.from(getSource());
-      PCollection<String> pcol = input.getPipeline().apply("Read", read);
-      // Honor the default output coder that would have been used by this PTransform.
-      pcol.setCoder(getDefaultOutputCoder());
-      return pcol;
+      if (getWatchForNewFilesInterval() != null) {
+        return input
+            // TODO: Create.ofProvider()
+            .apply("Create filepattern", Create.of(getFilepattern().get()))
+            .apply(
+                "Via ReadAll",
+                readAll()
+                    .withCompressionType(getCompressionType())
+                    .watchForNewFiles(
+                        getWatchForNewFilesInterval(), getWatchForNewFilesTerminationCondition()));
+      } else {
+        return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
+      }
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -331,6 +372,8 @@ public class TextIO {
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<String>> {
     abstract CompressionType getCompressionType();
+    @Nullable abstract Duration getWatchForNewFilesInterval();
+    @Nullable abstract Watch.Growth.TerminationCondition getWatchForNewFilesTerminationCondition();
     abstract long getDesiredBundleSizeBytes();
 
     abstract Builder toBuilder();
@@ -338,6 +381,9 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setCompressionType(CompressionType compressionType);
+      abstract Builder setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
+      abstract Builder setWatchForNewFilesTerminationCondition(
+          Watch.Growth.TerminationCondition condition);
       abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ReadAll build();
@@ -348,6 +394,18 @@ public class TextIO {
       return toBuilder().setCompressionType(compressionType).build();
     }
 
+    /**
+     * Same as {@link Read#watchForNewFiles(Duration, Watch.Growth.TerminationCondition)}.
+     */
+    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public ReadAll watchForNewFiles(
+        Duration pollInterval, Watch.Growth.TerminationCondition terminationCondition) {
+      return toBuilder()
+          .setWatchForNewFilesInterval(pollInterval)
+          .setWatchForNewFilesTerminationCondition(terminationCondition)
+          .build();
+    }
+
     @VisibleForTesting
     ReadAll withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
@@ -355,8 +413,21 @@ public class TextIO {
 
     @Override
     public PCollection<String> expand(PCollection<String> input) {
-      return input
-          .apply("Expand glob", ParDo.of(new ExpandGlobFn()))
+      final PCollection<Metadata> matchingFiles;
+      if (getWatchForNewFilesInterval() == null) {
+        matchingFiles = input.apply("Expand glob", ParDo.of(new ExpandGlobFn()));
+      } else {
+        matchingFiles =
+            input
+                .apply(
+                    "Continuously expand glob",
+                    Watch.growthOf(new ExpandGlobPollFn())
+                        .withPollInterval(getWatchForNewFilesInterval())
+                        .withTerminationPerInput(getWatchForNewFilesTerminationCondition())
+                        .withOutputCoder(MetadataCoder.of()))
+                .apply(Values.<Metadata>create());
+      }
+      return matchingFiles
           .apply(
               "Split into ranges",
               ParDo.of(new SplitIntoRangesFn(getCompressionType(), getDesiredBundleSizeBytes())))
@@ -401,6 +472,45 @@ public class TextIO {
         for (Metadata metadata : match.metadata()) {
           c.output(metadata);
         }
+      }
+    }
+
+    private static class ExpandGlobPollFn implements Watch.Growth.PollFn<String, Metadata> {
+      @Override
+      public PollResult<Metadata> apply(String input, Instant timestamp) throws Exception {
+        MatchResult match = FileSystems.match(input);
+        return PollResult.incomplete(
+            Instant.now(),
+            match.status() == NOT_FOUND ? Collections.<Metadata>emptyList() : match.metadata());
+      }
+    }
+
+    private static class MetadataCoder extends AtomicCoder<Metadata> {
+      private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
+      private static final VarIntCoder INT_CODER = VarIntCoder.of();
+      private static final VarLongCoder LONG_CODER = VarLongCoder.of();
+
+      public static MetadataCoder of() {
+        return new MetadataCoder();
+      }
+
+      @Override
+      public void encode(Metadata value, OutputStream os) throws IOException {
+        STRING_CODER.encode(value.resourceId().toString(), os);
+        INT_CODER.encode(value.isReadSeekEfficient() ? 1 : 0, os);
+        LONG_CODER.encode(value.sizeBytes(), os);
+      }
+
+      @Override
+      public Metadata decode(InputStream is) throws IOException {
+        String resourceId = STRING_CODER.decode(is);
+        boolean isReadSeekEfficient = INT_CODER.decode(is) == 1;
+        long sizeBytes = LONG_CODER.decode(is);
+        return Metadata.builder()
+            .setResourceId(FileSystems.matchNewResource(resourceId, false /* isDirectory */))
+            .setIsReadSeekEfficient(isReadSeekEfficient)
+            .setSizeBytes(sizeBytes)
+            .build();
       }
     }
 
