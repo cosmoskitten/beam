@@ -22,6 +22,7 @@ import common_job_properties
 job('beam_PerformanceTests_JDBC'){
     // Set default Beam job properties.
     common_job_properties.setTopLevelMainJobProperties(delegate)
+    common_job_properties.setMavenConfig(delegate)
 
     // Run job in postcommit every 6 hours, don't trigger every push, and
     // don't email individual committers.
