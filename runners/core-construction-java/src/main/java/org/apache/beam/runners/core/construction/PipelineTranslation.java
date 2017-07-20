@@ -112,6 +112,7 @@ public class PipelineTranslation {
 
     // Keeping the PCollections straight is a semantic necessity, but being careful not to explode
     // the number of coders and windowing strategies is also nice, and helps testing.
+    RehydratedComponents rehydratedComponents = RehydratedComponents.create(pipelineProto.getComponents());
     Map<String, Coder<?>> visitedCoders = new HashMap<>();
     Map<String, PCollection<?>> visitedPCollections = new HashMap<>();
 
@@ -119,10 +120,9 @@ public class PipelineTranslation {
       addRehydratedTransform(
           transforms,
           pipelineProto.getComponents().getTransformsOrThrow(rootId),
-          pipelineProto.getComponents(),
           pipeline,
-          visitedPCollections,
-          visitedCoders);
+          pipelineProto.getComponents(),
+          rehydratedComponents);
     }
 
     return pipeline;
@@ -132,21 +132,22 @@ public class PipelineTranslation {
       TransformHierarchy transforms,
       RunnerApi.PTransform transformProto,
       Pipeline pipeline,
-      RehydratedComponents components)
+      RunnerApi.Components components,
+      RehydratedComponents rehydratedComponents)
       throws IOException {
 
     Map<TupleTag<?>, PValue> rehydratedInputs = new HashMap<>();
     for (Map.Entry<String, String> inputEntry : transformProto.getInputsMap().entrySet()) {
       rehydratedInputs.put(
           new TupleTag<>(inputEntry.getKey()),
-          components.getPCollection(inputEntry.getValue(), pipeline));
+          rehydratedComponents.getPCollection(inputEntry.getValue(), pipeline));
     }
 
     Map<TupleTag<?>, PValue> rehydratedOutputs = new HashMap<>();
     for (Map.Entry<String, String> outputEntry : transformProto.getOutputsMap().entrySet()) {
       rehydratedOutputs.put(
           new TupleTag<>(outputEntry.getKey()),
-          components.getPCollection(outputEntry.getValue(), pipeline));
+          rehydratedComponents.getPCollection(outputEntry.getValue(), pipeline));
     }
 
     RunnerApi.FunctionSpec transformSpec = transformProto.getSpec();
@@ -173,7 +174,7 @@ public class PipelineTranslation {
                 sideInputEntry.getKey(),
                 pCollection,
                 transformProto,
-                components));
+                rehydratedComponents));
       }
       additionalInputs = PCollectionViews.toAdditionalInputs(views);
     }
@@ -193,10 +194,9 @@ public class PipelineTranslation {
         addRehydratedTransform(
             transforms,
             components.getTransformsOrThrow(childTransformId),
-            components,
             pipeline,
-            visitedPCollections,
-            visitedCoders);
+            components,
+            rehydratedComponents);
       }
 
       transforms.popNode();
@@ -211,28 +211,6 @@ public class PipelineTranslation {
         .getInputsMap()
         .values()
         .containsAll(transformProto.getOutputsMap().values());
-  }
-
-  private static PCollection<?> rehydratePCollection(
-      String pCollectionId,
-      RunnerApi.Components components,
-      Pipeline pipeline,
-      Map<String, PCollection<?>> visitedPCollections,
-      Map<String, Coder<?>> visitedCoders)
-      throws IOException {
-
-    PCollection<?> pCollection = visitedPCollections.get(pCollectionId);
-    if (pCollection != null) {
-      return pCollection;
-    }
-
-    pCollection =
-        PCollectionTranslation.fromProto(
-            components.getPcollectionsOrThrow(pCollectionId), pipeline, components);
-
-    pCollection.setName(pCollectionId);
-    visitedPCollections.put(pCollectionId, pCollection);
-    return pCollection;
   }
 
   @AutoValue

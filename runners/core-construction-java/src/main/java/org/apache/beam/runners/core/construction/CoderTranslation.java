@@ -149,21 +149,22 @@ public class CoderTranslation {
         .build();
   }
 
-  public static Coder<?> fromProto(RunnerApi.Coder protoCoder, Components components)
+  public static Coder<?> fromProto(
+      RunnerApi.Coder protoCoder, RehydratedComponents components)
       throws IOException {
     String coderSpecUrn = protoCoder.getSpec().getSpec().getUrn();
     if (coderSpecUrn.equals(JAVA_SERIALIZED_CODER_URN)) {
-      return fromCustomCoder(protoCoder, components);
+      return fromCustomCoder(protoCoder);
     }
     return fromKnownCoder(protoCoder, components);
   }
 
-  private static Coder<?> fromKnownCoder(RunnerApi.Coder coder, Components components)
+  private static Coder<?> fromKnownCoder(RunnerApi.Coder coder, RehydratedComponents components)
       throws IOException {
     String coderUrn = coder.getSpec().getSpec().getUrn();
     List<Coder<?>> coderComponents = new LinkedList<>();
     for (String componentId : coder.getComponentCoderIdsList()) {
-      Coder<?> innerCoder = fromProto(components.getCodersOrThrow(componentId), components);
+      Coder<?> innerCoder = components.getCoder(componentId);
       coderComponents.add(innerCoder);
     }
     Class<? extends StructuredCoder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
@@ -176,9 +177,7 @@ public class CoderTranslation {
     return translator.fromComponents(coderComponents);
   }
 
-  private static Coder<?> fromCustomCoder(
-      RunnerApi.Coder protoCoder, @SuppressWarnings("unused") Components components)
-      throws IOException {
+  private static Coder<?> fromCustomCoder(RunnerApi.Coder protoCoder) throws IOException {
     return (Coder<?>)
         SerializableUtils.deserializeFromByteArray(
             protoCoder

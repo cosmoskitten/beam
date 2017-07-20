@@ -151,7 +151,9 @@ public class ParDoTranslationTest {
               AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
                   "foo", inputs, output.expand(), parDo, p),
               sdkComponents);
-      Components protoComponents = sdkComponents.toComponents();
+      RunnerApi.Components components = sdkComponents.toComponents();
+      RehydratedComponents rehydratedComponents =
+          RehydratedComponents.create(components);
 
       // Decode
       Pipeline rehydratedPipeline = Pipeline.create();
@@ -166,7 +168,7 @@ public class ParDoTranslationTest {
                 view.getTagInternal().getId(),
                 view.getPCollection(),
                 protoTransform,
-                protoComponents);
+                rehydratedComponents);
         assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
         assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
         assertThat(
@@ -179,8 +181,8 @@ public class ParDoTranslationTest {
       }
       String mainInputId = sdkComponents.registerPCollection(mainInput);
       assertThat(
-          ParDoTranslation.getMainInput(protoTransform, protoComponents),
-          equalTo(protoComponents.getPcollectionsOrThrow(mainInputId)));
+          ParDoTranslation.getMainInput(protoTransform, components),
+          equalTo(components.getPcollectionsOrThrow(mainInputId)));
     }
   }
 

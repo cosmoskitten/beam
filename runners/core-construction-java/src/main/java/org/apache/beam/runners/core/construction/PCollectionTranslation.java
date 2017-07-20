@@ -49,35 +49,20 @@ public class PCollectionTranslation {
   }
 
   public static PCollection<?> fromProto(
-      Pipeline pipeline, RunnerApi.PCollection pCollection, RunnerApi.Components components)
+      RunnerApi.PCollection pCollection, Pipeline pipeline,
+      RehydratedComponents components)
       throws IOException {
+
+    Coder<?> coder = components.getCoder(pCollection.getCoderId());
     return PCollection.createPrimitiveOutputInternal(
             pipeline,
-            WindowingStrategyTranslation.fromProto(
-                components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()),
-                components),
+            components.getWindowingStrategy(pCollection.getWindowingStrategyId()),
             fromProto(pCollection.getIsBounded()))
-        .setCoder(
-            (Coder)
-                CoderTranslation.fromProto(
-                    components.getCodersOrThrow(pCollection.getCoderId()), components));
+        .setCoder((Coder) coder);
   }
 
   public static IsBounded isBounded(RunnerApi.PCollection pCollection) {
     return fromProto(pCollection.getIsBounded());
-  }
-
-  public static Coder<?> getCoder(
-      RunnerApi.PCollection pCollection, RunnerApi.Components components) throws IOException {
-    return CoderTranslation
-        .fromProto(components.getCodersOrThrow(pCollection.getCoderId()), components);
-  }
-
-  public static WindowingStrategy<?, ?> getWindowingStrategy(
-      RunnerApi.PCollection pCollection, RunnerApi.Components components)
-      throws InvalidProtocolBufferException {
-    return WindowingStrategyTranslation.fromProto(
-        components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()), components);
   }
 
   static RunnerApi.IsBounded toProto(IsBounded bounded) {
