@@ -34,7 +34,8 @@ job('beam_PerformanceTests_JDBC'){
 
     common_job_properties.buildPerfKit(delegate)
 
-    clean_install_args = [
+    clean_install_command = [
+            '~/tools/maven/latest/bin/mvn',
             '-B',
             '-e',
             "-Pdataflow-runner",
@@ -44,7 +45,8 @@ job('beam_PerformanceTests_JDBC'){
             '-DskipTests'
               ]
 
-    io_it_suite_args = [
+    io_it_suite_command = [
+            '~/tools/maven/latest/bin/mvn',
             '-B',
             '-e',
             '-pl sdks/java/io/jdbc',
@@ -54,11 +56,7 @@ job('beam_PerformanceTests_JDBC'){
     ]
 
     steps {
-        maven {
-            goals(clean_install_args.join(' '))
-        }
-        maven {
-            goals(io_it_suite_args.join(' '))
-        }
+        shell(clean_install_command.join(' '))
+        shell(io_it_suite_command.join(' '))
     }
 }
