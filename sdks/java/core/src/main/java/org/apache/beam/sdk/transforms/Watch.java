@@ -210,6 +210,10 @@ public class Watch {
      * An object that determines whether it is time to stop polling the current input regardless of
      * whether its output is complete or not.
      *
+     * <p>Some built-in termination conditions are {@link #never}, {@link #afterTotalOf} and
+     * {@link #afterTimeSinceNewOutput}. Conditions can be combined using {@link #eitherOf}
+     * and {@link #allOf}. Users can also develop custom termination conditions.
+     *
      * <p>A single instance of {@link TerminationCondition} is supplied to {@link
      * Growth#withTerminationPerInput(TerminationCondition)} and is used as an initial value for
      * every input. Each input maintains its own independent {@link TerminationCondition}.
