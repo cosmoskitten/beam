@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -109,6 +110,9 @@ public class PipelineTranslation {
     TransformHierarchy transforms = new TransformHierarchy();
     Pipeline pipeline = Pipeline.forTransformHierarchy(transforms, PipelineOptionsFactory.create());
 
+    // Keeping the PCollections straight is a semantic necessity, but being careful not to explode
+    // the number of coders and windowing strategies is also nice, and helps testing.
+    Map<String, Coder<?>> visitedCoders = new HashMap<>();
     Map<String, PCollection<?>> visitedPCollections = new HashMap<>();
 
     for (String rootId : pipelineProto.getRootTransformIdsList()) {
@@ -117,7 +121,8 @@ public class PipelineTranslation {
           pipelineProto.getComponents().getTransformsOrThrow(rootId),
           pipelineProto.getComponents(),
           pipeline,
-          visitedPCollections);
+          visitedPCollections,
+          visitedCoders);
     }
 
     return pipeline;
@@ -126,23 +131,22 @@ public class PipelineTranslation {
   private static void addRehydratedTransform(
       TransformHierarchy transforms,
       RunnerApi.PTransform transformProto,
-      RunnerApi.Components components,
       Pipeline pipeline,
-      Map<String, PCollection<?>> visitedPCollections)
+      RehydratedComponents components)
       throws IOException {
 
     Map<TupleTag<?>, PValue> rehydratedInputs = new HashMap<>();
     for (Map.Entry<String, String> inputEntry : transformProto.getInputsMap().entrySet()) {
       rehydratedInputs.put(
           new TupleTag<>(inputEntry.getKey()),
-          rehydratePCollection(inputEntry.getValue(), components, pipeline, visitedPCollections));
+          components.getPCollection(inputEntry.getValue(), pipeline));
     }
 
     Map<TupleTag<?>, PValue> rehydratedOutputs = new HashMap<>();
     for (Map.Entry<String, String> outputEntry : transformProto.getOutputsMap().entrySet()) {
       rehydratedOutputs.put(
           new TupleTag<>(outputEntry.getKey()),
-          rehydratePCollection(outputEntry.getValue(), components, pipeline, visitedPCollections));
+          components.getPCollection(outputEntry.getValue(), pipeline));
     }
 
     RunnerApi.FunctionSpec transformSpec = transformProto.getSpec();
@@ -191,7 +195,8 @@ public class PipelineTranslation {
             components.getTransformsOrThrow(childTransformId),
             components,
             pipeline,
-            visitedPCollections);
+            visitedPCollections,
+            visitedCoders);
       }
 
       transforms.popNode();
@@ -212,7 +217,8 @@ public class PipelineTranslation {
       String pCollectionId,
       RunnerApi.Components components,
       Pipeline pipeline,
-      Map<String, PCollection<?>> visitedPCollections)
+      Map<String, PCollection<?>> visitedPCollections,
+      Map<String, Coder<?>> visitedCoders)
       throws IOException {
 
     PCollection<?> pCollection = visitedPCollections.get(pCollectionId);
@@ -222,7 +228,7 @@ public class PipelineTranslation {
 
     pCollection =
         PCollectionTranslation.fromProto(
-            pipeline, components.getPcollectionsOrThrow(pCollectionId), components);
+            components.getPcollectionsOrThrow(pCollectionId), pipeline, components);
 
     pCollection.setName(pCollectionId);
     visitedPCollections.put(pCollectionId, pCollection);

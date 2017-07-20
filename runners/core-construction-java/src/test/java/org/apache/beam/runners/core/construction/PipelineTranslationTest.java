@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Equivalence;
+import com.google.common.collect.ImmutableList;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
@@ -32,7 +33,6 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -50,18 +50,26 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PipelineTranslation}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class PipelineTranslationTest {
-  @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Test
-  public void translatePipeline() {
+  @Parameter(0)
+  public Pipeline pipeline;
+
+  @Parameters(name = "{index}")
+  public static Iterable<Pipeline> testPipelines() {
+    Pipeline trivialPipeline = Pipeline.create();
+    trivialPipeline.apply(Create.of(1, 2, 3));
+
+    Pipeline complexPipeline = Pipeline.create();
     BigEndianLongCoder customCoder = BigEndianLongCoder.of();
-    PCollection<Long> elems = pipeline.apply(GenerateSequence.from(0L).to(207L));
+    PCollection<Long> elems = complexPipeline.apply(GenerateSequence.from(0L).to(207L));
     PCollection<Long> counted = elems.apply(Count.<Long>globally()).setCoder(customCoder);
     PCollection<Long> windowed =
         counted.apply(
@@ -76,15 +84,18 @@ public class PipelineTranslationTest {
     PCollection<KV<String, Iterable<Long>>> grouped =
         keyed.apply(GroupByKey.<String, Long>create());
 
+    return ImmutableList.of(trivialPipeline, complexPipeline);
+  }
+
+  @Test
+  public void testProtoDirectly() {
     final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
     pipeline.traverseTopologically(
         new PipelineProtoVerificationVisitor(pipelineProto));
   }
 
   @Test
-  public void testTranslateThenRehydrate() throws Exception {
-    pipeline.apply(Create.of(1, 2, 3));
-
+  public void testProtoAgainstRehydrated() throws Exception {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
     Pipeline rehydrated = PipelineTranslation.fromProto(pipelineProto);
 
