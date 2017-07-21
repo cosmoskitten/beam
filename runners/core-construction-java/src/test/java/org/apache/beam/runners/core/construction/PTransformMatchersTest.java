@@ -550,7 +550,7 @@ public class PTransformMatchersTest implements Serializable {
                 StaticValueProvider.of(outputDirectory),
                 DynamicFileDestinations.constant(null, SerializableFunctions.<Integer>identity())) {
               @Override
-              public WriteOperation<Integer, Void> createWriteOperation() {
+              public WriteOperation<Void, Integer> createWriteOperation() {
                 return null;
               }
             });

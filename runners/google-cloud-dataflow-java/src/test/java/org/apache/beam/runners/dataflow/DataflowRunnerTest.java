@@ -1297,7 +1297,7 @@ public class DataflowRunnerTest implements Serializable {
     }
 
     @Override
-    public WriteOperation<Object, Void> createWriteOperation() {
+    public WriteOperation<Void, Object> createWriteOperation() {
       throw new IllegalArgumentException("Should not be used");
     }
   }
