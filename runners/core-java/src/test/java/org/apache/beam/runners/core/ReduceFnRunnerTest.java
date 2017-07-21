@@ -247,8 +247,12 @@ public class ReduceFnRunnerTest {
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
+  /**
+   * When the watermark passes the end-of-window and window expiration time
+   * in a single update, this tests that it does not crash.
+   */
   @Test
-  public void testTimerGrownSession() throws Exception {
+  public void testSessionEowAndGcTogether() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(
             Sessions.withGapDuration(Duration.millis(10)),
@@ -261,8 +265,32 @@ public class ReduceFnRunnerTest {
 
     tester.advanceInputWatermark(new Instant(0));
     injectElement(tester, 1);
-
     tester.advanceInputWatermark(new Instant(100));
+
+    assertThat(tester.extractOutput(), contains(isSingleWindowedValue(contains(1), 1, 1, 11)));
+  }
+
+  /**
+   * When the watermark passes the end-of-window and window expiration time
+   * in a single update, this tests that it does not crash.
+   */
+  @Test
+  public void testFixedWindowsEowAndGcTogether() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(
+            FixedWindows.of(Duration.millis(10)),
+            DefaultTriggerStateMachine.<IntervalWindow>of(),
+            AccumulationMode.ACCUMULATING_FIRED_PANES,
+            Duration.millis(50),
+            ClosingBehavior.FIRE_ALWAYS);
+
+    tester.setAutoAdvanceOutputWatermark(true);
+
+    tester.advanceInputWatermark(new Instant(0));
+    injectElement(tester, 1);
+    tester.advanceInputWatermark(new Instant(100));
+
+    assertThat(tester.extractOutput(), contains(isSingleWindowedValue(contains(1), 1, 0, 10)));
   }
 
   /**
