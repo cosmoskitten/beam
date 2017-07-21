@@ -277,10 +277,10 @@ class PValueCache(object):
 
 
 class PipelineState(object):
-  """State of the Pipeline, as returned by PipelineResult.state.
+  """State of the Pipeline, as returned by :attr:`PipelineResult.state`.
 
   This is meant to be the union of all the states any runner can put a
-  pipeline in.  Currently, it represents the values of the dataflow
+  pipeline in. Currently, it represents the values of the dataflow
   API JobState enum.
   """
   UNKNOWN = 'UNKNOWN'  # not specified
@@ -295,7 +295,7 @@ class PipelineState(object):
 
 
 class PipelineResult(object):
-  """A PipelineResult provides access to info about a pipeline."""
+  """A :class:`PipelineResult` provides access to info about a pipeline."""
 
   def __init__(self, state):
     self._state = state
@@ -309,15 +309,18 @@ class PipelineResult(object):
     """Waits until the pipeline finishes and returns the final status.
 
     Args:
-      duration: The time to wait (in milliseconds) for job to finish. If it is
-        set to None, it will wait indefinitely until the job is finished.
+      duration (:class:`int`): The time to wait (in milliseconds) for job to
+        finish. If it is set to :data:`None`, it will wait indefinitely until
+        the job is finished.
 
     Raises:
-      IOError: If there is a persistent problem getting job information.
-      NotImplementedError: If the runner does not support this operation.
+      :class:`~exceptions.IOError`: If there is a persistent problem getting
+        job information.
+      :class:`~exceptions.NotImplementedError`: If the runner does not support
+        this operation.
 
     Returns:
-      The final state of the pipeline, or None on timeout.
+      The final state of the pipeline, or :data:`None` on timeout.
     """
     raise NotImplementedError
 
@@ -325,8 +328,10 @@ class PipelineResult(object):
     """Cancels the pipeline execution.
 
     Raises:
-      IOError: If there is a persistent problem getting job information.
-      NotImplementedError: If the runner does not support this operation.
+      :class:`~exceptions.IOError`: If there is a persistent problem getting
+        job information.
+      :class:`~exceptions.NotImplementedError`: If the runner does not support
+        this operation.
 
     Returns:
       The final state of the pipeline.
@@ -334,10 +339,12 @@ class PipelineResult(object):
     raise NotImplementedError
 
   def metrics(self):
-    """Returns MetricsResult object to query metrics from the runner.
+    """Returns :class:`~apache_beam.metrics.metric.MetricResults` object to
+    query metrics from the runner.
 
     Raises:
-      NotImplementedError: If the runner does not support this operation.
+      :class:`~exceptions.NotImplementedError`: If the runner does not support
+        this operation.
     """
     raise NotImplementedError
 
