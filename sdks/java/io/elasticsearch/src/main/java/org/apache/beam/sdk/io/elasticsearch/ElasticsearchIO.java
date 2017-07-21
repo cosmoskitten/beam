@@ -816,7 +816,7 @@ public class ElasticsearchIO {
       }
     }
   }
-  private static void checkVersion(ConnectionConfiguration connectionConfiguration){
+  static void checkVersion(ConnectionConfiguration connectionConfiguration){
     try (RestClient restClient = connectionConfiguration.createClient()) {
       Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
       JsonNode jsonNode = parseResponse(response);

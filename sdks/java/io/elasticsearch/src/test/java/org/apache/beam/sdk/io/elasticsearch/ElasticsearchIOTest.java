@@ -24,9 +24,11 @@ import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.ServerSocket;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,7 +40,9 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.http.HttpEntity;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -55,6 +59,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -351,5 +356,43 @@ public class ElasticsearchIOTest implements Serializable {
       }
     }
     assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
+  }
+
+
+    private RestClient createMockRestClient() {
+      RestClient restClient = Mockito.mock(RestClient.class);
+      Response response = Mockito.mock(Response.class);
+      HttpEntity httpEntity =  Mockito.mock(HttpEntity.class);
+
+      String responseString = "{\n" + "  \"name\" : \"pzxuf8t\",\n"
+          + "  \"cluster_name\" : \"elasticsearch\",\n"
+          + "  \"cluster_uuid\" : \"GVuc4kyjQ260Gixkr1hdhw\",\n" + "  \"version\" : {\n"
+          + "    \"number\" : \"5.0.0\",\n" + "    \"build_hash\" : \"253032b\",\n"
+          + "    \"build_date\" : \"2016-10-26T05:11:34.737Z\",\n"
+          + "    \"build_snapshot\" : false,\n" + "    \"lucene_version\" : \"6.2.0\"\n" + "  },\n"
+          + "  \"tagline\" : \"You Know, for Search\"\n" + "}";
+      try {
+        Mockito.when(response.getEntity()).thenReturn(httpEntity);
+        Mockito.when(httpEntity.getContent())
+            .thenReturn(new ByteArrayInputStream(responseString.getBytes(StandardCharsets.UTF_8)));
+        Mockito.when(restClient.performRequest(Mockito.anyString(), Mockito.anyString(),
+            (org.apache.http.Header) Mockito.anyObject())).thenReturn(response);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      return restClient;
+    }
+
+  @Test
+  public void testCheckVersion() throws Exception{
+    ElasticsearchIO.ConnectionConfiguration mockConnectionConfiguration = Mockito.mock(
+        ElasticsearchIO.ConnectionConfiguration.class);
+    RestClient mockRestClient = createMockRestClient();
+    Mockito.when(mockConnectionConfiguration.createClient()).thenReturn(mockRestClient);
+    // expect the exception to be thrown while running the pipeline
+    exception.expect(isA(IllegalArgumentException.class));
+    exception.expectMessage("The Elasticsearch version to connect to is different of 2.x. "
+        + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
+    ElasticsearchIO.checkVersion(mockConnectionConfiguration);
   }
 }
