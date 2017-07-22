@@ -151,6 +151,8 @@ public class CoderRegistry {
         codersToRegister.addAll(registrar.getCoderProviders());
     }
 
+    codersToRegister.add(SerializableCoder.getCoderProvider());
+
     REGISTERED_CODER_FACTORIES = ImmutableList.copyOf(codersToRegister);
   }
 

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -74,19 +72,6 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   @SuppressWarnings("unused")
   public static CoderProvider getCoderProvider() {
     return new SerializableCoderProvider();
-  }
-
-  /**
-   * A {@link CoderProviderRegistrar} which registers a {@link CoderProvider} which can handle
-   * serializable types.
-   */
-  @AutoService(CoderProviderRegistrar.class)
-  public static class SerializableCoderProviderRegistrar implements CoderProviderRegistrar {
-
-    @Override
-    public List<CoderProvider> getCoderProviders() {
-      return ImmutableList.of(getCoderProvider());
-    }
   }
 
   /**
