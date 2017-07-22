@@ -317,8 +317,7 @@ public class TransformHierarchy {
 
     private final String fullName;
 
-    // Nodes for sub-transforms of a composite transform, in shallow topological
-    // order so visiting in this order yields a recursively topological traversal.
+    // Nodes for sub-transforms of a composite transform.
     private final List<Node> parts = new ArrayList<>();
 
     // Input to the transform, in expanded form.
