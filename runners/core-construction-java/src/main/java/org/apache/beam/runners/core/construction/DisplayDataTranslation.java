@@ -18,6 +18,12 @@
 
 package org.apache.beam.runners.core.construction;
 
+import com.google.protobuf.Any;
+import com.google.protobuf.BoolValue;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
+import com.google.protobuf.Descriptors;
+import java.io.UnsupportedEncodingException;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
@@ -25,6 +31,13 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 public class DisplayDataTranslation {
   public static RunnerApi.DisplayData toProto(DisplayData displayData) {
     // TODO https://issues.apache.org/jira/browse/BEAM-2645
-    return RunnerApi.DisplayData.getDefaultInstance();
+    return RunnerApi.DisplayData.newBuilder()
+        .addItems(
+            RunnerApi.DisplayData.Item.newBuilder()
+                .setId(RunnerApi.DisplayData.Identifier.newBuilder().setKey("stubImplementation"))
+                .setLabel("Stub implementation")
+                .setType(RunnerApi.DisplayData.Type.BOOLEAN)
+                .setValue(Any.pack(BoolValue.newBuilder().setValue(true).build())))
+        .build();
   }
 }
