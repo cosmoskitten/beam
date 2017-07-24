@@ -20,10 +20,6 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.BoolValue;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
-import com.google.protobuf.Descriptors;
-import java.io.UnsupportedEncodingException;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
