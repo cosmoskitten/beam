@@ -53,9 +53,11 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
@@ -129,31 +131,44 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   // The default sync interval is 64k.
   private static final long DEFAULT_MIN_BUNDLE_SIZE = 2 * DataFileConstants.DEFAULT_SYNC_INTERVAL;
 
-  // The type of the records contained in the file.
-  private final Class<T> type;
+  // Valid combinations of fields:
+  // - AvroSource<GenericRecord>, type == GenericRecord.class, readerSchemaString != null,
+  //   parseFn == null
+  //   ==> reading records with given schema.
+  // - AvroSource<Foo>, type == some Foo.class,
+  //   readerSchemaString == ReflectData.get().getSchema(Foo.class), parseFn == null
+  //   ==> reading records of generated Avro class Foo
+  // - AvroSource<Foo>, type == GenericRecord.class, readerSchema == null, parseFn != null
+  //   ==> reading GenericRecord's of unspecified schema and converting them to Foo
+  private final Class<?> type;
 
   // The JSON schema used to decode records.
   @Nullable
   private final String readerSchemaString;
+
+  // Invariant: parseFn != null iff (type == GenericRecord.class && readerSchemaString == null)
+  @Nullable
+  private final SerializableFunction<GenericRecord, T> parseFn;
 
   /**
    * Reads from the given file name or pattern ("glob"). The returned source can be further
    * configured by calling {@link #withSchema} to return a type other than {@link GenericRecord}.
    */
   public static AvroSource<GenericRecord> from(String fileNameOrPattern) {
-    return new AvroSource<>(fileNameOrPattern, DEFAULT_MIN_BUNDLE_SIZE, null, GenericRecord.class);
+    return new AvroSource<>(
+        fileNameOrPattern, DEFAULT_MIN_BUNDLE_SIZE, null, GenericRecord.class, null);
   }
 
   /** Reads files containing records that conform to the given schema. */
   public AvroSource<GenericRecord> withSchema(String schema) {
     return new AvroSource<>(
-        getFileOrPatternSpec(), getMinBundleSize(), schema, GenericRecord.class);
+        getFileOrPatternSpec(), getMinBundleSize(), schema, GenericRecord.class, null);
   }
 
   /** Like {@link #withSchema(String)}. */
   public AvroSource<GenericRecord> withSchema(Schema schema) {
     return new AvroSource<>(
-        getFileOrPatternSpec(), getMinBundleSize(), schema.toString(), GenericRecord.class);
+        getFileOrPatternSpec(), getMinBundleSize(), schema.toString(), GenericRecord.class, null);
   }
 
   /** Reads files containing records of the given class. */
@@ -162,7 +177,17 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         getFileOrPatternSpec(),
         getMinBundleSize(),
         ReflectData.get().getSchema(clazz).toString(),
-        clazz);
+        clazz,
+        null);
+  }
+
+  public <X> AvroSource<X> withParseFn(SerializableFunction<GenericRecord, X> parseFn) {
+    return new AvroSource<>(
+        getFileOrPatternSpec(),
+        getMinBundleSize(),
+        null,
+        GenericRecord.class,
+        parseFn);
   }
 
   /**
@@ -170,15 +195,21 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * minBundleSize} and its use.
    */
   public AvroSource<T> withMinBundleSize(long minBundleSize) {
-    return new AvroSource<>(getFileOrPatternSpec(), minBundleSize, readerSchemaString, type);
+    return new AvroSource<>(
+        getFileOrPatternSpec(), minBundleSize, readerSchemaString, type, parseFn);
   }
 
   /** Constructor for FILEPATTERN mode. */
   private AvroSource(
-      String fileNameOrPattern, long minBundleSize, String readerSchemaString, Class<T> type) {
+      String fileNameOrPattern,
+      long minBundleSize,
+      String readerSchemaString,
+      Class<?> type,
+      @Nullable SerializableFunction<GenericRecord, T> parseFn) {
     super(fileNameOrPattern, minBundleSize);
     this.readerSchemaString = internSchemaString(readerSchemaString);
     this.type = type;
+    this.parseFn = parseFn;
   }
 
   /** Constructor for SINGLE_FILE_OR_SUBRANGE mode. */
@@ -188,10 +219,12 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       long startOffset,
       long endOffset,
       String readerSchemaString,
-      Class<T> type) {
+      Class<?> type,
+      @Nullable SerializableFunction<GenericRecord, T> parseFn) {
     super(metadata, minBundleSize, startOffset, endOffset);
     this.readerSchemaString = internSchemaString(readerSchemaString);
     this.type = type;
+    this.parseFn = parseFn;
   }
 
   @Override
@@ -203,7 +236,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   @Override
   public BlockBasedSource<T> createForSubrangeOfFile(Metadata fileMetadata, long start, long end) {
-    return new AvroSource<>(fileMetadata, getMinBundleSize(), start, end, readerSchemaString, type);
+    return new AvroSource<>(
+        fileMetadata, getMinBundleSize(), start, end, readerSchemaString, type, parseFn);
   }
 
   @Override
@@ -213,7 +247,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   @Override
   public AvroCoder<T> getDefaultOutputCoder() {
-    return AvroCoder.of(type, internOrParseSchemaString(readerSchemaString));
+    if (parseFn == null) {
+      return AvroCoder.of((Class<T>) type, internOrParseSchemaString(readerSchemaString));
+    } else {
+      // TODO after https://github.com/apache/beam/pull/3549, throw a CannotProvideCoderException
+      throw new RuntimeException(
+          new CannotProvideCoderException(
+              "AvroSource.withParseFn() cannot infer a coder for its output automatically"));
+    }
   }
 
   @VisibleForTesting
@@ -363,10 +404,11 @@ public class AvroSource<T> extends BlockBasedSource<T> {
             getStartOffset(),
             getEndOffset(),
             readerSchemaString,
-            type);
+            type,
+            parseFn);
       case FILEPATTERN:
         return new AvroSource<>(
-            getFileOrPatternSpec(), getMinBundleSize(), readerSchemaString, type);
+            getFileOrPatternSpec(), getMinBundleSize(), readerSchemaString, type, parseFn);
         default:
           throw new InvalidObjectException(
               String.format("Unknown mode %s for AvroSource %s", getMode(), this));
@@ -380,6 +422,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   static class AvroBlock<T> extends Block<T> {
+    @Nullable
+    private final SerializableFunction<GenericRecord, T> parseFn;
+
     // The number of records in the block.
     private final long numRecords;
 
@@ -390,7 +435,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     private long currentRecordIndex = 0;
 
     // A DatumReader to read records from the block.
-    private final DatumReader<T> reader;
+    private final DatumReader<?> reader;
 
     // A BinaryDecoder used by the reader to decode records.
     private final BinaryDecoder decoder;
@@ -433,11 +478,13 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     AvroBlock(
         byte[] data,
         long numRecords,
-        Class<? extends T> type,
-        String readerSchemaString,
+        Class<?> type,
+        @Nullable String readerSchemaString,
         String writerSchemaString,
-        String codec)
+        String codec,
+        @Nullable SerializableFunction<GenericRecord, T> parseFn)
         throws IOException {
+      this.parseFn = parseFn;
       this.numRecords = numRecords;
       checkNotNull(writerSchemaString, "writerSchemaString");
       Schema writerSchema = internOrParseSchemaString(writerSchemaString);
@@ -461,7 +508,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       if (currentRecordIndex >= numRecords) {
         return false;
       }
-      currentRecord = reader.read(null, decoder);
+      Object record = reader.read(null, decoder);
+      currentRecord = (parseFn == null) ? ((T) record) : parseFn.apply((GenericRecord) record);
       currentRecordIndex++;
       return true;
     }
@@ -566,7 +614,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
               getCurrentSource().type,
               getCurrentSource().readerSchemaString,
               metadata.getSchemaString(),
-              metadata.getCodec());
+              metadata.getCodec(),
+              getCurrentSource().parseFn);
 
       // Read the end of this block, which MUST be a sync marker for correctness.
       byte[] syncMarker = metadata.getSyncMarker();

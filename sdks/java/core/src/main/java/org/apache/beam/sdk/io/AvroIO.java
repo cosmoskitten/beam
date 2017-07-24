@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
@@ -142,6 +143,14 @@ public class AvroIO {
   }
 
   /**
+   * Reads Avro file(s) containing records of an unspecified schema and converting each record to a
+   * custom type.
+   */
+  public static <T> Parse<T> parseGenericRecords(SerializableFunction<GenericRecord, T> parseFn) {
+    return new AutoValue_AvroIO_Parse.Builder<T>().setParseFn(parseFn).build();
+  }
+
+  /**
    * Reads Avro file(s) containing records of the specified schema. The schema is specified as a
    * JSON-encoded string.
    */
@@ -243,6 +252,46 @@ public class AvroIO {
     @Override
     protected Coder<T> getDefaultOutputCoder() {
       return AvroCoder.of(getRecordClass(), getSchema());
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /** Implementation of {@link #parseGenericRecords}. */
+  @AutoValue
+  public abstract static class Parse<T> extends PTransform<PBegin, PCollection<T>> {
+    @Nullable abstract String getFilepattern();
+    abstract SerializableFunction<GenericRecord, T> getParseFn();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setFilepattern(String filepattern);
+      abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
+
+      abstract Parse<T> build();
+    }
+
+    /** Reads from the given filename or filepattern. */
+    public Parse<T> from(String filepattern) {
+      return toBuilder().setFilepattern(filepattern).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      checkNotNull(getFilepattern(), "filepattern");
+      return input.apply(
+          org.apache.beam.sdk.io.Read.from(
+              AvroSource.from(getFilepattern()).withParseFn(getParseFn())));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+        .addIfNotNull(DisplayData.item("filePattern", getFilepattern())
+          .withLabel("Input File Pattern"));
     }
   }
 

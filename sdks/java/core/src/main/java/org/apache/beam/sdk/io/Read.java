@@ -103,9 +103,8 @@ public class Read {
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
-          WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
-          .setCoder(getDefaultOutputCoder());
+      return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
+          WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
     }
 
     /**

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Throwables;
 import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -137,7 +138,15 @@ public class PCollection<T> extends PValueBase implements PValue {
           ((PTransform) transform).getDefaultOutputCoder(input, this), null);
     } catch (CannotProvideCoderException exc) {
       inputCoderException = exc;
+    } catch (Exception e) {
+      Throwable rootCause = Throwables.getRootCause(e);
+      if (rootCause instanceof CannotProvideCoderException) {
+        inputCoderException = ((CannotProvideCoderException) rootCause);
+      } else {
+        throw e;
+      }
     }
+
 
     // Third option for a coder: Look in the coder registry.
     TypeDescriptor<T> token = getTypeDescriptor();
