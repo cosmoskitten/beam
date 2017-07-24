@@ -155,7 +155,7 @@ public class PipelineTranslation {
     // Only ParDo really separates main from side inputs
     Map<TupleTag<?>, PValue> additionalInputs = Collections.emptyMap();
 
-    // TODO: move this ownership into the ParDoTranslator
+    // TODO: ParDoTranslator should own it - https://issues.apache.org/jira/browse/BEAM-2674
     if (transformSpec.getUrn().equals(PTransformTranslation.PAR_DO_TRANSFORM_URN)) {
       RunnerApi.ParDoPayload payload =
           transformSpec.getParameter().unpack(RunnerApi.ParDoPayload.class);
@@ -178,7 +178,7 @@ public class PipelineTranslation {
       additionalInputs = PCollectionViews.toAdditionalInputs(views);
     }
 
-    // TODO: move this ownership into the CombineTranslator
+    // TODO: CombineTranslator should own it - https://issues.apache.org/jira/browse/BEAM-2674
     List<Coder<?>> additionalCoders = Collections.emptyList();
     if (transformSpec.getUrn().equals(PTransformTranslation.COMBINE_TRANSFORM_URN)) {
       RunnerApi.CombinePayload payload =

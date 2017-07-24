@@ -36,7 +36,10 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -44,6 +47,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
@@ -58,8 +62,6 @@ import org.junit.runners.Parameterized.Parameters;
 /** Tests for {@link PipelineTranslation}. */
 @RunWith(Parameterized.class)
 public class PipelineTranslationTest {
-  @Rule public ExpectedException thrown = ExpectedException.none();
-
   @Parameter(0)
   public Pipeline pipeline;
 
@@ -67,6 +69,22 @@ public class PipelineTranslationTest {
   public static Iterable<Pipeline> testPipelines() {
     Pipeline trivialPipeline = Pipeline.create();
     trivialPipeline.apply(Create.of(1, 2, 3));
+
+    Pipeline sideInputPipeline = Pipeline.create();
+    final PCollectionView<String> singletonView =
+        sideInputPipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
+    sideInputPipeline
+        .apply(Create.of("main input"))
+        .apply(
+            ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void process(ProcessContext c) {
+                        // actually never executed and no effect on translation
+                        c.sideInput(singletonView);
+                      }
+                    })
+                .withSideInputs(singletonView));
 
     Pipeline complexPipeline = Pipeline.create();
     BigEndianLongCoder customCoder = BigEndianLongCoder.of();
@@ -85,7 +103,7 @@ public class PipelineTranslationTest {
     PCollection<KV<String, Iterable<Long>>> grouped =
         keyed.apply(GroupByKey.<String, Long>create());
 
-    return ImmutableList.of(trivialPipeline, complexPipeline);
+    return ImmutableList.of(trivialPipeline, sideInputPipeline, complexPipeline);
   }
 
   @Test
@@ -173,7 +191,7 @@ public class PipelineTranslationTest {
 
     private void addCoders(Coder<?> coder) {
       coders.add(Equivalence.<Coder<?>>identity().wrap(coder));
-      if (coder instanceof StructuredCoder) {
+      if (CoderTranslation.KNOWN_CODER_URNS.containsKey(coder.getClass())) {
         for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
           addCoders(component);
         }
