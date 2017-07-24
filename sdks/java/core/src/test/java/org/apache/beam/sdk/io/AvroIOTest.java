@@ -66,6 +66,7 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -113,9 +114,9 @@ public class AvroIOTest {
 
     public GenericClass() {}
 
-    public GenericClass(int intValue, String stringValue) {
-      this.intField = intValue;
-      this.stringField = stringValue;
+    public GenericClass(int intField, String stringField) {
+      this.intField = intField;
+      this.stringField = stringField;
     }
 
     @Override
@@ -141,9 +142,18 @@ public class AvroIOTest {
     }
   }
 
+  private static class ParseGenericClass
+      implements SerializableFunction<GenericRecord, GenericClass> {
+    @Override
+    public GenericClass apply(GenericRecord input) {
+      return new GenericClass(
+          (int) input.get("intField"), input.get("stringField").toString());
+    }
+  }
+
   @Test
   @Category(NeedsRunner.class)
-  public void testAvroIOWriteAndReadASingleFile() throws Throwable {
+  public void testAvroIOWriteAndReadAndParseASingleFile() throws Throwable {
     List<GenericClass> values =
         ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -152,10 +162,16 @@ public class AvroIOTest {
         .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath()).withoutSharding());
     writePipeline.run().waitUntilFinish();
 
-    PCollection<GenericClass> input =
-        readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath()));
-
-    PAssert.that(input).containsInAnyOrder(values);
+    PAssert.that(
+            readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
+        .containsInAnyOrder(values);
+    PAssert.that(
+            readPipeline
+                .apply(
+                    AvroIO.parseGenericRecords(new ParseGenericClass())
+                        .from(outputFile.getAbsolutePath()))
+                .setCoder(AvroCoder.of(GenericClass.class)))
+        .containsInAnyOrder(values);
     readPipeline.run();
   }
 

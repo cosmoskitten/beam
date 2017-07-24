@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
@@ -32,6 +33,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
@@ -49,6 +51,8 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * {@link PTransform}s for reading and writing Avro files.
@@ -139,6 +143,14 @@ public class AvroIO {
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .build();
+  }
+
+  /**
+   * Reads Avro file(s) containing records of an unspecified schema and converting each record to a
+   * custom type.
+   */
+  public static <T> Parse<T> parseGenericRecords(SerializableFunction<GenericRecord, T> parseFn) {
+    return new AutoValue_AvroIO_Parse.Builder<T>().setParseFn(parseFn).build();
   }
 
   /**
@@ -243,6 +255,64 @@ public class AvroIO {
     @Override
     protected Coder<T> getDefaultOutputCoder() {
       return AvroCoder.of(getRecordClass(), getSchema());
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /** Implementation of {@link #parseGenericRecords}. */
+  @AutoValue
+  public abstract static class Parse<T> extends PTransform<PBegin, PCollection<T>> {
+    @Nullable abstract String getFilepattern();
+    abstract SerializableFunction<GenericRecord, T> getParseFn();
+    @Nullable abstract Coder<T> getCoder();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setFilepattern(String filepattern);
+      abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
+      abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract Parse<T> build();
+    }
+
+    /** Reads from the given filename or filepattern. */
+    public Parse<T> from(String filepattern) {
+      return toBuilder().setFilepattern(filepattern).build();
+    }
+
+    public Parse<T> withCoder(Coder<T> coder) {
+      return toBuilder().setCoder(coder).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      checkNotNull(getFilepattern(), "filepattern");
+      Coder<T> coder = getCoder();
+      if (coder == null) {
+        // If a coder was not specified explicitly, infer it from parse fn.
+        try {
+          TypeDescriptor<T> descriptor = TypeDescriptors.outputOf(getParseFn());
+          coder = input.getPipeline().getCoderRegistry().getCoder(descriptor);
+        } catch (CannotProvideCoderException e) {
+          throw new RuntimeException(
+              "Unable to infer coder for output of parseFn. "
+                  + "Specify it explicitly using withCoder().");
+        }
+      }
+      return input.apply(
+          org.apache.beam.sdk.io.Read.from(
+              AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+        .addIfNotNull(DisplayData.item("filePattern", getFilepattern())
+          .withLabel("Input File Pattern"));
     }
   }
 
