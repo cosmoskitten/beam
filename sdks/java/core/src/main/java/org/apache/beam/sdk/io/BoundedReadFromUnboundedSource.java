@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Distinct;
@@ -50,6 +51,7 @@ import org.joda.time.Instant;
  */
 public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private final UnboundedSource<T, ?> source;
+  private final Coder<T> coder;
   private final long maxNumRecords;
   private final Duration maxReadTime;
   private final BoundedSource<ValueWithRecordId<T>> adaptedSource;
@@ -67,7 +69,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
    * records.
    */
   public BoundedReadFromUnboundedSource<T> withMaxNumRecords(long maxNumRecords) {
-    return new BoundedReadFromUnboundedSource<T>(source, maxNumRecords, maxReadTime);
+    return new BoundedReadFromUnboundedSource<T>(source, coder, maxNumRecords, maxReadTime);
   }
 
   /**
@@ -76,20 +78,46 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
    * of time to read for.  Each split of the source will read for this much time.
    */
   public BoundedReadFromUnboundedSource<T> withMaxReadTime(Duration maxReadTime) {
-    return new BoundedReadFromUnboundedSource<T>(source, maxNumRecords, maxReadTime);
+    return new BoundedReadFromUnboundedSource<T>(source, coder, maxNumRecords, maxReadTime);
+  }
+
+  /**
+   * Sets the coder for contents of the source, in case the source itself is unable to provide a
+   * coder.
+   */
+  public BoundedReadFromUnboundedSource<T> withCoder(Coder<T> coder) {
+    return new BoundedReadFromUnboundedSource<T>(source, coder, maxNumRecords, maxReadTime);
   }
 
   BoundedReadFromUnboundedSource(
-      UnboundedSource<T, ?> source, long maxNumRecords, Duration maxReadTime) {
+      UnboundedSource<T, ?> source,
+      @Nullable Coder<T> coder,
+      long maxNumRecords,
+      Duration maxReadTime) {
     this.source = source;
+    if (coder != null) {
+      this.coder = coder;
+    } else {
+      try {
+        this.coder = source.getDefaultOutputCoder();
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalArgumentException(
+            "Source "
+                + source
+                + " is unable to provide a coder, "
+                + "specify a coder explicitly using .withCoder()",
+            e);
+      }
+    }
     this.maxNumRecords = maxNumRecords;
     this.maxReadTime = maxReadTime;
     this.adaptedSource =
-            new AutoValue_BoundedReadFromUnboundedSource_UnboundedToBoundedSourceAdapter
-                    .Builder()
-                    .setSource(source)
-                    .setMaxNumRecords(maxNumRecords)
-                    .setMaxReadTime(maxReadTime).build();
+        new AutoValue_BoundedReadFromUnboundedSource_UnboundedToBoundedSourceAdapter.Builder<T>()
+            .setSource(source)
+            .setCoder(this.coder)
+            .setMaxNumRecords(maxNumRecords)
+            .setMaxReadTime(maxReadTime)
+            .build();
   }
 
   /**
@@ -119,7 +147,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
 
   @Override
   protected Coder<T> getDefaultOutputCoder() {
-    return source.getDefaultOutputCoder();
+    return coder;
   }
 
   @Override
@@ -148,6 +176,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   abstract static class UnboundedToBoundedSourceAdapter<T>
       extends BoundedSource<ValueWithRecordId<T>> {
     @Nullable abstract UnboundedSource<T, ?> getSource();
+    @Nullable abstract Coder<T> getCoder();
     abstract long getMaxNumRecords();
     @Nullable abstract Duration getMaxReadTime();
 
@@ -156,6 +185,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setSource(UnboundedSource<T, ?> source);
+      abstract Builder<T> setCoder(Coder<T> coder);
       abstract Builder<T> setMaxNumRecords(long maxNumRecords);
       abstract Builder<T> setMaxReadTime(Duration maxReadTime);
       abstract UnboundedToBoundedSourceAdapter<T> build();
@@ -212,7 +242,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
 
     @Override
     public Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
-      return ValueWithRecordId.ValueWithRecordIdCoder.of(getSource().getDefaultOutputCoder());
+      return ValueWithRecordId.ValueWithRecordIdCoder.of(getCoder());
     }
 
     @Override
