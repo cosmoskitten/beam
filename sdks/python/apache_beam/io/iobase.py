@@ -72,7 +72,13 @@ SourceBundle = namedtuple(
     'weight source start_position stop_position')
 
 
-class BoundedSource(HasDisplayData, urns.RunnerApiFn):
+class SourceBase(HasDisplayData, urns.RunnerApiFn):
+  """Base class for all sources that can be passed to beam.io.Read(...).
+  """
+  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_SOURCE)
+
+
+class BoundedSource(SourceBase):
   """A source that reads a finite amount of input records.
 
   This class defines following operations which can be used to read the source
@@ -193,8 +199,6 @@ class BoundedSource(HasDisplayData, urns.RunnerApiFn):
 
   def is_bounded(self):
     return True
-
-  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_SOURCE)
 
 
 class RangeTracker(object):
