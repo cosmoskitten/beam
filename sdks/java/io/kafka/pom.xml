@@ -30,6 +30,7 @@
   <description>Library to read Kafka topics.</description>
 
   <properties>
+    <!-- TODO: temporary upgrade to Kafka version. Probably not a good idea yet to move to 11. -->
     <kafka.clients.version>0.11.0.0</kafka.clients.version>
   </properties>
 
