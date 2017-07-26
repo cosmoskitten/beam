@@ -352,6 +352,40 @@ public abstract class TypeDescriptor<T> implements Serializable {
     return (TypeDescriptor<T>) TypeDescriptor.of(resolver.resolveType(token.getType()));
   }
 
+  @SuppressWarnings("unchecked")
+  public <X> TypeDescriptor<T> where(Type typeParameter,
+      TypeDescriptor<X> typeDescriptor) {
+    TypeResolver resolver =
+        new TypeResolver()
+            .where(
+                typeParameter, typeDescriptor.getType());
+    return (TypeDescriptor<T>) TypeDescriptor.of(resolver.resolveType(token.getType()));
+  }
+
+  /**
+   * Returns whether this {@link TypeDescriptor} has any unresolved type parameters, as opposed to
+   * being a concrete type.
+   *
+   * <p>For example:
+   * <pre>{@code
+   *   TypeDescriptor.of(new ArrayList<String>() {}.getClass()).hasUnresolvedTypeParameters()
+   *     => false, because the anonymous class is instantiated with a concrete type
+   *
+   *   class TestUtils {
+   *     <T> ArrayList<T> createTypeErasedList() {
+   *       return new ArrayList<T>() {};
+   *     }
+   *   }
+   *
+   *   TypeDescriptor.of(TestUtils.<String>createTypeErasedList().getClass())
+   *     => true, because the type variable T got type-erased and the anonymous ArrayList class
+   *     is instantiated with an unresolved type variable T.
+   * }</pre>
+   */
+  public boolean hasUnresolvedParameters() {
+    return hasUnresolvedParameters(getType());
+  }
+
   @Override
   public String toString() {
     return token.toString();
