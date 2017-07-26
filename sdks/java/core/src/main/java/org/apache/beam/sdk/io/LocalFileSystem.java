@@ -56,18 +56,20 @@ import org.slf4j.LoggerFactory;
  *
  * {@link #match} should interpret {@code spec} and resolve paths correctly according to OS being
  * used. In order to do that specs should be defined in one of the below formats:
- * Linux/Mac:
+ *
+ * <p>Linux/Mac:
  * <ul>
  *   <li>pom.xml</li>
  *   <li>/Users/beam/Documents/pom.xml</li>
  *   <li>file:/Users/beam/Documents/pom.xml</li>
  *   <li>file:///Users/beam/Documents/pom.xml</li>
  * </ul>
- * Windows OS:
+ *
+ * <p>Windows OS:
  * <ul>
  *   <li>pom.xml</li>
  *   <li>C:/Users/beam/Documents/pom.xml</li>
- *   <li>C:\Users\beam\Documents\pom.xml</li>
+ *   <li>C:\\Users\\beam\\Documents\\pom.xml</li>
  *   <li>file:/C:/Users/beam/Documents/pom.xml</li>
  *   <li>file:///C:/Users/beam/Documents/pom.xml</li>
  * </ul>
