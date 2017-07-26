@@ -26,15 +26,12 @@ import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
-import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -254,11 +251,7 @@ public class TextIO {
         throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
       }
 
-      final Bounded<String> read = org.apache.beam.sdk.io.Read.from(getSource());
-      PCollection<String> pcol = input.getPipeline().apply("Read", read);
-      // Honor the default output coder that would have been used by this PTransform.
-      pcol.setCoder(getDefaultOutputCoder());
-      return pcol;
+      return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -305,11 +298,6 @@ public class TextIO {
             .withLabel("Compression Type"))
           .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
             .withLabel("File Pattern"));
-    }
-
-    @Override
-    protected Coder<String> getDefaultOutputCoder() {
-      return StringUtf8Coder.of();
     }
   }
 
@@ -732,11 +720,6 @@ public class TextIO {
               DisplayData.item(
                       "writableByteChannelFactory", getWritableByteChannelFactory().toString())
                   .withLabel("Compression/Transformation Type"));
-    }
-
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
   }
 
