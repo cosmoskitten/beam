@@ -80,7 +80,7 @@ class TransformingSource<T, V> extends BoundedSource<V> {
   }
 
   @Override
-  public Coder<V> getDefaultOutputCoder() {
+  public Coder<V> getOutputCoder() {
     return outputCoder;
   }
 

@@ -234,7 +234,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @Override
-  public AvroCoder<T> getDefaultOutputCoder() {
+  public AvroCoder<T> getOutputCoder() {
     return AvroCoder.of(type, internOrParseSchemaString(readerSchemaString));
   }
 

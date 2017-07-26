@@ -1175,7 +1175,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
+      return source.getOutputCoder();
     }
 
     @Override
@@ -1211,7 +1211,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       @Override
       protected Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
-        return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getDefaultOutputCoder());
+        return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getOutputCoder());
       }
 
       @Override
@@ -1290,7 +1290,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
+      return source.getOutputCoder();
     }
 
     @Override
