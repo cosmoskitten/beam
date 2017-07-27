@@ -1437,8 +1437,6 @@ public class KafkaIO {
     abstract boolean isEOS();
     @Nullable abstract String getSinkGroupId();
     abstract int getNumShards();
-    @Nullable abstract Coder<K> getKeyCoder();
-    @Nullable abstract Coder<V> getValueCoder();
     @Nullable abstract
     SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> getConsumerFactoryFn();
 
@@ -1455,8 +1453,6 @@ public class KafkaIO {
       abstract Builder<K, V> setEOS(boolean eosEnabled);
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
       abstract Builder<K, V> setNumShards(int numShards);
-      abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
-      abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> fn);
       abstract Write<K, V> build();
@@ -1528,14 +1524,6 @@ public class KafkaIO {
 
     public Write<K, V> withNumShards(int numShards) {
       return toBuilder().setNumShards(numShards).build();
-    }
-
-    public Write<K, V> withKeyCoder(Coder<K> keyCoder) {
-      return toBuilder().setKeyCoder(keyCoder).build();
-    }
-
-    public Write<K, V> withValueCoder(Coder<V> valueCoder) {
-      return toBuilder().setValueCoder(valueCoder).build();
     }
 
     public Write<K, V> withConsumerFactoryFn(
@@ -1856,9 +1844,7 @@ public class KafkaIO {
           .apply("Assign sequential ids", ParDo.of(new EOSSequencer<K, V>()))
           .apply("Persist ids", GroupByKey.<Integer, KV<Long, KV<K, V>>>create())
           .apply(String.format("Write to Kafka topic '%s'", spec.getTopic()),
-                 ParDo.of(new KafkaEOWriter<>(spec)));
-
-      // TODO: add metrics.
+                 ParDo.of(new KafkaEOWriter<>(spec, input.getCoder())));
     }
   }
 
@@ -1917,10 +1903,9 @@ public class KafkaIO {
     private final StateSpec<ValueState<Long>> minBufferedId = StateSpecs.value();
     @StateId(OUT_OF_ORDER_BUFFER)
     private final StateSpec<BagState<KV<Long, KV<K, V>>>> outOfOrderBuffer;
-    // A random id assigned to each shard.
-    // Helps with detecting when multiple jobs are mistakenly started with same 'groupId' used for
-    // storing state on Kafka side. This also include the case where a job is restarted with same
-    // groupId, but the state is not explicitly cleared.
+    // A random id assigned to each shard. Helps with detecting when multiple jobs are mistakenly
+    // started with same groupId used for storing state on Kafka side including the case where
+    // a job is restarted with same groupId, but the metadata from previous run is not removed.
     // Better to be safe and error out with a clear message.
     @StateId(WRITER_ID)
     private final StateSpec<ValueState<String>> writerIdSpec = StateSpecs.value();
@@ -1938,10 +1923,9 @@ public class KafkaIO {
     private final Counter elementsBuffered = Metrics.counter(METRIC_NAMESPACE, "elementsBuffered");
     private final Counter numTransactions = Metrics.counter(METRIC_NAMESPACE, "numTransactions");
 
-    KafkaEOWriter(Write<K, V> spec) {
+    KafkaEOWriter(Write<K, V> spec, Coder<KV<K, V>> elemCoder) {
       this.spec = spec;
-      this.outOfOrderBuffer = StateSpecs.bag(KvCoder.of(
-          BigEndianLongCoder.of(), KvCoder.of(spec.getKeyCoder(), spec.getValueCoder())));
+      this.outOfOrderBuffer = StateSpecs.bag(KvCoder.of(BigEndianLongCoder.of(), elemCoder));
     }
 
     @ProcessElement
