@@ -25,10 +25,9 @@ for different purposes:
 
 - **file**: Create a docker container from a .zip file with the Beam in a given
   environment. It is useful to test/validate the release votes or an specific
-  version in a
-  sdks/java/build-tools/src/main/resources/docker/README.mddifferent version of
-  Java than the host. It reproduces a minimal docker image so it also isolate
-  issues due to ports shared in the machine, etc.
+  version in a different version of Java than the host. It reproduces a minimal
+  docker image so it also isolate issues due to ports shared in the machine,
+  etc.
 
 - **git**: Same as file but the Beam source code comes from the git repository,
   you can choose a given branch/tag/pull-request. Useful to test in a specific
