@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -125,6 +126,36 @@ public class PipelineOptionsFactory {
    */
   public static <T extends PipelineOptions> T as(Class<T> klass) {
     return new Builder().as(klass);
+  }
+
+  /**
+   * Converts a {@link PipelineOptions} to JSON that can be deserialized later using {@link
+   * #deserializeFromJson(String)}.
+   *
+   * <p>This method is intended to be used by {@link PipelineRunner runners}. Not intended for use
+   * by pipeline authors. See note "Serialization Of PipelineOptions" on {@link PipelineOptions}. Do
+   * not use this method in your transforms to circumvent the fact that {@link PipelineOptions} is
+   * not serializable or to capture the current value of {@link PipelineOptions} at pipeline
+   * construction time.
+   */
+  public static String serializeToJson(PipelineOptions options) {
+    try {
+      return MAPPER.writeValueAsString(options);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Failed to serialize PipelineOptions", e);
+    }
+  }
+
+  /**
+   * Converts a JSON string produced by {@link #serializeToJson(PipelineOptions)} back into a {@link
+   * PipelineOptions}.
+   */
+  public static PipelineOptions deserializeFromJson(String options) {
+    try {
+      return MAPPER.readValue(options, PipelineOptions.class);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Failed to deserialize PipelineOptions", e);
+    }
   }
 
   /**
