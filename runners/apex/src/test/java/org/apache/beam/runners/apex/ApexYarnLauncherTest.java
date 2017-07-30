@@ -134,6 +134,7 @@ public class ApexYarnLauncherTest {
       Assert.assertTrue("manifest", Files.isRegularFile(zipfs.getPath(JarFile.MANIFEST_NAME)));
       Assert.assertTrue("file1", Files.isRegularFile(zipfs.getPath(file1)));
     }
-
+    // delete the directory to not let stuff around after the test execution
+    FileUtils.deleteDirectory(baseDir);
   }
 }
