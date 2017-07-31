@@ -18,13 +18,13 @@
 """A runner implementation that submits a job for remote execution.
 """
 
-import grpc
 import logging
 import random
 import string
 
+import grpc
+
 from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.job.manager import DockerRPCManager
 from apache_beam.runners.runner import PipelineResult
@@ -65,16 +65,16 @@ class PythonRPCDirectRunner(PipelineRunner):
 
     try:
       response = manager.service.run(beam_job_api_pb2.SubmitJobRequest(
-        pipeline = pipeline.to_runner_api(),
-        pipelineOptions = job_utils.dict_to_struct(options),
-        jobName = jobName))
+          pipeline=pipeline.to_runner_api(),
+          pipelineOptions=job_utils.dict_to_struct(options),
+          jobName=jobName))
 
       logging.info('Submitted a job with id: %s', response.jobId)
 
       # Return the result object that references the manager instance
       result = PythonRPCDirectPipelineResult(response.jobId, manager)
       return result
-    except grpc.RpcError as e:
+    except grpc.RpcError:
       logging.error('Failed to run the job with name %s', jobName)
       raise
 

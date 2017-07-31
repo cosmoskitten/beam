@@ -26,7 +26,7 @@ syntax = "proto3";
 package org.apache.beam.runner_api.v1;
 
 option java_package = "org.apache.beam.common.job";
-option java_outer_classname = "JobService";
+option java_outer_classname = "JobServiceApi";
 
 import "beam_runner_api.proto";
 import "google/protobuf/struct.proto";

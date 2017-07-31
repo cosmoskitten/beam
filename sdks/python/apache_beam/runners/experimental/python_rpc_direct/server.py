@@ -28,7 +28,6 @@ from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.pipeline import Pipeline
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.direct.direct_runner import DirectRunner
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
