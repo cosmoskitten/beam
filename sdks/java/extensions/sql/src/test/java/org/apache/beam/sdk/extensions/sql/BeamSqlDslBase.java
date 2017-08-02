@@ -25,9 +25,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecord;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordTypeProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
@@ -53,20 +53,20 @@ public class BeamSqlDslBase {
   @Rule
   public ExpectedException exceptions = ExpectedException.none();
 
-  public static BeamSqlRowType rowTypeInTableA;
-  public static List<BeamSqlRow> recordsInTableA;
+  public static BeamSqlRecordTypeProvider rowTypeInTableA;
+  public static List<BeamSqlRecord> recordsInTableA;
 
   //bounded PCollections
-  public PCollection<BeamSqlRow> boundedInput1;
-  public PCollection<BeamSqlRow> boundedInput2;
+  public PCollection<BeamSqlRecord> boundedInput1;
+  public PCollection<BeamSqlRecord> boundedInput2;
 
   //unbounded PCollections
-  public PCollection<BeamSqlRow> unboundedInput1;
-  public PCollection<BeamSqlRow> unboundedInput2;
+  public PCollection<BeamSqlRecord> unboundedInput1;
+  public PCollection<BeamSqlRecord> unboundedInput2;
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
-    rowTypeInTableA = BeamSqlRowType.create(
+    rowTypeInTableA = BeamSqlRecordTypeProvider.create(
         Arrays.asList("f_int", "f_long", "f_short", "f_byte", "f_float", "f_double", "f_string",
             "f_timestamp", "f_int2", "f_decimal"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,
@@ -78,20 +78,20 @@ public class BeamSqlDslBase {
   @Before
   public void preparePCollections(){
     boundedInput1 = PBegin.in(pipeline).apply("boundedInput1",
-        Create.of(recordsInTableA).withCoder(new BeamSqlRowCoder(rowTypeInTableA)));
+        Create.of(recordsInTableA).withCoder(new BeamSqlRecordCoder(rowTypeInTableA)));
 
     boundedInput2 = PBegin.in(pipeline).apply("boundedInput2",
-        Create.of(recordsInTableA.get(0)).withCoder(new BeamSqlRowCoder(rowTypeInTableA)));
+        Create.of(recordsInTableA.get(0)).withCoder(new BeamSqlRecordCoder(rowTypeInTableA)));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
   }
 
-  private PCollection<BeamSqlRow> prepareUnboundedPCollection1() {
-    TestStream.Builder<BeamSqlRow> values = TestStream
-        .create(new BeamSqlRowCoder(rowTypeInTableA));
+  private PCollection<BeamSqlRecord> prepareUnboundedPCollection1() {
+    TestStream.Builder<BeamSqlRecord> values = TestStream
+        .create(new BeamSqlRecordCoder(rowTypeInTableA));
 
-    for (BeamSqlRow row : recordsInTableA) {
+    for (BeamSqlRecord row : recordsInTableA) {
       values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
       values = values.addElements(row);
     }
@@ -99,21 +99,21 @@ public class BeamSqlDslBase {
     return PBegin.in(pipeline).apply("unboundedInput1", values.advanceWatermarkToInfinity());
   }
 
-  private PCollection<BeamSqlRow> prepareUnboundedPCollection2() {
-    TestStream.Builder<BeamSqlRow> values = TestStream
-        .create(new BeamSqlRowCoder(rowTypeInTableA));
+  private PCollection<BeamSqlRecord> prepareUnboundedPCollection2() {
+    TestStream.Builder<BeamSqlRecord> values = TestStream
+        .create(new BeamSqlRecordCoder(rowTypeInTableA));
 
-    BeamSqlRow row = recordsInTableA.get(0);
+    BeamSqlRecord row = recordsInTableA.get(0);
     values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
     values = values.addElements(row);
 
     return PBegin.in(pipeline).apply("unboundedInput2", values.advanceWatermarkToInfinity());
   }
 
-  private static List<BeamSqlRow> prepareInputRowsInTableA() throws ParseException{
-    List<BeamSqlRow> rows = new ArrayList<>();
+  private static List<BeamSqlRecord> prepareInputRowsInTableA() throws ParseException{
+    List<BeamSqlRecord> rows = new ArrayList<>();
 
-    BeamSqlRow row1 = new BeamSqlRow(rowTypeInTableA);
+    BeamSqlRecord row1 = new BeamSqlRecord(rowTypeInTableA);
     row1.addField(0, 1);
     row1.addField(1, 1000L);
     row1.addField(2, Short.valueOf("1"));
@@ -126,7 +126,7 @@ public class BeamSqlDslBase {
     row1.addField(9, new BigDecimal(1));
     rows.add(row1);
 
-    BeamSqlRow row2 = new BeamSqlRow(rowTypeInTableA);
+    BeamSqlRecord row2 = new BeamSqlRecord(rowTypeInTableA);
     row2.addField(0, 2);
     row2.addField(1, 2000L);
     row2.addField(2, Short.valueOf("2"));
@@ -139,7 +139,7 @@ public class BeamSqlDslBase {
     row2.addField(9, new BigDecimal(2));
     rows.add(row2);
 
-    BeamSqlRow row3 = new BeamSqlRow(rowTypeInTableA);
+    BeamSqlRecord row3 = new BeamSqlRecord(rowTypeInTableA);
     row3.addField(0, 3);
     row3.addField(1, 3000L);
     row3.addField(2, Short.valueOf("3"));
@@ -152,7 +152,7 @@ public class BeamSqlDslBase {
     row3.addField(9, new BigDecimal(3));
     rows.add(row3);
 
-    BeamSqlRow row4 = new BeamSqlRow(rowTypeInTableA);
+    BeamSqlRecord row4 = new BeamSqlRecord(rowTypeInTableA);
     row4.addField(0, 4);
     row4.addField(1, 4000L);
     row4.addField(2, Short.valueOf("4"));

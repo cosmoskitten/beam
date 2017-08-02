@@ -19,8 +19,8 @@
 package org.apache.beam.sdk.extensions.sql.schema.text;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecord;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordTypeProvider;
 import org.apache.beam.sdk.extensions.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -33,24 +33,24 @@ import org.apache.commons.csv.CSVFormat;
 /**
  * IOWriter for {@code BeamTextCSVTable}.
  */
-public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamSqlRow>, PDone>
+public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamSqlRecord>, PDone>
     implements Serializable {
   private String filePattern;
-  protected BeamSqlRowType beamSqlRowType;
+  protected BeamSqlRecordTypeProvider beamSqlRowType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOWriter(BeamSqlRowType beamSqlRowType, String filePattern,
+  public BeamTextCSVTableIOWriter(BeamSqlRecordTypeProvider beamSqlRowType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
     this.beamSqlRowType = beamSqlRowType;
     this.csvFormat = csvFormat;
   }
 
-  @Override public PDone expand(PCollection<BeamSqlRow> input) {
-    return input.apply("encodeRecord", ParDo.of(new DoFn<BeamSqlRow, String>() {
+  @Override public PDone expand(PCollection<BeamSqlRecord> input) {
+    return input.apply("encodeRecord", ParDo.of(new DoFn<BeamSqlRecord, String>() {
 
       @ProcessElement public void processElement(ProcessContext ctx) {
-        BeamSqlRow row = ctx.element();
+        BeamSqlRecord row = ctx.element();
         ctx.output(BeamTableUtils.beamSqlRow2CsvLine(row, csvFormat));
       }
     })).apply(TextIO.write().to(filePattern));
