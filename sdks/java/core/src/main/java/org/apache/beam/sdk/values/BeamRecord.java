@@ -15,58 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.schema;
+package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 
 /**
- * Represent a generic ROW record in Beam SQL.
- *
+ * {@link org.apache.beam.sdk.values.BeamRecord}, self-described with
+ * {@link BeamRecordTypeProvider}, represents one element in a
+ * {@link org.apache.beam.sdk.values.PCollection}.
  */
-public class BeamSqlRow implements Serializable {
-  private static final Map<Integer, Class> SQL_TYPE_TO_JAVA_CLASS = new HashMap<>();
-  static {
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.TINYINT, Byte.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.SMALLINT, Short.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.INTEGER, Integer.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.BIGINT, Long.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.FLOAT, Float.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.DOUBLE, Double.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.DECIMAL, BigDecimal.class);
-
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.BOOLEAN, Boolean.class);
-
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.CHAR, String.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.VARCHAR, String.class);
-
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.TIME, GregorianCalendar.class);
-
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.DATE, Date.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.TIMESTAMP, Date.class);
-  }
-
+@Experimental
+public class BeamRecord implements Serializable {
+  //null values are indexed here, to handle properly in Coder.
   private List<Integer> nullFields = new ArrayList<>();
   private List<Object> dataValues;
-  private BeamSqlRowType dataType;
+  private BeamRecordTypeProvider dataType;
 
   private Instant windowStart = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
   private Instant windowEnd = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
-  public BeamSqlRow(BeamSqlRowType dataType) {
+  public BeamRecord(BeamRecordTypeProvider dataType) {
     this.dataType = dataType;
     this.dataValues = new ArrayList<>();
     for (int idx = 0; idx < dataType.size(); ++idx) {
@@ -75,14 +53,14 @@ public class BeamSqlRow implements Serializable {
     }
   }
 
-  public BeamSqlRow(BeamSqlRowType dataType, List<Object> dataValues) {
+  public BeamRecord(BeamRecordTypeProvider dataType, List<Object> dataValues) {
     this(dataType);
     for (int idx = 0; idx < dataValues.size(); ++idx) {
       addField(idx, dataValues.get(idx));
     }
   }
 
-  public void updateWindowRange(BeamSqlRow upstreamRecord, BoundedWindow window){
+  public void updateWindowRange(BeamRecord upstreamRecord, BoundedWindow window){
     windowStart = upstreamRecord.windowStart;
     windowEnd = upstreamRecord.windowEnd;
 
@@ -106,23 +84,8 @@ public class BeamSqlRow implements Serializable {
       }
     }
 
-    validateValueType(index, fieldValue);
+    dataType.validateValueType(index, fieldValue);
     dataValues.set(index, fieldValue);
-  }
-
-  private void validateValueType(int index, Object fieldValue) {
-    SqlTypeName fieldType = CalciteUtils.getFieldType(dataType, index);
-    Class javaClazz = SQL_TYPE_TO_JAVA_CLASS.get(CalciteUtils.toJavaType(fieldType));
-    if (javaClazz == null) {
-      throw new UnsupportedOperationException("Data type: " + fieldType + " not supported yet!");
-    }
-
-    if (!fieldValue.getClass().equals(javaClazz)) {
-      throw new IllegalArgumentException(
-          String.format("[%s](%s) doesn't match type [%s]",
-              fieldValue, fieldValue.getClass(), fieldType)
-      );
-    }
   }
 
   public Object getFieldValue(String fieldName) {
@@ -237,11 +200,11 @@ public class BeamSqlRow implements Serializable {
     this.dataValues = dataValues;
   }
 
-  public BeamSqlRowType getDataType() {
+  public BeamRecordTypeProvider getDataType() {
     return dataType;
   }
 
-  public void setDataType(BeamSqlRowType dataType) {
+  public void setDataType(BeamRecordTypeProvider dataType) {
     this.dataType = dataType;
   }
 
@@ -288,7 +251,8 @@ public class BeamSqlRow implements Serializable {
   public String valueInString() {
     StringBuilder sb = new StringBuilder();
     for (int idx = 0; idx < size(); ++idx) {
-      sb.append(String.format(",%s=%s", dataType.getFieldsName().get(idx), getFieldValue(idx)));
+      sb.append(
+          String.format(",%s=%s", getDataType().getFieldsName().get(idx), getFieldValue(idx)));
     }
     return sb.substring(1);
   }
@@ -304,11 +268,12 @@ public class BeamSqlRow implements Serializable {
     if (getClass() != obj.getClass()) {
       return false;
     }
-    BeamSqlRow other = (BeamSqlRow) obj;
+    BeamRecord other = (BeamRecord) obj;
     return toString().equals(other.toString());
   }
 
   @Override public int hashCode() {
-    return 31 * (31 * dataType.hashCode() + dataValues.hashCode()) + nullFields.hashCode();
+    return 31 * (31 * getDataType().hashCode() + getDataValues().hashCode())
+        + getNullFields().hashCode();
   }
 }

@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecord;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * A test PTransform to display output in console.
  *
  */
-public class BeamSqlOutputToConsoleFn extends DoFn<BeamSqlRow, Void> {
+public class BeamSqlOutputToConsoleFn extends DoFn<BeamSqlRecord, Void> {
 
   private String stepName;
 
