@@ -81,7 +81,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testPartialFields", BeamSql.query(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("f_int", "f_long"),
+    BeamSqlRowType resultType = BeamSqlRowType
+        .create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record = new BeamSqlRow(resultType);
@@ -116,7 +117,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("f_int", "f_long"),
+    BeamSqlRowType resultType = BeamSqlRowType
+        .create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
@@ -163,7 +165,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testPartialFieldsInRows", BeamSql.query(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("f_int", "f_long"),
+    BeamSqlRowType resultType = BeamSqlRowType
+        .create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
@@ -210,7 +213,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testLiteralField", BeamSql.query(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("literal_field"),
+    BeamSqlRowType resultType = BeamSqlRowType
+        .create(Arrays.asList("literal_field"),
         Arrays.asList(Types.INTEGER));
 
     BeamSqlRow record = new BeamSqlRow(resultType);

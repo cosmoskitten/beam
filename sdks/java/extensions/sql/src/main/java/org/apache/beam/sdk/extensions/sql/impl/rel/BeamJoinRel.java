@@ -101,7 +101,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<BeamSqlRow> leftRows = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
 
     final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
-    PCollection<BeamSqlRow> rightRows = rightRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
+    PCollection<BeamSqlRow> rightRows = rightRelNode
+        .buildBeamPipeline(inputPCollections, sqlEnv);
 
     String stageName = BeamSqlRelUtils.getStageName(this);
     WindowFn leftWinFn = leftRows.getWindowingStrategy().getWindowFn();

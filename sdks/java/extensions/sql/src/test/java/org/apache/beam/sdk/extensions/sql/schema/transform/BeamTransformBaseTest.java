@@ -68,7 +68,8 @@ public class BeamTransformBaseTest {
   /**
    * create a {@code BeamSqlRowType} for given column metadata.
    */
-  public static BeamSqlRowType initTypeOfSqlRow(List<KV<String, SqlTypeName>> columnMetadata){
+  public static BeamSqlRowType initTypeOfSqlRow(
+      List<KV<String, SqlTypeName>> columnMetadata){
     FieldInfoBuilder builder = BeamQueryPlanner.TYPE_FACTORY.builder();
     for (KV<String, SqlTypeName> cm : columnMetadata) {
       builder.add(cm.getKey(), cm.getValue());

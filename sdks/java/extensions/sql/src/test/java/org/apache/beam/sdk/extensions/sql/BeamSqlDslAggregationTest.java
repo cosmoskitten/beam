@@ -55,7 +55,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<BeamSqlRow> result =
         input.apply("testAggregationWithoutWindow", BeamSql.simpleQuery(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("f_int2", "size"),
+    BeamSqlRowType resultType = BeamSqlRowType
+        .create(Arrays.asList("f_int2", "size"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record = new BeamSqlRow(resultType);
@@ -167,7 +168,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<BeamSqlRow> result =
         input.apply("testDistinct", BeamSql.simpleQuery(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("f_int", "f_long"),
+    BeamSqlRowType resultType = BeamSqlRowType
+        .create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);

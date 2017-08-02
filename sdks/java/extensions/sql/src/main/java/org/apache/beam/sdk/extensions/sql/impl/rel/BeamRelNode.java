@@ -33,6 +33,6 @@ public interface BeamRelNode extends RelNode {
    * {@code BeamQueryPlanner} visits it with a DFS(Depth-First-Search)
    * algorithm.
    */
-  PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections, BeamSqlEnv sqlEnv)
-      throws Exception;
+  PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections,
+      BeamSqlEnv sqlEnv) throws Exception;
 }

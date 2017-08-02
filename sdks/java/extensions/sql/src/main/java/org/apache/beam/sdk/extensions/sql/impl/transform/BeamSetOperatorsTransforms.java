@@ -52,7 +52,8 @@ public abstract class BeamSetOperatorsTransforms {
     // ALL?
     private boolean all;
 
-    public SetOperatorFilteringDoFn(TupleTag<BeamSqlRow> leftTag, TupleTag<BeamSqlRow> rightTag,
+    public SetOperatorFilteringDoFn(TupleTag<BeamSqlRow> leftTag,
+        TupleTag<BeamSqlRow> rightTag,
         BeamSetOperatorRelBase.OpType opType, boolean all) {
       this.leftTag = leftTag;
       this.rightTag = rightTag;

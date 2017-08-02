@@ -56,7 +56,8 @@ public class BeamAggregationTransforms implements Serializable{
   /**
    * Merge KV to single record.
    */
-  public static class MergeAggregationRecord extends DoFn<KV<BeamSqlRow, BeamSqlRow>, BeamSqlRow> {
+  public static class MergeAggregationRecord
+      extends DoFn<KV<BeamSqlRow, BeamSqlRow>, BeamSqlRow> {
     private BeamSqlRowType outRowType;
     private List<String> aggFieldNames;
     private int windowStartFieldIdx;
@@ -217,7 +218,8 @@ public class BeamAggregationTransforms implements Serializable{
       return initialAccu;
     }
     @Override
-    public AggregationAccumulator addInput(AggregationAccumulator accumulator, BeamSqlRow input) {
+    public AggregationAccumulator addInput(
+        AggregationAccumulator accumulator, BeamSqlRow input) {
       AggregationAccumulator deltaAcc = new AggregationAccumulator();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
         deltaAcc.accumulatorElements.add(

@@ -76,7 +76,8 @@ public class BeamJoinTransforms {
   /**
    * A {@code DoFn} which implement the sideInput-JOIN.
    */
-  public static class SideInputJoinDoFn extends DoFn<KV<BeamSqlRow, BeamSqlRow>, BeamSqlRow> {
+  public static class SideInputJoinDoFn
+      extends DoFn<KV<BeamSqlRow, BeamSqlRow>, BeamSqlRow> {
     private final PCollectionView<Map<BeamSqlRow, Iterable<BeamSqlRow>>> sideInputView;
     private final JoinRelType joinType;
     private final BeamSqlRow rightNullRow;
@@ -116,7 +117,8 @@ public class BeamJoinTransforms {
    */
   public static class JoinParts2WholeRow
       extends SimpleFunction<KV<BeamSqlRow, KV<BeamSqlRow, BeamSqlRow>>, BeamSqlRow> {
-    @Override public BeamSqlRow apply(KV<BeamSqlRow, KV<BeamSqlRow, BeamSqlRow>> input) {
+    @Override public BeamSqlRow apply(
+        KV<BeamSqlRow, KV<BeamSqlRow, BeamSqlRow>> input) {
       KV<BeamSqlRow, BeamSqlRow> parts = input.getValue();
       BeamSqlRow leftRow = parts.getKey();
       BeamSqlRow rightRow = parts.getValue();
