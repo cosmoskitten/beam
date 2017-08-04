@@ -423,7 +423,7 @@ class UnionHint(CompositeTypeHint):
   class UnionConstraint(TypeConstraint):
 
     def __init__(self, union_types):
-      self.union_types = set(union_types)
+      self.union_types = set(map(normalize, union_types))
 
     def __eq__(self, other):
       return (isinstance(other, UnionHint.UnionConstraint)
