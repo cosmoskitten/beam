@@ -56,7 +56,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   @Override
   public void encode(BeamRecord value, OutputStream outStream)
       throws CoderException, IOException {
-    nullListCoder.encode(value.getNullFields(), outStream);
+    nullListCoder.encode(scanNullFields(value), outStream);
     for (int idx = 0; idx < value.size(); ++idx) {
       if (value.isNull(idx)) {
         continue;
@@ -86,6 +86,19 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
     record.setWindowEnd(instantCoder.decode(inStream));
 
     return record;
+  }
+
+  /**
+   * Scan {@link BeamRecord} to find fields with a NULL value.
+   */
+  private BitSet scanNullFields(BeamRecord record){
+    BitSet nullFields = new BitSet(record.size());
+    for (int idx = 0; idx < record.size(); ++idx) {
+      if (record.isNull(idx)) {
+        nullFields.set(idx);
+      }
+    }
+    return nullFields;
   }
 
   @Override

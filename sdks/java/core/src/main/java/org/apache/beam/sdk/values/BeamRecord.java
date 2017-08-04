@@ -20,7 +20,6 @@ package org.apache.beam.sdk.values;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -38,8 +37,6 @@ import org.joda.time.Instant;
 @Experimental
 public class BeamRecord implements Serializable {
   private List<Object> dataValues;
-  //null values are indexed here, to handle properly in Coder.
-  private BitSet nullFields;
   private BeamRecordType dataType;
 
   private Instant windowStart = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
@@ -47,11 +44,9 @@ public class BeamRecord implements Serializable {
 
   public BeamRecord(BeamRecordType dataType) {
     this.dataType = dataType;
-    this.nullFields = new BitSet(dataType.size());
     this.dataValues = new ArrayList<>();
     for (int idx = 0; idx < dataType.size(); ++idx) {
       dataValues.add(null);
-      nullFields.set(idx);
     }
   }
 
@@ -78,12 +73,6 @@ public class BeamRecord implements Serializable {
   }
 
   public void addField(int index, Object fieldValue) {
-    if (fieldValue == null) {
-      return;
-    } else {
-      nullFields.clear(index);
-    }
-
     dataType.validateValueType(index, fieldValue);
     dataValues.set(index, fieldValue);
   }
@@ -200,15 +189,11 @@ public class BeamRecord implements Serializable {
     return dataType;
   }
 
-  public BitSet getNullFields() {
-    return nullFields;
-  }
-
   /**
    * is the specified field NULL?
    */
   public boolean isNull(int idx) {
-    return nullFields.get(idx);
+    return null ==  getFieldValue(idx);
   }
 
   public Instant getWindowStart() {
@@ -229,7 +214,7 @@ public class BeamRecord implements Serializable {
 
   @Override
   public String toString() {
-    return "BeamSqlRow [nullFields=" + nullFields + ", dataValues=" + dataValues + ", dataType="
+    return "BeamSqlRow [dataValues=" + dataValues + ", dataType="
         + dataType + ", windowStart=" + windowStart + ", windowEnd=" + windowEnd + "]";
   }
 
@@ -261,7 +246,6 @@ public class BeamRecord implements Serializable {
   }
 
   @Override public int hashCode() {
-    return 31 * (31 * getDataType().hashCode() + getDataValues().hashCode())
-        + getNullFields().hashCode();
+    return 31 * getDataType().hashCode() + getDataValues().hashCode();
   }
 }
