@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -37,6 +38,7 @@ import org.joda.time.Instant;
  */
 @Experimental
 public class BeamRecord implements Serializable {
+  //immutable list of field values.
   private List<Object> dataValues;
   //null values are indexed here, to handle properly in Coder.
   private BitSet nullFields;
@@ -45,21 +47,25 @@ public class BeamRecord implements Serializable {
   private Instant windowStart = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
   private Instant windowEnd = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
-  public BeamRecord(BeamRecordType dataType) {
+  public BeamRecord(BeamRecordType dataType, List<Object> rawdataValues) {
     this.dataType = dataType;
-    this.nullFields = new BitSet(dataType.size());
     this.dataValues = new ArrayList<>();
+
+    //these lines are expected to remove after #3691
+    this.nullFields = new BitSet(dataType.size());
     for (int idx = 0; idx < dataType.size(); ++idx) {
       dataValues.add(null);
       nullFields.set(idx);
     }
+    //end
+
+    for (int idx = 0; idx < dataValues.size(); ++idx) {
+      addField(idx, rawdataValues.get(idx));
+    }
   }
 
-  public BeamRecord(BeamRecordType dataType, List<Object> dataValues) {
-    this(dataType);
-    for (int idx = 0; idx < dataValues.size(); ++idx) {
-      addField(idx, dataValues.get(idx));
-    }
+  public BeamRecord(BeamRecordType dataType, Object... rawdataValues) {
+    this(dataType, Arrays.asList(rawdataValues));
   }
 
   public void updateWindowRange(BeamRecord upstreamRecord, BoundedWindow window){
@@ -73,16 +79,14 @@ public class BeamRecord implements Serializable {
     }
   }
 
-  public void addField(String fieldName, Object fieldValue) {
-    addField(dataType.getFieldsName().indexOf(fieldName), fieldValue);
-  }
-
-  public void addField(int index, Object fieldValue) {
+  private void addField(int index, Object fieldValue) {
+    //these lines are expected to remove after #3691
     if (fieldValue == null) {
       return;
     } else {
       nullFields.clear(index);
     }
+    //end
 
     dataType.validateValueType(index, fieldValue);
     dataValues.set(index, fieldValue);
@@ -190,10 +194,6 @@ public class BeamRecord implements Serializable {
 
   public List<Object> getDataValues() {
     return dataValues;
-  }
-
-  public void setDataValues(List<Object> dataValues) {
-    this.dataValues = dataValues;
   }
 
   public BeamRecordType getDataType() {
