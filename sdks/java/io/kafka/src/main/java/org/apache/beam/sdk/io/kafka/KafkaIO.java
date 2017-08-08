@@ -1873,15 +1873,21 @@ public class KafkaIO {
    */
   private static class EOSReshard<K, V> extends DoFn<KV<K, V>, KV<Integer, KV<K, V>>> {
     private final int numShards;
+    private transient int shardId;
 
     EOSReshard(int numShards) {
       this.numShards = numShards;
     }
 
+    @Setup
+    public void setup() {
+      shardId = ThreadLocalRandom.current().nextInt(numShards);
+    }
+
     @ProcessElement
     public void processElement(ProcessContext ctx) {
-      int shard = ThreadLocalRandom.current().nextInt(numShards);
-      ctx.output(KV.of(shard, ctx.element()));
+      shardId = (shardId + 1) % numShards; // round-robin among shards.
+      ctx.output(KV.of(shardId, ctx.element()));
     }
   }
 
@@ -2203,7 +2209,7 @@ public class KafkaIO {
             //
             throw new IllegalStateException(String.format(
               "Kafka metadata exists for shard %s, but there is no stored state for it. "
-              + "This mostly indicates groupId '%s' is already used else where or in earlier runs. "
+              + "This mostly indicates groupId '%s' is used else where or in earlier runs. "
               + "Try another group id. Metadata for this shard on Kafka : '%s'",
               shard, spec.getSinkGroupId(), committed.metadata()));
           }
