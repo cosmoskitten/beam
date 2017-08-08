@@ -38,7 +38,7 @@ public final class BeamTableUtils {
   public static BeamRecord csvLine2BeamSqlRow(
       CSVFormat csvFormat,
       String line,
-      BeamSqlRecordType beamSqlRowType) {
+      BeamRecordSqlType beamSqlRowType) {
     BeamRecord row = new BeamRecord(beamSqlRowType);
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);

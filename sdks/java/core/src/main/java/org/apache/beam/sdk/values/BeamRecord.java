@@ -51,7 +51,7 @@ public class BeamRecord implements Serializable {
   }
 
   public void addField(String fieldName, Object fieldValue) {
-    addField(dataType.getFieldsName().indexOf(fieldName), fieldValue);
+    addField(dataType.getFieldNames().indexOf(fieldName), fieldValue);
   }
 
   public void addField(int index, Object fieldValue) {
@@ -60,7 +60,7 @@ public class BeamRecord implements Serializable {
   }
 
   public Object getFieldValue(String fieldName) {
-    return getFieldValue(dataType.getFieldsName().indexOf(fieldName));
+    return getFieldValue(dataType.getFieldNames().indexOf(fieldName));
   }
 
   public byte getByte(String fieldName) {
@@ -190,7 +190,7 @@ public class BeamRecord implements Serializable {
     StringBuilder sb = new StringBuilder();
     for (int idx = 0; idx < size(); ++idx) {
       sb.append(
-          String.format(",%s=%s", getDataType().getFieldsName().get(idx), getFieldValue(idx)));
+          String.format(",%s=%s", getDataType().getFieldNames().get(idx), getFieldValue(idx)));
     }
     return sb.substring(1);
   }
