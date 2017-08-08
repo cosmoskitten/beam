@@ -169,19 +169,7 @@ public class BeamRecord implements Serializable {
 
   @Override
   public String toString() {
-    return "BeamSqlRow [dataValues=" + dataValues + ", dataType=" + dataType + "]";
-  }
-
-  /**
-   * Return data fields as key=value.
-   */
-  public String valueInString() {
-    StringBuilder sb = new StringBuilder();
-    for (int idx = 0; idx < getFieldCount(); ++idx) {
-      sb.append(
-          String.format(",%s=%s", getDataType().getFieldsName().get(idx), getFieldValue(idx)));
-    }
-    return sb.substring(1);
+    return "BeamRecord [dataValues=" + dataValues + ", dataType=" + dataType + "]";
   }
 
   @Override

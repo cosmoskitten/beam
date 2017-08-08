@@ -54,7 +54,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<BeamRecord> result =
         input.apply("testAggregationWithoutWindow", BeamSql.simpleQuery(sql));
 
-    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "getFieldCount"),
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(
+        Arrays.asList("f_int2", "getFieldCount"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
 
@@ -97,7 +98,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         .apply("testAggregationFunctions", BeamSql.query(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(
-        Arrays.asList("f_int2", "getFieldCount", "sum1", "avg1", "max1", "min1", "sum2", "avg2", "max2",
+        Arrays.asList("f_int2", "getFieldCount", "sum1", "avg1", "max1", "min1",
+            "sum2", "avg2", "max2",
             "min2", "sum3", "avg3", "max3", "min3", "sum4", "avg4", "max4", "min4", "sum5", "avg5",
             "max5", "min5", "max6", "min6"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.BIGINT, Types.BIGINT, Types.BIGINT,
@@ -289,7 +291,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     exceptions.expectMessage("Encountered \"*\"");
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `getFieldCount` FROM PCOLLECTION GROUP BY f_int2";
+    String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `size` "
+        + "FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<BeamRecord> result =
         boundedInput1.apply("testUnsupportedDistinct", BeamSql.simpleQuery(sql));
