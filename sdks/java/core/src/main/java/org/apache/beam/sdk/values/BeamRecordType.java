@@ -64,7 +64,12 @@ public class BeamRecordType implements Serializable{
      return fieldsName.indexOf(fieldName);
    }
 
-  public int size(){
+  public int getFieldCount(){
     return fieldsName.size();
+  }
+
+  @Override
+  public String toString() {
+    return "BeamRecordType [fieldsName=" + fieldsName + ", fieldsCoder=" + fieldsCoder + "]";
   }
 }

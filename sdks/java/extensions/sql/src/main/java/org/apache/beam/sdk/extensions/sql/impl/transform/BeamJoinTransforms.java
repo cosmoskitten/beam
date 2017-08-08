@@ -145,11 +145,11 @@ public class BeamJoinTransforms {
   private static BeamRecord combineTwoRowsIntoOneHelper(BeamRecord leftRow,
       BeamRecord rightRow) {
     // build the type
-    List<String> names = new ArrayList<>(leftRow.size() + rightRow.size());
+    List<String> names = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
     names.addAll(leftRow.getDataType().getFieldsName());
     names.addAll(rightRow.getDataType().getFieldsName());
 
-    List<Integer> types = new ArrayList<>(leftRow.size() + rightRow.size());
+    List<Integer> types = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
     types.addAll(BeamSqlRecordHelper.getSqlRecordType(leftRow).getFieldsType());
     types.addAll(BeamSqlRecordHelper.getSqlRecordType(rightRow).getFieldsType());
     BeamSqlRecordType type = BeamSqlRecordType.create(names, types);
