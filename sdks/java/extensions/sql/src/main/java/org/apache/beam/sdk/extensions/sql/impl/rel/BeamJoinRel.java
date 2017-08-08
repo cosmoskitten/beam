@@ -256,7 +256,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   private BeamRecord buildNullRow(BeamRelNode relNode) {
     BeamSqlRecordType leftType = CalciteUtils.toBeamRowType(relNode.getRowType());
     BeamRecord nullRow = new BeamRecord(leftType);
-    for (int i = 0; i < leftType.size(); i++) {
+    for (int i = 0; i < leftType.getFieldCount(); i++) {
       nullRow.addField(i, null);
     }
     return nullRow;

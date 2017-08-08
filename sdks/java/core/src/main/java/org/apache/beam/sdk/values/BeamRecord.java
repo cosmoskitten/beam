@@ -38,7 +38,7 @@ public class BeamRecord implements Serializable {
   public BeamRecord(BeamRecordType dataType) {
     this.dataType = dataType;
     this.dataValues = new ArrayList<>();
-    for (int idx = 0; idx < dataType.size(); ++idx) {
+    for (int idx = 0; idx < dataType.getFieldCount(); ++idx) {
       dataValues.add(null);
     }
   }
@@ -155,7 +155,7 @@ public class BeamRecord implements Serializable {
     return (boolean) getFieldValue(idx);
   }
 
-  public int size() {
+  public int getFieldCount() {
     return dataValues.size();
   }
 
@@ -188,7 +188,7 @@ public class BeamRecord implements Serializable {
    */
   public String valueInString() {
     StringBuilder sb = new StringBuilder();
-    for (int idx = 0; idx < size(); ++idx) {
+    for (int idx = 0; idx < getFieldCount(); ++idx) {
       sb.append(
           String.format(",%s=%s", getDataType().getFieldsName().get(idx), getFieldValue(idx)));
     }

@@ -181,7 +181,7 @@ public class TestUtils {
    */
   public static List<BeamRecord> buildRows(BeamSqlRecordType type, List args) {
     List<BeamRecord> rows = new ArrayList<>();
-    int fieldCount = type.size();
+    int fieldCount = type.getFieldCount();
 
     for (int i = 0; i < args.size(); i += fieldCount) {
       BeamRecord row = new BeamRecord(type);
