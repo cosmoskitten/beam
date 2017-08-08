@@ -30,6 +30,7 @@ from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.options.pipeline_options import DirectOptions
 
 
 class _ExecutorService(object):
@@ -294,14 +295,20 @@ class TransformExecutor(_ExecutorService.CallableTask):
 
     side_input_values = [self._side_input_values[side_input]
                          for side_input in self._applied_ptransform.side_inputs]
-    _unprocessed = True
-    while (_unprocessed and
-           self._retry_count < TransformExecutor._MAX_RETRY_PER_BUNDLE):
+
+    # Switch to turn on/off the retry of bundles.
+    pipeline_options = self._evaluation_context.pipeline_options
+    if not pipeline_options.view_as(DirectOptions).direct_runner_bundle_retry:
+      TransformExecutor._MAX_RETRY_PER_BUNDLE = 1
+    else:
+      TransformExecutor._MAX_RETRY_PER_BUNDLE = 4
+
+    while self._retry_count < TransformExecutor._MAX_RETRY_PER_BUNDLE:
       try:
         self.attempt_call(metrics_container,
                           scoped_metrics_container,
                           side_input_values)
-        _unprocessed = False
+        break
       except Exception as e:
         self._retry_count += 1
         logging.info(
@@ -348,7 +355,6 @@ class TransformExecutor(_ExecutorService.CallableTask):
               self._applied_ptransform, tag, value)
 
     self._completion_callback.handle_result(self, self._input_bundle, result)
-    print '--> result:', result
     return result
 
 
@@ -482,6 +488,7 @@ class _ExecutorServiceParallelExecutor(object):
         # Not the right exception.
         self.exc_info = (exception, None, None)
 
+    # TODO(mariagh): Make a meaningful representation.
     def __repr__(self):
       return "%s(%s, %s, %s)" % (
           self.__class__.__name__,
