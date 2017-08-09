@@ -129,6 +129,8 @@ public class BeamSql {
 
     /**
      * register a UDF function used in this query.
+     *
+     * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDF in BeamSql.
      */
      public QueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
        getSqlEnv().registerUdf(functionName, clazz);
@@ -137,6 +139,8 @@ public class BeamSql {
 
      /**
       * register a UDAF function used in this query.
+      *
+      * <p>Refer to {@link BeamSqlUdaf} for more about how to implement a UDAF in BeamSql.
       */
      public QueryTransform withUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz){
        getSqlEnv().registerUdaf(functionName, clazz);
@@ -201,6 +205,8 @@ public class BeamSql {
 
     /**
      * register a UDF function used in this query.
+     *
+     * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDAF in BeamSql.
      */
      public SimpleQueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
        getSqlEnv().registerUdf(functionName, clazz);
@@ -209,6 +215,8 @@ public class BeamSql {
 
      /**
       * register a UDAF function used in this query.
+      *
+      * <p>Refer to {@link BeamSqlUdaf} for more about how to implement a UDAF in BeamSql.
       */
      public SimpleQueryTransform withUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz){
        getSqlEnv().registerUdaf(functionName, clazz);
