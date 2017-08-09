@@ -37,92 +37,60 @@ import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.impl.AggregateFunctionImpl;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.tools.Frameworks;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
 
 /**
  * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
- *
- * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions, and
- * a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
-public class BeamSqlEnv implements Serializable{
-  transient SchemaPlus schema;
-  transient BeamQueryPlanner planner;
-
-  public BeamSqlEnv() {
-    schema = Frameworks.createRootSchema(true);
-    planner = new BeamQueryPlanner(schema);
-  }
+public class BeamSqlEnv implements Serializable {
+  private Map<String, Class<? extends BeamSqlUdf>> udfs = new HashMap<>();
+  private Map<String, Class<? extends BeamSqlUdaf>> udafs = new HashMap<>();
+  private Map<String, SerializableFunction> sfnUdfs = new HashMap<>();
 
   /**
    * Register a UDF function which can be used in SQL expression.
    */
-  public void registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
-    schema.add(functionName, ScalarFunctionImpl.create(clazz, BeamSqlUdf.UDF_METHOD));
+  public synchronized void registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
+    validateUdfNameUniqueness(functionName);
+    udfs.put(functionName, clazz);
   }
 
   /**
    * register {@link SerializableFunction} as a UDF function which can be used in SQL expression.
    * Note, {@link SerializableFunction} must have a constructor without arguments.
    */
-  public void registerUdf(String functionName, SerializableFunction sfn) {
-    schema.add(functionName, ScalarFunctionImpl.create(sfn.getClass(), "apply"));
+  public synchronized void registerUdf(String functionName, SerializableFunction sfn) {
+    validateUdfNameUniqueness(functionName);
+    sfnUdfs.put(functionName, sfn);
   }
 
   /**
    * Register a UDAF function which can be used in GROUP-BY expression.
    * See {@link BeamSqlUdaf} on how to implement a UDAF.
    */
-  public void registerUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz) {
-    schema.add(functionName, AggregateFunctionImpl.create(clazz));
+  public synchronized void registerUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz) {
+    validateUdfNameUniqueness(functionName);
+    udafs.put(functionName, clazz);
   }
 
-  /**
-   * Registers a {@link BaseBeamTable} which can be used for all subsequent queries.
-   *
-   */
-  public void registerTable(String tableName, BaseBeamTable table) {
-    schema.add(tableName, new BeamCalciteTable(table.getRowType()));
-    planner.getSourceTables().put(tableName, table);
+  private void validateUdfNameUniqueness(String name) {
+    if (udfs.containsKey(name) || udafs.containsKey(name) || sfnUdfs.containsKey(name)) {
+      throw new IllegalArgumentException("UDF named: " + name + " is already registered!");
+    }
   }
 
-  /**
-   * Find {@link BaseBeamTable} by table name.
-   */
-  public BaseBeamTable findTable(String tableName){
-    return planner.getSourceTables().get(tableName);
+  public Map<String, Class<? extends BeamSqlUdf>> getUdfs() {
+    return udfs;
   }
 
-  private static class BeamCalciteTable implements ScannableTable, Serializable {
-    private BeamRecordSqlType beamSqlRowType;
-    public BeamCalciteTable(BeamRecordSqlType beamSqlRowType) {
-      this.beamSqlRowType = beamSqlRowType;
-    }
-    @Override
-    public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-      return CalciteUtils.toCalciteRowType(this.beamSqlRowType)
-          .apply(BeamQueryPlanner.TYPE_FACTORY);
-    }
+  public Map<String, Class<? extends BeamSqlUdaf>> getUdafs() {
+    return udafs;
+  }
 
-    @Override
-    public Enumerable<Object[]> scan(DataContext root) {
-      // not used as Beam SQL uses its own execution engine
-      return null;
-    }
-
-    /**
-     * Not used {@link Statistic} to optimize the plan.
-     */
-    @Override
-    public Statistic getStatistic() {
-      return Statistics.UNKNOWN;
-    }
-
-    /**
-     * all sources are treated as TABLE in Beam SQL.
-     */
-    @Override
-    public Schema.TableType getJdbcTableType() {
-      return Schema.TableType.TABLE;
-    }
+  public Map<String, SerializableFunction> getSfnUdfs() {
+    return sfnUdfs;
   }
 }

@@ -164,29 +164,32 @@ public class BeamSql {
 
     @Override
     public PCollection<BeamRecord> expand(PCollectionTuple input) {
-      registerTables(input);
+      org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv innerBeamSqlEnv =
+          org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv.fromBeamSqlEnv(getSqlEnv());
+      registerTables(input, innerBeamSqlEnv);
 
       BeamRelNode beamRelNode = null;
       try {
-        beamRelNode = getSqlEnv().planner.convertToBeamRel(getSqlQuery());
+        beamRelNode = innerBeamSqlEnv.getPlanner().convertToBeamRel(getSqlQuery());
       } catch (ValidationException | RelConversionException | SqlParseException e) {
         throw new IllegalStateException(e);
       }
 
       try {
-        return beamRelNode.buildBeamPipeline(input, getSqlEnv());
+        return beamRelNode.buildBeamPipeline(input, innerBeamSqlEnv);
       } catch (Exception e) {
         throw new IllegalStateException(e);
       }
     }
 
     //register tables, related with input PCollections.
-    private void registerTables(PCollectionTuple input){
+    private void registerTables(PCollectionTuple input,
+        org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv innerBeamSqlEnv){
       for (TupleTag<?> sourceTag : input.getAll().keySet()) {
         PCollection<BeamRecord> sourceStream = (PCollection<BeamRecord>) input.get(sourceTag);
         BeamRecordCoder sourceCoder = (BeamRecordCoder) sourceStream.getCoder();
 
-        getSqlEnv().registerTable(sourceTag.getId(),
+        innerBeamSqlEnv.registerTable(sourceTag.getId(),
             new BeamPCollectionTable(sourceStream,
                 (BeamRecordSqlType) sourceCoder.getRecordType()));
       }
@@ -240,10 +243,13 @@ public class BeamSql {
      }
 
     private void validateQuery() {
+      org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv innerBeamSqlEnv =
+          org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv.fromBeamSqlEnv(getSqlEnv());
+
       SqlNode sqlNode;
       try {
-        sqlNode = getSqlEnv().planner.parseQuery(getSqlQuery());
-        getSqlEnv().planner.getPlanner().close();
+        sqlNode = innerBeamSqlEnv.getPlanner().parseQuery(getSqlQuery());
+        innerBeamSqlEnv.getPlanner().getPlanner().close();
       } catch (SqlParseException e) {
         throw new IllegalStateException(e);
       }
