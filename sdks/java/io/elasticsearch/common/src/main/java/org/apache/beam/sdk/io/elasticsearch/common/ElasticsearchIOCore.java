@@ -44,7 +44,6 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
