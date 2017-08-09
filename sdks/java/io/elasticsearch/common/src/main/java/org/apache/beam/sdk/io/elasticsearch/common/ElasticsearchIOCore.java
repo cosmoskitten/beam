@@ -124,12 +124,12 @@ public class ElasticsearchIOCore {
     public abstract String getPassword();
 
     @Nullable
-    abstract String getKeystorePath();
+    public abstract String getKeystorePath();
 
     @Nullable
-    abstract String getKeystorePassword();
+    public abstract String getKeystorePassword();
 
-    abstract String getIndex();
+    public abstract String getIndex();
 
     public abstract String getType();
 
