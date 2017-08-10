@@ -26,7 +26,6 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
@@ -70,11 +69,18 @@ public class InnerBeamSqlEnv implements Serializable{
       ret.registerUdf(entry.getKey(), entry.getValue());
     }
 
+    // init SerializableFunction UDFs
+    Map<String, SerializableFunction> sfnUdfs = env.getSerializableFunctionUdfs();
+    for (Map.Entry<String, SerializableFunction> entry : sfnUdfs.entrySet()) {
+      ret.registerUdf(entry.getKey(), entry.getValue());
+    }
+
     // init udafs
     Map<String, Class<? extends BeamSqlUdaf>> udafs = env.getUdafs();
     for (Map.Entry<String, Class<? extends BeamSqlUdaf>> entry : udafs.entrySet()) {
       ret.registerUdaf(entry.getKey(), entry.getValue());
     }
+
 
     return ret;
   }
