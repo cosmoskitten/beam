@@ -259,7 +259,6 @@ class TransformExecutor(_ExecutorService.CallableTask):
   evaluating it on some bundle of input, and registering the result using the
   completion callback.
   """
-  _MAX_RETRY_PER_BUNDLE = 4
 
   def __init__(self, transform_evaluator_registry, evaluation_context,
                input_bundle, fired_timers, applied_ptransform,
@@ -275,6 +274,8 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self.blocked = False
     self._call_count = 0
     self._retry_count = 0
+    # TODO(mariagh): make it a constant once retry is no longer experimental
+    self._max_retry_per_bundle = 4
 
   def call(self):
     self._call_count += 1
@@ -299,11 +300,11 @@ class TransformExecutor(_ExecutorService.CallableTask):
     # Switch to turn on/off the retry of bundles.
     pipeline_options = self._evaluation_context.pipeline_options
     if not pipeline_options.view_as(DirectOptions).direct_runner_bundle_retry:
-      TransformExecutor._MAX_RETRY_PER_BUNDLE = 1
+      self._max_retry_per_bundle = 1
     else:
-      TransformExecutor._MAX_RETRY_PER_BUNDLE = 4
+      self._max_retry_per_bundle = 4
 
-    while self._retry_count < TransformExecutor._MAX_RETRY_PER_BUNDLE:
+    while self._retry_count < self._max_retry_per_bundle:
       try:
         self.attempt_call(metrics_container,
                           scoped_metrics_container,
@@ -314,9 +315,9 @@ class TransformExecutor(_ExecutorService.CallableTask):
         logging.info(
             'Exception at bundle %r, due to an exception: %s',
             self._input_bundle, traceback.format_exc())
-        if self._retry_count == TransformExecutor._MAX_RETRY_PER_BUNDLE:
+        if self._retry_count == self._max_retry_per_bundle:
           logging.error('Giving up after %s attempts.',
-                        TransformExecutor._MAX_RETRY_PER_BUNDLE)
+                        self._max_retry_per_bundle)
           self._completion_callback.handle_exception(self, e)
 
     self._evaluation_context.metrics().commit_physical(
@@ -487,14 +488,6 @@ class _ExecutorServiceParallelExecutor(object):
       if self.exc_info[1] is not exception:
         # Not the right exception.
         self.exc_info = (exception, None, None)
-
-    # TODO(mariagh): Make a meaningful representation.
-    def __repr__(self):
-      return "%s(%s, %s, %s)" % (
-          self.__class__.__name__,
-          'has commmitte_bundle' if self.committed_bundle else 'x',
-          'has unprocessed_bundle' if self.unprocessed_bundle else 'x',
-          self.exception)
 
 
   class _VisibleExecutorUpdate(object):

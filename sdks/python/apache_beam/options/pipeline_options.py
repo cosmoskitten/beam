@@ -319,7 +319,7 @@ class DirectOptions(PipelineOptions):
         action='store_true',
         default=False,
         help=
-        ('Weather to allow bundle retries. If True the maximum'
+        ('Wether to allow bundle retries. If True the maximum'
          'number of attempts to process a bundle is 4. '))
 
 
