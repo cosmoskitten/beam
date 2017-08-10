@@ -18,16 +18,4 @@
 
 FROM python:2
 
-# Create user to run Beam on user space
-ENV USER=user \
-    UID=9999 \
-    HOME=/home/user
-RUN groupadd --system --gid=$UID $USER; \
-    useradd --system --uid=$UID --gid $USER $USER;
-RUN mkdir -p $HOME; \
-    chown -R $USER:$USER $HOME;
-USER $USER
-WORKDIR $HOME
-
-# Download Beam
 RUN pip install --user apache-beam[gcp]
