@@ -91,7 +91,7 @@ public class ElasticsearchIOIT {
         ElasticsearchIO.read().withConnectionConfiguration(readConnectionConfiguration);
     BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
         null);
-    int desiredBundleSizeBytes = 1000;
+    int desiredBundleSizeBytes = 10000;
     List<? extends BoundedSource<String>> splits =
         initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
