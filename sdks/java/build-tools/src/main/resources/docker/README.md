@@ -17,8 +17,7 @@
     under the License.
 -->
 
-Docker Images
-========================
+# Docker Images
 
 This directory contains a set of scripts to build docker images of Apache Beam
 for different purposes:
@@ -37,7 +36,7 @@ for different purposes:
   and its dependencies. Useful for end-users who want to have a ready to use
   container with Beam (Python only for the moment).
 
-# File based image
+## File based image
 
 If you want to build a container with a ready JDK 8 environment to test Beam:
 
@@ -61,7 +60,7 @@ to test manually a specific module:
     docker run -it beam:openjdk8 /bin/bash
     mvn --projects sdks/java/io/hbase clean verify -Prelease
 
-## Configuring the runtime via the environment variables
+### Configuring the runtime via the environment variables
 
 You can run different versions of Beam by passing the specific environment
 variables:
@@ -97,7 +96,7 @@ To run a container with the source code during a vote:
       -e SRC_DIR="apache-beam-2.1.0" \
       -it beam:openjdk8 /bin/bash
 
-## Testing in an specific environment with your own source
+### Testing in an specific environment with your own source
 
 You can also overwrite the volume containing the source code of Beam from a
 directory in your host machine. This is useful to test your code in different
@@ -108,7 +107,7 @@ test it with Beam on Java 7 you can do:
 
     docker run -v ~/workspace/beam:/home/user/beam -it beam:openjdk7 /bin/bash
 
-## Performance improvements
+### Performance improvements
 
 The docker image does **not** contain the java dependencies and this could make
 the execution of the commands in the image take more time than expected. One way
@@ -135,23 +134,7 @@ enable the threading execution:
     
     mvn --threads 1C ...
 
-## Python
-
-The python version of the file container differs from the other versions because
-it only contains the python source code, if you want to build the python image
-based on the latest release you can run:
-
-    cd file/python2
-    docker build -t beam:python2 .
-
-You can then run the python tests or install it
-
-    python setup.py install --user
-    python -m apache_beam.examples.wordcount --input <PATH_TO_INPUT_FILE> --output counts
-
-*Note that this image does not create an additional virtualenv container.*
-
-# Git based image
+## Git based image
 
 It creates a docker container with a cloned version of the git repository, its
 branches and all the pull-requests. When it is run, it updates and checks out
@@ -169,11 +152,11 @@ must change ID for the number):
     docker build -t beam:git .
     docker run -e BRANCH=pr/ID -it beam:git /bin/bash
 
-# Release image
+## Release image
 
 The release image is a container with the needed requirements to run Beam out of
 the box in a container, or to submit a pipeline to execute on Google Cloud
 Dataflow to build it you just do:
 
     cd release/python2
-    docker build -t beam:latest-python2 .
+    docker build -t beam:python2 .
