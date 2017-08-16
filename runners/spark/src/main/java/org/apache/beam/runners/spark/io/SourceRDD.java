@@ -268,6 +268,20 @@ public class SourceRDD {
     }
 
     @Override
+    public boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      }
+      if (o instanceof SourcePartition) {
+        SourcePartition that = (SourcePartition) o;
+        return this.rddId == that.rddId
+            && this.index == that.index
+            && this.source.equals(that.source);
+      }
+      return false;
+    }
+
+    @Override
     public int index() {
       return index;
     }
