@@ -268,6 +268,11 @@ public class SourceRDD {
     }
 
     @Override
+    public boolean equals(Object o) {
+      return false;
+    }
+
+    @Override
     public int index() {
       return index;
     }
