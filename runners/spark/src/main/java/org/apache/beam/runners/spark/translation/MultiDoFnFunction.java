@@ -101,7 +101,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   }
 
   @Override
-  public Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>> call(
+  public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(
       Iterator<WindowedValue<InputT>> iter) throws Exception {
 
     DoFnOutputManager outputManager = new DoFnOutputManager();

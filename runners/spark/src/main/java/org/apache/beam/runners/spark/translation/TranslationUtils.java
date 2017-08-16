@@ -143,24 +143,16 @@ public final class TranslationUtils {
   public static <K, V> PairFlatMapFunction<Iterator<KV<K, V>>, K, V> toPairFlatMapFunction() {
     return new PairFlatMapFunction<Iterator<KV<K, V>>, K, V>() {
       @Override
-      public Iterable<Tuple2<K, V>> call(final Iterator<KV<K, V>> itr) {
-        final Iterator<Tuple2<K, V>> outputItr =
-            Iterators.transform(
-                itr,
-                new com.google.common.base.Function<KV<K, V>, Tuple2<K, V>>() {
+      public Iterator<Tuple2<K, V>> call(final Iterator<KV<K, V>> itr) {
+        return Iterators.transform(
+            itr,
+            new com.google.common.base.Function<KV<K, V>, Tuple2<K, V>>() {
 
-                  @Override
-                  public Tuple2<K, V> apply(KV<K, V> kv) {
-                    return new Tuple2<>(kv.getKey(), kv.getValue());
-                  }
-                });
-        return new Iterable<Tuple2<K, V>>() {
-
-          @Override
-          public Iterator<Tuple2<K, V>> iterator() {
-            return outputItr;
-          }
-        };
+              @Override
+              public Tuple2<K, V> apply(KV<K, V> kv) {
+                return new Tuple2<>(kv.getKey(), kv.getValue());
+              }
+            });
       }
     };
   }
@@ -179,22 +171,15 @@ public final class TranslationUtils {
   static <K, V> FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>> fromPairFlatMapFunction() {
     return new FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>>() {
       @Override
-      public Iterable<KV<K, V>> call(Iterator<Tuple2<K, V>> itr) {
-        final Iterator<KV<K, V>> outputItr =
-            Iterators.transform(
-                itr,
-                new com.google.common.base.Function<Tuple2<K, V>, KV<K, V>>() {
-                  @Override
-                  public KV<K, V> apply(Tuple2<K, V> t2) {
-                    return KV.of(t2._1(), t2._2());
-                  }
-                });
-        return new Iterable<KV<K, V>>() {
-          @Override
-          public Iterator<KV<K, V>> iterator() {
-            return outputItr;
-          }
-        };
+      public Iterator<KV<K, V>> call(Iterator<Tuple2<K, V>> itr) {
+        return Iterators.transform(
+            itr,
+            new com.google.common.base.Function<Tuple2<K, V>, KV<K, V>>() {
+              @Override
+              public KV<K, V> apply(Tuple2<K, V> t2) {
+                return KV.of(t2._1(), t2._2());
+              }
+            });
       }
     };
   }
@@ -345,28 +330,20 @@ public final class TranslationUtils {
     return new PairFlatMapFunction<Iterator<T>, K, V>() {
 
       @Override
-      public Iterable<Tuple2<K, V>> call(Iterator<T> itr) throws Exception {
-        final Iterator<Tuple2<K, V>> outputItr =
-            Iterators.transform(
-                itr,
-                new com.google.common.base.Function<T, Tuple2<K, V>>() {
+      public Iterator<Tuple2<K, V>> call(Iterator<T> itr) throws Exception {
+        return Iterators.transform(
+            itr,
+            new com.google.common.base.Function<T, Tuple2<K, V>>() {
 
-                  @Override
-                  public Tuple2<K, V> apply(T t) {
-                    try {
-                      return pairFunction.call(t);
-                    } catch (Exception e) {
-                      throw new RuntimeException(e);
-                    }
-                  }
-                });
-        return new Iterable<Tuple2<K, V>>() {
-
-          @Override
-          public Iterator<Tuple2<K, V>> iterator() {
-            return outputItr;
-          }
-        };
+              @Override
+              public Tuple2<K, V> apply(T t) {
+                try {
+                  return pairFunction.call(t);
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              }
+            });
       }
     };
   }
@@ -388,9 +365,8 @@ public final class TranslationUtils {
     return new FlatMapFunction<Iterator<InputT>, OutputT>() {
 
       @Override
-      public Iterable<OutputT> call(Iterator<InputT> itr) throws Exception {
-        final Iterator<OutputT> outputItr =
-            Iterators.transform(
+      public Iterator<OutputT> call(Iterator<InputT> itr) throws Exception {
+        return Iterators.transform(
                 itr,
                 new com.google.common.base.Function<InputT, OutputT>() {
 
@@ -403,13 +379,6 @@ public final class TranslationUtils {
                     }
                   }
                 });
-        return new Iterable<OutputT>() {
-
-          @Override
-          public Iterator<OutputT> iterator() {
-            return outputItr;
-          }
-        };
       }
     };
   }
