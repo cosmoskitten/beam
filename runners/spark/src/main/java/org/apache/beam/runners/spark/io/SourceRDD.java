@@ -268,6 +268,20 @@ public class SourceRDD {
     }
 
     @Override
+    public boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      }
+      if (o instanceof SourcePartition) {
+        SourcePartition that = (SourcePartition) o;
+        return this.rddId == that.rddId
+            && this.index == that.index
+            && this.source.equals(that.source);
+      }
+      return false;
+    }
+
+    @Override
     public int index() {
       return index;
     }
@@ -360,6 +374,18 @@ public class SourceRDD {
                                   CheckpointMarkT checkpointMark) {
       super(rddId, index, source);
       this.checkpointMark = checkpointMark;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      }
+      if (o instanceof CheckpointableSourcePartition) {
+        CheckpointableSourcePartition that = (CheckpointableSourcePartition) o;
+        return super.equals(o) && this.checkpointMark.equals(that.checkpointMark);
+      }
+      return false;
     }
   }
 }

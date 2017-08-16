@@ -39,15 +39,15 @@ import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.BlockId;
 import org.apache.spark.storage.BlockManager;
 import org.apache.spark.storage.BlockResult;
-import org.apache.spark.storage.BlockStore;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
 import org.joda.time.Instant;
 import scala.Option;
+import scala.reflect.ClassTag;
 
 /**
- * A {@link BlockStore} variable to hold the global watermarks for a micro-batch.
+ * A {@link BlockManager} variable to hold the global watermarks for a micro-batch.
  *
  * <p>For each source, holds a queue for the watermarks of each micro-batch that was read,
  * and advances the watermarks according to the queue (first-in-first-out).
@@ -55,6 +55,8 @@ import scala.Option;
 public class GlobalWatermarkHolder {
   private static final Map<Integer, Queue<SparkWatermarks>> sourceTimes = new HashMap<>();
   private static final BlockId WATERMARKS_BLOCK_ID = BlockId.apply("broadcast_0WATERMARKS");
+  private static final ClassTag<Map> WATERMARKS_TAG =
+      scala.reflect.ClassManifestFactory.fromClass(Map.class);
 
   private static volatile Map<Integer, SparkWatermarks> driverWatermarks = null;
   private static volatile LoadingCache<String, Map<Integer, SparkWatermarks>> watermarkCache = null;
@@ -138,17 +140,19 @@ public class GlobalWatermarkHolder {
         Instant currentHighWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
         Instant currentSynchronizedProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-        Option<BlockResult> currentOption = blockManager.getRemote(WATERMARKS_BLOCK_ID);
+        Option<BlockResult> currentOption = blockManager.get(WATERMARKS_BLOCK_ID, WATERMARKS_TAG);
         Map<Integer, SparkWatermarks> current;
         if (currentOption.isDefined()) {
           current = (Map<Integer, SparkWatermarks>) currentOption.get().data().next();
+          blockManager.releaseLock(WATERMARKS_BLOCK_ID);
         } else {
           current = Maps.newHashMap();
           blockManager.putSingle(
               WATERMARKS_BLOCK_ID,
               current,
               StorageLevel.MEMORY_ONLY(),
-              true);
+              true,
+              WATERMARKS_TAG);
         }
 
         if (current.containsKey(sourceId)) {
@@ -181,11 +185,13 @@ public class GlobalWatermarkHolder {
       if (!newValues.isEmpty()) {
         driverWatermarks = newValues;
         blockManager.removeBlock(WATERMARKS_BLOCK_ID, true);
+
         blockManager.putSingle(
             WATERMARKS_BLOCK_ID,
             newValues,
             StorageLevel.MEMORY_ONLY(),
-            true);
+            true,
+            WATERMARKS_TAG);
       }
     }
   }
@@ -255,7 +261,7 @@ public class GlobalWatermarkHolder {
     @Override
     public Map<Integer, SparkWatermarks> load(@Nonnull String key) throws Exception {
       Option<BlockResult> blockResultOption =
-          SparkEnv.get().blockManager().getRemote(WATERMARKS_BLOCK_ID);
+          SparkEnv.get().blockManager().get(WATERMARKS_BLOCK_ID, WATERMARKS_TAG);
       if (blockResultOption.isDefined()) {
         return (Map<Integer, SparkWatermarks>) blockResultOption.get().data().next();
       } else {
