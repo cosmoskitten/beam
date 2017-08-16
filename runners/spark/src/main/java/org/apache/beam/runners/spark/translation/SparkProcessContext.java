@@ -58,7 +58,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
     this.timerDataIterator = timerDataIterator;
   }
 
-  Iterable<OutputT> processPartition(
+  Iterator<OutputT> processPartition(
       Iterator<WindowedValue<FnInputT>> partition) throws Exception {
 
     // setup DoFn.
@@ -67,13 +67,13 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
     // skip if partition is empty.
     if (!partition.hasNext()) {
       DoFnInvokers.invokerFor(doFn).invokeTeardown();
-      return Lists.newArrayList();
+      return Lists.<OutputT>newArrayList().iterator();
     }
 
     // call startBundle() before beginning to process the partition.
     doFnRunner.startBundle();
     // process the partition; finishBundle() is called from within the output iterator.
-    return this.getOutputIterable(partition, doFnRunner);
+    return this.getOutputIterator(partition, doFnRunner);
   }
 
   private void clearOutput() {
@@ -84,16 +84,10 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
     return outputManager.iterator();
   }
 
-  private Iterable<OutputT> getOutputIterable(
+  private Iterator<OutputT> getOutputIterator(
       final Iterator<WindowedValue<FnInputT>> iter,
       final DoFnRunner<FnInputT, FnOutputT> doFnRunner) {
-
-    return new Iterable<OutputT>() {
-      @Override
-      public Iterator<OutputT> iterator() {
-        return new ProcCtxtIterator(iter, doFnRunner);
-      }
-    };
+    return new ProcCtxtIterator(iter, doFnRunner);
   }
 
   interface SparkOutputManager<T> extends OutputManager, Iterable<T> {
