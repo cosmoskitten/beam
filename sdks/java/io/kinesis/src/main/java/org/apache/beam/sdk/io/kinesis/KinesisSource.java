@@ -39,22 +39,22 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
 
   private final AWSClientsProvider awsClientsProvider;
   private final String streamName;
-  private final Duration allowedRecordLateness;
+  private final Duration upToDateThreshold;
   private CheckpointGenerator initialCheckpointGenerator;
 
   KinesisSource(AWSClientsProvider awsClientsProvider, String streamName,
-      StartingPoint startingPoint, Duration allowedRecordLateness) {
+      StartingPoint startingPoint, Duration upToDateThreshold) {
     this(awsClientsProvider, new DynamicCheckpointGenerator(streamName, startingPoint), streamName,
-        allowedRecordLateness);
+        upToDateThreshold);
   }
 
   private KinesisSource(AWSClientsProvider awsClientsProvider,
       CheckpointGenerator initialCheckpoint, String streamName,
-      Duration allowedRecordLateness) {
+      Duration upToDateThreshold) {
     this.awsClientsProvider = awsClientsProvider;
     this.initialCheckpointGenerator = initialCheckpoint;
     this.streamName = streamName;
-    this.allowedRecordLateness = allowedRecordLateness;
+    this.upToDateThreshold = upToDateThreshold;
     validate();
   }
 
@@ -76,7 +76,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
           awsClientsProvider,
           new StaticCheckpointGenerator(partition),
           streamName,
-          allowedRecordLateness));
+          upToDateThreshold));
     }
     return sources;
   }
@@ -102,7 +102,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
         SimplifiedKinesisClient.from(awsClientsProvider),
         checkpointGenerator,
         this,
-        allowedRecordLateness);
+        upToDateThreshold);
   }
 
   @Override

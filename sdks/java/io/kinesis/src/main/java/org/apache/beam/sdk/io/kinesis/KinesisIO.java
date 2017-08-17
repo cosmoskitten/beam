@@ -118,7 +118,7 @@ public final class KinesisIO {
   public static Read read() {
     return new AutoValue_KinesisIO_Read.Builder()
         .setMaxNumRecords(-1)
-        .setAllowedRecordLateness(Duration.ZERO)
+        .setUpToDateThreshold(Duration.ZERO)
         .build();
   }
 
@@ -140,7 +140,7 @@ public final class KinesisIO {
     @Nullable
     abstract Duration getMaxReadTime();
 
-    abstract Duration getAllowedRecordLateness();
+    abstract Duration getUpToDateThreshold();
 
     abstract Builder toBuilder();
 
@@ -157,7 +157,7 @@ public final class KinesisIO {
 
       abstract Builder setMaxReadTime(Duration maxReadTime);
 
-      abstract Builder setAllowedRecordLateness(Duration allowedRecordLateness);
+      abstract Builder setUpToDateThreshold(Duration upToDateThreshold);
 
       abstract Read build();
     }
@@ -223,13 +223,21 @@ public final class KinesisIO {
     }
 
     /**
-     * Specifies the maximum acceptable record lateness.
-     * When this limit is exceeded the runner might decide to scale the amount of resources
-     * allocated to the pipeline in order to speed up ingestion.
+     * Specifies how late records consumed by this source can be to still be considered on time.
+     * When this limit is exceeded the actual backlog size will be evaluated and the runner might
+     * decide to scale the amount of resources allocated to the pipeline in order to
+     * speed up ingestion.
+     *
+     * <p>
+     * TODO: This feature will not work properly with current {@link KinesisReader#getWatermark()}
+     * and {@link KinesisReader#getCurrentTimestamp()} implementations.
+     * Watermark and record's timestamp need to be based on a real event time
+     * (like ApproximateArrivalTimestamp) in order decide when event is on time.
+     * </p>
      */
-    public Read withAllowedRecordLateness(Duration allowedRecordLateness) {
-      checkNotNull(allowedRecordLateness, "allowedRecordLateness");
-      return toBuilder().setAllowedRecordLateness(allowedRecordLateness).build();
+    public Read withUpToDateThreshold(Duration upToDateThreshold) {
+      checkNotNull(upToDateThreshold, "upToDateThreshold");
+      return toBuilder().setUpToDateThreshold(upToDateThreshold).build();
     }
 
     @Override
@@ -237,7 +245,7 @@ public final class KinesisIO {
       org.apache.beam.sdk.io.Read.Unbounded<KinesisRecord> read =
           org.apache.beam.sdk.io.Read.from(
               new KinesisSource(getAWSClientsProvider(), getStreamName(),
-                  getInitialPosition(), getAllowedRecordLateness()));
+                  getInitialPosition(), getUpToDateThreshold()));
       if (getMaxNumRecords() > 0) {
         BoundedReadFromUnboundedSource<KinesisRecord> bounded =
             read.withMaxNumRecords(getMaxNumRecords());

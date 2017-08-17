@@ -44,17 +44,29 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private RoundRobin<ShardRecordsIterator> shardIterators;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private long lastBacklogBytes;
-  private Duration allowedRecordLateness;
+  private Instant backlogBytesLastCheckTime = new Instant(0L);
+  private Duration upToDateThreshold;
+  private Duration backlogBytesCheckThreshold;
 
   KinesisReader(SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
-      Duration allowedRecordLateness) {
+      Duration upToDateThreshold) {
+    this(kinesis, initialCheckpointGenerator, source, upToDateThreshold,
+        Duration.standardSeconds(30));
+  }
+
+  KinesisReader(SimplifiedKinesisClient kinesis,
+      CheckpointGenerator initialCheckpointGenerator,
+      KinesisSource source,
+      Duration upToDateThreshold,
+      Duration backlogBytesCheckThreshold) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
     this.initialCheckpointGenerator = checkNotNull(initialCheckpointGenerator,
         "initialCheckpointGenerator");
     this.source = source;
-    this.allowedRecordLateness = allowedRecordLateness;
+    this.upToDateThreshold = upToDateThreshold;
+    this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
   }
 
   /**
@@ -149,18 +161,22 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   /**
    * Returns total size of all records that remain in Kinesis stream after current watermark.
-   * When currently processed record is not further behind than {@link #allowedRecordLateness}
+   * When currently processed record is not further behind than {@link #upToDateThreshold}
    * then this method returns 0.
    */
   @Override
   public long getTotalBacklogBytes() {
     Instant watermark = getWatermark();
-    if (watermark.plus(allowedRecordLateness).isAfterNow()) {
+    if (watermark.plus(upToDateThreshold).isAfterNow()) {
       return 0L;
+    }
+    if (backlogBytesLastCheckTime.plus(backlogBytesCheckThreshold).isAfterNow()) {
+      return lastBacklogBytes;
     }
     long backlogBytes = lastBacklogBytes;
     try {
       backlogBytes = kinesis.getBacklogBytes(source.getStreamName(), watermark);
+      backlogBytesLastCheckTime = Instant.now();
     } catch (TransientKinesisException e) {
       LOG.warn("Transient exception occurred.", e);
     }

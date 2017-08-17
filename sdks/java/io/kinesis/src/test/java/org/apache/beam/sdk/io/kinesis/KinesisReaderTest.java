@@ -65,7 +65,7 @@ public class KinesisReaderTest {
     when(firstIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
     when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
 
-    reader = new KinesisReader(kinesis, generator, kinesisSource, Duration.ZERO);
+    reader = new KinesisReader(kinesis, generator, kinesisSource, Duration.ZERO, Duration.ZERO);
   }
 
   @Test
@@ -137,5 +137,19 @@ public class KinesisReaderTest {
     assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
     assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
     assertThat(reader.getTotalBacklogBytes()).isEqualTo(20);
+  }
+
+  @Test
+  public void getTotalBacklogBytesShouldReturnLastSeenValueWhenCalledFrequently()
+      throws TransientKinesisException {
+    KinesisReader backlogCachingReader = new KinesisReader(kinesis, generator, kinesisSource,
+        Duration.ZERO, Duration.standardSeconds(30));
+    when(kinesisSource.getStreamName()).thenReturn("stream1");
+    when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
+        .thenReturn(10L)
+        .thenReturn(20L);
+
+    assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
   }
 }
