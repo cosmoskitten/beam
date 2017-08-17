@@ -41,7 +41,8 @@ class AdaptiveThrottler(object):
   MIN_REQUESTS = 1
 
   def __init__(self, window_ms, bucket_ms, overload_ratio):
-    """Args:
+    """
+    Args:
       window_ms: int, length of history to consider, in ms, to set throttling.
       bucket_ms: int, granularity of time buckets that we store data in, in ms.
       overload_ratio: float, the target ratio between requests sent and
