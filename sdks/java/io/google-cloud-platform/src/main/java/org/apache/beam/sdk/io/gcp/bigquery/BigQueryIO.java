@@ -483,34 +483,6 @@ public class BigQueryIO {
 
       ValueProvider<TableReference> table = getTableProvider();
 
-      checkState(
-          table == null || getQuery() == null,
-          "Invalid BigQueryIO.Read: table reference and query may not both be set");
-      checkState(
-          table != null || getQuery() != null,
-          "Invalid BigQueryIO.Read: one of table reference and query must be set");
-
-      if (table != null) {
-        checkState(
-            getFlattenResults() == null,
-            "Invalid BigQueryIO.Read: Specifies a table with a result flattening"
-                + " preference, which only applies to queries");
-        checkState(
-            getUseLegacySql() == null,
-            "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect"
-                + " preference, which only applies to queries");
-        if (table.isAccessible() && Strings.isNullOrEmpty(table.get().getProjectId())) {
-          LOG.info(
-              "Project of {} not set. The value of {}.getProject() at execution time will be used.",
-              TableReference.class.getSimpleName(),
-              BigQueryOptions.class.getSimpleName());
-        }
-      } else /* query != null */ {
-        checkState(
-            getFlattenResults() != null, "flattenResults should not be null if query is set");
-        checkState(getUseLegacySql() != null, "useLegacySql should not be null if query is set");
-      }
-
       // Note that a table or query check can fail if the table or dataset are created by
       // earlier stages of the pipeline or if a query depends on earlier stages of a pipeline.
       // For these cases the withoutValidation method can be used to disable the check.
@@ -540,6 +512,37 @@ public class BigQueryIO {
 
     @Override
     public PCollection<TableRow> expand(PBegin input) {
+      ValueProvider<TableReference> table = getTableProvider();
+
+      checkState(
+          table == null || getQuery() == null,
+          "Invalid BigQueryIO.Read: table reference and query may not both be set");
+      checkState(
+          table != null || getQuery() != null,
+          "Invalid BigQueryIO.Read: one of table reference and query must be set");
+
+      if (table != null) {
+        checkState(
+            getFlattenResults() == null,
+            "Invalid BigQueryIO.Read: Specifies a table with a result flattening"
+                + " preference, which only applies to queries");
+        checkState(
+            getUseLegacySql() == null,
+            "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect"
+                + " preference, which only applies to queries");
+        if (table.isAccessible() && Strings.isNullOrEmpty(table.get().getProjectId())) {
+          LOG.info(
+              "Project of {} not set. The value of {}.getProject() at execution time will be used.",
+              TableReference.class.getSimpleName(),
+              BigQueryOptions.class.getSimpleName());
+        }
+      } else /* query != null */ {
+        checkState(
+            getFlattenResults() != null, "flattenResults should not be null if query is set");
+        checkState(getUseLegacySql() != null, "useLegacySql should not be null if query is set");
+      }
+
+
       Pipeline p = input.getPipeline();
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection = null;

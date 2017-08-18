@@ -222,7 +222,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   /** Reads files containing records that conform to the given schema. */
   public AvroSource<GenericRecord> withSchema(String schema) {
-    checkNotNull(schema, "schema");
+    checkArgument(schema != null, "schema can not be null");
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getMinBundleSize(),
@@ -231,13 +231,13 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   /** Like {@link #withSchema(String)}. */
   public AvroSource<GenericRecord> withSchema(Schema schema) {
-    checkNotNull(schema, "schema");
+    checkArgument(schema != null, "schema can not be null");
     return withSchema(schema.toString());
   }
 
   /** Reads files containing records of the given class. */
   public <X> AvroSource<X> withSchema(Class<X> clazz) {
-    checkNotNull(clazz, "clazz");
+    checkArgument(clazz != null, "clazz can not be null");
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getMinBundleSize(),
@@ -250,8 +250,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    */
   public <X> AvroSource<X> withParseFn(
       SerializableFunction<GenericRecord, X> parseFn, Coder<X> coder) {
-    checkNotNull(parseFn, "parseFn");
-    checkNotNull(parseFn, "coder");
+    checkArgument(parseFn != null, "parseFn can not be null");
+    checkArgument(parseFn != null, "parseFn can not be null");
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getMinBundleSize(),

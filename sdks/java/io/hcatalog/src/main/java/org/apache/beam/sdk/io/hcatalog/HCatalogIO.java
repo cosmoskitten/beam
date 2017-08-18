@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.hcatalog;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -180,13 +179,10 @@ public class HCatalogIO {
 
     @Override
     public PCollection<HCatRecord> expand(PBegin input) {
-      return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHCatalogSource(this)));
-    }
+      checkArgument(getTable() != null, "withTable() is required");
+      checkArgument(getConfigProperties() != null, "withConfigProperties() is required");
 
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getTable(), "table");
-      checkNotNull(getConfigProperties(), "configProperties");
+      return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHCatalogSource(this)));
     }
 
     @Override
@@ -215,9 +211,7 @@ public class HCatalogIO {
     }
 
     @Override
-    public void validate() {
-      spec.validate(null);
-    }
+    public void validate() {}
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
@@ -396,14 +390,10 @@ public class HCatalogIO {
 
     @Override
     public PDone expand(PCollection<HCatRecord> input) {
+      checkArgument(getConfigProperties() != null, "withConfigProperties() is required");
+      checkArgument(getTable() != null, "withTable() is required");
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getConfigProperties(), "configProperties");
-      checkNotNull(getTable(), "table");
     }
 
     private static class WriteFn extends DoFn<HCatRecord, Void> {

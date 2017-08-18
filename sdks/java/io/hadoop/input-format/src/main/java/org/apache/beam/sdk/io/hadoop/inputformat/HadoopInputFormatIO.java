@@ -262,7 +262,7 @@ public class HadoopInputFormatIO {
      * <p>Does not modify this object.
      */
     public Read<K, V> withKeyTranslation(SimpleFunction<?, K> function) {
-      checkNotNull(function, "function");
+      checkArgument(function != null, "function can not be null");
       // Sets key class to key translation function's output class type.
       return toBuilder().setKeyTranslationFunction(function)
           .setKeyTypeDescriptor((TypeDescriptor<K>) function.getOutputTypeDescriptor()).build();
@@ -275,7 +275,7 @@ public class HadoopInputFormatIO {
      * <p>Does not modify this object.
      */
     public Read<K, V> withValueTranslation(SimpleFunction<?, V> function) {
-      checkNotNull(function, "function");
+      checkArgument(function != null, "function can not be null");
       // Sets value class to value translation function's output class type.
       return toBuilder().setValueTranslationFunction(function)
           .setValueTypeDescriptor((TypeDescriptor<V>) function.getOutputTypeDescriptor()).build();
@@ -302,7 +302,7 @@ public class HadoopInputFormatIO {
      * key and value classes are provided in the Hadoop configuration.
      */
     private void validateConfiguration(Configuration configuration) {
-      checkNotNull(configuration, "configuration");
+      checkArgument(configuration != null, "configuration can not be null");
       checkNotNull(configuration.get("mapreduce.job.inputformat.class"),
           "configuration.get(\"mapreduce.job.inputformat.class\")");
       checkNotNull(configuration.get("key.class"), "configuration.get(\"key.class\")");
@@ -422,9 +422,9 @@ public class HadoopInputFormatIO {
 
     @Override
     public void validate() {
-      checkNotNull(conf, "conf");
-      checkNotNull(keyCoder, "keyCoder");
-      checkNotNull(valueCoder, "valueCoder");
+      checkArgument(conf != null, "conf can not be null");
+      checkArgument(keyCoder != null, "keyCoder can not be null");
+      checkArgument(valueCoder != null, "valueCoder can not be null");
     }
 
     @Override

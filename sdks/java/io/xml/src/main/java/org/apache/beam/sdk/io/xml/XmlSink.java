@@ -50,14 +50,8 @@ class XmlSink<T> extends FileBasedSink<T, Void, T> {
     this.spec = spec;
   }
 
-  /**
-   * Validates that the root element, class to bind to a JAXB context, and filenamePrefix have
-   * been set and that the class can be bound in a JAXB context.
-   */
   @Override
-  public void validate(PipelineOptions options) {
-    spec.validate(null);
-  }
+  public void validate(PipelineOptions options) {}
 
   /**
    * Creates an {@link XmlWriteOperation}.
