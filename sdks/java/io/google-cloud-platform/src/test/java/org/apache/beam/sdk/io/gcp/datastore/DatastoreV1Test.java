@@ -310,14 +310,6 @@ public class DatastoreV1Test {
   }
 
   @Test
-  public void testWriteValidationFailsWithNoProjectInStaticValueProvider() throws Exception {
-    Write write = DatastoreIO.v1().write().withProjectId(StaticValueProvider.<String>of(null));
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
-    write.validate(null);
-  }
-
-  @Test
   public void testWriteValidationSucceedsWithProject() throws Exception {
     Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
     write.validate(null);
@@ -355,15 +347,6 @@ public class DatastoreV1Test {
   }
 
   @Test
-  public void testDeleteEntityValidationFailsWithNoProjectInStaticValueProvider() throws Exception {
-    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity()
-        .withProjectId(StaticValueProvider.<String>of(null));
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
-    deleteEntity.validate(null);
-  }
-
-  @Test
   public void testDeleteEntityValidationSucceedsWithProject() throws Exception {
     DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
     deleteEntity.validate(null);
@@ -397,15 +380,6 @@ public class DatastoreV1Test {
     DeleteKey deleteKey = DatastoreIO.v1().deleteKey();
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId ValueProvider");
-    deleteKey.validate(null);
-  }
-
-  @Test
-  public void testDeleteKeyValidationFailsWithNoProjectInStaticValueProvider() throws Exception {
-    DeleteKey deleteKey = DatastoreIO.v1().deleteKey().withProjectId(
-        StaticValueProvider.<String>of(null));
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
     deleteKey.validate(null);
   }
 

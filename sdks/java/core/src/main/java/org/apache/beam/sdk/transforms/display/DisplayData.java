@@ -883,7 +883,7 @@ public class DisplayData implements Serializable {
       }
       Type type = inferType(got);
       if (type == null) {
-        throw new RuntimeException(String.format("Unknown value type: %s", got));
+        return item(key, Type.STRING, got.toString());
       }
       return item(key, type, got);
     }

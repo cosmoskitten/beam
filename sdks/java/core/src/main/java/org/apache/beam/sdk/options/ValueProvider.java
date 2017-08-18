@@ -101,9 +101,7 @@ public interface ValueProvider<T> extends Serializable {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("value", value)
-          .toString();
+      return String.valueOf(value);
     }
   }
 
@@ -162,6 +160,7 @@ public interface ValueProvider<T> extends Serializable {
     public String toString() {
       return MoreObjects.toStringHelper(this)
           .add("value", value)
+          .add("translator", translator)
           .toString();
     }
   }
@@ -262,10 +261,12 @@ public interface ValueProvider<T> extends Serializable {
 
     @Override
     public String toString() {
+      if (isAccessible()) {
+        return String.valueOf(get());
+      }
       return MoreObjects.toStringHelper(this)
           .add("propertyName", propertyName)
           .add("default", defaultValue)
-          .add("value", isAccessible() ? get() : null)
           .toString();
     }
   }

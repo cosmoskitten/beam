@@ -634,10 +634,6 @@ public class DatastoreV1 {
     public void validate(PipelineOptions options) {
       checkNotNull(getProjectId(), "projectId");
 
-      if (getProjectId().isAccessible() && getProjectId().get() == null) {
-        throw new IllegalArgumentException("Project id cannot be null");
-      }
-
       if (getQuery() == null && getLiteralGqlQuery() == null) {
         throw new IllegalArgumentException(
             "Either query or gql query ValueProvider should be provided");
@@ -646,10 +642,6 @@ public class DatastoreV1 {
       if (getQuery() != null && getLiteralGqlQuery() != null) {
         throw new IllegalArgumentException(
             "Only one of query or gql query ValueProvider should be provided");
-      }
-
-      if (getLiteralGqlQuery() != null && getLiteralGqlQuery().isAccessible()) {
-        checkNotNull(getLiteralGqlQuery().get(), "gqlQuery");
       }
     }
 
@@ -1140,9 +1132,6 @@ public class DatastoreV1 {
     @Override
     public void validate(PipelineOptions options) {
       checkNotNull(projectId, "projectId ValueProvider");
-      if (projectId.isAccessible()) {
-        checkNotNull(projectId.get(), "projectId");
-      }
       checkNotNull(mutationFn, "mutationFn");
     }
 
