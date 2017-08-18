@@ -74,12 +74,6 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   @Override
-  public void validate() {
-    super.validate();
-    spec.validate(null);
-  }
-
-  @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     spec.populateDisplayData(builder);
   }
