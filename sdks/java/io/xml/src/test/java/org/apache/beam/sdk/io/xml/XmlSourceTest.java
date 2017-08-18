@@ -460,56 +460,38 @@ public class XmlSourceTest {
 
   @Test
   public void testReadXMLNoRootElement() throws IOException {
-    File file = tempFolder.newFile("trainXMLSmall");
-    Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
+    exception.expect(IllegalArgumentException.class);
+    exception.expectMessage("withRootElement() is required");
 
-    BoundedSource<Train> source =
-        XmlIO.<Train>read()
-            .from(file.toPath().toString())
-            .withRecordElement("train")
-            .withRecordClass(Train.class)
-            .createSource();
-
-    exception.expect(NullPointerException.class);
-    exception.expectMessage(
-        "rootElement is null. Use builder method withRootElement() to set this.");
-    readEverythingFromReader(source.createReader(null));
+    XmlIO.<Train>read()
+        .from("")
+        .withRecordElement("train")
+        .withRecordClass(Train.class)
+        .expand(null);
   }
 
   @Test
   public void testReadXMLNoRecordElement() throws IOException {
-    File file = tempFolder.newFile("trainXMLSmall");
-    Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
+    exception.expect(IllegalArgumentException.class);
+    exception.expectMessage("withRecordElement() is required");
 
-    BoundedSource<Train> source =
-        XmlIO.<Train>read()
-            .from(file.toPath().toString())
-            .withRootElement("trains")
-            .withRecordClass(Train.class)
-            .createSource();
-
-    exception.expect(NullPointerException.class);
-    exception.expectMessage(
-        "recordElement is null. Use builder method withRecordElement() to set this.");
-    readEverythingFromReader(source.createReader(null));
+    XmlIO.<Train>read()
+        .from("")
+        .withRootElement("trains")
+        .withRecordClass(Train.class)
+        .expand(null);
   }
 
   @Test
   public void testReadXMLNoRecordClass() throws IOException {
-    File file = tempFolder.newFile("trainXMLSmall");
-    Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
+    exception.expect(IllegalArgumentException.class);
+    exception.expectMessage("withRecordClass() is required");
 
-    BoundedSource<Train> source =
-        XmlIO.<Train>read()
-            .from(file.toPath().toString())
-            .withRootElement("trains")
-            .withRecordElement("train")
-            .createSource();
-
-    exception.expect(NullPointerException.class);
-    exception.expectMessage(
-        "recordClass is null. Use builder method withRecordClass() to set this.");
-    readEverythingFromReader(source.createReader(null));
+    XmlIO.<Train>read()
+        .from("")
+        .withRootElement("trains")
+        .withRecordElement("train")
+        .expand(null);
   }
 
   @Test

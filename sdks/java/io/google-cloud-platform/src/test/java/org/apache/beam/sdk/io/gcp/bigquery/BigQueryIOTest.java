@@ -356,7 +356,7 @@ public class BigQueryIOTest implements Serializable {
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
     Pipeline p = TestPipeline.create(bqOptions);
-    thrown.expect(IllegalStateException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
             + " which only applies to queries");
@@ -374,7 +374,7 @@ public class BigQueryIOTest implements Serializable {
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
     Pipeline p = TestPipeline.create(bqOptions);
-    thrown.expect(IllegalStateException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
             + " which only applies to queries");
@@ -393,7 +393,7 @@ public class BigQueryIOTest implements Serializable {
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
     Pipeline p = TestPipeline.create(bqOptions);
-    thrown.expect(IllegalStateException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect preference,"
             + " which only applies to queries");
