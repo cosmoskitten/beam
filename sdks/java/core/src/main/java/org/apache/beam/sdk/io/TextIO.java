@@ -261,17 +261,17 @@ public class TextIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
     @Nullable abstract ValueProvider<String> getFilepattern();
     abstract MatchConfiguration getMatchConfiguration();
-    abstract boolean getHintMatchesManyFiles();
     abstract Compression getCompression();
+    abstract boolean getHintMatchesManyFiles();
     @Nullable abstract byte[] getDelimiter();
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
+      abstract Builder setCompression(Compression compression);
       abstract Builder setMatchConfiguration(MatchConfiguration matchConfiguration);
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
-      abstract Builder setCompression(Compression compression);
       abstract Builder setDelimiter(byte[] delimiter);
 
       abstract Read build();
@@ -390,9 +390,11 @@ public class TextIO {
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
       return CompressedSource.from(
-          new TextSource(getFilepattern(), getMatchConfiguration().getEmptyMatchTreatment(),
-          getDelimiter()))
-    .withCompression(getCompression());
+          new TextSource(
+              getFilepattern(),
+              getMatchConfiguration().getEmptyMatchTreatment(),
+              getDelimiter()))
+          .withCompression(getCompression());
     }
 
     @Override
