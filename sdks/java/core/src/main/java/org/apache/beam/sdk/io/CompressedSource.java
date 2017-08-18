@@ -20,28 +20,17 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.io.ByteStreams;
-import com.google.common.primitives.Ints;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.PushbackInputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
-import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.joda.time.Instant;
 
 /**
@@ -54,19 +43,19 @@ import org.joda.time.Instant;
  * FileBasedSource<T> mySource = ...;
  * PCollection<T> collection = p.apply(Read.from(CompressedSource
  *     .from(mySource)
- *     .withDecompression(CompressedSource.CompressionMode.GZIP)));
+ *     .withCompression(Compression.GZIP)));
  * } </pre>
  *
- * <p>Supported compression algorithms are {@link CompressionMode#GZIP},
- * {@link CompressionMode#BZIP2}, {@link CompressionMode#ZIP} and {@link CompressionMode#DEFLATE}.
+ * <p>Supported compression algorithms are {@link Compression#GZIP},
+ * {@link Compression#BZIP2}, {@link Compression#ZIP} and {@link Compression#DEFLATE}.
  * User-defined compression types are supported by implementing
  * {@link DecompressingChannelFactory}.
  *
  * <p>By default, the compression algorithm is selected from those supported in
- * {@link CompressionMode} based on the file name provided to the source, namely
- * {@code ".bz2"} indicates {@link CompressionMode#BZIP2}, {@code ".gz"} indicates
- * {@link CompressionMode#GZIP}, {@code ".zip"} indicates {@link CompressionMode#ZIP} and
- * {@code ".deflate"} indicates {@link CompressionMode#DEFLATE}. If the file name does not match
+ * {@link Compression} based on the file name provided to the source, namely
+ * {@code ".bz2"} indicates {@link Compression#BZIP2}, {@code ".gz"} indicates
+ * {@link Compression#GZIP}, {@code ".zip"} indicates {@link Compression#ZIP} and
+ * {@code ".deflate"} indicates {@link Compression#DEFLATE}. If the file name does not match
  * any of the supported
  * algorithms, it is assumed to be uncompressed data.
  *
@@ -74,6 +63,14 @@ import org.joda.time.Instant;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class CompressedSource<T> extends FileBasedSource<T> {
+  public static <T> FileBasedSource<T> wrap(
+      FileBasedSource<T> source, Compression compression) {
+    if (compression == Compression.UNCOMPRESSED) {
+      return source;
+    }
+    return CompressedSource.from(source).withCompression(compression);
+  }
+
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
    */
@@ -98,159 +95,75 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         throws IOException;
   }
 
-  /**
-   * Default compression types supported by the {@code CompressedSource}.
-   */
+  /** @deprecated Use {@link Compression} instead */
+  @Deprecated
   public enum CompressionMode implements DecompressingChannelFactory {
-    /**
-     * Reads a byte channel assuming it is compressed with gzip.
-     */
-    GZIP {
-      @Override
-      public boolean matches(String fileName) {
-          return fileName.toLowerCase().endsWith(".gz");
-      }
+    /** @see Compression#GZIP */
+    GZIP(Compression.GZIP),
 
-      @Override
-      public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
-          throws IOException {
-        // Determine if the input stream is gzipped. The input stream returned from the
-        // GCS connector may already be decompressed; GCS does this based on the
-        // content-encoding property.
-        PushbackInputStream stream = new PushbackInputStream(Channels.newInputStream(channel), 2);
-        byte[] headerBytes = new byte[2];
-        int bytesRead = ByteStreams.read(
-            stream /* source */, headerBytes /* dest */, 0 /* offset */, 2 /* len */);
-        stream.unread(headerBytes, 0, bytesRead);
-        if (bytesRead >= 2) {
-          byte zero = 0x00;
-          int header = Ints.fromBytes(zero, zero, headerBytes[1], headerBytes[0]);
-          if (header == GZIPInputStream.GZIP_MAGIC) {
-            return Channels.newChannel(new GzipCompressorInputStream(stream, true));
-          }
-        }
-        return Channels.newChannel(stream);
-      }
-    },
+    /** @see Compression#BZIP2 */
+    BZIP2(Compression.BZIP2),
 
-    /**
-     * Reads a byte channel assuming it is compressed with bzip2.
-     */
-    BZIP2 {
-      @Override
-      public boolean matches(String fileName) {
-          return fileName.toLowerCase().endsWith(".bz2");
-      }
+    /** @see Compression#ZIP */
+    ZIP(Compression.ZIP),
 
-      @Override
-      public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
-          throws IOException {
-        return Channels.newChannel(
-            new BZip2CompressorInputStream(Channels.newInputStream(channel), true));
-      }
-    },
+    /** @see Compression#DEFLATE */
+    DEFLATE(Compression.DEFLATE);
 
-    /**
-     * Reads a byte channel assuming it is compressed with zip.
-     * If the zip file contains multiple entries, files in the zip are concatenated all together.
-     */
-    ZIP {
-      @Override
-      public boolean matches(String fileName) {
-        return fileName.toLowerCase().endsWith(".zip");
-      }
+    private Compression canonical;
 
-      public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
-        throws IOException {
-        FullZipInputStream zip = new FullZipInputStream(Channels.newInputStream(channel));
-        return Channels.newChannel(zip);
-      }
-    },
-
-    /**
-     * Reads a byte channel assuming it is compressed with deflate.
-     */
-    DEFLATE {
-      @Override
-      public boolean matches(String fileName) {
-        return fileName.toLowerCase().endsWith(".deflate");
-      }
-
-      public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
-          throws IOException {
-        return Channels.newChannel(
-            new DeflateCompressorInputStream(Channels.newInputStream(channel)));
-      }
-    };
-
-    /**
-     * Extend of {@link ZipInputStream} to automatically read all entries in the zip.
-     */
-    private static class FullZipInputStream extends InputStream {
-
-      private ZipInputStream zipInputStream;
-      private ZipEntry currentEntry;
-
-      public FullZipInputStream(InputStream is) throws IOException {
-        super();
-        zipInputStream = new ZipInputStream(is);
-        currentEntry = zipInputStream.getNextEntry();
-      }
-
-      @Override
-      public int read() throws IOException {
-        int result = zipInputStream.read();
-        while (result == -1) {
-          currentEntry = zipInputStream.getNextEntry();
-          if (currentEntry == null) {
-            return -1;
-          } else {
-            result = zipInputStream.read();
-          }
-        }
-        return result;
-      }
-
-      @Override
-      public int read(byte[] b, int off, int len) throws IOException {
-        int result = zipInputStream.read(b, off, len);
-        while (result == -1) {
-          currentEntry = zipInputStream.getNextEntry();
-          if (currentEntry == null) {
-            return -1;
-          } else {
-            result = zipInputStream.read(b, off, len);
-          }
-        }
-        return result;
-      }
-
+    CompressionMode(Compression canonical) {
+      this.canonical = canonical;
     }
 
     /**
      * Returns {@code true} if the given file name implies that the contents are compressed
      * according to the compression embodied by this factory.
      */
-    public abstract boolean matches(String fileName);
+    public boolean matches(String fileName) {
+      return canonical.matches(fileName);
+    }
 
     @Override
-    public abstract ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
-        throws IOException;
+    public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
+        throws IOException {
+      return canonical.readDecompressed(channel);
+    }
 
     /** Returns whether the file's extension matches of one of the known compression formats. */
     public static boolean isCompressed(String filename) {
-      for (CompressionMode type : CompressionMode.values()) {
-        if  (type.matches(filename)) {
-          return true;
-        }
+      return Compression.AUTO.isCompressed(filename);
+    }
+
+    static DecompressingChannelFactory fromCanonical(Compression compression) {
+      switch (compression) {
+        case AUTO:
+          return new DecompressAccordingToFilename();
+
+        case UNCOMPRESSED:
+          return new DoNotDecompress();
+
+        case GZIP:
+          return GZIP;
+
+        case BZIP2:
+          return BZIP2;
+
+        case ZIP:
+          return ZIP;
+
+        case DEFLATE:
+          return DEFLATE;
+
+        default:
+          throw new IllegalArgumentException("Unsupported compression type: " + compression);
       }
-      return false;
     }
   }
 
   /**
    * Reads a byte channel detecting compression according to the file name. If the filename
-   * is not any other known {@link CompressionMode}, it is presumed to be uncompressed.
+   * is not any other known {@link Compression}, it is presumed to be uncompressed.
    */
   private static class DecompressAccordingToFilename
       implements FileNameBasedDecompressingChannelFactory {
@@ -258,13 +171,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     @Override
     public ReadableByteChannel createDecompressingChannel(
         String fileName, ReadableByteChannel channel) throws IOException {
-      for (CompressionMode type : CompressionMode.values()) {
-        if (type.matches(fileName)) {
-          return type.createDecompressingChannel(channel);
-        }
-      }
-      // Uncompressed
-      return channel;
+      return Compression.detect(fileName).readDecompressed(channel);
     }
 
     @Override
@@ -276,6 +183,14 @@ public class CompressedSource<T> extends FileBasedSource<T> {
               String.class.getSimpleName(),
               ReadableByteChannel.class.getSimpleName(),
               ReadableByteChannel.class.getSimpleName()));
+    }
+  }
+
+  /** Does not decompress the channel. */
+  private static class DoNotDecompress implements DecompressingChannelFactory {
+    @Override
+    public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel) {
+      return channel;
     }
   }
 
@@ -297,6 +212,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    */
   public CompressedSource<T> withDecompression(DecompressingChannelFactory channelFactory) {
     return new CompressedSource<>(this.sourceDelegate, channelFactory);
+  }
+
+  /** Like {@link #withDecompression} but takes a canonical {@link Compression}. */
+  public CompressedSource<T> withCompression(Compression compression) {
+    return withDecompression(CompressionMode.fromCanonical(compression));
   }
 
   /**
@@ -361,7 +281,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   @Override
   protected final boolean isSplittable() throws Exception {
     return channelFactory instanceof FileNameBasedDecompressingChannelFactory
-        && !CompressionMode.isCompressed(getFileOrPatternSpec())
+        && !Compression.AUTO.isCompressed(getFileOrPatternSpec())
         && sourceDelegate.isSplittable();
   }
 
@@ -376,7 +296,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   @Override
   protected final FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
     if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
-      if (!CompressionMode.isCompressed(getFileOrPatternSpec())) {
+      if (!Compression.AUTO.isCompressed(getFileOrPatternSpec())) {
         return sourceDelegate.createSingleFileReader(options);
       }
     }
