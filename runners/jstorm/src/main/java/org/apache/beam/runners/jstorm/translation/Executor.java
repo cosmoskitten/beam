@@ -32,9 +32,6 @@ public interface Executor extends Serializable {
 
   /**
    * Process element form "tag" stream.
-   * @param tag
-   * @param elem
-   * @param <T>
    */
   <T> void process(TupleTag<T> tag, WindowedValue<T> elem);
 
