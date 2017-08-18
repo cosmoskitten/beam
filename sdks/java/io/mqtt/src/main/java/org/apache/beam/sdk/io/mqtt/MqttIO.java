@@ -257,7 +257,8 @@ public class MqttIO {
 
     @Override
     public PCollection<byte[]> expand(PBegin input) {
-      checkArgument(maxReadTime() == null,
+      checkArgument(
+          maxReadTime() == null || maxNumRecords() == Long.MAX_VALUE,
           "withMaxNumRecords() and withMaxReadTime() are exclusive");
 
       org.apache.beam.sdk.io.Read.Unbounded<byte[]> unbounded =
@@ -352,9 +353,6 @@ public class MqttIO {
       // So, for MQTT, we limit to number of split ot 1 (unique source).
       return Collections.singletonList(new UnboundedMqttSource(spec));
     }
-
-    @Override
-    public void validate() {}
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {

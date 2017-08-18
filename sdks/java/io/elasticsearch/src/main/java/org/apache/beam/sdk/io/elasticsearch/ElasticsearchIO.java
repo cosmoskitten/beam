@@ -202,7 +202,7 @@ public class ElasticsearchIO {
      */
     public static ConnectionConfiguration create(String[] addresses, String index, String type){
       checkArgument(addresses != null, "addresses can not be null");
-      checkArgument(addresses.length != 0, "addresses can not be empty");
+      checkArgument(addresses.length > 0, "addresses can not be empty");
       checkArgument(index != null, "index can not be null");
       checkArgument(type != null, "type can not be null");
       ConnectionConfiguration connectionConfiguration =

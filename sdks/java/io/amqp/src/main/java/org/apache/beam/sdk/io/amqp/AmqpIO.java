@@ -241,9 +241,6 @@ public class AmqpIO {
     public Coder<AmqpCheckpointMark> getCheckpointMarkCoder() {
       return SerializableCoder.of(AmqpCheckpointMark.class);
     }
-
-    @Override
-    public void validate() {}
   }
 
   private static class UnboundedAmqpReader extends UnboundedSource.UnboundedReader<Message> {

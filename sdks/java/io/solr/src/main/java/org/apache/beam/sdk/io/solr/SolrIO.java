@@ -460,9 +460,6 @@ public class SolrIO {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
     public Coder<SolrDocument> getOutputCoder() {
       return JavaBinCodecCoder.of(SolrDocument.class);
     }

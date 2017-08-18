@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.xml;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -497,10 +496,10 @@ public class XmlIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkNotNull(getRecordClass(), "withRecordClass() is required");
-      checkNotNull(getRootElement(), "withRootElement() is required");
-      checkNotNull(getFilenamePrefix(), "to() is required");
-      checkNotNull(getCharset(), "withCharset() is required");
+      checkArgument(getRecordClass() != null, "withRecordClass() is required");
+      checkArgument(getRootElement() != null, "withRootElement() is required");
+      checkArgument(getFilenamePrefix() != null, "to() is required");
+      checkArgument(getCharset() != null, "withCharset() is required");
       try {
         JAXBContext.newInstance(getRecordClass());
       } catch (JAXBException e) {

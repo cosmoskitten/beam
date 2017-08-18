@@ -587,9 +587,9 @@ public class DatastoreV1 {
 
     @Override
     public PCollection<Entity> expand(PBegin input) {
-      checkArgument(getProjectId() != null, "projectId");
+      checkArgument(getProjectId() != null, "projectId provider cannot be null");
       if (getProjectId().isAccessible()) {
-        checkArgument(getProjectId().get() != null, "Project id cannot be null");
+        checkArgument(getProjectId().get() != null, "projectId cannot be null");
       }
 
       checkArgument(

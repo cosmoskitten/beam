@@ -356,9 +356,6 @@ public class JmsIO {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
     public Coder<JmsCheckpointMark> getCheckpointMarkCoder() {
       return AvroCoder.of(JmsCheckpointMark.class);
     }

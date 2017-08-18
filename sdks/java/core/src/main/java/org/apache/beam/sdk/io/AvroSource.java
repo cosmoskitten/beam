@@ -251,7 +251,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   public <X> AvroSource<X> withParseFn(
       SerializableFunction<GenericRecord, X> parseFn, Coder<X> coder) {
     checkArgument(parseFn != null, "parseFn can not be null");
-    checkArgument(parseFn != null, "parseFn can not be null");
+    checkArgument(coder != null, "coder can not be null");
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getMinBundleSize(),

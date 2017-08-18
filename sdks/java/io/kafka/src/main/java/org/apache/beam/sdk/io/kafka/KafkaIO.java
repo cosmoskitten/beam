@@ -838,9 +838,6 @@ public class KafkaIO {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
     public Coder<KafkaRecord<K, V>> getOutputCoder() {
       return KafkaRecordCoder.of(spec.getKeyCoder(), spec.getValueCoder());
     }

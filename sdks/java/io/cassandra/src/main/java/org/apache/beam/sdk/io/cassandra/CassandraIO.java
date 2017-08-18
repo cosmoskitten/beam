@@ -275,9 +275,6 @@ public class CassandraIO {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
     public BoundedReader<T> createReader(PipelineOptions pipelineOptions) {
       return spec.getCassandraService().createReader(this);
     }

@@ -228,7 +228,7 @@ public class MongoDbIO {
      * Sets the user defined number of splits.
      */
     public Read withNumSplits(int numSplits) {
-      checkArgument(numSplits >= 0, "invalid num_splits: must be > 0, but was %d", numSplits);
+      checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %d", numSplits);
       return builder().setNumSplits(numSplits).build();
     }
 
@@ -268,9 +268,6 @@ public class MongoDbIO {
     public Coder<Document> getOutputCoder() {
       return SerializableCoder.of(Document.class);
     }
-
-    @Override
-    public void validate() {}
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {

@@ -307,7 +307,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withSharding(
       PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding) {
-    checkArgument(sharding != null, "sharding can not be null");
+    checkArgument(
+        sharding != null, "sharding can not be null. Use withRunnerDeterminedSharding() instead.");
     return new WriteFiles<>(
         sink, sharding, null, windowedWrites, maxNumWritersPerBundle, sideInputs);
   }

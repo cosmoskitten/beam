@@ -488,13 +488,14 @@ public class BigQueryIO {
       // For these cases the withoutValidation method can be used to disable the check.
       if (getValidate() && table != null && table.isAccessible()
           && table.get().getProjectId() != null) {
-        checkState(table.isAccessible(), "Cannot call validate if table is dynamically set.");
+        checkArgument(table.isAccessible(), "Cannot call validate if table is dynamically set.");
         // Check for source table presence for early failure notification.
         DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
         BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
         BigQueryHelpers.verifyTablePresence(datasetService, table.get());
       } else if (getValidate() && getQuery() != null) {
-        checkState(getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
+        checkArgument(
+            getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
         JobService jobService = getBigQueryServices().getJobService(bqOptions);
         try {
           jobService.dryRunQuery(
@@ -514,19 +515,13 @@ public class BigQueryIO {
     public PCollection<TableRow> expand(PBegin input) {
       ValueProvider<TableReference> table = getTableProvider();
 
-      checkState(
-          table == null || getQuery() == null,
-          "Invalid BigQueryIO.Read: table reference and query may not both be set");
-      checkState(
-          table != null || getQuery() != null,
-          "Invalid BigQueryIO.Read: one of table reference and query must be set");
-
       if (table != null) {
-        checkState(
+        checkArgument(getQuery() == null, "from() and fromQuery() are exclusive");
+        checkArgument(
             getFlattenResults() == null,
             "Invalid BigQueryIO.Read: Specifies a table with a result flattening"
                 + " preference, which only applies to queries");
-        checkState(
+        checkArgument(
             getUseLegacySql() == null,
             "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect"
                 + " preference, which only applies to queries");
@@ -536,12 +531,12 @@ public class BigQueryIO {
               TableReference.class.getSimpleName(),
               BigQueryOptions.class.getSimpleName());
         }
-      } else /* query != null */ {
-        checkState(
+      } else {
+        checkArgument(getQuery() != null, "Either from() or fromQuery() is required");
+        checkArgument(
             getFlattenResults() != null, "flattenResults should not be null if query is set");
-        checkState(getUseLegacySql() != null, "useLegacySql should not be null if query is set");
+        checkArgument(getUseLegacySql() != null, "useLegacySql should not be null if query is set");
       }
-
 
       Pipeline p = input.getPipeline();
       final PCollectionView<String> jobIdTokenView;
@@ -1141,7 +1136,7 @@ public class BigQueryIO {
     @Override
     public WriteResult expand(PCollection<T> input) {
       // We must have a destination to write to!
-      checkState(
+      checkArgument(
           getTableFunction() != null || getJsonTableRef() != null
               || getDynamicDestinations() != null,
           "must set the table reference of a BigQueryIO.Write transform");
