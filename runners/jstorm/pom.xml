@@ -70,7 +70,7 @@
       <!-- This profile adds execution of ValidatesRunner integration tests
            against a JStorm local cluster. -->
       <id>local-validates-runner-tests</id>
-      <activation><activeByDefault>true</activeByDefault></activation>
+      <activation><activeByDefault>false</activeByDefault></activation>
       <build>
         <plugins>
           <plugin>

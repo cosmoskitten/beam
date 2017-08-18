@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,6 +69,11 @@ public class JStormStateInternalsTest {
         new KryoSerializer(Maps.newHashMap()));
     jstormStateInternals = new JStormStateInternals(
         "key-1", kvStoreManager, new TimerServiceImpl(), 0);
+  }
+
+  @After
+  public void tearDown() {
+    tmp.delete();
   }
 
   @Test
