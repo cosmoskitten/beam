@@ -86,7 +86,7 @@ import org.joda.time.Instant;
  */
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
 
-  private final Duration batchInterval;
+  private final Duration batchDuration;
   private final Queue<Iterable<TimestampedValue<T>>> batches = new LinkedList<>();
   private final Deque<SparkWatermarks> times = new LinkedList<>();
   private final Coder<T> coder;
@@ -94,8 +94,8 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
 
   private Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE; //for test purposes.
 
-  private CreateStream(Duration batchInterval, Instant initialSystemTime, Coder<T> coder) {
-    this.batchInterval = batchInterval;
+  private CreateStream(Duration batchDuration, Instant initialSystemTime, Coder<T> coder) {
+    this.batchDuration = batchDuration;
     this.initialSystemTime = initialSystemTime;
     this.coder = coder;
   }
@@ -177,13 +177,17 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
     // advance the system time.
     Instant currentSynchronizedProcessingTime = times.peekLast() == null ? initialSystemTime
         : times.peekLast().getSynchronizedProcessingTime();
-    Instant nextSynchronizedProcessingTime = currentSynchronizedProcessingTime.plus(batchInterval);
+    Instant nextSynchronizedProcessingTime = currentSynchronizedProcessingTime.plus(batchDuration);
     checkArgument(
         nextSynchronizedProcessingTime.isAfter(currentSynchronizedProcessingTime),
         "Synchronized processing time must always advance.");
     times.offer(new SparkWatermarks(lowWatermark, newWatermark, nextSynchronizedProcessingTime));
     lowWatermark = newWatermark;
     return this;
+  }
+
+  public long getBatchDuration() {
+    return batchDuration.getMillis();
   }
 
   /** Get the underlying queue representing the mock stream of micro-batches. */

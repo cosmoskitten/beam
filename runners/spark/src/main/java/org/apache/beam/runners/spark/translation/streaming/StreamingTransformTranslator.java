@@ -82,6 +82,7 @@ import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
@@ -162,14 +163,20 @@ public final class StreamingTransformTranslator {
               });
           JavaRDD<WindowedValue<T>> rdd =
               jssc.sparkContext()
-                  .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
+                        .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
                   .map(CoderHelpers.fromByteFunction(windowCoder));
           rddQueue.offer(rdd);
         }
 
-        JavaInputDStream<WindowedValue<T>> inputDStream = jssc.queueStream(rddQueue, true);
+        JavaInputDStream<WindowedValue<T>> javaInputDStream =
+            new JavaInputDStream<>(new WatermarkSyncedDStream<>(rddQueue,
+                                                                transform.getBatchDuration(),
+                                                                context.getStreamingContext()
+                                                                       .ssc()),
+                                   JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
+
         UnboundedDataset<T> unboundedDataset = new UnboundedDataset<T>(
-            inputDStream, Collections.singletonList(inputDStream.inputDStream().id()));
+            javaInputDStream, Collections.singletonList(javaInputDStream.inputDStream().id()));
         // add pre-baked Watermarks for the pre-baked batches.
         Queue<GlobalWatermarkHolder.SparkWatermarks> times = transform.getTimes();
         GlobalWatermarkHolder.addAll(
@@ -301,7 +308,8 @@ public final class StreamingTransformTranslator {
                 wvCoder,
                 windowingStrategy,
                 context.getSerializableOptions(),
-                streamSources);
+                streamSources,
+                context.getCurrentTransform().getFullName());
 
         context.putDataset(transform, new UnboundedDataset<>(outStream, streamSources));
       }
