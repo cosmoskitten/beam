@@ -247,7 +247,11 @@ class DefaultTrigger(TriggerFn):
     context.clear_timer('', TimeDomain.WATERMARK)
 
   def __eq__(self, other):
+    """Since there should be only one default trigger, return if types equal."""
     return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -385,6 +389,9 @@ class AfterCount(TriggerFn):
   def __eq__(self, other):
     return type(self) == type(other) and self.count == other.count
 
+  def __hash__(self):
+    return hash(self.count)
+
   def on_element(self, element, window, context):
     context.add_state(self.COUNT_TAG, 1)
 
@@ -422,6 +429,9 @@ class Repeatedly(TriggerFn):
 
   def __eq__(self, other):
     return type(self) == type(other) and self.underlying == other.underlying
+
+  def __hash__(self):
+    return hash(self.underlying)
 
   def on_element(self, element, window, context):  # get window from context?
     self.underlying.on_element(element, window, context)
@@ -462,6 +472,9 @@ class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):
 
   def __eq__(self, other):
     return type(self) == type(other) and self.triggers == other.triggers
+
+  def __hash__(self):
+    return hash(self.triggers)
 
   @abstractmethod
   def combine_op(self, trigger_results):
@@ -553,6 +566,9 @@ class AfterEach(TriggerFn):
 
   def __eq__(self, other):
     return type(self) == type(other) and self.triggers == other.triggers
+
+  def __hash__(self):
+    return hash(self.triggers)
 
   def on_element(self, element, window, context):
     ix = context.get_state(self.INDEX_TAG)
@@ -892,6 +908,9 @@ class _UnwindowedValues(observable.ObservableMixin):
           for a, b in itertools.izip_longest(self, other, fillvalue=object()))
     else:
       return NotImplemented
+
+  def __hash__(self):
+    return hash(list(self))
 
   def __ne__(self, other):
     return not self == other
