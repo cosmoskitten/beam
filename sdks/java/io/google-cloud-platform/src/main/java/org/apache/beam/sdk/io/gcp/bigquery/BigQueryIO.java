@@ -1101,10 +1101,10 @@ public class BigQueryIO {
 
       if (getJsonTimePartitioning() != null) {
         checkArgument(getDynamicDestinations() == null,
-            "The supplied DynamicDestinations object can directly set TimePartitiong."
+            "The supplied DynamicDestinations object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
         checkArgument(getTableFunction() == null,
-            "The supplied getTableFunction object can directly set TimePartitiong."
+            "The supplied getTableFunction object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
       }
 
