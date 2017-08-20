@@ -41,9 +41,12 @@ import org.apache.spark.storage.BlockManager;
 import org.apache.spark.storage.BlockResult;
 import org.apache.spark.storage.BlockStore;
 import org.apache.spark.storage.StorageLevel;
+import org.apache.spark.streaming.api.java.JavaBatchInfo;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Option;
 
 /**
@@ -53,11 +56,20 @@ import scala.Option;
  * and advances the watermarks according to the queue (first-in-first-out).
  */
 public class GlobalWatermarkHolder {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GlobalWatermarkHolder.class);
+
   private static final Map<Integer, Queue<SparkWatermarks>> sourceTimes = new HashMap<>();
   private static final BlockId WATERMARKS_BLOCK_ID = BlockId.apply("broadcast_0WATERMARKS");
 
   private static volatile Map<Integer, SparkWatermarks> driverWatermarks = null;
   private static volatile LoadingCache<String, Map<Integer, SparkWatermarks>> watermarkCache = null;
+  private static volatile long lastWatermarkedBatchTime = 0;
+
+  public static long getLastWatermarkedBatchTime() {
+    return lastWatermarkedBatchTime;
+  }
+
 
   public static void add(int sourceId, SparkWatermarks sparkWatermarks) {
     Queue<SparkWatermarks> timesQueue = sourceTimes.get(sourceId);
@@ -88,115 +100,162 @@ public class GlobalWatermarkHolder {
     if (driverWatermarks != null) {
       // if we are executing in local mode simply return the local values.
       return driverWatermarks;
-    } else {
-      if (watermarkCache == null) {
-        initWatermarkCache(cacheInterval);
-      }
-      try {
-        return watermarkCache.get("SINGLETON");
-      } catch (ExecutionException e) {
-        throw new RuntimeException(e);
-      }
+    }
+    if (watermarkCache == null) {
+      watermarkCache = initWatermarkCache(cacheInterval);
+    }
+    try {
+      return watermarkCache.get("SINGLETON");
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
     }
   }
 
-  private static synchronized void initWatermarkCache(Long batchDuration) {
-    if (watermarkCache == null) {
-      watermarkCache =
-          CacheBuilder.newBuilder()
-              // expire watermarks every half batch duration to ensure they update in every batch.
-              .expireAfterWrite(batchDuration / 2, TimeUnit.MILLISECONDS)
-              .build(new WatermarksLoader());
-    }
+  private static synchronized LoadingCache<String, Map<Integer, SparkWatermarks>>
+      initWatermarkCache(final Long batchDuration) {
+
+    checkState(
+        watermarkCache == null, "watermarkCache must be null prior to initialization.");
+
+    return CacheBuilder.newBuilder()
+        // expire watermarks every half batch duration to ensure they update in every batch.
+        .expireAfterWrite(batchDuration / 2, TimeUnit.MILLISECONDS)
+        .build(new WatermarksLoader());
+
   }
 
   /**
    * Advances the watermarks to the next-in-line watermarks.
    * SparkWatermarks are monotonically increasing.
    */
-  @SuppressWarnings("unchecked")
-  public static void advance() {
+  public static void advance(final String batchId) {
     synchronized (GlobalWatermarkHolder.class) {
-      BlockManager blockManager = SparkEnv.get().blockManager();
+      final BlockManager blockManager = SparkEnv.get().blockManager();
+      final Map<Integer, SparkWatermarks> newWatermarks = computeNewWatermarks(blockManager);
 
-      if (sourceTimes.isEmpty()) {
-        return;
+      if (!newWatermarks.isEmpty()) {
+        storeWatermarks(newWatermarks, blockManager);
+      } else {
+        LOG.info("No new watermarks could be computed upon completion of batch: {}", batchId);
+      }
+    }
+  }
+
+  /** See {@link GlobalWatermarkHolder#advance(String)}. */
+  public static void advance() {
+    advance("N/A");
+  }
+
+  /**
+   * Computes the next watermark values per source id.
+   *
+   * @return The new watermarks values or null if no source has reported its progress.
+   */
+  private static Map<Integer, SparkWatermarks> computeNewWatermarks(BlockManager blockManager) {
+
+    if (sourceTimes.isEmpty()) {
+      return new HashMap<>();
+    }
+
+    // update all sources' watermarks into the new broadcast.
+    final Map<Integer, SparkWatermarks> newValues = new HashMap<>();
+
+    for (final Map.Entry<Integer, Queue<SparkWatermarks>> watermarkInfo: sourceTimes.entrySet()) {
+
+      if (watermarkInfo.getValue().isEmpty()) {
+        continue;
       }
 
-      // update all sources' watermarks into the new broadcast.
-      Map<Integer, SparkWatermarks> newValues = new HashMap<>();
+      final Integer sourceId = watermarkInfo.getKey();
 
-      for (Map.Entry<Integer, Queue<SparkWatermarks>> en: sourceTimes.entrySet()) {
-        if (en.getValue().isEmpty()) {
-          continue;
-        }
-        Integer sourceId = en.getKey();
-        Queue<SparkWatermarks> timesQueue = en.getValue();
+      // current state, if exists.
+      Instant currentLowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      Instant currentHighWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      Instant currentSynchronizedProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-        // current state, if exists.
-        Instant currentLowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
-        Instant currentHighWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
-        Instant currentSynchronizedProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      final Map<Integer, SparkWatermarks> currentWatermarks = initWatermarks(blockManager);
 
-        Option<BlockResult> currentOption = blockManager.getRemote(WATERMARKS_BLOCK_ID);
-        Map<Integer, SparkWatermarks> current;
-        if (currentOption.isDefined()) {
-          current = (Map<Integer, SparkWatermarks>) currentOption.get().data().next();
-        } else {
-          current = Maps.newHashMap();
-          blockManager.putSingle(
-              WATERMARKS_BLOCK_ID,
-              current,
-              StorageLevel.MEMORY_ONLY(),
-              true);
-        }
-
-        if (current.containsKey(sourceId)) {
-          SparkWatermarks currentTimes = current.get(sourceId);
-          currentLowWatermark = currentTimes.getLowWatermark();
-          currentHighWatermark = currentTimes.getHighWatermark();
-          currentSynchronizedProcessingTime = currentTimes.getSynchronizedProcessingTime();
-        }
-
-        SparkWatermarks next = timesQueue.poll();
-        // advance watermarks monotonically.
-        Instant nextLowWatermark = next.getLowWatermark().isAfter(currentLowWatermark)
-            ? next.getLowWatermark() : currentLowWatermark;
-        Instant nextHighWatermark = next.getHighWatermark().isAfter(currentHighWatermark)
-            ? next.getHighWatermark() : currentHighWatermark;
-        Instant nextSynchronizedProcessingTime = next.getSynchronizedProcessingTime();
-        checkState(!nextLowWatermark.isAfter(nextHighWatermark),
-            String.format(
-                "Low watermark %s cannot be later then high watermark %s",
-                nextLowWatermark, nextHighWatermark));
-        checkState(nextSynchronizedProcessingTime.isAfter(currentSynchronizedProcessingTime),
-            "Synchronized processing time must advance.");
-        newValues.put(
-            sourceId,
-            new SparkWatermarks(
-                nextLowWatermark, nextHighWatermark, nextSynchronizedProcessingTime));
+      if (currentWatermarks.containsKey(sourceId)) {
+        final SparkWatermarks currentTimes = currentWatermarks.get(sourceId);
+        currentLowWatermark = currentTimes.getLowWatermark();
+        currentHighWatermark = currentTimes.getHighWatermark();
+        currentSynchronizedProcessingTime = currentTimes.getSynchronizedProcessingTime();
       }
 
-      // update the watermarks broadcast only if something has changed.
-      if (!newValues.isEmpty()) {
-        driverWatermarks = newValues;
-        blockManager.removeBlock(WATERMARKS_BLOCK_ID, true);
-        blockManager.putSingle(
-            WATERMARKS_BLOCK_ID,
-            newValues,
-            StorageLevel.MEMORY_ONLY(),
-            true);
-      }
+      final Queue<SparkWatermarks> timesQueue = watermarkInfo.getValue();
+      final SparkWatermarks next = timesQueue.poll();
+
+      // advance watermarks monotonically.
+
+      final Instant nextLowWatermark =
+          next.getLowWatermark().isAfter(currentLowWatermark)
+              ? next.getLowWatermark()
+              : currentLowWatermark;
+
+      final Instant nextHighWatermark =
+          next.getHighWatermark().isAfter(currentHighWatermark)
+              ? next.getHighWatermark()
+              : currentHighWatermark;
+
+      final Instant nextSynchronizedProcessingTime = next.getSynchronizedProcessingTime();
+
+      checkState(
+          !nextLowWatermark.isAfter(nextHighWatermark),
+          String.format(
+              "Low watermark %s cannot be later then high watermark %s",
+              nextLowWatermark, nextHighWatermark));
+
+      checkState(
+          nextSynchronizedProcessingTime.isAfter(currentSynchronizedProcessingTime),
+          "Synchronized processing time must advance.");
+
+      newValues.put(
+          sourceId,
+          new SparkWatermarks(
+              nextLowWatermark, nextHighWatermark, nextSynchronizedProcessingTime));
+    }
+
+    return newValues;
+  }
+
+  private static void storeWatermarks(
+      final Map<Integer, SparkWatermarks> newValues, final BlockManager blockManager) {
+    driverWatermarks = newValues;
+    blockManager.removeBlock(WATERMARKS_BLOCK_ID, true);
+    blockManager.putSingle(
+        WATERMARKS_BLOCK_ID,
+        newValues,
+        StorageLevel.MEMORY_ONLY(),
+        true);
+
+    LOG.info("Put new watermark block: {}", newValues);
+  }
+
+  private static Map<Integer, SparkWatermarks> initWatermarks(final BlockManager blockManager) {
+
+    final Map<Integer, SparkWatermarks> watermarks = fetchSparkWatermarks(blockManager);
+
+    if (watermarks == null) {
+      final HashMap<Integer, SparkWatermarks> empty = Maps.newHashMap();
+      blockManager.putSingle(
+          WATERMARKS_BLOCK_ID,
+          empty,
+          StorageLevel.MEMORY_ONLY(),
+          true);
+      return empty;
+    } else {
+      return watermarks;
     }
   }
 
   @VisibleForTesting
   public static synchronized void clear() {
     sourceTimes.clear();
+    lastWatermarkedBatchTime = 0;
     driverWatermarks = null;
-    SparkEnv sparkEnv = SparkEnv.get();
+    final SparkEnv sparkEnv = SparkEnv.get();
     if (sparkEnv != null) {
-      BlockManager blockManager = sparkEnv.blockManager();
+      final BlockManager blockManager = sparkEnv.blockManager();
       blockManager.removeBlock(WATERMARKS_BLOCK_ID, true);
     }
   }
@@ -243,9 +302,39 @@ public class GlobalWatermarkHolder {
 
   /** Advance the WMs onBatchCompleted event. */
   public static class WatermarksListener extends JavaStreamingListener {
+    private static final Logger LOG = LoggerFactory.getLogger(WatermarksListener.class);
+
+    private long timeOf(JavaBatchInfo info) {
+      return info.batchTime().milliseconds();
+    }
+
+    private long laterOf(long t1, long t2) {
+      return Math.max(t1, t2);
+    }
+
     @Override
     public void onBatchCompleted(JavaStreamingListenerBatchCompleted batchCompleted) {
-      GlobalWatermarkHolder.advance();
+
+      final long currentBatchTime = timeOf(batchCompleted.batchInfo());
+
+      GlobalWatermarkHolder.advance(Long.toString(currentBatchTime));
+
+      // make sure to update the last watermarked batch time AFTER the watermarks have already
+      // been updated (i.e., after the call to GlobalWatermarkHolder.advance(...))
+      lastWatermarkedBatchTime =
+          laterOf(lastWatermarkedBatchTime, currentBatchTime);
+
+      LOG.info("Batch with timestamp: {} has completed, watermarks have been updated.",
+               lastWatermarkedBatchTime);
+    }
+  }
+
+  private static Map<Integer, SparkWatermarks> fetchSparkWatermarks(BlockManager blockManager) {
+    Option<BlockResult> blockResultOption = blockManager.getRemote(WATERMARKS_BLOCK_ID);
+    if (blockResultOption.isDefined()) {
+      return (Map<Integer, SparkWatermarks>) blockResultOption.get().data().next();
+    } else {
+      return null;
     }
   }
 
@@ -254,13 +343,9 @@ public class GlobalWatermarkHolder {
     @SuppressWarnings("unchecked")
     @Override
     public Map<Integer, SparkWatermarks> load(@Nonnull String key) throws Exception {
-      Option<BlockResult> blockResultOption =
-          SparkEnv.get().blockManager().getRemote(WATERMARKS_BLOCK_ID);
-      if (blockResultOption.isDefined()) {
-        return (Map<Integer, SparkWatermarks>) blockResultOption.get().data().next();
-      } else {
-        return Maps.newHashMap();
-      }
+      Map<Integer, SparkWatermarks> watermarks =
+          fetchSparkWatermarks(SparkEnv.get().blockManager());
+      return watermarks != null ? watermarks : Maps.<Integer, SparkWatermarks>newHashMap();
     }
   }
 }
