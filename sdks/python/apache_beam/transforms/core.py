@@ -1413,7 +1413,7 @@ class _GroupAlsoByWindow(ParDo):
     return (
         urns.GROUP_ALSO_BY_WINDOW_TRANSFORM,
         wrappers_pb2.BytesValue(value=context.windowing_strategies.get_id(
-            self.windowing)))
+            self.windowing).encode()))
 
   @PTransform.register_urn(
       urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
@@ -1532,6 +1532,10 @@ class Windowing(object):
           and self.accumulation_mode == other.accumulation_mode
           and self.timestamp_combiner == other.timestamp_combiner)
     return False
+
+  def __hash__(self):
+    return hash((self.windowfn, self.triggerfn, self.accumulation_mode,
+         self.timestamp_combiner))
 
   def is_default(self):
     return self._is_default
