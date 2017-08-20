@@ -91,18 +91,30 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   private final Deque<SparkWatermarks> times = new LinkedList<>();
   private final Coder<T> coder;
   private Instant initialSystemTime;
+  private final boolean isWatermarkSynced;
 
   private Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE; //for test purposes.
 
-  private CreateStream(Duration batchDuration, Instant initialSystemTime, Coder<T> coder) {
+  private CreateStream(Duration batchDuration,
+                       Instant initialSystemTime,
+                       Coder<T> coder,
+                       boolean isWatermarkSynced) {
     this.batchDuration = batchDuration;
     this.initialSystemTime = initialSystemTime;
     this.coder = coder;
+    this.isWatermarkSynced = isWatermarkSynced;
+  }
+
+  /** Set the batch interval for the stream. */
+  public static <T> CreateStream<T> of(Coder<T> coder,
+                                       Duration batchInterval,
+                                       boolean isWatermarkSynced) {
+    return new CreateStream<>(batchInterval, new Instant(0), coder, isWatermarkSynced);
   }
 
   /** Set the batch interval for the stream. */
   public static <T> CreateStream<T> of(Coder<T> coder, Duration batchInterval) {
-    return new CreateStream<>(batchInterval, new Instant(0), coder);
+    return of(coder, batchInterval, true);
   }
 
   /**
@@ -201,6 +213,10 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
    */
   public Queue<SparkWatermarks> getTimes() {
     return times;
+  }
+
+  public boolean isWatermarkSynced() {
+    return isWatermarkSynced;
   }
 
   @Override

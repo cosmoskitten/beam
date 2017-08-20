@@ -168,12 +168,19 @@ public final class StreamingTransformTranslator {
           rddQueue.offer(rdd);
         }
 
-        JavaInputDStream<WindowedValue<T>> javaInputDStream =
-            new JavaInputDStream<>(new WatermarkSyncedDStream<>(rddQueue,
-                                                                transform.getBatchDuration(),
-                                                                context.getStreamingContext()
-                                                                       .ssc()),
-                                   JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
+        final JavaInputDStream<WindowedValue<T>> javaInputDStream;
+
+        if (transform.isWatermarkSynced()) {
+          final WatermarkSyncedDStream<T> watermarkSyncedDStream =
+              new WatermarkSyncedDStream<>(rddQueue,
+                                           transform.getBatchDuration(),
+                                           context.getStreamingContext().ssc());
+          javaInputDStream =
+              new JavaInputDStream<>(watermarkSyncedDStream,
+                                     JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
+        } else {
+          javaInputDStream = jssc.queueStream(rddQueue, true);
+        }
 
         UnboundedDataset<T> unboundedDataset = new UnboundedDataset<T>(
             javaInputDStream, Collections.singletonList(javaInputDStream.inputDStream().id()));

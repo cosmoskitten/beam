@@ -101,18 +101,13 @@ public class GlobalWatermarkHolder {
    */
   @SuppressWarnings("unchecked")
   public static Map<Integer, SparkWatermarks> get(Long cacheInterval) {
-    if (driverWatermarks != null) {
-      // if we are executing in local mode simply return the local values.
-      return driverWatermarks;
-    } else {
-      if (watermarkCache == null) {
-        initWatermarkCache(cacheInterval);
-      }
-      try {
-        return watermarkCache.get("SINGLETON");
-      } catch (ExecutionException e) {
-        throw new RuntimeException(e);
-      }
+    if (watermarkCache == null) {
+      initWatermarkCache(cacheInterval);
+    }
+    try {
+      return watermarkCache.get("SINGLETON");
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -190,7 +185,6 @@ public class GlobalWatermarkHolder {
   private static void updateWatermarks(BlockManager blockManager,
                                        Map<Integer, SparkWatermarks> newValues) {
     if (!newValues.isEmpty()) {
-      driverWatermarks = newValues;
       blockManager.removeBlock(WATERMARKS_BLOCK_ID, true);
       blockManager.putSingle(
           WATERMARKS_BLOCK_ID,
@@ -220,7 +214,6 @@ public class GlobalWatermarkHolder {
   @VisibleForTesting
   public static synchronized void clear() {
     sourceTimes.clear();
-    driverWatermarks = null;
     inFlightBatchTime = null;
     lastWatermarkedBatchTime = 0;
     SparkEnv sparkEnv = SparkEnv.get();
