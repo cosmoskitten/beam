@@ -268,10 +268,10 @@ public class GlobalWatermarkHolder {
 
     @Override
     public void onBatchCompleted(JavaStreamingListenerBatchCompleted batchCompleted) {
+      GlobalWatermarkHolder.advance();
+
       lastWatermarkedBatchTime =
           laterOf(lastWatermarkedBatchTime, timeOf(batchCompleted.batchInfo()));
-
-      GlobalWatermarkHolder.advance();
 
       LOG.info("Batch with timestamp: {} has completed, watermarks have been updated.",
                lastWatermarkedBatchTime);
