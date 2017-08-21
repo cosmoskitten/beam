@@ -54,21 +54,23 @@ import org.joda.time.Instant;
  *
  * <p>Example 1:
  *
- * {@code
- * CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
- *     .nextBatch(
- *         TimestampedValue.of("foo", endOfGlobalWindow),
- *         TimestampedValue.of("bar", endOfGlobalWindow))
- *     .advanceNextBatchWatermarkToInfinity();
+ * <pre>{@code
+ * CreateStream.of(StringUtf8Coder.of(), batchDuration)
+ *   .nextBatch(
+ *     TimestampedValue.of("foo", endOfGlobalWindow),
+ *     TimestampedValue.of("bar", endOfGlobalWindow))
+ *   .advanceNextBatchWatermarkToInfinity();
  * }
+ * </pre>
  * The first batch will see the default start-of-time WM of
  * {@link BoundedWindow#TIMESTAMP_MIN_VALUE} and any following batch will see
  * the end-of-time WM {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
- *
+ * <br/>
+ * <br/>
  * <p>Example 2:
  *
- * {@code
- * CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
+ * <pre>{@code
+ * CreateStream.of(VarIntCoder.of(), batchDuration)
  *     .nextBatch(
  *         TimestampedValue.of(1, instant))
  *     .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(20)))
@@ -78,11 +80,12 @@ import org.joda.time.Instant;
  *         TimestampedValue.of(3, instant))
  *     .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(30)))
  * }
+ * </pre>
  * The first batch will see the start-of-time WM and the second will see the advanced (+20 min.) WM.
  * The third WM will see the WM advanced to +30 min, because this is the next advancement of the WM
  * regardless of where it ws called in the construction of CreateStream.
  * //TODO: write a proper Builder enforcing all those rules mentioned.
- * @param <T> stream type.
+ * @param <T> The type of the element in this stream.
  */
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
 
@@ -108,24 +111,24 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   /**
    * Creates a new Spark based stream intended for test purposes.
    *
-   * @param batchInterval the batch duration (interval) to be used for creating this stream.
+   * @param batchDuration the batch duration (interval) to be used for creating this stream.
    * @param coder the coder to be used for this stream.
    * @param forceWatermarkSync whether this stream should be synced with the advancement of the
    *                           watermark maintained by the
    *                           {@link org.apache.beam.runners.spark.util.GlobalWatermarkHolder}.
    */
   public static <T> CreateStream<T> of(Coder<T> coder,
-                                       Duration batchInterval,
+                                       Duration batchDuration,
                                        boolean forceWatermarkSync) {
-    return new CreateStream<>(batchInterval, new Instant(0), coder, forceWatermarkSync);
+    return new CreateStream<>(batchDuration, new Instant(0), coder, forceWatermarkSync);
   }
 
   /**
    * Creates a new Spark based stream without forced watermark sync, intended for test purposes.
    * See also {@link CreateStream#of(Coder, Duration, boolean)}.
    */
-  public static <T> CreateStream<T> of(Coder<T> coder, Duration batchInterval) {
-    return of(coder, batchInterval, true);
+  public static <T> CreateStream<T> of(Coder<T> coder, Duration batchDuration) {
+    return of(coder, batchDuration, true);
   }
 
   /**
