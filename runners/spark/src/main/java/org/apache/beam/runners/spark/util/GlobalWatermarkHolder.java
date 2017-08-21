@@ -39,7 +39,6 @@ import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.BlockId;
 import org.apache.spark.storage.BlockManager;
 import org.apache.spark.storage.BlockResult;
-import org.apache.spark.storage.BlockStore;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
@@ -47,7 +46,7 @@ import org.joda.time.Instant;
 import scala.Option;
 
 /**
- * A {@link BlockStore} variable to hold the global watermarks for a micro-batch.
+ * A {@link BlockManager} variable to hold the global watermarks for a micro-batch.
  *
  * <p>For each source, holds a queue for the watermarks of each micro-batch that was read,
  * and advances the watermarks according to the queue (first-in-first-out).
