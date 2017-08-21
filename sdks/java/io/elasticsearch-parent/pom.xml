@@ -21,16 +21,16 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-io-parent</artifactId>
-        <version>2.2.0-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
-    </parent>
+  <parent>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>beam-sdks-java-io-parent</artifactId>
+    <version>2.2.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
 
-    <artifactId>beam-sdks-java-io-elasticsearch</artifactId>
+    <artifactId>beam-sdks-java-io-elasticsearch-parent</artifactId>
+    <packaging>pom</packaging>
     <name>Apache Beam :: SDKs :: Java :: IO :: Elasticsearch</name>
-    <description>IO to read and write on Elasticsearch</description>
 
     <properties>
         <elasticsearch.client.rest.version>5.0.0</elasticsearch.client.rest.version>
@@ -132,39 +132,11 @@
             </exclusions>
         </dependency>
 
-        <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-        </dependency>
 
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpasyncclient</artifactId>
-            <version>${httpcomponents.httpasyncclient.version}</version>
-        </dependency>
 
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpcore-nio</artifactId>
-            <version>${httpcomponents.core.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpcore</artifactId>
-            <version>${httpcomponents.core.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <version>${httpcomponents.httpclient.version}</version>
-        </dependency>
     </dependencies>
-
+    <modules>
+        <module>elasticsearch-tests-2</module>
+        <module>elasticsearch-tests-5</module>
+    </modules>
 </project>
