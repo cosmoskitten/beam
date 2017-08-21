@@ -62,6 +62,7 @@ public class GlobalWatermarkHolder {
   private static final Map<Integer, Queue<SparkWatermarks>> sourceTimes = new HashMap<>();
   private static final BlockId WATERMARKS_BLOCK_ID = BlockId.apply("broadcast_0WATERMARKS");
 
+  private static volatile Map<Integer, SparkWatermarks> driverWatermarks = null;
   private static volatile LoadingCache<String, Map<Integer, SparkWatermarks>> watermarkCache = null;
   private static volatile long lastWatermarkedBatchTime = 0;
 
@@ -96,6 +97,10 @@ public class GlobalWatermarkHolder {
    */
   @SuppressWarnings("unchecked")
   public static Map<Integer, SparkWatermarks> get(Long cacheInterval) {
+    if (driverWatermarks != null) {
+      // if we are executing in local mode simply return the local values.
+      return driverWatermarks;
+    }
     if (watermarkCache == null) {
       watermarkCache = initWatermarkCache(cacheInterval);
     }
@@ -215,12 +220,15 @@ public class GlobalWatermarkHolder {
 
   private static void storeWatermarks(
       final Map<Integer, SparkWatermarks> newValues, final BlockManager blockManager) {
+    driverWatermarks = newValues;
     blockManager.removeBlock(WATERMARKS_BLOCK_ID, true);
     blockManager.putSingle(
         WATERMARKS_BLOCK_ID,
         newValues,
         StorageLevel.MEMORY_ONLY(),
         true);
+
+    LOG.info("Put new watermark block: {}", newValues);
   }
 
   private static Map<Integer, SparkWatermarks> initWatermarks(final BlockManager blockManager) {
@@ -244,6 +252,7 @@ public class GlobalWatermarkHolder {
   public static synchronized void clear() {
     sourceTimes.clear();
     lastWatermarkedBatchTime = 0;
+    driverWatermarks = null;
     final SparkEnv sparkEnv = SparkEnv.get();
     if (sparkEnv != null) {
       final BlockManager blockManager = sparkEnv.blockManager();

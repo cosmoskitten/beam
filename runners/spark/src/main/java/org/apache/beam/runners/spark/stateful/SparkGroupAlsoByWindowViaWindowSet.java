@@ -334,6 +334,9 @@ public class SparkGroupAlsoByWindowViaWindowSet {
                                                          windowingStrategy,
                                                          droppedDueToLateness));
 
+                          LOG.trace(transformFullName + ": non expired input elements: {}",
+                                    elements);
+
                           reduceFnRunner.processElements(nonExpiredElements);
                         } catch (Exception e) {
                           throw new RuntimeException(

@@ -105,6 +105,8 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
              stopwatch.elapsed(TimeUnit.MILLISECONDS),
              batchTime);
 
+    LOG.info("Watermarks are now: {}", GlobalWatermarkHolder.get(batchDuration));
+
     LOG.trace("AFTER waiting for watermark sync, "
                   + "LastWatermarkedBatchTime: {}, current batch time: {}",
               GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
