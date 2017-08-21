@@ -43,7 +43,9 @@
     <module>amqp</module>
     <module>cassandra</module>
     <module>common</module>
-    <module>elasticsearch-parent</module>
+    <module>elasticsearch</module>
+    <module>elasticsearch-tests-2</module>
+    <module>elasticsearch-tests-5</module>
     <module>google-cloud-platform</module>
     <module>hadoop-common</module>
     <module>hadoop-file-system</module>
@@ -58,7 +60,6 @@
     <module>mqtt</module>
     <module>solr</module>
     <module>xml</module>
-    <module>elasticsearch</module>
   </modules>
 
   <profiles>
