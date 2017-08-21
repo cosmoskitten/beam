@@ -61,7 +61,6 @@ public class GlobalWatermarkHolder {
   private static final Map<Integer, Queue<SparkWatermarks>> sourceTimes = new HashMap<>();
   private static final BlockId WATERMARKS_BLOCK_ID = BlockId.apply("broadcast_0WATERMARKS");
 
-  private static volatile Map<Integer, SparkWatermarks> driverWatermarks = null;
   private static volatile LoadingCache<String, Map<Integer, SparkWatermarks>> watermarkCache = null;
 
   private static volatile long lastWatermarkedBatchTime = 0;
