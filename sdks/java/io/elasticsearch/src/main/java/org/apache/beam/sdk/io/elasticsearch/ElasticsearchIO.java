@@ -919,12 +919,13 @@ public class ElasticsearchIO {
           JsonNode items = searchResult.path("items");
           //some items present in bulk might have errors, concatenate error messages
           for (JsonNode item : items) {
-            JsonNode errorRoot = null;
+            String errorRootName = "";
             if (backendVersion == 2){
-              errorRoot = item.path("create");
+              errorRootName = "create";
             } else if (backendVersion == 5){
-              errorRoot = item.path("index");
+              errorRootName = "index";
             }
+            JsonNode errorRoot = item.path(errorRootName);
             JsonNode error = errorRoot.get("error");
             if (error != null) {
               String type = error.path("type").asText();
