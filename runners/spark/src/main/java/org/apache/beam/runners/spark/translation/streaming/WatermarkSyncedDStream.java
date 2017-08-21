@@ -21,9 +21,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -73,20 +71,12 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
     }
   }
 
-  private boolean watermarkOutOfSync(long batchTime) {
+  private boolean watermarkOutOfSync(final long batchTime) {
     return batchTime - GlobalWatermarkHolder.getLastWatermarkedBatchTime() > batchDuration;
   }
 
   private boolean isFirstBatch() {
     return GlobalWatermarkHolder.getInFlightBatchTime() == null;
-  }
-
-  private boolean watermarkIsPositiveInf() {
-    final SparkTimerInternals sparkTimerInternals =
-        SparkTimerInternals.global(GlobalWatermarkHolder.get(batchDuration));
-    sparkTimerInternals.advanceWatermark();
-    return sparkTimerInternals.currentInputWatermarkTime()
-                              .equals(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
   private RDD<WindowedValue<T>> generateRdd() {
@@ -96,7 +86,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
   }
 
   @Override
-  public scala.Option<RDD<WindowedValue<T>>> compute(Time validTime) {
+  public scala.Option<RDD<WindowedValue<T>>> compute(final Time validTime) {
     final long batchTime = validTime.milliseconds();
 
     LOG.trace("BEFORE waiting for watermark sync "

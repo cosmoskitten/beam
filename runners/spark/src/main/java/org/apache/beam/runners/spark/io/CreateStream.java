@@ -91,28 +91,39 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   private final Deque<SparkWatermarks> times = new LinkedList<>();
   private final Coder<T> coder;
   private Instant initialSystemTime;
-  private final boolean isWatermarkSynced;
+  private final boolean forceWatermarkSync;
 
   private Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE; //for test purposes.
 
   private CreateStream(Duration batchDuration,
                        Instant initialSystemTime,
                        Coder<T> coder,
-                       boolean isWatermarkSynced) {
+                       boolean forceWatermarkSync) {
     this.batchDuration = batchDuration;
     this.initialSystemTime = initialSystemTime;
     this.coder = coder;
-    this.isWatermarkSynced = isWatermarkSynced;
+    this.forceWatermarkSync = forceWatermarkSync;
   }
 
-  /** Set the batch interval for the stream. */
+  /**
+   * Creates a new Spark based stream intended for test purposes.
+   *
+   * @param batchInterval the batch duration (interval) to be used for creating this stream.
+   * @param coder the coder to be used for this stream.
+   * @param forceWatermarkSync whether this stream should be synced with the advancement of the
+   *                           watermark maintained by the
+   *                           {@link org.apache.beam.runners.spark.util.GlobalWatermarkHolder}.
+   */
   public static <T> CreateStream<T> of(Coder<T> coder,
                                        Duration batchInterval,
-                                       boolean isWatermarkSynced) {
-    return new CreateStream<>(batchInterval, new Instant(0), coder, isWatermarkSynced);
+                                       boolean forceWatermarkSync) {
+    return new CreateStream<>(batchInterval, new Instant(0), coder, forceWatermarkSync);
   }
 
-  /** Set the batch interval for the stream. */
+  /**
+   * Creates a new Spark based stream without forced watermark sync, intended for test purposes.
+   * See also {@link CreateStream#of(Coder, Duration, boolean)}.
+   */
   public static <T> CreateStream<T> of(Coder<T> coder, Duration batchInterval) {
     return of(coder, batchInterval, true);
   }
@@ -124,8 +135,7 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   @SafeVarargs
   public final CreateStream<T> nextBatch(TimestampedValue<T>... batchElements) {
     // validate timestamps if timestamped elements.
-    for (TimestampedValue<T> element: batchElements) {
-      TimestampedValue timestampedValue = (TimestampedValue) element;
+    for (final TimestampedValue<T> timestampedValue: batchElements) {
       checkArgument(
           timestampedValue.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
           "Elements must have timestamps before %s. Got: %s",
@@ -215,8 +225,8 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
     return times;
   }
 
-  public boolean isWatermarkSynced() {
-    return isWatermarkSynced;
+  public boolean isForceWatermarkSync() {
+    return forceWatermarkSync;
   }
 
   @Override
