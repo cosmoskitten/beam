@@ -97,7 +97,7 @@ public class GlobalWatermarkHolder {
   @SuppressWarnings("unchecked")
   public static Map<Integer, SparkWatermarks> get(Long cacheInterval) {
     if (watermarkCache == null) {
-      initWatermarkCache(cacheInterval);
+      watermarkCache = initWatermarkCache(cacheInterval);
     }
     try {
       return watermarkCache.get("SINGLETON");
@@ -106,14 +106,17 @@ public class GlobalWatermarkHolder {
     }
   }
 
-  private static synchronized void initWatermarkCache(Long batchDuration) {
-    if (watermarkCache == null) {
-      watermarkCache =
-          CacheBuilder.newBuilder()
-              // expire watermarks every half batch duration to ensure they update in every batch.
-              .expireAfterWrite(batchDuration / 2, TimeUnit.MILLISECONDS)
-              .build(new WatermarksLoader());
-    }
+  private static synchronized LoadingCache<String, Map<Integer, SparkWatermarks>>
+      initWatermarkCache(final Long batchDuration) {
+
+    checkState(
+        watermarkCache == null, "watermarkCache must be null prior to initialization.");
+
+    return CacheBuilder.newBuilder()
+        // expire watermarks every half batch duration to ensure they update in every batch.
+        .expireAfterWrite(batchDuration / 2, TimeUnit.MILLISECONDS)
+        .build(new WatermarksLoader());
+
   }
 
   /**
@@ -307,6 +310,8 @@ public class GlobalWatermarkHolder {
 
       GlobalWatermarkHolder.advance(Long.toString(currentBatchTime));
 
+      // make sure to update the last watermarked batch time AFTER the watermarks have already
+      // been updated (i.e., after the call to GlobalWatermarkHolder.advance(...))
       lastWatermarkedBatchTime =
           laterOf(lastWatermarkedBatchTime, currentBatchTime);
 
