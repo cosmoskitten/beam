@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.util;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -45,7 +44,6 @@ import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaBatchInfo;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
-import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchStarted;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,17 +60,12 @@ public class GlobalWatermarkHolder {
   private static final BlockId WATERMARKS_BLOCK_ID = BlockId.apply("broadcast_0WATERMARKS");
 
   private static volatile LoadingCache<String, Map<Integer, SparkWatermarks>> watermarkCache = null;
-
   private static volatile long lastWatermarkedBatchTime = 0;
-  private static volatile Long inFlightBatchTime = null;
 
   public static long getLastWatermarkedBatchTime() {
     return lastWatermarkedBatchTime;
   }
 
-  public static Long getInFlightBatchTime() {
-    return inFlightBatchTime;
-  }
 
   public static void add(int sourceId, SparkWatermarks sparkWatermarks) {
     Queue<SparkWatermarks> timesQueue = sourceTimes.get(sourceId);
@@ -213,7 +206,6 @@ public class GlobalWatermarkHolder {
   @VisibleForTesting
   public static synchronized void clear() {
     sourceTimes.clear();
-    inFlightBatchTime = null;
     lastWatermarkedBatchTime = 0;
     SparkEnv sparkEnv = SparkEnv.get();
     if (sparkEnv != null) {
@@ -272,12 +264,6 @@ public class GlobalWatermarkHolder {
 
     private long laterOf(long t1, long t2) {
       return Math.max(t1, t2);
-    }
-
-    @Override
-    public void onBatchStarted(JavaStreamingListenerBatchStarted batchStarted) {
-      inFlightBatchTime = laterOf(Optional.fromNullable(inFlightBatchTime).or(0L),
-                                  timeOf(batchStarted.batchInfo()));
     }
 
     @Override

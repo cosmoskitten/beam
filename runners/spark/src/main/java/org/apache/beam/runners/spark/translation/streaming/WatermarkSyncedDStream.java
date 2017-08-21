@@ -56,6 +56,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
 
   private final Queue<JavaRDD<WindowedValue<T>>> rdds;
   private final Long batchDuration;
+  private volatile boolean isFirst = true;
 
   public WatermarkSyncedDStream(final Queue<JavaRDD<WindowedValue<T>>> rdds,
                                 final Long batchDuration,
@@ -76,7 +77,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
   }
 
   private boolean isFirstBatch() {
-    return GlobalWatermarkHolder.getInFlightBatchTime() == null;
+    return isFirst;
   }
 
   private RDD<WindowedValue<T>> generateRdd() {
@@ -89,9 +90,8 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
   public scala.Option<RDD<WindowedValue<T>>> compute(final Time validTime) {
     final long batchTime = validTime.milliseconds();
 
-    LOG.trace("BEFORE waiting for watermark sync "
-                  + "InFlightBatchTime: {}, LastWatermarkedBatchTime: {}, current batch time: {}",
-              GlobalWatermarkHolder.getInFlightBatchTime(),
+    LOG.trace("BEFORE waiting for watermark sync, "
+                  + "LastWatermarkedBatchTime: {}, current batch time: {}",
               GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
               batchTime);
 
@@ -105,13 +105,14 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
              stopwatch.elapsed(TimeUnit.MILLISECONDS),
              batchTime);
 
-    LOG.trace("AFTER waiting for watermark sync "
-                  + "InFlightBatchTime: {}, LastWatermarkedBatchTime: {}, current batch time: {}",
-              GlobalWatermarkHolder.getInFlightBatchTime(),
+    LOG.trace("AFTER waiting for watermark sync, "
+                  + "LastWatermarkedBatchTime: {}, current batch time: {}",
               GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
               batchTime);
 
-    return scala.Option.apply(generateRdd());
+    final RDD<WindowedValue<T>> rdd = generateRdd();
+    isFirst = false;
+    return scala.Option.apply(rdd);
   }
 
   @Override
