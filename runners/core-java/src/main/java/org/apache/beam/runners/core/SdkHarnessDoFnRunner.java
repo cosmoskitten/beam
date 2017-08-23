@@ -40,8 +40,6 @@ public class SdkHarnessDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT,
   /** null between bundles */
   @Nullable private SdkHarnessClient.ActiveBundle activeBundle;
 
-  private FnDataReceiver<WindowedValue<InputT>> inputReceiver;
-
   private SdkHarnessDoFnRunner(
       SdkHarnessClient sdkHarnessClient,
       String processBundleDescriptorId) {
