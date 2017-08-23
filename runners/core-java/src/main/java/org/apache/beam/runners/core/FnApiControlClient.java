@@ -118,7 +118,7 @@ class FnApiControlClient implements Closeable {
   private class ResponseStreamObserver implements StreamObserver<BeamFnApi.InstructionResponse> {
     /**
      * Processes an incoming {@link BeamFnApi.InstructionResponse} by correlating it with the
-     * corresponding {@link BeamFnApi.InstructionRequest} and completed the future that was returned
+     * corresponding {@link BeamFnApi.InstructionRequest} and completes the future that was returned
      * by {@link #handle}.
      */
     @Override
