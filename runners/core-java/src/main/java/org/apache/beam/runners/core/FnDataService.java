@@ -31,8 +31,15 @@ import org.apache.beam.sdk.values.KV;
  */
 public interface FnDataService {
 
+  /**
+   * A logical endpoint is a pair of an instruction ID corresponding to the {@link
+   * org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest} and the {@link
+   * org.apache.beam.fn.v1.BeamFnApi.Target} within the processing graph. This enables the same
+   * {@link FnDataService} to be re-used across multiple bundles.
+   */
   @AutoValue
   abstract class LogicalEndpoint {
+
     public abstract String getInstructionId();
 
     public abstract BeamFnApi.Target getTarget();
@@ -43,7 +50,7 @@ public interface FnDataService {
   }
 
   /**
-   * Registers a receiver to be notified upon any incoming
+   * Registers a receiver to be notified upon any incoming elements.
    *
    * <p>The provided coder is used to decode inbound elements. The decoded elements are passed to
    * the provided receiver.
@@ -66,7 +73,7 @@ public interface FnDataService {
    *
    * <p>The provided coder is used to encode elements on the outbound stream.
    *
-   * <p>Closing the returned consumer signals the end of the stream.
+   * <p>Closing the returned receiver signals the end of the stream.
    *
    * <p>The returned receiver is not thread safe.
    */
