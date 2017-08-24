@@ -21,7 +21,6 @@ import common_job_properties
 // This job runs the Beam performance tests on PerfKit Benchmarker.
 job('beam_PerformanceTests_JDBC'){
     // Set default Beam job properties.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
 
     // Run job in postcommit every 6 hours, don't trigger every push, and
     // don't email individual committers.
@@ -63,7 +62,20 @@ job('beam_PerformanceTests_JDBC'){
             '-DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests" ]\''
     ]
 
+    // Allow the test to only run on particular nodes
+    // TODO: Remove once the tests can run on all nodes
+    parameters {
+        nodeParam('TEST_HOST') {
+            description('select test host beam1 till kubectl is installed in other hosts')
+            defaultNodes(['beam1'])
+            allowedNodes(['beam1'])
+            trigger('multiSelectionDisallowed')
+            eligibility('IgnoreOfflineNodeEligibility')
+        }
+    }
+
     steps {
+        shell('PATH=/usr/lib/google-cloud-sdk/bin:$PATH')
         shell(clean_install_command.join(' '))
         shell(io_it_suite_command.join(' '))
     }
