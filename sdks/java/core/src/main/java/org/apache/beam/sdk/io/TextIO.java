@@ -269,8 +269,8 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
-      abstract Builder setCompression(Compression compression);
       abstract Builder setMatchConfiguration(MatchConfiguration matchConfiguration);
+      abstract Builder setCompression(Compression compression);
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
       abstract Builder setDelimiter(byte[] delimiter);
 
@@ -389,10 +389,7 @@ public class TextIO {
 
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
-      return CompressedSource.from(
-          new TextSource(
-              getFilepattern(),
-              getMatchConfiguration().getEmptyMatchTreatment(),
+      return CompressedSource.from(new TextSource(getFilepattern(), getMatchConfiguration().getEmptyMatchTreatment(),
               getDelimiter()))
           .withCompression(getCompression());
     }
