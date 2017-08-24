@@ -478,7 +478,7 @@ public class AvroIO {
     public PCollection<T> expand(PCollection<String> input) {
       checkNotNull(getSchema(), "schema");
       return input
-          .apply(Match.filepatterns())
+          .apply(FileIO.matchAll())
           .apply(
               "Read all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
@@ -633,7 +633,7 @@ public class AvroIO {
             }
           };
       return input
-          .apply(Match.filepatterns())
+          .apply(FileIO.matchAll())
           .apply(
               "Parse all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
