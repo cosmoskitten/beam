@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.io.TextIO.CompressionType.DEFLATE;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.GZIP;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.ZIP;
-import static org.apache.beam.sdk.transforms.Watch.Growth.afterTimeSinceNewOutput;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -75,6 +74,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -890,7 +890,8 @@ public class TextIOReadTest {
                 // Make sure that compression type propagates into readAll()
                 .withCompressionType(ZIP)
                 .watchForNewFiles(
-                    Duration.millis(100), afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                    Duration.millis(100),
+                    Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
 
     Thread writer =
         new Thread() {
