@@ -390,11 +390,9 @@ public class TextIO {
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
       return CompressedSource.from(
-              new TextSource(
-                  getFilepattern(),
-                  getMatchConfiguration().getEmptyMatchTreatment(),
-                  getDelimiter()))
-          .withCompression(getCompression());
+          new TextSource(getFilepattern(), getMatchConfiguration().getEmptyMatchTreatment(),
+          getDelimiter()))
+    .withCompression(getCompression());
     }
 
     @Override
