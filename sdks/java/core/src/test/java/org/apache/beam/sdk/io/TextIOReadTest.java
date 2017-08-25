@@ -204,7 +204,9 @@ public class TextIOReadTest {
       }
     }
 
-    TextIO.Read read = TextIO.read().from(filename);
+    byte[] separator = {'\n'};
+
+    TextIO.Read read = TextIO.read().from(filename).withSeparator(separator);
 
     PCollection<String> output = p.apply(read);
 
@@ -791,8 +793,8 @@ public class TextIOReadTest {
   private TextSource prepareSource(byte[] data) throws IOException {
     Path path = Files.createTempFile(tempFolder, "tempfile", "ext");
     Files.write(path, data);
-    return new TextSource(
-        ValueProvider.StaticValueProvider.of(path.toString()), EmptyMatchTreatment.DISALLOW);
+    return new TextSource(ValueProvider.StaticValueProvider.of(path.toString()),
+        EmptyMatchTreatment.DISALLOW, null);
   }
 
   @Test

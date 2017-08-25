@@ -39,25 +39,30 @@ import org.apache.beam.sdk.options.ValueProvider;
  * <p>A {@link FileBasedSource} which can decode records delimited by newline characters.
  *
  * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or
- * {@code \r\n} as the delimiter. This source is not strict and supports decoding the last record
+ * {@code \r\n} as the separator. This source is not strict and supports decoding the last record
  * even if it is not delimited. Finally, no records are decoded if the stream is empty.
  *
  * <p>This source supports reading from any arbitrary byte position within the stream. If the
- * starting position is not {@code 0}, then bytes are skipped until the first delimiter is found
+ * starting position is not {@code 0}, then bytes are skipped until the first separator is found
  * representing the beginning of the first record to be decoded.
  */
 @VisibleForTesting
 class TextSource extends FileBasedSource<String> {
-  TextSource(ValueProvider<String> fileSpec) {
-    this(fileSpec, EmptyMatchTreatment.DISALLOW);
+  byte[] separator;
+
+  TextSource(ValueProvider<String> fileSpec, byte[] separator) {
+    this(fileSpec, EmptyMatchTreatment.DISALLOW, separator);
   }
 
-  TextSource(ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment) {
+  TextSource(ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment,
+      byte[] separator) {
     super(fileSpec, emptyMatchTreatment, 1L);
+    this.separator = separator;
   }
 
-  private TextSource(MatchResult.Metadata metadata, long start, long end) {
+  private TextSource(MatchResult.Metadata metadata, long start, long end, byte[] separator) {
     super(metadata, 1L, start, end);
+    this.separator = separator;
   }
 
   @Override
@@ -65,12 +70,13 @@ class TextSource extends FileBasedSource<String> {
       MatchResult.Metadata metadata,
       long start,
       long end) {
-    return new TextSource(metadata, start, end);
+    return new TextSource(metadata, start, end, separator);
+
   }
 
   @Override
   protected FileBasedReader<String> createSingleFileReader(PipelineOptions options) {
-    return new TextBasedReader(this);
+    return new TextBasedReader(this, separator);
   }
 
   @Override
@@ -80,7 +86,7 @@ class TextSource extends FileBasedSource<String> {
 
   /**
    * A {@link FileBasedReader FileBasedReader}
-   * which can decode records delimited by newline characters.
+   * which can decode records delimited by separator characters.
    *
    * <p>See {@link TextSource} for further details.
    */
@@ -97,10 +103,12 @@ class TextSource extends FileBasedSource<String> {
     private volatile boolean elementIsPresent;
     private String currentValue;
     private ReadableByteChannel inChannel;
+    private byte[] separator;
 
-    private TextBasedReader(TextSource source) {
+    private TextBasedReader(TextSource source, byte[] separator) {
       super(source);
       buffer = ByteString.EMPTY;
+      this.separator = separator;
     }
 
     @Override
@@ -147,13 +155,13 @@ class TextSource extends FileBasedSource<String> {
     }
 
     /**
-     * Locates the start position and end position of the next delimiter. Will
-     * consume the channel till either EOF or the delimiter bounds are found.
+     * Locates the start position and end position of the next separator. Will
+     * consume the channel till either EOF or the separator bounds are found.
      *
      * <p>This fills the buffer and updates the positions as follows:
      * <pre>{@code
      * ------------------------------------------------------
-     * | element bytes | delimiter bytes | unconsumed bytes |
+     * | element bytes | separator bytes | unconsumed bytes |
      * ------------------------------------------------------
      * 0            start of          end of              buffer
      *              separator         separator           size
@@ -170,23 +178,48 @@ class TextSource extends FileBasedSource<String> {
 
         byte currentByte = buffer.byteAt(bytePositionInBuffer);
 
-        if (currentByte == '\n') {
-          startOfSeparatorInBuffer = bytePositionInBuffer;
-          endOfSeparatorInBuffer = startOfSeparatorInBuffer + 1;
-          break;
-        } else if (currentByte == '\r') {
-          startOfSeparatorInBuffer = bytePositionInBuffer;
-          endOfSeparatorInBuffer = startOfSeparatorInBuffer + 1;
+        if (separator == null) {
+          //default separator
+          if (currentByte == '\n') {
+            startOfSeparatorInBuffer = bytePositionInBuffer;
+            endOfSeparatorInBuffer = startOfSeparatorInBuffer + 1;
+            break;
+          } else if (currentByte == '\r') {
+            startOfSeparatorInBuffer = bytePositionInBuffer;
+            endOfSeparatorInBuffer = startOfSeparatorInBuffer + 1;
 
-          if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 2)) {
-            currentByte = buffer.byteAt(bytePositionInBuffer + 1);
-            if (currentByte == '\n') {
-              endOfSeparatorInBuffer += 1;
+            if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 2)) {
+              currentByte = buffer.byteAt(bytePositionInBuffer + 1);
+              if (currentByte == '\n') {
+                endOfSeparatorInBuffer += 1;
+              }
+            }
+            break;
+          }
+        } else {
+          // user defined separator
+          int i = 0;
+          boolean separatorFound = false;
+          while ((i < separator.length) && (currentByte == separator[i])) {
+            if (i == 0) {
+              startOfSeparatorInBuffer = endOfSeparatorInBuffer = bytePositionInBuffer;
+            }
+            if (i == separator.length - 1) {
+              // set endOfSeparatorInBuffer only if all the separator bytes where matched.
+              // Otherwise endOfSeparatorInBuffer = startOfSeparatorInBuffer which entails no split
+              endOfSeparatorInBuffer = bytePositionInBuffer + i + 1;
+              separatorFound = true;
+            }
+            i++;
+            if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + i + 1)) {
+              currentByte = buffer.byteAt(bytePositionInBuffer + i);
             }
           }
-          break;
-        }
+          if (separatorFound){
+            break;
+          }
 
+        }
         // Move to the next byte in buffer.
         bytePositionInBuffer += 1;
       }
