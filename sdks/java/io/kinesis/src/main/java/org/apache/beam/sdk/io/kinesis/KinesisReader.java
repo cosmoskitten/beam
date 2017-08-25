@@ -173,16 +173,14 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     if (backlogBytesLastCheckTime.plus(backlogBytesCheckThreshold).isAfterNow()) {
       return lastBacklogBytes;
     }
-    long backlogBytes = lastBacklogBytes;
     try {
-      backlogBytes = kinesis.getBacklogBytes(source.getStreamName(), watermark);
+      lastBacklogBytes = kinesis.getBacklogBytes(source.getStreamName(), watermark);
       backlogBytesLastCheckTime = Instant.now();
     } catch (TransientKinesisException e) {
       LOG.warn("Transient exception occurred.", e);
     }
     LOG.info("Total backlog bytes for {} stream with {} watermark: {}", source.getStreamName(),
-        watermark, backlogBytes);
-    lastBacklogBytes = backlogBytes;
-    return backlogBytes;
+        watermark, lastBacklogBytes);
+    return lastBacklogBytes;
   }
 }
