@@ -22,7 +22,6 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -183,7 +182,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             + "FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<BeamRecord> result =
-            boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.simpleQuery(sql));
+            boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
             Arrays.asList("avg1", "avg2",
