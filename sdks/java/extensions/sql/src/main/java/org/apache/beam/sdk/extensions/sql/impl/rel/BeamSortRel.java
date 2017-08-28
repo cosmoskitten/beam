@@ -25,9 +25,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -56,7 +56,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
  * <pre>{@code
  *     select * from t order by id desc limit 10;
- *     select * from t order by id desc limit 10, 5;
+ *     select * from t order by id desc limit 10 offset 5;
  * }</pre>
  *
  * <p>but Order BY without a limit is NOT supported:

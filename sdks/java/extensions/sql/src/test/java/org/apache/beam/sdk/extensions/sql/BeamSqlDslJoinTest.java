@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBo
 import java.sql.Types;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -184,6 +183,6 @@ public class BeamSqlDslJoinTest {
         )
         .and(new TupleTag<BeamRecord>("ORDER_DETAILS2"),
             ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER)
-        ).apply("join", BeamSql.query(sql)).setCoder(RESULT_CODER);
+        ).apply("join", BeamSql.queryMulti(sql)).setCoder(RESULT_CODER);
   }
 }

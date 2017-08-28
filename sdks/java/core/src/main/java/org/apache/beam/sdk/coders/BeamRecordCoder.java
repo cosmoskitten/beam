@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -105,6 +106,6 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   }
 
   public List<Coder> getCoders() {
-    return coders;
+    return Collections.unmodifiableList(coders);
   }
 }

@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -282,7 +283,7 @@ public class BeamRecord implements Serializable {
    * Return the list of data values.
    */
   public List<Object> getDataValues() {
-    return dataValues;
+    return Collections.unmodifiableList(dataValues);
   }
 
   /**
