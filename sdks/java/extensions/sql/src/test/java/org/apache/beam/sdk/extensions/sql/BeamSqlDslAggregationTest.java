@@ -17,14 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import java.math.BigDecimal;
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -32,6 +38,47 @@ import org.junit.Test;
  * with BOUNDED PCollection.
  */
 public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
+  public PCollection<BeamRecord> boundedInput3;
+
+  @Before
+  public void setUp(){
+    BeamRecordSqlType rowTypeInTableB = BeamRecordSqlType.create(
+            Arrays.asList("f_int", "f_double", "f_int2", "f_decimal"),
+            Arrays.asList(Types.INTEGER, Types.DOUBLE, Types.INTEGER, Types.DECIMAL));
+
+    List<BeamRecord> recordsInTableB = new ArrayList<>();
+    BeamRecord row1 = new BeamRecord(rowTypeInTableB
+            , 1, 1.0, 0, new BigDecimal(1));
+    recordsInTableB.add(row1);
+
+    BeamRecord row2 = new BeamRecord(rowTypeInTableB
+            , 4, 4.0, 0, new BigDecimal(4));
+    recordsInTableB.add(row2);
+
+    BeamRecord row3 = new BeamRecord(rowTypeInTableB
+            , 7, 7.0, 0, new BigDecimal(7));
+    recordsInTableB.add(row3);
+
+    BeamRecord row4 = new BeamRecord(rowTypeInTableB
+            , 13, 13.0, 0, new BigDecimal(13));
+    recordsInTableB.add(row4);
+
+    BeamRecord row5 = new BeamRecord(rowTypeInTableB
+            , 5, 5.0, 0, new BigDecimal(5));
+    recordsInTableB.add(row5);
+
+    BeamRecord row6 = new BeamRecord(rowTypeInTableB
+            , 10, 10.0, 0, new BigDecimal(10));
+    recordsInTableB.add(row6);
+
+    BeamRecord row7 = new BeamRecord(rowTypeInTableB
+            , 17, 17.0, 0, new BigDecimal(17));
+    recordsInTableB.add(row7);
+
+    boundedInput3 = PBegin.in(pipeline).apply("boundedInput3",
+            Create.of(recordsInTableB).withCoder(rowTypeInTableB.getRecordCoder()));
+  }
+
   /**
    * GROUP-BY with single aggregation function with bounded PCollection.
    */
@@ -117,7 +164,38 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         , 10.0F, 2.5F, 4.0F, 1.0F
         , 10.0, 2.5, 4.0, 1.0
         , FORMAT.parse("2017-01-01 02:04:03"), FORMAT.parse("2017-01-01 01:01:03")
-        , 1.25, 1.66667, 1, 1);
+        , 1.25, 1.666666667, 1, 1);
+
+    PAssert.that(result).containsInAnyOrder(record);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * GROUP-BY with aggregation functions with BigDeciaml Calculation (Avg, Var_Pop, etc).
+   */
+  @Test
+  public void testAggregationFunctionsWithBoundedOnBigDecimalDivide(){
+    String sql = "SELECT AVG(f_double) as avg1, AVG(f_int) as avg2, "
+            + "VAR_POP(f_double) as varpop1, VAR_POP(f_int) as varpop2, "
+            + "VAR_SAMP(f_double) as varsamp1, VAR_SAMP(f_int) as varsamp2 "
+            + "FROM PCOLLECTION GROUP BY f_int2";
+
+    PCollection<BeamRecord> result =
+            boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.simpleQuery(sql));
+
+    BeamRecordSqlType resultType = BeamRecordSqlType.create(
+            Arrays.asList("avg1", "avg2",
+                    "varpop1", "varpop2",
+                    "varsamp1", "varsamp2"),
+            Arrays.asList(Types.DOUBLE, Types.INTEGER,
+                    Types.DOUBLE, Types.INTEGER,
+                    Types.DOUBLE, Types.INTEGER));
+
+
+    BeamRecord record = new BeamRecord(resultType, 8.142857143, 8,
+            26.40816326, 26,
+            30.80952381, 30);
 
     PAssert.that(result).containsInAnyOrder(record);
 
