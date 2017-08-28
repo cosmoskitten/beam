@@ -148,13 +148,14 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
         Arrays.asList("f_int2", "size", "sum1", "avg1", "max1", "min1", "sum2", "avg2", "max2",
             "min2", "sum3", "avg3", "max3", "min3", "sum4", "avg4", "max4", "min4", "sum5", "avg5",
-            "max5", "min5", "max6", "min6", "varpop1", "varsamp1", "varpop2", "varsamp2"),
+            "max5", "min5", "max6", "min6",
+            "varpop1", "varsamp1", "varpop2", "varsamp2"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.BIGINT, Types.BIGINT, Types.BIGINT,
             Types.BIGINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT,
             Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.FLOAT, Types.FLOAT,
             Types.FLOAT, Types.FLOAT, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE,
-            Types.TIMESTAMP, Types.TIMESTAMP, Types.DOUBLE, Types.DOUBLE, Types.INTEGER,
-            Types.INTEGER));
+            Types.TIMESTAMP, Types.TIMESTAMP,
+            Types.DOUBLE, Types.DOUBLE, Types.INTEGER, Types.INTEGER));
 
     BeamRecord record = new BeamRecord(resultType
         , 0, 4L
