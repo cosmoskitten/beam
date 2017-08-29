@@ -49,7 +49,7 @@ import org.joda.time.Instant;
  *
  * @param <T> the type of the value
  */
-public abstract class WindowedValue<T>  implements Serializable {
+public abstract class WindowedValue<T> {
 
   /**
    * Returns a {@code WindowedValue} with the given value, timestamp,

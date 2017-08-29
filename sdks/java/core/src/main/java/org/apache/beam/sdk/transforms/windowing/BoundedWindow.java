@@ -36,7 +36,7 @@ import org.joda.time.Instant;
  * windows that are logically equal will be treated as equal by {@code equals()} and {@code
  * hashCode()}.
  */
-public abstract class BoundedWindow implements Serializable {
+public abstract class BoundedWindow {
   // The min and max timestamps that won't overflow when they are converted to
   // usec.
 
