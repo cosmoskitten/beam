@@ -1,6 +1,6 @@
 ## Dependencies
 
-add kafka dependency
+Add kafka dependency
 ```maven
 <dependency>
     <groupId>org.apache.beam</groupId>
