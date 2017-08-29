@@ -2,7 +2,7 @@ KafkaIO is a beam connector to [Apache Kafka](http://kafka.apache.org/)'s messag
 
 ## Dependencies
 
-To use KafkaIO you must first add a dependency to `beam-sdks-java-io-kafka`. In Maven:
+To use KafkaIO you must first add a dependency on `beam-sdks-java-io-kafka`
 
 ```maven
 <dependency>
@@ -14,4 +14,4 @@ To use KafkaIO you must first add a dependency to `beam-sdks-java-io-kafka`. In 
 
 ## Documentation
 
-- [KafkaIO javadocs](https://beam.apache.org/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/io/kafka/KafkaIO.html)
+- [KafkaIO class](https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java)
