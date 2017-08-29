@@ -43,11 +43,15 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.util.OrderedCode;
 import org.apache.beam.sdk.util.VarInt;
+import org.joda.time.DateTime;
+import org.joda.time.Days;
+import org.joda.time.MutableDateTime;
 
 /**
  * Given the Spanner Schema, efficiently encodes the mutation group.
  */
 class MutationGroupEncoder {
+  private static final DateTime MIN_DATE = new DateTime(1, 1, 1, 0, 0);
 
   private final SpannerSchema schema;
 
@@ -233,9 +237,7 @@ class MutationGroupEncoder {
       }
       case DATE: {
         Date date = value.getDate();
-        VarInt.encode(date.getYear(), bos);
-        VarInt.encode(date.getMonth(), bos);
-        VarInt.encode(date.getDayOfMonth(), bos);
+        VarInt.encode(encodeDate(date), bos);
         break;
       }
       default:
@@ -448,10 +450,8 @@ class MutationGroupEncoder {
         if (isNull) {
           m.set(fieldName).to((Date) null);
         } else {
-          int year = VarInt.decodeInt(bis);
-          int month = VarInt.decodeInt(bis);
-          int day = VarInt.decodeInt(bis);
-          m.set(fieldName).to(Date.fromYearMonthDay(year, month, day));
+          int days = VarInt.decodeInt(bis);
+          m.set(fieldName).to(decodeDate(days));
         }
         break;
       }
@@ -535,13 +535,9 @@ class MutationGroupEncoder {
           case DATE:
             Date value = val.getDate();
             if (part.isDesc()) {
-              orderedCode.writeSignedNumDecreasing(value.getYear());
-              orderedCode.writeSignedNumDecreasing(value.getMonth());
-              orderedCode.writeSignedNumDecreasing(value.getDayOfMonth());
+              orderedCode.writeSignedNumDecreasing(encodeDate(value));
             } else {
-              orderedCode.writeSignedNumIncreasing(value.getYear());
-              orderedCode.writeSignedNumIncreasing(value.getMonth());
-              orderedCode.writeSignedNumIncreasing(value.getDayOfMonth());
+              orderedCode.writeSignedNumIncreasing(encodeDate(value));
             }
             break;
           default:
@@ -612,13 +608,9 @@ class MutationGroupEncoder {
         } else if (value instanceof Date) {
           Date v = (Date) value;
           if (part.isDesc()) {
-            orderedCode.writeSignedNumDecreasing(v.getYear());
-            orderedCode.writeSignedNumDecreasing(v.getMonth());
-            orderedCode.writeSignedNumDecreasing(v.getDayOfMonth());
+            orderedCode.writeSignedNumDecreasing(encodeDate(v));
           } else {
-            orderedCode.writeSignedNumIncreasing(v.getYear());
-            orderedCode.writeSignedNumIncreasing(v.getMonth());
-            orderedCode.writeSignedNumIncreasing(v.getDayOfMonth());
+            orderedCode.writeSignedNumIncreasing(encodeDate(v));
           }
         } else {
           throw new IllegalArgumentException("Unknown key part " + value);
@@ -638,5 +630,21 @@ class MutationGroupEncoder {
       result.put(column.toLowerCase(), val);
     }
     return result;
+  }
+
+  private static int encodeDate(Date date) {
+
+    MutableDateTime jodaDate = new MutableDateTime();
+    jodaDate.setDate(date.getYear(), date.getMonth(), date.getDayOfMonth());
+
+    return Days.daysBetween(MIN_DATE, jodaDate).getDays();
+  }
+
+  private static Date decodeDate(int daysSinceEpoch) {
+
+    DateTime jodaDate = MIN_DATE.plusDays(daysSinceEpoch);
+
+    return Date
+        .fromYearMonthDay(jodaDate.getYear(), jodaDate.getMonthOfYear(), jodaDate.getDayOfMonth());
   }
 }
