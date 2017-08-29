@@ -204,9 +204,39 @@ public class TextIOReadTest {
       }
     }
 
-    byte[] separator = {'\n'};
+    TextIO.Read read = TextIO.read().from(filename);
 
-    TextIO.Read read = TextIO.read().from(filename).withSeparator(separator);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadStringsWithCustomSeparator() throws Exception {
+    final String[] inputStrings = new String[] {
+        // incomplete separator
+        "To be, or not to be: that |is the question: ",
+        // complete separator
+        "Whether 'tis nobler in the mind to suffer ||",
+        //truncated separator
+        "The slings and arrows of outrageous fortune,|" };
+
+    File tmpFile = Files.createTempFile(tempFolder, "file", "txt").toFile();
+    String filename = tmpFile.getPath();
+
+    try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
+      for (String elem : inputStrings) {
+        byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
+        String line = new String(encodedElem);
+        writer.print(line);
+      }
+    }
+    String[] expected = new String[] {
+        "To be, or not to be: that |is the question: Whether 'tis nobler in the mind to suffer ",
+        "The slings and arrows of outrageous fortune,|" };
+    TextIO.Read read = TextIO.read().from(filename).withSeparator(new byte[] {'|', '|'});
 
     PCollection<String> output = p.apply(read);
 

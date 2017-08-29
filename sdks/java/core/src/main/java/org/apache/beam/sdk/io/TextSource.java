@@ -199,26 +199,24 @@ class TextSource extends FileBasedSource<String> {
         } else {
           // user defined separator
           int i = 0;
-          boolean separatorFound = false;
-          while ((i < separator.length) && (currentByte == separator[i])) {
-            if (i == 0) {
-              startOfSeparatorInBuffer = endOfSeparatorInBuffer = bytePositionInBuffer;
-            }
-            if (i == separator.length - 1) {
-              // set endOfSeparatorInBuffer only if all the separator bytes where matched.
-              // Otherwise endOfSeparatorInBuffer = startOfSeparatorInBuffer which entails no split
-              endOfSeparatorInBuffer = bytePositionInBuffer + i + 1;
-              separatorFound = true;
-            }
+          // initialize separator not found
+          startOfSeparatorInBuffer = endOfSeparatorInBuffer = bytePositionInBuffer;
+          while ((i <= separator.length - 1) && (currentByte == separator[i])) {
+            //read next byte
             i++;
             if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + i + 1)) {
               currentByte = buffer.byteAt(bytePositionInBuffer + i);
+            } else{
+              //corner case: separator truncated at the end of the file
+              startOfSeparatorInBuffer = endOfSeparatorInBuffer = bytePositionInBuffer;
+              break;
             }
           }
-          if (separatorFound){
+          if (i == separator.length) {
+            // all bytes of separator found
+            endOfSeparatorInBuffer = bytePositionInBuffer + i;
             break;
           }
-
         }
         // Move to the next byte in buffer.
         bytePositionInBuffer += 1;
