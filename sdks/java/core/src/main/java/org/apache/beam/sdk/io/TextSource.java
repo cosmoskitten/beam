@@ -206,7 +206,7 @@ class TextSource extends FileBasedSource<String> {
             i++;
             if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + i + 1)) {
               currentByte = buffer.byteAt(bytePositionInBuffer + i);
-            } else{
+            } else {
               //corner case: separator truncated at the end of the file
               startOfSeparatorInBuffer = endOfSeparatorInBuffer = bytePositionInBuffer;
               break;
