@@ -17,13 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -171,6 +177,23 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
+  private static class CheckerBigDecimalDivide
+          implements SerializableFunction<Iterable<BeamRecord>, Void> {
+    @Override public Void apply(Iterable<BeamRecord> input) {
+      Iterator<BeamRecord> iter = input.iterator();
+      assertTrue(iter.hasNext());
+      BeamRecord row = iter.next();
+      assertEquals(row.getDouble("avg1"), 8.142857143, 1e-7);
+      assertTrue(row.getInteger("avg2") == 8);
+      assertEquals(row.getDouble("varpop1"), 26.40816326, 1e-7);
+      assertTrue(row.getInteger("varpop2") == 26);
+      assertEquals(row.getDouble("varsamp1"), 30.80952381, 1e-7);
+      assertTrue(row.getInteger("varsamp2") == 30);
+      assertFalse(iter.hasNext());
+      return null;
+    }
+  }
+
   /**
    * GROUP-BY with aggregation functions with BigDeciaml Calculation (Avg, Var_Pop, etc).
    */
@@ -185,19 +208,14 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
-            Arrays.asList("avg1", "avg2",
+            Arrays.asList("avg1", "avg2", "avg3",
                     "varpop1", "varpop2",
                     "varsamp1", "varsamp2"),
-            Arrays.asList(Types.DOUBLE, Types.INTEGER,
+            Arrays.asList(Types.DOUBLE, Types.INTEGER, Types.DECIMAL,
                     Types.DOUBLE, Types.INTEGER,
                     Types.DOUBLE, Types.INTEGER));
 
-
-    BeamRecord record = new BeamRecord(resultType, 8.142857143, 8,
-            26.40816326, 26,
-            30.80952381, 30);
-
-    PAssert.that(result).containsInAnyOrder(record);
+    PAssert.that(result).satisfies(new CheckerBigDecimalDivide());
 
     pipeline.run().waitUntilFinish();
   }
