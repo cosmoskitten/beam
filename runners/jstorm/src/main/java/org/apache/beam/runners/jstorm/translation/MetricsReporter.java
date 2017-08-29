@@ -36,7 +36,6 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
  */
 class MetricsReporter {
 
-  private static final String METRIC_KEY_SEPARATOR = "__";
   private static final String COUNTER_PREFIX = "__counter";
 
   private final MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
@@ -79,8 +78,8 @@ class MetricsReporter {
 
   private String getMetricNameString(String prefix, MetricResult<?> metricResult) {
     return prefix
-        + METRIC_KEY_SEPARATOR + metricResult.step()
-        + METRIC_KEY_SEPARATOR + metricResult.name().namespace()
-        + METRIC_KEY_SEPARATOR + metricResult.name().name();
+        + CommonInstance.METRIC_KEY_SEPARATOR + metricResult.step()
+        + CommonInstance.METRIC_KEY_SEPARATOR + metricResult.name().namespace()
+        + CommonInstance.METRIC_KEY_SEPARATOR + metricResult.name().name();
   }
 }
