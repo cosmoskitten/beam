@@ -26,6 +26,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -428,7 +429,7 @@ public class TextIO {
               DisplayData.item("watchForNewFilesInterval", getWatchForNewFilesInterval())
                   .withLabel("Interval to watch for new files"))
           .addIfNotNull(
-              DisplayData.item("separator", filepatternDisplay)
+              DisplayData.item("separator", Arrays.toString(getSeparator()))
               .withLabel("Custom separator to split records"));
 
     }
@@ -520,9 +521,13 @@ public class TextIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add(
+      builder
+          .add(
           DisplayData.item("compressionType", getCompressionType().toString())
-              .withLabel("Compression Type"));
+              .withLabel("Compression Type"))
+          .addIfNotNull(
+          DisplayData.item("separator", Arrays.toString(getSeparator()))
+              .withLabel("Custom separator to split records"));
     }
 
     private static class CreateTextSourceFn
