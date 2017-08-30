@@ -180,6 +180,10 @@ message ProcessBundleRequest {
   // (Optional) A list of cache tokens that can be used by an SDK to reuse
   // cached data returned by the State API across multiple bundles.
   repeated bytes cache_tokens = 2;
+
+  // (Optional) A descriptor describing the end point to use for State API
+  // calls.
+  ApiServiceDescriptor state_api_service_descriptor = 3;
 }
 
 // Stable
