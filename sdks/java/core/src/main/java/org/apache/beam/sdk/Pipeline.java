@@ -118,6 +118,7 @@ public class Pipeline {
      * Wraps {@code cause} into a {@link PipelineExecutionException}.
      */
     public PipelineExecutionException(Throwable cause) {
+
       super(cause);
     }
   }
