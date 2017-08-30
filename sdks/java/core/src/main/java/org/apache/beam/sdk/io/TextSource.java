@@ -140,11 +140,17 @@ class TextSource extends FileBasedSource<String> {
       this.inChannel = channel;
       // If the first offset is greater than zero, we need to skip bytes until we see our
       // first separator.
-      if (getCurrentSource().getStartOffset() > 0) {
+      long startOffset = getCurrentSource().getStartOffset();
+      if (startOffset > 0) {
         checkState(channel instanceof SeekableByteChannel,
             "%s only supports reading from a SeekableByteChannel when given a start offset"
             + " greater than 0.", TextSource.class.getSimpleName());
-        long requiredPosition = getCurrentSource().getStartOffset() - 1;
+        long requiredPosition = startOffset - 1;
+        if (separator != null && startOffset >= separator.length) {
+          // we need to move back the offset of at worse separator.size to be sure to see
+          // all the bytes of the separator in the call to findSeparatorBounds() below
+          requiredPosition = startOffset - separator.length;
+        }
         ((SeekableByteChannel) channel).position(requiredPosition);
         findSeparatorBounds();
         buffer = buffer.substring(endOfSeparatorInBuffer);
