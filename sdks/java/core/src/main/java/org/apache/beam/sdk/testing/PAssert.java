@@ -134,6 +134,7 @@ public class PAssert {
     public void processElement(ProcessContext c) {
       SuccessOrFailure e = c.element();
       if (e.isSuccess()) {
+        LOG.debug("SUCCESS_COUNTER incremented.");
         PAssert.successCounter.inc();
       } else {
         PAssert.failureCounter.inc();
