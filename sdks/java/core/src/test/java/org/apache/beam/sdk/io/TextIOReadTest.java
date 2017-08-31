@@ -246,7 +246,8 @@ public class TextIOReadTest {
 
   @Test
   public void testSplittingSourceWithCustomSeparator() throws Exception {
-    TextSource source = prepareSource("asdf||hjkl||xyz".getBytes(StandardCharsets.UTF_8), new byte[]{'|', '|'});
+    TextSource source = prepareSource("asdf||hjkl||xyz".getBytes(StandardCharsets.UTF_8),
+        new byte[] { '|', '|' });
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
@@ -790,7 +791,8 @@ public class TextIOReadTest {
 
   @Test
   public void testSplittingSourceWithCarriageReturnAndLineFeedDelimiter() throws Exception {
-    TextSource source = prepareSource("asdf\r\nhjkl\r\nxyz\r\n".getBytes(StandardCharsets.UTF_8), null);
+    TextSource source = prepareSource("asdf\r\nhjkl\r\nxyz\r\n".getBytes(StandardCharsets.UTF_8),
+        null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
