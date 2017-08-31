@@ -56,6 +56,9 @@
                   <groups>
                     org.apache.beam.sdk.testing.ValidatesRunner
                   </groups>
+                  <excludes>
+                    <exclude>org.apache.beam.sdk.transforms.CombineTest.java</exclude>
+                  </excludes>
                   <excludedGroups>
                     org.apache.beam.sdk.testing.UsesSetState,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
