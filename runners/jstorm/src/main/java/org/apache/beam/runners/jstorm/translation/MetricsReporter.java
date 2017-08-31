@@ -34,11 +34,16 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.testing.PAssert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Class that holds a {@link MetricsContainerStepMap}, and reports metrics to JStorm engine.
  */
 class MetricsReporter {
+
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsReporter.class);
 
   private static final String METRIC_KEY_SEPARATOR = "__";
   private static final String COUNTER_PREFIX = "__metrics";
@@ -88,6 +93,9 @@ class MetricsReporter {
       if (oldValue == null || oldValue < updateValue) {
         AsmCounter counter = metricClient.registerCounter(metricName);
         Long incValue = (oldValue == null ? updateValue : updateValue - oldValue);
+        if (metricResult.name().equals(PAssert.SUCCESS_COUNTER)) {
+          LOG.debug("SUCCESS_COUNTER reported: {}", incValue);
+        }
         counter.update(incValue);
         reportedCounters.put(metricName, updateValue);
       }
