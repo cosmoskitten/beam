@@ -32,7 +32,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import javax.sql.DataSource;
-
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -249,6 +248,43 @@ public class JdbcIOTest implements Serializable {
 
      Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
      PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+     pipeline.run();
+   }
+
+   @Test
+   @Category(NeedsRunner.class)
+   public void testReadAllWithSingleStringParameter() throws Exception {
+    PCollection<TestRow> rows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestRow.getNameForSeed(1),
+                    TestRow.getNameForSeed(2),
+                    TestRow.getNameForSeed(3)))
+            .apply(
+                JdbcIO.<String, TestRow>readAll()
+                    .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+                    .withQuery(
+                        String.format("select name,id from %s where name = ?", readTableName))
+                    .withParameterSetter(
+                        new JdbcIO.PreparedStatementSetter<String>() {
+                          @Override
+                          public void setParameters(
+                              String element, PreparedStatement preparedStatement)
+                              throws Exception {
+                            preparedStatement.setString(1, element);
+                          }
+                        })
+                    .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                    .withCoder(SerializableCoder.of(TestRow.class)));
+
+     PAssert.thatSingleton(
+         rows.apply("Count All", Count.<TestRow>globally()))
+         .isEqualTo(3L);
+
+    PAssert.that(rows)
+        .containsInAnyOrder(TestRow.fromSeed(1), TestRow.fromSeed(2), TestRow.fromSeed(3));
 
      pipeline.run();
    }
