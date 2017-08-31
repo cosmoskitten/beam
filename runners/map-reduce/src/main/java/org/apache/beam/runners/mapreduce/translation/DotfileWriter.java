@@ -30,24 +30,24 @@ public class DotfileWriter {
   public static <StepT extends Graph.AbstractStep, TagT extends Graph.AbstractTag>
   String toDotfile(Graphs.FusedGraph fusedGraph) {
     StringBuilder sb = new StringBuilder();
-    sb.append("\ndigraph G {\n");
+    sb.append("%ndigraph G {%n");
 
     Map<Graphs.FusedStep, String> fusedStepToId = Maps.newHashMap();
     int i = 0;
     for (Graphs.FusedStep fusedStep : fusedGraph.getFusedSteps()) {
       String clusterId = String.format("cluster_%d", i++);
-      sb.append(String.format("  subgraph \"%s\" {\n", clusterId));
-      sb.append(String.format("    \"%s\" [shape=point style=invis];\n", clusterId));
+      sb.append(String.format("  subgraph \"%s\" {%n", clusterId));
+      sb.append(String.format("    \"%s\" [shape=point style=invis];%n", clusterId));
       fusedStepToId.put(fusedStep, clusterId);
 
       Set<String> nodeDefines = Sets.newHashSet();
       for (Graphs.Step step : fusedStep.getSteps()) {
-        nodeDefines.add(String.format("    \"%s\" [shape=box];\n", step.getFullName()));
+        nodeDefines.add(String.format("    \"%s\" [shape=box];%n", step.getFullName()));
         for (Graph.AbstractTag inTag : fusedStep.getInputTags(step)) {
-          nodeDefines.add(String.format("    \"%s\" [shape=ellipse];\n", inTag));
+          nodeDefines.add(String.format("    \"%s\" [shape=ellipse];%n", inTag));
         }
         for (Graph.AbstractTag outTag : fusedStep.getOutputTags(step)) {
-          nodeDefines.add(String.format("    \"%s\" [shape=ellipse];\n", outTag));
+          nodeDefines.add(String.format("    \"%s\" [shape=ellipse];%n", outTag));
         }
       }
       for (String str : nodeDefines) {
@@ -59,35 +59,35 @@ public class DotfileWriter {
       // Edges within fused steps.
       for (Graphs.Step step : fusedStep.getSteps()) {
         for (Graph.AbstractTag inTag : fusedStep.getInputTags(step)) {
-          sb.append(String.format("  \"%s\" -> \"%s\";\n", inTag, step));
+          sb.append(String.format("  \"%s\" -> \"%s\";%n", inTag, step));
         }
         for (Graph.AbstractTag outTag : fusedStep.getOutputTags(step)) {
-          sb.append(String.format("  \"%s\" -> \"%s\";\n", step, outTag));
+          sb.append(String.format("  \"%s\" -> \"%s\";%n", step, outTag));
         }
       }
 
       // Edges between sub-graphs.
       for (Graphs.Tag inTag : fusedGraph.getInputTags(fusedStep)) {
-        sb.append(String.format("  \"%s\" -> \"%s\";\n", inTag, fusedStepToId.get(fusedStep)));
+        sb.append(String.format("  \"%s\" -> \"%s\";%n", inTag, fusedStepToId.get(fusedStep)));
       }
     }
-    sb.append("}\n");
+    sb.append("}%n");
     return sb.toString();
   }
 
   public static String toDotfile(Graphs.FusedStep fusedStep) {
     StringBuilder sb = new StringBuilder();
-    sb.append("\ndigraph G {\n");
+    sb.append("%ndigraph G {%n");
     for (Graphs.Step step : fusedStep.getSteps()) {
-      sb.append(String.format("  \"%s\" [shape=box];\n", step.getFullName()));
+      sb.append(String.format("  \"%s\" [shape=box];%n", step.getFullName()));
       for (Graph.AbstractTag inTag : fusedStep.getInputTags(step)) {
-        sb.append(String.format("  \"%s\" -> \"%s\";\n", inTag, step));
+        sb.append(String.format("  \"%s\" -> \"%s\";%n", inTag, step));
       }
       for (Graph.AbstractTag outTag : fusedStep.getOutputTags(step)) {
-        sb.append(String.format("  \"%s\" -> \"%s\";\n", step, outTag));
+        sb.append(String.format("  \"%s\" -> \"%s\";%n", step, outTag));
       }
     }
-    sb.append("}\n");
+    sb.append("}%n");
     return sb.toString();
   }
 }
