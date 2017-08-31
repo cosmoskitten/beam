@@ -33,6 +33,9 @@ public class Graphs {
 
   private Graphs() {}
 
+  /**
+   * Class that represents an optimized graph.
+   */
   public static class FusedGraph {
     private final Graph<FusedStep, Tag> graph;
     private int stageId = 0;
@@ -120,6 +123,10 @@ public class Graphs {
     }
   }
 
+  /**
+   * An {@link Graph.AbstractStep} that represents an optimized sub-graph that can be executed
+   * in one MapReduce job.
+   */
   public static class FusedStep extends Graph.AbstractStep {
     private final int stageId;
     private final Graph<Step, Tag> steps;
@@ -212,6 +219,9 @@ public class Graphs {
     }
   }
 
+  /**
+   * An {@link Graph.AbstractStep} that represents one {@link Operation}.
+   */
   @AutoValue
   public abstract static class Step extends Graph.AbstractStep {
     abstract String getFullName();
@@ -229,6 +239,9 @@ public class Graphs {
     }
   }
 
+  /**
+   * An {@link Graph.AbstractTag} that contains information about input/output data.
+   */
   @AutoValue
   public abstract static class Tag extends Graph.AbstractTag implements Serializable {
     abstract String getName();
