@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.io.FileIO.ReadMatches.*;
+import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -61,7 +61,7 @@ import org.joda.time.Duration;
  * <p>To read a {@link PCollection} from one or more text files, use {@code TextIO.read()} to
  * instantiate a transform and use {@link TextIO.Read#from(String)} to specify the path of the
  * file(s) to be read. Alternatively, if the filenames to be read are themselves in a {@link
- * PCollection}, apply {@link TextIO#readAll()}.
+ * PCollection}, apply {@link TextIO#readAll()} or {@link TextIO#readFiles}.
  *
  * <p>{@link #read} returns a {@link PCollection} of {@link String Strings}, each corresponding to
  * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n').
@@ -207,11 +207,20 @@ public class TextIO {
   public static ReadAll readAll() {
     return new AutoValue_TextIO_ReadAll.Builder()
         .setCompression(Compression.AUTO)
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+        .build();
+  }
+
+  /**
+   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
+   * FileIO.ReadableFile}, returned by {@link FileIO#readMatches}.
+   */
+  public static ReadFiles readFiles() {
+    return new AutoValue_TextIO_ReadFiles.Builder()
         // 64MB is a reasonable value that allows to amortize the cost of opening files,
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
         .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
-        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .build();
   }
 
@@ -390,7 +399,6 @@ public class TextIO {
       extends PTransform<PCollection<String>, PCollection<String>> {
     abstract MatchConfiguration getMatchConfiguration();
     abstract Compression getCompression();
-    abstract long getDesiredBundleSizeBytes();
 
     abstract Builder toBuilder();
 
@@ -398,7 +406,6 @@ public class TextIO {
     abstract static class Builder {
       abstract Builder setMatchConfiguration(MatchConfiguration matchConfiguration);
       abstract Builder setCompression(Compression compression);
-      abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ReadAll build();
     }
@@ -436,11 +443,6 @@ public class TextIO {
           getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
-    @VisibleForTesting
-    ReadAll withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
-      return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
-    }
-
     @Override
     public PCollection<String> expand(PCollection<String> input) {
       return input
@@ -449,10 +451,7 @@ public class TextIO {
               FileIO.readMatches()
                   .withCompression(getCompression())
                   .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply(
-              "Read all via FileBasedSource",
-              new ReadAllViaFileBasedSource<>(
-                  getDesiredBundleSizeBytes(), new CreateTextSourceFn(), StringUtf8Coder.of()));
+          .apply(readFiles());
     }
 
     @Override
@@ -464,6 +463,34 @@ public class TextIO {
               DisplayData.item("compressionType", getCompression().toString())
                   .withLabel("Compression Type"))
           .include("matchConfiguration", getMatchConfiguration());
+    }
+
+  }
+
+  /** Implementation of {@link #readFiles}. */
+  @AutoValue
+  public abstract static class ReadFiles
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<String>> {
+    abstract long getDesiredBundleSizeBytes();
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+      abstract ReadFiles build();
+    }
+
+    @VisibleForTesting
+    ReadFiles withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+      return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    @Override
+    public PCollection<String> expand(PCollection<FileIO.ReadableFile> input) {
+      return input.apply(
+          "Read all via FileBasedSource",
+          new ReadAllViaFileBasedSource<>(
+              getDesiredBundleSizeBytes(), new CreateTextSourceFn(), StringUtf8Coder.of()));
     }
 
     private static class CreateTextSourceFn
