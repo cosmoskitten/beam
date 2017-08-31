@@ -56,6 +56,15 @@
                   <groups>
                     org.apache.beam.sdk.testing.ValidatesRunner
                   </groups>
+                  <excludedGroups>
+                    org.apache.beam.sdk.testing.UsesSetState,
+                    org.apache.beam.sdk.testing.UsesSplittableParDo,
+                    org.apache.beam.sdk.testing.UsesDistributionMetrics,
+                    org.apache.beam.sdk.testing.UsesGaugeMetrics,
+                    org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                    org.apache.beam.sdk.testing.UsesTimersInParDo,
+                    org.apache.beam.sdk.testing.UsesTestStream
+                  </excludedGroups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
