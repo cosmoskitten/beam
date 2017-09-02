@@ -232,6 +232,7 @@ public class FileIOTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testRead() throws IOException {
     final String path = tmpFolder.newFile("file").getAbsolutePath();
     final String pathGZ = tmpFolder.newFile("file.gz").getAbsolutePath();
