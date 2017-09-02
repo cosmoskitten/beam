@@ -331,10 +331,13 @@ def run(argv=None):
         'user': 'STRING',
         'total_score': 'INTEGER',
     }
+
+    def format_user_score_sums(user_score):
+      return {'user': user_score[0], 'total_score': user_score[1]}
+
     (events  # pylint: disable=expression-not-assigned
      | 'CalculateUserScores' >> CalculateUserScores(args.allowed_lateness)
-     | 'FormatUserScoreSums' >> beam.Map(
-         lambda user_score: {'user': user_score[0], 'total_score': user_score[1]})
+     | 'FormatUserScoreSums' >> beam.Map(format_user_score_sums)
      | 'WriteUserScoreSums' >> WriteToBigQuery(
          args.table_name + '_users', args.dataset, users_schema))
 
