@@ -68,6 +68,7 @@ ISORT_EXCLUDED=(
   "apiclient.py"
   "avroio_test.py"
   "datastore_wordcount.py"
+  "datastoreio_test.py"
   "iobase_test.py"
   "fast_coders_test.py"
   "slow_coders_test.py"
@@ -82,11 +83,12 @@ done
 pushd $MODULE
 isort -p apache_beam -w 120 -y -c -ot -cs -sl ${SKIP_PARAM}
 popd
+set -x
 echo "Checking for files requiring stage 1 refactoring from futurize"
 futurize_results=$(futurize --stage1 apache_beam 2>&1 |grep Refactored)
 futurize_filtered=$(echo $futurize_results |grep -v pb2 |grep -v typehints.py)
-count=$(echo $futurize_results |wc -c)
-if [ $count == 1 ]; then
+count=$(echo $futurize_filtered |wc -c)
+if [ "$count" != "1" ]; then
   echo "Some of the changes require futurize stage 1 changes."
   echo $futurize_results
   exit 1
