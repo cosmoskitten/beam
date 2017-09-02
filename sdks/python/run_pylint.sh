@@ -25,6 +25,7 @@
 
 set -o errexit
 set -o pipefail
+set -x
 
 MODULE=apache_beam
 
