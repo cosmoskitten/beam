@@ -145,7 +145,7 @@ public class ElasticsearchIO {
 
   private static final ObjectMapper mapper = new ObjectMapper();
 
-  public static JsonNode parseResponse(Response response) throws IOException {
+  static JsonNode parseResponse(Response response) throws IOException {
     return mapper.readValue(response.getEntity().getContent(), JsonNode.class);
   }
 
@@ -347,11 +347,11 @@ public class ElasticsearchIO {
     public abstract ConnectionConfiguration getConnectionConfiguration();
 
     @Nullable
-    public abstract String getQuery();
+    abstract String getQuery();
 
-    public abstract String getScrollKeepalive();
+    abstract String getScrollKeepalive();
 
-    public abstract long getBatchSize();
+    abstract long getBatchSize();
 
     abstract Builder builder();
 
@@ -478,22 +478,6 @@ public class ElasticsearchIO {
     private final Integer numSlices;
     @Nullable
     private final Integer sliceId;
-
-    public Read getSpec() {
-      return spec;
-    }
-
-    @Nullable public String getShardPreference() {
-      return shardPreference;
-    }
-
-    @Nullable public Integer getNumSlices() {
-      return numSlices;
-    }
-
-    @Nullable public Integer getSliceId() {
-      return sliceId;
-    }
 
     public BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
         @Nullable Integer numSlices, @Nullable Integer sliceId, int backendVersion) {
@@ -640,11 +624,11 @@ public class ElasticsearchIO {
       }
       if (backendVersion == 5){
         //if there is more than one slice
-        if (source.getNumSlices() != null && source.getNumSlices() > 1){
+        if (source.numSlices != null && source.numSlices > 1){
           // add slice to the user query
           String sliceQuery = String
-              .format("\"slice\": {\"id\": %d,\"max\": %d}", source.getSliceId(),
-                  source.getNumSlices());
+              .format("\"slice\": {\"id\": %d,\"max\": %d}", source.sliceId,
+                  source.numSlices);
           query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
         }
       }
@@ -657,9 +641,9 @@ public class ElasticsearchIO {
       Map<String, String> params = new HashMap<>();
       params.put("scroll", source.spec.getScrollKeepalive());
       if (backendVersion == 2){
-        params.put("size", String.valueOf(source.getSpec().getBatchSize()));
-        if (source.getShardPreference() != null) {
-          params.put("preference", "_shards:" + source.getShardPreference());
+        params.put("size", String.valueOf(source.spec.getBatchSize()));
+        if (source.shardPreference != null) {
+          params.put("preference", "_shards:" + source.shardPreference);
         }
       }
       HttpEntity queryEntity = new NStringEntity(query,
