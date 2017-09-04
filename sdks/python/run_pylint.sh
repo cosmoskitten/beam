@@ -85,8 +85,8 @@ isort -p apache_beam -w 120 -y -c -ot -cs -sl ${SKIP_PARAM}
 popd
 set -x
 echo "Checking for files requiring stage 1 refactoring from futurize"
-futurize_results=$(futurize --stage1 apache_beam 2>&1 |grep Refactored)
-futurize_filtered=$(echo $futurize_results |grep -v pb2 |grep -v typehints.py)
+futurize_results="$(futurize --stage1 apache_beam 2>&1 |grep Refactored)"
+futurize_filtered="$(echo $futurize_results |grep -v pb2 |grep -v typehints.py)"
 count=$(echo $futurize_filtered |wc -c)
 if [ "$count" != "1" ]; then
   echo "Some of the changes require futurize stage 1 changes."
