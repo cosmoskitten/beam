@@ -540,7 +540,7 @@ public class ElasticsearchIO {
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws IOException {
       return estimateIndexSize(spec.getConnectionConfiguration());
-      }
+    }
 
     public static long estimateIndexSize(ConnectionConfiguration connectionConfiguration)
         throws IOException {
