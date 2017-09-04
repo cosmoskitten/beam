@@ -25,6 +25,7 @@ import com.alibaba.jstorm.metric.JStormMetrics;
 import com.alibaba.jstorm.task.error.TaskReportErrorAndDie;
 import com.alibaba.jstorm.utils.JStormUtils;
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.Iterator;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,23 +86,23 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
                result.getTopologyName(), numberOfAssertions);
       if (numberOfAssertions == 0) {
         result.waitUntilFinish(Duration.millis(RESULT_WAITING_TIME_MS));
-        Exception taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
+        Throwable taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
         if (taskExceptionRec != null) {
           LOG.info("Exception was found.", taskExceptionRec);
-          throw new RuntimeException(taskExceptionRec.getCause());
+          handleTaskException(taskExceptionRec);
         }
         return result;
       } else {
         for (int waitTime = 0; waitTime <= ASSERTION_WAITING_TIME_MS;) {
           Optional<Boolean> success = checkForPAssertSuccess(result.metrics(), numberOfAssertions);
-          Exception taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
+          Throwable taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
           if (success.isPresent() && success.get()) {
             return result;
           } else if (success.isPresent() && !success.get()) {
             throw new AssertionError("Failed assertion checks.");
           } else if (taskExceptionRec != null) {
             LOG.info("Exception was found.", taskExceptionRec);
-            throw new RuntimeException(taskExceptionRec.getCause());
+            handleTaskException(taskExceptionRec);
           } else {
             JStormUtils.sleepMs(RESULT_CHECK_INTERVAL_MS);
             waitTime += RESULT_CHECK_INTERVAL_MS;
@@ -114,6 +116,28 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
       cancel(result);
       TaskReportErrorAndDie.setExceptionRecord(null);
     }
+  }
+
+  private void handleTaskException(Throwable taskExceptionRec) {
+    Throwable cause;
+    if (taskExceptionRec.getCause() != null) {
+      cause = taskExceptionRec.getCause();
+    } else {
+      cause = taskExceptionRec;
+    }
+
+    UserCodeException innermostUserCodeException = null;
+    Throwable current = cause;
+    for (; current.getCause() != null; current = current.getCause()) {
+      if (current instanceof UserCodeException) {
+        innermostUserCodeException = ((UserCodeException) current);
+      }
+    }
+    if (innermostUserCodeException != null) {
+      cause = innermostUserCodeException.getCause();
+    }
+    Throwables.throwIfUnchecked(cause);
+    throw new Pipeline.PipelineExecutionException(cause);
   }
 
   private Optional<Boolean> checkForPAssertSuccess(
