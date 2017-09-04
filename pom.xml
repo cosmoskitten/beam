@@ -455,6 +455,7 @@
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-elasticsearch</artifactId>
         <version>${project.version}</version>
+        <scope>test</scope>
         <classifier>tests</classifier>
       </dependency>
 
@@ -462,12 +463,14 @@
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-elasticsearch-tests-2</artifactId>
         <version>${project.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-elasticsearch-tests-5</artifactId>
         <version>${project.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>
