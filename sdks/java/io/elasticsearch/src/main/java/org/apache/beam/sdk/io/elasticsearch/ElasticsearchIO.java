@@ -572,7 +572,7 @@ public class ElasticsearchIO {
 
     @Override
     public BoundedReader<String> createReader(PipelineOptions options) throws IOException {
-      return new BoundedElasticsearchReader(this, backendVersion);
+      return new BoundedElasticsearchReader(this);
     }
 
     @Override
@@ -603,15 +603,13 @@ public class ElasticsearchIO {
 
     private final BoundedElasticsearchSource source;
 
-    private int backendVersion;
     private RestClient restClient;
     private String current;
     private String scrollId;
     private ListIterator<String> batchIterator;
 
-    private BoundedElasticsearchReader(BoundedElasticsearchSource source, int backendVersion) {
+    private BoundedElasticsearchReader(BoundedElasticsearchSource source) {
       this.source = source;
-      this.backendVersion = backendVersion;
     }
 
     @Override
@@ -622,7 +620,7 @@ public class ElasticsearchIO {
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
-      if (backendVersion == 5){
+      if (source.backendVersion == 5){
         //if there is more than one slice
         if (source.numSlices != null && source.numSlices > 1){
           // add slice to the user query
@@ -640,7 +638,7 @@ public class ElasticsearchIO {
               source.spec.getConnectionConfiguration().getType());
       Map<String, String> params = new HashMap<>();
       params.put("scroll", source.spec.getScrollKeepalive());
-      if (backendVersion == 2){
+      if (source.backendVersion == 2){
         params.put("size", String.valueOf(source.spec.getBatchSize()));
         if (source.shardPreference != null) {
           params.put("preference", "_shards:" + source.shardPreference);
