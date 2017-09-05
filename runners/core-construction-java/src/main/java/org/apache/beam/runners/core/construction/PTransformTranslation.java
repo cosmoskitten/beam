@@ -56,6 +56,8 @@ public class PTransformTranslation {
   // Not strictly a primitive transform
   public static final String COMBINE_TRANSFORM_URN = "urn:beam:transform:combine:v1";
 
+  public static final String RESHUFFLE_URN = "urn:beam:transform:reshuffle:v1";
+
   // Less well-known. And where shall these live?
   public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
 
