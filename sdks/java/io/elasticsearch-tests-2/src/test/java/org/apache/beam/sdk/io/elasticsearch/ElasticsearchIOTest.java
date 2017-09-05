@@ -21,14 +21,18 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasti
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.parseResponse;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.ServerSocket;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -40,11 +44,12 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
-import org.elasticsearch.action.search.SearchResponse;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.node.Node;
 import org.hamcrest.CustomMatcher;
 import org.junit.AfterClass;
@@ -193,15 +198,22 @@ public class ElasticsearchIOTest implements Serializable {
         ElasticSearchIOTestUtils.refreshIndexAndGetCurrentNumDocs(ES_INDEX, ES_TYPE, restClient);
     assertEquals(NUM_DOCS, currentNumDocs);
 
-    QueryBuilder queryBuilder = QueryBuilders.queryStringQuery("Einstein").field("scientist");
-    SearchResponse searchResponse =
-        node.client()
-            .prepareSearch(ES_INDEX)
-            .setTypes(ES_TYPE)
-            .setQuery(queryBuilder)
-            .execute()
-            .actionGet();
-    assertEquals(NUM_DOCS / NUM_SCIENTISTS, searchResponse.getHits().getTotalHits());
+    String requestBody =
+        "{\n"
+            + "  \"query\" : {\"match\": {\n"
+            + "    \"scientist\": \"Einstein\"\n"
+            + "  }}\n"
+            + "}\n";
+    HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
+    Response response =
+        restClient.performRequest(
+            "GET",
+            "/_search",
+            Collections.<String, String>emptyMap(),
+            httpEntity);
+    JsonNode searchResult = parseResponse(response);
+    int count = searchResult.path("hits").path("total").asInt();
+    assertEquals(NUM_DOCS / NUM_SCIENTISTS, count);
   }
 
   @Rule public ExpectedException exception = ExpectedException.none();
