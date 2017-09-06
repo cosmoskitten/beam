@@ -450,6 +450,11 @@ public class PCollectionViews {
     }
 
     @Override
+    public ViewT get() throws IllegalStateException {
+      return getCurrentSideInputContext().sideInput(this);
+    }
+
+    @Override
     public ViewFn<Iterable<WindowedValue<?>>, ViewT> getViewFn() {
       // Safe cast: it is required that the rest of the SDK maintain the invariant
       // that a PCollectionView is only provided an iterable for the elements of an
@@ -528,5 +533,50 @@ public class PCollectionViews {
     public Map<TupleTag<?>, PValue> expand() {
       return Collections.<TupleTag<?>, PValue>singletonMap(tag, pCollection);
     }
+  }
+
+  /** Accessor for the value of a side input in the current context. */
+  @Internal
+  public interface SideInputContext {
+    <T> T sideInput(PCollectionView<T> view);
+  }
+
+  private static ThreadLocal<SideInputContext> sideInputContextThreadLocal = new ThreadLocal<>();
+
+  /**
+   * Result of {@link #setCurrentSideInputContext(SideInputContext)}. Should be used only by
+   * runners.
+   */
+  @Internal
+  public interface ScopedSideInputContext extends AutoCloseable {
+    @Override
+    void close();
+  }
+
+  /**
+   * Sets the thread-local {@link SideInputContext} and restores the old one when closed. Should be
+   * used only by runners.
+   */
+  @Internal
+  public static ScopedSideInputContext setCurrentSideInputContext(SideInputContext context) {
+    final SideInputContext old = sideInputContextThreadLocal.get();
+    sideInputContextThreadLocal.set(context);
+    return new ScopedSideInputContext() {
+      @Override
+      public void close() {
+        sideInputContextThreadLocal.set(old);
+      }
+    };
+  }
+
+  /** Returns the current {@link SideInputContext}. Should be used only by runners. */
+  @Internal
+  public static SideInputContext getCurrentSideInputContext() {
+    SideInputContext context = sideInputContextThreadLocal.get();
+    if (context == null) {
+      throw new IllegalStateException(
+          "Current thread is not in a context where side inputs are available");
+    }
+    return context;
   }
 }

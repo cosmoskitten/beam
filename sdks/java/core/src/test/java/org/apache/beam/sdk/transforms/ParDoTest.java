@@ -79,6 +79,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesImplicitSideInputs;
 import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
@@ -559,6 +560,31 @@ public class ParDoTest implements Serializable {
         .satisfies(ParDoTest.HasExpectedOutput
                    .forInput(inputs)
                    .andSideInputs(11, 222));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesImplicitSideInputs.class})
+  public void testParDoWithImplicitSideInputs() {
+    final PCollectionView<String> foo = pipeline
+        .apply("Create foo", Create.of("foo"))
+        .apply("Singleton", View.<String>asSingleton());
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                ParDo.of(
+                        new DoFn<Integer, String>() {
+                          @ProcessElement
+                          public void process(ProcessContext c) {
+                            c.output(foo.get() + " " + c.element());
+                          }
+                        })
+                    .withSideInputs(foo));
+
+    PAssert.that(output).containsInAnyOrder("foo 1", "foo 2", "foo 3");
 
     pipeline.run();
   }

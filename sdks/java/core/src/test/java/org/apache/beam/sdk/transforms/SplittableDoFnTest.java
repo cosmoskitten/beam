@@ -294,6 +294,41 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
+  private static class SDFWithImplicitSideInput extends DoFn<Integer, String> {
+    private final PCollectionView<String> sideInput;
+
+    private SDFWithImplicitSideInput(PCollectionView<String> sideInput) {
+      this.sideInput = sideInput;
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+      checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
+      String side = sideInput.get();
+      c.output(side + ":" + c.element());
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction(Integer value) {
+      return new OffsetRange(0, 1);
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  public void testImplicitSideInput() throws Exception {
+    PCollectionView<String> sideInput =
+        p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
+
+    PCollection<String> res =
+        p.apply("input", Create.of(0, 1, 2))
+            .apply(ParDo.of(new SDFWithImplicitSideInput(sideInput)).withSideInputs(sideInput));
+
+    PAssert.that(res).containsInAnyOrder(Arrays.asList("foo:0", "foo:1", "foo:2"));
+
+    p.run();
+  }
+
   @Test
   @Category({
     ValidatesRunner.class,
