@@ -143,6 +143,7 @@ class DataflowRunner(PipelineRunner):
               or last_error_msg is not None
               or str(response.currentState) == 'JOB_STATE_DONE'
               or str(response.currentState) == 'JOB_STATE_CANCELLED'
+              or str(response.currentState) == 'JOB_STATE_CANCELLING'
               or str(response.currentState) == 'JOB_STATE_UPDATED'
               or str(response.currentState) == 'JOB_STATE_DRAINED'):
             break
