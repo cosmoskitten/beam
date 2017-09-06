@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.values.PCollectionViews.setCurrentSideInputContext;
 
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
@@ -47,6 +48,8 @@ import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews.ScopedSideInputContext;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
@@ -172,9 +175,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
+    DoFnProcessContext context = new DoFnProcessContext(elem);
     // This can contain user code. Wrap it in case it throws an exception.
-    try {
-      invoker.invokeProcessElement(new DoFnProcessContext(elem));
+    try (ScopedSideInputContext ignored = setCurrentSideInputContext(context)) {
+      invoker.invokeProcessElement(context);
     } catch (Exception ex) {
       throw wrapUserCodeException(ex);
     }
@@ -365,7 +369,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * single element.
    */
   private class DoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT>,
+      PCollectionViews.SideInputContext {
     final WindowedValue<InputT> elem;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */

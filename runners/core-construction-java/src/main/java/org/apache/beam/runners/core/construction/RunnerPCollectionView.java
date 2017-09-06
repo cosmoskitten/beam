@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.sdk.values.PCollectionViews.getCurrentSideInputContext;
+
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -58,6 +60,11 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
     this.windowMappingFn = windowMappingFn;
     this.windowingStrategy = windowingStrategy;
     this.coder = coder;
+  }
+
+  @Override
+  public T get() throws IllegalStateException {
+    return getCurrentSideInputContext().sideInput(this);
   }
 
   @Override

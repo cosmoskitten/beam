@@ -565,6 +565,31 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
+  public void testParDoWithImplicitSideInputs() {
+    final PCollectionView<String> foo = pipeline
+        .apply("Create foo", Create.of("foo"))
+        .apply("Singleton", View.<String>asSingleton());
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                ParDo.of(
+                        new DoFn<Integer, String>() {
+                          @ProcessElement
+                          public void process(ProcessContext c) {
+                            c.output(foo.get() + " " + c.element());
+                          }
+                        })
+                    .withSideInputs(foo));
+
+    PAssert.that(output).containsInAnyOrder("foo 1", "foo 2", "foo 3");
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
   public void testParDoWithSideInputsIsCumulative() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
