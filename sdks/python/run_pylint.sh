@@ -33,7 +33,7 @@ usage(){ echo "Usage: $0 [MODULE|--help]  # The default MODULE is $MODULE"; }
 if test $# -gt 0; then
   case "$@" in
     --help) usage; exit 1;;
-	 *)      MODULE="$@";;
+	 *)      MODULE="$*";;
   esac
 fi
 
@@ -59,9 +59,9 @@ done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
 echo "Running pylint for module $MODULE:"
-pylint $MODULE --ignore-patterns="$FILES_TO_IGNORE"
+pylint "$MODULE" --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running pycodestyle for module $MODULE:"
-pycodestyle $MODULE --exclude="$FILES_TO_IGNORE"
+pycodestyle "$MODULE" --exclude="$FILES_TO_IGNORE"
 echo "Running isort for module $MODULE:"
 # Skip files where isort is behaving weirdly
 ISORT_EXCLUDED=(
@@ -80,20 +80,20 @@ done
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
 done
-pushd $MODULE
+pushd "$MODULE"
 isort -p apache_beam -w 120 -y -c -ot -cs -sl ${SKIP_PARAM}
 popd
 set -x
 echo "Checking for files requiring stage 1 refactoring from futurize"
-futurize_results="$(futurize --stage1 apache_beam 2>&1 |grep Refactored)"
+futurize_results=$(futurize -j 8 --stage1 apache_beam 2>&1 |grep Refactored)
 echo "Filtering for relevant components"
-futurize_filtered="$(echo $futurize_results |grep -v pb2 |grep -v typehints.py)"
+futurize_filtered=$(echo "$futurize_results" |grep -v 'pb2\|typehints.py\|trivial_inference.py')
 echo "Computing if there are relevant differences"
-count="$(echo $futurize_filtered |wc -c)"
+count=${#futurize_filtered}
 echo "Count is $count"
-if [ "$count" != "2" ]; then
+if [ "$count" != "1" ]; then
   echo "Some of the changes require futurize stage 1 changes."
-  echo $futurize_results
+  echo "$futurize_filtered"
   exit 1
 fi
 echo "No future changes needed"
