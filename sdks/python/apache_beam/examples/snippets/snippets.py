@@ -1169,8 +1169,8 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
     # ('joe', {'emails': ['joe@example.com', 'joe@gmail.com'], 'phones': ...})
     result = {'emails': emails, 'phones': phones} | beam.CoGroupByKey()
 
-    def join_info(xxx_todo_changeme):
-      (name, info) = xxx_todo_changeme
+    def join_info(name_info):
+      (name, info) = name_info
       return '; '.join(['%s' % name,
                         '%s' % ','.join(info['emails']),
                         '%s' % ','.join(info['phones'])])
