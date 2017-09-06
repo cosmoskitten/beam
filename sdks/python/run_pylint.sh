@@ -87,9 +87,9 @@ set -x
 echo "Checking for files requiring stage 1 refactoring from futurize"
 futurize_results="$(futurize --stage1 apache_beam 2>&1 |grep Refactored)"
 echo "Filtering for relevant components"
-futurize_filtered=" $(echo $futurize_results |grep -v pb2 |grep -v typehints.py)"
+futurize_filtered="$(echo $futurize_results |grep -v pb2 |grep -v typehints.py)"
 echo "Computing if there are relevant differences"
-count=$(echo $futurize_filtered |wc -c)
+count="$(echo $futurize_filtered |wc -c)"
 echo "Count is $count"
 if [ "$count" != "2" ]; then
   echo "Some of the changes require futurize stage 1 changes."
