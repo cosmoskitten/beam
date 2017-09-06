@@ -145,7 +145,8 @@ public class ElasticsearchIO {
 
   private static final ObjectMapper mapper = new ObjectMapper();
 
-  static JsonNode parseResponse(Response response) throws IOException {
+  @VisibleForTesting
+  public static JsonNode parseResponse(Response response) throws IOException {
     return mapper.readValue(response.getEntity().getContent(), JsonNode.class);
   }
 
