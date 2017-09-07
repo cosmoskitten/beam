@@ -40,7 +40,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -406,7 +405,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
       PaneInfo paneInfo = c.pane();
       // If we are doing windowed writes, we need to ensure that we have separate files for
       // data in different windows/panes. Similar for dynamic writes, make sure that different
@@ -491,7 +489,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
       // Since we key by a 32-bit hash of the destination, there might be multiple destinations
       // in this iterable. The number of destinations is generally very small (1000s or less), so
       // there will rarely be hash collisions.
@@ -678,7 +675,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           sink.getDynamicDestinations()
               .getDestinationCoderWithDefault(input.getPipeline().getCoderRegistry());
       destinationCoder.verifyDeterministic();
-    } catch (CannotProvideCoderException | NonDeterministicException e) {
+    } catch (NonDeterministicException e) {
       throw new RuntimeException(e);
     }
 
@@ -823,7 +820,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                   new DoFn<Void, KV<DestinationT, String>>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
-                      sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
                       // We must always output at least 1 shard, and honor user-specified numShards
                       // if set.
                       int minShardsNeeded;
