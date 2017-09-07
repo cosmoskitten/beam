@@ -358,7 +358,7 @@ public class HBaseIOTest {
     p.apply(Create.empty(HBaseMutationCoder.of()))
         .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
 
-    // Exception will be thrown by write.validate() when write is applied.
+    // Exception will be thrown by write.validate() when writeToDynamic is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
     p.run();
