@@ -52,6 +52,8 @@ import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.junit.Rule;
@@ -99,7 +101,7 @@ public class FileBasedSinkTest {
 
     SimpleSink.SimpleWriter writer =
         buildWriteOperationWithTempDir(getBaseTempDirectory()).createWriter();
-    writer.openUnwindowed(testUid, -1, null);
+    writer.open(testUid, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, -1, null);
     for (String value : values) {
       writer.write(value);
     }
@@ -202,7 +204,7 @@ public class FileBasedSinkTest {
               null));
     }
 
-    writeOp.removeTemporaryFiles(writeOp.finalize(fileResults).keySet());
+    writeOp.removeTemporaryFiles(writeOp.finalize(fileResults).keySet(), true);
 
     for (int i = 0; i < numFiles; i++) {
       ResourceId outputFilename =
@@ -499,7 +501,7 @@ public class FileBasedSinkTest {
     expected.add("footer");
     expected.add("footer");
 
-    writer.openUnwindowed(testUid, -1, null);
+    writer.open(testUid, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, -1, null);
     writer.write("a");
     writer.write("b");
     final FileResult result = writer.close();

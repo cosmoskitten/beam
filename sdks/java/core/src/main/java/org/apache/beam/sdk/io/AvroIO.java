@@ -22,15 +22,24 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.io.Serializable;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -1167,9 +1176,47 @@ public class AvroIO {
       if (tempDirectory == null) {
         tempDirectory = getFilenamePrefix();
       }
-      WriteFiles<UserT, DestinationT, OutputT> write =
-          WriteFiles.to(
-              new AvroSink<>(tempDirectory, resolveDynamicDestinations(), getGenericRecords()));
+      final DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations =
+          resolveDynamicDestinations();
+      Sink<DestinationT, UserT> sink;
+      if (getGenericRecords()) {
+        sink = dynamicSinkViaGenericRecords(new SerializableFunction<DestinationT, Schema>() {
+          @Override
+          public Schema apply(DestinationT dest) {
+            return dynamicDestinations.getSchema(dest);
+          }
+        }, new GenericRecordBuilder<UserT>() {
+          @Override
+          public void populate(UserT element, GenericRecord record) {
+            GenericRecord formatted = (GenericRecord) dynamicDestinations.formatRecord(element);
+            int numFields = formatted.getSchema().getFields().size();
+            for (int i = 0; i < numFields; ++i) {
+              record.put(i, formatted.get(i));
+            }
+          }
+        });
+      } else {
+        sink = dynamicSink(ReflectData.get().getClass(getSchema()));
+      }
+      sink =
+          sink.withParamsFn(
+              SerializableFunctions.<DestinationT, WriteParams>constant(
+                  defaultWriteParams()
+                      .withCodec(getCodec().getCodec())
+                      .withMetadata(getMetadata())));
+
+      FileIO.Write<DestinationT, UserT> write =
+          FileIO.write(sink)
+              .to(new DestinationFnViaDynamicDestinations<>(dynamicDestinations))
+              .withDestinationCoder(
+                  dynamicDestinations.getDestinationCoderWithDefault(
+                      input.getPipeline().getCoderRegistry()))
+              .withEmptyGlobalWindowDestination(dynamicDestinations.getDefaultDestination())
+              .withFilenamePolicy(
+                  new FilenamePolicyFnViaDynamicDestinations<>(
+                      getWindowedWrites(), dynamicDestinations))
+              .withTempDirectory(tempDirectory)
+              .withSideInputs(dynamicDestinations.getSideInputs());
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -1189,6 +1236,55 @@ public class AvroIO {
           .addIfNotNull(
               DisplayData.item("tempDirectory", getTempDirectory())
                   .withLabel("Directory for temporary files"));
+    }
+
+    private static class DestinationFnViaDynamicDestinations<UserT, DestinationT>
+        implements SerializableFunction<UserT, DestinationT> {
+      private final DynamicAvroDestinations<UserT, DestinationT, ?> dynamicDestinations;
+
+      public DestinationFnViaDynamicDestinations(
+          DynamicAvroDestinations<UserT, DestinationT, ?> dynamicDestinations) {
+        this.dynamicDestinations = dynamicDestinations;
+      }
+
+      @Override
+      public DestinationT apply(UserT input) {
+        return dynamicDestinations.getDestination(input);
+      }
+    }
+  }
+
+  private static class FilenamePolicyFnViaDynamicDestinations<DestinationT>
+      implements SerializableFunction<DestinationT, FileIO.Write.FilenamePolicy> {
+    private final boolean windowedWrites;
+    private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
+
+    public FilenamePolicyFnViaDynamicDestinations(
+        boolean windowedWrites,
+        DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations) {
+      this.windowedWrites = windowedWrites;
+      this.dynamicDestinations = dynamicDestinations;
+    }
+
+    @Override
+    public FileIO.Write.FilenamePolicy apply(DestinationT input) {
+      final FilenamePolicy policy = dynamicDestinations.getFilenamePolicy(input);
+      return new FileIO.Write.FilenamePolicy() {
+        @Override
+        public ResourceId getFilename(FileIO.Write.FilenameContext context) {
+          return windowedWrites
+              ? policy.windowedFilename(
+                  context.getShardIndex(),
+                  context.getNumShards(),
+                  context.getWindow(),
+                  context.getPane(),
+                  FileBasedSink.CompressionType.fromCanonical(context.getCompression()))
+              : policy.unwindowedFilename(
+                  context.getShardIndex(),
+                  context.getNumShards(),
+                  FileBasedSink.CompressionType.fromCanonical(context.getCompression()));
+        }
+      };
     }
   }
 
@@ -1240,12 +1336,12 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#to(DynamicAvroDestinations)}. */
-    public Write to(DynamicAvroDestinations<T, ?, T> dynamicDestinations) {
+    public Write<T> to(DynamicAvroDestinations<T, ?, T> dynamicDestinations) {
       return new Write<>(inner.to(dynamicDestinations).withFormatFunction(null));
     }
 
     /** See {@link TypedWrite#withSchema}. */
-    public Write withSchema(Schema schema) {
+    public Write<T> withSchema(Schema schema) {
       return new Write<>(inner.withSchema(schema));
     }
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */
@@ -1280,7 +1376,7 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#withWindowedWrites}. */
-    public Write withWindowedWrites() {
+    public Write<T> withWindowedWrites() {
       return new Write<T>(inner.withWindowedWrites());
     }
 
@@ -1304,13 +1400,13 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#withMetadata} . */
-    public Write withMetadata(Map<String, Object> metadata) {
+    public Write<T> withMetadata(Map<String, Object> metadata) {
       return new Write<>(inner.withMetadata(metadata));
     }
 
     @Override
     public PDone expand(PCollection<T> input) {
-      inner.expand(input);
+      input.apply(inner);
       return PDone.in(input.getPipeline());
     }
 
@@ -1333,6 +1429,146 @@ public class AvroIO {
     return new ConstantAvroDestination<>(filenamePolicy, schema, metadata, codec, formatFunction);
   }
   /////////////////////////////////////////////////////////////////////////////
+
+  public static WriteParams defaultWriteParams() {
+    return new AutoValue_AvroIO_WriteParams.Builder()
+        .setMetadata(ImmutableMap.<String, Object>of())
+        .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
+        .build();
+  }
+
+  @AutoValue
+  public abstract static class WriteParams implements Serializable {
+    abstract Map<String, Object> getMetadata();
+    abstract SerializableAvroCodecFactory getCodec();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setMetadata(Map<String, Object> metadata);
+      abstract Builder setCodec(SerializableAvroCodecFactory codec);
+      abstract WriteParams build();
+    }
+
+    public WriteParams withMetadata(Map<String, Object> metadata) {
+      return toBuilder().setMetadata(metadata).build();
+    }
+
+    public WriteParams withCodec(CodecFactory codec) {
+      return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
+    }
+  }
+
+  interface GenericRecordBuilder<ElementT> extends Serializable {
+    void populate(ElementT element, GenericRecord record);
+  }
+
+  public static <ElementT> Sink<Void, ElementT> sink(final Class<ElementT> clazz) {
+    return AvroIO.dynamicSink(clazz);
+  }
+
+  public static <DestT, ElementT> Sink<DestT, ElementT> dynamicSink(final Class<ElementT> clazz) {
+    return new AutoValue_AvroIO_Sink.Builder<DestT, ElementT>()
+        .setSchemaFn(
+            new SerializableFunction<DestT, Schema>() {
+              @Override
+              public Schema apply(DestT input) {
+                return ReflectData.get().getSchema(clazz);
+              }
+            })
+        .setParamsFn(SerializableFunctions.<DestT, WriteParams>constant(defaultWriteParams()))
+        .build();
+  }
+
+  public static <ElementT> Sink<Void, ElementT> sinkViaGenericRecords(
+      Schema schema, GenericRecordBuilder<ElementT> builder) {
+    return dynamicSinkViaGenericRecords(
+        SerializableFunctions.<Void, Schema>constant(schema), builder);
+  }
+
+  public static <DestT, ElementT> Sink<DestT, ElementT> dynamicSinkViaGenericRecords(
+      SerializableFunction<DestT, Schema> schemaFn, GenericRecordBuilder<ElementT> builder) {
+    return new AutoValue_AvroIO_Sink.Builder<DestT, ElementT>()
+        .setGenericRecordBuilder(builder)
+        .setSchemaFn(schemaFn)
+        .setParamsFn(SerializableFunctions.<DestT, WriteParams>constant(defaultWriteParams()))
+        .build();
+  }
+
+  @AutoValue
+  public abstract static class Sink<DestT, ElementT> implements FileSink<DestT, ElementT> {
+    @Nullable abstract GenericRecordBuilder<ElementT> getGenericRecordBuilder();
+    @Nullable abstract SerializableFunction<DestT, Schema> getSchemaFn();
+    abstract SerializableFunction<DestT, WriteParams> getParamsFn();
+
+    abstract Builder<DestT, ElementT> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<DestT, ElementT> {
+      abstract Builder<DestT, ElementT> setGenericRecordBuilder(
+          GenericRecordBuilder<ElementT> builder);
+      abstract Builder<DestT, ElementT> setSchemaFn(
+          SerializableFunction<DestT, Schema> schemaFn);
+      abstract Builder<DestT, ElementT> setParamsFn(
+          SerializableFunction<DestT, WriteParams> paramsFn);
+
+      abstract Sink<DestT, ElementT> build();
+    }
+
+    public Sink<DestT, ElementT> withParamsFn(SerializableFunction<DestT, WriteParams> paramsFn) {
+      return toBuilder().setParamsFn(paramsFn).build();
+    }
+
+    private transient Schema schema;
+    private transient DataFileWriter<ElementT> reflectWriter;
+    private transient DataFileWriter<GenericRecord> genericWriter;
+
+    @Override
+    public void open(DestT destination, WritableByteChannel channel) throws IOException {
+      this.schema = getSchemaFn().apply(destination);
+      WriteParams params = getParamsFn().apply(destination);
+      DataFileWriter<?> writer;
+      if (getGenericRecordBuilder() == null) {
+        writer = reflectWriter = new DataFileWriter<>(new ReflectDatumWriter<ElementT>(schema));
+      } else {
+        writer =
+            genericWriter = new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(schema));
+      }
+      writer.setCodec(params.getCodec().getCodec());
+      for (Map.Entry<String, Object> entry : params.getMetadata().entrySet()) {
+        Object v = entry.getValue();
+        if (v instanceof String) {
+          writer.setMeta(entry.getKey(), (String) v);
+        } else if (v instanceof Long) {
+          writer.setMeta(entry.getKey(), (Long) v);
+        } else if (v instanceof byte[]) {
+          writer.setMeta(entry.getKey(), (byte[]) v);
+        } else {
+          throw new IllegalStateException(
+              "Metadata value type must be one of String, Long, or byte[]. Found "
+                  + v.getClass().getSimpleName());
+        }
+      }
+      writer.create(schema, Channels.newOutputStream(channel));
+    }
+
+    @Override
+    public void write(ElementT element) throws IOException {
+      if (getGenericRecordBuilder() == null) {
+        reflectWriter.append(element);
+      } else {
+        GenericRecord record = new GenericData.Record(schema);
+        getGenericRecordBuilder().populate(element, record);
+        genericWriter.append(record);
+      }
+    }
+
+    @Override
+    public void finish() throws IOException {
+      MoreObjects.firstNonNull(reflectWriter, genericWriter).flush();
+    }
+  }
 
   /** Disallow construction of utility class. */
   private AvroIO() {}

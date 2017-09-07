@@ -18,24 +18,43 @@
 package org.apache.beam.sdk.io;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
+import java.nio.channels.WritableByteChannel;
+import java.util.Arrays;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -80,6 +99,24 @@ public class FileIO {
     return new AutoValue_FileIO_MatchAll.Builder()
         .setConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .build();
+  }
+
+  public static <DestT, InputT> Write<DestT, InputT> write(FileSink<DestT, InputT> sink) {
+    return new AutoValue_FileIO_Write.Builder<DestT, InputT>()
+        .setSink(sink)
+        .setCompression(Compression.UNCOMPRESSED)
+        .setSideInputs(ImmutableList.<PCollectionView<?>>of())
+        .setWindowedWrites(false)
+        .build();
+  }
+
+  public static <InputT> Write<Void, InputT> writeTo(
+      FileSink<Void, InputT> sink, Write.FilenamePolicy policy) {
+    return write(sink)
+        .to(SerializableFunctions.<InputT, Void>constant(null))
+        .withDestinationCoder(VoidCoder.of())
+        .withFilenamePolicy(
+            SerializableFunctions.<Void, Write.FilenamePolicy>constant(policy));
   }
 
   /**
@@ -259,6 +296,383 @@ public class FileIO {
           throws Exception {
         return Watch.Growth.PollResult.incomplete(
             Instant.now(), FileSystems.match(input, EmptyMatchTreatment.ALLOW).metadata());
+      }
+    }
+  }
+
+  /**
+   * A {@link PTransform} that writes to a {@link FileBasedSink}. A write begins with a sequential
+   * global initialization of a sink, followed by a parallel write, and ends with a sequential
+   * finalization of the write. The output of a write is {@link PDone}.
+   *
+   * <p>By default, every bundle in the input {@link PCollection} will be processed by a {@link
+   * FileBasedSink.WriteOperation}, so the number of output will vary based on runner behavior, though at least 1
+   * output will always be produced. The exact parallelism of the write stage can be controlled using
+   * {@link Write#withNumShards}, typically used to control how many files are produced or to
+   * globally limit the number of workers connecting to an external service. However, this option can
+   * often hurt performance: it adds an additional {@link GroupByKey} to the pipeline.
+   *
+   * <p>Example usage with runner-determined sharding:
+   *
+   * <pre>{@code p.apply(WriteFiles.to(new MySink(...)));}</pre>
+   *
+   * <p>Example usage with a fixed number of shards:
+   *
+   * <pre>{@code p.apply(WriteFiles.to(new MySink(...)).withNumShards(3));}</pre>
+   */
+  @AutoValue
+  @Experimental(Experimental.Kind.SOURCE_SINK)
+  public abstract static class Write<DestinationT, UserT>
+      extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
+    interface FilenameContext {
+      BoundedWindow getWindow();
+
+      PaneInfo getPane();
+
+      int getShardIndex();
+
+      int getNumShards();
+
+      Compression getCompression();
+    }
+
+    interface FilenamePolicy extends Serializable {
+      ResourceId getFilename(FilenameContext context);
+    }
+
+    public static FilenamePolicy toPrefixAndShardTemplate(
+        final ResourceId prefix, final String shardTempate) {
+      final DefaultFilenamePolicy policy =
+          new DefaultFilenamePolicy(
+              new DefaultFilenamePolicy.Params()
+                  .withBaseFilename(prefix)
+                  .withShardTemplate(shardTempate));
+      return new FilenamePolicy() {
+        @Override
+        public ResourceId getFilename(final FilenameContext context) {
+          return policy.windowedFilename(
+              context.getShardIndex(),
+              context.getNumShards(),
+              context.getWindow(),
+              context.getPane(),
+              FileBasedSink.CompressionType.fromCanonical(context.getCompression()));
+        }
+      };
+    }
+
+    public static FilenamePolicy toPrefixAndWindowedShard(final ResourceId prefix) {
+      return toPrefixAndShardTemplate(
+          prefix, DefaultFilenamePolicy.DEFAULT_WINDOWED_SHARD_TEMPLATE);
+    }
+
+    public static FilenamePolicy toPrefixAndUnwindowedShard(final ResourceId prefix) {
+      return toPrefixAndShardTemplate(
+          prefix, DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
+    }
+
+    abstract FileSink<DestinationT, UserT> getSink();
+
+    @Nullable
+    abstract SerializableFunction<UserT, DestinationT> getDestinationFn();
+
+    @Nullable
+    abstract SerializableFunction<DestinationT, FilenamePolicy> getFilenamePolicyFn();
+
+    @Nullable
+    abstract DestinationT getEmptyWindowDestination();
+
+    @Nullable
+    abstract Coder<DestinationT> getDestinationCoder();
+
+    @Nullable
+    abstract ValueProvider<ResourceId> getTempDirectoryProvider();
+
+    abstract Compression getCompression();
+
+    abstract List<PCollectionView<?>> getSideInputs();
+
+    @Nullable
+    abstract ValueProvider<Integer> getNumShards();
+
+    @Nullable
+    abstract PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
+
+    abstract boolean getWindowedWrites();
+
+    abstract Builder<DestinationT, UserT> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<DestinationT, UserT> {
+      abstract Builder<DestinationT, UserT> setSink(FileSink<DestinationT, UserT> sink);
+
+      abstract Builder<DestinationT, UserT> setDestinationFn(
+          SerializableFunction<UserT, DestinationT> destinationFn);
+
+      abstract Builder<DestinationT, UserT> setFilenamePolicyFn(
+          SerializableFunction<DestinationT, FilenamePolicy> policyFn);
+
+      abstract Builder<DestinationT, UserT> setEmptyWindowDestination(
+          DestinationT emptyWindowDestination);
+
+      abstract Builder<DestinationT, UserT> setDestinationCoder(Coder<DestinationT> destinationCoder);
+
+      abstract Builder<DestinationT, UserT> setTempDirectoryProvider(
+          ValueProvider<ResourceId> tempDirectoryProvider);
+
+      abstract Builder<DestinationT, UserT> setCompression(Compression compression);
+
+      abstract Builder<DestinationT, UserT> setSideInputs(List<PCollectionView<?>> sideInputs);
+
+      abstract Builder<DestinationT, UserT> setNumShards(ValueProvider<Integer> numShards);
+
+      abstract Builder<DestinationT, UserT> setSharding(
+          PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding);
+
+      abstract Builder<DestinationT, UserT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Write<DestinationT, UserT> build();
+    }
+
+    public Write<DestinationT, UserT> to(
+        SerializableFunction<UserT, DestinationT> destinationFn) {
+      return toBuilder().setDestinationFn(destinationFn).build();
+    }
+
+    public Write<DestinationT, UserT> withFilenamePolicy(
+        SerializableFunction<DestinationT, FilenamePolicy> policyFn) {
+      return toBuilder().setFilenamePolicyFn(policyFn).build();
+    }
+
+    public Write<DestinationT, UserT> withTempDirectory(
+        ResourceId tempDirectory) {
+      return withTempDirectory(ValueProvider.StaticValueProvider.of(tempDirectory));
+    }
+
+    public Write<DestinationT, UserT> withTempDirectory(
+        ValueProvider<ResourceId> tempDirectory) {
+      return toBuilder().setTempDirectoryProvider(tempDirectory).build();
+    }
+
+    public Write<DestinationT, UserT> withEmptyGlobalWindowDestination(
+        DestinationT emptyWindowDestination) {
+      return toBuilder().setEmptyWindowDestination(emptyWindowDestination).build();
+    }
+
+    public Write<DestinationT, UserT> withDestinationCoder(
+        Coder<DestinationT> destinationCoder) {
+      return toBuilder().setDestinationCoder(destinationCoder).build();
+    }
+
+    public Write<DestinationT, UserT> withSideInputs(List<PCollectionView<?>> sideInputs) {
+      return toBuilder().setSideInputs(sideInputs).build();
+    }
+
+    public Write<DestinationT, UserT> withSideInputs(PCollectionView<?>... sideInputs) {
+      return toBuilder().setSideInputs(Arrays.asList(sideInputs)).build();
+    }
+
+    public Write<DestinationT, UserT> withNumShards(int numShards) {
+      if (numShards == 0) {
+        return withNumShards(null);
+      }
+      return withNumShards(ValueProvider.StaticValueProvider.of(numShards));
+    }
+
+    public Write<DestinationT, UserT> withNumShards(ValueProvider<Integer> numShards) {
+      return toBuilder().setNumShards(numShards).build();
+    }
+
+    public Write<DestinationT, UserT> withWindowedWrites() {
+      return toBuilder().setWindowedWrites(true).build();
+    }
+
+    @Override
+    public WriteFilesResult<DestinationT> expand(PCollection<UserT> input) {
+      Coder<DestinationT> destinationCoder = getDestinationCoder();
+      if (destinationCoder == null) {
+        TypeDescriptor<DestinationT> destinationT = TypeDescriptors.outputOf(getDestinationFn());
+        try {
+          destinationCoder =
+              input
+                  .getPipeline()
+                  .getCoderRegistry()
+                  .getCoder(destinationT);
+        } catch (CannotProvideCoderException e) {
+          throw new IllegalArgumentException(
+              "Unable to infer a coder for destination type "
+                  + destinationT
+                  + " - specify it explicitly using .withDestinationCoder()");
+        }
+      }
+      WriteFiles<UserT, DestinationT, UserT> writeFiles =
+          WriteFiles.to(new ViaFileBasedSink<>(this, destinationCoder)).withSideInputs(getSideInputs());
+      if (getNumShards() != null) {
+        writeFiles = writeFiles.withNumShards(getNumShards());
+      } else if (getSharding() != null) {
+        writeFiles = writeFiles.withSharding(getSharding());
+      } else {
+        writeFiles = writeFiles.withRunnerDeterminedSharding();
+      }
+      if (getWindowedWrites()) {
+        writeFiles = writeFiles.withWindowedWrites();
+      }
+      return input.apply(writeFiles);
+    }
+
+    private static class WindowedFilenameContext implements FilenameContext {
+      private final BoundedWindow window;
+      private final PaneInfo paneInfo;
+      private final int shardNumber;
+      private final int numShards;
+      private final Compression compression;
+
+      public WindowedFilenameContext(
+          BoundedWindow window,
+          PaneInfo paneInfo,
+          int shardNumber,
+          int numShards,
+          Compression compression) {
+        this.window = window;
+        this.paneInfo = paneInfo;
+        this.shardNumber = shardNumber;
+        this.numShards = numShards;
+        this.compression = compression;
+      }
+
+      @Override
+      public BoundedWindow getWindow() {
+        return window;
+      }
+
+      @Override
+      public PaneInfo getPane() {
+        return paneInfo;
+      }
+
+      @Override
+      public int getShardIndex() {
+        return shardNumber;
+      }
+
+      @Override
+      public int getNumShards() {
+        return numShards;
+      }
+
+      @Override
+      public Compression getCompression() {
+        return compression;
+      }
+    }
+
+    private static class ViaFileBasedSink<UserT, DestinationT>
+        extends FileBasedSink<UserT, DestinationT, UserT> {
+      private final Write<DestinationT, UserT> spec;
+
+      private ViaFileBasedSink(
+          Write<DestinationT, UserT> spec, Coder<DestinationT> destinationCoder) {
+        super(
+            spec.getTempDirectoryProvider(),
+            new DynamicDestinationsAdapter<>(spec, destinationCoder));
+        this.spec = spec;
+      }
+
+      @Override
+      public WriteOperation<DestinationT, UserT> createWriteOperation() {
+        return new WriteOperation<DestinationT, UserT>(this) {
+          @Override
+          public Writer<DestinationT, UserT> createWriter() throws Exception {
+            return new Writer<DestinationT, UserT>(this, "") {
+              private FileSink<DestinationT, UserT> sink = SerializableUtils.clone(spec.getSink());
+
+              @Override
+              protected void prepareWrite(WritableByteChannel channel) throws Exception {
+                sink.open(getDestination(), channel);
+              }
+
+              @Override
+              public void write(UserT value) throws Exception {
+                sink.write(value);
+              }
+
+              @Override
+              protected void finishWrite() throws Exception {
+                sink.finish();
+              }
+            };
+          }
+        };
+      }
+
+      private static class DynamicDestinationsAdapter<DestinationT, UserT>
+          extends DynamicDestinations<UserT, DestinationT, UserT> {
+        private final Write<DestinationT, UserT> spec;
+        private final Coder<DestinationT> destinationCoder;
+
+        private DynamicDestinationsAdapter(
+            Write<DestinationT, UserT> spec, Coder<DestinationT> destinationCoder) {
+          this.spec = spec;
+          this.destinationCoder = destinationCoder;
+        }
+
+        @Override
+        public UserT formatRecord(UserT record) {
+          return record;
+        }
+
+        @Override
+        public DestinationT getDestination(UserT element) {
+          return spec.getDestinationFn().apply(element);
+        }
+
+        @Override
+        public DestinationT getDefaultDestination() {
+          return spec.getEmptyWindowDestination();
+        }
+
+        @Override
+        public FilenamePolicy getFilenamePolicy(final DestinationT destination) {
+          final Write.FilenamePolicy policyFn = spec.getFilenamePolicyFn().apply(destination);
+          return new FilenamePolicy() {
+            @Override
+            public ResourceId windowedFilename(
+                int shardNumber,
+                int numShards,
+                BoundedWindow window,
+                PaneInfo paneInfo,
+                OutputFileHints outputFileHints) {
+              // We ignore outputFileHints because it will always be the same as spec.getCompression()
+              // because we control the FileBasedSink.
+              return policyFn.getFilename(
+                  new WindowedFilenameContext(
+                      window, paneInfo, shardNumber, numShards, spec.getCompression()));
+            }
+
+            @Nullable
+            @Override
+            public ResourceId unwindowedFilename(
+                int shardNumber, int numShards, OutputFileHints outputFileHints) {
+              return policyFn.getFilename(
+                  new WindowedFilenameContext(
+                      GlobalWindow.INSTANCE,
+                      PaneInfo.NO_FIRING,
+                      shardNumber,
+                      numShards,
+                      spec.getCompression()));
+            }
+          };
+        }
+
+        @Override
+        public List<PCollectionView<?>> getSideInputs() {
+          return spec.getSideInputs();
+        }
+
+        @Nullable
+        @Override
+        public Coder<DestinationT> getDestinationCoder() {
+          return destinationCoder;
+        }
       }
     }
   }

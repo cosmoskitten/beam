@@ -66,7 +66,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -101,10 +100,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
  * event of failure/retry or for redundancy). However, exactly one of these executions will have its
- * result passed to the finalize method. Each call to {@link Writer#openWindowed} or {@link
- * Writer#openUnwindowed} is passed a unique <i>bundle id</i> when it is called by the WriteFiles
- * transform, so even redundant or retried bundles will have a unique way of identifying their
- * output.
+ * result passed to the finalize method. Each call to {@link Writer#open} is passed a unique
+ * <i>bundle id</i> when it is called by the WriteFiles transform, so even redundant or retried
+ * bundles will have a unique way of identifying their output.
  *
  * <p>The bundle id should be used to guarantee that a bundle's output is unique. This uniqueness
  * guarantee is important; if a bundle is to be output to a file, for example, the name of the file
@@ -231,21 +229,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
     }
 
-    private SideInputAccessor sideInputAccessor;
-
-    static class SideInputAccessorViaProcessContext implements SideInputAccessor {
-      private DoFn<?, ?>.ProcessContext processContext;
-
-      SideInputAccessorViaProcessContext(DoFn<?, ?>.ProcessContext processContext) {
-        this.processContext = processContext;
-      }
-
-      @Override
-      public <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
-        return processContext.sideInput(view);
-      }
-    }
-
     /**
      * Override to specify that this object needs access to one or more side inputs. This side
      * inputs must be globally windowed, as they will be accessed from the global window.
@@ -259,15 +242,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * #getSideInputs()}.
      */
     protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
-      return sideInputAccessor.sideInput(view);
-    }
-
-    final void setSideInputAccessor(SideInputAccessor sideInputAccessor) {
-      this.sideInputAccessor = sideInputAccessor;
-    }
-
-    final void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
-      this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
+      return view.get();
     }
 
     /** Convert an input record type into the output type. */
@@ -305,8 +280,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     // Gets the destination coder. If the user does not provide one, try to find one in the coder
     // registry. If no coder can be found, throws CannotProvideCoderException.
-    final Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
-        throws CannotProvideCoderException {
+    final Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry) {
       Coder<DestinationT> destinationCoder = getDestinationCoder();
       if (destinationCoder != null) {
         return destinationCoder;
@@ -319,11 +293,14 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
               DynamicDestinations.class,
               new TypeVariableExtractor<
                   DynamicDestinations<UserT, DestinationT, OutputT>, DestinationT>() {});
-      checkArgument(
-          descriptor != null,
-          "Unable to infer a coder for DestinationT, "
-              + "please specify it explicitly by overriding getDestinationCoder()");
-      return registry.getCoder(descriptor);
+      String message = "Unable to infer a coder for DestinationT, "
+          + "please specify it explicitly by overriding getDestinationCoder()";
+      checkArgument(descriptor != null, message);
+      try {
+        return registry.getCoder(descriptor);
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalArgumentException(message, e);
+      }
     }
   }
 
@@ -473,10 +450,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     /** Directory for temporary output files. */
     protected final ValueProvider<ResourceId> tempDirectory;
 
-    /** Whether windowed writes are being used. */
-    @Experimental(Kind.FILESYSTEM)
-    protected boolean windowedWrites;
-
     /** Constructs a temporary file resource given the temporary directory and a filename. */
     @Experimental(Kind.FILESYSTEM)
     protected static ResourceId buildTemporaryFilename(ResourceId tempDirectory, String filename)
@@ -537,7 +510,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         FileBasedSink<?, DestinationT, OutputT> sink, ValueProvider<ResourceId> tempDirectory) {
       this.sink = sink;
       this.tempDirectory = tempDirectory;
-      this.windowedWrites = false;
     }
 
     /**
@@ -545,11 +517,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * the state of the object.
      */
     public abstract Writer<DestinationT, OutputT> createWriter() throws Exception;
-
-    /** Indicates that the operation will be performing windowed writes. */
-    public void setWindowedWrites(boolean windowedWrites) {
-      this.windowedWrites = windowedWrites;
-    }
 
     /**
      * Finalizes writing by copying temporary output files to their final location.
@@ -563,7 +530,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * is a best practice to attempt to try to make this method atomic.
      *
      * <p>Returns the map of temporary files generated to final filenames. Callers must call {@link
-     * #removeTemporaryFiles(Set)} to cleanup the temporary files.
+     * #removeTemporaryFiles(Set, boolean)} to cleanup the temporary files.
      *
      * @param writerResults the results of writes (FileResult).
      */
@@ -573,26 +540,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames);
       return outputFilenames;
-    }
-
-    /*
-     * Remove temporary files after finalization.
-     *
-     * <p>In the case where we are doing global-window, untriggered writes, we remove the entire
-     * temporary directory, rather than specifically removing the files from writerResults, because
-     * writerResults includes only successfully completed bundles, and we'd like to clean up the
-     * failed ones too. The reason we remove files here rather than in finalize is that finalize
-     * might be called multiple times (e.g. if the bundle contained multiple destinations), and
-     * deleting the entire directory can't be done until all calls to finalize.
-     *
-     * <p>When windows or triggers are specified, files are generated incrementally so deleting the
-     * entire directory in finalize is incorrect. If windowedWrites is true, we instead delete the
-     * files individually. This means that some temporary files generated by failed bundles might
-     * not be cleaned up. Note that {@link WriteFiles} does attempt clean up files if exceptions
-     * are thrown, however there are still some scenarios where temporary files might be left.
-     */
-    public void removeTemporaryFiles(Set<ResourceId> filenames) throws IOException {
-      removeTemporaryFiles(filenames, !windowedWrites);
     }
 
     @Experimental(Kind.FILESYSTEM)
@@ -691,6 +638,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         for (Map.Entry<ResourceId, ResourceId> srcDestPair : filenames.entrySet()) {
           srcFiles.add(srcDestPair.getKey());
           dstFiles.add(srcDestPair.getValue());
+          LOG.info("Will copy {} to {}", srcDestPair.getKey(), srcDestPair.getValue());
         }
         // During a failure case, files may have been deleted in an earlier step. Thus
         // we ignore missing files here.
@@ -700,16 +648,25 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
     }
 
-    /**
-     * Removes temporary output files. Uses the temporary directory to find files to remove.
+    /*
+     * Remove temporary files after finalization.
      *
-     * <p>Can be called from subclasses that override {@link WriteOperation#finalize}.
-     * <b>Note:</b>If finalize is overridden and does <b>not</b> rename or otherwise finalize
-     * temporary files, this method will remove them.
+     * <p>In the case where we are doing global-window, untriggered writes, we remove the entire
+     * temporary directory, rather than specifically removing the files from writerResults, because
+     * writerResults includes only successfully completed bundles, and we'd like to clean up the
+     * failed ones too. The reason we remove files here rather than in finalize is that finalize
+     * might be called multiple times (e.g. if the bundle contained multiple destinations), and
+     * deleting the entire directory can't be done until all calls to finalize.
+     *
+     * <p>When windows or triggers are specified, files are generated incrementally so deleting the
+     * entire directory in finalize is incorrect. If windowedWrites is true, we instead delete the
+     * files individually. This means that some temporary files generated by failed bundles might
+     * not be cleaned up. Note that {@link WriteFiles} does attempt clean up files if exceptions
+     * are thrown, however there are still some scenarios where temporary files might be left.
      */
     @VisibleForTesting
     @Experimental(Kind.FILESYSTEM)
-    final void removeTemporaryFiles(
+    public final void removeTemporaryFiles(
         Set<ResourceId> knownFiles, boolean shouldRemoveTemporaryDirectory) throws IOException {
       ResourceId tempDir = tempDirectory.get();
       LOG.debug("Removing temporary bundle output files in {}.", tempDir);
@@ -766,8 +723,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
           + "{"
           + "tempDirectory="
           + tempDirectory
-          + ", windowedWrites="
-          + windowedWrites
           + '}';
     }
   }
@@ -849,40 +804,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      */
     protected void finishWrite() throws Exception {}
 
-    /**
-     * Performs bundle initialization. For example, creates a temporary file for writing or
-     * initializes any state that will be used across calls to {@link Writer#write}.
-     *
-     * <p>The unique id that is given to open should be used to ensure that the writer's output does
-     * not interfere with the output of other Writers, as a bundle may be executed many times for
-     * fault tolerance.
-     *
-     * <p>The window and paneInfo arguments are populated when windowed writes are requested. shard
-     * id populated for the case of static sharding. In cases where the runner is dynamically
-     * picking sharding, shard might be set to -1.
-     */
-    public final void openWindowed(
-        String uId, BoundedWindow window, PaneInfo paneInfo, int shard, DestinationT destination)
-        throws Exception {
-      if (!getWriteOperation().windowedWrites) {
-        throw new IllegalStateException("openWindowed called a non-windowed sink.");
-      }
-      open(uId, window, paneInfo, shard, destination);
-    }
-
     /** Called for each value in the bundle. */
     public abstract void write(OutputT value) throws Exception;
-
-    /**
-     * Similar to {@link #openWindowed} however for the case where unwindowed writes were requested.
-     */
-    public final void openUnwindowed(String uId, int shard, DestinationT destination)
-        throws Exception {
-      if (getWriteOperation().windowedWrites) {
-        throw new IllegalStateException("openUnwindowed called a windowed sink.");
-      }
-      open(uId, null, null, shard, destination);
-    }
 
     // Helper function to close a channel, on exception cases.
     // Always throws prior exception, with any new closing exception suppressed.
@@ -897,7 +820,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
     }
 
-    private void open(
+    void open(
         String uId,
         @Nullable BoundedWindow window,
         @Nullable PaneInfo paneInfo,
