@@ -25,7 +25,7 @@ import static org.apache.beam.sdk.values.TypeDescriptors.sets;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 import java.util.Set;
@@ -115,8 +115,8 @@ public class TypeDescriptorsTest {
   @Test
   public void testTypeDescriptorsTypeParameterOfErased() throws Exception {
     Generic<Integer, String> instance = TypeDescriptorsTest.typeErasedGeneric();
-    assertNull(extractFooT(instance));
+    assertTrue(extractFooT(instance).hasUnresolvedParameters());
     assertEquals(strings(), extractBarT(instance));
-    assertNull(extractKV(instance));
+    assertTrue(extractKV(instance).hasUnresolvedParameters());
   }
 }

@@ -325,7 +325,7 @@ public class TypeDescriptors {
    * @param extractor A class for specifying the type to extract from the supertype
    *
    * @return A {@link TypeDescriptor} for the actual value of the result type of the extractor,
-   *   or {@code null} if the type was erased.
+   *   potentially containing unresolved type variables if the type was erased.
    */
   @SuppressWarnings("unchecked")
   @Nullable
@@ -363,17 +363,12 @@ public class TypeDescriptors {
 
     // Get output of the extractor.
     Type outputT = ((ParameterizedType) extractorT.getType()).getActualTypeArguments()[1];
-    TypeDescriptor<?> res = TypeDescriptor.of(outputT);
-    if (res.hasUnresolvedParameters()) {
-      return null;
-    } else {
-      return (TypeDescriptor<V>) res;
-    }
+    return (TypeDescriptor<V>) TypeDescriptor.of(outputT);
   }
 
   /**
    * Returns a type descriptor for the input of the given {@link SerializableFunction}, subject to
-   * Java type erasure: returns {@code null} if the type was erased.
+   * Java type erasure: may contain unresolved type variables if the type was erased.
    */
   @Nullable
   public static <InputT, OutputT> TypeDescriptor<InputT> inputOf(
@@ -386,7 +381,7 @@ public class TypeDescriptors {
 
   /**
    * Returns a type descriptor for the output of the given {@link SerializableFunction}, subject to
-   * Java type erasure: returns {@code null} if the type was erased.
+   * Java type erasure: may contain unresolved type variables if the type was erased.
    */
   @Nullable
   public static <InputT, OutputT> TypeDescriptor<OutputT> outputOf(
