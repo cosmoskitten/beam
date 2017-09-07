@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /** Describes the run-time requirements of a {@link Contextful}, such as access to side inputs. */
@@ -49,5 +51,13 @@ public final class Requirements implements Serializable {
   /** Describes an empty set of requirements. */
   public static Requirements empty() {
     return new Requirements(Collections.<PCollectionView<?>>emptyList());
+  }
+
+  public static Requirements union(Contextful... contextfuls) {
+    Set<PCollectionView<?>> sideInputs = Sets.newHashSet();
+    for (Contextful c : contextfuls) {
+      sideInputs.addAll(c.getRequirements().getSideInputs());
+    }
+    return requiresSideInputs(sideInputs);
   }
 }

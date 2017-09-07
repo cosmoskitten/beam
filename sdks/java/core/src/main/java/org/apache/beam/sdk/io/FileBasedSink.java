@@ -231,7 +231,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
     }
 
-    private SideInputAccessor sideInputAccessor;
+    private transient SideInputAccessor sideInputAccessor;
 
     static class SideInputAccessorViaProcessContext implements SideInputAccessor {
       private DoFn<?, ?>.ProcessContext processContext;
@@ -305,8 +305,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     // Gets the destination coder. If the user does not provide one, try to find one in the coder
     // registry. If no coder can be found, throws CannotProvideCoderException.
-    final Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
-        throws CannotProvideCoderException {
+    final Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry) {
       Coder<DestinationT> destinationCoder = getDestinationCoder();
       if (destinationCoder != null) {
         return destinationCoder;
@@ -319,11 +318,14 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
               DynamicDestinations.class,
               new TypeVariableExtractor<
                   DynamicDestinations<UserT, DestinationT, OutputT>, DestinationT>() {});
-      checkArgument(
-          descriptor != null,
-          "Unable to infer a coder for DestinationT, "
-              + "please specify it explicitly by overriding getDestinationCoder()");
-      return registry.getCoder(descriptor);
+      String message = "Unable to infer a coder for DestinationT, "
+          + "please specify it explicitly by overriding getDestinationCoder()";
+      checkArgument(descriptor != null, message);
+      try {
+        return registry.getCoder(descriptor);
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalArgumentException(message, e);
+      }
     }
   }
 
