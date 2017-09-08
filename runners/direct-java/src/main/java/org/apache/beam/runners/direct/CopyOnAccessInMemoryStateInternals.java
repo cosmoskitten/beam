@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
@@ -38,6 +39,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTag.StateBinder;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -264,8 +266,12 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
       }
 
       private boolean containedInUnderlying(StateNamespace namespace, StateTag<?> tag) {
-        return underlying.isPresent() && underlying.get().isNamespaceInUse(namespace)
-            && underlying.get().getTagsInUse(namespace).containsKey(tag);
+        return underlying.isPresent()
+            && underlying.get().isNamespaceInUse(namespace)
+            && underlying
+                .get()
+                .getTagsInUse(namespace)
+                .containsKey(StateTags.ID_EQUIVALENCE.wrap(tag));
       }
 
       @Override
@@ -388,14 +394,14 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
       public Instant readThroughAndGetEarliestHold(StateTable readTo) {
         Instant earliestHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
         for (StateNamespace namespace : underlying.getNamespacesInUse()) {
-          for (Map.Entry<StateTag<?>, ? extends State> existingState :
+          for (Map.Entry<Equivalence.Wrapper<StateTag>, ? extends State> existingState :
               underlying.getTagsInUse(namespace).entrySet()) {
             if (!((InMemoryState<?>) existingState.getValue()).isCleared()) {
               // Only read through non-cleared values to ensure that completed windows are
               // eventually discarded, and remember the earliest watermark hold from among those
               // values.
               State state =
-                  readTo.get(namespace, existingState.getKey(), StateContexts.nullContext());
+                  readTo.getOrNull(namespace, existingState.getKey(), StateContexts.nullContext());
               if (state instanceof WatermarkHoldState) {
                 Instant hold = ((WatermarkHoldState) state).read();
                 if (hold != null && hold.isBefore(earliestHold)) {
