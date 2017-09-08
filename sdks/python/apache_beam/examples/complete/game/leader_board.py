@@ -333,7 +333,8 @@ def run(argv=None):
     }
 
     def format_user_score_sums(user_score):
-      return {'user': user_score[0], 'total_score': user_score[1]}
+      (user, score) = user_score
+      return {'user': user, 'total_score': score}
 
     (events  # pylint: disable=expression-not-assigned
      | 'CalculateUserScores' >> CalculateUserScores(args.allowed_lateness)
