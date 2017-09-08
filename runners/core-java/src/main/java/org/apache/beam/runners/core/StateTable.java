@@ -30,7 +30,7 @@ import org.apache.beam.sdk.state.StateContext;
  */
 public abstract class StateTable {
 
-  private final Table<StateNamespace, StateTag<?>, State> stateTable =
+  private final Table<StateNamespace, String, State> stateTable =
       HashBasedTable.create();
 
   /**
@@ -40,7 +40,7 @@ public abstract class StateTable {
    */
   public <StateT extends State> StateT get(
       StateNamespace namespace, StateTag<StateT> tag, StateContext<?> c) {
-    State storage = stateTable.get(namespace, tag);
+    State storage = getOrNull(namespace, tag.getId(), c);
     if (storage != null) {
       @SuppressWarnings("unchecked")
       StateT typedStorage = (StateT) storage;
@@ -48,8 +48,16 @@ public abstract class StateTable {
     }
 
     StateT typedStorage = tag.bind(binderForNamespace(namespace, c));
-    stateTable.put(namespace, tag, typedStorage);
+    stateTable.put(namespace, tag.getId(), typedStorage);
     return typedStorage;
+  }
+
+  /**
+   * Gets the {@link State} in the specified {@link StateNamespace} with the specified identifier or
+   * {@code null} if it is not yet present.
+   */
+  public State getOrNull(StateNamespace namespace, String tag, StateContext<?> c) {
+    return stateTable.get(namespace, tag);
   }
 
   public void clearNamespace(StateNamespace namespace) {
@@ -68,7 +76,7 @@ public abstract class StateTable {
     return stateTable.containsRow(namespace);
   }
 
-  public Map<StateTag<?>, State> getTagsInUse(StateNamespace namespace) {
+  public Map<String, State> getTagsInUse(StateNamespace namespace) {
     return stateTable.row(namespace);
   }
 

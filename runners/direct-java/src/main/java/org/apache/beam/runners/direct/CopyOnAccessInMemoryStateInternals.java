@@ -388,14 +388,14 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
       public Instant readThroughAndGetEarliestHold(StateTable readTo) {
         Instant earliestHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
         for (StateNamespace namespace : underlying.getNamespacesInUse()) {
-          for (Map.Entry<StateTag<?>, ? extends State> existingState :
+          for (Map.Entry<String, ? extends State> existingState :
               underlying.getTagsInUse(namespace).entrySet()) {
             if (!((InMemoryState<?>) existingState.getValue()).isCleared()) {
               // Only read through non-cleared values to ensure that completed windows are
               // eventually discarded, and remember the earliest watermark hold from among those
               // values.
               State state =
-                  readTo.get(namespace, existingState.getKey(), StateContexts.nullContext());
+                  readTo.getOrNull(namespace, existingState.getKey(), StateContexts.nullContext());
               if (state instanceof WatermarkHoldState) {
                 Instant hold = ((WatermarkHoldState) state).read();
                 if (hold != null && hold.isBefore(earliestHold)) {
