@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import com.google.common.base.Equivalence;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -32,9 +33,9 @@ public class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
     super(key);
   }
 
-  public Set<StateTag<?>> getTagsInUse(StateNamespace namespace) {
-    Set<StateTag<?>> inUse = new HashSet<>();
-    for (Map.Entry<StateTag<?>, State> entry :
+  public Set<Equivalence.Wrapper<StateTag>> getTagsInUse(StateNamespace namespace) {
+    Set<Equivalence.Wrapper<StateTag>> inUse = new HashSet<>();
+    for (Map.Entry<Equivalence.Wrapper<StateTag>, State> entry :
       inMemoryState.getTagsInUse(namespace).entrySet()) {
       if (!isEmptyForTesting(entry.getValue())) {
         inUse.add(entry.getKey());
