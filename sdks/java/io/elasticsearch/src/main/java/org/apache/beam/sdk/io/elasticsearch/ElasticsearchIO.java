@@ -442,9 +442,8 @@ public class ElasticsearchIO {
 
     @Override
     public PCollection<String> expand(PBegin input) {
-      int backendVersion = getBackendVersion(getConnectionConfiguration());
       return input.apply(org.apache.beam.sdk.io.Read
-          .from(new BoundedElasticsearchSource(this, null, null, null, backendVersion)));
+          .from(new BoundedElasticsearchSource(this, null, null, null)));
     }
 
     @Override
@@ -481,8 +480,8 @@ public class ElasticsearchIO {
     @Nullable
     private final Integer sliceId;
 
-    @VisibleForTesting
-    BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
+    //constructor used in split() when we know the backend version
+    private BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
         @Nullable Integer numSlices, @Nullable Integer sliceId, int backendVersion) {
       this.backendVersion = backendVersion;
       this.spec = spec;
@@ -491,9 +490,19 @@ public class ElasticsearchIO {
       this.sliceId = sliceId;
     }
 
+    @VisibleForTesting
+    BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
+        @Nullable Integer numSlices, @Nullable Integer sliceId) {
+      this.spec = spec;
+      this.shardPreference = shardPreference;
+      this.numSlices = numSlices;
+      this.sliceId = sliceId;
+    }
     @Override
     public List<? extends BoundedSource<String>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+      ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
+      this.backendVersion = getBackendVersion(connectionConfiguration);
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
       if (backendVersion == 2){
         // 1. We split per shard :
@@ -504,7 +513,6 @@ public class ElasticsearchIO {
         // in nbBundles = estimatedSize / desiredBundleSize chuncks.
         // So each beam source will read around desiredBundleSize volume of data.
 
-        ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
         JsonNode statsJson = BoundedElasticsearchSource.getStats(connectionConfiguration, true);
         JsonNode shardsJson =
             statsJson
@@ -520,8 +528,7 @@ public class ElasticsearchIO {
         }
         checkArgument(!sources.isEmpty(), "No shard found");
       } else if (backendVersion == 5){
-        long indexSize = BoundedElasticsearchSource
-            .estimateIndexSize(spec.getConnectionConfiguration());
+        long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
         float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
         int nbBundles = (int) Math.ceil(nbBundlesFloat);
         //ES slice api imposes that the number of slices is <= 1024 even if it can be overloaded
@@ -822,8 +829,7 @@ public class ElasticsearchIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
-      int backendVersion = getBackendVersion(getConnectionConfiguration());
-      input.apply(ParDo.of(new WriteFn(this, backendVersion)));
+      input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
 
@@ -841,14 +847,15 @@ public class ElasticsearchIO {
       private long currentBatchSizeBytes;
 
       @VisibleForTesting
-      WriteFn(Write spec, int backendVersion) {
+      WriteFn(Write spec) {
         this.spec = spec;
-        this.backendVersion = backendVersion;
       }
 
       @Setup
-      public void createClient() throws Exception {
-        restClient = spec.getConnectionConfiguration().createClient();
+      public void setup() throws Exception {
+        ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
+        backendVersion = getBackendVersion(connectionConfiguration);
+        restClient = connectionConfiguration.createClient();
       }
 
       @StartBundle

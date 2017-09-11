@@ -70,7 +70,7 @@ public class ElasticsearchIOIT {
     restClient = readConnectionConfiguration.createClient();
     elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(readConnectionConfiguration,
         restClient, ElasticsearchIOITCommon.NUM_DOCS,
-        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, 2, false);
+        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, false);
   }
 
   @AfterClass
@@ -83,7 +83,7 @@ public class ElasticsearchIOIT {
   public void testSplitsVolume() throws Exception {
     Read read = ElasticsearchIO.read().withConnectionConfiguration(readConnectionConfiguration);
     BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
-        null, 2);
+        null);
     //desiredBundleSize is ignored because in ES 2.x there is no way to split shards. So we get
     // as many bundles as ES shards and bundle size is shard size
     long desiredBundleSizeBytes = 0;
@@ -113,7 +113,7 @@ public class ElasticsearchIOIT {
   public void testWriteVolume() throws Exception {
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
         writeConnectionConfiguration, restClient, ElasticsearchIOITCommon.NUM_DOCS,
-        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, 2, false);
+        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, false);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWrite();
   }

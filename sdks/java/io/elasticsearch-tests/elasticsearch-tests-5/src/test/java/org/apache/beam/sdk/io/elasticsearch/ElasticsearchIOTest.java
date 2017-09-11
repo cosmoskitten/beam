@@ -98,7 +98,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     if (connectionConfiguration == null){
       connectionConfiguration = ConnectionConfiguration.create(fillAddresses(), ES_INDEX, ES_TYPE);
       elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(connectionConfiguration,
-          getRestClient(), NUM_DOCS, AVERAGE_DOC_SIZE, 5, true);
+          getRestClient(), NUM_DOCS, AVERAGE_DOC_SIZE, true);
     }
   }
   @Rule
@@ -165,7 +165,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     Read read =
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
    BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
-       null, 5);
+       null);
    int desiredBundleSizeBytes = 1000;
     List<? extends BoundedSource<String>> splits =
         initialSource.split(desiredBundleSizeBytes, options);

@@ -70,7 +70,7 @@ public class ElasticsearchIOIT {
     restClient = readConnectionConfiguration.createClient();
     elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(readConnectionConfiguration,
         restClient, ElasticsearchIOITCommon.NUM_DOCS,
-        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, 5, false);
+        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, false);
   }
 
   @AfterClass
@@ -83,7 +83,7 @@ public class ElasticsearchIOIT {
   public void testSplitsVolume() throws Exception {
     Read read = ElasticsearchIO.read().withConnectionConfiguration(readConnectionConfiguration);
     BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
-        null, 5);
+        null);
     int desiredBundleSizeBytes = 10000;
     List<? extends BoundedSource<String>> splits =
         initialSource.split(desiredBundleSizeBytes, options);
@@ -112,7 +112,7 @@ public class ElasticsearchIOIT {
     //cannot share elasticsearchIOTestCommon because tests run in parallel.
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
         writeConnectionConfiguration, restClient, ElasticsearchIOITCommon.NUM_DOCS,
-        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, 5, false);
+        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, false);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWrite();
   }

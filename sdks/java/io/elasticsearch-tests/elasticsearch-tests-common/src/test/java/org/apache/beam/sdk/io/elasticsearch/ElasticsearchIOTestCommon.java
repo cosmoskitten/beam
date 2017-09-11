@@ -63,20 +63,17 @@ class ElasticsearchIOTestCommon implements Serializable {
   private ConnectionConfiguration connectionConfiguration;
   private RestClient restClient;
   private long averageDocSize;
-  private int backendVersion;
   private boolean insertTestDocuments;
 
   private TestPipeline pipeline;
   private ExpectedException expectedException;
 
-  ElasticsearchIOTestCommon(ConnectionConfiguration connectionConfiguration,
-      RestClient restClient, long numDocs, long averageDocSize, int backendVersion,
-      boolean insertTestDocuments) {
+  ElasticsearchIOTestCommon(ConnectionConfiguration connectionConfiguration, RestClient restClient,
+      long numDocs, long averageDocSize, boolean insertTestDocuments) {
     this.connectionConfiguration = connectionConfiguration;
     this.restClient = restClient;
     this.numDocs = numDocs;
     this.averageDocSize = averageDocSize;
-    this.backendVersion = backendVersion;
     this.insertTestDocuments = insertTestDocuments;
   }
 
@@ -97,7 +94,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     Read read =
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
     BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
-        null, backendVersion);
+        null);
     // can't use equal assert as Elasticsearch indexes never have same size
     // (due to internal Elasticsearch implementation)
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
@@ -190,7 +187,7 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withMaxBatchSize(BATCH_SIZE);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write, backendVersion));
+    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write));
 
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
@@ -225,7 +222,7 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withMaxBatchSize(BATCH_SIZE);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write, backendVersion));
+    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write));
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
@@ -265,7 +262,7 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withMaxBatchSizeBytes(BATCH_SIZE_BYTES);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write, backendVersion));
+    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write));
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);

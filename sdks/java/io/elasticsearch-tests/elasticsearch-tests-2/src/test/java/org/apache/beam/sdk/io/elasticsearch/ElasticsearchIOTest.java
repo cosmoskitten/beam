@@ -100,7 +100,7 @@ public class ElasticsearchIOTest implements Serializable {
         .create(new String[] { "http://" + ES_IP + ":" + esHttpPort }, ES_INDEX, ES_TYPE);
     restClient = connectionConfiguration.createClient();
     elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(connectionConfiguration, restClient,
-        NUM_DOCS, AVERAGE_DOC_SIZE, 2, true);
+        NUM_DOCS, AVERAGE_DOC_SIZE, true);
   }
 
   @AfterClass
@@ -163,7 +163,7 @@ public class ElasticsearchIOTest implements Serializable {
     Read read =
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
     BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
-        null, 2);
+        null);
     //desiredBundleSize is ignored because in ES 2.x there is no way to split shards. So we get
     // as many bundles as ES shards and bundle size is shard size
     int desiredBundleSizeBytes = 0;
