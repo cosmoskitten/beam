@@ -28,8 +28,6 @@ import java.io.Serializable;
 import java.net.ServerSocket;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.elasticsearch.common.ElasticSearchIOTestUtils;
-import org.apache.beam.sdk.io.elasticsearch.common.ElasticsearchIOTestCommon;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
