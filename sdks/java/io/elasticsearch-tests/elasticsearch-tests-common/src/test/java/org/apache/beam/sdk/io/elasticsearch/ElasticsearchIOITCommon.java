@@ -30,12 +30,12 @@ import org.elasticsearch.client.RestClient;
  * <p>This is independent from the tests so that for read tests it can be run separately after data
  * store creation rather than every time (which can be more fragile.)
  */
-public class ElasticsearchTestIOITCommon {
+public class ElasticsearchIOITCommon {
 
-  public static final String ES_INDEX = "beam";
-  public static final String ES_TYPE = "test";
-  public static final long NUM_DOCS = 50000;
-  public static final int AVERAGE_DOC_SIZE = 25;
+  static final String ES_INDEX = "beam";
+  static final String ES_TYPE = "test";
+  static final long NUM_DOCS = 50000;
+  static final int AVERAGE_DOC_SIZE = 25;
   private static final String writeIndex = ES_INDEX + System.currentTimeMillis();
 
   /**
@@ -45,7 +45,7 @@ public class ElasticsearchTestIOITCommon {
    *
    * <pre>
    * mvn test-compile exec:java \
-   * -Dexec.mainClass=ElasticsearchTestIOITCommon \
+   * -Dexec.mainClass=ElasticsearchIOITCommon \
    *   -Dexec.args="--elasticsearchServer=1.2.3.4 \
    *  --elasticsearchHttpPort=9200 \
    *   -Dexec.classpathScope=test
@@ -70,7 +70,7 @@ public class ElasticsearchTestIOITCommon {
     }
   }
 
-  public static ConnectionConfiguration getConnectionConfiguration(IOTestPipelineOptions options,
+  static ConnectionConfiguration getConnectionConfiguration(IOTestPipelineOptions options,
       ReadOrWrite rOw) {
     ConnectionConfiguration connectionConfiguration = ConnectionConfiguration.create(
             new String[] {
@@ -85,7 +85,7 @@ public class ElasticsearchTestIOITCommon {
   }
 
   /** Enum that tells whether we use the index for reading or for writing. */
-  public enum ReadOrWrite {
+  enum ReadOrWrite {
     READ,
     WRITE
   }

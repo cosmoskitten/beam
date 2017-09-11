@@ -51,7 +51,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Common test class for {@link ElasticsearchIO}. */
-public class ElasticsearchIOTestCommon implements Serializable {
+class ElasticsearchIOTestCommon implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTestCommon.class);
 
@@ -69,7 +69,7 @@ public class ElasticsearchIOTestCommon implements Serializable {
   private TestPipeline pipeline;
   private ExpectedException expectedException;
 
-  public ElasticsearchIOTestCommon(ConnectionConfiguration connectionConfiguration,
+  ElasticsearchIOTestCommon(ConnectionConfiguration connectionConfiguration,
       RestClient restClient, long numDocs, long averageDocSize, int backendVersion,
       boolean insertTestDocuments) {
     this.connectionConfiguration = connectionConfiguration;
@@ -81,15 +81,15 @@ public class ElasticsearchIOTestCommon implements Serializable {
   }
 
   // lazy init of the test rules (cannot be static)
-  public void setPipeline(TestPipeline pipeline) {
+  void setPipeline(TestPipeline pipeline) {
     this.pipeline = pipeline;
   }
 
-  public void setExpectedException(ExpectedException expectedException) {
+  void setExpectedException(ExpectedException expectedException) {
     this.expectedException = expectedException;
   }
 
-  public void testSizes() throws Exception {
+  void testSizes() throws Exception {
     if (insertTestDocuments) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
@@ -106,7 +106,7 @@ public class ElasticsearchIOTestCommon implements Serializable {
   }
 
 
-  public void testRead() throws Exception {
+  void testRead() throws Exception {
     if (insertTestDocuments) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
@@ -123,7 +123,7 @@ public class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
   }
 
-  public void testReadWithQuery() throws Exception {
+  void testReadWithQuery() throws Exception {
     if (insertTestDocuments){
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
@@ -150,7 +150,7 @@ public class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
   }
 
-  public void testWrite() throws Exception {
+  void testWrite() throws Exception {
     List<String> data =
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
@@ -183,7 +183,7 @@ public class ElasticsearchIOTestCommon implements Serializable {
     assertEquals(numDocs / NUM_SCIENTISTS, count);
   }
 
-  public void testWriteWithErrors() throws Exception {
+  void testWriteWithErrors() throws Exception {
     Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
@@ -218,7 +218,7 @@ public class ElasticsearchIOTestCommon implements Serializable {
     fnTester.processBundle(input);
   }
 
-  public void testWriteWithMaxBatchSize() throws Exception {
+  void testWriteWithMaxBatchSize() throws Exception {
     Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
@@ -258,7 +258,7 @@ public class ElasticsearchIOTestCommon implements Serializable {
     }
   }
 
-  public void testWriteWithMaxBatchSizeBytes() throws Exception {
+  void testWriteWithMaxBatchSizeBytes() throws Exception {
     Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)

@@ -146,7 +146,7 @@ public class ElasticsearchIO {
   private static final ObjectMapper mapper = new ObjectMapper();
 
   @VisibleForTesting
-  public static JsonNode parseResponse(Response response) throws IOException {
+  static JsonNode parseResponse(Response response) throws IOException {
     return mapper.readValue(response.getEntity().getContent(), JsonNode.class);
   }
 
@@ -292,7 +292,8 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
     }
 
-    public RestClient createClient() throws IOException {
+    @VisibleForTesting
+    RestClient createClient() throws IOException {
       HttpHost[] hosts = new HttpHost[getAddresses().size()];
       int i = 0;
       for (String address : getAddresses()) {
@@ -480,7 +481,8 @@ public class ElasticsearchIO {
     @Nullable
     private final Integer sliceId;
 
-    public BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
+    @VisibleForTesting
+    BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
         @Nullable Integer numSlices, @Nullable Integer sliceId, int backendVersion) {
       this.backendVersion = backendVersion;
       this.spec = spec;
@@ -543,7 +545,8 @@ public class ElasticsearchIO {
       return estimateIndexSize(spec.getConnectionConfiguration());
     }
 
-    public static long estimateIndexSize(ConnectionConfiguration connectionConfiguration)
+    @VisibleForTesting
+    static long estimateIndexSize(ConnectionConfiguration connectionConfiguration)
         throws IOException {
       // we use indices stats API to estimate size and list the shards
       // (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/indices-stats.html)
@@ -828,7 +831,7 @@ public class ElasticsearchIO {
      * {@link DoFn} to for the {@link Write} transform.
      * */
     @VisibleForTesting
-    public static class WriteFn extends DoFn<String, Void> {
+    static class WriteFn extends DoFn<String, Void> {
 
 
       private int backendVersion;
@@ -837,7 +840,8 @@ public class ElasticsearchIO {
       private ArrayList<String> batch;
       private long currentBatchSizeBytes;
 
-      public WriteFn(Write spec, int backendVersion) {
+      @VisibleForTesting
+      WriteFn(Write spec, int backendVersion) {
         this.spec = spec;
         this.backendVersion = backendVersion;
       }

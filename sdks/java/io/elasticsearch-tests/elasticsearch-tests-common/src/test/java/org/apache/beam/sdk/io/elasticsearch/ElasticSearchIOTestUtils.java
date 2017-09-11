@@ -32,7 +32,7 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
 /** Test utilities to use with {@link ElasticsearchIO}. */
-public class ElasticSearchIOTestUtils {
+class ElasticSearchIOTestUtils {
 
   /** Enumeration that specifies whether to insert malformed documents. */
   public enum InjectionMode {
@@ -41,7 +41,7 @@ public class ElasticSearchIOTestUtils {
   }
 
   /** Deletes the given index synchronously. */
-  public static void deleteIndex(ConnectionConfiguration connectionConfiguration,
+  static void deleteIndex(ConnectionConfiguration connectionConfiguration,
       RestClient restClient) throws IOException {
     try {
       restClient.performRequest("DELETE", String.format("/%s", connectionConfiguration.getIndex()));
@@ -55,7 +55,7 @@ public class ElasticSearchIOTestUtils {
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
-  public static void insertTestDocuments(ConnectionConfiguration connectionConfiguration,
+  static void insertTestDocuments(ConnectionConfiguration connectionConfiguration,
       long numDocs, RestClient restClient) throws IOException {
     List<String> data =
         ElasticSearchIOTestUtils.createDocuments(
@@ -83,7 +83,7 @@ public class ElasticSearchIOTestUtils {
    *
    * @return The number of docs in the index
    */
-  public static long refreshIndexAndGetCurrentNumDocs(
+  static long refreshIndexAndGetCurrentNumDocs(
       ConnectionConfiguration connectionConfiguration, RestClient restClient) throws IOException {
     long result = 0;
     try {
@@ -114,7 +114,7 @@ public class ElasticSearchIOTestUtils {
    * @param injectionMode {@link InjectionMode} that specifies whether to insert malformed documents
    * @return the list of json String representing the documents
    */
-  public static List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
+  static List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
     String[] scientists = {
       "Einstein",
       "Darwin",

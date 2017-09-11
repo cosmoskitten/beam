@@ -48,7 +48,8 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Tests for {@link ElasticsearchIO} version 2. */
+/** Tests for {@link ElasticsearchIO} version 2.x. */
+
 @RunWith(JUnit4.class)
 public class ElasticsearchIOTest implements Serializable {
 
@@ -66,7 +67,8 @@ public class ElasticsearchIOTest implements Serializable {
   //cannot use inheritance because ES5 test already extends ESIntegTestCase.
   private static ElasticsearchIOTestCommon elasticsearchIOTestCommon;
 
-  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+  @ClassRule
+  public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
@@ -135,7 +137,8 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.testWrite();
   }
 
-  @Rule public ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void testWriteWithErrors() throws Exception {

@@ -56,19 +56,21 @@ public class ElasticsearchIOIT {
   private static ConnectionConfiguration writeConnectionConfiguration;
   private static ElasticsearchIOTestCommon elasticsearchIOTestCommon;
 
-  @Rule public TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
 
-  @BeforeClass public static void beforeClass() throws Exception {
+  @BeforeClass
+  public static void beforeClass() throws Exception {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
-    readConnectionConfiguration = ElasticsearchTestIOITCommon
-        .getConnectionConfiguration(options, ElasticsearchTestIOITCommon.ReadOrWrite.READ);
-    writeConnectionConfiguration = ElasticsearchTestIOITCommon
-        .getConnectionConfiguration(options, ElasticsearchTestIOITCommon.ReadOrWrite.WRITE);
+    readConnectionConfiguration = ElasticsearchIOITCommon
+        .getConnectionConfiguration(options, ElasticsearchIOITCommon.ReadOrWrite.READ);
+    writeConnectionConfiguration = ElasticsearchIOITCommon
+        .getConnectionConfiguration(options, ElasticsearchIOITCommon.ReadOrWrite.WRITE);
     restClient = readConnectionConfiguration.createClient();
     elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(readConnectionConfiguration,
-        restClient, ElasticsearchTestIOITCommon.NUM_DOCS,
-        ElasticsearchTestIOITCommon.AVERAGE_DOC_SIZE, 5, false);
+        restClient, ElasticsearchIOITCommon.NUM_DOCS,
+        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, 5, false);
   }
 
   @AfterClass
@@ -99,16 +101,18 @@ public class ElasticsearchIOIT {
     assertEquals("Wrong number of empty splits", expectedNumSources, nonEmptySplits);
   }
 
-  @Test public void testReadVolume() throws Exception {
+  @Test
+  public void testReadVolume() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testRead();
   }
 
-  @Test public void testWriteVolume() throws Exception {
+  @Test
+  public void testWriteVolume() throws Exception {
     //cannot share elasticsearchIOTestCommon because tests run in parallel.
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
-        writeConnectionConfiguration, restClient, ElasticsearchTestIOITCommon.NUM_DOCS,
-        ElasticsearchTestIOITCommon.AVERAGE_DOC_SIZE, 5, false);
+        writeConnectionConfiguration, restClient, ElasticsearchIOITCommon.NUM_DOCS,
+        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, 5, false);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWrite();
   }

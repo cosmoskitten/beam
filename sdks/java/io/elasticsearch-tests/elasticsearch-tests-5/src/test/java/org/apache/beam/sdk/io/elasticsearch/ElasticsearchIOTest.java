@@ -78,13 +78,13 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
         .build();
   }
 
-  @Override public Settings indexSettings() {
+  @Override
+  public Settings indexSettings() {
     return Settings.builder().put(super.indexSettings())
         //useful to have updated sizes for getEstimatedSize
         .put("index.store.stats_refresh_interval", 0)
         .build();
   }
-
 
   @Override
   protected Collection<Class<? extends Plugin>> nodePlugins() {
@@ -112,16 +112,16 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     elasticsearchIOTestCommon.testSizes();
   }
 
- @Test
+  @Test
   public void testRead() throws Exception {
-   // need to create the index using the helper method (not create it at first insertion)
+    // need to create the index using the helper method (not create it at first insertion)
    // for the indexSettings() to be run
    createIndex(ES_INDEX);
    elasticsearchIOTestCommon.setPipeline(pipeline);
    elasticsearchIOTestCommon.testRead();
  }
 
- @Test
+  @Test
   public void testReadWithQuery() throws Exception {
    // need to create the index using the helper method (not create it at first insertion)
    // for the indexSettings() to be run
@@ -130,30 +130,32 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
    elasticsearchIOTestCommon.testReadWithQuery();
   }
 
- @Test
+  @Test
   public void testWrite() throws Exception {
    elasticsearchIOTestCommon.setPipeline(pipeline);
    elasticsearchIOTestCommon.testWrite();
   }
 
-  @Rule public ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
-  @Test public void testWriteWithErrors() throws Exception {
+  @Test
+  public void testWriteWithErrors() throws Exception {
     elasticsearchIOTestCommon.setExpectedException(expectedException);
     elasticsearchIOTestCommon.testWriteWithErrors();
   }
 
- @Test
+  @Test
   public void testWriteWithMaxBatchSize() throws Exception {
     elasticsearchIOTestCommon.testWriteWithMaxBatchSize();
   }
 
- @Test
+  @Test
   public void testWriteWithMaxBatchSizeBytes() throws Exception {
     elasticsearchIOTestCommon.testWriteWithMaxBatchSizeBytes();
   }
 
- @Test
+  @Test
   public void testSplit() throws Exception {
    //need to create the index using the helper method (not create it at first insertion)
    // for the indexSettings() to be run
