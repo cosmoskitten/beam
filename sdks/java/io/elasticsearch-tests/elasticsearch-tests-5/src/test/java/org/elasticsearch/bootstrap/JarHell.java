@@ -26,7 +26,10 @@ import java.net.URISyntaxException;
  * we are forced to use Elasticsearch test framework. But this framework checks for class duplicates
  * in classpath and it cannot be deactivated. When the class duplication come from a dependency,
  * then it cannot be avoided. Elasticsearch community does not provide a way of deactivating
- * the jar hell test, so skip it by making this hack.
+ * the jar hell test, so skip it by making this hack. In this case duplicate class is
+ * class: org.apache.maven.surefire.report.SafeThrowable
+ * jar1: surefire-api-2.20.jar
+ * jar2: surefire-junit47-2.20.jar
  */
 class JarHell {
 
