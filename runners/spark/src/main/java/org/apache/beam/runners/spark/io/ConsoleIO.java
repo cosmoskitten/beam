@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.io;
 
+import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -31,17 +32,27 @@ public final class ConsoleIO {
 
   /**
    * Write on the console.
+   *
+   * @see StreamingTransformTranslator#print()
    */
   public static final class Write {
 
     private Write() {
     }
 
-    public static <T> Unbound<T> out() {
-      return new Unbound<>(10);
+    private static final Integer DEFAULT_NUM = 10;
+
+      /**
+       * Prints {@value DEFAULT_NUM} elements from the {@link PCollection} to stdout.
+       */
+      public static <T> Unbound<T> out() {
+      return new Unbound<>(DEFAULT_NUM);
     }
 
-    public static <T> Unbound<T> out(int num) {
+      /**
+       * Prints {@code num} elements from the {@link PCollection} to stdout.
+       */
+      public static <T> Unbound<T> out(int num) {
       return new Unbound<>(num);
     }
 
