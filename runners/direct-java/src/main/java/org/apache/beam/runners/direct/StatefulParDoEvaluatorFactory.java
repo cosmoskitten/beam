@@ -119,7 +119,6 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             (AppliedPTransform) application,
             (PCollection) inputBundle.getPCollection(),
             inputBundle.getKey(),
-            doFn,
             application.getTransform().getSideInputs(),
             application.getTransform().getMainOutputTag(),
             application.getTransform().getAdditionalOutputTags().getAll());
