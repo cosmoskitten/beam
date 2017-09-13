@@ -44,6 +44,7 @@ public class BeamSqlApiSurfaceTest {
 
     ApiSurface surface = ApiSurface
         .ofClass(BeamSql.class)
+        .includingClass(BeamSqlCli.class)
         .includingClass(BeamSqlUdf.class)
         .includingClass(BeamRecordSqlType.class)
         .includingClass(BeamSqlRecordHelper.class)
