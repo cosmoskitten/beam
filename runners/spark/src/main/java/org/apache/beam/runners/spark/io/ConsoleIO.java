@@ -21,40 +21,31 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
-/**
- * Print to console.
- */
+/** Print to console. */
 public final class ConsoleIO {
 
-  private ConsoleIO() {
-  }
+  private ConsoleIO() {}
 
-  /**
-   * Write to console.
-   */
+  /** Write to console. */
   public static final class Write {
 
     private static final int DEFAULT_NUM = 10;
 
-    private Write() {
-    }
+    private Write() {}
 
-      /**
-       * Prints {@value #DEFAULT_NUM} elements from the {@link PCollection} to stdout.
-       */
-      public static <T> Unbound<T> out() {
+    /** Prints {@value #DEFAULT_NUM} elements from the {@link PCollection} to stdout. */
+    public static <T> Unbound<T> out() {
       return new Unbound<>(DEFAULT_NUM);
     }
 
-      /**
-       * Prints {@code num} elements from the {@link PCollection} to stdout.
-       */
-      public static <T> Unbound<T> out(int num) {
+    /** Prints {@code num} elements from the {@link PCollection} to stdout. */
+    public static <T> Unbound<T> out(int num) {
       return new Unbound<>(num);
     }
 
     /**
      * {@link PTransform} writing {@link PCollection} on the console.
+     *
      * @param <T> the type of the elements in the {@link PCollection}
      */
     public static class Unbound<T> extends PTransform<PCollection<T>, PDone> {
