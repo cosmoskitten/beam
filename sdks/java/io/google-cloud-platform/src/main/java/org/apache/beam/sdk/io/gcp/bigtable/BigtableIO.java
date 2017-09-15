@@ -1085,5 +1085,8 @@ public class BigtableIO {
    */
   private static String getBeamSdkPartOfUserAgent() {
     ReleaseInfo info = ReleaseInfo.getReleaseInfo();
+    return
+        String.format("%s/%s", info.getName(), info.getVersion())
+            .replace(" ", "_");
   }
 }
