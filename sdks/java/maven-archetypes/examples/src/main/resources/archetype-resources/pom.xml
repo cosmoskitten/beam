@@ -43,7 +43,7 @@
     <pubsub.version>@pubsub.version@</pubsub.version>
     <slf4j.version>@slf4j.version@</slf4j.version>
     <spark.version>@spark.version@</spark.version>
-    <surefire-plugin.version>@surefire-plugin.version@</surefire-plugin.version>
+    <surefire-plugin.version>@maven-surefire-plugin.version@</surefire-plugin.version>
   </properties>
 
   <repositories>
@@ -75,7 +75,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${surefire-plugin.version}</version>
+        <version>${maven-surefire-plugin.version}</version>
         <configuration>
           <parallel>all</parallel>
           <threadCount>4</threadCount>
@@ -85,7 +85,7 @@
           <dependency>
             <groupId>org.apache.maven.surefire</groupId>
             <artifactId>surefire-junit47</artifactId>
-            <version>${surefire-plugin.version}</version>
+            <version>${maven-surefire-plugin.version}</version>
           </dependency>
         </dependencies>
       </plugin>
