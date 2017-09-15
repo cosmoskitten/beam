@@ -20,21 +20,23 @@ package org.apache.beam.artifact.local;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Throwables;
 import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.common.runner.v1.ArtifactApi.Artifact;
 import org.apache.beam.sdk.common.runner.v1.ArtifactApi.CommitManifestRequest;
 import org.apache.beam.sdk.common.runner.v1.ArtifactApi.CommitManifestResponse;
 import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactRequest;
+import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactRequest.ContentCase;
 import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactResponse;
 import org.apache.beam.sdk.common.runner.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
 import org.slf4j.Logger;
@@ -70,130 +72,84 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
   @Override
   public StreamObserver<PutArtifactRequest> putArtifact(
       final StreamObserver<PutArtifactResponse> responseObserver) {
-    return new StreamObserver<PutArtifactRequest>() {
-      private File destination;
-      private FileChannel target;
+    StreamObserver<PutArtifactRequest> createFileAndWriteObserver =
+        new StreamObserver<PutArtifactRequest>() {
+          private FileWritingObserver writer;
 
-      @Override
-      public void onNext(PutArtifactRequest value) {
-        switch (value.getContentCase()) {
-          case NAME:
-            if (destination != null) {
-              StatusRuntimeException failure =
-                  Status.INVALID_ARGUMENT
+          @Override
+          public void onNext(PutArtifactRequest value) {
+            try {
+              if (writer == null) {
+                if (!value.getContentCase().equals(ContentCase.NAME)) {
+                  throw Status.INVALID_ARGUMENT
                       .withDescription(
                           String.format(
-                              "Expected NAME only once as the first %s",
-                              PutArtifactRequest.class.getSimpleName()))
+                              "Expected the first %s to contain the Artifact Name, got %s",
+                              PutArtifactRequest.class.getSimpleName(), value.getContentCase()))
                       .asRuntimeException();
-              responseObserver.onError(failure);
-              throw failure;
+                }
+                writer = createFile(value.getName());
+              } else {
+                writer.onNext(value);
+              }
+            } catch (StatusRuntimeException e) {
+              responseObserver.onError(e);
+            } catch (Exception e) {
+              responseObserver.onError(
+                  Status.INTERNAL
+                      .withCause(e)
+                      .withDescription(Throwables.getStackTraceAsString(e))
+                      .asRuntimeException());
             }
-            createFile(value.getName());
-            return;
-          case DATA:
-            if (destination == null) {
-              StatusRuntimeException failure =
-                  Status.INVALID_ARGUMENT
-                      .withDescription("Expected DATA only after the NAME has been provided")
-                      .asRuntimeException();
-              responseObserver.onError(failure);
-              throw failure;
-            }
-            writeData(value.getData().getData().asReadOnlyByteBuffer());
-            return;
-          case CONTENT_NOT_SET:
-          default:
-            StatusRuntimeException failure =
-                Status.INVALID_ARGUMENT
-                    .withDescription("One of NAME or DATA is required")
-                    .asRuntimeException();
-            responseObserver.onError(failure);
-            throw failure;
-        }
-      }
-
-      private void createFile(String artifactName) {
-        destination = getArtifactFile(artifactName);
-        try {
-          if (!destination.createNewFile()) {
-            String msg = String.format("Artifact with name %s already exists", artifactName);
-            StatusRuntimeException failure =
-                Status.ALREADY_EXISTS.withDescription(msg).asRuntimeException();
-            responseObserver.onError(failure);
-            throw failure;
           }
-          target = new FileOutputStream(destination).getChannel();
-        } catch (IOException e) {
-          StatusRuntimeException status = Status.INTERNAL.withCause(e).asRuntimeException();
-          responseObserver.onError(status);
-          LOG.error(
-              "Failed to withRootDirectory file {} for artifact {} at base location {}",
-              destination,
-              artifactName,
-              stagingBase,
-              e);
-          throw status;
-        }
-      }
 
-      /**
-       * Write the contents of the provided {@link ByteBuffer} to the target {@link File}.
-       *
-       * <p>Will read starting at the current position of the {@link ByteBuffer} and consume all of
-       * the available bytes.
-       */
-      private void writeData(ByteBuffer byteBuffer) {
-        try {
-          target.write(byteBuffer);
-        } catch (IOException e) {
-          StatusRuntimeException failure = Status.INTERNAL.withCause(e).asRuntimeException();
-          responseObserver.onError(failure);
-          LOG.error("Failed to write contents to file {}", destination, e);
-          throw failure;
-        }
-      }
+          private FileWritingObserver createFile(String artifactName) throws IOException {
+            File destination = getArtifactFile(artifactName);
+            if (!destination.createNewFile()) {
+              throw Status.ALREADY_EXISTS
+                  .withDescription(
+                      String.format("Artifact with name %s already exists", artifactName))
+                  .asRuntimeException();
+            }
+            return new FileWritingObserver(
+                destination, new FileOutputStream(destination), responseObserver);
+          }
 
-      @Override
-      public void onError(Throwable t) {
-        try {
-          target.close();
-          // try to cleanup; no guarantees that this will work.
-          destination.delete();
-        } catch (IOException e) {
-          t.addSuppressed(e);
-        }
-      }
+          @Override
+          public void onError(Throwable t) {
+            if (writer != null) {
+              writer.onError(t);
+            } else {
+              responseObserver.onCompleted();
+            }
+          }
 
-      @Override
-      public void onCompleted() {
-        try {
-          target.close();
-        } catch (IOException e) {
-          StatusRuntimeException failure = Status.INTERNAL.withCause(e).asRuntimeException();
-          responseObserver.onError(failure);
-          LOG.error("Failed to complete writing file {}", destination, e);
-          throw failure;
-        }
-        responseObserver.onNext(PutArtifactResponse.getDefaultInstance());
-        responseObserver.onCompleted();
-      }
-    };
+          @Override
+          public void onCompleted() {
+            if (writer != null) {
+              writer.onCompleted();
+            } else {
+              responseObserver.onCompleted();
+            }
+          }
+        };
+    return createFileAndWriteObserver;
   }
 
   @Override
   public void commitManifest(
       CommitManifestRequest request, StreamObserver<CommitManifestResponse> responseObserver) {
-    Collection<Artifact> missing = new ArrayList<>();
-    for (Artifact artifact : request.getManifest().getArtifactList()) {
-      if (!getArtifactFile(artifact.getName()).exists()) {
-        missing.add(artifact);
+    try {
+      Collection<Artifact> missing = new ArrayList<>();
+      for (Artifact artifact : request.getManifest().getArtifactList()) {
+        // TODO: Validate the MD5s on the server side, to fail more aggressively if require
+        if (!getArtifactFile(artifact.getName()).exists()) {
+          missing.add(artifact);
+        }
       }
-    }
-    if (missing.isEmpty()) {
-      File mf = new File(stagingBase, "MANIFEST");
-      try {
-        checkState(mf.createNewFile());
+      if (missing.isEmpty()) {
+        File mf = new File(stagingBase, "MANIFEST");
+        checkState(mf.createNewFile(), "Could not create file to store manifest");
         try (OutputStream mfOut = new FileOutputStream(mf)) {
           request.getManifest().writeTo(mfOut);
         }
@@ -202,25 +158,109 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
                 .setStagingToken(stagingBase.getCanonicalPath())
                 .build());
         responseObserver.onCompleted();
-      } catch (IOException e) {
-        StatusRuntimeException failure = Status.INTERNAL.withCause(e).asRuntimeException();
-        responseObserver.onError(failure);
-        LOG.error("Failed to commit Manifest {}", request.getManifest(), e);
-        throw failure;
+      } else {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(
+                String.format("Attempted to commit manifest with missing Artifacts: [%s]", missing))
+            .asRuntimeException();
       }
-    } else {
-      StatusRuntimeException failure =
-          Status.INVALID_ARGUMENT
-              .withDescription(
-                  String.format(
-                      "Attempted to commit manifest with missing Artifacts: [%s]", missing))
-              .asRuntimeException();
-      responseObserver.onError(failure);
-      throw failure;
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+      LOG.error("Failed to commit Manifest {}", request.getManifest(), e);
+    } catch (Exception e) {
+      responseObserver.onError(
+          Status.INTERNAL
+              .withCause(e)
+              .withDescription(Throwables.getStackTraceAsString(e))
+              .asRuntimeException());
+      LOG.error("Failed to commit Manifest {}", request.getManifest(), e);
     }
   }
 
   private File getArtifactFile(String artifactName) {
     return new File(artifactsBase, artifactName);
+  }
+
+  private static class FileWritingObserver implements StreamObserver<PutArtifactRequest> {
+    private final File destination;
+    private final OutputStream target;
+    private final StreamObserver<PutArtifactResponse> responseObserver;
+
+    private FileWritingObserver(
+        File destination,
+        OutputStream target,
+        StreamObserver<PutArtifactResponse> responseObserver) {
+      this.destination = destination;
+      this.target = target;
+      this.responseObserver = responseObserver;
+    }
+
+    @Override
+    public void onNext(PutArtifactRequest value) {
+      try {
+        if (value.getData() == null) {
+          StatusRuntimeException e = Status.INVALID_ARGUMENT.withDescription(String.format(
+              "Expected all chunks in the current stream state to contain data, got %s",
+              value.getContentCase())).asRuntimeException();
+          throw e;
+        }
+        value.getData().getData().writeTo(target);
+      } catch (Exception e) {
+        cleanedUp(e);
+      }
+    }
+
+    @Override
+    public void onError(Throwable t) {
+      if (cleanedUp(null)) {
+        responseObserver.onCompleted();
+      }
+    }
+
+    @Override
+    public void onCompleted() {
+      try {
+        target.close();
+      } catch (IOException e) {
+        LOG.error("Failed to complete writing file {}", destination, e);
+        cleanedUp(e);
+        return;
+      }
+      responseObserver.onNext(PutArtifactResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    }
+
+    /**
+     * Cleans up after the file writing failed exceptionally, due to an error either in the service
+     * or sent from the client.
+     *
+     * @return false if an error was reported, true otherwise
+     */
+    private boolean cleanedUp(@Nullable Throwable whyFailed) {
+      Throwable actual = whyFailed;
+      try {
+        target.close();
+        destination.delete();
+      } catch (IOException e) {
+        if (whyFailed == null) {
+          actual = e;
+        } else {
+          actual.addSuppressed(e);
+        }
+        LOG.error("Failed to clean up after writing file {}", destination, e);
+      }
+      if (actual != null) {
+        if (actual instanceof StatusException || actual instanceof StatusRuntimeException) {
+          responseObserver.onError(actual);
+        } else {
+          Status status =
+              Status.INTERNAL
+                  .withCause(actual)
+                  .withDescription(Throwables.getStackTraceAsString(actual));
+          responseObserver.onError(status.asException());
+        }
+      }
+      return actual == null;
+    }
   }
 }
