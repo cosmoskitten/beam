@@ -53,7 +53,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
   @Before
   public void setup() throws Exception {
     stagingLocation = temporaryFolder.newFolder();
-    stager = LocalFileSystemArtifactStagerService.create(stagingLocation);
+    stager = LocalFileSystemArtifactStagerService.withRootDirectory(stagingLocation);
   }
 
   @Test

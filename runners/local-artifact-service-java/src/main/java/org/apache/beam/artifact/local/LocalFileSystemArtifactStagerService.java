@@ -45,14 +45,26 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
   private static final Logger LOG =
       LoggerFactory.getLogger(LocalFileSystemArtifactStagerService.class);
 
-  public static LocalFileSystemArtifactStagerService create(File base) {
+  public static LocalFileSystemArtifactStagerService withRootDirectory(File base) {
     return new LocalFileSystemArtifactStagerService(base);
   }
 
   private final File stagingBase;
+  private final File artifactsBase;
 
   private LocalFileSystemArtifactStagerService(File stagingBase) {
     this.stagingBase = stagingBase;
+    stagingBase.mkdirs();
+    if (stagingBase.exists() && stagingBase.canWrite()) {
+      artifactsBase = new File(stagingBase, "artifacts");
+    } else {
+      throw new IllegalStateException(
+          String.format("Cannot write to base directory %s", stagingBase));
+    }
+    checkState(
+        stagingBase.exists() && stagingBase.canWrite(),
+        "Could not create staging directory structure at root %s",
+        stagingBase);
   }
 
   @Override
@@ -116,7 +128,7 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
           StatusRuntimeException status = Status.INTERNAL.withCause(e).asRuntimeException();
           responseObserver.onError(status);
           LOG.error(
-              "Failed to create file {} for artifact {} at base location {}",
+              "Failed to withRootDirectory file {} for artifact {} at base location {}",
               destination,
               artifactName,
               stagingBase,
@@ -209,7 +221,6 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
   }
 
   private File getArtifactFile(String artifactName) {
-    // TODO: Create a subdirectory rather than adding a prefix
-    return new File(stagingBase, "staged-" + artifactName);
+    return new File(artifactsBase, artifactName);
   }
 }
