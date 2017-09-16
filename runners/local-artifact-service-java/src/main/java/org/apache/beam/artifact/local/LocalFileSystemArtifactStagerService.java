@@ -59,6 +59,7 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
     stagingBase.mkdirs();
     if (stagingBase.exists() && stagingBase.canWrite()) {
       artifactsBase = new File(stagingBase, "artifacts");
+      artifactsBase.mkdir();
     } else {
       throw new IllegalStateException(
           String.format("Cannot write to base directory %s", stagingBase));
@@ -72,68 +73,7 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
   @Override
   public StreamObserver<PutArtifactRequest> putArtifact(
       final StreamObserver<PutArtifactResponse> responseObserver) {
-    StreamObserver<PutArtifactRequest> createFileAndWriteObserver =
-        new StreamObserver<PutArtifactRequest>() {
-          private FileWritingObserver writer;
-
-          @Override
-          public void onNext(PutArtifactRequest value) {
-            try {
-              if (writer == null) {
-                if (!value.getContentCase().equals(ContentCase.NAME)) {
-                  throw Status.INVALID_ARGUMENT
-                      .withDescription(
-                          String.format(
-                              "Expected the first %s to contain the Artifact Name, got %s",
-                              PutArtifactRequest.class.getSimpleName(), value.getContentCase()))
-                      .asRuntimeException();
-                }
-                writer = createFile(value.getName());
-              } else {
-                writer.onNext(value);
-              }
-            } catch (StatusRuntimeException e) {
-              responseObserver.onError(e);
-            } catch (Exception e) {
-              responseObserver.onError(
-                  Status.INTERNAL
-                      .withCause(e)
-                      .withDescription(Throwables.getStackTraceAsString(e))
-                      .asRuntimeException());
-            }
-          }
-
-          private FileWritingObserver createFile(String artifactName) throws IOException {
-            File destination = getArtifactFile(artifactName);
-            if (!destination.createNewFile()) {
-              throw Status.ALREADY_EXISTS
-                  .withDescription(
-                      String.format("Artifact with name %s already exists", artifactName))
-                  .asRuntimeException();
-            }
-            return new FileWritingObserver(
-                destination, new FileOutputStream(destination), responseObserver);
-          }
-
-          @Override
-          public void onError(Throwable t) {
-            if (writer != null) {
-              writer.onError(t);
-            } else {
-              responseObserver.onCompleted();
-            }
-          }
-
-          @Override
-          public void onCompleted() {
-            if (writer != null) {
-              writer.onCompleted();
-            } else {
-              responseObserver.onCompleted();
-            }
-          }
-        };
-    return createFileAndWriteObserver;
+    return new CreateAndWriteFileObserver(responseObserver);
   }
 
   @Override
@@ -142,28 +82,27 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
     try {
       Collection<Artifact> missing = new ArrayList<>();
       for (Artifact artifact : request.getManifest().getArtifactList()) {
-        // TODO: Validate the MD5s on the server side, to fail more aggressively if require
+        // TODO: Validate the checksums on the server side, to fail more aggressively if require
         if (!getArtifactFile(artifact.getName()).exists()) {
           missing.add(artifact);
         }
       }
-      if (missing.isEmpty()) {
-        File mf = new File(stagingBase, "MANIFEST");
-        checkState(mf.createNewFile(), "Could not create file to store manifest");
-        try (OutputStream mfOut = new FileOutputStream(mf)) {
-          request.getManifest().writeTo(mfOut);
-        }
-        responseObserver.onNext(
-            CommitManifestResponse.newBuilder()
-                .setStagingToken(stagingBase.getCanonicalPath())
-                .build());
-        responseObserver.onCompleted();
-      } else {
+      if (!missing.isEmpty()) {
         throw Status.INVALID_ARGUMENT
             .withDescription(
                 String.format("Attempted to commit manifest with missing Artifacts: [%s]", missing))
             .asRuntimeException();
       }
+      File mf = new File(stagingBase, "MANIFEST");
+      checkState(mf.createNewFile(), "Could not create file to store manifest");
+      try (OutputStream mfOut = new FileOutputStream(mf)) {
+        request.getManifest().writeTo(mfOut);
+      }
+      responseObserver.onNext(
+          CommitManifestResponse.newBuilder()
+              .setStagingToken(stagingBase.getCanonicalPath())
+              .build());
+      responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       responseObserver.onError(e);
       LOG.error("Failed to commit Manifest {}", request.getManifest(), e);
@@ -177,8 +116,73 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
     }
   }
 
-  private File getArtifactFile(String artifactName) {
+  File getArtifactFile(String artifactName) {
     return new File(artifactsBase, artifactName);
+  }
+
+  private class CreateAndWriteFileObserver implements StreamObserver<PutArtifactRequest> {
+    private final StreamObserver<PutArtifactResponse> responseObserver;
+    private FileWritingObserver writer;
+
+    private CreateAndWriteFileObserver(StreamObserver<PutArtifactResponse> responseObserver) {
+      this.responseObserver = responseObserver;
+    }
+
+    @Override
+    public void onNext(PutArtifactRequest value) {
+      try {
+        if (writer == null) {
+          if (!value.getContentCase().equals(ContentCase.NAME)) {
+            throw Status.INVALID_ARGUMENT
+                .withDescription(
+                    String.format(
+                        "Expected the first %s to contain the Artifact Name, got %s",
+                        PutArtifactRequest.class.getSimpleName(), value.getContentCase()))
+                .asRuntimeException();
+          }
+          writer = createFile(value.getName());
+        } else {
+          writer.onNext(value);
+        }
+      } catch (StatusRuntimeException e) {
+        responseObserver.onError(e);
+      } catch (Exception e) {
+        responseObserver.onError(
+            Status.INTERNAL
+                .withCause(e)
+                .withDescription(Throwables.getStackTraceAsString(e))
+                .asRuntimeException());
+      }
+    }
+
+    private FileWritingObserver createFile(String artifactName) throws IOException {
+      File destination = getArtifactFile(artifactName);
+      if (!destination.createNewFile()) {
+        throw Status.ALREADY_EXISTS
+            .withDescription(String.format("Artifact with name %s already exists", artifactName))
+            .asRuntimeException();
+      }
+      return new FileWritingObserver(
+          destination, new FileOutputStream(destination), responseObserver);
+    }
+
+    @Override
+    public void onError(Throwable t) {
+      if (writer != null) {
+        writer.onError(t);
+      } else {
+        responseObserver.onCompleted();
+      }
+    }
+
+    @Override
+    public void onCompleted() {
+      if (writer != null) {
+        writer.onCompleted();
+      } else {
+        responseObserver.onCompleted();
+      }
+    }
   }
 
   private static class FileWritingObserver implements StreamObserver<PutArtifactRequest> {

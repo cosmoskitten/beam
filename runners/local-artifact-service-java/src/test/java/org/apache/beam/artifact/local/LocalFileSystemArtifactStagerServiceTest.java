@@ -18,6 +18,9 @@
 
 package org.apache.beam.artifact.local;
 
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import java.io.File;
@@ -70,9 +73,8 @@ public class LocalFileSystemArtifactStagerServiceTest {
             .build());
     requestObserver.onCompleted();
 
-    String[] recordedFiles = stagingLocation.list();
-    Assert.assertThat(recordedFiles, Matchers.arrayWithSize(1));
-    File staged = stagingLocation.toPath().resolve(recordedFiles[0]).toFile();
+    File staged = stager.getArtifactFile(name);
+    assertThat(staged.exists(), is(true));
     ByteBuffer buf = ByteBuffer.allocate(data.length);
     new FileInputStream(staged).getChannel().read(buf);
     Assert.assertArrayEquals(data, buf.array());
@@ -102,9 +104,8 @@ public class LocalFileSystemArtifactStagerServiceTest {
             .build());
     requestObserver.onCompleted();
 
-    String[] recordedFiles = stagingLocation.list();
-    Assert.assertThat(recordedFiles, Matchers.arrayWithSize(1));
-    File staged = stagingLocation.toPath().resolve(recordedFiles[0]).toFile();
+    File staged = stager.getArtifactFile(name);
+    assertThat(staged.exists(), is(true));
     ByteBuffer buf = ByteBuffer.allocate("foo-bar-baz".length());
     new FileInputStream(staged).getChannel().read(buf);
     Assert.assertArrayEquals("foo-bar-baz".getBytes(), buf.array());
@@ -116,15 +117,11 @@ public class LocalFileSystemArtifactStagerServiceTest {
     RecordingStreamObserver<PutArtifactResponse> responseObserver = new RecordingStreamObserver<>();
     StreamObserver<PutArtifactRequest> requestObserver = stager.putArtifact(responseObserver);
 
-    try {
-      requestObserver.onNext(
-          PutArtifactRequest.newBuilder()
-              .setData(ArtifactChunk.newBuilder().setData(ByteString.copyFrom(data)).build())
-              .build());
-      Assert.fail("Should throw out of the call to 'onNext'");
-    } catch (Exception ignored) {
-    }
-    Assert.assertThat(responseObserver.error, Matchers.not(Matchers.nullValue()));
+    requestObserver.onNext(
+        PutArtifactRequest.newBuilder()
+            .setData(ArtifactChunk.newBuilder().setData(ByteString.copyFrom(data)).build())
+            .build());
+    assertThat(responseObserver.error, Matchers.not(Matchers.nullValue()));
   }
 
   @Test
@@ -132,13 +129,9 @@ public class LocalFileSystemArtifactStagerServiceTest {
     RecordingStreamObserver<PutArtifactResponse> responseObserver = new RecordingStreamObserver<>();
     StreamObserver<PutArtifactRequest> requestObserver = stager.putArtifact(responseObserver);
 
-    try {
-      requestObserver.onNext(
-          PutArtifactRequest.newBuilder().setData(ArtifactChunk.getDefaultInstance()).build());
-      Assert.fail("Should throw out of the call to 'onNext'");
-    } catch (Exception ignored) {
-    }
-    Assert.assertThat(responseObserver.error, Matchers.not(Matchers.nullValue()));
+    requestObserver.onNext(
+        PutArtifactRequest.newBuilder().setData(ArtifactChunk.getDefaultInstance()).build());
+    assertThat(responseObserver.error, Matchers.not(Matchers.nullValue()));
   }
 
   @Test
@@ -153,10 +146,10 @@ public class LocalFileSystemArtifactStagerServiceTest {
         new RecordingStreamObserver<>();
     stager.commitManifest(
         CommitManifestRequest.newBuilder().setManifest(manifest).build(), commitResponseObserver);
-    Assert.assertThat(commitResponseObserver.completed, Matchers.is(true));
-    Assert.assertThat(commitResponseObserver.responses, Matchers.hasSize(1));
+    assertThat(commitResponseObserver.completed, is(true));
+    assertThat(commitResponseObserver.responses, Matchers.hasSize(1));
     CommitManifestResponse commitResponse = commitResponseObserver.responses.get(0);
-    Assert.assertThat(commitResponse.getStagingToken(), Matchers.not(Matchers.nullValue()));
+    assertThat(commitResponse.getStagingToken(), Matchers.not(Matchers.nullValue()));
   }
 
   @Test
@@ -169,13 +162,9 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
     RecordingStreamObserver<CommitManifestResponse> commitResponseObserver =
         new RecordingStreamObserver<>();
-    try {
-      stager.commitManifest(CommitManifestRequest.newBuilder().setManifest(manifest).build(),
-          commitResponseObserver);
-      Assert.fail("commit should not complete");
-    } catch (Exception e) {
-      Assert.assertThat(commitResponseObserver.error, Matchers.not(Matchers.nullValue()));
-    }
+    stager.commitManifest(CommitManifestRequest.newBuilder().setManifest(manifest).build(),
+        commitResponseObserver);
+    assertThat(commitResponseObserver.error, Matchers.not(Matchers.nullValue()));
   }
 
   private Artifact stageBytes(String name, byte[] bytes) {
@@ -215,7 +204,10 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
     private void failIfTerminal() {
       if (error != null || completed) {
-        Assert.fail("Should have terminated after entering a terminal state");
+        Assert.fail(
+            String.format(
+                "Should have terminated after entering a terminal state: completed %s, error %s",
+                completed, error));
       }
     }
   }
