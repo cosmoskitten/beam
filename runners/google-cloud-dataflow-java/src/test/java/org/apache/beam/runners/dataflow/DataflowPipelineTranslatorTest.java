@@ -66,12 +66,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
-import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
@@ -748,7 +748,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   /**
    * Test that in translation the name for a collection (in this case just a Create output) is
-   * overriden to be what the Dataflow service expects.
+   * overridden to be what the Dataflow service expects.
    */
   @Test
   public void testNamesOverridden() throws Exception {
