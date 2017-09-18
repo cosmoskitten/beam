@@ -56,18 +56,16 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
 
   private LocalFileSystemArtifactStagerService(File stagingBase) {
     this.stagingBase = stagingBase;
-    stagingBase.mkdirs();
-    if (stagingBase.exists() && stagingBase.canWrite()) {
+    if ((stagingBase.mkdirs() || stagingBase.exists()) && stagingBase.canWrite()) {
       artifactsBase = new File(stagingBase, "artifacts");
-      artifactsBase.mkdir();
+      checkState(
+          (artifactsBase.mkdir() || artifactsBase.exists()) && artifactsBase.canWrite(),
+          "Could not create artifact staging directory at %s",
+          artifactsBase);
     } else {
       throw new IllegalStateException(
-          String.format("Cannot write to base directory %s", stagingBase));
+          String.format("Could not create staging directory structure at root %s", stagingBase));
     }
-    checkState(
-        stagingBase.exists() && stagingBase.canWrite(),
-        "Could not create staging directory structure at root %s",
-        stagingBase);
   }
 
   @Override
@@ -244,7 +242,9 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
       Throwable actual = whyFailed;
       try {
         target.close();
-        destination.delete();
+        if (!destination.delete()) {
+          LOG.debug("Couldn't delete failed write at {}", destination);
+        }
       } catch (IOException e) {
         if (whyFailed == null) {
           actual = e;
