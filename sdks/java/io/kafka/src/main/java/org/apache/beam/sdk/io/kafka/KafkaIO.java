@@ -123,9 +123,6 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.errors.AuthorizationException;
-import org.apache.kafka.common.errors.OutOfOrderSequenceException;
-import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -1530,6 +1527,7 @@ public class KafkaIO {
      * CPU cost might be noticeable. The cost could be minimized by writing byte arrays.
      */
     public Write<K, V> withEOS() {
+      EOSWrite.ensureEOSSupport();
       return toBuilder().setEOS(true).build();
     }
 
@@ -1574,6 +1572,7 @@ public class KafkaIO {
           "Kafka bootstrap servers should be set");
       checkNotNull(getTopic(), "Kafka topic should be set");
       if (isEOS()) {
+        EOSWrite.ensureEOSSupport();
         checkNotNull(getSinkGroupId(), "A group id is required for exactly-once sink");
 
         // TODO: Verify that the group_id does not have existing state stored on Kafka unless
@@ -1837,6 +1836,13 @@ public class KafkaIO {
 
     private final Write<K, V> spec;
 
+    static void ensureEOSSupport() {
+      checkArgument(
+        ProducerSpEL.supportsTransactions(), "%s %s",
+        "This version of Kafka client does not support transactions required to support",
+        "exactly-once semantics. Please use Kafka client version 0.11 or newer.");
+    }
+
     EOSWrite(Write<K, V> spec) {
       this.spec = spec;
     }
@@ -1949,6 +1955,12 @@ public class KafkaIO {
       this.outOfOrderBuffer = StateSpecs.bag(KvCoder.of(BigEndianLongCoder.of(), elemCoder));
     }
 
+    @Setup
+    public void setup() {
+      // This is on the worker. Ensure the runtime version is till compatible.
+      EOSWrite.ensureEOSSupport();
+    }
+
     @ProcessElement
     public void processElement(@StateId(NEXT_ID) ValueState<Long> nextIdState,
                                @StateId(MIN_BUFFERED_ID) ValueState<Long> minBufferedIdState,
@@ -2050,7 +2062,7 @@ public class KafkaIO {
         writer.commitTxn(nextId - 1, numTransactions);
         nextIdState.write(nextId);
 
-      } catch (ProducerFencedException | OutOfOrderSequenceException | AuthorizationException e) {
+      } catch (ProducerSpEL.UnrecoverableProducerException e) {
         // Producer JavaDoc says these are not recoverable errors and producer should be closed.
 
         // Close the producer and a new producer will be initialized in retry.
@@ -2117,7 +2129,7 @@ public class KafkaIO {
       }
 
       void beginTxn() {
-        producer.beginTransaction();
+        ProducerSpEL.beginTransaction(producer);
       }
 
       void sendRecord(KV<K, V> record, Counter sendCounter) {
@@ -2126,7 +2138,7 @@ public class KafkaIO {
               new ProducerRecord<>(spec.getTopic(), record.getKey(), record.getValue()));
           sendCounter.inc();
         } catch (KafkaException e) {
-          producer.abortTransaction();
+          ProducerSpEL.abortTransaction(producer);
           throw e;
         }
       }
@@ -2137,20 +2149,21 @@ public class KafkaIO {
           // NOTE: Kafka keeps this metadata for 24 hours since the last update. This limits
           // how long the pipeline could be down before resuming it. It does not look like
           // this TTL can be adjusted (asked about it on Kafka users list).
-          producer.sendOffsetsToTransaction(
+          ProducerSpEL.sendOffsetsToTransaction(
+              producer,
               ImmutableMap.of(new TopicPartition(spec.getTopic(), shard),
-                              new OffsetAndMetadata(
-                                  0L, JSON_MAPPER.writeValueAsString(new ShardMetadata(lastRecordId,
-                                                                                       writerId)))),
+                              new OffsetAndMetadata(0L,
+                                                    JSON_MAPPER.writeValueAsString(
+                                                      new ShardMetadata(lastRecordId, writerId)))),
               spec.getSinkGroupId());
-          producer.commitTransaction();
+          ProducerSpEL.commitTransaction(producer);
 
           numTransactions.inc();
-          LOG.info("{} : committed {} records", shard, lastRecordId - committedId);
+          LOG.debug("{} : committed {} records", shard, lastRecordId - committedId);
 
           committedId = lastRecordId;
         } catch (KafkaException e) {
-          producer.abortTransaction();
+          ProducerSpEL.abortTransaction(producer);
           throw e;
         }
       }
@@ -2322,14 +2335,14 @@ public class KafkaIO {
     producerConfig.putAll(ImmutableMap.of(
         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, spec.getKeySerializer(),
         ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, spec.getValueSerializer(),
-        ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true,
-        ProducerConfig.TRANSACTIONAL_ID_CONFIG, producerName));
+        ProducerSpEL.ENABLE_IDEMPOTENCE_CONFIG, true,
+        ProducerSpEL.TRANSACTIONAL_ID_CONFIG, producerName));
 
     Producer<K, V> producer = spec.getProducerFactoryFn() != null
       ? spec.getProducerFactoryFn().apply((producerConfig))
       : new KafkaProducer<K, V>(producerConfig);
 
-    producer.initTransactions();
+    ProducerSpEL.initTransactions(producer);
     return producer;
   }
 }
