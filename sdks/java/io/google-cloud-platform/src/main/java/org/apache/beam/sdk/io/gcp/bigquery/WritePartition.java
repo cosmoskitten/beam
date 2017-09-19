@@ -29,6 +29,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Partitions temporary files based on number of files and file sizes. Output key is a pair of
@@ -38,6 +40,8 @@ class WritePartition<DestinationT>
     extends DoFn<
         Iterable<WriteBundlesToFiles.Result<DestinationT>>,
         KV<ShardedKey<DestinationT>, List<String>>> {
+  private static final Logger LOG = LoggerFactory.getLogger(WritePartition.class);
+
   private final boolean singletonTable;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final PCollectionView<String> tempFilePrefix;
