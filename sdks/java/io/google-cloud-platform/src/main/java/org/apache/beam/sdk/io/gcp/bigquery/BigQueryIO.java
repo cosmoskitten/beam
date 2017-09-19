@@ -1207,7 +1207,7 @@ public class BigQueryIO {
             "When writing an unbounded PCollection via FILE_LOADS, "
                 + "triggering frequency must be specified");
       } else {
-       checkArgument(
+        checkArgument(
             getTriggeringFrequency() == null && getNumFileShards() == 0,
             "Triggering frequency or number of file shards can be specified only when writing "
                 + "an unbounded PCollection via FILE_LOADS, but: the collection was %s "

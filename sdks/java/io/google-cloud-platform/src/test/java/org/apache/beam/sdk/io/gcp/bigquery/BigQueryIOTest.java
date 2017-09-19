@@ -504,7 +504,6 @@ public class BigQueryIOTest implements Serializable {
 
     Pipeline p = TestPipeline.create(bqOptions);
 
-
     TableSchema schema = new TableSchema()
         .setFields(
             ImmutableList.of(

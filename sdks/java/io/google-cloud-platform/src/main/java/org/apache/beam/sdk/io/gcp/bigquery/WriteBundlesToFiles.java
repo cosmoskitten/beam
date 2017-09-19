@@ -153,20 +153,6 @@ class WriteBundlesToFiles<DestinationT>
 
     @Override
     public void verifyDeterministic() {}
-
-    @Override
-    public final boolean equals(Object other) {
-      if (other instanceof ResultCoder) {
-        ResultCoder otherCoder = (ResultCoder) other;
-        return this.destinationCoder.equals(otherCoder.destinationCoder);
-      }
-      return false;
-    }
-
-    @Override
-    public final int hashCode() {
-      return Objects.hash(this.getClass(), destinationCoder);
-    }
   }
 
   WriteBundlesToFiles(

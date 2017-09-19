@@ -256,7 +256,6 @@ class BatchLoads<DestinationT>
                             singlePartitionTag))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
-
     PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), jobIdTokenView);
     tempTables
@@ -277,7 +276,6 @@ class BatchLoads<DestinationT>
                         bigQueryServices, jobIdTokenView, writeDisposition, createDisposition))
                 .withSideInputs(jobIdTokenView));
     writeSinglePartition(partitions.get(singlePartitionTag), jobIdTokenView);
-
     return writeResult(p);
   }
 
