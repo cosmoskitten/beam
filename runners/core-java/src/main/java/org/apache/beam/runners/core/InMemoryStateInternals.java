@@ -17,8 +17,14 @@
  */
 package org.apache.beam.runners.core;
 
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -326,7 +332,8 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     @Override
     public OutputT read() {
-      return combineFn.extractOutput(accum);
+      return combineFn.extractOutput(
+          combineFn.mergeAccumulators(Arrays.asList(combineFn.createAccumulator(), accum)));
     }
 
     @Override
@@ -407,7 +414,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     @Override
     public Iterable<T> read() {
-      return contents;
+      return Iterables.limit(contents, contents.size());
     }
 
     @Override
@@ -478,7 +485,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     @Override
     public Iterable<T> read() {
-      return contents;
+      return ImmutableSet.copyOf(contents);
     }
 
     @Override
@@ -551,19 +558,41 @@ public class InMemoryStateInternals<K> implements StateInternals {
       contents.remove(key);
     }
 
+    private static class CollectionViewState<T> implements ReadableState<Iterable<T>> {
+      private final Collection<T> collection;
+
+      private CollectionViewState(Collection<T> collection) {
+        this.collection = collection;
+      }
+
+      public static <T> CollectionViewState<T> of(Collection<T> collection) {
+        return new CollectionViewState<>(collection);
+      }
+
+      @Override
+      public Iterable<T> read() {
+        return ImmutableList.copyOf(collection);
+      }
+
+      @Override
+      public ReadableState<Iterable<T>> readLater() {
+        return this;
+      }
+    }
+
     @Override
     public ReadableState<Iterable<K>> keys() {
-      return ReadableStates.immediate((Iterable<K>) contents.keySet());
+      return CollectionViewState.of(contents.keySet());
     }
 
     @Override
     public ReadableState<Iterable<V>> values() {
-      return ReadableStates.immediate((Iterable<V>) contents.values());
+      return CollectionViewState.of(contents.values());
     }
 
     @Override
     public ReadableState<Iterable<Map.Entry<K, V>>> entries() {
-      return ReadableStates.immediate((Iterable<Map.Entry<K, V>>) contents.entrySet());
+      return CollectionViewState.of(contents.entrySet());
     }
 
     @Override
