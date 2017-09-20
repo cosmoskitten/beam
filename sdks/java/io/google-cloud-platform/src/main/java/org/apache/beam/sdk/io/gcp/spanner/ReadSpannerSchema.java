@@ -46,7 +46,6 @@ public class ReadSpannerSchema extends AbstractSpannerFn<Void, SpannerSchema> {
 
 
       while (resultSet.next()) {
-        // do nothing
         String tableName = resultSet.getString(0);
         String columnName = resultSet.getString(1);
         String type = resultSet.getString(2);
@@ -61,7 +60,6 @@ public class ReadSpannerSchema extends AbstractSpannerFn<Void, SpannerSchema> {
               + "WHERE t.index_name = 'PRIMARY_KEY' and t.table_catalog = '' AND t.table_schema "
               + "= ''  ORDER BY t.table_name, t.ordinal_position"));
       while (resultSet.next()) {
-        // do nothing
         String tableName = resultSet.getString(0);
         String columnName = resultSet.getString(1);
         String ordering = resultSet.getString(2);
