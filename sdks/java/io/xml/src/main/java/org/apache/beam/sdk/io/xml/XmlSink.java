@@ -29,13 +29,12 @@ import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /** Implementation of {@link XmlIO#write}. */
-class XmlSink<T> extends FileBasedSink<T, Void> {
+class XmlSink<T> extends FileBasedSink<T, Void, T> {
   private static final String XML_EXTENSION = ".xml";
 
   private final XmlIO.Write<T> spec;
@@ -46,17 +45,8 @@ class XmlSink<T> extends FileBasedSink<T, Void> {
   }
 
   XmlSink(XmlIO.Write<T> spec) {
-    super(spec.getFilenamePrefix(), DynamicFileDestinations.constant(makeFilenamePolicy(spec)));
+    super(spec.getFilenamePrefix(), DynamicFileDestinations.<T>constant(makeFilenamePolicy(spec)));
     this.spec = spec;
-  }
-
-  /**
-   * Validates that the root element, class to bind to a JAXB context, and filenamePrefix have
-   * been set and that the class can be bound in a JAXB context.
-   */
-  @Override
-  public void validate(PipelineOptions options) {
-    spec.validate(null);
   }
 
   /**
@@ -77,7 +67,7 @@ class XmlSink<T> extends FileBasedSink<T, Void> {
   }
 
   /** {@link WriteOperation} for XML {@link FileBasedSink}s. */
-  protected static final class XmlWriteOperation<T> extends WriteOperation<T, Void> {
+  protected static final class XmlWriteOperation<T> extends WriteOperation<Void, T> {
     public XmlWriteOperation(XmlSink<T> sink) {
       super(sink);
     }
@@ -112,7 +102,7 @@ class XmlSink<T> extends FileBasedSink<T, Void> {
   }
 
   /** A {@link Writer} that can write objects as XML elements. */
-  protected static final class XmlWriter<T> extends Writer<T, Void> {
+  protected static final class XmlWriter<T> extends Writer<Void, T> {
     final Marshaller marshaller;
     private OutputStream os = null;
 

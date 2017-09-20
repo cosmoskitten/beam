@@ -109,10 +109,7 @@ public class ReadTranslationTest {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
-    public Coder<String> getDefaultOutputCoder() {
+    public Coder<String> getOutputCoder() {
       return StringUtf8Coder.of();
     }
 
@@ -129,10 +126,7 @@ public class ReadTranslationTest {
 
   private static class TestUnboundedSource extends UnboundedSource<byte[], CheckpointMark> {
     @Override
-    public void validate() {}
-
-    @Override
-    public Coder<byte[]> getDefaultOutputCoder() {
+    public Coder<byte[]> getOutputCoder() {
       return ByteArrayCoder.of();
     }
 

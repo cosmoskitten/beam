@@ -20,13 +20,14 @@
 Triggers control when in processing time windows get emitted.
 """
 
-from abc import ABCMeta
-from abc import abstractmethod
 import collections
 import copy
 import itertools
+from abc import ABCMeta
+from abc import abstractmethod
 
 from apache_beam.coders import observable
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.transforms.timeutil import TimeDomain
@@ -34,7 +35,6 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import TIME_GRANULARITY
@@ -1063,6 +1063,15 @@ class InMemoryUnmergedState(UnmergedState):
     self.state = collections.defaultdict(lambda: collections.defaultdict(list))
     self.global_state = {}
     self.defensive_copy = defensive_copy
+
+  def copy(self):
+    cloned_object = InMemoryUnmergedState(defensive_copy=self.defensive_copy)
+    cloned_object.timers = copy.deepcopy(self.timers)
+    cloned_object.global_state = copy.deepcopy(self.global_state)
+    for window in self.state:
+      for tag in self.state[window]:
+        cloned_object.state[window][tag] = copy.copy(self.state[window][tag])
+    return cloned_object
 
   def set_global_state(self, tag, value):
     assert isinstance(tag, _ValueStateTag)

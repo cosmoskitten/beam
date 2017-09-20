@@ -23,30 +23,29 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verifyNotNull;
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
+import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.reflect.TypeVariable;
-import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -67,6 +66,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -74,9 +74,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
-import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
+import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -94,9 +94,9 @@ import org.slf4j.LoggerFactory;
  * <p>The process of writing to file-based sink is as follows:
  *
  * <ol>
- * <li>An optional subclass-defined initialization,
- * <li>a parallel write of bundles to temporary files, and finally,
- * <li>these temporary files are renamed with final output filenames.
+ *   <li>An optional subclass-defined initialization,
+ *   <li>a parallel write of bundles to temporary files, and finally,
+ *   <li>these temporary files are renamed with final output filenames.
  * </ol>
  *
  * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
@@ -120,59 +120,70 @@ import org.slf4j.LoggerFactory;
  * @param <OutputT> the type of values written to the sink.
  */
 @Experimental(Kind.FILESYSTEM)
-public abstract class FileBasedSink<OutputT, DestinationT> implements Serializable, HasDisplayData {
+public abstract class FileBasedSink<UserT, DestinationT, OutputT>
+    implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
-  /** Directly supported file output compression types. */
+  /** @deprecated use {@link Compression}. */
+  @Deprecated
   public enum CompressionType implements WritableByteChannelFactory {
-    /** No compression, or any other transformation, will be used. */
-    UNCOMPRESSED("", null) {
-      @Override
-      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return channel;
-      }
-    },
-    /** Provides GZip output transformation. */
-    GZIP(".gz", MimeTypes.BINARY) {
-      @Override
-      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return Channels.newChannel(new GZIPOutputStream(Channels.newOutputStream(channel), true));
-      }
-    },
-    /** Provides BZip2 output transformation. */
-    BZIP2(".bz2", MimeTypes.BINARY) {
-      @Override
-      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return Channels.newChannel(
-            new BZip2CompressorOutputStream(Channels.newOutputStream(channel)));
-      }
-    },
-    /** Provides deflate output transformation. */
-    DEFLATE(".deflate", MimeTypes.BINARY) {
-      @Override
-      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return Channels.newChannel(
-            new DeflateCompressorOutputStream(Channels.newOutputStream(channel)));
-      }
-    };
+    /** @see Compression#UNCOMPRESSED */
+    UNCOMPRESSED(Compression.UNCOMPRESSED),
 
-    private String filenameSuffix;
-    @Nullable private String mimeType;
+    /** @see Compression#GZIP */
+    GZIP(Compression.GZIP),
 
-    CompressionType(String suffix, @Nullable String mimeType) {
-      this.filenameSuffix = suffix;
-      this.mimeType = mimeType;
+    /** @see Compression#BZIP2 */
+    BZIP2(Compression.BZIP2),
+
+    /** @see Compression#DEFLATE */
+    DEFLATE(Compression.DEFLATE);
+
+    private Compression canonical;
+
+    CompressionType(Compression canonical) {
+      this.canonical = canonical;
     }
 
     @Override
     public String getSuggestedFilenameSuffix() {
-      return filenameSuffix;
+      return canonical.getSuggestedSuffix();
     }
 
     @Override
     @Nullable
     public String getMimeType() {
-      return mimeType;
+      return (canonical == Compression.UNCOMPRESSED) ? null : MimeTypes.BINARY;
+    }
+
+    @Override
+    public WritableByteChannel create(WritableByteChannel channel) throws IOException {
+      return canonical.writeCompressed(channel);
+    }
+
+    public static CompressionType fromCanonical(Compression canonical) {
+      switch(canonical) {
+        case AUTO:
+          throw new IllegalArgumentException("AUTO is not supported for writing");
+
+        case UNCOMPRESSED:
+          return UNCOMPRESSED;
+
+        case GZIP:
+          return GZIP;
+
+        case BZIP2:
+          return BZIP2;
+
+        case ZIP:
+          throw new IllegalArgumentException("ZIP is unsupported");
+
+        case DEFLATE:
+          return DEFLATE;
+
+        default:
+          throw new UnsupportedOperationException("Unsupported compression type: " + canonical);
+      }
     }
   }
 
@@ -198,12 +209,12 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     }
   }
 
-  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private final DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations;
 
   /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
    * underlying channel. The default is to not compress the output using {@link
-   * CompressionType#UNCOMPRESSED}.
+   * Compression#UNCOMPRESSED}.
    */
   private final WritableByteChannelFactory writableByteChannelFactory;
 
@@ -214,8 +225,54 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
    * destination type into an instance of {@link FilenamePolicy}.
    */
   @Experimental(Kind.FILESYSTEM)
-  public abstract static class DynamicDestinations<UserT, DestinationT>
+  public abstract static class DynamicDestinations<UserT, DestinationT, OutputT>
       implements HasDisplayData, Serializable {
+    interface SideInputAccessor {
+      <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
+    }
+
+    private SideInputAccessor sideInputAccessor;
+
+    static class SideInputAccessorViaProcessContext implements SideInputAccessor {
+      private DoFn<?, ?>.ProcessContext processContext;
+
+      SideInputAccessorViaProcessContext(DoFn<?, ?>.ProcessContext processContext) {
+        this.processContext = processContext;
+      }
+
+      @Override
+      public <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
+        return processContext.sideInput(view);
+      }
+    }
+
+    /**
+     * Override to specify that this object needs access to one or more side inputs. This side
+     * inputs must be globally windowed, as they will be accessed from the global window.
+     */
+    public List<PCollectionView<?>> getSideInputs() {
+      return ImmutableList.of();
+    }
+
+    /**
+     * Returns the value of a given side input. The view must be present in {@link
+     * #getSideInputs()}.
+     */
+    protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
+      return sideInputAccessor.sideInput(view);
+    }
+
+    final void setSideInputAccessor(SideInputAccessor sideInputAccessor) {
+      this.sideInputAccessor = sideInputAccessor;
+    }
+
+    final void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
+      this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
+    }
+
+    /** Convert an input record type into the output type. */
+    public abstract OutputT formatRecord(UserT record);
+
     /**
      * Returns an object that represents at a high level the destination being written to. May not
      * return null. A destination must have deterministic hash and equality methods defined.
@@ -255,17 +312,17 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
         return destinationCoder;
       }
       // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
-      // We must first use reflection to figure out what the type parameter is.
-      TypeDescriptor<?> superDescriptor =
-          TypeDescriptor.of(getClass()).getSupertype(DynamicDestinations.class);
-      if (!superDescriptor.getRawType().equals(DynamicDestinations.class)) {
-        throw new AssertionError(
-            "Couldn't find the DynamicDestinations superclass of " + this.getClass());
-      }
-      TypeVariable typeVariable = superDescriptor.getTypeParameter("DestinationT");
-      @SuppressWarnings("unchecked")
+      @Nullable
       TypeDescriptor<DestinationT> descriptor =
-          (TypeDescriptor<DestinationT>) superDescriptor.resolveType(typeVariable);
+          extractFromTypeParameters(
+              this,
+              DynamicDestinations.class,
+              new TypeVariableExtractor<
+                  DynamicDestinations<UserT, DestinationT, OutputT>, DestinationT>() {});
+      checkArgument(
+          descriptor != null,
+          "Unable to infer a coder for DestinationT, "
+              + "please specify it explicitly by overriding getDestinationCoder()");
       return registry.getCoder(descriptor);
     }
   }
@@ -277,7 +334,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * When a sink has requested windowed or triggered output, this method will be invoked to return
      * the file {@link ResourceId resource} to be created given the base output directory and a
      * {@link OutputFileHints} containing information about the file, including a suggested
-     * extension (e.g. coming from {@link CompressionType}).
+     * extension (e.g. coming from {@link Compression}).
      *
      * <p>The policy must return unique and consistent filenames for different windows and panes.
      */
@@ -293,7 +350,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * When a sink has not requested windowed or triggered output, this method will be invoked to
      * return the file {@link ResourceId resource} to be created given the base output directory and
      * a {@link OutputFileHints} containing information about the file, including a suggested (e.g.
-     * coming from {@link CompressionType}).
+     * coming from {@link Compression}).
      *
      * <p>The shardNumber and numShards parameters, should be used by the policy to generate unique
      * and consistent filenames.
@@ -323,15 +380,15 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
-    this(tempDirectoryProvider, dynamicDestinations, CompressionType.UNCOMPRESSED);
+      DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations) {
+    this(tempDirectoryProvider, dynamicDestinations, Compression.UNCOMPRESSED);
   }
 
   /** Construct a {@link FileBasedSink} with the given temp directory and output channel type. */
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
-      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
       WritableByteChannelFactory writableByteChannelFactory) {
     this.tempDirectoryProvider =
         NestedValueProvider.of(tempDirectoryProvider, new ExtractDirectory());
@@ -339,10 +396,19 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     this.writableByteChannelFactory = writableByteChannelFactory;
   }
 
+  /** Construct a {@link FileBasedSink} with the given temp directory and output channel type. */
+  @Experimental(Kind.FILESYSTEM)
+  public FileBasedSink(
+      ValueProvider<ResourceId> tempDirectoryProvider,
+      DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
+      Compression compression) {
+    this(tempDirectoryProvider, dynamicDestinations, CompressionType.fromCanonical(compression));
+  }
+
   /** Return the {@link DynamicDestinations} used. */
   @SuppressWarnings("unchecked")
-  public <UserT> DynamicDestinations<UserT, DestinationT> getDynamicDestinations() {
-    return (DynamicDestinations<UserT, DestinationT>) dynamicDestinations;
+  public DynamicDestinations<UserT, DestinationT, OutputT> getDynamicDestinations() {
+    return (DynamicDestinations<UserT, DestinationT, OutputT>) dynamicDestinations;
   }
 
   /**
@@ -357,7 +423,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   public void validate(PipelineOptions options) {}
 
   /** Return a subclass of {@link WriteOperation} that will manage the write to the sink. */
-  public abstract WriteOperation<OutputT, DestinationT> createWriteOperation();
+  public abstract WriteOperation<DestinationT, OutputT> createWriteOperation();
 
   public void populateDisplayData(DisplayData.Builder builder) {
     getDynamicDestinations().populateDisplayData(builder);
@@ -371,11 +437,11 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
    * written,
    *
    * <ol>
-   * <li>{@link WriteOperation#finalize} is given a list of the temporary files containing the
-   *     output bundles.
-   * <li>During finalize, these temporary files are copied to final output locations and named
-   *     according to a file naming template.
-   * <li>Finally, any temporary files that were created during the write are removed.
+   *   <li>{@link WriteOperation#finalize} is given a list of the temporary files containing the
+   *       output bundles.
+   *   <li>During finalize, these temporary files are copied to final output locations and named
+   *       according to a file naming template.
+   *   <li>Finally, any temporary files that were created during the write are removed.
    * </ol>
    *
    * <p>Subclass implementations of WriteOperation must implement {@link
@@ -400,9 +466,9 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
    *
    * @param <OutputT> the type of values written to the sink.
    */
-  public abstract static class WriteOperation<OutputT, DestinationT> implements Serializable {
+  public abstract static class WriteOperation<DestinationT, OutputT> implements Serializable {
     /** The Sink that this WriteOperation will write to. */
-    protected final FileBasedSink<OutputT, DestinationT> sink;
+    protected final FileBasedSink<?, DestinationT, OutputT> sink;
 
     /** Directory for temporary output files. */
     protected final ValueProvider<ResourceId> tempDirectory;
@@ -428,7 +494,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
-    public WriteOperation(FileBasedSink<OutputT, DestinationT> sink) {
+    public WriteOperation(FileBasedSink<?, DestinationT, OutputT> sink) {
       this(
           sink,
           NestedValueProvider.of(sink.getTempDirectoryProvider(), new TemporaryDirectoryBuilder()));
@@ -463,12 +529,12 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * @param tempDirectory the base directory to be used for temporary output files.
      */
     @Experimental(Kind.FILESYSTEM)
-    public WriteOperation(FileBasedSink<OutputT, DestinationT> sink, ResourceId tempDirectory) {
+    public WriteOperation(FileBasedSink<?, DestinationT, OutputT> sink, ResourceId tempDirectory) {
       this(sink, StaticValueProvider.of(tempDirectory));
     }
 
     private WriteOperation(
-        FileBasedSink<OutputT, DestinationT> sink, ValueProvider<ResourceId> tempDirectory) {
+        FileBasedSink<?, DestinationT, OutputT> sink, ValueProvider<ResourceId> tempDirectory) {
       this.sink = sink;
       this.tempDirectory = tempDirectory;
       this.windowedWrites = false;
@@ -478,7 +544,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * Clients must implement to return a subclass of {@link Writer}. This method must not mutate
      * the state of the object.
      */
-    public abstract Writer<OutputT, DestinationT> createWriter() throws Exception;
+    public abstract Writer<DestinationT, OutputT> createWriter() throws Exception;
 
     /** Indicates that the operation will be performing windowed writes. */
     public void setWindowedWrites(boolean windowedWrites) {
@@ -496,17 +562,17 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * idempotent, as it may be executed multiple times in the case of failure or for redundancy. It
      * is a best practice to attempt to try to make this method atomic.
      *
-     * <p>Returns the set of temporary files generated. Callers must call {@link
-     * #removeTemporaryFiles(Set)} to cleanup these files.
+     * <p>Returns the map of temporary files generated to final filenames. Callers must call {@link
+     * #removeTemporaryFiles(Set)} to cleanup the temporary files.
      *
      * @param writerResults the results of writes (FileResult).
      */
-    public Set<ResourceId> finalize(Iterable<FileResult<DestinationT>> writerResults)
+    public Map<ResourceId, ResourceId> finalize(Iterable<FileResult<DestinationT>> writerResults)
         throws Exception {
       // Collect names of temporary files and copies them.
       Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames);
-      return outputFilenames.keySet();
+      return outputFilenames;
     }
 
     /*
@@ -533,7 +599,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     protected final Map<ResourceId, ResourceId> buildOutputFilenames(
         Iterable<FileResult<DestinationT>> writerResults) {
       int numShards = Iterables.size(writerResults);
-      Map<ResourceId, ResourceId> outputFilenames = new HashMap<>();
+      Map<ResourceId, ResourceId> outputFilenames = Maps.newHashMap();
 
       // Either all results have a shard number set (if the sink is configured with a fixed
       // number of shards), or they all don't (otherwise).
@@ -597,7 +663,6 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
           "Only generated %s distinct file names for %s files.",
           numDistinctShards,
           outputFilenames.size());
-
       return outputFilenames;
     }
 
@@ -691,18 +756,16 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     }
 
     /** Returns the FileBasedSink for this write operation. */
-    public FileBasedSink<OutputT, DestinationT> getSink() {
+    public FileBasedSink<?, DestinationT, OutputT> getSink() {
       return sink;
     }
 
     @Override
     public String toString() {
-      String tempDirectoryStr =
-          tempDirectory.isAccessible() ? tempDirectory.get().toString() : tempDirectory.toString();
       return getClass().getSimpleName()
           + "{"
           + "tempDirectory="
-          + tempDirectoryStr
+          + tempDirectory
           + ", windowedWrites="
           + windowedWrites
           + '}';
@@ -727,10 +790,10 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
    *
    * @param <OutputT> the type of values to write.
    */
-  public abstract static class Writer<OutputT, DestinationT> {
+  public abstract static class Writer<DestinationT, OutputT> {
     private static final Logger LOG = LoggerFactory.getLogger(Writer.class);
 
-    private final WriteOperation<OutputT, DestinationT> writeOperation;
+    private final WriteOperation<DestinationT, OutputT> writeOperation;
 
     /** Unique id for this output bundle. */
     private String id;
@@ -751,13 +814,13 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      *
      * <p>This is the default for the sink, but it may be overridden by a supplied {@link
      * WritableByteChannelFactory}. For example, {@link TextIO.Write} uses {@link MimeTypes#TEXT} by
-     * default but if {@link CompressionType#BZIP2} is set then the MIME type will be overridden to
+     * default but if {@link Compression#BZIP2} is set then the MIME type will be overridden to
      * {@link MimeTypes#BINARY}.
      */
     private final String mimeType;
 
     /** Construct a new {@link Writer} that will produce files of the given MIME type. */
-    public Writer(WriteOperation<OutputT, DestinationT> writeOperation, String mimeType) {
+    public Writer(WriteOperation<DestinationT, OutputT> writeOperation, String mimeType) {
       checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
       this.mimeType = mimeType;
@@ -930,8 +993,13 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     }
 
     /** Return the WriteOperation that this Writer belongs to. */
-    public WriteOperation<OutputT, DestinationT> getWriteOperation() {
+    public WriteOperation<DestinationT, OutputT> getWriteOperation() {
       return writeOperation;
+    }
+
+    /** Return the user destination object for this writer. */
+    public DestinationT getDestination() {
+      return destination;
     }
   }
 
@@ -987,7 +1055,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
 
     @Experimental(Kind.FILESYSTEM)
     public ResourceId getDestinationFile(
-        DynamicDestinations<?, DestinationT> dynamicDestinations,
+        DynamicDestinations<?, DestinationT, ?> dynamicDestinations,
         int numShards,
         OutputFileHints outputFileHints) {
       checkArgument(getShard() != UNKNOWN_SHARDNUM);
@@ -1081,7 +1149,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     /**
      * Returns the MIME type that should be used for the files that will hold the output data. May
      * return {@code null} if this {@code WritableByteChannelFactory} does not meaningfully change
-     * the MIME type (e.g., for {@link CompressionType#UNCOMPRESSED}).
+     * the MIME type (e.g., for {@link Compression#UNCOMPRESSED}).
      *
      * @see MimeTypes
      * @see <a href=
@@ -1091,7 +1159,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     String getMimeType();
 
     /**
-     * @return an optional filename suffix, eg, ".gz" is returned by {@link CompressionType#GZIP}
+     * @return an optional filename suffix, eg, ".gz" is returned for {@link Compression#GZIP}
      */
     @Nullable
     String getSuggestedFilenameSuffix();

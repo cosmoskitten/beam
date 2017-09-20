@@ -26,6 +26,7 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.WI
 import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
 import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GABW_URN;
 import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GBKO_URN;
+import static org.apache.beam.runners.direct.MultiStepCombine.DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN;
 import static org.apache.beam.runners.direct.ParDoMultiOverrideFactory.DIRECT_STATEFUL_PAR_DO_URN;
 import static org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DIRECT_TEST_STREAM_URN;
 import static org.apache.beam.runners.direct.ViewOverrideFactory.DIRECT_WRITE_VIEW_URN;
@@ -63,7 +64,10 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             .put(READ_TRANSFORM_URN, new ReadEvaluatorFactory(ctxt))
             .put(
                 PAR_DO_TRANSFORM_URN,
-                new ParDoEvaluatorFactory<>(ctxt, ParDoEvaluator.defaultRunnerFactory()))
+                new ParDoEvaluatorFactory<>(
+                    ctxt,
+                    ParDoEvaluator.defaultRunnerFactory(),
+                    ParDoEvaluatorFactory.basicDoFnCacheLoader()))
             .put(FLATTEN_TRANSFORM_URN, new FlattenEvaluatorFactory(ctxt))
             .put(WINDOW_TRANSFORM_URN, new WindowEvaluatorFactory(ctxt))
 
@@ -73,6 +77,9 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             .put(DIRECT_GBKO_URN, new GroupByKeyOnlyEvaluatorFactory(ctxt))
             .put(DIRECT_GABW_URN, new GroupAlsoByWindowEvaluatorFactory(ctxt))
             .put(DIRECT_TEST_STREAM_URN, new TestStreamEvaluatorFactory(ctxt))
+            .put(
+                DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN,
+                new MultiStepCombine.MergeAndExtractAccumulatorOutputEvaluatorFactory(ctxt))
 
             // Runners-core primitives
             .put(SPLITTABLE_PROCESS_URN, new SplittableProcessElementsEvaluatorFactory<>(ctxt))

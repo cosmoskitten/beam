@@ -30,12 +30,11 @@ from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
-from apache_beam.transforms import core
-from apache_beam.transforms import PTransform
 from apache_beam.transforms import Map
+from apache_beam.transforms import PTransform
+from apache_beam.transforms import core
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
-
 
 __all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub']
 
@@ -182,6 +181,9 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
   def reader(self):
     raise NotImplementedError(
         'PubSubPayloadSource is not supported in local execution.')
+
+  def is_bounded(self):
+    return False
 
 
 class _PubSubPayloadSink(dataflow_io.NativeSink):

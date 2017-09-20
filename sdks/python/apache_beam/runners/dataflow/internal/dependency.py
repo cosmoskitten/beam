@@ -64,10 +64,10 @@ import tempfile
 from apache_beam import version as beam_version
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.runners.dataflow.internal import names
-from apache_beam.utils import processes
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.dataflow.internal import names
+from apache_beam.utils import processes
 
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
@@ -78,7 +78,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
 # This should be in the beam-[version]-[date] format, date is optional.
-BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170626'
+BEAM_CONTAINER_VERSION = 'beam-2.2.0-20170807'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
 # This should be in the beam-[version]-[date] format, date is optional.

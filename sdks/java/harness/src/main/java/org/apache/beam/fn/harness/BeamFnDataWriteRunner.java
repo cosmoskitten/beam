@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -33,9 +32,10 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
+import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.runners.dataflow.util.CloudObject;
-import org.apache.beam.runners.dataflow.util.CloudObjects;
+import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -73,6 +73,7 @@ public class BeamFnDataWriteRunner<InputT> {
     public BeamFnDataWriteRunner<InputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
+        BeamFnStateClient beamFnStateClient,
         String pTransformId,
         RunnerApi.PTransform pTransform,
         Supplier<String> processBundleInstructionId,
@@ -93,6 +94,7 @@ public class BeamFnDataWriteRunner<InputT> {
               processBundleInstructionId,
               target,
               coderSpec,
+              coders,
               beamFnDataClient);
       addStartFunction.accept(runner::registerForOutput);
       pCollectionIdsToConsumers.put(
@@ -117,10 +119,11 @@ public class BeamFnDataWriteRunner<InputT> {
       Supplier<String> processBundleInstructionIdSupplier,
       BeamFnApi.Target outputTarget,
       RunnerApi.Coder coderSpec,
+      Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory)
           throws IOException {
-    this.apiServiceDescriptor = functionSpec.getParameter().unpack(BeamFnApi.RemoteGrpcPort.class)
-        .getApiServiceDescriptor();
+    this.apiServiceDescriptor =
+        BeamFnApi.RemoteGrpcPort.parseFrom(functionSpec.getPayload()).getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.outputTarget = outputTarget;
@@ -128,17 +131,10 @@ public class BeamFnDataWriteRunner<InputT> {
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<InputT>> coder =
         (Coder<WindowedValue<InputT>>)
-            CloudObjects.coderFromCloudObject(
-                CloudObject.fromSpec(
-                    OBJECT_MAPPER.readValue(
-                        coderSpec
-                            .getSpec()
-                            .getSpec()
-                            .getParameter()
-                            .unpack(BytesValue.class)
-                            .getValue()
-                            .newInput(),
-                        Map.class)));
+            CoderTranslation.fromProto(
+                coderSpec,
+                RehydratedComponents.forComponents(
+                    RunnerApi.Components.newBuilder().putAllCoders(coders).build()));
     this.coder = coder;
   }
 

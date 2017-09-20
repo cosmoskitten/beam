@@ -174,7 +174,7 @@ public class View {
    * {@link PCollectionView} mapping each window to a {@link List} containing
    * all of the elements in the window.
    *
-   * <p>The resulting list is required to fit in memory.
+   * <p>Unlike with {@link #asIterable}, the resulting list is required to fit in memory.
    */
   public static <T> AsList<T> asList() {
     return new AsList<>();
@@ -229,7 +229,7 @@ public class View {
    * <pre>
    * {@code
    * PCollection<KV<K, V>> input = ... // maybe more than one occurrence of a some keys
-   * PCollectionView<Map<K, V>> output = input.apply(View.<K, V>asMultimap());
+   * PCollectionView<Map<K, Iterable<V>>> output = input.apply(View.<K, V>asMultimap());
    * }</pre>
    *
    * <p>Currently, the resulting map is required to fit into memory.
@@ -509,9 +509,8 @@ public class View {
 
     @Override
     public PCollection<ElemT> expand(PCollection<ElemT> input) {
-      return PCollection.<ElemT>createPrimitiveOutputInternal(
-              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
-          .setCoder(input.getCoder());
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), input.getCoder());
     }
   }
 }

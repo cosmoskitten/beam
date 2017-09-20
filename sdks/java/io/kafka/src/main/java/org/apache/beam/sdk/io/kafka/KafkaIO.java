@@ -101,6 +101,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -516,7 +517,7 @@ public class KafkaIO {
      */
     public Read<K, V> withTimestampFn2(
         SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn) {
-      checkNotNull(timestampFn);
+      checkArgument(timestampFn != null, "timestampFn can not be null");
       return toBuilder().setTimestampFn(timestampFn).build();
     }
 
@@ -526,7 +527,7 @@ public class KafkaIO {
      */
     public Read<K, V> withWatermarkFn2(
         SerializableFunction<KafkaRecord<K, V>, Instant> watermarkFn) {
-      checkNotNull(watermarkFn);
+      checkArgument(watermarkFn != null, "watermarkFn can not be null");
       return toBuilder().setWatermarkFn(watermarkFn).build();
     }
 
@@ -534,7 +535,7 @@ public class KafkaIO {
      * A function to assign a timestamp to a record. Default is processing timestamp.
      */
     public Read<K, V> withTimestampFn(SerializableFunction<KV<K, V>, Instant> timestampFn) {
-      checkNotNull(timestampFn);
+      checkArgument(timestampFn != null, "timestampFn can not be null");
       return withTimestampFn2(unwrapKafkaAndThen(timestampFn));
     }
 
@@ -543,7 +544,7 @@ public class KafkaIO {
      * @see #withTimestampFn(SerializableFunction)
      */
     public Read<K, V> withWatermarkFn(SerializableFunction<KV<K, V>, Instant> watermarkFn) {
-      checkNotNull(watermarkFn);
+      checkArgument(watermarkFn != null, "watermarkFn can not be null");
       return withWatermarkFn2(unwrapKafkaAndThen(watermarkFn));
     }
 
@@ -555,13 +556,14 @@ public class KafkaIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
-          "Kafka bootstrap servers should be set");
+    public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
+      checkArgument(
+          getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
+          "withBootstrapServers() is required");
       checkArgument(getTopics().size() > 0 || getTopicPartitions().size() > 0,
-          "Kafka topics or topic_partitions are required");
-      checkNotNull(getKeyDeserializer(), "Key deserializer must be set");
-      checkNotNull(getValueDeserializer(), "Value deserializer must be set");
+          "Either withTopic(), withTopics() or withTopicPartitions() is required");
+      checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
+      checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
       if (getStartReadTime() != null) {
         checkArgument(new ConsumerSpEL().hasOffsetsForTimes(),
             "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
@@ -569,25 +571,23 @@ public class KafkaIO {
                 + ". If you are building with maven, set \"kafka.clients.version\" "
                 + "maven property to 0.10.1.0 or newer.");
       }
-    }
 
-    @Override
-    public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
       // Infer key/value coders if not specified explicitly
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
 
       Coder<K> keyCoder =
-          checkNotNull(
-              getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer()),
-              "Key coder could not be inferred from key deserializer. Please provide"
-                  + "key coder explicitly using withKeyDeserializerAndCoder()");
+          getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer());
+      checkArgument(
+          keyCoder != null,
+          "Key coder could not be inferred from key deserializer. Please provide"
+              + "key coder explicitly using withKeyDeserializerAndCoder()");
 
       Coder<V> valueCoder =
-          checkNotNull(
-              getValueCoder() != null ? getValueCoder()
-                  : inferCoder(registry, getValueDeserializer()),
-              "Value coder could not be inferred from value deserializer. Please provide"
-                  + "value coder explicitly using withValueDeserializerAndCoder()");
+          getValueCoder() != null ? getValueCoder() : inferCoder(registry, getValueDeserializer());
+      checkArgument(
+          valueCoder != null,
+          "Value coder could not be inferred from value deserializer. Please provide"
+              + "value coder explicitly using withValueDeserializerAndCoder()");
 
       // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
@@ -869,12 +869,7 @@ public class KafkaIO {
     }
 
     @Override
-    public void validate() {
-      spec.validate(null);
-    }
-
-    @Override
-    public Coder<KafkaRecord<K, V>> getDefaultOutputCoder() {
+    public Coder<KafkaRecord<K, V>> getOutputCoder() {
       return KafkaRecordCoder.of(spec.getKeyCoder(), spec.getValueCoder());
     }
   }
@@ -929,7 +924,7 @@ public class KafkaIO {
     private transient ConsumerSpEL consumerSpEL;
 
     /** watermark before any records have been read. */
-    private static Instant initialWatermark = new Instant(Long.MIN_VALUE);
+    private static Instant initialWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
     @Override
     public String toString() {
@@ -1558,27 +1553,25 @@ public class KafkaIO {
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
+      checkArgument(
+        getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
+        "withBootstrapServers() is required");
+      checkArgument(getTopic() != null, "withTopic() is required");
+
       if (isEOS()) {
+        EOSWrite.ensureEOSSupport();
+        checkArgument(getSinkGroupId() != null,
+                      "withSinkGroupId() is required for exactly-once sink");
+
+        // TODO: Verify that the group_id does not have existing state stored on Kafka unless
+        //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
+        //       across multiple runs or across multiple jobs.
+
         input.apply(new EOSWrite<>(this));
       } else {
         input.apply(ParDo.of(new KafkaWriter<>(this)));
       }
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
-          "Kafka bootstrap servers should be set");
-      checkNotNull(getTopic(), "Kafka topic should be set");
-      if (isEOS()) {
-        EOSWrite.ensureEOSSupport();
-        checkNotNull(getSinkGroupId(), "A group id is required for exactly-once sink");
-
-        // TODO: Verify that the group_id does not have existing state stored on Kafka unless
-        //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
-        //       across multiple runs or across multiple jobs.
-      }
     }
 
     // set config defaults

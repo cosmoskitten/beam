@@ -29,11 +29,6 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: Kafka</name>
   <description>Library to read Kafka topics.</description>
 
-  <properties>
-    <!-- TODO: temporary upgrade to Kafka version. Probably not a good idea yet to move to 11. -->
-    <kafka.clients.version>0.11.0.0</kafka.clients.version>
-  </properties>
-
   <build>
     <pluginManagement>
       <plugins>
@@ -47,18 +42,6 @@
         </plugin>
       </plugins>
     </pluginManagement>
-
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
-            <beamUseDummyRunner>false</beamUseDummyRunner>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
-    </plugins>
   </build>
 
   <dependencies>
@@ -70,7 +53,6 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
-      <version>${kafka.clients.version}</version>
     </dependency>
 
     <dependency>

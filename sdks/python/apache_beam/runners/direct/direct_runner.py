@@ -26,9 +26,14 @@ from __future__ import absolute_import
 import collections
 import logging
 
+from google.protobuf import wrappers_pb2
+
 import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options.pipeline_options import DirectOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import PCollection
 from apache_beam.runners.direct.bundle_factory import BundleFactory
 from apache_beam.runners.runner import PipelineResult
@@ -37,10 +42,7 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.core import _GroupAlsoByWindow
 from apache_beam.transforms.core import _GroupByKeyOnly
-from apache_beam.options.pipeline_options import DirectOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.value_provider import RuntimeValueProvider
-
+from apache_beam.transforms.ptransform import PTransform
 
 __all__ = ['DirectRunner']
 
@@ -54,14 +56,34 @@ V = typehints.TypeVariable('V')
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
   """Streaming GroupByKeyOnly placeholder for overriding in DirectRunner."""
-  pass
+  urn = "direct_runner:streaming_gbko:v0.1"
+
+  # These are needed due to apply overloads.
+  def to_runner_api_parameter(self, unused_context):
+    return _StreamingGroupByKeyOnly.urn, None
+
+  @PTransform.register_urn(urn, None)
+  def from_runner_api_parameter(unused_payload, unused_context):
+    return _StreamingGroupByKeyOnly()
 
 
 @typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
   """Streaming GroupAlsoByWindow placeholder for overriding in DirectRunner."""
-  pass
+  urn = "direct_runner:streaming_gabw:v0.1"
+
+  # These are needed due to apply overloads.
+  def to_runner_api_parameter(self, context):
+    return (
+        _StreamingGroupAlsoByWindow.urn,
+        wrappers_pb2.BytesValue(value=context.windowing_strategies.get_id(
+            self.windowing)))
+
+  @PTransform.register_urn(urn, wrappers_pb2.BytesValue)
+  def from_runner_api_parameter(payload, context):
+    return _StreamingGroupAlsoByWindow(
+        context.windowing_strategies.get_by_id(payload.value))
 
 
 class DirectRunner(PipelineRunner):
@@ -259,6 +281,16 @@ class DirectPipelineResult(PipelineResult):
     super(DirectPipelineResult, self).__init__(PipelineState.RUNNING)
     self._executor = executor
     self._evaluation_context = evaluation_context
+
+  def __del__(self):
+    if self._state == PipelineState.RUNNING:
+      logging.warning(
+          'The DirectPipelineResult is being garbage-collected while the '
+          'DirectRunner is still running the corresponding pipeline. This may '
+          'lead to incomplete execution of the pipeline if the main thread '
+          'exits before pipeline completion. Consider using '
+          'result.wait_until_finish() to wait for completion of pipeline '
+          'execution.')
 
   def _is_in_terminal_state(self):
     return self._state is not PipelineState.RUNNING

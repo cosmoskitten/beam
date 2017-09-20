@@ -32,18 +32,17 @@ import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -63,12 +62,11 @@ public class WriteFilesTranslationTest {
   public static class TestWriteFilesPayloadTranslation {
     @Parameters(name = "{index}: {0}")
     public static Iterable<WriteFiles<Object, Void, Object>> data() {
-      SerializableFunction<Object, Object> format = SerializableFunctions.constant(null);
       return ImmutableList.of(
-          WriteFiles.to(new DummySink(), format),
-          WriteFiles.to(new DummySink(), format).withWindowedWrites(),
-          WriteFiles.to(new DummySink(), format).withNumShards(17),
-          WriteFiles.to(new DummySink(), format).withWindowedWrites().withNumShards(42));
+          WriteFiles.to(new DummySink()),
+          WriteFiles.to(new DummySink()).withWindowedWrites(),
+          WriteFiles.to(new DummySink()).withNumShards(17),
+          WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42));
     }
 
     @Parameter(0)
@@ -87,16 +85,18 @@ public class WriteFilesTranslationTest {
       assertThat(payload.getWindowedWrites(), equalTo(writeFiles.isWindowedWrites()));
 
       assertThat(
-          (FileBasedSink<String, Void>) WriteFilesTranslation.sinkFromProto(payload.getSink()),
+          (FileBasedSink<String, Void, String>)
+              WriteFilesTranslation.sinkFromProto(payload.getSink()),
           equalTo(writeFiles.getSink()));
     }
 
     @Test
     public void testExtractionDirectFromTransform() throws Exception {
       PCollection<String> input = p.apply(Create.of("hello"));
-      PDone output = input.apply(writeFiles);
+      WriteFilesResult<Void> output = input.apply(writeFiles);
 
-      AppliedPTransform<PCollection<String>, PDone, WriteFiles<String, Void, String>>
+      AppliedPTransform<
+              PCollection<String>, WriteFilesResult<Void>, WriteFiles<String, Void, String>>
           appliedPTransform =
               AppliedPTransform.of("foo", input.expand(), output.expand(), writeFiles, p);
 
@@ -107,7 +107,6 @@ public class WriteFilesTranslationTest {
       assertThat(
           WriteFilesTranslation.isWindowedWrites(appliedPTransform),
           equalTo(writeFiles.isWindowedWrites()));
-
       assertThat(
           WriteFilesTranslation.<String, Void, String>getSink(appliedPTransform),
           equalTo(writeFiles.getSink()));
@@ -118,16 +117,17 @@ public class WriteFilesTranslationTest {
    * A simple {@link FileBasedSink} for testing serialization/deserialization. Not mocked to avoid
    * any issues serializing mocks.
    */
-  private static class DummySink extends FileBasedSink<Object, Void> {
+  private static class DummySink extends FileBasedSink<Object, Void, Object> {
 
     DummySink() {
       super(
           StaticValueProvider.of(FileSystems.matchNewResource("nowhere", false)),
-          DynamicFileDestinations.constant(new DummyFilenamePolicy()));
+          DynamicFileDestinations.constant(
+              new DummyFilenamePolicy(), SerializableFunctions.constant(null)));
     }
 
     @Override
-    public WriteOperation<Object, Void> createWriteOperation() {
+    public WriteOperation<Void, Object> createWriteOperation() {
       return new DummyWriteOperation(this);
     }
 
@@ -152,13 +152,13 @@ public class WriteFilesTranslationTest {
     }
   }
 
-  private static class DummyWriteOperation extends FileBasedSink.WriteOperation<Object, Void> {
-    public DummyWriteOperation(FileBasedSink<Object, Void> sink) {
+  private static class DummyWriteOperation extends FileBasedSink.WriteOperation<Void, Object> {
+    public DummyWriteOperation(FileBasedSink<Object, Void, Object> sink) {
       super(sink);
     }
 
     @Override
-    public FileBasedSink.Writer<Object, Void> createWriter() throws Exception {
+    public FileBasedSink.Writer<Void, Object> createWriter() throws Exception {
       throw new UnsupportedOperationException("Should never be called.");
     }
   }

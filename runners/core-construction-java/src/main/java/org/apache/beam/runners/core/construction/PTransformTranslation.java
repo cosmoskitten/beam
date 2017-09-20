@@ -20,19 +20,24 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Any;
+import com.google.common.collect.Sets;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -52,6 +57,11 @@ public class PTransformTranslation {
   public static final String WINDOW_TRANSFORM_URN = "urn:beam:transform:window:v1";
   public static final String TEST_STREAM_TRANSFORM_URN = "urn:beam:transform:teststream:v1";
 
+  // Not strictly a primitive transform
+  public static final String COMBINE_TRANSFORM_URN = "urn:beam:transform:combine:v1";
+
+  public static final String RESHUFFLE_URN = "urn:beam:transform:reshuffle:v1";
+
   // Less well-known. And where shall these live?
   public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
 
@@ -67,13 +77,26 @@ public class PTransformTranslation {
 
   private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
       loadTransformPayloadTranslators() {
-    ImmutableMap.Builder<Class<? extends PTransform>, TransformPayloadTranslator> builder =
-        ImmutableMap.builder();
+    HashMap<Class<? extends PTransform>, TransformPayloadTranslator> translators = new HashMap<>();
+
     for (TransformPayloadTranslatorRegistrar registrar :
         ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
-      builder.putAll(registrar.getTransformPayloadTranslators());
+
+      Map<Class<? extends PTransform>, TransformPayloadTranslator> newTranslators =
+          (Map) registrar.getTransformPayloadTranslators();
+
+      Set<Class<? extends PTransform>> alreadyRegistered = Sets.intersection(
+          translators.keySet(), newTranslators.keySet());
+
+      if (!alreadyRegistered.isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Classes already registered: %s", Joiner.on(", ").join(alreadyRegistered)));
+      }
+
+      translators.putAll(newTranslators);
     }
-    return builder.build();
+    return ImmutableMap.copyOf(translators);
   }
 
   private PTransformTranslation() {}
@@ -88,6 +111,7 @@ public class PTransformTranslation {
       List<AppliedPTransform<?, ?, ?>> subtransforms,
       SdkComponents components)
       throws IOException {
+    // TODO include DisplayData https://issues.apache.org/jira/browse/BEAM-2645
     RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
     for (Map.Entry<TupleTag<?>, PValue> taggedInput : appliedPTransform.getInputs().entrySet()) {
       checkArgument(
@@ -115,7 +139,8 @@ public class PTransformTranslation {
     }
 
     transformBuilder.setUniqueName(appliedPTransform.getFullName());
-    // TODO: Display Data
+    transformBuilder.setDisplayData(
+        DisplayDataTranslation.toProto(DisplayData.from(appliedPTransform.getTransform())));
 
     PTransform<?, ?> transform = appliedPTransform.getTransform();
     // A RawPTransform directly vends its payload. Because it will generally be
@@ -125,12 +150,13 @@ public class PTransformTranslation {
 
       if (rawPTransform.getUrn() != null) {
         FunctionSpec.Builder payload = FunctionSpec.newBuilder().setUrn(rawPTransform.getUrn());
-        @Nullable Any parameter = rawPTransform.getPayload();
+        @Nullable ByteString parameter = rawPTransform.getPayload();
         if (parameter != null) {
-          payload.setParameter(parameter);
+          payload.setPayload(parameter);
         }
         transformBuilder.setSpec(payload);
       }
+      rawPTransform.registerComponents(components);
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
       FunctionSpec payload =
           KNOWN_PAYLOAD_TRANSLATORS
@@ -217,9 +243,11 @@ public class PTransformTranslation {
     public abstract String getUrn();
 
     @Nullable
-    public Any getPayload() {
+    public ByteString getPayload() {
       return null;
     }
+
+    public void registerComponents(SdkComponents components) {}
   }
 
   /**
@@ -245,10 +273,14 @@ public class PTransformTranslation {
       FunctionSpec.Builder transformSpec =
           FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform()));
 
-      Any payload = transform.getTransform().getPayload();
+      ByteString payload = transform.getTransform().getPayload();
       if (payload != null) {
-        transformSpec.setParameter(payload);
+        transformSpec.setPayload(payload);
       }
+
+      // Transforms like Combine may have Coders that need to be added but do not
+      // occur in a black-box traversal
+      transform.getTransform().registerComponents(components);
 
       return transformSpec.build();
     }

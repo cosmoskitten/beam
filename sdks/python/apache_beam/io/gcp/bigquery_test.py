@@ -27,14 +27,14 @@ import hamcrest as hc
 import mock
 
 import apache_beam as beam
+from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp.bigquery import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -650,7 +650,8 @@ class TestBigQueryWriter(unittest.TestCase):
     self.assertFalse(client.tables.Delete.called)
     self.assertFalse(client.tables.Insert.called)
 
-  def test_table_with_write_disposition_truncate(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_table_with_write_disposition_truncate(self, _patched_sleep):
     client = mock.Mock()
     table = bigquery.Table(
         tableReference=bigquery.TableReference(

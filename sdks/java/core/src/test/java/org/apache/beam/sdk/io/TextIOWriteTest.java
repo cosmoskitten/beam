@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -61,9 +62,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -110,11 +113,17 @@ public class TextIOWriteTest {
         });
   }
 
-  static class TestDynamicDestinations extends FileBasedSink.DynamicDestinations<String, String> {
+  static class TestDynamicDestinations
+      extends FileBasedSink.DynamicDestinations<String, String, String> {
     ResourceId baseDir;
 
     TestDynamicDestinations(ResourceId baseDir) {
       this.baseDir = baseDir;
+    }
+
+    @Override
+    public String formatRecord(String record) {
+      return record;
     }
 
     @Override
@@ -169,10 +178,7 @@ public class TextIOWriteTest {
 
     List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
     PCollection<String> input = p.apply(Create.of(elements).withCoder(StringUtf8Coder.of()));
-    input.apply(
-        TextIO.write()
-            .to(new TestDynamicDestinations(baseDir))
-            .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
+    input.apply(TextIO.write().to(new TestDynamicDestinations(baseDir)).withTempDirectory(baseDir));
     p.run();
 
     assertOutputFiles(
@@ -268,8 +274,14 @@ public class TextIOWriteTest {
             new UserWriteType("caab", "sixth"));
     PCollection<UserWriteType> input = p.apply(Create.of(elements));
     input.apply(
-        TextIO.writeCustomType(new SerializeUserWrite())
-            .to(new UserWriteDestination(baseDir), new DefaultFilenamePolicy.Params())
+        TextIO.<UserWriteType>writeCustomType()
+            .to(
+                new UserWriteDestination(baseDir),
+                new DefaultFilenamePolicy.Params()
+                    .withBaseFilename(
+                        baseDir.resolve(
+                            "empty", ResolveOptions.StandardResolveOptions.RESOLVE_FILE)))
+            .withFormatFunction(new SerializeUserWrite())
             .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
     p.run();
 
@@ -332,6 +344,30 @@ public class TextIOWriteTest {
     runTestWrite(elems, header, footer, 1);
   }
 
+  private static class MatchesFilesystem implements SerializableFunction<Iterable<String>, Void> {
+    private final ResourceId baseFilename;
+
+    MatchesFilesystem(ResourceId baseFilename) {
+      this.baseFilename = baseFilename;
+    }
+
+    @Override
+    public Void apply(Iterable<String> values) {
+      try {
+        String pattern = baseFilename.toString() + "*";
+        List<String> matches = Lists.newArrayList();
+        for (Metadata match :Iterables.getOnlyElement(
+            FileSystems.match(Collections.singletonList(pattern))).metadata()) {
+          matches.add(match.resourceId().toString());
+        }
+        assertThat(values, containsInAnyOrder(Iterables.toArray(matches, String.class)));
+      } catch (Exception e) {
+        fail("Exception caught " + e);
+      }
+      return null;
+    }
+  }
+
   private void runTestWrite(String[] elems, String header, String footer, int numShards)
       throws Exception {
     String outputName = "file.txt";
@@ -340,9 +376,10 @@ public class TextIOWriteTest {
         FileBasedSink.convertToFileResourceIfPossible(baseDir.resolve(outputName).toString());
 
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(elems)).withCoder(StringUtf8Coder.of()));
+        p.apply("CreateInput", Create.of(Arrays.asList(elems)).withCoder(StringUtf8Coder.of()));
 
-    TextIO.Write write = TextIO.write().to(baseFilename).withHeader(header).withFooter(footer);
+    TextIO.TypedWrite<String, Void> write =
+        TextIO.write().to(baseFilename).withHeader(header).withFooter(footer).withOutputFilenames();
 
     if (numShards == 1) {
       write = write.withoutSharding();
@@ -350,8 +387,10 @@ public class TextIOWriteTest {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
 
-    input.apply(write);
-
+    WriteFilesResult<Void> result = input.apply(write);
+    PAssert.that(result.getPerDestinationOutputFilenames()
+        .apply("GetFilenames", Values.<String>create()))
+        .satisfies(new MatchesFilesystem(baseFilename));
     p.run();
 
     assertOutputFiles(
@@ -361,7 +400,7 @@ public class TextIOWriteTest {
         numShards,
         baseFilename,
         firstNonNull(
-            write.inner.getShardTemplate(),
+            write.getShardTemplate(),
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
   }
 
