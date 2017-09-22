@@ -111,7 +111,7 @@ public class CombineFnUtil {
   private static class NonSerializableBoundedCombineFn<InputT, AccumT, OutputT>
       extends CombineFn<InputT, AccumT, OutputT> {
     private final CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
-    private final Context context;
+    private final transient Context context;
 
     private NonSerializableBoundedCombineFn(
         CombineFnWithContext<InputT, AccumT, OutputT> combineFn, Context context) {
