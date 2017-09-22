@@ -335,6 +335,15 @@
     <!--[BEAM-413] Test for floating point equality-->
   </Match>
   <Match>
+    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedCombineFn"/>
+    <Field name="context"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--
+      The class is not meant to be serializable, writeObject() just throws an exception. Therefore
+      it's reasonable for this field to also not be serializable.
+    -->
+  </Match>
+  <Match>
     <Class name="org.apache.beam.runners.core.WatermarkHold"/>
     <Field name="timerInternals"/>
     <Bug pattern="SE_BAD_FIELD"/>
