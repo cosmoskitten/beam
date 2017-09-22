@@ -80,6 +80,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
@@ -600,13 +601,7 @@ public class BigQueryIO {
         rows =
             tuple
                 .get(filesTag)
-                .apply(
-                    WithKeys.of(
-                        new SerializableFunction<String, String>() {
-                          public String apply(String s) {
-                            return s;
-                          }
-                        }))
+                .apply(WithKeys.of(SerializableFunctions.<String>identity()))
                 .apply(Reshuffle.<String, String>of())
                 .apply(Values.<String>create())
                 .apply(
