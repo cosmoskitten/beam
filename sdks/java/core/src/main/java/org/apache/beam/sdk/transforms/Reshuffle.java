@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
@@ -53,6 +55,15 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
 
   public static <K, V> Reshuffle<K, V> of() {
     return new Reshuffle<K, V>();
+  }
+
+  /**
+   * Encapsulates the sequence "pair input with unique key, apply {@link
+   * Reshuffle#of}, drop the key" commonly used to break fusion.
+   */
+  @Experimental
+  public static <T> ViaRandomKey<T> viaRandomKey() {
+    return new ViaRandomKey<T>();
   }
 
   @Override
@@ -93,5 +104,32 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         .apply(
             "RestoreOriginalTimestamps",
             ReifyTimestamps.<K, V>extractFromValues());
+  }
+
+  /** Implementation of {@link #viaRandomKey()}. */
+  public static class ViaRandomKey<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private ViaRandomKey() {}
+
+    @Override
+    public PCollection<T> expand(PCollection<T> input) {
+      return input.apply(
+          "Pair with random key",
+          ParDo.of(
+              new DoFn<T, KV<Integer, T>>() {
+                private int shard;
+
+                @Setup
+                public void setup() {
+                  shard = ThreadLocalRandom.current().nextInt();
+                }
+
+                @ProcessElement
+                public void processElement(ProcessContext context) {
+                  context.output(KV.of(++shard, context.element()));
+                }
+              }))
+          .apply(Reshuffle.<Integer, T>of())
+          .apply(Values.<T>create());
+    }
   }
 }

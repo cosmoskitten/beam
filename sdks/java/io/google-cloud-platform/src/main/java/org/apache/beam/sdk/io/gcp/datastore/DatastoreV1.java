@@ -85,6 +85,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -631,18 +632,10 @@ public class DatastoreV1 {
                 .apply(ParDo.of(new GqlQueryTranslateFn(v1Options)));
       }
 
-      PCollection<KV<Integer, Query>> splitQueries = inputQuery
-          .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
-
-      PCollection<Query> shardedQueries = splitQueries
-          .apply(GroupByKey.<Integer, Query>create())
-          .apply(Values.<Iterable<Query>>create())
-          .apply(Flatten.<Query>iterables());
-
-      PCollection<Entity> entities = shardedQueries
-          .apply(ParDo.of(new ReadFn(v1Options)));
-
-      return entities;
+      return inputQuery
+          .apply("Split", ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())))
+          .apply("Reshuffle", Reshuffle.<Query>viaRandomKey())
+          .apply("Read", ParDo.of(new ReadFn(v1Options)));
     }
 
     @Override
@@ -757,7 +750,7 @@ public class DatastoreV1 {
      * keys and outputs them as {@link KV}.
      */
     @VisibleForTesting
-    static class SplitQueryFn extends DoFn<Query, KV<Integer, Query>> {
+    static class SplitQueryFn extends DoFn<Query, Query> {
       private final V1Options options;
       // number of splits to make for a given query
       private final int numSplits;
@@ -789,12 +782,11 @@ public class DatastoreV1 {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
-        int key = 1;
         Query query = c.element();
 
         // If query has a user set limit, then do not split.
         if (query.hasLimit()) {
-          c.output(KV.of(key, query));
+          c.output(query);
           return;
         }
 
@@ -818,7 +810,7 @@ public class DatastoreV1 {
 
         // assign unique keys to query splits.
         for (Query subquery : querySplits) {
-          c.output(KV.of(key++, subquery));
+          c.output(query);
         }
       }
 
