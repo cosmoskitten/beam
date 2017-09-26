@@ -115,7 +115,8 @@ def _install_grpcio_tools_and_generate_proto_files():
   logging.warning('Installing grpcio-tools into %s' % install_path)
   try:
     subprocess.check_call(
-        ['pip', 'install', '--target', install_path, '--build', build_path,
+        [sys.executable, '-m', 'pip', 'install',
+         '--target', install_path, '--build', build_path,
          '--upgrade', GRPC_TOOLS])
   finally:
     shutil.rmtree(build_path)
