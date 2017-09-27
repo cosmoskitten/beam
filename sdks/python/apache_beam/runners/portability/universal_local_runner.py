@@ -148,7 +148,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
 
 class PipelineResult(runner.PipelineResult):
   def __init__(self, job_service, job_id):
-    super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNKNOWN)
+    super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
     self._job_service = job_service
     self._job_id = job_id
     self._messages = []
