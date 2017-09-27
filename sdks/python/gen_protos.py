@@ -27,6 +27,7 @@ import pprint
 import shutil
 import subprocess
 import sys
+import time
 import warnings
 
 
@@ -117,10 +118,13 @@ def _install_grpcio_tools_and_generate_proto_files():
   logging.warning('Installing grpcio-tools into %s' % install_path)
   try:
     pprint.pprint(pip.pep425tags.get_supported())
+    start = time.time()
     subprocess.check_call(
         [sys.executable, '-m', 'pip', 'install',
          '--target', install_path, '--build', build_path,
          '--upgrade', GRPC_TOOLS])
+    logging.warning(
+        'Installing grpcio-tools took %0.2f seconds.' % (time.time() - start))
   finally:
     shutil.rmtree(build_path)
   sys.path.append(install_path)
