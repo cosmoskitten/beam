@@ -38,6 +38,7 @@ option java_package = "org.apache.beam.fn.v1";
 option java_outer_classname = "BeamFnApi";
 
 import "beam_runner_api.proto";
+import "endpoints.proto";
 import "google/protobuf/timestamp.proto";
 
 /*
@@ -709,15 +710,19 @@ message ApiServiceDescriptor {
   // refer to this.
   string id = 1;
 
-  // (Required) The URL to connect to.
-  string url = 2;
+  // (Required) The URL to connect to. Deprecated: use payload instead
+  string url = 2 [deprecated = true];
 
   // (Optional) The method for authentication. If unspecified, access to the
   // url is already being performed in a trusted context (e.g. localhost,
   // private network).
+  // Deprecated: use payload instead
   oneof authentication {
-    OAuth2ClientCredentialsGrant oauth2_client_credentials_grant = 3;
+    OAuth2ClientCredentialsGrant oauth2_client_credentials_grant = 3 [deprecated = true];
   }
+
+  // The payload of this ApiServiceDescriptor.
+  org.apache.beam.portability.v1.ApiServiceDescriptor payload = 4;
 }
 
 message OAuth2ClientCredentialsGrant {
