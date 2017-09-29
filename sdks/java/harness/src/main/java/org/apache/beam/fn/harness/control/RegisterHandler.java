@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A handler and datastore for types that be can be registered via the Fn API.
  *
- * <p>Allows for {@link org.apache.beam.fn.v1.BeamFnApi.RegisterRequest}s to occur in parallel with
+ * <p>Allows for {@link BeamFnApi.RegisterRequest}s to occur in parallel with
  * subsequent requests that may lookup registered values by blocking lookups until registration
  * occurs.
  */

@@ -46,7 +46,7 @@ import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.execution.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnLoggingGrpc;
 import org.apache.beam.portability.v1.Endpoints;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
