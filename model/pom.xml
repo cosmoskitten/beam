@@ -35,5 +35,6 @@
   <modules>
     <module>pipeline</module>
     <module>job-management</module>
+    <module>fn-execution</module>
   </modules>
 </project>
