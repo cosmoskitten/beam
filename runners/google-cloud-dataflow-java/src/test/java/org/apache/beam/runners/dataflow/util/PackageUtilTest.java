@@ -137,8 +137,11 @@ public class PackageUtilTest {
 
   static final GcsPath STAGING_GCS_PATH = GcsPath.fromComponents("somebucket", "base/path/");
   static final String STAGING_PATH = STAGING_GCS_PATH.toString();
-  private static PackageAttributes makePackageAttributes(File file, String overridePackageName) {
-    return PackageUtil.createPackageAttributes(file, STAGING_PATH, overridePackageName);
+
+  private static PackageAttributes makePackageAttributes(File file, String overridePackageName)
+      throws IOException {
+    return PackageUtil.PackageAttributes.forFileToStage(file, STAGING_PATH)
+        .withPackageName(overridePackageName);
   }
 
   @Test
@@ -146,7 +149,7 @@ public class PackageUtilTest {
     String contents = "This is a test!";
     File tmpFile = makeFileWithContents("file.txt", contents);
     PackageAttributes attr = makePackageAttributes(tmpFile, null);
-    DataflowPackage target = attr.getDataflowPackage();
+    DataflowPackage target = attr.getDestination();
 
     assertThat(target.getName(), RegexMatcher.matches("file-" + HASH_PATTERN + ".txt"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + target.getName()));
@@ -156,7 +159,7 @@ public class PackageUtilTest {
   @Test
   public void testPackageNamingWithFileNoExtension() throws Exception {
     File tmpFile = makeFileWithContents("file", "This is a test!");
-    DataflowPackage target = makePackageAttributes(tmpFile, null).getDataflowPackage();
+    DataflowPackage target = makePackageAttributes(tmpFile, null).getDestination();
 
     assertThat(target.getName(), RegexMatcher.matches("file-" + HASH_PATTERN));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + target.getName()));
@@ -165,7 +168,7 @@ public class PackageUtilTest {
   @Test
   public void testPackageNamingWithDirectory() throws Exception {
     File tmpDirectory = tmpFolder.newFolder("folder");
-    DataflowPackage target = makePackageAttributes(tmpDirectory, null).getDataflowPackage();
+    DataflowPackage target = makePackageAttributes(tmpDirectory, null).getDestination();
 
     assertThat(target.getName(), RegexMatcher.matches("folder-" + HASH_PATTERN + ".jar"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + target.getName()));
@@ -175,11 +178,11 @@ public class PackageUtilTest {
   public void testPackageNamingWithFilesHavingSameContentsAndSameNames() throws Exception {
     File tmpDirectory1 = tmpFolder.newFolder("folder1", "folderA");
     makeFileWithContents("folder1/folderA/sameName", "This is a test!");
-    DataflowPackage target1 = makePackageAttributes(tmpDirectory1, null).getDataflowPackage();
+    DataflowPackage target1 = makePackageAttributes(tmpDirectory1, null).getDestination();
 
     File tmpDirectory2 = tmpFolder.newFolder("folder2", "folderA");
     makeFileWithContents("folder2/folderA/sameName", "This is a test!");
-    DataflowPackage target2 = makePackageAttributes(tmpDirectory2, null).getDataflowPackage();
+    DataflowPackage target2 = makePackageAttributes(tmpDirectory2, null).getDestination();
 
     assertEquals(target1.getName(), target2.getName());
     assertEquals(target1.getLocation(), target2.getLocation());
@@ -189,11 +192,11 @@ public class PackageUtilTest {
   public void testPackageNamingWithFilesHavingSameContentsButDifferentNames() throws Exception {
     File tmpDirectory1 = tmpFolder.newFolder("folder1", "folderA");
     makeFileWithContents("folder1/folderA/uniqueName1", "This is a test!");
-    DataflowPackage target1 = makePackageAttributes(tmpDirectory1, null).getDataflowPackage();
+    DataflowPackage target1 = makePackageAttributes(tmpDirectory1, null).getDestination();
 
     File tmpDirectory2 = tmpFolder.newFolder("folder2", "folderA");
     makeFileWithContents("folder2/folderA/uniqueName2", "This is a test!");
-    DataflowPackage target2 = makePackageAttributes(tmpDirectory2, null).getDataflowPackage();
+    DataflowPackage target2 = makePackageAttributes(tmpDirectory2, null).getDestination();
 
     assertNotEquals(target1.getName(), target2.getName());
     assertNotEquals(target1.getLocation(), target2.getLocation());
@@ -204,11 +207,11 @@ public class PackageUtilTest {
       throws Exception {
     File tmpDirectory1 = tmpFolder.newFolder("folder1", "folderA");
     tmpFolder.newFolder("folder1", "folderA", "uniqueName1");
-    DataflowPackage target1 = makePackageAttributes(tmpDirectory1, null).getDataflowPackage();
+    DataflowPackage target1 = makePackageAttributes(tmpDirectory1, null).getDestination();
 
     File tmpDirectory2 = tmpFolder.newFolder("folder2", "folderA");
     tmpFolder.newFolder("folder2", "folderA", "uniqueName2");
-    DataflowPackage target2 = makePackageAttributes(tmpDirectory2, null).getDataflowPackage();
+    DataflowPackage target2 = makePackageAttributes(tmpDirectory2, null).getDestination();
 
     assertNotEquals(target1.getName(), target2.getName());
     assertNotEquals(target1.getLocation(), target2.getLocation());
