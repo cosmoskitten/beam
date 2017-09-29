@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data
  * to all consumers in the specified output map.
  *
- * <p>Can be re-used serially across {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s.
+ * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
  * For each request, call {@link #registerInputLocation()} to start and call
  * {@link #blockTillReadFinishes()} to finish.
  */
