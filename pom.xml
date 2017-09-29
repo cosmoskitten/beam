@@ -188,6 +188,7 @@
     <!-- sdks/java/build-tools has project-wide configuration. To make these available
       in all modules, link it directly to the parent pom.xml. -->
     <module>sdks/java/build-tools</module>
+    <module>model</module>
     <module>sdks</module>
     <module>runners</module>
     <module>examples</module>
@@ -368,6 +369,12 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-model-construction</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-common-fn-api</artifactId>
