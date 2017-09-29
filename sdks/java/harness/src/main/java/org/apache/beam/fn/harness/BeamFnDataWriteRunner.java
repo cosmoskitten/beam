@@ -33,8 +33,8 @@ import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
-import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.model.construction.v1.RunnerApi;
+import org.apache.beam.model.execution.v1.BeamFnApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
@@ -46,7 +46,7 @@ import org.apache.beam.sdk.values.KV;
  * Registers as a consumer with the Beam Fn Data Api. Consumes elements and encodes them for
  * transmission.
  *
- * <p>Can be re-used serially across {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s.
+ * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
  * For each request, call {@link #registerForOutput()} to start and call {@link #close()} to finish.
  */
 public class BeamFnDataWriteRunner<InputT> {

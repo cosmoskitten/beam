@@ -31,7 +31,7 @@ import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.stream.StreamObserverFactory;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.execution.v1.BeamFnApi;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -44,10 +44,10 @@ import org.slf4j.LoggerFactory;
  * <p>This entry point expects the following environment variables:
  * <ul>
  *   <li>LOGGING_API_SERVICE_DESCRIPTOR: A
- *   {@link org.apache.beam.fn.v1.BeamFnApi.ApiServiceDescriptor} encoded as text
+ *   {@link BeamFnApi.ApiServiceDescriptor} encoded as text
  *   representing the endpoint that is to be connected to for the Beam Fn Logging service.</li>
  *   <li>CONTROL_API_SERVICE_DESCRIPTOR: A
- *   {@link org.apache.beam.fn.v1.BeamFnApi.ApiServiceDescriptor} encoded as text
+ *   {@link BeamFnApi.ApiServiceDescriptor} encoded as text
  *   representing the endpoint that is to be connected to for the Beam Fn Control service.</li>
  *   <li>PIPELINE_OPTIONS: A serialized form of {@link PipelineOptions}. See {@link PipelineOptions}
  *   for further details.</li>

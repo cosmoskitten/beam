@@ -34,8 +34,8 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
-import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.model.construction.v1.RunnerApi;
+import org.apache.beam.model.execution.v1.BeamFnApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data
  * to all consumers in the specified output map.
  *
- * <p>Can be re-used serially across {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s.
+ * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
  * For each request, call {@link #registerInputLocation()} to start and call
  * {@link #blockTillReadFinishes()} to finish.
  */
