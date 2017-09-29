@@ -46,7 +46,7 @@ import org.apache.beam.sdk.values.KV;
  * Registers as a consumer with the Beam Fn Data Api. Consumes elements and encodes them for
  * transmission.
  *
- * <p>Can be re-used serially across {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s.
+ * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
  * For each request, call {@link #registerForOutput()} to start and call {@link #close()} to finish.
  */
 public class BeamFnDataWriteRunner<InputT> {

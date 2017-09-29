@@ -57,7 +57,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Processes {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s by materializing
+ * Processes {@link BeamFnApi.ProcessBundleRequest}s by materializing
  * the set of required runners for each {@link RunnerApi.FunctionSpec},
  * wiring them together based upon the {@code input} and {@code output} map definitions.
  *

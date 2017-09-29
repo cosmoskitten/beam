@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.fn.harness.test.TestStreams;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.execution.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnControlGrpc;
 import org.junit.Test;
 import org.junit.runner.RunWith;
