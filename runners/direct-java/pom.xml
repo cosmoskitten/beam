@@ -60,7 +60,7 @@
                     <include>com.google.protobuf:protobuf-java</include>
                     <include>org.apache.beam:beam-runners-core-construction-java</include>
                     <include>org.apache.beam:beam-runners-core-java</include>
-                    <include>org.apache.beam:beam-sdks-common-runner-api</include>
+                    <include>org.apache.beam:beam-model-construction</include>
                     <include>com.google.code.findbugs:jsr305</include>
                   </includes>
                 </artifactSet>
@@ -177,12 +177,12 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-core</artifactId>
+      <artifactId>beam-model-construction</artifactId>
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-runner-api</artifactId>
+      <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
     <dependency>
