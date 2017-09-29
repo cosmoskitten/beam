@@ -48,7 +48,7 @@ import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnApi.ApiServiceDescriptor;
 import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
 import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.model.construction.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
