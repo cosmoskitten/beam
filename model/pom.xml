@@ -35,5 +35,6 @@
   <modules>
     <module>construction</module>
     <module>job</module>
+    <module>execution</module>
   </modules>
 </project>
