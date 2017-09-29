@@ -34,5 +34,6 @@
 
   <modules>
     <module>pipeline</module>
+    <module>job-management</module>
   </modules>
 </project>
