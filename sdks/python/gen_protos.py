@@ -34,8 +34,7 @@ GRPC_TOOLS = 'grpcio-tools>=1.3.5'
 BEAM_PROTO_PATHS = [
   os.path.join('..', '..', 'model', 'construction', 'src', 'main', 'proto'),
   os.path.join('..', '..', 'model', 'execution', 'src', 'main', 'proto'),
-  os.path.join('..', '..', 'model', 'job', 'src', 'main', 'proto'),
-  os.path.join('..', 'common', 'fn-api', 'src', 'main', 'proto')
+  os.path.join('..', '..', 'model', 'job', 'src', 'main', 'proto')
 ]
 
 PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
