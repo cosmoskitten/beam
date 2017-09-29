@@ -29,13 +29,13 @@ option java_outer_classname = "Endpoints";
 
 message ApiServiceDescriptor {
   // (Required) The URL to connect to.
-  string url = 1;
+  string url = 2;
 
   // (Optional) The method for authentication. If unspecified, access to the
   // url is already being performed in a trusted context (e.g. localhost,
   // private network).
   oneof authentication {
-    OAuth2ClientCredentialsGrant oauth2_client_credentials_grant = 2;
+    OAuth2ClientCredentialsGrant oauth2_client_credentials_grant = 3;
   }
 }
 
