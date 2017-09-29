@@ -34,5 +34,7 @@
 
   <modules>
     <module>pipeline</module>
+    <module>construction</module>
+    <module>job-management</module>
   </modules>
 </project>
