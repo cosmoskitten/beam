@@ -142,7 +142,7 @@ class SpannerSchema implements Serializable {
       }
 
       if (spannerType.startsWith("ARRAY")) {
-        // Substring "ARRAY<"xxx">"
+        // Substring "ARRAY<xxx>"
         String spannerArrayType = spannerType.substring(6, spannerType.length() - 1);
         Type itemType = parseSpannerType(spannerArrayType);
         return Type.array(itemType);
