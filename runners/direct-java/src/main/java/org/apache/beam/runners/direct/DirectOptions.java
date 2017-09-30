@@ -76,10 +76,4 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
       return Math.max(Runtime.getRuntime().availableProcessors(), MIN_PARALLELISM);
     }
   }
-
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
-  @Default.Boolean(false)
-  @Description("Control whether toProto/fromProto translations are applied to original Pipeline")
-  boolean isProtoTranslation();
-  void setProtoTranslation(boolean b);
 }
