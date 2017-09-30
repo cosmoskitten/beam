@@ -160,16 +160,12 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   @Override
   public DirectPipelineResult run(Pipeline originalPipeline) {
     Pipeline pipeline;
-    if (getPipelineOptions().isProtoTranslation()) {
       try {
         pipeline = PipelineTranslation.fromProto(
             PipelineTranslation.toProto(originalPipeline));
       } catch (IOException exception) {
         throw new RuntimeException("Error preparing pipeline for direct execution.", exception);
       }
-    } else {
-      pipeline = originalPipeline;
-    }
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
     DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
