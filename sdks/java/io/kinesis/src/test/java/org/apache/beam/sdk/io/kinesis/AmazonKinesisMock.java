@@ -36,6 +36,8 @@ import com.amazonaws.services.kinesis.model.DecreaseStreamRetentionPeriodRequest
 import com.amazonaws.services.kinesis.model.DecreaseStreamRetentionPeriodResult;
 import com.amazonaws.services.kinesis.model.DeleteStreamRequest;
 import com.amazonaws.services.kinesis.model.DeleteStreamResult;
+import com.amazonaws.services.kinesis.model.DescribeLimitsRequest;
+import com.amazonaws.services.kinesis.model.DescribeLimitsResult;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.DisableEnhancedMonitoringRequest;
@@ -65,14 +67,19 @@ import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.SplitShardRequest;
 import com.amazonaws.services.kinesis.model.SplitShardResult;
+import com.amazonaws.services.kinesis.model.StartStreamEncryptionRequest;
+import com.amazonaws.services.kinesis.model.StartStreamEncryptionResult;
+import com.amazonaws.services.kinesis.model.StopStreamEncryptionRequest;
+import com.amazonaws.services.kinesis.model.StopStreamEncryptionResult;
 import com.amazonaws.services.kinesis.model.StreamDescription;
+import com.amazonaws.services.kinesis.model.UpdateShardCountRequest;
+import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
+import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
 import com.google.common.base.Function;
-
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.List;
 import javax.annotation.Nullable;
-
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 import org.mockito.Mockito;
@@ -253,6 +260,11 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
+  public DescribeLimitsResult describeLimits(DescribeLimitsRequest describeLimitsRequest) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
   public DescribeStreamResult describeStream(DescribeStreamRequest describeStreamRequest) {
     throw new RuntimeException("Not implemented");
   }
@@ -378,12 +390,34 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
+  public StartStreamEncryptionResult startStreamEncryption(
+      StartStreamEncryptionRequest startStreamEncryptionRequest) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
+  public StopStreamEncryptionResult stopStreamEncryption(
+      StopStreamEncryptionRequest stopStreamEncryptionRequest) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
+  public UpdateShardCountResult updateShardCount(UpdateShardCountRequest updateShardCountRequest) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
   public void shutdown() {
 
   }
 
   @Override
   public ResponseMetadata getCachedResponseMetadata(AmazonWebServiceRequest request) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
+  public AmazonKinesisWaiters waiters() {
     throw new RuntimeException("Not implemented");
   }
 }
