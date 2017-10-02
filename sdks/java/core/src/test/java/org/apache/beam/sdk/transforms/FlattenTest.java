@@ -317,7 +317,7 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testFlattenPCollectionsWithMultipleConsumers() {
+  public void testFlattenMultiplePCollectionsHavingMultipleConsumers() {
     PCollection<String> input = p.apply(Create.of("AA", "BBB", "CC"));
     final TupleTag<String> outputEvenLengthTag = new TupleTag<String>() {};
     final TupleTag<String> outputOddLengthTag = new TupleTag<String>() {};
