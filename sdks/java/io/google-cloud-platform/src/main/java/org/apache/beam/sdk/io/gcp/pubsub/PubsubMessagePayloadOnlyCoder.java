@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 
 /** A coder for PubsubMessage treating the raw bytes being decoded as the message's payload. */
 public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubMessage> {
+
   private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();
 
   public static PubsubMessagePayloadOnlyCoder of() {
@@ -34,8 +35,7 @@ public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubMessage> {
   }
 
   @Override
-  public void encode(PubsubMessage value, OutputStream outStream)
-      throws IOException {
+  public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
     encode(value, outStream, Context.NESTED);
   }
 

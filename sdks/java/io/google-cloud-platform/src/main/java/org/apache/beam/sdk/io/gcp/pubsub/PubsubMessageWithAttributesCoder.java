@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A coder for PubsubMessage including attributes. */
 public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubMessage> {
+
   // A message's payload can not be null
   private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();
   // A message's attributes can be null.
@@ -46,8 +47,7 @@ public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubMessage>
   }
 
   @Override
-  public void encode(PubsubMessage value, OutputStream outStream)
-      throws IOException {
+  public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
     encode(value, outStream, Context.NESTED);
   }
 
