@@ -71,6 +71,13 @@ public class RehydratedComponents {
               new CacheLoader<String, Coder<?>>() {
                 @Override
                 public Coder<?> load(String id) throws Exception {
+                  try {
+                    RunnerApi.Coder coder = components.getCodersOrThrow(id);
+                  } catch (IllegalArgumentException exc) {
+                    throw new IllegalStateException(
+                        String.format("No coder with id '%s' in serialized components", id), exc);
+                  }
+
                   return CoderTranslation.fromProto(
                       components.getCodersOrThrow(id), RehydratedComponents.this);
                 }
