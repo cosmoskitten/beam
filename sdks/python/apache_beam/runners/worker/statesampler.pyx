@@ -176,7 +176,7 @@ cdef class StateSampler(object):
           nsecs_ptr[0] += elapsed_nsecs
           lull_nsecs_ptr[0] += elapsed_nsecs
 
-          if lull_nsecs_ptr[0] > self.lull_threshold_ms*MSECS_TO_NSECS:
+          if lull_nsecs_ptr[0] > self.lull_threshold_ms * MSECS_TO_NSECS:
             with gil:
               self.notify_lull()
             lull_nsecs_ptr[0] = 0

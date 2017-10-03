@@ -18,10 +18,10 @@
 """Tests for state sampler."""
 
 import logging
-from mock import patch
 import time
 import unittest
 
+import mock
 from nose.plugins.skip import SkipTest
 
 from apache_beam.utils.counters import CounterFactory
@@ -78,7 +78,7 @@ class StateSamplerTest(unittest.TestCase):
                                         lull_threshold_ms=10)
     lull_state = sampler.scoped_state('stateA')
 
-    with patch.object(statesampler, 'logging') as mock_logging:
+    with mock.patch.object(statesampler, 'logging') as mock_logging:
       sampler.start()
       with lull_state:
         time.sleep(0.1)
