@@ -40,12 +40,12 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, 'Maven clean install')
 
-  // Maven goals for this job: The Java SDK, its dependencies, and things that depend on it.
+  // Maven goals for this job: The Python SDK, its dependencies, and things that depend on it.
   goals('''\
     --batch-mode \
     --errors \
     --activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner \
-    --projects sdks/java/core \
+    --projects sdks/py \
     --also-make \
     --also-make-dependents
     -D repoToken=$COVERALLS_REPO_TOKEN \
