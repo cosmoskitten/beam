@@ -35,6 +35,7 @@ attributed to that state and accumulated.  Over time, this allows a granular
 runtime profile to be produced.
 """
 
+import logging
 import threading
 import time
 
@@ -73,12 +74,16 @@ cdef inline int64_t get_nsec_time() nogil:
 class StateSamplerInfo(object):
   """Info for current state and transition statistics of StateSampler."""
 
-  def __init__(self, state_name, transition_count):
+  def __init__(self, state_name, transition_count, time_since_transition):
     self.state_name = state_name
     self.transition_count = transition_count
+    self.time_since_transition
 
   def __repr__(self):
-    return '<StateSamplerInfo %s %d>' % (self.state_name, self.transition_count)
+    return ('<StateSamplerInfo state: %s time: %dns transitions: %d>'
+            % (self.state_name,
+               self.time_since_transition,
+               self.transition_count))
 
 
 # Default period for sampling current state of pipeline execution.
@@ -104,12 +109,12 @@ cdef class StateSampler(object):
   cdef pythread.PyThread_type_lock lock
 
   cdef public int64_t state_transition_count
+  cdef int64_t time_since_transition
 
   cdef int32_t current_state_index
 
   def __init__(self, prefix, counter_factory,
-      sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
-
+               sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
     self.prefix = prefix
     self.counter_factory = counter_factory
     self.sampling_period_ms = sampling_period_ms
@@ -140,7 +145,7 @@ cdef class StateSampler(object):
     cdef int64_t elapsed_nsecs
     with nogil:
       while True:
-        usleep(self.sampling_period_ms * 1000)
+        usleep(self.sampling_period_ms * MSECS_TO_NSECS)
         pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
         try:
           if self.finished:
@@ -151,6 +156,8 @@ cdef class StateSampler(object):
           nsecs_ptr = &(<ScopedState>PyList_GET_ITEM(
               self.scoped_states_by_index, self.current_state_index)).nsecs
           nsecs_ptr[0] += elapsed_nsecs
+
+          self.time_since_transition += elapsed_nsecs
           last_nsecs += elapsed_nsecs
         finally:
           pythread.PyThread_release_lock(self.lock)
@@ -178,7 +185,8 @@ cdef class StateSampler(object):
     """Returns StateSamplerInfo with transition statistics."""
     return StateSamplerInfo(
         self.scoped_states_by_index[self.current_state_index].name,
-        self.state_transition_count)
+        self.state_transition_count,
+        self.time_since_transition)
 
   def scoped_state(self, name):
     """Returns a context manager managing transitions for a given state."""
@@ -211,6 +219,9 @@ cdef class ScopedState(object):
   cdef readonly int32_t state_index
   cdef readonly object counter
   cdef readonly object name
+
+  # The non-readonly properties of this class should only be modified after
+  # acquiring the sampler's lock - otherwise, it is unsafe to modify them.
   cdef readonly int64_t nsecs
   cdef int32_t old_state_index
 
@@ -220,18 +231,25 @@ cdef class ScopedState(object):
     self.state_index = state_index
     self.counter = counter
 
+  def __str__(self):
+    return '<%s(name=%s, nsecs=%d)>' % (self.__class__.__name__,
+                                        str(self.name),
+                                        self.nsecs)
+
   cpdef __enter__(self):
     self.old_state_index = self.sampler.current_state_index
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.state_index
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
+    self.sampler.time_since_transition = 0
 
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.old_state_index
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
+    self.sampler.time_since_transition = 0
 
   def __repr__(self):
     return "ScopedState[%s, %s, %s]" % (self.name, self.state_index, self.nsecs)

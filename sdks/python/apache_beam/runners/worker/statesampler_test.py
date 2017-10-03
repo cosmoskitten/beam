@@ -21,6 +21,7 @@ import logging
 import time
 import unittest
 
+import mock
 from nose.plugins.skip import SkipTest
 
 from apache_beam.utils.counters import CounterFactory
