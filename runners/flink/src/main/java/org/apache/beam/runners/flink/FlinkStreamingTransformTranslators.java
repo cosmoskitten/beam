@@ -36,7 +36,6 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
@@ -56,7 +55,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -1085,7 +1083,7 @@ class FlinkStreamingTransformTranslators {
    * once SDF is reorganized appropriately.
    */
   private static class SplittableParDoProcessElementsTranslator
-      implements PTransformTranslation.TransformPayloadTranslator<
+      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
       SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?>> {
 
     private SplittableParDoProcessElementsTranslator() {}
@@ -1093,17 +1091,6 @@ class FlinkStreamingTransformTranslators {
     @Override
     public String getUrn(SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?> transform) {
       return SPLITTABLE_PROCESS_URN;
-    }
-
-    @Override
-    public RunnerApi.FunctionSpec translate(
-        AppliedPTransform<?, ?, SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?>>
-            transform,
-        SdkComponents components) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s should never be translated",
-              SplittableParDoViaKeyedWorkItems.ProcessElements.class.getCanonicalName()));
     }
   }
 
@@ -1128,6 +1115,11 @@ class FlinkStreamingTransformTranslators {
               new SplittableParDoGbkIntoKeyedWorkItemsPayloadTranslator())
           .build();
     }
+
+    @Override
+    public Map<String, PTransformTranslation.TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
+    }
   }
 
   /**
@@ -1135,7 +1127,7 @@ class FlinkStreamingTransformTranslators {
    * once SDF is reorganized appropriately.
    */
   private static class SplittableParDoProcessElementsPayloadTranslator
-      implements PTransformTranslation.TransformPayloadTranslator<
+      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
       SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?>> {
 
     private SplittableParDoProcessElementsPayloadTranslator() {}
@@ -1144,17 +1136,6 @@ class FlinkStreamingTransformTranslators {
     public String getUrn(SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?> transform) {
       return SplittableParDo.SPLITTABLE_PROCESS_URN;
     }
-
-    @Override
-    public RunnerApi.FunctionSpec translate(
-        AppliedPTransform<?, ?, SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?>>
-            transform,
-        SdkComponents components) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s should never be translated",
-              SplittableParDoViaKeyedWorkItems.ProcessElements.class.getCanonicalName()));
-    }
   }
 
   /**
@@ -1162,7 +1143,7 @@ class FlinkStreamingTransformTranslators {
    * once SDF is reorganized appropriately.
    */
   private static class SplittableParDoGbkIntoKeyedWorkItemsPayloadTranslator
-      implements PTransformTranslation.TransformPayloadTranslator<
+      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
       SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<?, ?>> {
 
     private SplittableParDoGbkIntoKeyedWorkItemsPayloadTranslator() {}
@@ -1171,24 +1152,13 @@ class FlinkStreamingTransformTranslators {
     public String getUrn(SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<?, ?> transform) {
       return SplittableParDo.SPLITTABLE_GBKIKWI_URN;
     }
-
-    @Override
-    public RunnerApi.FunctionSpec translate(
-        AppliedPTransform<?, ?, SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<?, ?>>
-            transform,
-        SdkComponents components) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s should never be translated",
-              SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class.getCanonicalName()));
-    }
   }
 
   /**
    * A translator just to vend the URN.
    */
   private static class CreateStreamingFlinkViewPayloadTranslator
-      implements PTransformTranslation.TransformPayloadTranslator<
+      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
           CreateStreamingFlinkView.CreateFlinkPCollectionView<?, ?>> {
 
     private CreateStreamingFlinkViewPayloadTranslator() {}
@@ -1196,17 +1166,6 @@ class FlinkStreamingTransformTranslators {
     @Override
     public String getUrn(CreateStreamingFlinkView.CreateFlinkPCollectionView<?, ?> transform) {
       return CreateStreamingFlinkView.CREATE_STREAMING_FLINK_VIEW_URN;
-    }
-
-    @Override
-    public RunnerApi.FunctionSpec translate(
-        AppliedPTransform<?, ?, CreateStreamingFlinkView.CreateFlinkPCollectionView<?, ?>>
-            transform,
-        SdkComponents components) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s should never be translated",
-              CreateStreamingFlinkView.CreateFlinkPCollectionView.class.getCanonicalName()));
     }
   }
 }
