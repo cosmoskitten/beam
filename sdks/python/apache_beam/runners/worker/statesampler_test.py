@@ -18,6 +18,7 @@
 """Tests for state sampler."""
 
 import logging
+from mock import patch
 import time
 import unittest
 
@@ -67,6 +68,24 @@ class StateSamplerTest(unittest.TestCase):
       actual_value = counter.value()
       self.assertGreater(actual_value, expected_value * 0.75)
       self.assertLess(actual_value, expected_value * 1.25)
+
+  def test_sampler_lull_reporting(self):
+    # Set up state sampler.
+    import statesampler
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler('basic-', counter_factory,
+                                        sampling_period_ms=10,
+                                        lull_threshold_ms=10)
+    lull_state = sampler.scoped_state('stateA')
+
+    with patch.object(statesampler, 'logging') as mock_logging:
+      sampler.start()
+      with lull_state:
+        time.sleep(0.1)
+      sampler.stop()
+
+      self.assertIn('LULL: Spent over %.2f ms in state %s',
+                    mock_logging.warn.call_args_list[0][0])
 
   def test_sampler_transition_overhead(self):
     # Set up state sampler.
