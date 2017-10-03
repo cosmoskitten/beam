@@ -393,6 +393,16 @@ public class TypeDescriptors {
         new TypeVariableExtractor<SerializableFunction<InputT, OutputT>, OutputT>() {});
   }
 
+  /** Like {@link #inputOf(SerializableFunction)} but for {@link Contextful.Fn}. */
+  @Nullable
+  public static <InputT, OutputT> TypeDescriptor<InputT> inputOf(
+      Contextful.Fn<InputT, OutputT> fn) {
+    return TypeDescriptors.extractFromTypeParameters(
+        fn,
+        Contextful.Fn.class,
+        new TypeDescriptors.TypeVariableExtractor<Contextful.Fn<InputT, OutputT>, InputT>() {});
+  }
+
   /** Like {@link #outputOf(SerializableFunction)} but for {@link Contextful.Fn}. */
   @Nullable
   public static <InputT, OutputT> TypeDescriptor<OutputT> outputOf(
