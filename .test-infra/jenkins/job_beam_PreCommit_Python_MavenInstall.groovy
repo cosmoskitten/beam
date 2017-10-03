@@ -20,7 +20,7 @@ import common_job_properties
 
 // This is the Java precommit which runs a maven install, and the current set
 // of precommit tests.
-mavenJob('beam_PreCommit_Java_MavenInstall') {
+mavenJob('beam_PreCommit_Python_MavenInstall') {
   description('Runs an install of the current GitHub Pull Request.')
 
   previousNames('beam_PreCommit_MavenVerify')
@@ -40,12 +40,12 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, 'Maven clean install')
 
-  // Maven goals for this job: The Java SDK, its dependencies, and things that depend on it.
+  // Maven goals for this job: The Python SDK, its dependencies, and things that depend on it.
   goals('''\
     --batch-mode \
     --errors \
     --activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner \
-    --projects sdks/java/core \
+    --projects sdks/python \
     --also-make \
     --also-make-dependents
     -D repoToken=$COVERALLS_REPO_TOKEN \
