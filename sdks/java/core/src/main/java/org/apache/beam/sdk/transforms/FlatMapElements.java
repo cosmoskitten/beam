@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
 
-import java.lang.reflect.ParameterizedType;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -32,30 +35,17 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  */
 public class FlatMapElements<InputT, OutputT>
 extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  /**
-   * Temporarily stores the argument of {@link #into(TypeDescriptor)} until combined with the
-   * argument of {@link #via(SerializableFunction)} into the fully-specified {@link #fn}. Stays null
-   * if constructed using {@link #via(SimpleFunction)} directly.
-   */
-  @Nullable
-  private final transient TypeDescriptor<Iterable<OutputT>> outputType;
-
-  /**
-   * Non-null on a fully specified transform - is null only when constructed using {@link
-   * #into(TypeDescriptor)}, until the fn is specified using {@link #via(SerializableFunction)}.
-   */
-  @Nullable
-  private final SimpleFunction<InputT, Iterable<OutputT>> fn;
-  private final DisplayData.ItemSpec<?> fnClassDisplayData;
+  private final transient TypeDescriptor<InputT> inputType;
+  private final transient TypeDescriptor<OutputT> outputType;
+  @Nullable private final Contextful<Fn<InputT, Iterable<OutputT>>> fn;
 
   private FlatMapElements(
-      @Nullable SimpleFunction<InputT, Iterable<OutputT>> fn,
-      @Nullable TypeDescriptor<Iterable<OutputT>> outputType,
-      @Nullable Class<?> fnClass) {
+      @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn,
+      TypeDescriptor<InputT> inputType,
+      TypeDescriptor<OutputT> outputType) {
     this.fn = fn;
+    this.inputType = inputType;
     this.outputType = outputType;
-    this.fnClassDisplayData = DisplayData.item("flatMapFn", fnClass).withLabel("FlatMap Function");
-
   }
 
   /**
@@ -82,7 +72,14 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    */
   public static <InputT, OutputT> FlatMapElements<InputT, OutputT>
   via(SimpleFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
-    return new FlatMapElements(fn, null, fn.getClass());
+    Contextful<Fn<InputT, Iterable<OutputT>>> wrapped = (Contextful) MapElements.wrap(fn);
+    TypeDescriptor<OutputT> outputType =
+        TypeDescriptors.extractFromTypeParameters(
+            (TypeDescriptor<Iterable<OutputT>>) fn.getOutputTypeDescriptor(),
+            Iterable.class,
+            new TypeDescriptors.TypeVariableExtractor<Iterable<OutputT>, OutputT>() {});
+    TypeDescriptor<InputT> inputType = (TypeDescriptor<InputT>) fn.getInputTypeDescriptor();
+    return new FlatMapElements<>(wrapped, inputType, outputType);
   }
 
   /**
@@ -91,7 +88,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    */
   public static <OutputT> FlatMapElements<?, OutputT>
   into(final TypeDescriptor<OutputT> outputType) {
-    return new FlatMapElements<>(null, TypeDescriptors.iterables(outputType), null);
+    return new FlatMapElements<>(null, null, outputType);
   }
 
   /**
@@ -112,73 +109,60 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    */
   public <NewInputT> FlatMapElements<NewInputT, OutputT>
   via(SerializableFunction<NewInputT, ? extends Iterable<OutputT>> fn) {
-    return new FlatMapElements(
-        SimpleFunction.fromSerializableFunctionWithOutputType(fn, (TypeDescriptor) outputType),
-        null,
-        fn.getClass());
+    Contextful<Fn<NewInputT, Iterable<OutputT>>> wrapped =
+        (Contextful) MapElements.wrap(fn);
+    return new FlatMapElements<>(wrapped, TypeDescriptors.inputOf(fn), outputType);
+  }
+
+  /** Like {@link #via(SerializableFunction)}, but allows access to additional context. */
+  public <NewInputT> FlatMapElements<NewInputT, OutputT> via(
+      Contextful<Fn<NewInputT, Iterable<OutputT>>> fn) {
+    return new FlatMapElements<>(fn, TypeDescriptors.inputOf(fn.getClosure()), outputType);
   }
 
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
-    checkNotNull(fn, "Must specify a function on FlatMapElements using .via()");
-    return input.apply(
-        "FlatMap",
-        ParDo.of(
-            new DoFn<InputT, OutputT>() {
-              private static final long serialVersionUID = 0L;
+    checkArgument(fn != null, ".via() is required");
+    PCollection<OutputT> res =
+        input.apply(
+            "Map",
+            ParDo.of(
+                    new DoFn<InputT, OutputT>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        Iterable<OutputT> res =
+                            fn.getClosure().apply(c.element(), Fn.Context.wrapProcessContext(c));
+                        for (OutputT output : res) {
+                          c.output(output);
+                        }
+                      }
 
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                for (OutputT element : fn.apply(c.element())) {
-                  c.output(element);
-                }
-              }
-
-              @Override
-              public TypeDescriptor<InputT> getInputTypeDescriptor() {
-                return fn.getInputTypeDescriptor();
-              }
-
-              @Override
-              public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-                @SuppressWarnings({"rawtypes", "unchecked"}) // safe by static typing
-                TypeDescriptor<Iterable<?>> iterableType =
-                    (TypeDescriptor) fn.getOutputTypeDescriptor();
-
-                @SuppressWarnings("unchecked") // safe by correctness of getIterableElementType
-                TypeDescriptor<OutputT> outputType =
-                    (TypeDescriptor<OutputT>) getIterableElementType(iterableType);
-
-                return outputType;
-              }
-            }));
+                      @Override
+                      public void populateDisplayData(DisplayData.Builder builder) {
+                        builder.delegate(FlatMapElements.this);
+                      }
+                    })
+                .withSideInputs(fn.getRequirements().getSideInputs()));
+    res.setTypeDescriptor(outputType);
+    try {
+      Coder<OutputT> outputCoder =
+          input
+              .getPipeline()
+              .getCoderRegistry()
+              .getCoder(outputType, inputType, (Coder<InputT>) input.getCoder());
+      res.setCoder(outputCoder);
+    } catch (CannotProvideCoderException e) {
+      // Ignore
+    }
+    return res;
   }
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder
-        .include("flatMapFn", fn)
-        .add(fnClassDisplayData);
-  }
-
-  /**
-   * Does a best-effort job of getting the best {@link TypeDescriptor} for the type of the
-   * elements contained in the iterable described by the given {@link TypeDescriptor}.
-   */
-  private static TypeDescriptor<?> getIterableElementType(
-      TypeDescriptor<Iterable<?>> iterableTypeDescriptor) {
-
-    // If a rawtype was used, the type token may be for Object, not a subtype of Iterable.
-    // In this case, we rely on static typing of the function elsewhere to ensure it is
-    // at least some kind of iterable, and grossly overapproximate the element type to be Object.
-    if (!iterableTypeDescriptor.isSubtypeOf(new TypeDescriptor<Iterable<?>>() {})) {
-      return new TypeDescriptor<Object>() {};
+    Fn<InputT, ? extends Iterable<OutputT>> closure = fn.getClosure();
+    if (closure instanceof HasDisplayData) {
+      builder.include("flatMapFn", ((HasDisplayData) closure));
     }
-
-    // Otherwise we can do the proper thing and get the actual type parameter.
-    ParameterizedType iterableType =
-        (ParameterizedType) iterableTypeDescriptor.getSupertype(Iterable.class).getType();
-    return TypeDescriptor.of(iterableType.getActualTypeArguments()[0]);
   }
 }

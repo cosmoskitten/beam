@@ -45,6 +45,17 @@ public final class Contextful<ClosureT> implements Serializable {
     return new Contextful<>(closure, requirements);
   }
 
+  @Override
+  public String toString() {
+    if (requirements.isEmpty()) {
+      return String.valueOf(closure);
+    }
+    return "Contextful{" +
+        "closure=" + closure +
+        ", requirements=" + requirements +
+        '}';
+  }
+
   /**
    * A function from an input to an output that may additionally access {@link Context} when
    * computing the result.

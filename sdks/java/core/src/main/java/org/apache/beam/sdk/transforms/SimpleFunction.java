@@ -60,6 +60,10 @@ public abstract class SimpleFunction<InputT, OutputT>
     this.fn = fn;
   }
 
+  protected SerializableFunction<InputT, OutputT> getFn() {
+    return fn;
+  }
+
   @Override
   public OutputT apply(InputT input) {
     return fn.apply(input);
@@ -104,7 +108,9 @@ public abstract class SimpleFunction<InputT, OutputT>
     * to provide their own display data.
     */
   @Override
-  public void populateDisplayData(DisplayData.Builder builder) {}
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder.add(DisplayData.item("class", getClass()));
+  }
 
   /**
    * A {@link SimpleFunction} built from a {@link SerializableFunction}, having
@@ -126,6 +132,12 @@ public abstract class SimpleFunction<InputT, OutputT>
     @Override
     public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return outputType;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("fnClass", getFn().getClass()));
     }
   }
 }
