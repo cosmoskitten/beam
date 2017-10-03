@@ -34,6 +34,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/**
+ * A set of unit tests to verify {@link OrderedCode}.
+ */
 @RunWith(JUnit4.class)
 public class OrderedCodeTest {
   /** Data for a generic coding test case with known encoded outputs. */
