@@ -178,44 +178,39 @@ class PackageUtil implements Closeable {
         });
   }
 
+  /** Synchronously stages a package, with retry and backoff for resiliency. */
   private StagingResult stagePackageSynchronously(
-      PackageAttributes attributes, Sleeper retrySleeper, CreateOptions createOptions) {
-    try {
-      return stagePackageBlithely(attributes, retrySleeper, createOptions);
-    } catch (Exception e) {
-      throw new RuntimeException(
-          String.format(
-              "Could not stage classpath element: %s to %s",
-              attributes.getSource(), attributes.getDestination().getLocation()),
-          e);
-    }
-  }
-
-  private StagingResult stagePackageBlithely(
       PackageAttributes attributes, Sleeper retrySleeper, CreateOptions createOptions)
       throws IOException, InterruptedException {
     File source = attributes.getSource();
     String target = attributes.getDestination().getLocation();
 
-    // TODO: Should we attempt to detect the Mime type rather than
-    // always using MimeTypes.BINARY?
     if (alreadyStaged(attributes)) {
-      LOG.debug("Skipping file already staged: {} at {}", attributes.getSource(), target);
+      LOG.debug("Skipping file already staged: {} at {}", source, target);
       return StagingResult.cached(attributes);
     }
 
-    // Upload file, retrying on failure.
+    try {
+      return tryStagePackageWithRetry(attributes, retrySleeper, createOptions);
+    } catch (Exception miscException) {
+      throw new RuntimeException(
+          String.format("Could not stage %s to %s", source, target), miscException);
+    }
+  }
+
+  private StagingResult tryStagePackageWithRetry(
+      PackageAttributes attributes, Sleeper retrySleeper, CreateOptions createOptions)
+      throws IOException, InterruptedException {
+    File source = attributes.getSource();
+    String target = attributes.getDestination().getLocation();
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+
     while (true) {
       try {
-        LOG.info("Uploading {} to {}", source, target);
-        try (WritableByteChannel writer =
-            FileSystems.create(FileSystems.matchNewResource(target, false), createOptions)) {
-          copyContent(attributes.getSource(), writer);
-        }
-        return StagingResult.uploaded(attributes);
-      } catch (IOException e) {
-        if (ERROR_EXTRACTOR.accessDenied(e)) {
+        return tryStagePackage(attributes, createOptions);
+      } catch (IOException ioException) {
+
+        if (ERROR_EXTRACTOR.accessDenied(ioException)) {
           String errorMessage =
               String.format(
                   "Uploaded failed due to permissions error, will NOT retry staging "
@@ -224,22 +219,36 @@ class PackageUtil implements Closeable {
                       + "'gcloud auth application-default login'.",
                   source, target);
           LOG.error(errorMessage);
-          throw new IOException(errorMessage, e);
+          throw new IOException(errorMessage, ioException);
         }
+
         long sleep = backoff.nextBackOffMillis();
         if (sleep == BackOff.STOP) {
-          // Rethrow last error, to be included as a cause in the catch below.
-          LOG.error("Upload failed, will NOT retry staging of classpath: {}", source, e);
-          throw e;
+          LOG.error("Upload failed, will NOT retry staging of package: {}", source, ioException);
+          throw new RuntimeException("Could not stage %s to %s", ioException);
         } else {
           LOG.warn(
-              "Upload attempt failed, sleeping before retrying staging of classpath: {}",
+              "Upload attempt failed, sleeping before retrying staging of package: {}",
               source,
-              e);
+              ioException);
           retrySleeper.sleep(sleep);
         }
       }
     }
+  }
+
+  private StagingResult tryStagePackage(
+      PackageAttributes attributes, CreateOptions createOptions)
+      throws IOException, InterruptedException {
+    File source = attributes.getSource();
+    String target = attributes.getDestination().getLocation();
+
+    LOG.info("Uploading {} to {}", source, target);
+    try (WritableByteChannel writer =
+        FileSystems.create(FileSystems.matchNewResource(target, false), createOptions)) {
+      copyContent(attributes.getSource(), writer);
+    }
+    return StagingResult.uploaded(attributes);
   }
 
   /**
