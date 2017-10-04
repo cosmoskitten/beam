@@ -163,17 +163,17 @@ class Operation(object):
     return beam_fn_api_pb2.Metrics.PTransform(
         processed_elements=beam_fn_api_pb2.Metrics.PTransform.ProcessedElements(
             measured=beam_fn_api_pb2.Metrics.PTransform.Measured(
-                total_time_spent=
+                total_time_spent=(
                     self.scoped_start_state.sampled_seconds()
                     + self.scoped_process_state.sampled_seconds()
-                    + self.scoped_finish_state.sampled_seconds(),
+                    + self.scoped_finish_state.sampled_seconds()),
                 # Multi-output operations should override this.
                 output_element_counts=(
                     # If there is exactly one output, we can unambiguously
                     # fix its name later, which we do.
                     # TODO(robertwb): Plumb the actual name here.
                     {'ONLY_OUTPUT': self.receivers[0].opcounter
-                     .element_counter.value()}
+                                    .element_counter.value()}
                     if len(self.receivers) == 1
                     else None))))
 
@@ -323,7 +323,8 @@ class DoOperation(Operation):
       # Tag to output index map used to dispatch the side output values emitted
       # by the DoFn function to the appropriate receivers. The main output is
       # tagged with None and is associated with its corresponding index.
-      self.tagged_receivers = _TaggedReceivers(self.counter_factory, self.step_name)
+      self.tagged_receivers = _TaggedReceivers(
+          self.counter_factory, self.step_name)
 
       output_tag_prefix = PropertyNames.OUT + '_'
       for index, tag in enumerate(self.spec.output_tags):

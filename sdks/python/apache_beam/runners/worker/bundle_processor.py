@@ -134,6 +134,7 @@ class DataInputOperation(RunnerIOOperation):
         'GRPC_INPUT'] = self.input_count
     return metrics
 
+
 # TODO(robertwb): Revise side input API to not be in terms of native sources.
 # This will enable lookups, but there's an open question as to how to handle
 # custom sources without forcing intermediate materialization.  This seems very
@@ -233,9 +234,10 @@ class BundleProcessor(object):
            for pcoll in descriptor.transforms[transform_id].outputs.values()
            for consumer in pcoll_consumers[pcoll]])
 
-    return collections.OrderedDict([(transform_id, get_operation(transform_id))
-            for transform_id in sorted(
-                descriptor.transforms, key=topological_height, reverse=True)])
+    return collections.OrderedDict([
+        (transform_id, get_operation(transform_id))
+        for transform_id in sorted(
+            descriptor.transforms, key=topological_height, reverse=True)])
 
   def process_bundle(self, instruction_id):
 
@@ -273,11 +275,11 @@ class BundleProcessor(object):
 
   def metrics(self):
     return beam_fn_api_pb2.Metrics(
-      # TODO(robertwb): Rename to progress?
-      ptransforms=
-          {transform_id:
-           self._fix_output_tags(transform_id, op.progress_metrics())
-           for transform_id, op in self.ops.items()})
+        # TODO(robertwb): Rename to progress?
+        ptransforms=
+        {transform_id:
+         self._fix_output_tags(transform_id, op.progress_metrics())
+         for transform_id, op in self.ops.items()})
 
   def _fix_output_tags(self, transform_id, metrics):
     # Outputs are still referred to by index, not by name, in many Operations.

@@ -132,9 +132,9 @@ class SdkWorker(object):
   def process_bundle(self, request, instruction_id):
     self.bundle_processors[
         instruction_id] = processor = bundle_processor.BundleProcessor(
-        self.fns[request.process_bundle_descriptor_reference],
-        self.state_handler,
-        self.data_channel_factory)
+            self.fns[request.process_bundle_descriptor_reference],
+            self.state_handler,
+            self.data_channel_factory)
     try:
       processor.process_bundle(instruction_id)
     finally:

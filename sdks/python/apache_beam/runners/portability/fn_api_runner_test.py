@@ -25,7 +25,6 @@ from apache_beam.runners.portability import maptask_executor_runner_test
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-
 try:
   from apache_beam.runners.worker.statesampler import DEFAULT_SAMPLING_PERIOD_MS
 except ImportError:
@@ -70,14 +69,15 @@ class FnApiRunnerTest(
       return
 
     _ = (p
-     | beam.Create([0, 0, 0, 2.1e-3 * DEFAULT_SAMPLING_PERIOD_MS])
-     | beam.Map(time.sleep)
-     | beam.Map(lambda x: ('key', x))
-     | beam.GroupByKey()
-     | 'm_out' >> beam.FlatMap(lambda x: [1, 2, 3, 4, 5,
-                                          beam.pvalue.TaggedOutput('twice', x),
-                                          beam.pvalue.TaggedOutput('twice', x),
-                                          beam.pvalue.TaggedOutput('once', x)]))
+         | beam.Create([0, 0, 0, 2.1e-3 * DEFAULT_SAMPLING_PERIOD_MS])
+         | beam.Map(time.sleep)
+         | beam.Map(lambda x: ('key', x))
+         | beam.GroupByKey()
+         | 'm_out' >> beam.FlatMap(lambda x: [
+             1, 2, 3, 4, 5,
+             beam.pvalue.TaggedOutput('once', x),
+             beam.pvalue.TaggedOutput('twice', x),
+             beam.pvalue.TaggedOutput('twice', x)]))
     res = p.run()
     res.wait_until_finish()
     try:
