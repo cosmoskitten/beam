@@ -179,6 +179,7 @@ cdef class StateSampler(object):
           with gil:
             self.notify_lull(self.scoped_states_by_index[lull_state])
           lull_state = -1  # Reset the lull_state index.
+          report_lull = False
 
   def notify_lull(self, state):
     logging.warn('LULL: Spent over %.2f ms in state %s',
