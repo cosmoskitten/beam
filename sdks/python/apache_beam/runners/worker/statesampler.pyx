@@ -33,17 +33,6 @@ transition between these states of different Operations.  Each time the sampling
 thread queries the current state, the time spent since the previous sample is
 attributed to that state and accumulated.  Over time, this allows a granular
 runtime profile to be produced.
-
-On locking withing this file:
-Locks must always be obtained in the same order, to avoid deadlocks. The
-convention is the following:
- 1) StateSampler.lock
- 2) GIL
-
-If the StateSampler.lock needs to be acquired, it's important to make sure
-the same thread does not already own the GIL (or, if it does, it should be
-released first).
-
 """
 
 import logging
@@ -158,6 +147,8 @@ cdef class StateSampler(object):
   def run(self):
     cdef int64_t last_nsecs = get_nsec_time()
     cdef int64_t elapsed_nsecs
+    cdef bint report_lull = False
+    cdef int32_t lull_state = -1  # Index of the state that seems stuck.
     with nogil:
       while True:
         usleep(self.sampling_period_ms * MSECS_TO_NSECS)
@@ -177,18 +168,22 @@ cdef class StateSampler(object):
           lull_nsecs_ptr[0] += elapsed_nsecs
 
           if lull_nsecs_ptr[0] > self.lull_threshold_ms * MSECS_TO_NSECS:
-            with gil:
-              self.notify_lull()
-            lull_nsecs_ptr[0] = 0
+            report_lull = True
+            lull_state = self.current_state_index
 
           last_nsecs += elapsed_nsecs
         finally:
           pythread.PyThread_release_lock(self.lock)
 
-  def notify_lull(self):
-    state = self.scoped_states_by_index[self.current_state_index]
+        if report_lull:
+          with gil:
+            self.notify_lull(self.scoped_states_by_index[lull_state])
+          lull_state = -1  # Reset the lull_state index.
+
+  def notify_lull(self, state):
     logging.warn('LULL: Spent over %.2f ms in state %s',
                  state.get_lull_nsecs()/MSECS_TO_NSECS, str(state.name))
+    state.reset_lull_nsecs()
 
   def start(self):
     assert not self.started
@@ -268,22 +263,23 @@ cdef class ScopedState(object):
   cpdef get_lull_nsecs(self):
     return self.lull_nsecs
 
+  cpdef reset_lull_nsecs(self):
+    self.lull_nsecs = 0
+
   cpdef __enter__(self):
     self.old_state_index = self.sampler.current_state_index
     # Releasing the gil to preserve lock-acquisition order (sampler.lock->gil)
-    with nogil:
-      pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
-      self.lull_nsecs = 0
-      self.sampler.current_state_index = self.state_index
-      pythread.PyThread_release_lock(self.sampler.lock)
+    pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
+    self.lull_nsecs = 0
+    self.sampler.current_state_index = self.state_index
+    pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
 
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
     # Releasing the gil to preserve lock-acquisition order (sampler.lock->gil)
-    with nogil:
-      pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
-      self.sampler.current_state_index = self.old_state_index
-      pythread.PyThread_release_lock(self.sampler.lock)
+    pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
+    self.sampler.current_state_index = self.old_state_index
+    pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
 
   def __repr__(self):

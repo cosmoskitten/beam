@@ -86,6 +86,9 @@ class StateSamplerTest(unittest.TestCase):
 
       self.assertIn('LULL: Spent over %.2f ms in state %s',
                     mock_logging.warn.call_args_list[0][0])
+      self.assertIn('stateA',
+                    mock_logging.warn.call_args_list[0][0])
+
 
   def test_sampler_transition_overhead(self):
     # Set up state sampler.
