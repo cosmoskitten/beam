@@ -377,14 +377,18 @@ public class RedisIO {
         KV<String, String> record = processContext.element();
         pipeline.append(record.getKey(), record.getValue());
 
+        batchCount++;
+
         if (batchCount >= DEFAULT_BATCH_SIZE) {
           pipeline.exec();
+          batchCount = 0;
         }
       }
 
       @FinishBundle
       public void finishBundle() {
         pipeline.exec();
+        batchCount = 0;
       }
 
       @Teardown
