@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.fn;
 
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.BlockingQueue;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.execution.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnControlGrpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

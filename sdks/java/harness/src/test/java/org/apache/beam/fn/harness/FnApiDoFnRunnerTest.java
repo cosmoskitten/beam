@@ -42,8 +42,14 @@ import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
+<<<<<<< HEAD
 import org.apache.beam.fn.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.construction.v1.RunnerApi;
+||||||| parent of 1a925f65fc... Move beam_fn_api.proto to model/execution
+import org.apache.beam.fn.v1.BeamFnApi.StateKey;
+=======
+import org.apache.beam.model.execution.v1.BeamFnApi.StateKey;
+>>>>>>> 1a925f65fc... Move beam_fn_api.proto to model/execution
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
