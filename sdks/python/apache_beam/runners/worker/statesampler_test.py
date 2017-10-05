@@ -89,7 +89,6 @@ class StateSamplerTest(unittest.TestCase):
       self.assertIn('stateA',
                     mock_logging.warn.call_args_list[0][0][2])
 
-
   def test_sampler_transition_overhead(self):
     # Set up state sampler.
     counter_factory = CounterFactory()
