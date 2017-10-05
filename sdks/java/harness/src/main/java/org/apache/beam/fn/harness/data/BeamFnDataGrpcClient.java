@@ -27,7 +27,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.execution.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
