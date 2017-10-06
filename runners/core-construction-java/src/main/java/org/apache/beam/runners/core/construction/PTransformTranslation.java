@@ -79,6 +79,9 @@ public class PTransformTranslation {
   private static final Map<String, TransformPayloadTranslator> KNOWN_REHYDRATORS =
       loadTransformRehydrators();
 
+  private static final TransformPayloadTranslator<?> DEFAULT_REHYDRATOR =
+      new RawPTransformTranslator();
+
   private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
       loadTransformPayloadTranslators() {
     HashMap<Class<? extends PTransform>, TransformPayloadTranslator> translators = new HashMap<>();
@@ -118,7 +121,7 @@ public class PTransformTranslation {
       if (!alreadyRegistered.isEmpty()) {
         throw new IllegalArgumentException(
             String.format(
-                "Classes already registered: %s", Joiner.on(", ").join(alreadyRegistered)));
+                "URNs already registered: %s", Joiner.on(", ").join(alreadyRegistered)));
       }
 
       rehydrators.putAll(newRehydrators);
@@ -201,7 +204,7 @@ public class PTransformTranslation {
             protoTransform.getSpec() == null ? null : protoTransform.getSpec().getUrn());
 
     if (rehydrator == null) {
-      return UnknownRawPTransform.withSpec(protoTransform.getSpec());
+      return DEFAULT_REHYDRATOR.rehydrate(protoTransform, rehydratedComponents);
     } else {
       return rehydrator.rehydrate(protoTransform, rehydratedComponents);
     }
@@ -281,10 +284,10 @@ public class PTransformTranslation {
     abstract class WithDefaultRehydration<T extends PTransform<?, ?>>
         implements TransformPayloadTranslator<T> {
       @Override
-      public RawPTransform<?, ?> rehydrate(
+      public final RawPTransform<?, ?> rehydrate(
           RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
           throws IOException {
-        return UnknownRawPTransform.withSpec(protoTransform.getSpec());
+        return UnknownRawPTransform.forSpec(protoTransform.getSpec());
       }
     }
 
@@ -374,7 +377,7 @@ public class PTransformTranslation {
     @Nullable
     public abstract RunnerApi.FunctionSpec getSpec();
 
-    public static UnknownRawPTransform withSpec(RunnerApi.FunctionSpec spec) {
+    public static UnknownRawPTransform forSpec(RunnerApi.FunctionSpec spec) {
       return new AutoValue_PTransformTranslation_UnknownRawPTransform(spec);
     }
 
@@ -415,17 +418,10 @@ public class PTransformTranslation {
       return transform.getTransform().migrate(components);
     }
 
-    /**
-     * This should never be called - this rehydration method applies when a transform has a known
-     * URN with a payload that requires custom logic.
-     */
     @Override
     public RawPTransform<?, ?> rehydrate(
         RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s.rehydrate(...) should never be called, but received %s: %s",
-              getClass().getSimpleName(), FunctionSpec.class.getSimpleName(), protoTransform));
+      return UnknownRawPTransform.forSpec(protoTransform.getSpec());
     }
   }
 }
