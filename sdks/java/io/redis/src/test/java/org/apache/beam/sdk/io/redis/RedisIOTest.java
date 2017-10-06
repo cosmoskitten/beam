@@ -81,7 +81,7 @@ public class RedisIOTest {
 
   private RedisConnectionConfiguration createConnection(EmbeddedRedis embeddedRedis) {
     return RedisConnectionConfiguration.create()
-        .withHost("localhost")
+        .withHost("::1")
         .withPort(embeddedRedis.getPort());
   }
 
