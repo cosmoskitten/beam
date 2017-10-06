@@ -123,7 +123,7 @@ class common_job_properties {
   private static void setPullRequestBuildTrigger(context,
                                                  String commitStatusContext,
                                                  String prTriggerPhrase = '',
-                                                 boolean onlyTriggerPhrase = true,
+                                                 boolean onlyTriggerPhraseToggle = true,
                                                  String successComment = '--none--') {
     context.triggers {
       githubPullRequest {
@@ -140,7 +140,7 @@ class common_job_properties {
         if (prTriggerPhrase) {
           triggerPhrase(prTriggerPhrase)
         }
-        if (onlyTriggerPhrase) {
+        if (onlyTriggerPhraseToggle) {
           onlyTriggerPhrase()
         }
 
