@@ -111,6 +111,7 @@ cdef class StateSampler(object):
   cdef pythread.PyThread_type_lock lock
 
   cdef public int64_t state_transition_count
+  cdef int64_t time_since_transition
 
   cdef int32_t current_state_index
 
@@ -161,13 +162,12 @@ cdef class StateSampler(object):
           # without the GIL.
           nsecs_ptr = &(<ScopedState>PyList_GET_ITEM(
               self.scoped_states_by_index, self.current_state_index)).nsecs
-          lull_nsecs_ptr = &(<ScopedState>PyList_GET_ITEM(
-              self.scoped_states_by_index, self.current_state_index)).lull_nsecs
-
           nsecs_ptr[0] += elapsed_nsecs
-          lull_nsecs_ptr[0] += elapsed_nsecs
 
-          if lull_nsecs_ptr[0] > self.lull_threshold_ms * MSECS_TO_NSECS:
+          self.time_since_transition += elapsed_nsecs
+
+          if (self.time_since_transition
+              > self.lull_threshold_ms * MSECS_TO_NSECS):
             report_lull = True
             lull_state = self.current_state_index
 
@@ -178,13 +178,13 @@ cdef class StateSampler(object):
         if report_lull:
           with gil:
             self.notify_lull(self.scoped_states_by_index[lull_state])
+          self.time_since_transition = 0
           lull_state = -1  # Reset the lull_state index.
           report_lull = False
 
   def notify_lull(self, state):
     logging.warn('LULL: Spent over %.2f ms in state %s',
-                 state.get_lull_nsecs()/MSECS_TO_NSECS, str(state.name))
-    state.reset_lull_nsecs()
+                 self.time_since_transition/MSECS_TO_NSECS, str(state.name))
 
   def start(self):
     assert not self.started
@@ -246,7 +246,6 @@ cdef class ScopedState(object):
   # The non-readonly properties of this class should only be modified after
   # acquiring the sampler's lock - otherwise, it is unsafe to modify them.
   cdef readonly int64_t nsecs
-  cdef int64_t lull_nsecs
   cdef int32_t old_state_index
 
   def __init__(self, sampler, name, state_index, counter=None):
@@ -256,32 +255,24 @@ cdef class ScopedState(object):
     self.counter = counter
 
   def __str__(self):
-    return '<%s(name=%s, nsecs=%d, lull_nsecs=%d)>' % (self.__class__.__name__,
-                                                       str(self.name),
-                                                       self.nsecs,
-                                                       self.lull_nsecs)
-
-  cpdef get_lull_nsecs(self):
-    return self.lull_nsecs
-
-  cpdef reset_lull_nsecs(self):
-    self.lull_nsecs = 0
+    return '<%s(name=%s, nsecs=%d)>' % (self.__class__.__name__,
+                                        str(self.name),
+                                        self.nsecs)
 
   cpdef __enter__(self):
     self.old_state_index = self.sampler.current_state_index
-    # Releasing the gil to preserve lock-acquisition order (sampler.lock->gil)
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
-    self.lull_nsecs = 0
     self.sampler.current_state_index = self.state_index
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
+    self.sampler.time_since_transition = 0
 
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
-    # Releasing the gil to preserve lock-acquisition order (sampler.lock->gil)
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.old_state_index
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
+    self.sampler.time_since_transition = 0
 
   def __repr__(self):
     return "ScopedState[%s, %s, %s]" % (self.name, self.state_index, self.nsecs)
