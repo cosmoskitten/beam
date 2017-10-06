@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.auto.value.AutoValue;
 
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Nullable;
 
@@ -36,7 +35,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -291,24 +289,7 @@ public class RedisIO {
               context.output(context.element());
             }
       }).withSideInputs(empty));
-      return materialized
-          .apply("Pair with random key", ParDo.of(
-              new DoFn<KV<String, String>, KV<Integer, KV<String, String>>>() {
-                private int shard;
-
-                @Setup
-                public void setup() {
-                  shard = ThreadLocalRandom.current().nextInt();
-                }
-
-                @ProcessElement
-                public void processElement(ProcessContext context) {
-                  context.output(KV.of(++shard, context.element()));
-                }
-              }
-          ))
-          .apply(Reshuffle.<Integer, KV<String, String>>of())
-          .apply(Values.<KV<String, String>>create());
+      return materialized.apply(Reshuffle.<KV<String, String>>viaRandomKey());
     }
   }
 
