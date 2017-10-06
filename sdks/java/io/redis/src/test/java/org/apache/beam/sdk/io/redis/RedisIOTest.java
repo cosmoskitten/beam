@@ -56,33 +56,27 @@ public class RedisIOTest {
 
   @Test
   public void testWriteRead() throws Exception {
-    RedisConnectionConfiguration connection = createConnection(embeddedRedis);
-
     ArrayList<KV<String, String>> data = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       KV<String, String> kv = KV.of("key " + i, "value " + i);
       data.add(kv);
     }
     PCollection<KV<String, String>> write = writePipeline.apply(Create.of(data));
-    write.apply(RedisIO.write().withConnectionConfiguration(connection));
+    write.apply(RedisIO.write().withEndpoint("::1", embeddedRedis.getPort()));
 
     writePipeline.run();
 
     PCollection<KV<String, String>> read = readPipeline.apply("Read",
-        RedisIO.read().withConnectionConfiguration(connection).withKeyPattern("key*"));
+        RedisIO.read().withEndpoint("::1", embeddedRedis.getPort())
+            .withKeyPattern("key*"));
     PAssert.that(read).containsInAnyOrder(data);
 
     PCollection<KV<String,  String>> readNotMatch = readPipeline.apply("ReadNotMatch",
-        RedisIO.read().withConnectionConfiguration(connection).withKeyPattern("foobar*"));
+        RedisIO.read().withEndpoint("::1", embeddedRedis.getPort())
+            .withKeyPattern("foobar*"));
     PAssert.thatSingleton(readNotMatch.apply(Count.<KV<String, String>>globally())).isEqualTo(0L);
 
     readPipeline.run();
-  }
-
-  private RedisConnectionConfiguration createConnection(EmbeddedRedis embeddedRedis) {
-    return RedisConnectionConfiguration.create()
-        .withHost("::1")
-        .withPort(embeddedRedis.getPort());
   }
 
   /**

@@ -62,20 +62,21 @@ import redis.clients.jedis.ScanResult;
  * <pre>{@code
  *
  *  pipeline.apply(RedisIO.read()
- *    .withConnectionConfiguration(
- *      RedisConnectionConfiguration.create().withHost("localhost").withPort(6379))
- *    .withKeyPattern("foo*")
+ *    .withEndpoint("::1", 6379)
+ *    .withKeyPattern("foo*"))
  *
  * }</pre>
  *
- * <p>It's also possible to specify host and port directly in the create method of the
- * RedisConnectionConfiguration:
+ * <p>It's also possible to specify Redis authentication and connection timeout with the
+ * corresponding methods:
  *
  * <pre>{@code
  *
  *  pipeline.apply(RedisIO.read()
- *    .withConnectionConfiguration(RedisConnectionConfiguration.create("localhost", 6379))
- *    .withKeyPattern("foo*")
+ *    .withEndpoint("::1", 6379)
+ *    .withAuth("authPassword")
+ *    .withTimeout(60000)
+ *    .withKeyPattern("foo*"))
  *
  * }</pre>
  *
@@ -86,8 +87,7 @@ import redis.clients.jedis.ScanResult;
  *
  *  pipeline.apply(...)
  *     // here we have a PCollection<String> with the key patterns
- *     .apply(RedisIO.readAll().withConnectionConfiguration(
- *      RedisConnectionConfiguration.create().withHost("localhost").withPort(6379))
+ *     .apply(RedisIO.readAll().withEndpoint("::1", 6379))
  *    // here we have a PCollection<KV<String,String>>
  *
  * }</pre>
@@ -104,8 +104,7 @@ import redis.clients.jedis.ScanResult;
  *
  *  pipeline.apply(...)
  *    // here we a have a PCollection<String, String> with key/value pairs
- *    .apply(RedisIO.write()
- *        .withConnectionConfiguration(RedisConnectionConfiguration.create("localhost", 6379));
+ *    .apply(RedisIO.write().withEndpoint("::1", 6379))
  *
  * }</pre>
  */
@@ -116,7 +115,9 @@ public class RedisIO {
    * Read data from a Redis server.
    */
   public static Read read() {
-    return new AutoValue_RedisIO_Read.Builder().setKeyPattern("*").build();
+    return new AutoValue_RedisIO_Read.Builder()
+        .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .setKeyPattern("*").build();
   }
 
   /**
@@ -124,14 +125,18 @@ public class RedisIO {
    * element of a {@link PCollection} as key pattern.
    */
   public static ReadAll readAll() {
-    return new AutoValue_RedisIO_ReadAll.Builder().build();
+    return new AutoValue_RedisIO_ReadAll.Builder()
+        .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .build();
   }
 
   /**
    * Write data to a Redis server.
    */
   public static Write write() {
-    return new AutoValue_RedisIO_Write.Builder().build();
+    return new AutoValue_RedisIO_Write.Builder()
+        .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .build();
   }
 
   private RedisIO() {
@@ -156,14 +161,34 @@ public class RedisIO {
       abstract Read build();
     }
 
-    public Read withConnectionConfiguration(RedisConnectionConfiguration connection) {
-      checkArgument(connection != null, "connection can not be null");
-      return builder().setConnectionConfiguration(connection).build();
+    public Read withEndpoint(String host, int port) {
+      checkArgument(host != null, "host can not be null");
+      checkArgument(port > 0, "port can not be negative or 0");
+      return builder()
+          .setConnectionConfiguration(connectionConfiguration().withHost(host))
+          .setConnectionConfiguration(connectionConfiguration().withPort(port))
+          .build();
+    }
+
+    public Read withAuth(String auth) {
+      checkArgument(auth != null, "auth can not be null");
+      return builder().setConnectionConfiguration(connectionConfiguration().withAuth(auth)).build();
+    }
+
+    public Read withTimeout(int timeout) {
+      checkArgument(timeout >= 0, "timeout can not be negative");
+      return builder().setConnectionConfiguration(connectionConfiguration().withTimeout(timeout))
+          .build();
     }
 
     public Read withKeyPattern(String keyPattern) {
       checkArgument(keyPattern != null, "keyPattern can not be null");
       return builder().setKeyPattern(keyPattern).build();
+    }
+
+    public Read withConnectionConfiguration(RedisConnectionConfiguration connection) {
+      checkArgument(connection != null, "connection can not be null");
+      return builder().setConnectionConfiguration(connection).build();
     }
 
     @Override
@@ -199,6 +224,26 @@ public class RedisIO {
       @Nullable abstract ReadAll.Builder setConnectionConfiguration(
           RedisConnectionConfiguration connection);
       abstract ReadAll build();
+    }
+
+    public ReadAll withEndpoint(String host, int port) {
+      checkArgument(host != null, "host can not be null");
+      checkArgument(port > 0, "port can not be negative or 0");
+      return builder()
+          .setConnectionConfiguration(connectionConfiguration().withHost(host))
+          .setConnectionConfiguration(connectionConfiguration().withPort(port))
+          .build();
+    }
+
+    public ReadAll withAuth(String auth) {
+      checkArgument(auth != null, "auth can not be null");
+      return builder().setConnectionConfiguration(connectionConfiguration().withAuth(auth)).build();
+    }
+
+    public ReadAll withTimeout(int timeout) {
+      checkArgument(timeout >= 0, "timeout can not be negative");
+      return builder()
+          .setConnectionConfiguration(connectionConfiguration().withTimeout(timeout)).build();
     }
 
     public ReadAll withConnectionConfiguration(RedisConnectionConfiguration connection) {
@@ -311,6 +356,29 @@ public class RedisIO {
 
       abstract Write build();
 
+    }
+
+    public Write withEndpoint(String host, int port) {
+      checkArgument(host != null, "host can not be null");
+      checkArgument(port > 0, "port can not be negative or 0");
+      return builder()
+          .setConnectionConfiguration(connectionConfiguration().withHost(host))
+          .setConnectionConfiguration(connectionConfiguration().withPort(port))
+          .build();
+    }
+
+    public Write withAuth(String auth) {
+      checkArgument(auth != null, "auth can not be null");
+      return builder()
+          .setConnectionConfiguration(connectionConfiguration().withAuth(auth))
+          .build();
+    }
+
+    public Write withTimeout(int timeout) {
+      checkArgument(timeout >= 0, "timeout can not be negative");
+      return builder()
+          .setConnectionConfiguration(connectionConfiguration().withTimeout(timeout))
+          .build();
     }
 
     public Write withConnectionConfiguration(RedisConnectionConfiguration connection) {
