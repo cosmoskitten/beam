@@ -33,11 +33,14 @@ class ReifyTimestamps {
   /**
    * Create a {@link PTransform} that will output all input {@link KV KVs} with the timestamp inside
    * the value.
+   *
+   * @deprecated renamed to {@link Reify#timestampedValues()}
    */
+  @Deprecated
   public static <K, V>
       PTransform<PCollection<? extends KV<K, V>>, PCollection<KV<K, TimestampedValue<V>>>>
           inValues() {
-    return ParDo.of(new ReifyValueTimestampDoFn<K, V>());
+    return Reify.timestampedValues();
   }
 
   /**
@@ -49,17 +52,6 @@ class ReifyTimestamps {
       PTransform<PCollection<? extends KV<K, TimestampedValue<V>>>, PCollection<KV<K, V>>>
           extractFromValues() {
     return ParDo.of(new ExtractTimestampedValueDoFn<K, V>());
-  }
-
-  private static class ReifyValueTimestampDoFn<K, V>
-      extends DoFn<KV<K, V>, KV<K, TimestampedValue<V>>> {
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      context.output(
-          KV.of(
-              context.element().getKey(),
-              TimestampedValue.of(context.element().getValue(), context.timestamp())));
-    }
   }
 
   private static class ExtractTimestampedValueDoFn<K, V>
