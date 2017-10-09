@@ -145,7 +145,7 @@ cdef class StateSampler(object):
     cdef int64_t elapsed_nsecs
     with nogil:
       while True:
-        usleep(self.sampling_period_ms * MSECS_TO_NSECS)
+        usleep(self.sampling_period_ms * 1000)
         pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
         try:
           if self.finished:
@@ -156,7 +156,6 @@ cdef class StateSampler(object):
           nsecs_ptr = &(<ScopedState>PyList_GET_ITEM(
               self.scoped_states_by_index, self.current_state_index)).nsecs
           nsecs_ptr[0] += elapsed_nsecs
-
           self.time_since_transition += elapsed_nsecs
           last_nsecs += elapsed_nsecs
         finally:
@@ -219,9 +218,6 @@ cdef class ScopedState(object):
   cdef readonly int32_t state_index
   cdef readonly object counter
   cdef readonly object name
-
-  # The non-readonly properties of this class should only be modified after
-  # acquiring the sampler's lock - otherwise, it is unsafe to modify them.
   cdef readonly int64_t nsecs
   cdef int32_t old_state_index
 
