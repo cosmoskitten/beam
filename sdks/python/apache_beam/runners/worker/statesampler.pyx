@@ -35,7 +35,6 @@ attributed to that state and accumulated.  Over time, this allows a granular
 runtime profile to be produced.
 """
 
-import logging
 import threading
 import time
 
@@ -257,25 +256,20 @@ cdef class ScopedState(object):
     self.state_index = state_index
     self.counter = counter
 
-  def __str__(self):
-    return '<%s(name=%s, nsecs=%d)>' % (self.__class__.__name__,
-                                        str(self.name),
-                                        self.nsecs)
-
   cpdef __enter__(self):
     self.old_state_index = self.sampler.current_state_index
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.state_index
+    self.sampler.time_since_transition = 0
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
-    self.sampler.time_since_transition = 0
 
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.old_state_index
+    self.sampler.time_since_transition = 0
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
-    self.sampler.time_since_transition = 0
 
   def __repr__(self):
     return "ScopedState[%s, %s, %s]" % (self.name, self.state_index, self.nsecs)
