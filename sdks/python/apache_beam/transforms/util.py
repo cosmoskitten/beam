@@ -20,12 +20,21 @@
 
 from __future__ import absolute_import
 
+import collections
+import contextlib
+import time
+
+from apache_beam import typehints
+from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
+from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
+from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
+from apache_beam.utils import windowed_value
 
 __all__ = [
     'CoGroupByKey',
@@ -34,6 +43,9 @@ __all__ = [
     'RemoveDuplicates',
     'Values',
     ]
+
+
+T = typehints.TypeVariable('T')
 
 
 class CoGroupByKey(PTransform):
@@ -161,3 +173,196 @@ def RemoveDuplicates(pcoll):  # pylint: disable=invalid-name
           | 'ToPairs' >> Map(lambda v: (v, None))
           | 'Group' >> CombinePerKey(lambda vs: None)
           | 'RemoveDuplicates' >> Keys())
+
+
+class _BatchSizeEstimator(object):
+  """Estimates the best size for batches given historical timing.
+  """
+
+  MAX_DATA_POINTS = 100
+  MAX_GROWTH_FACTOR = 2
+
+  def __init__(self,
+               min_batch_size=1,
+               max_batch_size=1000,
+               target_batch_overhead=.1,
+               target_batch_duration=1,
+               clock=time.time):
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._target_batch_overhead = target_batch_overhead
+    self._target_batch_duration = target_batch_duration
+    self._clock = clock
+    self._data = []
+
+  @contextlib.contextmanager
+  def record_time(self, batch_time):
+    start = self._clock()
+    yield
+    self._data.append((batch_time, self._clock() - start))
+    if len(self._data) >= self.MAX_DATA_POINTS:
+      self._thin_data()
+
+  def _thin_data(self):
+    sorted_data = sorted(self._data)
+    odd_one_out = [sorted_data[-1]] if len(sorted_data) % 2 == 1 else []
+    # Sort the pairs by how different they are.
+    pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
+                   key=lambda ((x1, _1), (x2, _2)): x2 / x1)
+    # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
+    threshold = 2 * len(pairs) / 3
+    self._data = (
+        list(sum(pairs[threshold:], ()))
+        + [((x1 + x2) / 2.0, (t1 + t2) / 2.0)
+           for (x1, t1), (x2, t2) in pairs[:threshold]]
+        + odd_one_out)
+
+  def next_batch_size(self):
+    if self._min_batch_size == self._max_batch_size:
+      return self._min_batch_size
+    elif len(self._data) < 1:
+      return self._min_batch_size
+    elif len(self._data) < 2:
+      # Force some variety.
+      return int(max(
+          min(self._max_batch_size,
+              self._min_batch_size * self.MAX_GROWTH_FACTOR),
+          self._min_batch_size + 1))
+
+    # Linear regression for y = a + bx, where x is batch size and y is time.
+    xs, ys = zip(*self._data)
+    n = float(len(self._data))
+    xbar = sum(xs) / n
+    ybar = sum(ys) / n
+    b = (sum([(x - xbar) * (y - ybar) for x, y in self._data])
+         / sum([(x - xbar)**2 for x in xs]))
+    a = ybar - b * xbar
+
+    # Avoid nonsensical or division-by-zero errors below due to noise.
+    a = max(a, 1e-10)
+    b = max(b, 1e-20)
+
+    last_batch_size = self._data[-1][0]
+    cap = min(last_batch_size * self.MAX_GROWTH_FACTOR, self._max_batch_size)
+
+    if self._target_batch_duration:
+      cap = min(cap, (self._target_batch_duration - a) / b)
+
+    if self._target_batch_overhead:
+      cap = min(cap, a / b * (1 / self._target_batch_overhead - 1))
+
+    # Avoid getting stuck at min_batch_size.
+    jitter = len(self._data) % 2
+    return int(max(self._min_batch_size + jitter, cap))
+
+
+class _GlobalWindowsBatchingDoFn(DoFn):
+  def __init__(self, batch_size_estimator):
+    self._batch_size_estimator = batch_size_estimator
+
+  def start_bundle(self):
+    self._batch = []
+    self._batch_size = self._batch_size_estimator.next_batch_size()
+    self._first = True
+
+  def process(self, element):
+    self._batch.append(element)
+    if len(self._batch) >= self._batch_size:
+      if self._first:
+        # This often involves non-trivial setup.
+        yield self._batch
+        self._first = False
+      else:
+        with self._batch_size_estimator.record_time(self._batch_size):
+          yield self._batch
+      self._batch = []
+      self._batch_size = self._batch_size_estimator.next_batch_size()
+
+  def finish_bundle(self):
+    if self._batch:
+      with self._batch_size_estimator.record_time(self._batch_size):
+        yield window.GlobalWindows.windowed_value(self._batch)
+      self._batch = None
+      self._batch_size = self._batch_size_estimator.next_batch_size()
+
+
+class _WindowAwareBatchingDoFn(DoFn):
+  def __init__(self, batch_size_estimator):
+    self._batch_size_estimator = batch_size_estimator
+
+  def start_bundle(self):
+    self._batches = collections.defaultdict(list)
+    self._batch_size = self._batch_size_estimator.next_batch_size()
+    self._first = True
+
+  def process(self, element, window=DoFn.WindowParam):
+    self._batches[window].append(element)
+    if len(self._batches[window]) >= self._batch_size:
+      windowed_batch = windowed_value.WindowedValue(
+          self._batches[window], window.max_timestamp(), (window,))
+      if self._first:
+        yield windowed_batch
+        self._first = False
+      else:
+        with self._batch_size_estimator.record_time(self._batch_size):
+          yield windowed_batch
+      del self._batches[window]
+      self._batch_size = self._batch_size_estimator.next_batch_size()
+
+  def finish_bundle(self):
+    for window, batch in self._batches.items():
+      if batch:
+        with self._batch_size_estimator.record_time(self._batch_size):
+          yield windowed_value.WindowedValue(
+              batch, window.max_timestamp(), (window,))
+    self._batches = None
+    self._batch_size = self._batch_size_estimator.next_batch_size()
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(typehints.List[T])
+class BatchElements(PTransform):
+  """A Transform that batches elements for amortized processing.
+
+  This transform is designed to proceed operations whose processing cost
+  is of the form
+
+      time = fixed_cost + num_elements * per_element_cost
+
+  where the per element cost is (often significantly) smaller than the fixed
+  cost.  It consumes a PCollection of T and produces a PCollection of List[T].
+
+  This transform attempts to find the best batch size between the minimim
+  and maximum parameters by profiling the time taken by (fused) downstream
+  operations.
+  For a fixed batch size, set the min and max to be equal.
+
+  Args:
+    min_batch_size: (optional) the smallest number of elements per batch
+    max_batch_size: (optional) the largest number of elements per batch
+    target_batch_overhead: (optional) a target for fixed_cost / time, as above
+    target_batch_duration: (optional) a target for total time per bundle
+    clock: (optional) an alternative to time.time for measuring the cost of
+        donwstream operations (mostly for testing)
+  """
+  def __init__(self,
+               min_batch_size=1,
+               max_batch_size=1000,
+               target_batch_overhead=.05,
+               target_batch_duration=1,
+               clock=time.time):
+    self._batch_size_estimator = _BatchSizeEstimator(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        target_batch_overhead=target_batch_overhead,
+        target_batch_duration=target_batch_duration,
+        clock=clock)
+
+  def expand(self, pcoll):
+    if getattr(pcoll.pipeline.runner, 'is_streaming', False):
+      raise NotImplementedError("Requires stateful processing (BEAM-2687)")
+    elif pcoll.windowing.is_default():
+      return pcoll | ParDo(_GlobalWindowsBatchingDoFn(
+          self._batch_size_estimator))
+    else:
+      return pcoll | ParDo(_WindowAwareBatchingDoFn(self._batch_size_estimator))
