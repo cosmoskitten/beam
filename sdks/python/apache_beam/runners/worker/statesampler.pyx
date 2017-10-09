@@ -77,7 +77,7 @@ class StateSamplerInfo(object):
   def __init__(self, state_name, transition_count, time_since_transition):
     self.state_name = state_name
     self.transition_count = transition_count
-    self.time_since_transition
+    self.time_since_transition = time_since_transition
 
   def __repr__(self):
     return ('<StateSamplerInfo state: %s time: %dns transitions: %d>'
