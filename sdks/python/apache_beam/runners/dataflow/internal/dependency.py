@@ -95,6 +95,8 @@ BEAM_PACKAGE_NAME = 'apache-beam'
 GOOGLE_SDK_NAME = 'Google Cloud Dataflow SDK for Python'
 BEAM_SDK_NAME = 'Apache Beam SDK for Python'
 
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
+
 
 def _dependency_file_copy(from_path, to_path):
   """Copies a local file to a GCS file or vice versa."""
@@ -484,6 +486,23 @@ def _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
     raise RuntimeError(
         'The --sdk_location option was used with an unsupported '
         'type of location: %s' % sdk_remote_location)
+
+
+def get_runner_harness_container_image():
+  """For internal use only; no backwards-compatibility guarantees.
+
+   Returns:
+     str: Runner harness container image that shall be used by default
+       for current SDK version or None if the runner harness container image
+       bundled with the service shall be used.
+  """
+  import pkg_resources as pkg
+  try:
+    version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+    return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
+            str(version))
+  except pkg.DistributionNotFound:
+    return None
 
 
 def get_default_container_image_for_current_sdk(job_type):
