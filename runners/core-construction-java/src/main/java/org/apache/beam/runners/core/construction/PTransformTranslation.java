@@ -286,7 +286,7 @@ public class PTransformTranslation {
       public final RawPTransform<?, ?> rehydrate(
           RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
           throws IOException {
-        return UnknownRawPTransform.withSpec(protoTransform.getSpec());
+        return UnknownRawPTransform.forSpec(protoTransform.getSpec());
       }
     }
 
@@ -376,7 +376,7 @@ public class PTransformTranslation {
     @Nullable
     public abstract RunnerApi.FunctionSpec getSpec();
 
-    public static UnknownRawPTransform withSpec(RunnerApi.FunctionSpec spec) {
+    public static UnknownRawPTransform forSpec(RunnerApi.FunctionSpec spec) {
       return new AutoValue_PTransformTranslation_UnknownRawPTransform(spec);
     }
 
@@ -420,7 +420,7 @@ public class PTransformTranslation {
     @Override
     public RawPTransform<?, ?> rehydrate(
         RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents) {
-      return UnknownRawPTransform.withSpec(protoTransform.getSpec());
+      return UnknownRawPTransform.forSpec(protoTransform.getSpec());
     }
   }
 }
