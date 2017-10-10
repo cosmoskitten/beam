@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 """Unit tests for the apiclient module."""
-import pkg_resources
 import unittest
 import mock
 
@@ -23,6 +22,8 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
+
+import pkg_resources
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -155,8 +156,8 @@ class UtilTest(unittest.TestCase):
         'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
         '.get_distribution',
         mock.MagicMock(return_value=distribution)):
-        env = apiclient.Environment([], pipeline_options, '2.2.0')
-        self.assertIn(override, env.proto.experiments)
+      env = apiclient.Environment([], pipeline_options, '2.2.0')
+      self.assertIn(override, env.proto.experiments)
 
   def test_harness_override_absent_in_unreleased_sdk(self):
     pipeline_options = PipelineOptions(
@@ -169,8 +170,8 @@ class UtilTest(unittest.TestCase):
         'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
         '.get_distribution',
         mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
-        env = apiclient.Environment([], pipeline_options, '2.2.0')
-        self.assertNotIn(override, env.proto.experiments)
+      env = apiclient.Environment([], pipeline_options, '2.2.0')
+      self.assertNotIn(override, env.proto.experiments)
 
 if __name__ == '__main__':
   unittest.main()

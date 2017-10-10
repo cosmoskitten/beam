@@ -54,7 +54,6 @@ import functools
 import glob
 import logging
 import os
-import pkg_resources
 import re
 import shutil
 import sys
@@ -67,6 +66,8 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.utils import processes
+
+import pkg_resources
 
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
@@ -534,17 +535,17 @@ def _get_required_container_version(job_type=None):
       current version of the SDK.
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
-  import pkg_resources as pkg
   try:
-    version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+    version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
     # We drop any pre/post parts of the version and we keep only the X.Y.Z
     # format.  For instance the 0.3.0rc2 SDK version translates into 0.3.0.
-    container_version = '%s.%s.%s' % pkg.parse_version(version)._version.release
+    container_version = (
+        '%s.%s.%s' % pkg_resources.parse_version(version)._version.release)
     # We do, however, keep the ".dev" suffix if it is present.
     if re.match(r'.*\.dev[0-9]*$', version):
       container_version += '.dev'
     return container_version
-  except pkg.DistributionNotFound:
+  except pkg_resources.DistributionNotFound:
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
     if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
@@ -557,12 +558,11 @@ def get_sdk_name_and_version():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns name and version of SDK reported to Google Cloud Dataflow."""
-  import pkg_resources as pkg
   container_version = _get_required_container_version()
   try:
-    pkg.get_distribution(GOOGLE_PACKAGE_NAME)
+    pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME)
     return (GOOGLE_SDK_NAME, container_version)
-  except pkg.DistributionNotFound:
+  except pkg_resources.DistributionNotFound:
     return (BEAM_SDK_NAME, beam_version.__version__)
 
 
@@ -580,10 +580,9 @@ def get_sdk_package_name():
 def _download_pypi_sdk_package(temp_dir):
   """Downloads SDK package from PyPI and returns path to local path."""
   package_name = get_sdk_package_name()
-  import pkg_resources as pkg
   try:
-    version = pkg.get_distribution(package_name).version
-  except pkg.DistributionNotFound:
+    version = pkg_resources.get_distribution(package_name).version
+  except pkg_resources.DistributionNotFound:
     raise RuntimeError('Please set --sdk_location command-line option '
                        'or install a valid {} distribution.'
                        .format(package_name))
