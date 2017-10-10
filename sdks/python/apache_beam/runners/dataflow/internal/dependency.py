@@ -54,6 +54,7 @@ import functools
 import glob
 import logging
 import os
+import pkg_resources
 import re
 import shutil
 import sys
@@ -496,9 +497,8 @@ def get_runner_harness_container_image():
        for current SDK version or None if the runner harness container image
        bundled with the service shall be used.
   """
-  import pkg_resources as pkg
   try:
-    version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+    version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
     return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
             str(version))
   except pkg.DistributionNotFound:
