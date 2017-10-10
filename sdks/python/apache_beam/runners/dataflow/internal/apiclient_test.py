@@ -33,6 +33,7 @@ except ImportError:
 
 import pkg_resources
 
+
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class UtilTest(unittest.TestCase):
 
@@ -171,6 +172,7 @@ class UtilTest(unittest.TestCase):
         mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
       env = apiclient.Environment([], pipeline_options, '2.2.0')
       self.assertNotIn(override, env.proto.experiments)
+
 
 if __name__ == '__main__':
   unittest.main()
