@@ -114,9 +114,7 @@ cdef class StateSampler(object):
   cdef int32_t current_state_index
 
   def __init__(self, prefix, counter_factory,
-
       sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
-
     # TODO(pabloem): Remove this once all dashed prefixes are removed from
     # the worker.
     # We stop using prefixes with included dash.
@@ -128,6 +126,8 @@ cdef class StateSampler(object):
     self.scoped_states_by_name = {}
 
     self.current_state_index = 0
+    self.time_since_transition = 0
+    self.state_transition_count = 0
     unknown_state = ScopedState(self, 'unknown', self.current_state_index)
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
     self.scoped_states_by_index = [unknown_state]
