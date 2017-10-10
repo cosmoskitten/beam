@@ -118,7 +118,7 @@ public class PTransformTranslation {
       if (!alreadyRegistered.isEmpty()) {
         throw new IllegalArgumentException(
             String.format(
-                "Classes already registered: %s", Joiner.on(", ").join(alreadyRegistered)));
+                "URNs already registered: %s", Joiner.on(", ").join(alreadyRegistered)));
       }
 
       rehydrators.putAll(newRehydrators);
