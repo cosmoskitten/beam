@@ -79,6 +79,8 @@ public class PTransformTranslation {
   private static final Map<String, TransformPayloadTranslator> KNOWN_REHYDRATORS =
       loadTransformRehydrators();
 
+  private static final TransformPayloadTranslator<?> DEFAULT_REHYDRATOR = new RawPTransformTranslator();
+
   private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
       loadTransformPayloadTranslators() {
     HashMap<Class<? extends PTransform>, TransformPayloadTranslator> translators = new HashMap<>();
@@ -201,7 +203,7 @@ public class PTransformTranslation {
             protoTransform.getSpec() == null ? null : protoTransform.getSpec().getUrn());
 
     if (rehydrator == null) {
-      return UnknownRawPTransform.withSpec(protoTransform.getSpec());
+      return DEFAULT_REHYDRATOR.rehydrate(protoTransform, rehydratedComponents);
     } else {
       return rehydrator.rehydrate(protoTransform, rehydratedComponents);
     }
@@ -422,10 +424,7 @@ public class PTransformTranslation {
     @Override
     public RawPTransform<?, ?> rehydrate(
         RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s.rehydrate(...) should never be called, but received %s: %s",
-              getClass().getSimpleName(), FunctionSpec.class.getSimpleName(), protoTransform));
+      return UnknownRawPTransform.withSpec(protoTransform.getSpec());
     }
   }
 }
