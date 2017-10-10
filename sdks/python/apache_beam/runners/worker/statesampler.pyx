@@ -152,9 +152,6 @@ cdef class StateSampler(object):
     with nogil:
       while True:
         usleep(self.sampling_period_ms * 1000)
-        if latest_transition_count != self.state_transition_count:
-          self.time_since_transition = 0
-          latest_transition_count = self.state_transition_count
         pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
         try:
           if self.finished:
@@ -165,6 +162,9 @@ cdef class StateSampler(object):
           nsecs_ptr = &(<ScopedState>PyList_GET_ITEM(
               self.scoped_states_by_index, self.current_state_index)).nsecs
           nsecs_ptr[0] += elapsed_nsecs
+          if latest_transition_count != self.state_transition_count:
+            self.time_since_transition = 0
+            latest_transition_count = self.state_transition_count
           self.time_since_transition += elapsed_nsecs
           last_nsecs += elapsed_nsecs
         finally:
