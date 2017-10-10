@@ -501,7 +501,7 @@ def get_runner_harness_container_image():
     version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
     return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
             version)
-  except pkg.DistributionNotFound:
+  except pkg_resources.DistributionNotFound:
     return None
 
 
