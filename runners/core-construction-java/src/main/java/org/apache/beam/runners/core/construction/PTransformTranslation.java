@@ -79,7 +79,8 @@ public class PTransformTranslation {
   private static final Map<String, TransformPayloadTranslator> KNOWN_REHYDRATORS =
       loadTransformRehydrators();
 
-  private static final TransformPayloadTranslator<?> DEFAULT_REHYDRATOR = new RawPTransformTranslator();
+  private static final TransformPayloadTranslator<?> DEFAULT_REHYDRATOR =
+      new RawPTransformTranslator();
 
   private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
       loadTransformPayloadTranslators() {
