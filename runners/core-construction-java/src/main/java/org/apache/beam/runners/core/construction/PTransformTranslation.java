@@ -283,7 +283,7 @@ public class PTransformTranslation {
     abstract class WithDefaultRehydration<T extends PTransform<?, ?>>
         implements TransformPayloadTranslator<T> {
       @Override
-      public RawPTransform<?, ?> rehydrate(
+      public final RawPTransform<?, ?> rehydrate(
           RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
           throws IOException {
         return UnknownRawPTransform.withSpec(protoTransform.getSpec());
@@ -417,10 +417,6 @@ public class PTransformTranslation {
       return transform.getTransform().migrate(components);
     }
 
-    /**
-     * This should never be called - this rehydration method applies when a transform has a known
-     * URN with a payload that requires custom logic.
-     */
     @Override
     public RawPTransform<?, ?> rehydrate(
         RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents) {
