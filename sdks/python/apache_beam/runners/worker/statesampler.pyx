@@ -148,9 +148,13 @@ cdef class StateSampler(object):
   def run(self):
     cdef int64_t last_nsecs = get_nsec_time()
     cdef int64_t elapsed_nsecs
+    cdef int64_t latest_transition_count = self.state_transition_count
     with nogil:
       while True:
         usleep(self.sampling_period_ms * 1000)
+        if latest_transition_count != self.state_transition_count:
+          self.time_since_transition = 0
+          latest_transition_count = self.state_transition_count
         pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
         try:
           if self.finished:
@@ -260,14 +264,12 @@ cdef class ScopedState(object):
     self.old_state_index = self.sampler.current_state_index
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.state_index
-    self.sampler.time_since_transition = 0
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
 
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.old_state_index
-    self.sampler.time_since_transition = 0
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
 
