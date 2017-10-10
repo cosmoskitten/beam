@@ -264,10 +264,10 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       return DIRECT_STATEFUL_PAR_DO_URN;
     }
 
-    @Nullable
     @Override
     public RunnerApi.FunctionSpec getSpec() {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format("%s should never be serialized to proto", getClass().getSimpleName()));
     }
   }
 
