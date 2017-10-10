@@ -41,7 +41,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.util.OrderedCode;
 import org.apache.beam.sdk.util.VarInt;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
