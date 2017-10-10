@@ -21,7 +21,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -90,10 +89,10 @@ public class SplittableParDoViaKeyedWorkItems {
       return SplittableParDo.SPLITTABLE_GBKIKWI_URN;
     }
 
-    @Nullable
     @Override
     public RunnerApi.FunctionSpec getSpec() {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format("%s should never be serialized to proto", getClass().getSimpleName()));
     }
   }
 
