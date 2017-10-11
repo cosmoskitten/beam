@@ -25,6 +25,7 @@ import contextlib
 import time
 
 from apache_beam import typehints
+from apache_beam.metrics import Metrics
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
@@ -197,14 +198,36 @@ class _BatchSizeEstimator(object):
     self._target_batch_duration = target_batch_duration
     self._clock = clock
     self._data = []
+    self._ignore_next_timing = False
+    self._size_distribution = Metrics.distribution(
+        'BatchElements', 'batch_size')
+    self._time_distribution = Metrics.distribution(
+        'BatchElements', 'msec_per_batch')
+    self._remainder_msecs = 0
+
+  def ignore_next_timing(self, ignore_next_timing=True):
+    """Call to indicate the next timing should be ignored.
+
+    For example, the first emit of a ParDo operation is known to be anomolous
+    due to setup that may occur.
+    """
+    self._ignore_next_timing = ignore_next_timing
 
   @contextlib.contextmanager
   def record_time(self, batch_size):
     start = self._clock()
     yield
-    self._data.append((batch_size, self._clock() - start))
-    if len(self._data) >= self.MAX_DATA_POINTS:
-      self._thin_data()
+    elapsed = self._clock() - start
+    elapsed_msec = 1e3 * elapsed + self._remainder_msecs
+    self._size_distribution.update(batch_size)
+    self._time_distribution.update(int(elapsed_msec))
+    self._remainder_msecs = elapsed_msec - int(elapsed_msec)
+    if self._ignore_next_timing:
+      self._ignore_next_timing = False
+    else:
+      self._data.append((batch_size, elapsed))
+      if len(self._data) >= self.MAX_DATA_POINTS:
+        self._thin_data()
 
   def _thin_data(self):
     sorted_data = sorted(self._data)
@@ -268,18 +291,14 @@ class _GlobalWindowsBatchingDoFn(DoFn):
   def start_bundle(self):
     self._batch = []
     self._batch_size = self._batch_size_estimator.next_batch_size()
-    self._first = True
+    # The first emit often involves non-trivial setup.
+    self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element):
     self._batch.append(element)
     if len(self._batch) >= self._batch_size:
-      if self._first:
-        # This often involves non-trivial setup.
+      with self._batch_size_estimator.record_time(self._batch_size):
         yield self._batch
-        self._first = False
-      else:
-        with self._batch_size_estimator.record_time(self._batch_size):
-          yield self._batch
       self._batch = []
       self._batch_size = self._batch_size_estimator.next_batch_size()
 
@@ -298,20 +317,15 @@ class _WindowAwareBatchingDoFn(DoFn):
   def start_bundle(self):
     self._batches = collections.defaultdict(list)
     self._batch_size = self._batch_size_estimator.next_batch_size()
-    self._first = True
+    # The first emit often involves non-trivial setup.
+    self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element, window=DoFn.WindowParam):
     self._batches[window].append(element)
     if len(self._batches[window]) >= self._batch_size:
-      windowed_batch = windowed_value.WindowedValue(
-          self._batches[window], window.max_timestamp(), (window,))
-      if self._first:
-        # This often involves non-trivial setup.
-        yield windowed_batch
-        self._first = False
-      else:
-        with self._batch_size_estimator.record_time(self._batch_size):
-          yield windowed_batch
+      with self._batch_size_estimator.record_time(self._batch_size):
+        yield windowed_value.WindowedValue(
+            self._batches[window], window.max_timestamp(), (window,))
       del self._batches[window]
       self._batch_size = self._batch_size_estimator.next_batch_size()
 
