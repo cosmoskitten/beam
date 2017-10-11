@@ -188,6 +188,9 @@ class _BatchSizeEstimator(object):
                target_batch_overhead=.1,
                target_batch_duration=1,
                clock=time.time):
+    if min_batch_size > max_batch_size:
+      raise ValueError("Minimum (%s) must not be greater than maximum (%s)" % (
+          min_batch_size, max_batch_size))
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._target_batch_overhead = target_batch_overhead
@@ -196,10 +199,10 @@ class _BatchSizeEstimator(object):
     self._data = []
 
   @contextlib.contextmanager
-  def record_time(self, batch_time):
+  def record_time(self, batch_size):
     start = self._clock()
     yield
-    self._data.append((batch_time, self._clock() - start))
+    self._data.append((batch_size, self._clock() - start))
     if len(self._data) >= self.MAX_DATA_POINTS:
       self._thin_data()
 
@@ -246,10 +249,12 @@ class _BatchSizeEstimator(object):
     cap = min(last_batch_size * self.MAX_GROWTH_FACTOR, self._max_batch_size)
 
     if self._target_batch_duration:
+      # Solution to a + b*x = self._target_batch_duration.
       cap = min(cap, (self._target_batch_duration - a) / b)
 
     if self._target_batch_overhead:
-      cap = min(cap, a / b * (1 / self._target_batch_overhead - 1))
+      # Solution to a / (a + b*x) = self._target_batch_overhead.
+      cap = min(cap, (a / b) * (1 / self._target_batch_overhead - 1))
 
     # Avoid getting stuck at min_batch_size.
     jitter = len(self._data) % 2
@@ -301,6 +306,7 @@ class _WindowAwareBatchingDoFn(DoFn):
       windowed_batch = windowed_value.WindowedValue(
           self._batches[window], window.max_timestamp(), (window,))
       if self._first:
+        # This often involves non-trivial setup.
         yield windowed_batch
         self._first = False
       else:
