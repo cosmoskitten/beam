@@ -64,9 +64,13 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Helper routines for packages. */
+/**
+ * <b><i>For internal use only; no backwards compatibility guarantees.</i></b>
+ *
+ * <p>Helper routines for packages.
+ */
 @Internal
-class PackageUtil implements Closeable {
+public class PackageUtil implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(PackageUtil.class);
 
@@ -254,9 +258,9 @@ class PackageUtil implements Closeable {
   /**
    * Transfers the classpath elements to the staging location using a default {@link Sleeper}.
    *
-   * @see {@link #stageClasspathElements(Collection, String, Sleeper, CreateOptions)}
+   * @see #stageClasspathElements(Collection, String, Sleeper, CreateOptions)
    */
-  List<DataflowPackage> stageClasspathElements(
+  public List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, String stagingPath, CreateOptions createOptions) {
     return stageClasspathElements(classpathElements, stagingPath, DEFAULT_SLEEPER, createOptions);
   }
@@ -264,9 +268,9 @@ class PackageUtil implements Closeable {
   /**
    * Transfers the classpath elements to the staging location using default settings.
    *
-   * @see {@link #stageClasspathElements(Collection, String, Sleeper, CreateOptions)}
+   * @see #stageClasspathElements(Collection, String, Sleeper, CreateOptions)
    */
-  List<DataflowPackage> stageClasspathElements(
+  public List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, String stagingPath) {
     return stageClasspathElements(
         classpathElements, stagingPath, DEFAULT_SLEEPER, DEFAULT_CREATE_OPTIONS);
@@ -279,7 +283,7 @@ class PackageUtil implements Closeable {
    * @param stagingPath The base location to stage the elements to.
    * @return A list of cloud workflow packages, each representing a classpath element.
    */
-  List<DataflowPackage> stageClasspathElements(
+  public List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements,
       final String stagingPath,
       final Sleeper retrySleeper,
