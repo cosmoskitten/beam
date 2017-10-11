@@ -25,5 +25,8 @@ import java.util.List;
  */
 public interface Stager {
   /* Stage files and return a list of packages. */
-  List<DataflowPackage> stageFiles();
+  List<DataflowPackage> stageDefaultFiles();
+
+  /* Stage files and return a list of packages. */
+  List<DataflowPackage> stageFiles(List<String> filesToStage);
 }

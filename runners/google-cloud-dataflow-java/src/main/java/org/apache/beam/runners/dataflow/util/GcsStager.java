@@ -45,14 +45,22 @@ public class GcsStager implements Stager {
   }
 
   @Override
-  public List<DataflowPackage> stageFiles() {
+  public List<DataflowPackage> stageDefaultFiles() {
     checkNotNull(options.getStagingLocation());
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
+
+    List<String> filesToStage = options.getFilesToStage();
+
     if (windmillBinary != null) {
-      options.getFilesToStage().add("windmill_main=" + windmillBinary);
+      filesToStage.add("windmill_main=" + windmillBinary);
     }
 
+    return stageFiles(filesToStage);
+  }
+
+  @Override
+  public List<DataflowPackage> stageFiles(List<String> filesToStage) {
     int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
     checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
     uploadSizeBytes = Math.min(uploadSizeBytes, 1024 * 1024);
