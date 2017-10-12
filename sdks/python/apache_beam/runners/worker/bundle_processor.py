@@ -58,7 +58,7 @@ IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
 PYTHON_ITERABLE_VIEWFN_URN = 'urn:org.apache.beam:viewfn:iterable:python:0.1'
 PYTHON_CODER_URN = 'urn:org.apache.beam:coder:python:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate python urns.
-PYTHON_DOFN_URN = 'urn:org.apache.beam:dofn:java:0.1'
+PYTHON_DOFN_URN = 'urn:beam:dofn:javasdk:0.1'
 PYTHON_SOURCE_URN = 'urn:org.apache.beam:source:java:0.1'
 
 
@@ -401,7 +401,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
     serialized_fn, side_input_data = dofn_data
   else:
     # No side input data.
-    serialized_fn, side_input_data = parameter.value, []
+    serialized_fn, side_input_data = parameter, []
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       serialized_fn, side_input_data)
