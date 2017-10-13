@@ -21,13 +21,13 @@ from __future__ import absolute_import
 
 import argparse
 import logging
-import re
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
@@ -54,6 +54,12 @@ class WordExtractingDoFn(beam.DoFn):
     Returns:
       The processed element.
     """
+
+    # TODO(BEAM-3041): Move this import to top of the file after the fix.
+    # Portable containers does not support save main session, and importing here
+    # is required. This is only needed for running experimental jobs with FnApi.
+    import re
+
     text_line = element.strip()
     if not text_line:
       self.empty_line_counter.inc(1)
@@ -98,9 +104,14 @@ def run(argv=None):
   # Format the counts into a PCollection of strings.
   output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
 
-  # Write the output using a "Write" transform that has side effects.
-  # pylint: disable=expression-not-assigned
-  output | 'write' >> WriteToText(known_args.output)
+  # TODO(BEAM-2887): Remove after this is fixed.
+  debug_options = pipeline_options.view_as(DebugOptions)
+  use_fn_api = (
+      debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
+  if not use_fn_api:
+    # Write the output using a "Write" transform that has side effects.
+    # pylint: disable=expression-not-assigned
+    output | 'write' >> WriteToText(known_args.output)
 
   result = p.run()
   result.wait_until_finish()
