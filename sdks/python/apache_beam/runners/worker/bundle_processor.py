@@ -114,25 +114,16 @@ class DataInputOperation(RunnerIOOperation):
         operations.ConsumerSet(self.counter_factory, self.step_name, 0,
                                consumers.itervalues().next(),
                                self.windowed_coder)]
-    self.input_count = 0
 
   def process(self, windowed_value):
-    self.input_count += 1
     self.output(windowed_value)
 
   def process_encoded(self, encoded_windowed_values):
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
     while input_stream.size() > 0:
-      self.input_count += 1
       decoded_value = self.windowed_coder.get_impl().decode_from_stream(
           input_stream, True)
       self.output(decoded_value)
-
-  def progress_metrics(self):
-    metrics = super(DataInputOperation, self).progress_metrics()
-    metrics.processed_elements.measured.input_element_counts[
-        'GRPC_INPUT'] = self.input_count
-    return metrics
 
 
 # TODO(robertwb): Revise side input API to not be in terms of native sources.

@@ -99,11 +99,6 @@ class FnApiRunnerTest(
           2e-3 * DEFAULT_SAMPLING_PERIOD_MS,
           pregbk_metrics.ptransforms['Map(sleep)']
           .processed_elements.measured.total_time_spent)
-
-      self.assertEqual(
-          1,
-          postgbk_metrics.ptransforms['GroupByKey/Read']
-          .processed_elements.measured.input_element_counts['GRPC_INPUT'])
       self.assertEqual(
           1,
           postgbk_metrics.ptransforms['GroupByKey/Read']

@@ -219,8 +219,6 @@ message Metrics {
       // from this input.
       // If unset, assumed to be the sum of the outputs of all producers to
       // this transform (for ProcessedElements) and 0 (for ActiveElements).
-      // Should be set for operations (such as reading from the
-      // data channel) that have no explicit inputs.
       map<string, int64> input_element_counts = 1;
 
       // (Required) Map from local output name to number of elements produced
