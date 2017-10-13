@@ -82,7 +82,7 @@ class BatchElementsTest(unittest.TestCase):
   def test_target_duration(self):
     clock = FakeClock()
     batch_estimator = util._BatchSizeEstimator(
-        target_batch_overhead=None, target_batch_duration=10, clock=clock)
+        target_batch_overhead=None, target_batch_duration_secs=10, clock=clock)
     batch_duration = lambda batch_size: 1 + .7 * batch_size
     # 1 + 12 * .7 is as close as we can get to 10 as possible.
     expected_sizes = [1, 2, 4, 8, 12, 12, 12]
@@ -96,7 +96,7 @@ class BatchElementsTest(unittest.TestCase):
   def test_target_overhead(self):
     clock = FakeClock()
     batch_estimator = util._BatchSizeEstimator(
-        target_batch_overhead=.05, target_batch_duration=None, clock=clock)
+        target_batch_overhead=.05, target_batch_duration_secs=None, clock=clock)
     batch_duration = lambda batch_size: 1 + .7 * batch_size
     # At 27 items, a batch takes ~20 seconds with 5% (~1 second) overhead.
     expected_sizes = [1, 2, 4, 8, 16, 27, 27, 27]
