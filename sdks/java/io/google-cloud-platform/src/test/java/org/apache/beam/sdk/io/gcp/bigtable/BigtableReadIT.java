@@ -46,7 +46,8 @@ public class BigtableReadIT {
 
     BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
         .setProjectId(project)
-        .setInstanceId(options.getInstanceId());
+        .setInstanceId(options.getInstanceId())
+        .setUserAgent("apache-beam-test");
 
     final String tableId = "BigtableReadTest";
     final long numRows = 1000L;
