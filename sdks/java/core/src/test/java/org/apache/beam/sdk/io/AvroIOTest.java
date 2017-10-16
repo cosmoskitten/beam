@@ -165,9 +165,105 @@ public class AvroIOTest {
     }
   }
 
+  private static final String SCHEMA_STRING =
+      "{\"namespace\": \"example.avro\",\n"
+          + " \"type\": \"record\",\n"
+          + " \"name\": \"AvroGeneratedUser\",\n"
+          + " \"fields\": [\n"
+          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+          + "     {\"name\": \"favorite_number\", \"type\": [\"int\", \"null\"]},\n"
+          + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
+          + " ]\n"
+          + "}";
+
+  private static final Schema SCHEMA = new Schema.Parser().parse(SCHEMA_STRING);
+
   @Test
   @Category(NeedsRunner.class)
-  public void testAvroIOWriteAndReadAndParseASingleFile() throws Throwable {
+  public void testAvroIOWriteAndReadJavaClass() throws Throwable {
+    List<GenericClass> values =
+        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    writePipeline
+        .apply(Create.of(values))
+        .apply(
+            AvroIO.write(GenericClass.class)
+                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
+                .withoutSharding());
+    writePipeline.run().waitUntilFinish();
+
+    PAssert.that(
+            readPipeline.apply(
+                "Read",
+                AvroIO.read(GenericClass.class)
+                    .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
+        .containsInAnyOrder(values);
+
+    readPipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAvroIOWriteAndReadGeneratedClassWithSchema() throws Throwable {
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    List<GenericRecord> values =
+        ImmutableList.<GenericRecord>of(
+            new AvroGeneratedUser("Bob", 256, null),
+            new AvroGeneratedUser("Alice", 128, null),
+            new AvroGeneratedUser("Ted", null, "white"));
+
+    writePipeline
+        .apply(Create.of(values))
+        .apply(
+            AvroIO.writeGenericRecords(SCHEMA)
+                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
+                .withoutSharding());
+    writePipeline.run().waitUntilFinish();
+
+    PAssert.that(
+            readPipeline.apply(
+                "Read",
+                AvroIO.readGenericRecords(SCHEMA)
+                    .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
+        .containsInAnyOrder(values);
+
+    readPipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAvroIOWriteAndReadGeneratedClassWithSchemaString() throws Throwable {
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    List<GenericRecord> values =
+        ImmutableList.<GenericRecord>of(
+            new AvroGeneratedUser("Bob", 256, null),
+            new AvroGeneratedUser("Alice", 128, null),
+            new AvroGeneratedUser("Ted", null, "white"));
+
+    writePipeline
+        .apply(Create.of(values))
+        .apply(
+            AvroIO.writeGenericRecords(SCHEMA.toString())
+                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
+                .withoutSharding());
+    writePipeline.run().waitUntilFinish();
+
+    PAssert.that(
+            readPipeline.apply(
+                "Read",
+                AvroIO.readGenericRecords(SCHEMA.toString())
+                    .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
+        .containsInAnyOrder(values);
+
+    readPipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAvroIOWriteAndReadAndParseJavaClassSingleFile() throws Throwable {
     List<GenericClass> values =
         ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -215,31 +311,6 @@ public class AvroIOTest {
             AvroIO.parseAllGenericRecords(new ParseGenericClass())
                 .withCoder(AvroCoder.of(GenericClass.class))
                 .withDesiredBundleSizeBytes(10)))
-        .containsInAnyOrder(values);
-
-    readPipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testAvroIOWriteAndReadViaValueProvider() throws Throwable {
-    List<GenericClass> values =
-        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
-    File outputFile = tmpFolder.newFile("output.avro");
-
-    writePipeline
-        .apply(Create.of(values))
-        .apply(
-            AvroIO.write(GenericClass.class)
-                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
-                .withoutSharding());
-    writePipeline.run().waitUntilFinish();
-
-    PAssert.that(
-            readPipeline.apply(
-                "Read",
-                AvroIO.read(GenericClass.class)
-                    .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
         .containsInAnyOrder(values);
 
     readPipeline.run();
