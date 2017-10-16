@@ -120,42 +120,6 @@
           </excludes>
         </configuration>
       </plugin>
-
-      <!-- Override Beam parent to allow Java8 dependencies -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <version>${maven-enforcer-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>enforce</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <enforceBytecodeVersion>
-                  <maxJdkVersion>1.8</maxJdkVersion>
-                  <excludes>
-                    <!--
-                      Supplied by the user JDK and compiled with matching
-                      version. Is not shaded, so safe to ignore.
-                    -->
-                    <exclude>jdk.tools:jdk.tools</exclude>
-                  </excludes>
-                </enforceBytecodeVersion>
-                <requireJavaVersion>
-                  <version>[1.7,)</version>
-                </requireJavaVersion>
-                <requireMavenVersion>
-                  <!-- Keep aligned with preqrequisite section below. -->
-                  <version>[3.2,)</version>
-                </requireMavenVersion>
-              </rules>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
 
@@ -168,6 +132,11 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-model-fn-execution</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-fn-execution</artifactId>
     </dependency>
 
     <dependency>
@@ -188,15 +157,10 @@
       <artifactId>beam-sdks-java-extensions-google-cloud-platform-core</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-harness-core</artifactId>
-    </dependency>
-
     <!-- test dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-harness-core</artifactId>
+      <artifactId>beam-sdks-java-fn-execution</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>

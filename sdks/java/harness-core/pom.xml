@@ -26,7 +26,7 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-sdks-java-harness-core</artifactId>
+  <artifactId>beam-sdks-java-fn-execution</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Harness Core</name>
   <description>Contains code shared across the Beam Java SDK Harness and the Java Runner Harness
     libraries.
