@@ -17,6 +17,6 @@
  */
 
 /**
- * Classes which are utilized by both Java SDK and Java Runner Harnesses.
+ * Classes which are utilized by Java Runner Harnesses.
  */
 package org.apache.beam.runners.harness;
