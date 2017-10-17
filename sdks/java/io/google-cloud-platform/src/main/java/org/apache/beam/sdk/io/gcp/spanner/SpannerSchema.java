@@ -74,14 +74,13 @@ class SpannerSchema implements Serializable {
     }
   }
 
-  private SpannerSchema(Map<String, List<Column>> columns,
-      Map<String, List<KeyPart>> keyParts) {
+  private SpannerSchema(Map<String, List<Column>> columns, Map<String, List<KeyPart>> keyParts) {
     this.columns = columns;
     this.keyParts = keyParts;
     tables = new ArrayList<>(columns.keySet());
     tableIndex = new HashMap<>(tables.size());
     Collections.sort(tables);
-    for (int i =0; i < tables.size(); i++) {
+    for (int i = 0; i < tables.size(); i++) {
       tableIndex.put(tables.get(i), i);
     }
   }
