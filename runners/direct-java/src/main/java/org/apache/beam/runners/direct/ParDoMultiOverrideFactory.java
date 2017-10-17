@@ -204,8 +204,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       "urn:beam:directrunner:transforms:stateful_pardo:v1";
 
   static class StatefulParDo<K, InputT, OutputT>
-      extends PTransformTranslation.RawPTransform<
-          PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
     private final transient DoFn<KV<K, InputT>, OutputT> doFn;
     private final TupleTagList additionalOutputTags;
     private final TupleTag<OutputT> mainOutputTag;
@@ -256,17 +255,6 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               input.isBounded());
 
       return outputs;
-    }
-
-    @Override
-    public String getUrn() {
-      return DIRECT_STATEFUL_PAR_DO_URN;
-    }
-
-    @Override
-    public RunnerApi.FunctionSpec getSpec() {
-      throw new UnsupportedOperationException(
-          String.format("%s should never be serialized to proto", getClass().getSimpleName()));
     }
   }
 

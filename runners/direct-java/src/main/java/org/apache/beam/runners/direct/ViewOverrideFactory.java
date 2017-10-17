@@ -107,7 +107,7 @@ class ViewOverrideFactory<ElemT, ViewT>
    * to {@link ViewT}.
    */
   static final class WriteView<ElemT, ViewT>
-      extends RawPTransform<PCollection<Iterable<ElemT>>, PCollection<Iterable<ElemT>>> {
+      extends PTransform<PCollection<Iterable<ElemT>>, PCollection<Iterable<ElemT>>> {
     private final PCollectionView<ViewT> view;
 
     WriteView(PCollectionView<ViewT> view) {
@@ -124,17 +124,6 @@ class ViewOverrideFactory<ElemT, ViewT>
     @SuppressWarnings("deprecation")
     public PCollectionView<ViewT> getView() {
       return view;
-    }
-
-    @Override
-    public String getUrn() {
-      return DIRECT_WRITE_VIEW_URN;
-    }
-
-    @Nullable
-    @Override
-    public RunnerApi.FunctionSpec getSpec() {
-      return null;
     }
   }
 

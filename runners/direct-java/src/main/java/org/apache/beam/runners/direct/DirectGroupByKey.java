@@ -74,8 +74,7 @@ class DirectGroupByKey<K, V>
   }
 
   static final class DirectGroupByKeyOnly<K, V>
-      extends PTransformTranslation.RawPTransform<
-          PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>> {
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>> {
     @Override
     public PCollection<KeyedWorkItem<K, V>> expand(PCollection<KV<K, V>> input) {
       return PCollection.createPrimitiveOutputInternal(
@@ -89,21 +88,10 @@ class DirectGroupByKey<K, V>
     }
 
     DirectGroupByKeyOnly() {}
-
-    @Override
-    public String getUrn() {
-      return DIRECT_GBKO_URN;
-    }
-
-    @Nullable
-    @Override
-    public RunnerApi.FunctionSpec getSpec() {
-      return null;
-    }
   }
 
   static final class DirectGroupAlsoByWindow<K, V>
-      extends PTransformTranslation.RawPTransform<
+      extends PTransform<
           PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
     private final WindowingStrategy<?, ?> inputWindowingStrategy;
@@ -143,17 +131,6 @@ class DirectGroupByKey<K, V>
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), outputWindowingStrategy, input.isBounded(),
           KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getElementCoder())));
-    }
-
-    @Override
-    public String getUrn() {
-      return DIRECT_GABW_URN;
-    }
-
-    @Nullable
-    @Override
-    public RunnerApi.FunctionSpec getSpec() {
-      return null;
     }
   }
 }
