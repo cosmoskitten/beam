@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.Type;
+import com.google.common.base.Preconditions;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,6 +31,8 @@ import java.util.Map;
  * Encapsulates Cloud Spanner Schema.
  */
 class SpannerSchema implements Serializable {
+  private final List<String> tables;
+  private final Map<String, Integer> tableIndex;
   private final Map<String, List<Column>> columns;
   private final Map<String, List<KeyPart>> keyParts;
 
@@ -75,12 +78,23 @@ class SpannerSchema implements Serializable {
       Map<String, List<KeyPart>> keyParts) {
     this.columns = columns;
     this.keyParts = keyParts;
+    tables = new ArrayList<>(columns.keySet());
+    tableIndex = new HashMap<>(tables.size());
+    Collections.sort(tables);
+    for (int i =0; i < tables.size(); i++) {
+      tableIndex.put(tables.get(i), i);
+    }
   }
 
-  public List<String> getTables() {
-    List<String> tables = new ArrayList<>(columns.keySet());
-    Collections.sort(tables);
-    return tables;
+  public int getTableIndex(String tableName) {
+    Integer result = tableIndex.get(tableName);
+    Preconditions.checkArgument(result != null, "Table %s not found", tableName);
+    return result;
+  }
+
+  public String getTableName(int index) {
+    Preconditions.checkArgument(index < tables.size(), "Invalid table index %d", index);
+    return tables.get(index);
   }
 
   public List<Column> getColumns(String table) {
@@ -149,8 +163,5 @@ class SpannerSchema implements Serializable {
       }
       throw new IllegalArgumentException("Unknown spanner type " + spannerType);
     }
-
-
-
   }
 }
