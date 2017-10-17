@@ -117,6 +117,8 @@ class MutationGroupEncoder {
     return Mutation.delete(tableName, keySet);
   }
 
+  // Encodes a mutation that is not a delete one, in the following format
+  // [bitset of modified columns][value of column1][value of column2][value of column3]...
   private void encodeModification(ByteArrayOutputStream bos, Mutation m) throws IOException {
     String tableName = m.getTable().toLowerCase();
     int tableIndex = schema.getTableIndex(tableName);
