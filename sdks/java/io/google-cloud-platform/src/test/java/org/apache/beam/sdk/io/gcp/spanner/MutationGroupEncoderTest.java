@@ -35,12 +35,16 @@ import java.util.Collections;
 import java.util.List;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /**
  * Tests for {@link MutationGroupEncoder}.
  */
 public class MutationGroupEncoderTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   private SpannerSchema allTypesSchema;
 
   @Before
@@ -93,7 +97,7 @@ public class MutationGroupEncoderTest {
     encodeAndVerify(g(appendAllTypes(Mutation.newReplaceBuilder("test")).build()));
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testUnknownColumn() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
     builder.addKeyPart("test", "bool_field", false);
@@ -102,10 +106,12 @@ public class MutationGroupEncoderTest {
 
     Mutation mutation = Mutation.newInsertBuilder("test").set("unknown")
         .to(true).build();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Columns [unknown] were not defined in table test");
     encodeAndVerify(g(mutation), schema);
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testUnknownTable() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
     builder.addKeyPart("test", "bool_field", false);
@@ -114,6 +120,8 @@ public class MutationGroupEncoderTest {
 
     Mutation mutation = Mutation.newInsertBuilder("unknown").set("bool_field")
         .to(true).build();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Columns [unknown] were not defined in table test");
     encodeAndVerify(g(mutation), schema);
   }
 
