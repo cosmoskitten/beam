@@ -28,7 +28,11 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.primitives.UnsignedBytes;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -197,6 +201,349 @@ public class MutationGroupEncoderTest {
         .set("nullarrbytes").toBytesArray(null)
         .set("nullarrtimestamp").toTimestampArray(null)
         .set("nullarrdate").toDateArray(null);
+  }
+
+  @Test
+  public void int64Keys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "INT64");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "INT64");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> mutations = Arrays.asList(
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(1L)
+            .set("keydesc").to(0L)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(2L)
+            .set("keydesc").to((Long) null)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(2L)
+            .set("keydesc").to(10L)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(2L)
+            .set("keydesc").to(9L)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to((Long) null)
+            .set("keydesc").to(0L)
+            .build());
+
+    List<Key> keys = Arrays.asList(
+        Key.of(1L, 0L),
+        Key.of(2L, null),
+        Key.of(2L, 10L),
+        Key.of(2L, 9L),
+        Key.of(2L, 0L)
+    );
+
+    verifyEncodedOrdering(schema, mutations);
+    verifyEncodedOrdering(schema, "test", keys);
+  }
+
+  @Test
+  public void float64Keys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "FLOAT64");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "FLOAT64");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> mutations = Arrays.asList(
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(1.0)
+            .set("keydesc").to(0.)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(2.)
+            .set("keydesc").to((Long) null)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(2.)
+            .set("keydesc").to(10.)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(2.)
+            .set("keydesc").to(9.)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(2.)
+            .set("keydesc").to(0.)
+            .build());
+    List<Key> keys = Arrays.asList(
+        Key.of(1., 0.),
+        Key.of(2., null),
+        Key.of(2., 10.),
+        Key.of(2., 9.),
+        Key.of(2., 0.)
+    );
+
+    verifyEncodedOrdering(schema, mutations);
+    verifyEncodedOrdering(schema, "test", keys);
+  }
+
+  @Test
+  public void stringKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "STRING");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "STRING");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> mutations = Arrays.asList(
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to("a")
+            .set("keydesc").to("bc")
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to("b")
+            .set("keydesc").to((String) null)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to("b")
+            .set("keydesc").to("z")
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to("b")
+            .set("keydesc").to("y")
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to("b")
+            .set("keydesc").to("a")
+            .build());
+
+    List<Key> keys = Arrays.asList(
+      Key.of("a", "bc"),
+      Key.of("b", null),
+      Key.of("b", "z"),
+      Key.of("b", "y"),
+      Key.of("b", "a")
+    );
+
+    verifyEncodedOrdering(schema, mutations);
+    verifyEncodedOrdering(schema, "test", keys);
+  }
+
+  @Test
+  public void bytesKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "BYTES");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "BYTES");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> mutations = Arrays.asList(
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(ByteArray.fromBase64("abc"))
+            .set("keydesc").to(ByteArray.fromBase64("zzz"))
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(ByteArray.fromBase64("xxx"))
+            .set("keydesc").to((ByteArray) null)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(ByteArray.fromBase64("xxx"))
+            .set("keydesc").to(ByteArray.fromBase64("zzzz"))
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(ByteArray.fromBase64("xxx"))
+            .set("keydesc").to(ByteArray.fromBase64("ssss"))
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(ByteArray.fromBase64("xxx"))
+            .set("keydesc").to(ByteArray.fromBase64("aaa"))
+            .build());
+
+    List<Key> keys = Arrays.asList(
+        Key.of(ByteArray.fromBase64("abc"), ByteArray.fromBase64("zzz")),
+        Key.of(ByteArray.fromBase64("xxx"), null),
+        Key.of(ByteArray.fromBase64("xxx"), ByteArray.fromBase64("zzz")),
+        Key.of(ByteArray.fromBase64("xxx"), ByteArray.fromBase64("sss")),
+        Key.of(ByteArray.fromBase64("xxx"), ByteArray.fromBase64("aaa"))
+    );
+
+    verifyEncodedOrdering(schema, mutations);
+    verifyEncodedOrdering(schema, "test", keys);
+  }
+
+  @Test
+  public void dateKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "DATE");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "DATE");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> mutations = Arrays.asList(
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Date.fromYearMonthDay(2012, 10, 10))
+            .set("keydesc").to(Date.fromYearMonthDay(2000, 10, 10))
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Date.fromYearMonthDay(2020, 10, 10))
+            .set("keydesc").to((Date) null)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Date.fromYearMonthDay(2020, 10, 10))
+            .set("keydesc").to(Date.fromYearMonthDay(2050, 10, 10))
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Date.fromYearMonthDay(2020, 10, 10))
+            .set("keydesc").to(Date.fromYearMonthDay(2000, 10, 10))
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Date.fromYearMonthDay(2020, 10, 10))
+            .set("keydesc").to(Date.fromYearMonthDay(1900, 10, 10))
+            .build());
+
+    List<Key> keys = Arrays.asList(
+        Key.of(Date.fromYearMonthDay(2012, 10, 10), ByteArray.fromBase64("zzz")),
+        Key.of(Date.fromYearMonthDay(2015, 10, 10), null),
+        Key.of(Date.fromYearMonthDay(2015, 10, 10), Date.fromYearMonthDay(2050, 10, 10)),
+        Key.of(Date.fromYearMonthDay(2015, 10, 10), Date.fromYearMonthDay(2000, 10, 10)),
+        Key.of(Date.fromYearMonthDay(2015, 10, 10), Date.fromYearMonthDay(1900, 10, 10))
+    );
+
+    verifyEncodedOrdering(schema, mutations);
+    verifyEncodedOrdering(schema, "test", keys);
+  }
+
+  @Test
+  public void timestampKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "TIMESTAMP");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "TIMESTAMP");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> mutations = Arrays.asList(
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Timestamp.ofTimeMicroseconds(10000))
+            .set("keydesc").to(Timestamp.ofTimeMicroseconds(50000))
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Timestamp.ofTimeMicroseconds(20000))
+            .set("keydesc").to((Timestamp) null)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Timestamp.ofTimeMicroseconds(20000))
+            .set("keydesc").to(Timestamp.ofTimeMicroseconds(90000))
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Timestamp.ofTimeMicroseconds(20000))
+            .set("keydesc").to(Timestamp.ofTimeMicroseconds(50000))
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("key").to(Timestamp.ofTimeMicroseconds(20000))
+            .set("keydesc").to(Timestamp.ofTimeMicroseconds(10000))
+            .build());
+
+
+    List<Key> keys = Arrays.asList(
+        Key.of(Timestamp.ofTimeMicroseconds(10000), ByteArray.fromBase64("zzz")),
+        Key.of(Timestamp.ofTimeMicroseconds(20000), null),
+        Key.of(Timestamp.ofTimeMicroseconds(20000), Timestamp.ofTimeMicroseconds(90000)),
+        Key.of(Timestamp.ofTimeMicroseconds(20000), Timestamp.ofTimeMicroseconds(50000)),
+        Key.of(Timestamp.ofTimeMicroseconds(20000), Timestamp.ofTimeMicroseconds(10000))
+    );
+
+    verifyEncodedOrdering(schema, mutations);
+    verifyEncodedOrdering(schema, "test", keys);
+  }
+
+  @Test
+  public void boolKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "boolkey", "BOOL");
+    builder.addKeyPart("test", "boolkey", false);
+
+    builder.addColumn("test", "boolkeydesc", "BOOL");
+    builder.addKeyPart("test", "boolkeydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> mutations = Arrays.asList(
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("boolkey").to(true)
+            .set("boolkeydesc").to(false)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("boolkey").to(false)
+            .set("boolkeydesc").to(false)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("boolkey").to(false)
+            .set("boolkeydesc").to(true)
+            .build(),
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("boolkey").to((Boolean) null)
+            .set("boolkeydesc").to(false)
+            .build()
+        );
+
+    List<Key> keys = Arrays.asList(
+        Key.of(true, ByteArray.fromBase64("zzz")),
+        Key.of(false, null),
+        Key.of(false, false),
+        Key.of(false, true),
+        Key.of(null, false)
+    );
+
+    verifyEncodedOrdering(schema, mutations);
+    verifyEncodedOrdering(schema, "test", keys);
+  }
+
+  private void verifyEncodedOrdering(SpannerSchema schema, List<Mutation> mutations) {
+    MutationGroupEncoder encoder = new MutationGroupEncoder(schema);
+    List<byte[]> mutationEncodings = new ArrayList<>(mutations.size());
+    for (Mutation m : mutations) {
+      mutationEncodings.add(encoder.encodeKey(m));
+    }
+    List<byte[]> copy = new ArrayList<>(mutationEncodings);
+    Collections.sort(copy, UnsignedBytes.lexicographicalComparator());
+
+    Assert.assertEquals(mutationEncodings, copy);
+  }
+
+  private void verifyEncodedOrdering(SpannerSchema schema, String table, List<Key> keys) {
+    MutationGroupEncoder encoder = new MutationGroupEncoder(schema);
+    List<byte[]> keyEncodings = new ArrayList<>(keys.size());
+    for (Key k : keys) {
+      keyEncodings.add(encoder.encodeKey(table, k));
+    }
+    List<byte[]> copy = new ArrayList<>(keyEncodings);
+    Collections.sort(copy, UnsignedBytes.lexicographicalComparator());
+
+    Assert.assertEquals(keyEncodings, copy);
   }
 
   private MutationGroup g(Mutation mutation, Mutation... other) {

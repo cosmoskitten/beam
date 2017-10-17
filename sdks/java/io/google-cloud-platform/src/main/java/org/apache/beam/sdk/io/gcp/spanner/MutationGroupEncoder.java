@@ -95,9 +95,8 @@ class MutationGroupEncoder {
   }
 
   private void encodeDelete(ByteArrayOutputStream bos, Mutation m) throws IOException {
-    List<String> allTables = schema.getTables();
     String table = m.getTable().toLowerCase();
-    int tableIndex = allTables.indexOf(table);
+    int tableIndex = schema.getTableIndex(table);
     VarInt.encode(tableIndex, bos);
     ObjectOutput out = new ObjectOutputStream(bos);
     out.writeObject(m.getKeySet());
@@ -105,9 +104,8 @@ class MutationGroupEncoder {
 
   private Mutation decodeDelete(ByteArrayInputStream bis)
       throws IOException {
-    List<String> tables = schema.getTables();
     int tableIndex = VarInt.decodeInt(bis);
-    String tableName = tables.get(tableIndex);
+    String tableName = schema.getTableName(tableIndex);
 
     ObjectInputStream in = new ObjectInputStream(bis);
     KeySet keySet;
@@ -120,9 +118,8 @@ class MutationGroupEncoder {
   }
 
   private void encodeModification(ByteArrayOutputStream bos, Mutation m) throws IOException {
-    List<String> allTables = schema.getTables();
     String tableName = m.getTable().toLowerCase();
-    int tableIndex = allTables.indexOf(tableName);
+    int tableIndex = schema.getTableIndex(tableName);
     VarInt.encode(tableIndex, bos);
     List<SpannerSchema.Column> columns = schema.getColumns(tableName);
     checkArgument(columns != null, "Schema for table " + tableName + " not " + "found");
@@ -154,8 +151,8 @@ class MutationGroupEncoder {
       Value value = map.remove(column.getName());
       encodeValue(bos, value);
     }
-    checkArgument(map.isEmpty(),
-        "Columns " + map.keySet() + " were not defined in" + " table " + m.getTable());
+    checkArgument(map.isEmpty(), "Columns %s were not defined in table %s", map.keySet(),
+        m.getTable());
   }
 
   private void encodeValue(ByteArrayOutputStream bos, Value value) throws IOException {
@@ -269,9 +266,8 @@ class MutationGroupEncoder {
   }
 
   private Mutation decodeModification(ByteArrayInputStream bis, Mutation.Op op) throws IOException {
-    List<String> tables = schema.getTables();
     int tableIndex = VarInt.decodeInt(bis);
-    String tableName = tables.get(tableIndex);
+    String tableName = schema.getTableName(tableIndex);
 
     Mutation.WriteBuilder m;
     switch (op) {
