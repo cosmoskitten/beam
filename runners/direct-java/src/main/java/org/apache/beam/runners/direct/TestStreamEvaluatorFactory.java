@@ -194,8 +194,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
     static final String DIRECT_TEST_STREAM_URN = "urn:beam:directrunner:transforms:test_stream:v1";
 
-    static class DirectTestStream<T>
-        extends PTransformTranslation.RawPTransform<PBegin, PCollection<T>> {
+    static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
       private final transient DirectRunner runner;
       private final TestStream<T> original;
 
@@ -213,17 +212,6 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
             WindowingStrategy.globalDefault(),
             IsBounded.UNBOUNDED,
             original.getValueCoder());
-      }
-
-      @Override
-      public String getUrn() {
-        return DIRECT_TEST_STREAM_URN;
-      }
-
-      @Nullable
-      @Override
-      public RunnerApi.FunctionSpec getSpec() {
-        return null;
       }
     }
   }
