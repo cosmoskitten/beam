@@ -17,6 +17,7 @@
  */
 
 /**
- * Classes which are utilized by Java Runner Harnesses.
+ * Utilities used by runners to interact with the fn execution components of the Beam Portability
+ * Framework.
  */
-package org.apache.beam.runners.harness;
+package org.apache.beam.runners.fnexecution;
