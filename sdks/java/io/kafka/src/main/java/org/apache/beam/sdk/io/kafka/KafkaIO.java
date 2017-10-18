@@ -1568,7 +1568,7 @@ public class KafkaIO {
      *    Kafka. It is similar to <i>consumer group id</i> used with a {@link KafkaConsumer}. Each
      *    job should use a unique group id so that restarts/updates of job preserve the state to
      *    ensure exactly-once semantics. The state is committed atomically with sink transactions
-     *    on Kafka. See {@link KafkaProducer#sendOffsetsToTransaction(Map, String)} for more
+     *    on Kafka. @see KafkaProducer#sendOffsetsToTransaction(Map, String) for more
      *    information. The sink performs multiple sanity checks during initialization to catch
      *    common mistakes so that it does not end up using state that does not <i>seem</i> to
      *    be written by the same job.
@@ -1590,7 +1590,6 @@ public class KafkaIO {
      * consumer. Similar to {@link Read#withConsumerFactoryFn(SerializableFunction)}, a factory
      * function can be supplied if required in a specific case.
      * The default is {@link KafkaConsumer}.
-     * @param consumerFactoryFn
      */
     public Write<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
