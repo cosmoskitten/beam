@@ -26,6 +26,7 @@ import threading
 import time
 import traceback
 import urllib
+from StringIO import StringIO
 from collections import defaultdict
 
 import apache_beam as beam
@@ -37,6 +38,7 @@ from apache_beam.internal.gcp import json_value
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
@@ -78,6 +80,8 @@ class DataflowRunner(PipelineRunner):
   _PTRANSFORM_OVERRIDES = [
       CreatePTransformOverride(),
   ]
+
+  _STAGED_PIPELINE_FILENAME = "pipeline.pb"
 
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
@@ -272,6 +276,9 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
+    # Turn the proto into a string before munging wildly
+    proto_pipeline_string = pipeline.to_runner_api().SerializeToString()
+
     # Performing configured PTransform overrides.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
@@ -303,6 +310,11 @@ class DataflowRunner(PipelineRunner):
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
         pipeline._options)
+
+    # Upload the original proto for the pipeline
+    self.dataflow_client.stage_file(self.job.google_cloud_options.staging_location,
+                                    DataflowRunner._STAGED_PIPELINE_FILENAME,
+                                    StringIO(proto_pipeline_string))
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.
