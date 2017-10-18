@@ -28,7 +28,7 @@
 
   <artifactId>beam-runners-java-fn-execution</artifactId>
 
-  <name>Apache Beam :: Runners :: Runner Harness</name>
+  <name>Apache Beam :: Runners :: Java Fn Execution</name>
 
   <packaging>jar</packaging>
 

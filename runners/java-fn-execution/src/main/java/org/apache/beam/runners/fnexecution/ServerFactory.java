@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.harness;
+package org.apache.beam.runners.fnexecution;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
