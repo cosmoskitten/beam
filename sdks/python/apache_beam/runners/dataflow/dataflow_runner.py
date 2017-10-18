@@ -81,8 +81,6 @@ class DataflowRunner(PipelineRunner):
       CreatePTransformOverride(),
   ]
 
-  _STAGED_PIPELINE_FILENAME = "pipeline.pb"
-
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
     # "executes" a pipeline.
@@ -313,7 +311,7 @@ class DataflowRunner(PipelineRunner):
 
     # Upload the original proto for the pipeline
     self.dataflow_client.stage_file(self.job.google_cloud_options.staging_location,
-                                    DataflowRunner._STAGED_PIPELINE_FILENAME,
+                                    names.STAGED_PIPELINE_FILENAME,
                                     StringIO(proto_pipeline_string))
 
     # Create the job description and send a request to the service. The result
