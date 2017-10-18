@@ -20,11 +20,20 @@ package org.apache.beam.runners.spark.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -60,9 +69,9 @@ public class SparkSideInputReader implements SideInputReader {
     //--- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.
     // now that we've obtained the appropriate sideInputWindow, all that's left is to filter by it.
-    Iterable<WindowedValue<?>> availableSideInputs =
-        (Iterable<WindowedValue<?>>) windowedBroadcastHelper.getValue().getValue();
-    Iterable<WindowedValue<?>> sideInputForWindow =
+    Iterable<WindowedValue<KV<?, ?>>> availableSideInputs =
+        (Iterable<WindowedValue<KV<?, ?>>>) windowedBroadcastHelper.getValue().getValue();
+    Iterable<WindowedValue<KV<?, ?>>> sideInputForWindow =
         Iterables.filter(availableSideInputs, new Predicate<WindowedValue<?>>() {
           @Override
           public boolean apply(@Nullable WindowedValue<?> sideInputCandidate) {
@@ -79,7 +88,38 @@ public class SparkSideInputReader implements SideInputReader {
             return false;
           }
         });
-    return view.getViewFn().apply(sideInputForWindow);
+
+    ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+    Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+    // We specifically use an array list multimap to allow for:
+    //  * null keys
+    //  * null values
+    //  * duplicate values
+    Multimap<Object, Object> multimap = ArrayListMultimap.create();
+    for (WindowedValue<KV<?, ?>> element : sideInputForWindow) {
+      multimap.put(
+          keyCoder.structuralValue(element.getValue().getKey()),
+          element.getValue().getValue());
+    }
+    return viewFn.apply(new MultimapBasedPrimitiveMultimapView(
+        keyCoder, Multimaps.unmodifiableMultimap(multimap)));
+  }
+
+  private class MultimapBasedPrimitiveMultimapView<K, V>
+      implements MultimapView<K, V> {
+    private final Coder<K> keyCoder;
+    private final Multimap<Object, V> structuredKeyToValuesMap;
+
+    private MultimapBasedPrimitiveMultimapView(Coder<K> keyCoder, Multimap<Object, V> data) {
+      this.keyCoder = keyCoder;
+      this.structuredKeyToValuesMap = data;
+    }
+
+    @Override
+    public Iterable<V> get(K input) {
+      return Objects.firstNonNull(structuredKeyToValuesMap.get(keyCoder.structuralValue(input)),
+          Collections.EMPTY_LIST);
+    }
   }
 
   @Override

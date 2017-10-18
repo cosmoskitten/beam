@@ -20,12 +20,16 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,9 +41,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -60,6 +70,16 @@ class SideInputContainer {
    */
   public static SideInputContainer create(
       final EvaluationContext context, Collection<PCollectionView<?>> containedViews) {
+    for (PCollectionView<?> pCollectionView : containedViews) {
+      checkArgument(
+          Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+              pCollectionView.getViewFn().getMaterialization().getUrn()),
+          "This handler is only capable of dealing with %s materializations "
+              + "but was asked to handle %s for PCollectionView with tag %s.",
+          Materializations.MULTIMAP_MATERIALIZATION_URN,
+          pCollectionView.getViewFn().getMaterialization().getUrn(),
+          pCollectionView.getTagInternal().getId());
+    }
     LoadingCache<PCollectionViewWindow<?>, AtomicReference<Iterable<? extends WindowedValue<?>>>>
         viewByWindows = CacheBuilder.newBuilder().build(new CallbackSchedulingLoader(context));
     return new SideInputContainer(containedViews, viewByWindows);
@@ -239,12 +259,44 @@ class SideInputContainer {
           "calling get() on PCollectionView %s that is not ready in window %s",
           view,
           window);
-      // Safe covariant cast
-      @SuppressWarnings("unchecked") Iterable<WindowedValue<?>> values =
-          (Iterable<WindowedValue<?>>) viewContents.getUnchecked(PCollectionViewWindow.of(view,
-              window)).get();
-      return view.getViewFn().apply(values);
+      // Safe covariant cast since we know that the view only contains KVs.
+      @SuppressWarnings("unchecked") Iterable<WindowedValue<KV<?, ?>>> elements =
+          (Iterable<WindowedValue<KV<?, ?>>>) viewContents.getUnchecked(
+              PCollectionViewWindow.of(view, window)).get();
+
+      ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+      Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+      // We specifically use an array list multimap to allow for:
+      //  * null keys
+      //  * null values
+      //  * duplicate values
+      Multimap<Object, Object> multimap = ArrayListMultimap.create();
+      for (WindowedValue<KV<?, ?>> element : elements) {
+        multimap.put(
+            keyCoder.structuralValue(element.getValue().getKey()),
+            element.getValue().getValue());
+      }
+      return viewFn.apply(new MultimapBasedPrimitiveMultimapView(
+          keyCoder, Multimaps.unmodifiableMultimap(multimap)));
     }
+
+    private class MultimapBasedPrimitiveMultimapView<K, V>
+        implements MultimapView<K, V> {
+      private final Coder<K> keyCoder;
+      private final Multimap<Object, V> structuredKeyToValuesMap;
+
+      private MultimapBasedPrimitiveMultimapView(Coder<K> keyCoder, Multimap<Object, V> data) {
+        this.keyCoder = keyCoder;
+        this.structuredKeyToValuesMap = data;
+    }
+
+    @Override
+      public Iterable<V> get(K input) {
+        return Objects.firstNonNull(structuredKeyToValuesMap.get(keyCoder.structuralValue(input)),
+            Collections.EMPTY_LIST);
+      }
+    }
+
 
     @Override
     public <T> boolean contains(PCollectionView<T> view) {

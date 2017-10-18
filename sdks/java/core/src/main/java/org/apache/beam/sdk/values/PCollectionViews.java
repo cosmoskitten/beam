@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -36,16 +35,16 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * <b>For internal use only; no backwards compatibility guarantees.</b>
@@ -63,17 +62,17 @@ public class PCollectionViews {
    * {@code defaultValue} for any empty windows.
    */
   public static <T, W extends BoundedWindow> PCollectionView<T> singletonView(
-      PCollection<T> pCollection,
+      PCollection<KV<Void, T>> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       boolean hasDefault,
       @Nullable T defaultValue,
-      Coder<T> valueCoder) {
+      KvCoder<Void, T> coder) {
     return new SimplePCollectionView<>(
         pCollection,
-        new SingletonViewFn<>(hasDefault, defaultValue, valueCoder),
+        new SingletonViewFn<>(hasDefault, defaultValue, coder.getValueCoder()),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy,
-        valueCoder);
+        coder);
   }
 
   /**
@@ -81,15 +80,15 @@ public class PCollectionViews {
    * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<Iterable<T>> iterableView(
-      PCollection<T> pCollection,
+      PCollection<KV<Void, T>> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
-      Coder<T> valueCoder) {
+      Coder<KV<Void, T>> coder) {
     return new SimplePCollectionView<>(
         pCollection,
         new IterableViewFn<T>(),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy,
-        valueCoder);
+        coder);
   }
 
   /**
@@ -97,15 +96,15 @@ public class PCollectionViews {
    * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
-      PCollection<T> pCollection,
+      PCollection<KV<Void, T>> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
-      Coder<T> valueCoder) {
+      Coder<KV<Void, T>> coder) {
     return new SimplePCollectionView<>(
         pCollection,
         new ListViewFn<T>(),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy,
-        valueCoder);
+        coder);
   }
 
   /**
@@ -113,15 +112,15 @@ public class PCollectionViews {
    * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, V>> mapView(
-      PCollection<KV<K, V>> pCollection,
+      PCollection<KV<Void, KV<K, V>>> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
-      Coder<KV<K, V>> valueCoder) {
+      Coder<KV<Void, KV<K, V>>> coder) {
     return new SimplePCollectionView<>(
         pCollection,
         new MapViewFn<K, V>(),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy,
-        valueCoder);
+        coder);
   }
 
   /**
@@ -129,15 +128,15 @@ public class PCollectionViews {
    * using the provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> multimapView(
-      PCollection<KV<K, V>> pCollection,
+      PCollection<KV<Void, KV<K, V>>> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
-      Coder<KV<K, V>> valueCoder) {
+      Coder<KV<Void, KV<K, V>>> coder) {
     return new SimplePCollectionView<>(
         pCollection,
         new MultimapViewFn<K, V>(),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy,
-        valueCoder);
+        coder);
   }
 
   /**
@@ -153,18 +152,15 @@ public class PCollectionViews {
   }
 
   /**
-   * Implementation of conversion of singleton {@code Iterable<WindowedValue<T>>} to {@code T}.
+   * Implementation which is able to adapt a multimap materialization to a {@code T}.
    *
    * <p>For internal use only.
    *
    * <p>Instantiate via {@link PCollectionViews#singletonView}.
-   *
-   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
-   *     view type.
    */
-  @Deprecated
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  public static class SingletonViewFn<T> extends ViewFn<Iterable<WindowedValue<T>>, T> {
+  public static class SingletonViewFn<T>
+      extends ViewFn<MultimapView<Void, T>, T> {
     @Nullable private byte[] encodedDefaultValue;
     @Nullable private transient T defaultValue;
     @Nullable private Coder<T> valueCoder;
@@ -216,84 +212,67 @@ public class PCollectionViews {
     }
 
     @Override
-    public Materialization<Iterable<WindowedValue<T>>> getMaterialization() {
-      return Materializations.iterable();
+    public Materialization<MultimapView<Void, T>> getMaterialization() {
+      return Materializations.multimap();
     }
 
     @Override
-    public T apply(Iterable<WindowedValue<T>> contents) {
+    public T apply(MultimapView<Void, T> primitiveViewT) {
       try {
-        return Iterables.getOnlyElement(contents).getValue();
+        return Iterables.getOnlyElement(primitiveViewT.get(null));
       } catch (NoSuchElementException exc) {
         return getDefaultValue();
       } catch (IllegalArgumentException exc) {
         throw new IllegalArgumentException(
-            "PCollection with more than one element "
-                + "accessed as a singleton view.");
+            "PCollection with more than one element accessed as a singleton view.");
       }
     }
   }
 
   /**
-   * Implementation of conversion {@code Iterable<WindowedValue<T>>} to {@code Iterable<T>}.
+   * Implementation which is able to adapt a multimap materialization to a {@code Iterable<T>}.
    *
    * <p>For internal use only.
    *
    * <p>Instantiate via {@link PCollectionViews#iterableView}.
-   *
-   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
-   *     view type.
    */
-  @Deprecated
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class IterableViewFn<T>
-      extends ViewFn<Iterable<WindowedValue<T>>, Iterable<T>> {
+      extends ViewFn<MultimapView<Void, T>, Iterable<T>> {
+
     @Override
-    public Materialization<Iterable<WindowedValue<T>>> getMaterialization() {
-      return Materializations.iterable();
+    public Materialization<MultimapView<Void, T>> getMaterialization() {
+      return Materializations.multimap();
     }
 
     @Override
-    public Iterable<T> apply(Iterable<WindowedValue<T>> contents) {
-      return Iterables.unmodifiableIterable(
-          Iterables.transform(contents, new Function<WindowedValue<T>, T>() {
-        @SuppressWarnings("unchecked")
-        @Override
-        public T apply(WindowedValue<T> input) {
-          return input.getValue();
-        }
-      }));
+    public Iterable<T> apply(MultimapView<Void, T> primitiveViewT) {
+      return Iterables.unmodifiableIterable(primitiveViewT.get(null));
     }
   }
 
   /**
-   * Implementation of conversion {@code Iterable<WindowedValue<T>>} to {@code List<T>}.
+   * Implementation which is able to adapt a multimap materialization to a {@code List<T>}.
    *
    * <p>For internal use only.
    *
    * <p>Instantiate via {@link PCollectionViews#listView}.
-   *
-   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
-   *     view type.
    */
-  @Deprecated
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  public static class ListViewFn<T> extends ViewFn<Iterable<WindowedValue<T>>, List<T>> {
+  public static class ListViewFn<T>
+      extends ViewFn<MultimapView<Void, T>, List<T>> {
     @Override
-    public Materialization<Iterable<WindowedValue<T>>> getMaterialization() {
-      return Materializations.iterable();
+    public Materialization<MultimapView<Void, T>> getMaterialization() {
+      return Materializations.multimap();
     }
 
     @Override
-    public List<T> apply(Iterable<WindowedValue<T>> contents) {
-      return ImmutableList.copyOf(
-          Iterables.transform(contents, new Function<WindowedValue<T>, T>() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public T apply(WindowedValue<T> input) {
-              return input.getValue();
+    public List<T> apply(MultimapView<Void, T> primitiveViewT) {
+      List<T> list = new ArrayList<>();
+      for (T t : primitiveViewT.get(null)) {
+        list.add(t);
             }
-          }));
+      return Collections.unmodifiableList(list);
     }
 
     @Override
@@ -308,27 +287,29 @@ public class PCollectionViews {
   }
 
   /**
-   * Implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>>}
-   * to {@code Map<K, Iterable<V>>}.
+   * Implementation which is able to adapt a multimap materialization to a
+   * {@code Map<K, Iterable<V>>}.
    *
-   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
-   *     view type.
+   * <p>For internal use only.
+   *
+   * <p>Instantiate via {@link PCollectionViews#multimapView}.
    */
-  @Deprecated
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MultimapViewFn<K, V>
-      extends ViewFn<Iterable<WindowedValue<KV<K, V>>>, Map<K, Iterable<V>>> {
+      extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, Iterable<V>>> {
     @Override
-    public Materialization<Iterable<WindowedValue<KV<K, V>>>> getMaterialization() {
-      return Materializations.iterable();
+    public Materialization<MultimapView<Void, KV<K, V>>> getMaterialization() {
+      return Materializations.multimap();
     }
 
     @Override
-    public Map<K, Iterable<V>> apply(Iterable<WindowedValue<KV<K, V>>> elements) {
+    public Map<K, Iterable<V>> apply(
+        MultimapView<Void, KV<K, V>> primitiveViewT) {
+      // TODO: BEAM-3071 - fix this so that we aren't relying on Java equality and are
+      // using structural value equality.
       Multimap<K, V> multimap = HashMultimap.create();
-      for (WindowedValue<KV<K, V>> elem : elements) {
-        KV<K, V> kv = elem.getValue();
-        multimap.put(kv.getKey(), kv.getValue());
+      for (KV<K, V> elem : primitiveViewT.get(null)) {
+        multimap.put(elem.getKey(), elem.getValue());
       }
       // Safe covariant cast that Java cannot express without rawtypes, even with unchecked casts
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -338,32 +319,31 @@ public class PCollectionViews {
   }
 
   /**
-   * Implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>} with one value per key to
-   * {@code Map<K, V>}.
+   * Implementation which is able to adapt a multimap materialization to a {@code Map<K, V>}.
    *
-   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
-   *     view type.
+   * <p>For internal use only.
+   *
+   * <p>Instantiate via {@link PCollectionViews#mapView}.
    */
-  @Deprecated
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  public static class MapViewFn<K, V> extends ViewFn<Iterable<WindowedValue<KV<K, V>>>, Map<K, V>> {
+  public static class MapViewFn<K, V>
+      extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, V>> {
+
     @Override
-    public Materialization<Iterable<WindowedValue<KV<K, V>>>> getMaterialization() {
-      return Materializations.iterable();
+    public Materialization<MultimapView<Void, KV<K, V>>> getMaterialization() {
+      return Materializations.multimap();
     }
 
-    /**
-     * Input iterable must actually be {@code Iterable<WindowedValue<KV<K, V>>>}.
-     */
     @Override
-    public Map<K, V> apply(Iterable<WindowedValue<KV<K, V>>> elements) {
+    public Map<K, V> apply(MultimapView<Void, KV<K, V>> primitiveViewT) {
+      // TODO: BEAM-3071 - fix this so that we aren't relying on Java equality and are
+      // using structural value equality.
       Map<K, V> map = new HashMap<>();
-      for (WindowedValue<KV<K, V>> elem : elements) {
-        KV<K, V> kv = elem.getValue();
-        if (map.containsKey(kv.getKey())) {
-          throw new IllegalArgumentException("Duplicate values for " + kv.getKey());
+      for (KV<K, V> elem : primitiveViewT.get(null)) {
+        if (map.containsKey(elem.getKey())) {
+          throw new IllegalArgumentException("Duplicate values for " + elem.getKey());
         }
-        map.put(kv.getKey(), kv.getValue());
+        map.put(elem.getKey(), elem.getValue());
       }
       return Collections.unmodifiableMap(map);
     }
@@ -375,14 +355,14 @@ public class PCollectionViews {
    *
    * <p>For internal use only.
    */
-  public static class SimplePCollectionView<ElemT, ViewT, W extends BoundedWindow>
+  public static class SimplePCollectionView<ElemT, PrimitiveViewT, ViewT, W extends BoundedWindow>
       extends PValueBase
       implements PCollectionView<ViewT> {
     /** The {@link PCollection} this view was originally created from. */
     private transient PCollection<ElemT> pCollection;
 
     /** A unique tag for the view, typed according to the elements underlying the view. */
-    private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
+    private TupleTag<PrimitiveViewT> tag;
 
     private WindowMappingFn<W> windowMappingFn;
 
@@ -390,12 +370,12 @@ public class PCollectionViews {
     private WindowingStrategy<?, W> windowingStrategy;
 
     /** The coder for the elements underlying the view. */
-    private Coder<Iterable<WindowedValue<ElemT>>> coder;
+    private Coder<ElemT> coder;
 
     /**
      * The typed {@link ViewFn} for this view.
      */
-    private ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn;
+    private ViewFn<PrimitiveViewT, ViewT> viewFn;
 
     /**
      * Call this constructor to initialize the fields for which this base class provides
@@ -403,8 +383,8 @@ public class PCollectionViews {
      */
     private SimplePCollectionView(
         PCollection<ElemT> pCollection,
-        TupleTag<Iterable<WindowedValue<ElemT>>> tag,
-        ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
+        TupleTag<PrimitiveViewT> tag,
+        ViewFn<PrimitiveViewT, ViewT> viewFn,
         WindowMappingFn<W> windowMappingFn,
         WindowingStrategy<?, W> windowingStrategy,
         Coder<ElemT> valueCoder) {
@@ -417,9 +397,7 @@ public class PCollectionViews {
       this.tag = tag;
       this.windowingStrategy = windowingStrategy;
       this.viewFn = viewFn;
-      this.coder =
-          IterableCoder.of(WindowedValue.getFullCoder(
-              valueCoder, windowingStrategy.getWindowFn().windowCoder()));
+      this.coder = valueCoder;
     }
 
     /**
@@ -428,13 +406,13 @@ public class PCollectionViews {
      */
     private SimplePCollectionView(
         PCollection<ElemT> pCollection,
-        ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
+        ViewFn<PrimitiveViewT, ViewT> viewFn,
         WindowMappingFn<W> windowMappingFn,
         WindowingStrategy<?, W> windowingStrategy,
         Coder<ElemT> valueCoder) {
       this(
           pCollection,
-          new TupleTag<Iterable<WindowedValue<ElemT>>>(),
+          new TupleTag<PrimitiveViewT>(),
           viewFn,
           windowMappingFn,
           windowingStrategy,
@@ -450,13 +428,8 @@ public class PCollectionViews {
     }
 
     @Override
-    public ViewFn<Iterable<WindowedValue<?>>, ViewT> getViewFn() {
-      // Safe cast: it is required that the rest of the SDK maintain the invariant
-      // that a PCollectionView is only provided an iterable for the elements of an
-      // appropriately typed PCollection.
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      ViewFn<Iterable<WindowedValue<?>>, ViewT> untypedViewFn = (ViewFn) viewFn;
-      return untypedViewFn;
+    public ViewFn<PrimitiveViewT, ViewT> getViewFn() {
+      return viewFn;
     }
 
     @Override
@@ -475,13 +448,8 @@ public class PCollectionViews {
      * <p>For internal use only by runner implementors.
      */
     @Override
-    public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {
-      // Safe cast: It is required that the rest of the SDK maintain the invariant that
-      // this tag is only used to access the contents of an appropriately typed underlying
-      // PCollection
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      TupleTag<Iterable<WindowedValue<?>>> untypedTag = (TupleTag) tag;
-      return untypedTag;
+    public TupleTag<?> getTagInternal() {
+      return tag;
     }
 
     /**
@@ -496,12 +464,8 @@ public class PCollectionViews {
     }
 
     @Override
-    public Coder<Iterable<WindowedValue<?>>> getCoderInternal() {
-      // Safe cast: It is required that the rest of the SDK only use this untyped coder
-      // for the elements of an appropriately typed underlying PCollection.
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      Coder<Iterable<WindowedValue<?>>> untypedCoder = (Coder) coder;
-      return untypedCoder;
+    public Coder<?> getCoderInternal() {
+      return coder;
     }
 
     @Override

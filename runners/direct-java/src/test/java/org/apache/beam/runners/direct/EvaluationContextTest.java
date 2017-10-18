@@ -41,8 +41,10 @@ import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -126,22 +128,28 @@ public class EvaluationContextTest {
 
   @Test
   public void writeToViewWriterThenReadReads() {
-    PCollectionViewWriter<Integer, Iterable<Integer>> viewWriter =
+    PCollectionViewWriter<KV<Void, Integer>, Iterable<Integer>> viewWriter =
         context.createPCollectionViewWriter(
             PCollection.createPrimitiveOutputInternal(
                 p,
                 WindowingStrategy.globalDefault(),
                 IsBounded.BOUNDED,
-                IterableCoder.of(VarIntCoder.of())),
+                IterableCoder.of(KvCoder.of(VoidCoder.of(), VarIntCoder.of()))),
             view);
     BoundedWindow window = new TestBoundedWindow(new Instant(1024L));
     BoundedWindow second = new TestBoundedWindow(new Instant(899999L));
-    WindowedValue<Integer> firstValue =
-        WindowedValue.of(1, new Instant(1222), window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    WindowedValue<Integer> secondValue =
+    WindowedValue<KV<Void, Integer>> firstValue =
+        WindowedValue.of(KV.of((Void) null, 1),
+            new Instant(1222),
+            window,
+            PaneInfo.ON_TIME_AND_ONLY_FIRING);
+    WindowedValue<KV<Void, Integer>> secondValue =
         WindowedValue.of(
-            2, new Instant(8766L), second, PaneInfo.createPane(true, false, Timing.ON_TIME, 0, 0));
-    Iterable<WindowedValue<Integer>> values = ImmutableList.of(firstValue, secondValue);
+            KV.of((Void) null, 2),
+            new Instant(8766L),
+            second,
+            PaneInfo.createPane(true, false, Timing.ON_TIME, 0, 0));
+    Iterable<WindowedValue<KV<Void, Integer>>> values = ImmutableList.of(firstValue, secondValue);
     viewWriter.add(values);
 
     SideInputReader reader =
@@ -149,9 +157,12 @@ public class EvaluationContextTest {
     assertThat(reader.get(view, window), containsInAnyOrder(1));
     assertThat(reader.get(view, second), containsInAnyOrder(2));
 
-    WindowedValue<Integer> overrittenSecondValue =
+    WindowedValue<KV<Void, Integer>> overrittenSecondValue =
         WindowedValue.of(
-            4444, new Instant(8677L), second, PaneInfo.createPane(false, true, Timing.LATE, 1, 1));
+            KV.of((Void) null, 4444),
+            new Instant(8677L),
+            second,
+            PaneInfo.createPane(false, true, Timing.LATE, 1, 1));
     viewWriter.add(Collections.singleton(overrittenSecondValue));
     assertThat(reader.get(view, second), containsInAnyOrder(2));
     // The cached value is served in the earlier reader

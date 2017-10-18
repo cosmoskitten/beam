@@ -34,8 +34,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Mean;
@@ -49,9 +47,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -134,12 +130,16 @@ public class SideInputContainerTest {
 
   @Test
   public void getAfterWriteReturnsPaneInWindow() throws Exception {
-    WindowedValue<KV<String, Integer>> one =
-        WindowedValue.of(
-            KV.of("one", 1), new Instant(1L), FIRST_WINDOW, PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    WindowedValue<KV<String, Integer>> two =
-        WindowedValue.of(
-            KV.of("two", 2), new Instant(20L), FIRST_WINDOW, PaneInfo.ON_TIME_AND_ONLY_FIRING);
+    WindowedValue<KV<Void, KV<String, Integer>>> one = WindowedValue.of(
+        KV.of((Void) null, KV.of("one", 1)),
+        new Instant(1L),
+        FIRST_WINDOW,
+        PaneInfo.ON_TIME_AND_ONLY_FIRING);
+    WindowedValue<KV<Void, KV<String, Integer>>> two = WindowedValue.of(
+        KV.of((Void) null, KV.of("two", 2)),
+        new Instant(20L),
+        FIRST_WINDOW,
+        PaneInfo.ON_TIME_AND_ONLY_FIRING);
     container.write(mapView, ImmutableList.<WindowedValue<?>>of(one, two));
 
     Map<String, Integer> viewContents =
@@ -153,15 +153,15 @@ public class SideInputContainerTest {
 
   @Test
   public void getReturnsLatestPaneInWindow() throws Exception {
-    WindowedValue<KV<String, Integer>> one =
+    WindowedValue<KV<Void, KV<String, Integer>>> one =
         WindowedValue.of(
-            KV.of("one", 1),
+            KV.of((Void) null, KV.of("one", 1)),
             new Instant(1L),
             SECOND_WINDOW,
             PaneInfo.createPane(true, false, Timing.EARLY));
-    WindowedValue<KV<String, Integer>> two =
+    WindowedValue<KV<Void, KV<String, Integer>>> two =
         WindowedValue.of(
-            KV.of("two", 2),
+            KV.of((Void) null, KV.of("two", 2)),
             new Instant(20L),
             SECOND_WINDOW,
             PaneInfo.createPane(true, false, Timing.EARLY));
@@ -175,9 +175,9 @@ public class SideInputContainerTest {
     assertThat(viewContents, hasEntry("two", 2));
     assertThat(viewContents.size(), is(2));
 
-    WindowedValue<KV<String, Integer>> three =
+    WindowedValue<KV<Void, KV<String, Integer>>> three =
         WindowedValue.of(
-            KV.of("three", 3),
+            KV.of((Void) null, KV.of("three", 3)),
             new Instant(300L),
             SECOND_WINDOW,
             PaneInfo.createPane(false, false, Timing.EARLY, 1, -1));
@@ -209,10 +209,7 @@ public class SideInputContainerTest {
     PCollection<KV<String, String>> input =
         pipeline.apply(Create.empty(new TypeDescriptor<KV<String, String>>() {}));
     PCollectionView<Map<String, Iterable<String>>> newView =
-        PCollectionViews.multimapView(
-            input,
-            WindowingStrategy.globalDefault(),
-            KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+        input.apply(View.<String, String>asMultimap());
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("unknown views");
@@ -232,15 +229,15 @@ public class SideInputContainerTest {
 
   @Test
   public void writeForMultipleElementsInDifferentWindowsSucceeds() throws Exception {
-    WindowedValue<Double> firstWindowedValue =
+    WindowedValue<KV<Void, Double>> firstWindowedValue =
         WindowedValue.of(
-            2.875,
+            KV.of((Void) null, 2.875),
             FIRST_WINDOW.maxTimestamp().minus(200L),
             FIRST_WINDOW,
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    WindowedValue<Double> secondWindowedValue =
+    WindowedValue<KV<Void, Double>> secondWindowedValue =
         WindowedValue.of(
-            4.125,
+            KV.of((Void) null, 4.125),
             SECOND_WINDOW.maxTimestamp().minus(2_000_000L),
             SECOND_WINDOW,
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
@@ -259,15 +256,15 @@ public class SideInputContainerTest {
 
   @Test
   public void writeForMultipleIdenticalElementsInSameWindowSucceeds() throws Exception {
-    WindowedValue<Integer> firstValue =
+    WindowedValue<KV<Void, Integer>> firstValue =
         WindowedValue.of(
-            44,
+            KV.of((Void) null, 44),
             FIRST_WINDOW.maxTimestamp().minus(200L),
             FIRST_WINDOW,
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    WindowedValue<Integer> secondValue =
+    WindowedValue<KV<Void, Integer>> secondValue =
         WindowedValue.of(
-            44,
+            KV.of((Void) null, 44),
             FIRST_WINDOW.maxTimestamp().minus(200L),
             FIRST_WINDOW,
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
@@ -283,9 +280,9 @@ public class SideInputContainerTest {
 
   @Test
   public void writeForElementInMultipleWindowsSucceeds() throws Exception {
-    WindowedValue<Double> multiWindowedValue =
+    WindowedValue<KV<Void, Double>> multiWindowedValue =
         WindowedValue.of(
-            2.875,
+            KV.<Void, Double>of(null, 2.875),
             FIRST_WINDOW.maxTimestamp().minus(200L),
             ImmutableList.of(FIRST_WINDOW, SECOND_WINDOW),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
@@ -304,15 +301,15 @@ public class SideInputContainerTest {
 
   @Test
   public void finishDoesNotOverwriteWrittenElements() throws Exception {
-    WindowedValue<KV<String, Integer>> one =
+    WindowedValue<KV<Void, KV<String, Integer>>> one =
         WindowedValue.of(
-            KV.of("one", 1),
+            KV.of((Void) null, KV.of("one", 1)),
             new Instant(1L),
             SECOND_WINDOW,
             PaneInfo.createPane(true, false, Timing.EARLY));
-    WindowedValue<KV<String, Integer>> two =
+    WindowedValue<KV<Void, KV<String, Integer>>> two =
         WindowedValue.of(
-            KV.of("two", 2),
+            KV.of((Void) null, KV.of("two", 2)),
             new Instant(20L),
             SECOND_WINDOW,
             PaneInfo.createPane(true, false, Timing.EARLY));
@@ -366,7 +363,7 @@ public class SideInputContainerTest {
         mapView,
         ImmutableList.of(
             WindowedValue.of(
-                KV.of("one", 1),
+                KV.of((Void) null, KV.of("one", 1)),
                 SECOND_WINDOW.maxTimestamp().minus(100L),
                 SECOND_WINDOW,
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
@@ -382,7 +379,7 @@ public class SideInputContainerTest {
         mapView,
         ImmutableList.of(
             WindowedValue.of(
-                KV.of("too", 2),
+                KV.of((Void) null, KV.of("too", 2)),
                 FIRST_WINDOW.maxTimestamp().minus(100L),
                 FIRST_WINDOW,
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
@@ -393,7 +390,7 @@ public class SideInputContainerTest {
         singletonView,
         ImmutableList.of(
             WindowedValue.of(
-                1.25,
+                KV.of((Void) null, 1.25),
                 SECOND_WINDOW.maxTimestamp().minus(100L),
                 SECOND_WINDOW,
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
