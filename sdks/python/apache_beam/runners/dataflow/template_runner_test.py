@@ -36,7 +36,6 @@ except ImportError:
   apiclient = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class TemplatingDataflowRunnerTest(unittest.TestCase):
   """TemplatingDataflow tests."""
@@ -87,7 +86,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
                             '--temp_location=/dev/null',
                             '--template_location=/bad/path',
                             '--no_auth=True']))
-    remote_runner.job = apiclient.Job(pipeline._options)
+    remote_runner.job = apiclient.Job(pipeline._options, pipeline.to_runner_api())
 
     with self.assertRaises(IOError):
       pipeline.run().wait_until_finish()
