@@ -52,7 +52,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
         .of(Types.INTEGER, "order_id",
             Types.INTEGER, "site_id",
             Types.INTEGER, "price",
-            Types.TIMESTAMP, "order_time"
+            Types.DATE, "order_time"
         )
         .timestampColumnIndex(3)
         .addRows(

@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
@@ -54,6 +55,7 @@ public class BeamSqlRowCoderTest {
             .add("col_decimal", SqlTypeName.DECIMAL)
             .add("col_string_varchar", SqlTypeName.VARCHAR)
             .add("col_time", SqlTypeName.TIME)
+            .add("col_date", SqlTypeName.DATE)
             .add("col_timestamp", SqlTypeName.TIMESTAMP)
             .add("col_boolean", SqlTypeName.BOOLEAN)
             .build();
@@ -68,7 +70,7 @@ public class BeamSqlRowCoderTest {
     calendar.setTime(new Date());
     BeamRecord row = new BeamRecord(beamSQLRowType
         , Byte.valueOf("1"), Short.valueOf("1"), 1, 1L, 1.1F, 1.1
-        , BigDecimal.ZERO, "hello", calendar, new Date(), true);
+        , BigDecimal.ZERO, "hello", calendar, new Date(1), new Timestamp(1), true);
 
 
     BeamRecordCoder coder = beamSQLRowType.getRecordCoder();

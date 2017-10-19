@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema.transform;
 
+import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -54,15 +55,15 @@ public class BeamTransformBaseTest {
     inputRows = Arrays.asList(
         initBeamSqlRow(columnMetadata,
             Arrays.<Object>asList(1, 1000L, Short.valueOf("1"), Byte.valueOf("1"), 1.0F, 1.0,
-                "string_row1", format.parse("2017-01-01 01:01:03"), 1)),
+                "string_row1", new Timestamp(1), 1)),
         initBeamSqlRow(columnMetadata,
             Arrays.<Object>asList(1, 2000L, Short.valueOf("2"), Byte.valueOf("2"), 2.0F, 2.0,
-                "string_row2", format.parse("2017-01-01 01:02:03"), 2)),
+                "string_row2", new Timestamp(2), 2)),
         initBeamSqlRow(columnMetadata,
             Arrays.<Object>asList(1, 3000L, Short.valueOf("3"), Byte.valueOf("3"), 3.0F, 3.0,
-                "string_row3", format.parse("2017-01-01 01:03:03"), 3)),
+                "string_row3", new Timestamp(3), 3)),
         initBeamSqlRow(columnMetadata, Arrays.<Object>asList(1, 4000L, Short.valueOf("4"),
-            Byte.valueOf("4"), 4.0F, 4.0, "string_row4", format.parse("2017-01-01 02:04:03"), 4)));
+            Byte.valueOf("4"), 4.0F, 4.0, "string_row4", new Timestamp(4), 4)));
   }
 
   /**

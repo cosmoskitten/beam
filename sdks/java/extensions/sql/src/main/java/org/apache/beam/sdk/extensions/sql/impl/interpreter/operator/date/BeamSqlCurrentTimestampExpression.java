@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -44,6 +45,6 @@ public class BeamSqlCurrentTimestampExpression extends BeamSqlExpression {
   }
 
   @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    return BeamSqlPrimitive.of(outputType, new Date());
+    return BeamSqlPrimitive.of(outputType, new Timestamp(new Date().getTime()));
   }
 }
