@@ -87,9 +87,8 @@ public class SparkSideInputReader implements SideInputReader {
               }
             }),
             new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
-              @Nullable
               @Override
-              public KV<?, ?> apply(@Nullable WindowedValue<KV<?, ?>> windowedValue) {
+              public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
                 return windowedValue.getValue();
               }
             });

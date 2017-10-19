@@ -262,10 +262,8 @@ class SideInputContainer {
           (Iterable<WindowedValue<KV<?, ?>>>) viewContents.getUnchecked(
               PCollectionViewWindow.of(view, window)).get(),
           new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
-            @Nullable
             @Override
-            public KV<?, ?> apply(
-                @Nullable WindowedValue<KV<?, ?>> windowedValue) {
+            public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
               return windowedValue.getValue();
             }
           });
