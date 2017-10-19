@@ -18,8 +18,13 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+
+import java.sql.Timestamp;
 import java.sql.Types;
+import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.TimeZone;
+
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
@@ -37,6 +42,13 @@ import org.junit.Test;
 public class BeamSortRelTest extends BaseRelTest {
   static BeamSqlEnv sqlEnv = new BeamSqlEnv();
 
+  private Timestamp gmtTimestamp(Date dt) {
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+    String raw = sdf.format(dt);
+    return Timestamp.valueOf(raw);
+  }
+
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
@@ -47,18 +59,19 @@ public class BeamSortRelTest extends BaseRelTest {
             Types.BIGINT, "order_id",
             Types.INTEGER, "site_id",
             Types.DOUBLE, "price",
-            Types.TIMESTAMP, "order_time"
+            Types.TIMESTAMP, "order_time",
+            Types.DATE, "order_date"
         ).addRows(
-            1L, 2, 1.0, new Date(0),
-            1L, 1, 2.0, new Date(1),
-            2L, 4, 3.0, new Date(2),
-            2L, 1, 4.0, new Date(3),
-            5L, 5, 5.0, new Date(4),
-            6L, 6, 6.0, new Date(5),
-            7L, 7, 7.0, new Date(6),
-            8L, 8888, 8.0, new Date(7),
-            8L, 999, 9.0, new Date(8),
-            10L, 100, 10.0, new Date(9)
+            1L, 2, 1.0, new Timestamp(0), new Date(0),
+            1L, 1, 2.0, new Timestamp(1000), new Date(1),
+            2L, 4, 3.0, new Timestamp(2000), new Date(2),
+            2L, 1, 4.0, new Timestamp(3000), new Date(3),
+            5L, 5, 5.0, new Timestamp(4000), new Date(4),
+            6L, 6, 6.0, new Timestamp(5000), new Date(5),
+            7L, 7, 7.0, new Timestamp(6000), new Date(6),
+            8L, 8888, 8.0, new Timestamp(7000), new Date(7),
+            8L, 999, 9.0, new Timestamp(8000), new Date(8),
+            10L, 100, 10.0, new Timestamp(9000), new Date(9)
         )
     );
     sqlEnv.registerTable("SUB_ORDER_RAM",
@@ -103,6 +116,35 @@ public class BeamSortRelTest extends BaseRelTest {
         Types.INTEGER, "site_id",
         Types.DOUBLE, "price",
         Types.TIMESTAMP, "order_time"
+    ).addRows(
+        // Two reasons that the assertion uses GMT_timestamp()
+        // 1. During Sql execution, the timestamp in ORDER_DETAILS will be converted to GMT
+        //  in BeamTableUtils.java, which is necessary because in BeamSqlDateFunctionIntegrationTest
+        //  TIMESTAMPADD clause will convert input into local Date. So the reverse process in
+        //  BeamTableUtils.java is necessary.
+        // 2. For the same reason, millisecond info will be lost when input gets converted to Date,
+        //  so I used 1000 millisecond as interval.
+        7L, 7, 7.0, gmtTimestamp(new Date(6000)),
+        8L, 8888, 8.0, gmtTimestamp(new Date(7000)),
+        8L, 999, 9.0, gmtTimestamp(new Date(8000)),
+        10L, 100, 10.0, gmtTimestamp(new Date(9000))
+    ).getRows());
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testOrderBy_date() throws Exception {
+    String sql = "SELECT order_id, site_id, price, order_date "
+        + "FROM ORDER_DETAILS "
+        + "ORDER BY order_date desc limit 4";
+
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+
+    PAssert.that(rows).containsInAnyOrder(TestUtils.RowsBuilder.of(
+        Types.BIGINT, "order_id",
+        Types.INTEGER, "site_id",
+        Types.DOUBLE, "price",
+        Types.DATE, "order_date"
     ).addRows(
         7L, 7, 7.0, new Date(6),
         8L, 8888, 8.0, new Date(7),

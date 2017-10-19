@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema.transform;
 
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -395,7 +396,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
                     (byte) 10, (byte) 2, (byte) 4, (byte) 1,
                     10.0F, 2.5F, 4.0F, 1.0F,
                     10.0, 2.5, 4.0, 1.0,
-                    format.parse("2017-01-01 02:04:03"), format.parse("2017-01-01 01:01:03"),
+                    new Timestamp(4), new Timestamp(1),
                     10, 2, 4, 1
                     )))
             );
@@ -446,7 +447,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
         (byte) 10, (byte) 2, (byte) 4, (byte) 1,
         10.0F, 2.5F, 4.0F, 1.0F,
         10.0, 2.5, 4.0, 1.0,
-        format.parse("2017-01-01 02:04:03"), format.parse("2017-01-01 01:01:03"),
+        new Timestamp(4), new Timestamp(1),
         10, 2, 4, 1
         ));
   }

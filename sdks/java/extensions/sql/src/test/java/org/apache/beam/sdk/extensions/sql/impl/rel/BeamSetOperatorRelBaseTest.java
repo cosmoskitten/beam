@@ -51,7 +51,7 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
             Types.BIGINT, "order_id",
             Types.INTEGER, "site_id",
             Types.DOUBLE, "price",
-            Types.TIMESTAMP, "order_time"
+            Types.DATE, "order_time"
         ).addRows(
             1L, 1, 1.0, THE_DATE,
             2L, 2, 2.0, THE_DATE

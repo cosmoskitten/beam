@@ -22,8 +22,12 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TimeZone;
+
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -111,6 +115,11 @@ public final class BeamTableUtils {
       } else {
         return rawObj;
       }
+    } else if (columnType.equals(SqlTypeName.TIMESTAMP)) {
+      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+      String raw = sdf.format(rawObj);
+      return Timestamp.valueOf(raw);
     } else {
       return rawObj;
     }
