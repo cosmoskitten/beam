@@ -54,6 +54,9 @@ public class BeamSqlDslBase {
   public static BeamRecordSqlType rowTypeInTableA;
   public static List<BeamRecord> recordsInTableA;
 
+  public static BeamRecordSqlType rowTypeInTableT;
+  public static List<BeamRecord> recordsInTableT;
+
   //bounded PCollections
   public PCollection<BeamRecord> boundedInput1;
   public PCollection<BeamRecord> boundedInput2;
@@ -68,7 +71,7 @@ public class BeamSqlDslBase {
         Arrays.asList("f_int", "f_long", "f_short", "f_byte", "f_float", "f_double", "f_string",
             "f_timestamp", "f_int2", "f_decimal"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,
-            Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER, Types.DECIMAL));
+            Types.DOUBLE, Types.VARCHAR, Types.DATE, Types.INTEGER, Types.DECIMAL));
 
     recordsInTableA = prepareInputRowsInTableA();
   }

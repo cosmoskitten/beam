@@ -22,12 +22,18 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.sql.Types;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TimeZone;
+
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -35,6 +41,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -43,10 +50,17 @@ import org.junit.Test;
  * with BOUNDED PCollection.
  */
 public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
+  private Timestamp gmtTimestamp(Date dt) {
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+    String raw = sdf.format(dt);
+    return Timestamp.valueOf(raw);
+  }
+
   public PCollection<BeamRecord> boundedInput3;
 
   @Before
-  public void setUp(){
+  public void setUpTableB(){
     BeamRecordSqlType rowTypeInTableB = BeamRecordSqlType.create(
             Arrays.asList("f_int", "f_double", "f_int2", "f_decimal"),
             Arrays.asList(Types.INTEGER, Types.DOUBLE, Types.INTEGER, Types.DECIMAL));
@@ -117,12 +131,74 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
+
+  /*
+  * Prepare TableT for @testAggregationFunctionsWithBounded()
+  *                    @testAggregationFunctionsWithUnbounded()
+  *
+  * The only difference between TableT and TableA (prepared in BeamSqlDslBase.java)
+  *   is TableT uses java.sql.Timestamp data type while TableA uses java.util.Date data type.
+  *
+  * The above 2 test cases applies MAX operation on TIMESTAMP type of data, which is not supported
+  *   on DATE type of data. They used to work well on data in TableA because TIMESTAMP and DATE were
+  *   mapped to the same type. Now they are separate.
+  *
+  * So TableT and (un)boundedInput4 are prepared.
+  * */
+
+  public PCollection<BeamRecord> boundedInput4;
+  public PCollection<BeamRecord> unboundedInput4;
+
+  @Before
+  public void setUpTableT(){
+
+    BeamRecordSqlType rowTypeInTableT = BeamRecordSqlType.create(
+        Arrays.asList("f_int", "f_long", "f_short", "f_byte", "f_float", "f_double", "f_string",
+            "f_timestamp", "f_int2", "f_decimal"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,
+            Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER, Types.DECIMAL));
+
+    List<BeamRecord> recordsInTableT = new ArrayList<>();
+
+    BeamRecord row1 = new BeamRecord(rowTypeInTableT
+        , 1, 1000L, Short.valueOf("1"), Byte.valueOf("1"), 1.0f, 1.0, "string_row1"
+        , new Timestamp(1), 0, new BigDecimal(1));
+    recordsInTableT.add(row1);
+
+    BeamRecord row2 = new BeamRecord(rowTypeInTableT
+        , 2, 2000L, Short.valueOf("2"), Byte.valueOf("2"), 2.0f, 2.0, "string_row2"
+        , new Timestamp(2), 0, new BigDecimal(2));
+    recordsInTableT.add(row2);
+
+    BeamRecord row3 = new BeamRecord(rowTypeInTableT
+        , 3, 3000L, Short.valueOf("3"), Byte.valueOf("3"), 3.0f, 3.0, "string_row3"
+        , new Timestamp(3), 0, new BigDecimal(3));
+    recordsInTableT.add(row3);
+
+    BeamRecord row4 = new BeamRecord(rowTypeInTableT
+        , 4, 4000L, Short.valueOf("4"), Byte.valueOf("4"), 4.0f, 4.0, "string_row4"
+        , new Timestamp(4), 0, new BigDecimal(4));
+    recordsInTableT.add(row4);
+
+    boundedInput4 = PBegin.in(pipeline).apply("boundedInput4",
+        Create.of(recordsInTableT).withCoder(rowTypeInTableT.getRecordCoder()));
+
+    TestStream.Builder<BeamRecord> values = TestStream
+        .create(rowTypeInTableT.getRecordCoder());
+
+    for (BeamRecord row : recordsInTableT) {
+      values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
+      values = values.addElements(row);
+    }
+    unboundedInput4 = PBegin.in(pipeline).apply("unboundedInput4",
+        values.advanceWatermarkToInfinity());
+  }
   /**
    * GROUP-BY with multiple aggregation functions with bounded PCollection.
    */
   @Test
   public void testAggregationFunctionsWithBounded() throws Exception{
-    runAggregationFunctions(boundedInput1);
+    runAggregationFunctions(boundedInput4);
   }
 
   /**
@@ -130,7 +206,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
    */
   @Test
   public void testAggregationFunctionsWithUnbounded() throws Exception{
-    runAggregationFunctions(unboundedInput1);
+    runAggregationFunctions(unboundedInput4);
   }
 
   private void runAggregationFunctions(PCollection<BeamRecord> input) throws Exception{
@@ -169,7 +245,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         , (byte) 10, (byte) 2, (byte) 4, (byte) 1
         , 10.0F, 2.5F, 4.0F, 1.0F
         , 10.0, 2.5, 4.0, 1.0
-        , FORMAT.parse("2017-01-01 02:04:03"), FORMAT.parse("2017-01-01 01:01:03")
+        , gmtTimestamp(new Date(4)), gmtTimestamp(new Date(1))
         , 1.25, 1.666666667, 1, 1);
 
     PAssert.that(result).containsInAnyOrder(record);
@@ -282,7 +358,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
         Arrays.asList("f_int2", "size", "window_start"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.DATE));
 
     BeamRecord record1 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 01:00:00"));
     BeamRecord record2 = new BeamRecord(resultType, 0, 1L, FORMAT.parse("2017-01-01 02:00:00"));
@@ -318,7 +394,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
         Arrays.asList("f_int2", "size", "window_start"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.DATE));
 
     BeamRecord record1 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 00:30:00"));
     BeamRecord record2 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 01:00:00"));
@@ -357,7 +433,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
         Arrays.asList("f_int2", "size", "window_start"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.DATE));
 
     BeamRecord record1 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 01:01:03"));
     BeamRecord record2 = new BeamRecord(resultType, 0, 1L, FORMAT.parse("2017-01-01 02:04:03"));

@@ -58,17 +58,17 @@ public class BeamSqlDateFunctionsIntegrationTest
   @Test public void testDatetimePlusFunction() throws Exception {
     ExpressionChecker checker = new ExpressionChecker()
         .addExpr("TIMESTAMPADD(SECOND, 3, TIMESTAMP '1984-04-19 01:02:03')",
-            parseDate("1984-04-19 01:02:06"))
+            parseTimestamp("1984-04-19 01:02:06"))
         .addExpr("TIMESTAMPADD(MINUTE, 3, TIMESTAMP '1984-04-19 01:02:03')",
-            parseDate("1984-04-19 01:05:03"))
+            parseTimestamp("1984-04-19 01:05:03"))
         .addExpr("TIMESTAMPADD(HOUR, 3, TIMESTAMP '1984-04-19 01:02:03')",
-            parseDate("1984-04-19 04:02:03"))
+            parseTimestamp("1984-04-19 04:02:03"))
         .addExpr("TIMESTAMPADD(DAY, 3, TIMESTAMP '1984-04-19 01:02:03')",
-            parseDate("1984-04-22 01:02:03"))
+            parseTimestamp("1984-04-22 01:02:03"))
         .addExpr("TIMESTAMPADD(MONTH, 2, TIMESTAMP '1984-01-19 01:02:03')",
-            parseDate("1984-03-19 01:02:03"))
+            parseTimestamp("1984-03-19 01:02:03"))
         .addExpr("TIMESTAMPADD(YEAR, 2, TIMESTAMP '1985-01-19 01:02:03')",
-            parseDate("1987-01-19 01:02:03"))
+            parseTimestamp("1987-01-19 01:02:03"))
         ;
     checker.buildRunAndCheck();
   }
@@ -76,17 +76,17 @@ public class BeamSqlDateFunctionsIntegrationTest
   @Test public void testDatetimeInfixPlus() throws Exception {
     ExpressionChecker checker = new ExpressionChecker()
         .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '3' SECOND",
-            parseDate("1984-01-19 01:02:06"))
+            parseTimestamp("1984-01-19 01:02:06"))
         .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MINUTE",
-            parseDate("1984-01-19 01:04:03"))
+            parseTimestamp("1984-01-19 01:04:03"))
         .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' HOUR",
-            parseDate("1984-01-19 03:02:03"))
+            parseTimestamp("1984-01-19 03:02:03"))
         .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' DAY",
-            parseDate("1984-01-21 01:02:03"))
+            parseTimestamp("1984-01-21 01:02:03"))
         .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MONTH",
-            parseDate("1984-03-19 01:02:03"))
+            parseTimestamp("1984-03-19 01:02:03"))
         .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' YEAR",
-            parseDate("1986-01-19 01:02:03"))
+            parseTimestamp("1986-01-19 01:02:03"))
         ;
     checker.buildRunAndCheck();
   }
@@ -146,17 +146,17 @@ public class BeamSqlDateFunctionsIntegrationTest
   @Test public void testTimestampMinusInterval() throws Exception {
     ExpressionChecker checker = new ExpressionChecker()
         .addExpr("TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '2' SECOND",
-            parseDate("1984-04-19 01:01:56"))
+            parseTimestamp("1984-04-19 01:01:56"))
         .addExpr("TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '1' MINUTE",
-            parseDate("1984-04-19 01:00:58"))
+            parseTimestamp("1984-04-19 01:00:58"))
         .addExpr("TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '4' HOUR",
-            parseDate("1984-04-18 21:01:58"))
+            parseTimestamp("1984-04-18 21:01:58"))
         .addExpr("TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '5' DAY",
-            parseDate("1984-04-14 01:01:58"))
+            parseTimestamp("1984-04-14 01:01:58"))
         .addExpr("TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '2' MONTH",
-            parseDate("1983-11-19 01:01:58"))
+            parseTimestamp("1983-11-19 01:01:58"))
         .addExpr("TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '1' YEAR",
-            parseDate("1983-01-19 01:01:58"))
+            parseTimestamp("1983-01-19 01:01:58"))
         ;
     checker.buildRunAndCheck();
   }

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import com.google.common.base.Joiner;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -55,6 +56,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     JAVA_CLASS_TO_SQL_TYPE.put(BigDecimal.class, Types.DECIMAL);
     JAVA_CLASS_TO_SQL_TYPE.put(String.class, Types.VARCHAR);
     JAVA_CLASS_TO_SQL_TYPE.put(Date.class, Types.DATE);
+    JAVA_CLASS_TO_SQL_TYPE.put(Timestamp.class, Types.TIMESTAMP);
     JAVA_CLASS_TO_SQL_TYPE.put(Boolean.class, Types.BOOLEAN);
   }
 
@@ -99,6 +101,19 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
       sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
       return sdf.parse(str);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+  protected static Timestamp parseTimestamp(String str) {
+    try {
+      Timestamp ts = Timestamp.valueOf(str);
+      return ts;
+//      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+//      sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+//      Date dt = sdf.parse(str);
+//      String gmt_str = sdf.format(dt);
+//      return Timestamp.valueOf(gmt_str);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
