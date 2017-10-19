@@ -40,6 +40,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
@@ -236,26 +237,30 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
    * The lifetime of this member is only valid during {@link #processElement}
    * and is null otherwise.
    */
+  @Nullable
   private WindowedValue<InputT> currentElement;
 
   /**
    * The lifetime of this member is only valid during {@link #processElement}
    * and is null otherwise.
    */
+  @Nullable
   private BoundedWindow currentWindow;
 
   /**
    * This member should only be accessed indirectly by calling
-   * {@link #createOrUseCachedBagUserStateKey} and is only valid during {@link #processElement}
+   * {@link #getBagUserStateKey} and is only valid during {@link #processElement}
    * and is null otherwise.
    */
+  @Nullable
   private StateKey.BagUserState cachedPartialBagUserStateKey;
 
   /**
    * This member should only be accessed indirectly by calling
-   * {@link #createOrUseCachedMultimapSideInputKey} and is only valid during {@link #processElement}
+   * {@link #getMultimapSideInputKey} and is only valid during {@link #processElement}
    * and is null otherwise.
    */
+  @Nullable
   private StateKey.MultimapSideInput cachedPartialMultimapSideInputKey;
 
   FnApiDoFnRunner(
@@ -670,7 +675,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     @Override
     public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
       return (ValueState<T>) stateKeyObjectCache.computeIfAbsent(
-          createOrUseCachedBagUserStateKey(id),
+          getBagUserStateKey(id),
           new Function<StateKey, Object>() {
         @Override
         public Object apply(StateKey key) {
@@ -711,7 +716,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     @Override
     public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
       return (BagState<T>) stateKeyObjectCache.computeIfAbsent(
-          createOrUseCachedBagUserStateKey(id),
+          getBagUserStateKey(id),
           new Function<StateKey, Object>() {
         @Override
         public Object apply(StateKey key) {
@@ -766,7 +771,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         StateSpec<CombiningState<InputT, AccumT, OutputT>> spec, Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn) {
       return (CombiningState<InputT, AccumT, OutputT>) stateKeyObjectCache.computeIfAbsent(
-          createOrUseCachedBagUserStateKey(id),
+          getBagUserStateKey(id),
           new Function<StateKey, Object>() {
         @Override
         public Object apply(StateKey key) {
@@ -846,7 +851,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         Coder<AccumT> accumCoder,
         CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
       return (CombiningState<InputT, AccumT, OutputT>) stateKeyObjectCache.computeIfAbsent(
-          createOrUseCachedBagUserStateKey(id),
+          getBagUserStateKey(id),
           new Function<StateKey, Object>() {
             @Override
             public Object apply(StateKey key) {
@@ -902,7 +907,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
    *
    * <p>This should only be called during {@link #processElement}.
    */
-  private <K> StateKey createOrUseCachedBagUserStateKey(String id) {
+  private <K> StateKey getBagUserStateKey(String id) {
     if (cachedPartialBagUserStateKey == null) {
       checkState(currentElement.getValue() instanceof KV,
           "Accessing state in unkeyed context. Current element is not a KV: %s.",
@@ -936,7 +941,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         .build();
   }
 
-  private <T, K, V> T bindSideInputView(PCollectionView<T> view) {
+  private <T> T bindSideInputView(PCollectionView<T> view) {
     // TODO: Use the ViewFn defined on the SideInput once the PTransform proto is available within
     // the SDK harness instead of defining the mapping using legacy types on the SDK harness side.
 
@@ -944,7 +949,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     FullWindowedValueCoder<?> windowedValueCoder =
         (FullWindowedValueCoder) ((IterableCoder) view.getCoderInternal()).getElemCoder();
     return (T) stateKeyObjectCache.computeIfAbsent(
-        createOrUseCachedMultimapSideInputKey(
+        getMultimapSideInputKey(
             view.getTagInternal().getId(),
             (WindowMappingFn) view.getWindowMappingFn(),
             windowedValueCoder.getWindowCoder()),
@@ -992,7 +997,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
             .setStateKey(stateKey));
   }
 
-  private <W extends BoundedWindow> StateKey createOrUseCachedMultimapSideInputKey(
+  /**
+   * Memoizes a partially built {@link StateKey} saving on the encoding cost of the side input
+   * window across multiple side input calls for the lifetime of {@link #processElement}.
+   *
+   * <p>This should only be called during {@link #processElement}.
+   */
+  private <W extends BoundedWindow> StateKey getMultimapSideInputKey(
       String id,
       WindowMappingFn<W> windowMappingFn,
       Coder<W> windowCoder) {
