@@ -179,7 +179,12 @@ public class PTransformTranslation {
     if (transform instanceof RawPTransform) {
       // The raw transform was parsed in the context of other components; this puts it in the
       // context of our current serialization
-      transformBuilder.setSpec(((RawPTransform<?, ?>) transform).migrate(components));
+      RawPTransform<?, ?> rawPTransform = (RawPTransform<?, ?>) transform;
+      FunctionSpec spec = rawPTransform.migrate(components);
+
+      if (spec != null) {
+        transformBuilder.setSpec(rawPTransform.migrate(components));
+      }
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
       transformBuilder.setSpec(
           KNOWN_PAYLOAD_TRANSLATORS
