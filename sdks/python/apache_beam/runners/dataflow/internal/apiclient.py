@@ -323,8 +323,9 @@ class Job(object):
       job_name = Job._build_default_job_name(getpass.getuser())
     return job_name
 
-  def __init__(self, options):
+  def __init__(self, options, proto_pipeline):
     self.options = options
+    self.proto_pipeline = proto_pipeline
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     if not self.google_cloud_options.job_name:
       self.google_cloud_options.job_name = self.default_job_name(
@@ -475,7 +476,7 @@ class DataflowApplicationClient(object):
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
-    resources = dependency.stage_job_resources(
+    resources = dependency.stage_job_resources(job,
         job.options, file_copy=self._gcs_file_copy)
     job.proto.environment = Environment(
         packages=resources, options=job.options,

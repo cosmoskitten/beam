@@ -274,8 +274,8 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
-    # Turn the proto into a string before munging wildly
-    proto_pipeline_string = pipeline.to_runner_api().SerializeToString()
+    # Snapshot as before mutating the pipeline with overrides
+    proto_pipeline = pipeline.to_runner_api()
 
     # Performing configured PTransform overrides.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
@@ -287,7 +287,7 @@ class DataflowRunner(PipelineRunner):
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
-    self.job = apiclient.Job(pipeline._options)
+    self.job = apiclient.Job(pipeline._options, proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -308,11 +308,6 @@ class DataflowRunner(PipelineRunner):
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
         pipeline._options)
-
-    # Upload the original proto for the pipeline
-    self.dataflow_client.stage_file(self.job.google_cloud_options.staging_location,
-                                    names.STAGED_PIPELINE_FILENAME,
-                                    StringIO(proto_pipeline_string))
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.

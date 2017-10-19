@@ -264,7 +264,7 @@ def _populate_requirements_cache(requirements_file, cache_dir):
 
 
 def stage_job_resources(
-    options, file_copy=_dependency_file_copy, build_setup_args=None,
+    job, options, file_copy=_dependency_file_copy, build_setup_args=None,
     temp_dir=None, populate_requirements_cache=_populate_requirements_cache):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -306,6 +306,12 @@ def stage_job_resources(
   if google_cloud_options.temp_location is None:
     raise RuntimeError(
         'The --temp_location option must be specified.')
+
+  # Stage the original pipeline
+  stage_file(google_cloud_options.staging_location,
+                                  names.STAGED_PIPELINE_FILENAME,
+                                  StringIO(job.proto_pipeline.SerializeToString()))
+
 
   # Stage a requirements file if present.
   if setup_options.requirements_file is not None:
