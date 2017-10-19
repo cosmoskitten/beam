@@ -18,8 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.sql.Timestamp;
 import java.sql.Types;
-import java.util.Date;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
@@ -49,16 +49,16 @@ public class BeamSortRelTest extends BaseRelTest {
             Types.DOUBLE, "price",
             Types.TIMESTAMP, "order_time"
         ).addRows(
-            1L, 2, 1.0, new Date(0),
-            1L, 1, 2.0, new Date(1),
-            2L, 4, 3.0, new Date(2),
-            2L, 1, 4.0, new Date(3),
-            5L, 5, 5.0, new Date(4),
-            6L, 6, 6.0, new Date(5),
-            7L, 7, 7.0, new Date(6),
-            8L, 8888, 8.0, new Date(7),
-            8L, 999, 9.0, new Date(8),
-            10L, 100, 10.0, new Date(9)
+            1L, 2, 1.0, new Timestamp(0),
+            1L, 1, 2.0, new Timestamp(1),
+            2L, 4, 3.0, new Timestamp(2),
+            2L, 1, 4.0, new Timestamp(3),
+            5L, 5, 5.0, new Timestamp(4),
+            6L, 6, 6.0, new Timestamp(5),
+            7L, 7, 7.0, new Timestamp(6),
+            8L, 8888, 8.0, new Timestamp(7),
+            8L, 999, 9.0, new Timestamp(8),
+            10L, 100, 10.0, new Timestamp(9)
         )
     );
     sqlEnv.registerTable("SUB_ORDER_RAM",
@@ -104,10 +104,10 @@ public class BeamSortRelTest extends BaseRelTest {
         Types.DOUBLE, "price",
         Types.TIMESTAMP, "order_time"
     ).addRows(
-        7L, 7, 7.0, new Date(6),
-        8L, 8888, 8.0, new Date(7),
-        8L, 999, 9.0, new Date(8),
-        10L, 100, 10.0, new Date(9)
+        7L, 7, 7.0, new Timestamp(6),
+        8L, 8888, 8.0, new Timestamp(7),
+        8L, 999, 9.0, new Timestamp(8),
+        10L, 100, 10.0, new Timestamp(9)
     ).getRows());
     pipeline.run().waitUntilFinish();
   }
