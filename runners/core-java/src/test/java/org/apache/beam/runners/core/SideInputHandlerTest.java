@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,10 +51,11 @@ public class SideInputHandlerTest {
 
   private static final long WINDOW_MSECS_1 = 100;
   private static final long WINDOW_MSECS_2 = 500;
-  private static PCollectionView<Iterable<String>> view1;
-  private static PCollectionView<Iterable<String>> view2;
+  private PCollectionView<Iterable<String>> view1;
+  private PCollectionView<Iterable<String>> view2;
 
-  static {
+  @Before
+  public void setUp() {
     PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
     view1 = pc
         .apply(Window.<String>into(FixedWindows.of(new Duration(WINDOW_MSECS_1))))

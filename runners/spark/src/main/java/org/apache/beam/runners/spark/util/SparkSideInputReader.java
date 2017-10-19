@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 
 /**
- * A {@link SideInputReader} for thw SparkRunner.
+ * A {@link SideInputReader} for the SparkRunner.
  */
 public class SparkSideInputReader implements SideInputReader {
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
@@ -76,14 +76,7 @@ public class SparkSideInputReader implements SideInputReader {
                 if (sideInputCandidate == null) {
                   return false;
                 }
-                // first match of a sideInputWindow to the elementWindow is good enough.
-                for (BoundedWindow sideInputCandidateWindow : sideInputCandidate.getWindows()) {
-                  if (sideInputCandidateWindow.equals(sideInputWindow)) {
-                    return true;
-                  }
-                }
-                // no match found.
-                return false;
+                return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
               }
             }),
             new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {

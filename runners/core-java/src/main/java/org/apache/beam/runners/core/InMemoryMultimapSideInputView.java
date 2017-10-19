@@ -17,11 +17,9 @@
   */
 package org.apache.beam.runners.core;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
-import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
@@ -59,8 +57,6 @@ public class InMemoryMultimapSideInputView<K, V> implements Materializations.Mul
 
   @Override
   public Iterable<V> get(K k) {
-    return Objects.firstNonNull(
-        structuralKeyToValuesMap.get(keyCoder.structuralValue(k)),
-        Collections.EMPTY_LIST);
+    return structuralKeyToValuesMap.get(keyCoder.structuralValue(k));
   }
 }
