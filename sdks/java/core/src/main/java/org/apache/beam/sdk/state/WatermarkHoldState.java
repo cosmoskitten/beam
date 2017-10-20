@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.state;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
