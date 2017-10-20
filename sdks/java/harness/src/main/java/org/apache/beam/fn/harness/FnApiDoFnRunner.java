@@ -255,14 +255,6 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   @Nullable
   private StateKey.BagUserState cachedPartialBagUserStateKey;
 
-  /**
-   * This member should only be accessed indirectly by calling
-   * {@link #getMultimapSideInputKey} and is only valid during {@link #processElement}
-   * and is null otherwise.
-   */
-  @Nullable
-  private StateKey.MultimapSideInput cachedPartialMultimapSideInputKey;
-
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
       BeamFnStateClient beamFnStateClient,
@@ -313,7 +305,6 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       currentElement = null;
       currentWindow = null;
       cachedPartialBagUserStateKey = null;
-      cachedPartialMultimapSideInputKey = null;
     }
   }
 
@@ -949,7 +940,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     FullWindowedValueCoder<?> windowedValueCoder =
         (FullWindowedValueCoder) ((IterableCoder) view.getCoderInternal()).getElemCoder();
     return (T) stateKeyObjectCache.computeIfAbsent(
-        getMultimapSideInputKey(
+        createMultimapSideInputKey(
             view.getTagInternal().getId(),
             (WindowMappingFn) view.getWindowMappingFn(),
             windowedValueCoder.getWindowCoder()),
@@ -998,30 +989,28 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   }
 
   /**
-   * Memoizes a partially built {@link StateKey} saving on the encoding cost of the side input
-   * window across multiple side input calls for the lifetime of {@link #processElement}.
+   * TODO: Cache the StateKey on a per PCollectionView and window to save on encoding costs of
+   * the window.
    *
    * <p>This should only be called during {@link #processElement}.
    */
-  private <W extends BoundedWindow> StateKey getMultimapSideInputKey(
+  private <W extends BoundedWindow> StateKey createMultimapSideInputKey(
       String id,
       WindowMappingFn<W> windowMappingFn,
       Coder<W> windowCoder) {
-    if (cachedPartialMultimapSideInputKey == null) {
-      ByteString.Output encodedWindowOut = ByteString.newOutput();
-      try {
-        windowCoder.encode(windowMappingFn.getSideInputWindow(currentWindow), encodedWindowOut);
-      } catch (IOException e) {
-        throw new IllegalStateException(e);
-      }
-
-      cachedPartialMultimapSideInputKey = StateKey.MultimapSideInput.newBuilder()
-          .setPtransformId(ptransformId)
-          .setWindow(encodedWindowOut.toByteString()).buildPartial();
+    ByteString.Output encodedWindowOut = ByteString.newOutput();
+    try {
+      windowCoder.encode(windowMappingFn.getSideInputWindow(currentWindow), encodedWindowOut);
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
     }
+
     return StateKey.newBuilder()
         .setMultimapSideInput(
-            cachedPartialMultimapSideInputKey.toBuilder().setSideInputId(id).build())
+            StateKey.MultimapSideInput.newBuilder()
+                .setPtransformId(ptransformId)
+                .setWindow(encodedWindowOut.toByteString())
+                .setSideInputId(id))
         .build();
   }
 }
