@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.state;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
@@ -29,6 +30,11 @@ import org.joda.time.Instant;
  */
 @Internal
 public interface WatermarkHoldState extends GroupingState<Instant, Instant> {
+
+  @Override
+  @Nullable
+  Instant read();
+
   /**
    * Return the {@link TimestampCombiner} which will be used to determine a watermark hold time
    * given an element timestamp, and to combine watermarks from windows which are about to be

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.state;
 
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Combine;
@@ -33,6 +34,11 @@ import org.apache.beam.sdk.transforms.GroupByKey;
  */
 @Experimental(Kind.STATE)
 public interface GroupingState<InputT, OutputT> extends ReadableState<OutputT>, State {
+
+  @Override
+  @Nonnull
+  OutputT read();
+
   /**
    * Add a value to the buffer.
    *
