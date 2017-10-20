@@ -169,7 +169,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
   @Override
   public void onElement(OnElementContext c) throws Exception {
     GroupingState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
-    Instant oldDelayUntil = delayUntilState.read();
+    @Nullable Instant oldDelayUntil = delayUntilState.read();
 
     // Since processing time can only advance, resulting in target wake-up times we would
     // ignore anyhow, we don't bother with it if it is already set.
