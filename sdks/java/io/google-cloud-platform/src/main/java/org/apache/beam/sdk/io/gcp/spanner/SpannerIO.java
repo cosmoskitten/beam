@@ -235,6 +235,7 @@ public class SpannerIO {
         .setSpannerConfig(SpannerConfig.create())
         .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
         .setNumSamples(DEFAULT_NUM_SAMPLES)
+        .setRateLimiter(RateLimiters.doNothing())
         .build();
   }
 
@@ -583,6 +584,8 @@ public class SpannerIO {
 
     abstract int getNumSamples();
 
+    abstract RateLimiter.Factory getRateLimiter();
+
     @Nullable
      abstract PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
          getSampler();
@@ -597,6 +600,8 @@ public class SpannerIO {
       abstract Builder setBatchSizeBytes(long batchSizeBytes);
 
       abstract Builder setNumSamples(int numSamples);
+
+      abstract Builder setRateLimiter(RateLimiter.Factory rateLimiter);
 
       abstract Builder setSampler(
           PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
@@ -647,6 +652,11 @@ public class SpannerIO {
     Write withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withServiceFactory(serviceFactory));
+    }
+
+    @VisibleForTesting
+    public Write withRateLimier(RateLimiter.Factory rateLimier) {
+      return write().toBuilder().setRateLimiter(rateLimier).build();
     }
 
     @VisibleForTesting
@@ -745,7 +755,7 @@ public class SpannerIO {
               ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getSpannerConfig(), schemaView))
                   .withSideInputs(schemaView))
           .apply("Write mutations to Spanner",
-          ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig())));
+          ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig(), spec.getRateLimiter())));
       return PDone.in(input.getPipeline());
 
     }
@@ -917,16 +927,22 @@ public class SpannerIO {
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF = FluentBackoff.DEFAULT
         .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
 
-    private transient SpannerAccessor spannerAccessor;
     private final SpannerConfig spannerConfig;
+    private final RateLimiter.Factory rateLimiterFactory;
 
-    public WriteToSpannerFn(SpannerConfig spannerConfig) {
+    private transient SpannerAccessor spannerAccessor;
+    private transient RateLimiter rateLimiter;
+
+
+    public WriteToSpannerFn(SpannerConfig spannerConfig, RateLimiter.Factory rateLimiterFactory) {
       this.spannerConfig = spannerConfig;
+      this.rateLimiterFactory = rateLimiterFactory;
     }
 
     @Setup
     public void setup() throws Exception {
       spannerAccessor = spannerConfig.connectToSpanner();
+      rateLimiter = rateLimiterFactory.create();
     }
 
     @Teardown
@@ -941,7 +957,7 @@ public class SpannerIO {
       BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
 
       Iterable<Mutation> mutations = c.element();
-
+      rateLimiter.start();
       while (true) {
         // Batch upsert rows.
         try {
@@ -956,6 +972,7 @@ public class SpannerIO {
           }
         }
       }
+      rateLimiter.end();
     }
 
   }

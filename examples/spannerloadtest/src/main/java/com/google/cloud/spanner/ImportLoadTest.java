@@ -5,6 +5,7 @@ import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.Range;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.gcp.spanner.RateLimiters;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
 import org.apache.beam.sdk.options.*;
@@ -86,7 +87,9 @@ public class ImportLoadTest implements Serializable {
         .of(new GenerateMutations(options.getTable(), options.getMutations(),
             options.getNumberOfShards(), options.getNumberOfFields(), options.getFieldSize())));
 
-    mutations.apply(SpannerIO.write().withSpannerConfig(
+    mutations.apply(SpannerIO.write()
+        .withRateLimier(RateLimiters.newRateLimiter(800, 5000, .3))
+        .withSpannerConfig(
         SpannerConfig.create()
             .withHost("https://staging-wrenchworks.sandbox.googleapis.com")
             .withInstanceId(options.getInstanceId())
