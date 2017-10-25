@@ -21,11 +21,15 @@ import time
 import unittest
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import WindowedValueMatcher
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import util
 from apache_beam.transforms import window
+from apache_beam.utils import timestamp
+from apache_beam.utils import windowed_value
 
 
 class FakeClock(object):
@@ -106,3 +110,57 @@ class BatchElementsTest(unittest.TestCase):
       with batch_estimator.record_time(actual_sizes[-1]):
         clock.sleep(batch_duration(actual_sizes[-1]))
     self.assertEqual(expected_sizes, actual_sizes)
+
+
+class IdentityWindowTest(unittest.TestCase):
+
+  def test_window_preserved(self):
+    expected_timestamp = timestamp.Timestamp(5)
+    expected_window = window.IntervalWindow(1.0, 2.0)
+
+    class AddWindowDoFn(beam.DoFn):
+      def process(self, element):
+        yield windowed_value.WindowedValue(
+            element, expected_timestamp, [expected_window])
+
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+    expected_windows = [
+        (kv, expected_timestamp, expected_window) for kv in data]
+    _ = (pipeline
+         | 'start' >> beam.Create(data)
+         | 'add_windows' >> beam.ParDo(AddWindowDoFn())
+         | 'assert_windows_before' >> WindowedValueMatcher(expected_windows)
+         | 'window' >> beam.WindowInto(beam.transforms.util.IdentityWindowFn(
+             coders.IntervalWindowCoder()))
+         | 'assert_windows_after' >> WindowedValueMatcher(expected_windows)
+        )
+    pipeline.run()
+
+  def test_no_window_context_fails(self):
+    expected_timestamp = timestamp.Timestamp(5)
+    # Assuming the default window function is window.GlobalWindows.
+    expected_window = window.GlobalWindow()
+
+    class AddTimestampDoFn(beam.DoFn):
+      def process(self, element):
+        yield window.TimestampedValue(element, expected_timestamp)
+
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+    expected_windows = [
+        (kv, expected_timestamp, expected_window) for kv in data]
+    _ = (pipeline
+         | 'start' >> beam.Create(data)
+         | 'add_timestamps' >> beam.ParDo(AddTimestampDoFn())
+         | 'assert_windows_before' >> WindowedValueMatcher(expected_windows)
+         | 'window' >> beam.WindowInto(beam.transforms.util.IdentityWindowFn(
+             coders.GlobalWindowCoder()))
+         # This DoFn will return TimestampedValues, making
+         # WindowFn.AssignContext passed to IdentityWindowFn contain a window
+         # of None. IdentityWindowFn should raise an exception.
+         | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn())
+         | 'assert_windows_after' >> WindowedValueMatcher(expected_windows)
+        )
+    with self.assertRaisesRegexp(ValueError, r'window.*None.*add_timestamps2'):
+      pipeline.run()

@@ -19,13 +19,17 @@
 
 from __future__ import absolute_import
 
+import copy
 import glob
 import tempfile
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
+from apache_beam.transforms.combiners import Count
 from apache_beam.transforms.core import Create
+from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import Map
+from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.util import CoGroupByKey
@@ -37,6 +41,7 @@ __all__ = [
     'is_empty',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
+    'WindowedValueMatcher',
     ]
 
 
@@ -120,3 +125,66 @@ def open_shards(glob_pattern):
       f.write(file(shard).read())
     concatenated_file_name = f.name
   return file(concatenated_file_name, 'rb')
+
+
+class _WindowedValueMatcherDoFn(DoFn):
+  """Verifies that all processed elements are in the list of expected
+  elements."""
+
+  def __init__(self, expected_elements):
+    """
+    Arguments:
+      expected_elements: A list of (element, timestamp, window) tuples to match.
+    """
+    super(_WindowedValueMatcherDoFn, self).__init__()
+    self.expected_elements = copy.copy(expected_elements)
+
+  def process(self, element, timestamp=DoFn.TimestampParam,
+              window=DoFn.WindowParam):
+    try:
+      self.expected_elements.remove((element, timestamp, window))
+    except ValueError:
+      raise BeamAssertException('Unexpected element: (%r, %r, %r)' % (
+          element, timestamp, window))
+    return [element]
+
+
+class WindowedValueMatcher(PTransform):
+  """Matches PCollection contents to a list of possible
+  (values, timestamps, windows) in any order.
+
+  For use in tests only.
+  Will throw a BeamAssertException on mismatch.
+
+  Example usage:
+    expected_window_values = [
+      (element, Timestamp(...), BoundedWindow(...)), ...)]
+    # Where element may be (key, value).
+
+    _ = (pipeline
+         | 'create_elements' >> ...
+         | 'assert_windowed_values' >> WindowedValueMatcher(
+         expected_window_values)
+         | ...
+         )
+  """
+
+  def __init__(self, expected_elements):
+    """
+    Arguments:
+      expected_elements: A list of (element, timestamp, window) tuples to match.
+    """
+    super(WindowedValueMatcher, self).__init__()
+    self.expected_elements = expected_elements
+
+  def expand(self, pcoll):
+    """Checks that pcoll elements are in expected_elements, and that both are of
+    the same size."""
+    num_expected_elements = len(self.expected_elements)
+    result = (pcoll
+              | ParDo(_WindowedValueMatcherDoFn(self.expected_elements))
+              | WindowInto(window.GlobalWindows())
+              | Count.Globally()
+             )
+    assert_that(result, equal_to([num_expected_elements]))
+    return pcoll
