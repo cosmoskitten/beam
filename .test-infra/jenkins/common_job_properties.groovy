@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import org.jenkinsci.plugins.ghprb.GhprbTrigger
+
 // Contains functions that help build Jenkins projects. Functions typically set
 // common properties that are shared among all Jenkins projects.
 // Code in this directory should conform to the Groovy style guide.
@@ -163,7 +165,7 @@ class common_job_properties {
             }
           }
         }
-        return new org.jenkinsci.plugins.ghprb.GhprbTrigger(
+        return new GhprbTrigger(
           trigger.getAdminList(),
           trigger.getWhitelist(),
           trigger.getOrgslist(),
