@@ -129,44 +129,67 @@ class common_job_properties {
                                                  boolean onlyTriggerPhraseToggle = true,
                                                  String successComment = '--none--') {
     context.triggers {
-      githubPullRequest {
-        admins(['asfbot'])
-        useGitHubHooks()
-        orgWhitelist(['apache'])
-        allowMembersOfWhitelistedOrgsAsAdmin()
-        permitAll()
-        // prTriggerPhrase is the argument which gets set when we want to allow
-        // post-commit builds to run against pending pull requests. This block
-        // overrides the default trigger phrase with the new one. Setting this
-        // will disable automatic invocation of this build; the phrase will be
-        // required to start it.
-        if (prTriggerPhrase) {
-          triggerPhrase(prTriggerPhrase)
-        }
-        if (onlyTriggerPhraseToggle) {
-          onlyTriggerPhrase()
-        }
-
-        extensions {
-          commitStatus {
-            // This is the name that will show up in the GitHub pull request UI
-            // for this Jenkins project.
-            delegate.context("Jenkins: " + commitStatusContext)
+      triggerContext ->
+        def trigger = triggerContext.githubPullRequest {
+          admins(['asfbot'])
+          useGitHubHooks()
+          orgWhitelist(['apache'])
+          allowMembersOfWhitelistedOrgsAsAdmin()
+          permitAll()
+          // prTriggerPhrase is the argument which gets set when we want to allow
+          // post-commit builds to run against pending pull requests. This block
+          // overrides the default trigger phrase with the new one. Setting this
+          // will disable automatic invocation of this build; the phrase will be
+          // required to start it.
+          if (prTriggerPhrase) {
+            triggerPhrase(prTriggerPhrase)
+          }
+          if (onlyTriggerPhraseToggle) {
+            onlyTriggerPhrase()
           }
 
-          // Comment messages after build completes.
-          buildStatus {
-            completedStatus('SUCCESS', successComment)
-            completedStatus('FAILURE', '--none--')
-            completedStatus('ERROR', '--none--')
-          }
+          extensions {
+            commitStatus {
+              // This is the name that will show up in the GitHub pull request UI
+              // for this Jenkins project.
+              delegate.context("Jenkins: " + commitStatusContext)
+            }
 
-          // Use a github trigger extension which cancels builds when an
-          // update to the PR makes a prior run irrelevant.
-          cancelBuildsOnUpdate {
-            overrideGlobal(true)
+            // Comment messages after build completes.
+            buildStatus {
+              completedStatus('SUCCESS', successComment)
+              completedStatus('FAILURE', '--none--')
+              completedStatus('ERROR', '--none--')
+            }
           }
         }
+        return new org.jenkinsci.plugins.ghprb.GhprbTrigger(
+          trigger.getAdminList(),
+          trigger.getWhitelist(),
+          trigger.getOrgslist(),
+          trigger.getCron(),
+          trigger.getTriggerPhrase(),
+          trigger.getOnlyTriggerPhrase(),
+          trigger.getUseGitHubHooks(),
+          trigger.getPermitAll(),
+          trigger.getAutoCloseFailedPullRequests(),
+          trigger.getDisplayBuildErrorOnDownstreamBuilds(),
+          trigger.getCommentFilePath(),
+          trigger.getSkipBuildPhrase(),
+          trigger.getBlackListCommitAuthor(),
+          trigger.getWhiteListTargetBranches(),
+          trigger.getBlackListTargetBranches(),
+          trigger.getAllowMembersOfWhitelistedOrgsAsAdmin(),
+          trigger.getMsgSuccess(),
+          trigger.getMsgFailure(),
+          trigger.getCommitStatusContext(),
+          trigger.getGitHubAuthId(),
+          trigger.getBuildDescTemplate(),
+          trigger.getBlackListLabels(),
+          trigger.getWhiteListLabels(),
+          trigger.getExtensions(),
+          trigger.getIncludedRegions(),
+          trigger.getExcludedRegions());
       }
     }
   }
