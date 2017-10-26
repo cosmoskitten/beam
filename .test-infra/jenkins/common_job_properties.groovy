@@ -160,10 +160,18 @@ class common_job_properties {
             completedStatus('FAILURE', '--none--')
             completedStatus('ERROR', '--none--')
           }
+
+          // Use a github trigger extension which cancels builds when an
+          // update to the PR makes a prior run irrelevant.
+          ghprbCancelBuildsOnUpdate {
+            overrideGlobal(true)
+          }
         }
       }
     }
   }
+
+
 
   // Sets common config for Maven jobs.
   static void setMavenConfig(context, String mavenInstallation='Maven 3.3.3') {
