@@ -190,7 +190,6 @@ class common_job_properties {
           trigger.getExtensions(),
           trigger.getIncludedRegions(),
           trigger.getExcludedRegions());
-      }
     }
   }
 
