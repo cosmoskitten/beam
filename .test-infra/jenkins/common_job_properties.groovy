@@ -163,6 +163,15 @@ class common_job_properties {
         }
       }
     }
+    // Use a github trigger extension which cancels builds when an update to the
+    // PR makes a prior run irrelevant.
+    ghprbTrigger {
+      extensions {
+        ghprbCancelBuildsOnUpdate {
+          overrideGlobal(true)
+        }
+      }
+    }
   }
 
   // Sets common config for Maven jobs.
