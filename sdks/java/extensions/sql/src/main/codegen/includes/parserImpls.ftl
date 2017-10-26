@@ -74,10 +74,8 @@ SqlNode SqlCreateTable() :
     <COMMENT>
     comment = StringLiteral()
     ]
-    [
     <LOCATION>
     location = StringLiteral()
-    ]
     [ <TBLPROPERTIES> tbl_properties = StringLiteral() ]
     [ <AS> select = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) ] {
         return new SqlCreateTable(pos, tblName, fieldList, comment,

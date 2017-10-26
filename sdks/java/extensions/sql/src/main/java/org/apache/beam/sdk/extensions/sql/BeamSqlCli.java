@@ -17,18 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.parser.BeamSqlParser;
-import org.apache.beam.sdk.extensions.sql.impl.parser.ColumnConstraint;
-import org.apache.beam.sdk.extensions.sql.impl.parser.ColumnDefinition;
+import org.apache.beam.sdk.extensions.sql.impl.parser.ParserUtils;
 import org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateTable;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -44,21 +40,31 @@ import org.apache.calcite.sql.SqlNode;
 @Experimental
 public class BeamSqlCli {
   private BeamSqlEnv env;
+  /**
+   * The store which persists all the table meta data.
+   */
   private MetaStore metaStore;
   /**
    * The default type of table(if not specified when create table).
    */
   private String defaultTableType;
 
-  public BeamSqlCli(MetaStore metaStore) {
+  public BeamSqlCli metaStore(MetaStore metaStore) {
     this.metaStore = metaStore;
     this.env = new BeamSqlEnv();
 
     // dump tables in metaStore into schema
-    List<Table> tables = this.metaStore.queryAllTables();
+    List<Table> tables = this.metaStore.listTables();
     for (Table table : tables) {
       env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table.getName()));
     }
+
+    return this;
+  }
+
+  public BeamSqlCli defaultTableType(String type) {
+    this.defaultTableType = type;
+    return this;
   }
 
   public MetaStore getMetaStore() {
@@ -68,8 +74,8 @@ public class BeamSqlCli {
   /**
    * Returns a human readable representation of the query execution plan.
    */
-  public static String explainQuery(String sqlString, BeamSqlEnv sqlEnv) throws Exception {
-    BeamRelNode exeTree = sqlEnv.planner.convertToBeamRel(sqlString);
+  public String explainQuery(String sqlString) throws Exception {
+    BeamRelNode exeTree = env.getPlanner().convertToBeamRel(sqlString);
     String beamPlan = RelOptUtil.toString(exeTree);
     return beamPlan;
   }
@@ -93,70 +99,26 @@ public class BeamSqlCli {
     }
   }
 
-  private void handleCreateTable(SqlCreateTable sqlNode, MetaStore store) {
-    SqlCreateTable sqlCreateTable = sqlNode;
-    List<Column> columns = new ArrayList<>(sqlCreateTable.fieldList().size());
-    for (ColumnDefinition columnDef : sqlCreateTable.fieldList()) {
-      Column column = Column.builder()
-          .name(columnDef.name())
-          .type(
-              CalciteUtils.toJavaType(
-                  columnDef.type().deriveType(BeamQueryPlanner.TYPE_FACTORY).getSqlTypeName()
-              )
-          )
-          .comment(columnDef.comment())
-          .primaryKey(columnDef.constraint() instanceof ColumnConstraint.PrimaryKey)
-          .build();
-      columns.add(column);
-    }
-
-    String tableType = sqlCreateTable.location() == null
-        ? defaultTableType : sqlCreateTable.location().getScheme();
-
-    if (tableType == null) {
+  private void handleCreateTable(SqlCreateTable stmt, MetaStore store) {
+    Table table = ParserUtils.convertCreateTableStmtToTable(stmt);
+    if (table.getType() == null) {
       throw new IllegalStateException("Table type is not specified and BeamSqlCli#defaultTableType"
           + "is not configured!");
     }
 
-    Table table = Table.builder()
-        .type(tableType)
-        .name(sqlCreateTable.tableName())
-        .columns(columns)
-        .comment(sqlCreateTable.comment())
-        .location(sqlCreateTable.location())
-        .properties(sqlCreateTable.properties())
-        .build();
     store.createTable(table);
 
     // register the new table into the schema
     env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table.getName()));
   }
 
-  public BeamSqlCli defaultTableType(String type) {
-    this.defaultTableType = type;
-    return this;
-  }
-
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  public static PCollection<BeamRecord> compilePipeline(String sqlStatement, BeamSqlEnv sqlEnv)
-      throws Exception{
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
-        .as(PipelineOptions.class); // FlinkPipelineOptions.class
-    options.setJobName("BeamPlanCreator");
-    Pipeline pipeline = Pipeline.create(options);
-
-    return compilePipeline(sqlStatement, pipeline, sqlEnv);
-  }
-
-  /**
-   * compile SQL, and return a {@link Pipeline}.
-   */
-  public static PCollection<BeamRecord> compilePipeline(String sqlStatement, Pipeline basePipeline
-      , BeamSqlEnv sqlEnv) throws Exception{
+  private static PCollection<BeamRecord> compilePipeline(String sqlStatement, Pipeline basePipeline,
+      BeamSqlEnv sqlEnv) throws Exception {
     PCollection<BeamRecord> resultStream =
-        sqlEnv.planner.compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
+        sqlEnv.getPlanner().compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
     return resultStream;
   }
 }

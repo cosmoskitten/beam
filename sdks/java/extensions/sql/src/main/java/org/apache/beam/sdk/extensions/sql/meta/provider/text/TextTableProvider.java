@@ -24,7 +24,7 @@ import com.alibaba.fastjson.JSONObject;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.commons.csv.CSVFormat;
@@ -52,7 +52,7 @@ public class TextTableProvider implements TableProvider {
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
     BeamRecordSqlType recordType = getBeamSqlRecordTypeFromTable(table);
 
-    String filePattern = table.getLocation().getPath();
+    String filePattern = table.getLocationAsString();
     CSVFormat format = CSVFormat.DEFAULT;
     JSONObject properties = table.getProperties();
     String csvFormatStr = properties.getString("format");
@@ -68,7 +68,7 @@ public class TextTableProvider implements TableProvider {
     // empty
   }
 
-  @Override public List<Table> queryAllTables() {
+  @Override public List<Table> listTables() {
     return Collections.emptyList();
   }
 

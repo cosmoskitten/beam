@@ -22,8 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
@@ -31,7 +30,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  * A {@link MetaStore} which stores the meta info in memory.
  *
  * <p>NOTE, because this implementation is memory based, the metadata is NOT persistent.
- * for tables which created, you need to create again every you launch the
+ * for tables which created, you need to create again every time you launch the
  * {@link org.apache.beam.sdk.extensions.sql.BeamSqlCli}.
  */
 public class InMemoryMetaStore implements MetaStore {
@@ -39,30 +38,6 @@ public class InMemoryMetaStore implements MetaStore {
   private Map<String, TableProvider> providers = new HashMap<>();
 
   public InMemoryMetaStore() {
-    // init the providers
-    ServiceLoader<TableProvider> loader = ServiceLoader.load(TableProvider.class);
-    for (TableProvider provider : loader) {
-      provider.init();
-      providers.put(provider.getTableType(), provider);
-    }
-
-    // Init the tables, The tables from all providers should be unique. if there is any duplication,
-    // the init process will fail.
-    for (TableProvider provider : providers.values()) {
-      initTablesFromProvider(provider);
-    }
-  }
-
-  private void initTablesFromProvider(TableProvider provider) {
-    List<Table> tables = provider.queryAllTables();
-    for (Table table : tables) {
-      if (this.tables.containsKey(table.getName())) {
-        throw new IllegalStateException(
-            "Duplicate table: " + table.getName() + " from provider: " + provider);
-      }
-
-      this.tables.put(table.getName(), table);
-    }
   }
 
   @Override public void createTable(Table table) {
@@ -80,16 +55,19 @@ public class InMemoryMetaStore implements MetaStore {
     tables.put(table.getName(), table);
   }
 
-  @Override public Table queryTable(String tableName) {
-    return tables.get(tableName);
+  @Override public Table getTable(String tableName) {
+    if (tableName == null) {
+      return null;
+    }
+    return tables.get(tableName.toLowerCase());
   }
 
-  @Override public List<Table> queryAllTables() {
+  @Override public List<Table> listTables() {
     return new ArrayList<>(tables.values());
   }
 
   @Override public BeamSqlTable buildBeamSqlTable(String tableName) {
-    Table table = queryTable(tableName);
+    Table table = getTable(tableName);
 
     if (table == null) {
       throw new IllegalArgumentException("The specified table: " + tableName + " does not exists!");
@@ -102,13 +80,34 @@ public class InMemoryMetaStore implements MetaStore {
 
   private void validateTableType(Table table) {
     if (!providers.containsKey(table.getType())) {
-      throw new UnsupportedOperationException(
+      throw new IllegalArgumentException(
           "Table type: " + table.getType() + " not supported!");
     }
   }
 
   public void registerProvider(TableProvider provider) {
+    if (providers.containsKey(provider.getTableType())) {
+      throw new IllegalArgumentException("Provider is already registered for table type: "
+          + provider.getTableType());
+    }
+
     this.providers.put(provider.getTableType(), provider);
     initTablesFromProvider(provider);
+  }
+
+  private void initTablesFromProvider(TableProvider provider) {
+    List<Table> tables = provider.listTables();
+    for (Table table : tables) {
+      if (this.tables.containsKey(table.getName())) {
+        throw new IllegalStateException(
+            "Duplicate table: " + table.getName() + " from provider: " + provider);
+      }
+
+      this.tables.put(table.getName(), table);
+    }
+  }
+
+  Map<String, TableProvider> getProviders() {
+    return providers;
   }
 }

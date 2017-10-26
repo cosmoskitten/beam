@@ -19,8 +19,9 @@
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
 /**
  * The interface to handle CRUD of {@code BeamSql} table metadata.
@@ -33,17 +34,23 @@ public interface MetaStore {
   void createTable(Table table);
 
   /**
-   * Query table with the specified name.
+   * Get table with the specified name.
    */
-  Table queryTable(String tableName);
+  Table getTable(String tableName);
 
   /**
-   * Query all the tables.
+   * List all the tables.
    */
-  List<Table> queryAllTables();
+  List<Table> listTables();
 
   /**
    * Build the {@code BeamSqlTable} for the specified table.
    */
   BeamSqlTable buildBeamSqlTable(String tableName);
+
+  /**
+   * Register a table provider.
+   * @param provider
+   */
+  void registerProvider(TableProvider provider);
 }

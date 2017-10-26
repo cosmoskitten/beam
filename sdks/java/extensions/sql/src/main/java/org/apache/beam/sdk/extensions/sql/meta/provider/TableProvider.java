@@ -19,11 +19,14 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /**
  * A {@code TableProvider} handles the metadata CRUD of a specified kind of tables.
+ *
+ * <p>So there will be a provider to handle textfile(CSV) based tables, there is a provider to
+ * handle MySQL based tables, a provider to handle Casandra based tables etc.
  */
 public interface TableProvider {
   /**
@@ -42,9 +45,9 @@ public interface TableProvider {
   void createTable(Table table);
 
   /**
-   * Query all tables from this provider.
+   * List all tables from this provider.
    */
-  List<Table> queryAllTables();
+  List<Table> listTables();
 
   /**
    * Build a {@link BeamSqlTable} using the given table meta info.

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 
 /**
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.

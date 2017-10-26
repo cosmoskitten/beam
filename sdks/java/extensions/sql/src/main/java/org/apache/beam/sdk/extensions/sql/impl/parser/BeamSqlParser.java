@@ -23,7 +23,7 @@ import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.calcite.config.Lex;
 
 /**
- *
+ * SQL Parser which handles DDL for Beam.
  */
 public class BeamSqlParser {
   public static final int DEFAULT_IDENTIFIER_MAX_LENGTH = 128;

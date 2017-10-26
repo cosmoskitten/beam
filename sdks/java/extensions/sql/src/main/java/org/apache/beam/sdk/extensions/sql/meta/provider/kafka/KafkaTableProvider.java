@@ -26,12 +26,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
 /**
- * Text table provider.
+ * Kafka table provider.
  *
  * <p>A sample of text table is:
  *
@@ -68,7 +68,7 @@ public class KafkaTableProvider implements TableProvider {
     // empty
   }
 
-  @Override public List<Table> queryAllTables() {
+  @Override public List<Table> listTables() {
     return Collections.emptyList();
   }
 

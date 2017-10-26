@@ -41,9 +41,16 @@ public abstract class Table implements Serializable {
   @Nullable
   public abstract JSONObject getProperties();
 
-
   public static Builder builder() {
     return new org.apache.beam.sdk.extensions.sql.meta.AutoValue_Table.Builder();
+  }
+
+  public String getLocationAsString() {
+    if (getLocation() == null) {
+      return null;
+    }
+
+    return "/" + getLocation().getHost() + getLocation().getPath();
   }
 
   /**
