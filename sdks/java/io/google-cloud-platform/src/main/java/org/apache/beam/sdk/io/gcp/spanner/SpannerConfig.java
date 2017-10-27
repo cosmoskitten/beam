@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.annotations.VisibleForTesting;
@@ -149,6 +150,10 @@ public abstract class SpannerConfig implements Serializable {
     }
     ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
     builder.setUserAgentPrefix(USER_AGENT_PREFIX + "/" + releaseInfo.getVersion());
+    // One channel and one session.
+//    builder.setNumChannels(1);
+//    builder.setSessionPoolOption(
+//        SessionPoolOptions.newBuilder().setMinSessions(1).setMaxSessions(1).build());
     SpannerOptions options = builder.build();
     Spanner spanner = options.getService();
     DatabaseClient databaseClient = spanner.getDatabaseClient(

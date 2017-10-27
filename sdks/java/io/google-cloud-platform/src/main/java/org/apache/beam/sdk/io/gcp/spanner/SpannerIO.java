@@ -24,10 +24,12 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
@@ -35,6 +37,7 @@ import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.primitives.UnsignedBytes;
+import io.grpc.Context;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,6 +46,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -932,6 +938,7 @@ public class SpannerIO {
 
     private transient SpannerAccessor spannerAccessor;
     private transient RateLimiter rateLimiter;
+    private transient ScheduledExecutorService executor;
 
 
     public WriteToSpannerFn(SpannerConfig spannerConfig, RateLimiter.Factory rateLimiterFactory) {
@@ -943,36 +950,36 @@ public class SpannerIO {
     public void setup() throws Exception {
       spannerAccessor = spannerConfig.connectToSpanner();
       rateLimiter = rateLimiterFactory.create();
+      executor = Executors.newSingleThreadScheduledExecutor();
     }
 
     @Teardown
     public void teardown() throws Exception {
       spannerAccessor.close();
+      executor.shutdown();
     }
 
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Sleeper sleeper = Sleeper.DEFAULT;
-      BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
+      final Sleeper sleeper = Sleeper.DEFAULT;
+      final BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
 
-      Iterable<Mutation> mutations = c.element();
-      rateLimiter.start();
+      final Iterable<Mutation> mutations = c.element();
+      final DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
       while (true) {
         // Batch upsert rows.
         try {
-          spannerAccessor.getDatabaseClient().writeAtLeastOnce(mutations);
-          // Break if the commit threw no exception.
+          databaseClient.writeAtLeastOnce(mutations);
           break;
-        } catch (AbortedException exception) {
+        } catch (SpannerException exception) {
           // Only log the code and message for potentially-transient errors. The entire exception
           // will be propagated upon the last retry.
           if (!BackOffUtils.next(sleeper, backoff)) {
-            throw exception;
+            throw new RuntimeException("Cannot submit a batch", exception);
           }
         }
       }
-      rateLimiter.end();
     }
 
   }
