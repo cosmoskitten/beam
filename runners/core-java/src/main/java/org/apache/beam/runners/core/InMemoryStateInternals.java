@@ -179,7 +179,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
   public static final class InMemoryValue<T>
       implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
     private boolean isCleared = true;
-    private T value = null;
+    private @Nullable T value = null;
 
     @Override
     public void clear() {
