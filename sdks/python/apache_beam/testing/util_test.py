@@ -22,6 +22,8 @@ import unittest
 from apache_beam import Create
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
+from apache_beam.testing.util import EqualToWindowedValue
+from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import WindowedValueMatcher
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -29,9 +31,12 @@ from apache_beam.testing.util import is_empty
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import WindowInto
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils.windowed_value import WindowedValue
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
 class UtilTest(unittest.TestCase):
@@ -40,87 +45,83 @@ class UtilTest(unittest.TestCase):
     with TestPipeline() as p:
       assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
 
+  def test_assert_that_passes_empty_equal_to(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([]), equal_to([]))
+
+  def test_assert_that_passes_empty_is_empty(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([]), is_empty())
+
+  def test_windowed_value_passes(self):
+    expected = [TestWindowedValue(v, MIN_TIMESTAMP, [GlobalWindow()])
+                for v in [1, 2, 3]]
+    with TestPipeline() as p:
+      assert_that(p | Create([2, 3, 1]), EqualToWindowedValue(expected))
+
   def test_assert_that_fails(self):
-    with self.assertRaises(Exception):
+    with self.assertRaises(BeamAssertException):
       with TestPipeline() as p:
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
+  def test_windowed_value_assert_fail_bad_value(self):
+    expected = [TestWindowedValue(v + 1, MIN_TIMESTAMP, [GlobalWindow()])
+                for v in [1, 2, 3]]
+    with self.assertRaises(BeamAssertException):
+      with TestPipeline() as p:
+        assert_that(p | Create([2, 3, 1]), EqualToWindowedValue(expected))
+
+  def test_windowed_value_assert_fail_bad_timestamp(self):
+    expected = [TestWindowedValue(v, 1, [GlobalWindow()])
+                for v in [1, 2, 3]]
+    with self.assertRaises(BeamAssertException):
+      with TestPipeline() as p:
+        assert_that(p | Create([2, 3, 1]), EqualToWindowedValue(expected))
+
+  def test_windowed_value_assert_fail_bad_window(self):
+    expected = [TestWindowedValue(v, MIN_TIMESTAMP, [IntervalWindow(0, 1)])
+                for v in [1, 2, 3]]
+    with self.assertRaises(BeamAssertException):
+      with TestPipeline() as p:
+        assert_that(p | Create([2, 3, 1]), EqualToWindowedValue(expected))
+
   def test_assert_that_fails_on_empty_input(self):
-    with self.assertRaises(Exception):
+    with self.assertRaises(BeamAssertException):
       with TestPipeline() as p:
         assert_that(p | Create([]), equal_to([1, 2, 3]))
 
   def test_assert_that_fails_on_empty_expected(self):
-    with self.assertRaises(Exception):
+    with self.assertRaises(BeamAssertException):
       with TestPipeline() as p:
         assert_that(p | Create([1, 2, 3]), is_empty())
 
-  def test_windowed_value_matcher_pass(self):
-    class AddTimestampDoFn(DoFn):
-      def process(self, element):
-        yield TimestampedValue(element, element[1])
+  def test_custom_matcher_plain_value_success(self):
+    expected = [1, 2, 3]
+    def matcher(actual):
+      if actual != expected:
+        raise BeamAssertException('custom matcher found mismatch: %r != %r' %
+                                  (expected, actual))
 
     with TestPipeline() as p:
-      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-      expected_window_values = [
-          ((1, 1), 1.0, IntervalWindow(1.0, 3.0)),
-          ((2, 1), 1.0, IntervalWindow(1.0, 3.0)),
-          ((3, 1), 1.0, IntervalWindow(1.0, 3.0)),
-          ((1, 2), 2.0, IntervalWindow(2.0, 4.0)),
-          ((2, 2), 2.0, IntervalWindow(2.0, 4.0)),
-          ((1, 4), 4.0, IntervalWindow(4.0, 6.0))]
-      _ = (p
-           | 'start' >> Create(data)
-           | 'add_timestamps' >> ParDo(AddTimestampDoFn())
-           | 'window' >> WindowInto(Sessions(gap_size=2))
-           | 'assert_windowed_values' >> WindowedValueMatcher(
-               expected_window_values))
+      assert_that(p | Create([1, 2, 3]), matcher)
 
-  def test_windowed_value_matcher_unexpected_element(self):
-    class AddTimestampDoFn(DoFn):
-      def process(self, element):
-        yield TimestampedValue(element, element[1])
+  def test_custom_matcher_windowed_value_success(self):
+    expected = [
+        TestWindowedValue(v, MIN_TIMESTAMP,
+                          [GlobalWindow()]) for v in [1, 2, 3]]
 
-    with self.assertRaisesRegexp(BeamAssertException, r'Unexpected.*(1, 4)'):
-      with TestPipeline() as p:
-        data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-        # This list is missing element (1, 4).
-        expected_window_values = [
-            ((1, 1), 1.0, IntervalWindow(1.0, 3.0)),
-            ((2, 1), 1.0, IntervalWindow(1.0, 3.0)),
-            ((3, 1), 1.0, IntervalWindow(1.0, 3.0)),
-            ((1, 2), 2.0, IntervalWindow(2.0, 4.0)),
-            ((2, 2), 2.0, IntervalWindow(2.0, 4.0))]
-        _ = (p
-             | 'start' >> Create(data)
-             | 'add_timestamps' >> ParDo(AddTimestampDoFn())
-             | 'window' >> WindowInto(Sessions(gap_size=2))
-             | 'assert_windowed_values' >> WindowedValueMatcher(
-                 expected_window_values))
+    with TestPipeline() as p:
+      assert_that(p | Create([1, 2, 3]), CustomMatcher(expected))
 
-  def test_windowed_value_matcher_extra_element(self):
-    class AddTimestampDoFn(DoFn):
-      def process(self, element):
-        yield TimestampedValue(element, element[1])
 
-    with self.assertRaisesRegexp(BeamAssertException,
-                                 r'Failed assert.*\[6\] == \[5\]'):
-      with TestPipeline() as p:
-        # This list is missing element (1, 4).
-        data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2)]
-        expected_window_values = [
-            ((1, 1), 1.0, IntervalWindow(1.0, 3.0)),
-            ((2, 1), 1.0, IntervalWindow(1.0, 3.0)),
-            ((3, 1), 1.0, IntervalWindow(1.0, 3.0)),
-            ((1, 2), 2.0, IntervalWindow(2.0, 4.0)),
-            ((2, 2), 2.0, IntervalWindow(2.0, 4.0)),
-            ((1, 4), 4.0, IntervalWindow(4.0, 6.0))]
-        _ = (p
-             | 'start' >> Create(data)
-             | 'add_timestamps' >> ParDo(AddTimestampDoFn())
-             | 'window' >> WindowInto(Sessions(gap_size=2))
-             | 'assert_windowed_values' >> WindowedValueMatcher(
-                 expected_window_values))
+class CustomMatcher(WindowedValueMatcher):
+  def __init__(self, expected):
+    self._expected = expected
+
+  def match(self, actual):
+    if actual != self._expected:
+      raise BeamAssertException('custom matcher found mismatch: %r != %r' %
+                                (self._expected, actual))
 
 
 if __name__ == '__main__':

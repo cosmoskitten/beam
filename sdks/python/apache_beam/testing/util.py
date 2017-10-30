@@ -19,6 +19,9 @@
 
 from __future__ import absolute_import
 
+from abc import ABCMeta
+from abc import abstractmethod
+import collections
 import copy
 import glob
 import tempfile
@@ -34,6 +37,7 @@ from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.util import CoGroupByKey
 from apache_beam.utils.annotations import experimental
+from apache_beam.utils.windowed_value import WindowedValue
 
 __all__ = [
     'assert_that',
@@ -41,6 +45,7 @@ __all__ = [
     'is_empty',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
+    'TestWindowedValue',
     'WindowedValueMatcher',
     ]
 
@@ -49,6 +54,26 @@ class BeamAssertException(Exception):
   """Exception raised by matcher classes used by assert_that transform."""
 
   pass
+
+
+# Used for reifying timestamps and windows for assert_that matchers.
+TestWindowedValue = collections.namedtuple(
+    'TestWindowedValue', 'value timestamp windows')
+
+
+class WindowedValueMatcher(object):
+  """Matches TestWindowedValues."""
+
+  __metaclass__ = ABCMeta
+
+  @abstractmethod
+  def match(self, actual):
+    """Matches TestWindowedValues accord to some rule.
+
+    Arguments:
+      actual: Iterable of TestWindowedValue to match.
+    """
+    raise NotImplementedError()
 
 
 # Note that equal_to always sorts the expected and actual since what we
@@ -68,6 +93,21 @@ def equal_to(expected):
   return _equal
 
 
+class EqualToWindowedValue(WindowedValueMatcher):
+  def __init__(self, expected):
+    """
+    Arguments:
+      expected: Iterable of TestWindowedValue.
+    """
+    self._expected = expected
+
+  def match(self, actual):
+    sorted_expected = sorted(self._expected)
+    sorted_actual = sorted(actual)
+    if sorted_expected != sorted_actual:
+      raise BeamAssertException(
+          'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+
 def is_empty():
   def _empty(actual):
     actual = list(actual)
@@ -85,9 +125,11 @@ def assert_that(actual, matcher, label='assert_that'):
 
   Args:
     actual: A PCollection.
-    matcher: A matcher function taking as argument the actual value of a
-      materialized PCollection. The matcher validates this actual value against
-      expectations and raises BeamAssertException if they are not met.
+    matcher: Two options:
+      1. A matcher function taking as argument the actual value of a
+      materialized PCollection. The matcher validates this actual value
+      against expectations and raises BeamAssertException if they are not met.
+      2. An instance of WindowedValueMatcher.
     label: Optional string label. This is needed in case several assert_that
       transforms are introduced in the same pipeline.
 
@@ -96,9 +138,22 @@ def assert_that(actual, matcher, label='assert_that'):
   """
   assert isinstance(actual, pvalue.PCollection)
 
+  class ReifyTimestampWindow(DoFn):
+    def process(self, element, timestamp=DoFn.TimestampParam,
+                window=DoFn.WindowParam):
+      # This returns TestWindowedValue instead of
+      # beam.utils.windowed_value.WindowedValue because ParDo will extract
+      # the timestamp and window out of the latter.
+      return [TestWindowedValue(element, timestamp, [window])]
+
   class AssertThat(PTransform):
 
     def expand(self, pcoll):
+      matcher_callable = matcher
+      if isinstance(matcher, WindowedValueMatcher):
+        pcoll = pcoll | ParDo(ReifyTimestampWindow())
+        matcher_callable = matcher.match
+
       # We must have at least a single element to ensure the matcher
       # code gets run even if the input pcollection is empty.
       keyed_singleton = pcoll.pipeline | Create([(None, None)])
@@ -109,7 +164,7 @@ def assert_that(actual, matcher, label='assert_that'):
       _ = ((keyed_singleton, keyed_actual)
            | "Group" >> CoGroupByKey()
            | "Unkey" >> Map(lambda k___actual_values: k___actual_values[1][1])
-           | "Match" >> Map(matcher))
+           | "Match" >> Map(matcher_callable))
 
     def default_label(self):
       return label
@@ -125,66 +180,3 @@ def open_shards(glob_pattern):
       f.write(file(shard).read())
     concatenated_file_name = f.name
   return file(concatenated_file_name, 'rb')
-
-
-class _WindowedValueMatcherDoFn(DoFn):
-  """Verifies that all processed elements are in the list of expected
-  elements."""
-
-  def __init__(self, expected_elements):
-    """
-    Arguments:
-      expected_elements: A list of (element, timestamp, window) tuples to match.
-    """
-    super(_WindowedValueMatcherDoFn, self).__init__()
-    self.expected_elements = copy.copy(expected_elements)
-
-  def process(self, element, timestamp=DoFn.TimestampParam,
-              window=DoFn.WindowParam):
-    try:
-      self.expected_elements.remove((element, timestamp, window))
-    except ValueError:
-      raise BeamAssertException('Unexpected element: (%r, %r, %r)' % (
-          element, timestamp, window))
-    return [element]
-
-
-class WindowedValueMatcher(PTransform):
-  """Matches PCollection contents to a list of possible
-  (values, timestamps, windows) in any order.
-
-  For use in tests only.
-  Will throw a BeamAssertException on mismatch.
-
-  Example usage:
-    expected_window_values = [
-      (element, Timestamp(...), BoundedWindow(...)), ...)]
-    # Where element may be (key, value).
-
-    _ = (pipeline
-         | 'create_elements' >> ...
-         | 'assert_windowed_values' >> WindowedValueMatcher(
-         expected_window_values)
-         | ...
-         )
-  """
-
-  def __init__(self, expected_elements):
-    """
-    Arguments:
-      expected_elements: A list of (element, timestamp, window) tuples to match.
-    """
-    super(WindowedValueMatcher, self).__init__()
-    self.expected_elements = expected_elements
-
-  def expand(self, pcoll):
-    """Checks that pcoll elements are in expected_elements, and that both are of
-    the same size."""
-    num_expected_elements = len(self.expected_elements)
-    result = (pcoll
-              | ParDo(_WindowedValueMatcherDoFn(self.expected_elements))
-              | WindowInto(window.GlobalWindows())
-              | Count.Globally()
-             )
-    assert_that(result, equal_to([num_expected_elements]))
-    return pcoll

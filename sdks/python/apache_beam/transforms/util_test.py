@@ -23,7 +23,8 @@ import unittest
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import WindowedValueMatcher
+from apache_beam.testing.util import EqualToWindowedValue
+from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import util
@@ -126,15 +127,18 @@ class IdentityWindowTest(unittest.TestCase):
     pipeline = TestPipeline()
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
     expected_windows = [
-        (kv, expected_timestamp, expected_window) for kv in data]
-    _ = (pipeline
+        TestWindowedValue(kv, expected_timestamp, [expected_window])
+        for kv in data]
+    before_identity = (pipeline
          | 'start' >> beam.Create(data)
-         | 'add_windows' >> beam.ParDo(AddWindowDoFn())
-         | 'assert_windows_before' >> WindowedValueMatcher(expected_windows)
+         | 'add_windows' >> beam.ParDo(AddWindowDoFn()))
+    assert_that(before_identity, EqualToWindowedValue(expected_windows),
+                label='before_identity')
+    after_identity = (before_identity
          | 'window' >> beam.WindowInto(beam.transforms.util.IdentityWindowFn(
-             coders.IntervalWindowCoder()))
-         | 'assert_windows_after' >> WindowedValueMatcher(expected_windows)
-        )
+             coders.IntervalWindowCoder())))
+    assert_that(after_identity, EqualToWindowedValue(expected_windows),
+                label='after_identity')
     pipeline.run()
 
   def test_no_window_context_fails(self):
@@ -149,18 +153,21 @@ class IdentityWindowTest(unittest.TestCase):
     pipeline = TestPipeline()
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
     expected_windows = [
-        (kv, expected_timestamp, expected_window) for kv in data]
-    _ = (pipeline
+        TestWindowedValue(kv, expected_timestamp, [expected_window])
+        for kv in data]
+    before_identity = (pipeline
          | 'start' >> beam.Create(data)
-         | 'add_timestamps' >> beam.ParDo(AddTimestampDoFn())
-         | 'assert_windows_before' >> WindowedValueMatcher(expected_windows)
+         | 'add_timestamps' >> beam.ParDo(AddTimestampDoFn()))
+    assert_that(before_identity, EqualToWindowedValue(expected_windows),
+                label='before_identity')
+    after_identity = (before_identity
          | 'window' >> beam.WindowInto(beam.transforms.util.IdentityWindowFn(
              coders.GlobalWindowCoder()))
          # This DoFn will return TimestampedValues, making
          # WindowFn.AssignContext passed to IdentityWindowFn contain a window
          # of None. IdentityWindowFn should raise an exception.
-         | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn())
-         | 'assert_windows_after' >> WindowedValueMatcher(expected_windows)
-        )
+         | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
+    assert_that(after_identity, EqualToWindowedValue(expected_windows),
+                label='after_identity')
     with self.assertRaisesRegexp(ValueError, r'window.*None.*add_timestamps2'):
       pipeline.run()
