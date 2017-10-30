@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
@@ -27,11 +28,13 @@ import org.apache.beam.runners.core.TimerInternals;
 public class FlinkNoOpStepContext implements StepContext {
 
   @Override
+  @Nullable
   public StateInternals stateInternals() {
     return null;
   }
 
   @Override
+  @Nullable
   public TimerInternals timerInternals() {
     return null;
   }
