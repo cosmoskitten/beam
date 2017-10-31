@@ -124,6 +124,11 @@ class PCollection(PValue):
           self.producer.inputs)
     return self._windowing
 
+  # TODO(ehudm): Make this internal.
+  @windowing.setter
+  def windowing(self, windowing):
+    self._windowing = windowing
+
   def __reduce_ex__(self, unused_version):
     # Pickling a PCollection is almost always the wrong thing to do, but we
     # can't prohibit it as it often gets implicitly picked up (e.g. as part

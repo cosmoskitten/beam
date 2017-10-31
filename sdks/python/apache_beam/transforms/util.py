@@ -26,6 +26,7 @@ import time
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
@@ -33,9 +34,13 @@ from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
+from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import TriggerFn
 from apache_beam.transforms.window import NonMergingWindowFn
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 
 __all__ = [
@@ -44,10 +49,12 @@ __all__ = [
     'Keys',
     'KvSwap',
     'RemoveDuplicates',
+    'Reshuffle',
     'Values',
     ]
 
-
+K = typehints.TypeVariable('K')
+V = typehints.TypeVariable('V')
 T = typehints.TypeVariable('T')
 
 
@@ -456,3 +463,83 @@ class IdentityWindowFn(NonMergingWindowFn):
 
   def get_window_coder(self):
     return self._coder
+
+class TriggerForEveryElement(TriggerFn):
+
+  def __repr__(self):
+    return 'TriggerForEveryElement'
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def on_element(self, element, window, context):
+    pass
+
+  def on_merge(self, to_be_merged, merge_result, context):
+    # doesn't merge
+    pass
+
+  def should_fire(self, watermark, window, context):
+    return True
+
+  def on_fire(self, watermark, window, context):
+    return True
+
+  def reset(self, window, context):
+    pass
+
+  @staticmethod
+  def from_runner_api(unused_proto, unused_context):
+    return TriggerForEveryElement()
+
+  def to_runner_api(self, unused_context):
+    # TODO: add TriggerForEveryElement to proto
+    return beam_runner_api_pb2.Trigger(
+        element_count=beam_runner_api_pb2.Trigger.ElementCount(
+            element_count=0))
+
+
+# TODO(ehudm): compare with Java implementation for more edge cases.
+# TODO: are these typehints necessary?
+@typehints.with_input_types(typehints.KV[K, V])
+@typehints.with_output_types(typehints.KV[K, V])
+class Reshuffle(PTransform):
+  """TODO description
+
+  Reshuffle is experimental. No backwards compatibility guarantees.
+  """
+
+  def expand(self, pcoll):
+    class ExpandIterableDoFn(DoFn):
+      def process(self, element):
+        return [(element[0], value) for value in element[1]]
+
+    class ReifyTimestampsIn(DoFn):
+      def process(self, element, timestamp=DoFn.TimestampParam):
+        if (isinstance(timestamp, type(DoFn.TimestampParam)) and
+                timestamp == DoFn.TimestampParam):
+          raise ValueError('timestamp was unset for element: %r' % element)
+        yield element[0], TimestampedValue(element[1], timestamp)
+
+    class ReifyTimestampsExtract(DoFn):
+      def process(self, element, window=DoFn.WindowParam):
+        yield windowed_value.WindowedValue(
+            (element[0], element[1].value), element[1].timestamp, [window])
+
+    # TODO: is it safe to reapply this value?
+    windowing_saved = pcoll.windowing
+    # TODO: add .with_input_types, .with_output_types to PTransforms below?
+    pcoll_intermediate = (pcoll
+            | 'ReifyTimestampsIn' >> ParDo(ReifyTimestampsIn())
+            | 'IdentityWindow' >> WindowInto(
+                IdentityWindowFn(windowing_saved.windowfn.get_window_coder()),
+                trigger=TriggerForEveryElement(),
+                accumulation_mode=AccumulationMode.DISCARDING,
+                # TODO: timestamp_combiner=
+                )
+            | 'GroupByKey' >> GroupByKey()
+            | 'ExpandIterable' >> ParDo(ExpandIterableDoFn()))
+    pcoll_intermediate.windowing = windowing_saved
+
+    return (pcoll_intermediate
+            | 'ReifyTimestampsExtract' >> ParDo(ReifyTimestampsExtract()))
