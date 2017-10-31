@@ -31,6 +31,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -60,7 +61,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   private String[] fillAddresses(){
     ArrayList<String> result = new ArrayList<>();
     for (InetSocketAddress address : cluster().httpAddresses()){
-      result.add(String.format("http://%s:%d", address.getHostString(), address.getPort()));
+      result.add(String.format("http://%s:%s", address.getHostString(), address.getPort()));
     }
     return result.toArray(new String[result.size()]);
   }
