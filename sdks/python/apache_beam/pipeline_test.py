@@ -30,7 +30,6 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.pvalue import AsSingleton
-from apache_beam.runners import DirectRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.direct.evaluation_context import _ExecutionContext
 from apache_beam.runners.direct.transform_evaluator import _GroupByKeyOnlyEvaluator
@@ -318,8 +317,13 @@ class PipelineTest(unittest.TestCase):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r', ptransform)
 
-    # Using following private variable for testing.
-    DirectRunner._PTRANSFORM_OVERRIDES.append(MyParDoOverride())
+    # Monkey patching a private variable for testing.
+    def get_overrides():
+      return [MyParDoOverride()]
+
+    from apache_beam.runners.direct import direct_runner
+    direct_runner._get_transform_overrides = get_overrides
+
     with Pipeline() as p:
       pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
       assert_that(pcoll, equal_to([3, 6, 9]))
