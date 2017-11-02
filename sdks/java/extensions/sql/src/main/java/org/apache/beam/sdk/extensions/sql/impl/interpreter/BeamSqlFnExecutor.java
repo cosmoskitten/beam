@@ -50,7 +50,9 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateCeilExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateFloorExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimePlusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlExtractExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlIntervalMultiplyExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlNotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlOrExpression;
@@ -241,7 +243,11 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           }
           break;
         case "*":
-          ret = new BeamSqlMultiplyExpression(subExps);
+          if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
+            ret = new BeamSqlMultiplyExpression(subExps);
+          } else {
+            ret = new BeamSqlIntervalMultiplyExpression(subExps);
+          }
           break;
         case "/":
         case "/INT":
@@ -374,6 +380,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
         case "CURRENT_DATE":
           return new BeamSqlCurrentDateExpression();
+
+        case "DATETIME_PLUS":
+          return new BeamSqlDatetimePlusExpression(subExps);
 
 
         case "CASE":
