@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -91,6 +93,12 @@ public class CreateTables<DestinationT>
                     dynamicDestinations.setSideInputAccessorFromProcessContext(context);
                     TableDestination tableDestination =
                         dynamicDestinations.getTable(context.element().getKey());
+                    checkArgument(
+                        tableDestination != null,
+                        "DynamicDestinations.getTable() may not return null, "
+                            + "but %s returned null for destination %s",
+                        dynamicDestinations,
+                        context.element().getKey());
                     TableReference tableReference = tableDestination.getTableReference();
                     if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
                       tableReference.setProjectId(
@@ -101,6 +109,14 @@ public class CreateTables<DestinationT>
                     }
                     TableSchema tableSchema =
                         dynamicDestinations.getSchema(context.element().getKey());
+                    if (createDisposition != CreateDisposition.CREATE_NEVER) {
+                      checkArgument(
+                          tableSchema != null,
+                          "DynamicDestinations.getSchema() may not return null, "
+                              + "but %s returned null for destination %s",
+                          dynamicDestinations,
+                          context.element().getKey());
+                    }
                     BigQueryOptions options =
                         context.getPipelineOptions().as(BigQueryOptions.class);
                     possibleCreateTable(options, tableDestination, tableSchema);
