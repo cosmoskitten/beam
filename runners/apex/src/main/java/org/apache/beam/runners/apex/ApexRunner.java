@@ -112,6 +112,18 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
                 new StreamingViewAsIterable.Factory()))
         .add(
             PTransformOverride.of(
+                PTransformMatchers.createViewWithViewFn(PCollectionViews.ListViewFn.class),
+                new StreamingViewAsIterable.Factory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.createViewWithViewFn(PCollectionViews.MapViewFn.class),
+                new StreamingViewAsIterable.Factory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.createViewWithViewFn(PCollectionViews.MultimapViewFn.class),
+                new StreamingViewAsIterable.Factory()))
+        .add(
+            PTransformOverride.of(
                 PTransformMatchers.createViewWithViewFn(PCollectionViews.SingletonViewFn.class),
                 new StreamingWrapSingletonInList.Factory()))
         .add(
