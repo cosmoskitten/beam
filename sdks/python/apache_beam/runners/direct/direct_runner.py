@@ -44,6 +44,8 @@ from apache_beam.transforms.core import _GroupAlsoByWindow
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.ptransform import PTransform
 
+from past.builtins import unicode
+
 __all__ = ['DirectRunner']
 
 

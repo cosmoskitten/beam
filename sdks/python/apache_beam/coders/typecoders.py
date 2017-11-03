@@ -70,6 +70,8 @@ import warnings
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
 
+from past.builtins import unicode
+
 __all__ = ['registry']
 
 
