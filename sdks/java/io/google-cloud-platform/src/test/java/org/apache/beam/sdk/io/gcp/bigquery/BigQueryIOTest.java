@@ -24,6 +24,8 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdTok
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
+import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -59,12 +61,16 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -130,6 +136,8 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -151,6 +159,8 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.xerial.snappy.Snappy;
+import org.xerial.snappy.SnappyInputStream;
 
 /**
  * Tests for BigQueryIO.
@@ -908,7 +918,6 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
     .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
-        .withTableDescription(null)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withSchema(new TableSchema().setFields(
             ImmutableList.of(
@@ -1249,6 +1258,32 @@ public class BigQueryIOTest implements Serializable {
       File tempDir = new File(bqOptions.getTempLocation());
       testNumFiles(tempDir, 0);
     }
+  }
+
+  @Test
+  public void testWriteWithMissingSchemaFromView() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("project-id");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService())
+        .withDatasetService(new FakeDatasetService());
+
+    Pipeline p = TestPipeline.create(bqOptions);
+
+    PCollectionView<Map<String, String>> view =
+        p.apply("Create schema view", Create.of(KV.of("foo", "bar"), KV.of("bar", "boo")))
+            .apply(View.<String, String>asMap());
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withSchemaFromView(view)
+            .withTestServices(fakeBqServices)
+            .withoutValidation());
+
+    thrown.expectMessage("does not contain data for table destination dataset-id.table-id");
+    p.run();
   }
 
   @Test
@@ -2130,7 +2165,7 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public TableSchema getSchema(String destination) {
-      return null;
+      return new TableSchema();
     }
   }
 
