@@ -1752,7 +1752,7 @@ class Create(PTransform):
         self._coder = coder
         self._serialized_values = []
         self._total_size = 0
-        self._serialized_values = serialized_values
+        self._serialized_values = list(serialized_values)
         self._total_size = sum(map(len, self._serialized_values))
 
       def read(self, range_tracker):

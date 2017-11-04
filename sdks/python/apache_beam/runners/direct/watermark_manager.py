@@ -145,7 +145,7 @@ class WatermarkManager(object):
 
   def extract_fired_timers(self):
     all_timers = []
-    for applied_ptransform, tw in self._transform_to_watermarks.iteritems():
+    for applied_ptransform, tw in self._transform_to_watermarks.items():
       fired_timers = tw.extract_fired_timers()
       if fired_timers:
         all_timers.append((applied_ptransform, fired_timers))
@@ -189,7 +189,7 @@ class _TransformWatermarks(object):
 
   def hold(self, keyed_earliest_holds):
     with self._lock:
-      for key, hold_value in keyed_earliest_holds.iteritems():
+      for key, hold_value in keyed_earliest_holds.items():
         self._keyed_earliest_holds[key] = hold_value
         if (hold_value is None or
             hold_value == WatermarkManager.WATERMARK_POS_INF):
@@ -252,7 +252,7 @@ class _TransformWatermarks(object):
         return False
 
       fired_timers = []
-      for encoded_key, state in self._keyed_states.iteritems():
+      for encoded_key, state in self._keyed_states.items():
         timers = state.get_timers(watermark=self._input_watermark)
         for expired in timers:
           window, (name, time_domain, timestamp) = expired
