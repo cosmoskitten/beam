@@ -22,7 +22,7 @@ from __future__ import absolute_import
 import collections
 import itertools
 import logging
-import Queue
+import queue
 import sys
 import threading
 import traceback
@@ -77,7 +77,7 @@ class _ExecutorService(object):
         # shutdown.
         return self.queue.get(
             timeout=_ExecutorService._ExecutorServiceWorker.TIMEOUT)
-      except Queue.Empty:
+      except queue.Empty:
         return None
 
     def run(self):
@@ -96,7 +96,7 @@ class _ExecutorService(object):
       self.shutdown_requested = True
 
   def __init__(self, num_workers):
-    self.queue = Queue.Queue()
+    self.queue = queue.Queue()
     self.workers = [_ExecutorService._ExecutorServiceWorker(
         self.queue, i) for i in range(num_workers)]
     self.shutdown_requested = False
@@ -121,7 +121,7 @@ class _ExecutorService(object):
       try:
         self.queue.get_nowait()
         self.queue.task_done()
-      except Queue.Empty:
+      except queue.Empty:
         continue
     # All existing threads will eventually terminate (after they complete their
     # last task).
@@ -417,8 +417,7 @@ class _ExecutorServiceParallelExecutor(object):
     update = self.visible_updates.take()
     try:
       if update.exception:
-        t, v, tb = update.exc_info
-        raise t, v, tb
+        raise update.exception
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()
@@ -458,14 +457,14 @@ class _ExecutorServiceParallelExecutor(object):
 
     def __init__(self, item_type):
       self._item_type = item_type
-      self._queue = Queue.Queue()
+      self._queue = queue.Queue()
 
     def poll(self):
       try:
         item = self._queue.get_nowait()
         self._queue.task_done()
         return  item
-      except Queue.Empty:
+      except queue.Empty:
         return None
 
     def take(self):
@@ -478,7 +477,7 @@ class _ExecutorServiceParallelExecutor(object):
           item = self._queue.get(timeout=1)
           self._queue.task_done()
           return item
-        except Queue.Empty:
+        except queue.Empty:
           pass
 
     def offer(self, item):
