@@ -26,7 +26,7 @@ import fnmatch
 import logging
 import multiprocessing
 import os
-import Queue
+import queue
 import re
 import threading
 import time
@@ -576,7 +576,7 @@ class GcsBufferedReader(object):
       self.buffer_start_position = self.position
       retry_count = 0
       while retry_count <= 10:
-        queue = Queue.Queue()
+        queue = queue.Queue()
         t = threading.Thread(target=self._fetch_to_queue,
                              args=(queue, self._get_segment,
                                    (self.position, bytes_to_request)))
@@ -584,7 +584,7 @@ class GcsBufferedReader(object):
         t.start()
         try:
           result, exn, tb = queue.get(timeout=self.segment_timeout)
-        except Queue.Empty:
+        except queue.Empty:
           logging.warning(
               ('Timed out fetching %d bytes from position %d of %s after %f '
                'seconds; retrying...'), bytes_to_request, self.position,
