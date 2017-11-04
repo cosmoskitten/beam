@@ -39,6 +39,11 @@ class TypeInferenceError(ValueError):
   pass
 
 
+try:
+  from types import InstanceType
+except ImportError:
+  InstanceType = object
+
 def instance_to_type(o):
   """Given a Python object o, return the corresponding type hint.
   """
@@ -46,7 +51,7 @@ def instance_to_type(o):
   if o is None:
     return type(None)
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
-    if t == types.InstanceType:
+    if t == InstanceType:
       return o.__class__
     elif t == BoundMethod:
       return types.MethodType
