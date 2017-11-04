@@ -20,7 +20,7 @@
 import collections
 import copy
 import logging
-import Queue as queue
+import queue
 import threading
 import time
 from concurrent import futures
