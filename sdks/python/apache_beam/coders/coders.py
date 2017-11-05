@@ -65,16 +65,15 @@ __all__ = ['Coder',
 
 def serialize_coder(coder):
   from apache_beam.internal import pickler
-  result = '%s$%s' % (coder.__class__.__name__, pickler.dumps(coder))
-  if sys.version_info[0] == 3:
-    return result.encode("LATIN-1")
-  else:
-    return result
+  # TODO: Do we need this class name for anything or could we just simplify this?
+  result = '%s$%s' % (coder.__class__.__name__, pickler.dumps(coder).decode())
+  return result
 
 
 def deserialize_coder(serialized):
   from apache_beam.internal import pickler
-  return pickler.loads(serialized.split('$', 1)[1])
+  split = str(serialized).split('$', 1)
+  return pickler.loads(split[1])
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -213,6 +212,9 @@ class Coder(object):
             and self._dict_without_impl() == other._dict_without_impl())
     # pylint: enable=protected-access
 
+  def __hash__(self):
+    return hash(type(self))
+
   _known_urns = {}
 
   @classmethod
@@ -263,7 +265,7 @@ class Coder(object):
   def to_runner_api_parameter(self, context):
     return (
         urns.PICKLED_CODER,
-        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self).encode()),
         ())
 
   @staticmethod
