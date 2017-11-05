@@ -24,7 +24,9 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 
-/** Options used to configure Amazon Web Services S3. */
+/**
+ * Options used to configure Amazon Web Services S3.
+ */
 public interface S3Options extends AwsOptions {
 
   @JsonIgnore

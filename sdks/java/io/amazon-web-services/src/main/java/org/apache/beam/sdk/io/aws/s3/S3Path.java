@@ -43,12 +43,16 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** Implements the Java NIO {@link Path} API for AWS S3 paths. */
+/**
+ * Implements the Java NIO {@link Path} API for AWS S3 paths.
+ */
 public class S3Path implements Path, Serializable {
 
   public static final String SCHEME = "s3";
 
-  /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
+  /**
+   * Matches a glob containing a wildcard, capturing the portion before the first wildcard.
+   */
   private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
   public static S3Path fromUri(URI uri) {
@@ -93,9 +97,12 @@ public class S3Path implements Path, Serializable {
     return new S3Path(null, bucket, key);
   }
 
-  @Nullable private transient FileSystem fileSystem;
-  @Nonnull private final String bucket;
-  @Nonnull private final String key;
+  @Nullable
+  private transient FileSystem fileSystem;
+  @Nonnull
+  private final String bucket;
+  @Nonnull
+  private final String key;
 
   private S3Path(FileSystem fileSystem, String bucket, String key) {
     // Bucket name rules:
@@ -540,7 +547,9 @@ public class S3Path implements Path, Serializable {
     return m.group("PREFIX");
   }
 
-  /** A coder for {@link S3Path}. */
+  /**
+   * A coder for {@link S3Path}.
+   */
   public static class Coder extends SerializableCoder<S3Path> {
 
     private static final Coder CODER_INSTANCE = new Coder();
@@ -554,6 +563,7 @@ public class S3Path implements Path, Serializable {
     }
 
     @Override
-    public void verifyDeterministic() {}
+    public void verifyDeterministic() {
+    }
   }
 }

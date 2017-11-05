@@ -72,7 +72,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** S3Util wraps the Amazon Web Services client library. */
+/**
+ * S3Util wraps the Amazon Web Services client library.
+ */
 public class S3Util {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3Util.class);
@@ -413,7 +415,9 @@ public class S3Util {
     return invokeAllAndUnwrapResults(tasks, executorService);
   }
 
-  /** Gets {@link MatchResult} representing all objects that match wildcard-containing path. */
+  /**
+   * Gets {@link MatchResult} representing all objects that match wildcard-containing path.
+   */
   @VisibleForTesting
   MatchResult matchGlobPath(S3Path path) {
     // The S3 API can list objects, filtered by prefix, but not by wildcard.

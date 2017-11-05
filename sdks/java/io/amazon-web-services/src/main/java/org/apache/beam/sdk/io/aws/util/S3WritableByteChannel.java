@@ -39,7 +39,9 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.aws.s3.S3Path;
 
-/** A writable S3 object, as a {@link WritableByteChannel}. */
+/**
+ * A writable S3 object, as a {@link WritableByteChannel}.
+ */
 class S3WritableByteChannel implements WritableByteChannel {
 
   private final AmazonS3 amazonS3;

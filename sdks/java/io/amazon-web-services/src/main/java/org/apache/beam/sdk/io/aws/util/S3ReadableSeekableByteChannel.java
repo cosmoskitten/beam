@@ -34,7 +34,9 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import org.apache.beam.sdk.io.aws.s3.S3Path;
 
-/** A readable S3 object, as a {@link SeekableByteChannel}. */
+/**
+ * A readable S3 object, as a {@link SeekableByteChannel}.
+ */
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {
 
   private final AmazonS3 amazonS3;
@@ -45,7 +47,7 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
   private S3Object s3Object;
   private ReadableByteChannel s3ObjectContentChannel;
 
-   S3ReadableSeekableByteChannel(AmazonS3 amazonS3, S3Path path) throws IOException {
+  S3ReadableSeekableByteChannel(AmazonS3 amazonS3, S3Path path) throws IOException {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
     this.path = checkNotNull(path, "path");
     try {

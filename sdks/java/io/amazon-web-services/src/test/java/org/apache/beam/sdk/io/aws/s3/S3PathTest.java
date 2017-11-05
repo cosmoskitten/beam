@@ -38,7 +38,9 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests {@link S3Path}. */
+/**
+ * Tests {@link S3Path}.
+ */
 @RunWith(JUnit4.class)
 public class S3PathTest {
 
@@ -75,7 +77,8 @@ public class S3PathTest {
           new TestCase("s3://sub.bucket/object", "sub.bucket", "object"),
           new TestCase("s3://bucket/", "bucket"));
 
-  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testS3PathParsing() throws Exception {

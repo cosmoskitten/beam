@@ -31,7 +31,9 @@ import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 
-/** {@link ResourceId} implementation for Amazon Web Services S3. */
+/**
+ * {@link ResourceId} implementation for Amazon Web Services S3.
+ */
 public class S3ResourceId implements ResourceId {
 
   private final S3Path s3Path;
