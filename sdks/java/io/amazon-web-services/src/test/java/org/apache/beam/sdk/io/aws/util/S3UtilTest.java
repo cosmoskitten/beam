@@ -51,9 +51,7 @@ import org.apache.beam.sdk.io.aws.s3.S3Path;
 import org.apache.beam.sdk.io.aws.s3.S3ResourceId;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
@@ -64,9 +62,6 @@ import org.mockito.Mockito;
  */
 @RunWith(JUnit4.class)
 public class S3UtilTest {
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGlobTranslation() {
@@ -88,7 +83,7 @@ public class S3UtilTest {
     S3Options options = PipelineOptionsFactory.as(S3Options.class);
     options.setAwsAccessKeyId("mock");
     options.setAwsSecretAccessKey("mock");
-    options.setAwsRegion("mock");
+    options.setAwsRegion("us-west-1");
     return options;
   }
 

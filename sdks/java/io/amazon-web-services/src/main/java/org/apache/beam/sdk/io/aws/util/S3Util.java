@@ -127,6 +127,10 @@ public class S3Util {
       String storageClass,
       Integer uploadBufferSizeBytes,
       int threadPoolSize) {
+    checkArgument(!Strings.isNullOrEmpty(awsAccessKeyId), "awsAccessKeyId");
+    checkArgument(!Strings.isNullOrEmpty(awsSecretAccessKey), "awsSecretAccessKey");
+    checkArgument(!Strings.isNullOrEmpty(region));
+
     AWSStaticCredentialsProvider credentialsProvider =
         new AWSStaticCredentialsProvider(
             new BasicAWSCredentials(awsAccessKeyId, awsSecretAccessKey));
