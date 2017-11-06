@@ -57,7 +57,7 @@ public class S3ResourceId implements ResourceId {
             new Predicate<S3ResourceId>() {
               @Override
               public boolean apply(S3ResourceId resourceId) {
-                return !resourceId.isDirectory();
+                return resourceId != null && !resourceId.isDirectory();
               }
             })
         .toList();
@@ -69,7 +69,7 @@ public class S3ResourceId implements ResourceId {
             new Function<S3ResourceId, S3Path>() {
               @Override
               public S3Path apply(S3ResourceId resourceId) {
-                return resourceId.getS3Path();
+                return resourceId == null ? null : resourceId.getS3Path();
               }
             })
         .toList();
@@ -105,9 +105,10 @@ public class S3ResourceId implements ResourceId {
       return this;
     }
     S3Path parent = s3Path.getParent();
-    checkState(
-        parent != null,
-        String.format("Failed to get the current directory for path: [%s].", s3Path));
+    if (parent == null) {
+      throw new IllegalArgumentException(
+          String.format("Failed to get the current directory for path: [%s].", s3Path));
+    }
     return fromS3Path(parent);
   }
 
