@@ -35,13 +35,28 @@
   <build>
     <plugins>
       <plugin>
-        <!--  Override Beam parent to allow Java8 -->
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
-        </configuration>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-banned-dependencies</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>com.google.guava:guava-jdk5</exclude>
+                    <exclude>com.google.protobuf:protobuf-lite</exclude>
+                    <exclude>org.apache.beam:beam-sdks-java-core</exclude>
+                  </excludes>
+                </bannedDependencies>
+              </rules>
+              <fail>true</fail>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
@@ -103,3 +118,4 @@
     </dependency>
   </dependencies>
 </project>
+
