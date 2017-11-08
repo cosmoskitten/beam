@@ -44,10 +44,6 @@ public class BeamSqlCli {
    * The store which persists all the table meta data.
    */
   private MetaStore metaStore;
-  /**
-   * The default type of table(if not specified when create table).
-   */
-  private String defaultTableType;
 
   public BeamSqlCli metaStore(MetaStore metaStore) {
     this.metaStore = metaStore;
@@ -59,11 +55,6 @@ public class BeamSqlCli {
       env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table.getName()));
     }
 
-    return this;
-  }
-
-  public BeamSqlCli defaultTableType(String type) {
-    this.defaultTableType = type;
     return this;
   }
 

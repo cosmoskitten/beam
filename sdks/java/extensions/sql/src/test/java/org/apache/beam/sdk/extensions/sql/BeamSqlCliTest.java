@@ -35,13 +35,13 @@ public class BeamSqlCliTest {
     metaStore.registerProvider(new TextTableProvider());
 
     BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore)
-        .defaultTableType("text");
+        .metaStore(metaStore);
     cli.execute(
         "create table person (\n"
         + "id int COMMENT 'id', \n"
         + "name varchar(31) COMMENT 'name', \n"
         + "age int COMMENT 'age') \n"
+        + "TYPE 'text' \n"
         + "COMMENT '' LOCATION 'text://home/admin/orders'"
     );
     Table table = metaStore.getTable("person");
@@ -54,13 +54,14 @@ public class BeamSqlCliTest {
     metaStore.registerProvider(new TextTableProvider());
 
     BeamSqlCli cli = new BeamSqlCli()
-        .metaStore(metaStore)
-        .defaultTableType("text");
+        .metaStore(metaStore);
+
     cli.execute(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar(31) COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
+            + "TYPE 'text' \n"
             + "COMMENT '' LOCATION 'text://home/admin/orders'"
     );
 

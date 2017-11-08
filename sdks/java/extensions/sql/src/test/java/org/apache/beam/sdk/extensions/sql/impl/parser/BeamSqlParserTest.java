@@ -47,6 +47,7 @@ public class BeamSqlParserTest {
         "create table person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar(31) COMMENT 'name') \n"
+            + "TYPE 'text' \n"
             + "COMMENT 'person table' \n"
             + "LOCATION 'text://home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
@@ -54,6 +55,18 @@ public class BeamSqlParserTest {
     assertEquals(
         mockTable("person", "text", "person table", properties),
         table
+    );
+  }
+
+  @Test(expected = org.apache.beam.sdk.extensions.sql.impl.parser.impl.ParseException.class)
+  public void testParseCreateTable_withoutType() throws Exception {
+    parseTable(
+        "create table person (\n"
+            + "id int COMMENT 'id', \n"
+            + "name varchar(31) COMMENT 'name') \n"
+            + "COMMENT 'person table' \n"
+            + "LOCATION 'text://home/admin/person'\n"
+            + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
     );
   }
 
@@ -69,6 +82,7 @@ public class BeamSqlParserTest {
         "create table person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar(31) COMMENT 'name') \n"
+            + "TYPE 'text' \n"
             + "LOCATION 'text://home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'"
     );
@@ -81,6 +95,7 @@ public class BeamSqlParserTest {
         "create table person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar(31) COMMENT 'name') \n"
+            + "TYPE 'text' \n"
             + "COMMENT 'person table' \n"
             + "LOCATION 'text://home/admin/person'\n"
     );
@@ -90,13 +105,19 @@ public class BeamSqlParserTest {
     );
   }
 
-  @Test(expected = org.apache.beam.sdk.extensions.sql.impl.parser.impl.ParseException.class)
+  @Test
   public void testParseCreateTable_withoutLocation() throws Exception {
-    parseTable(
+    Table table = parseTable(
         "create table person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar(31) COMMENT 'name') \n"
+            + "TYPE 'text' \n"
             + "COMMENT 'person table' \n"
+    );
+
+    assertEquals(
+        mockTable("person", "text", "person table", new JSONObject(), null),
+        table
     );
   }
 
@@ -111,11 +132,21 @@ public class BeamSqlParserTest {
   }
 
   private static Table mockTable(String name, String type, String comment, JSONObject properties) {
+    return mockTable(name, type, comment, properties, "text://home/admin/" + name);
+  }
+
+  private static Table mockTable(String name, String type, String comment, JSONObject properties,
+      String location) {
+    URI locationURI = null;
+    if (location != null) {
+      locationURI = URI.create(location);
+    }
+
     return Table.builder()
         .name(name)
         .type(type)
         .comment(comment)
-        .location(URI.create("text://home/admin/" + name))
+        .location(locationURI)
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")

@@ -60,6 +60,7 @@ SqlNode SqlCreateTable() :
     SqlParserPos pos;
     SqlIdentifier tblName;
     SqlNodeList fieldList;
+    SqlNode type = null;
     SqlNode comment = null;
     SqlNode location = null;
     SqlNode tbl_properties = null;
@@ -70,15 +71,19 @@ SqlNode SqlCreateTable() :
     <TABLE>
     tblName = CompoundIdentifier()
     fieldList = ColumnDefinitionList()
+    <TYPE>
+    type = StringLiteral()
     [
     <COMMENT>
     comment = StringLiteral()
     ]
+    [
     <LOCATION>
     location = StringLiteral()
+    ]
     [ <TBLPROPERTIES> tbl_properties = StringLiteral() ]
     [ <AS> select = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) ] {
-        return new SqlCreateTable(pos, tblName, fieldList, comment,
+        return new SqlCreateTable(pos, tblName, fieldList, type, comment,
         location, tbl_properties, select);
     }
 }

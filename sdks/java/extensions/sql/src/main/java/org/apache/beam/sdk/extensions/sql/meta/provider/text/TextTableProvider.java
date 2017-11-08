@@ -38,6 +38,7 @@ import org.apache.commons.csv.CSVFormat;
  *   ID INT PRIMARY KEY COMMENT 'this is the primary key',
  *   NAME VARCHAR(127) COMMENT 'this is the name'
  * )
+ * TYPE 'text'
  * COMMENT 'this is the table orders'
  * LOCATION 'text://home/admin/orders'
  * TBLPROPERTIES '{"format": "Excel"}' -- format of each text line(csv format)

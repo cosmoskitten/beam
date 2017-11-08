@@ -46,7 +46,7 @@ public class SqlCreateTable extends SqlCall {
         SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... o) {
       assert functionQualifier == null;
       return new SqlCreateTable(pos, (SqlIdentifier) o[0], (SqlNodeList) o[1],
-                                o[2], o[3], o[4], o[5]);
+                                o[2], o[3], o[4], o[5], o[6]);
     }
 
     @Override
@@ -56,6 +56,8 @@ public class SqlCreateTable extends SqlCall {
       UnparseUtil u = new UnparseUtil(writer, leftPrec, rightPrec);
       u.keyword("CREATE", "TABLE").node(t.tblName).nodeList(
           t.fieldList);
+      u.keyword("TYPE").node(t.type);
+      u.keyword("COMMENT").node(t.comment);
       u.keyword("LOCATION").node(t.location);
       if (t.properties != null) {
         u.keyword("TBLPROPERTIES").node(t.properties);
@@ -68,17 +70,19 @@ public class SqlCreateTable extends SqlCall {
 
   private final SqlIdentifier tblName;
   private final SqlNodeList fieldList;
+  private final SqlNode type;
   private final SqlNode comment;
   private final SqlNode location;
   private final SqlNode properties;
   private final SqlNode query;
 
   public SqlCreateTable(
-          SqlParserPos pos, SqlIdentifier tblName, SqlNodeList fieldList,
+          SqlParserPos pos, SqlIdentifier tblName, SqlNodeList fieldList, SqlNode type,
           SqlNode comment, SqlNode location, SqlNode properties, SqlNode query) {
     super(pos);
     this.tblName = tblName;
     this.fieldList = fieldList;
+    this.type = type;
     this.comment = comment;
     this.location = location;
     this.properties = properties;
@@ -107,6 +111,10 @@ public class SqlCreateTable extends SqlCall {
 
   public URI location() {
     return location == null ? null : URI.create(getString(location));
+  }
+
+  public String type() {
+    return type == null ? null : getString(type);
   }
 
   public String comment() {

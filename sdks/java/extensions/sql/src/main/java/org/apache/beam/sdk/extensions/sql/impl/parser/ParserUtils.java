@@ -50,11 +50,8 @@ public class ParserUtils {
       columns.add(column);
     }
 
-    String tableType = stmt.location() == null
-        ? null : stmt.location().getScheme();
-
     Table table = Table.builder()
-        .type(tableType)
+        .type(stmt.type().toLowerCase())
         .name(stmt.tableName().toLowerCase())
         .columns(columns)
         .comment(stmt.comment())
