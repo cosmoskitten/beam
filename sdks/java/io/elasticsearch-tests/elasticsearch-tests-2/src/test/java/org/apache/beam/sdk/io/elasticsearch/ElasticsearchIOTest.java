@@ -44,7 +44,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -136,12 +135,8 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.testWrite();
   }
 
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   @Test
   public void testWriteWithErrors() throws Exception {
-    elasticsearchIOTestCommon.setExpectedException(expectedException);
     elasticsearchIOTestCommon.testWriteWithErrors();
   }
 

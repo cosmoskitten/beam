@@ -23,9 +23,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.parseResponse;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
@@ -46,7 +46,6 @@ import org.apache.http.nio.entity.NStringEntity;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
-import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +71,6 @@ class ElasticsearchIOTestCommon implements Serializable {
   private boolean useAsITests;
 
   private TestPipeline pipeline;
-  private ExpectedException expectedException;
 
   ElasticsearchIOTestCommon(ConnectionConfiguration connectionConfiguration, RestClient restClient,
       boolean useAsITests) {
@@ -85,10 +83,6 @@ class ElasticsearchIOTestCommon implements Serializable {
   // lazy init of the test rules (cannot be static)
   void setPipeline(TestPipeline pipeline) {
     this.pipeline = pipeline;
-  }
-
-  void setExpectedException(ExpectedException expectedException) {
-    this.expectedException = expectedException;
   }
 
   void testSizes() throws Exception {
@@ -197,8 +191,18 @@ class ElasticsearchIOTestCommon implements Serializable {
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
-    expectedException.expect(isA(IOException.class));
-    expectedException.expectMessage(
+    // need to avoid flow interruption to close the DoFnTester
+    Exception raisedException = null;
+    try {
+      // inserts into Elasticsearch
+      fnTester.processBundle(input);
+    } catch (IOException exception) {
+      raisedException = exception;
+    }
+    fnTester.finishBundle();
+    fnTester.close();
+    assertTrue(raisedException != null);
+    assertThat(raisedException.getMessage(),
         new CustomMatcher<String>("RegExp matcher") {
           @Override
           public boolean matches(Object o) {
@@ -216,8 +220,7 @@ class ElasticsearchIOTestCommon implements Serializable {
                     + "Document id .+: failed to parse \\(.+\\).*Caused by: .+ \\(.+\\).*");
           }
         });
-    // inserts into Elasticsearch
-    fnTester.processBundle(input);
+
   }
 
   void testWriteWithMaxBatchSize() throws Exception {

@@ -43,7 +43,6 @@ import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 /*
 Cannot use @RunWith(JUnit4.class) with ESIntegTestCase
@@ -135,12 +134,9 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
    elasticsearchIOTestCommon.testWrite();
   }
 
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void testWriteWithErrors() throws Exception {
-    elasticsearchIOTestCommon.setExpectedException(expectedException);
     elasticsearchIOTestCommon.testWriteWithErrors();
   }
 
