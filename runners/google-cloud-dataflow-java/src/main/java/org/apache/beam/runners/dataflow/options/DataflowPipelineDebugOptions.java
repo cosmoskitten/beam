@@ -39,6 +39,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
     + "debugging and testing purposes.")
 @Hidden
 public interface DataflowPipelineDebugOptions extends ExperimentalOptions, PipelineOptions {
+
   /**
    * The root URL for the Dataflow API. {@code dataflowEndpoint} can override this value
    * if it contains an absolute URL, otherwise {@code apiRootUrl} will be combined with
@@ -176,6 +177,18 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
       + "which is GC thrashing or out of memory.")
   boolean getDumpHeapOnOOM();
   void setDumpHeapOnOOM(boolean dumpHeapBeforeExit);
+
+  /**
+   * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap
+   * dumps can of comparable size to the default boot disk. Consider increasing the boot disk size
+   * before setting this flag to true.
+   */
+  @Description("Set to a GCS bucket (directory) to upload heap dumps to the given location.\n"
+      + "Enabling this implies that heap dumps should be generated on OOM (--dumpHeapOnOOM=true)\n"
+      + "Uploads will continue until the pipeline is stopped or updated without this option.\n")
+  @Experimental
+  String getSaveHeapDumpsToGcsPath();
+  void setSaveHeapDumpsToGcsPath(String gcsPath);
 
   /**
    * Creates a {@link Stager} object using the class specified in
