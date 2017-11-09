@@ -28,15 +28,13 @@ import org.apache.beam.runners.core.TimerInternals;
 public class FlinkNoOpStepContext implements StepContext {
 
   @Override
-  @Nullable
   public StateInternals stateInternals() {
-    return null;
+    throw new UnsupportedOperationException("stateInternals is not supported");
   }
 
   @Override
-  @Nullable
   public TimerInternals timerInternals() {
-    return null;
+    throw new UnsupportedOperationException("timerInternals is not supported");
   }
 }
 
