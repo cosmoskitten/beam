@@ -231,7 +231,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     private class Reader extends BoundedReader<ValueWithRecordId<T>> {
       private long recordsRead = 0L;
 
-      @Nullable private Instant endTime = Instant.now().plus(getMaxReadTime());
+      @Nullable private Instant endTime;
 
       private UnboundedSource.UnboundedReader<T> reader;
 

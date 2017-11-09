@@ -261,7 +261,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
       checkState(
           sideInputAccessor != null,
-          "sideInput called on %s but side inputs" + " have not been initialized",
+          "sideInput called on %s but side inputs have not been initialized",
           getClass().getName());
       return sideInputAccessor.sideInput(view);
     }
