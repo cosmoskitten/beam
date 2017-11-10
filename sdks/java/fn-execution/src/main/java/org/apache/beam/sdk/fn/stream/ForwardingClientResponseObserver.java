@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.stream;
+package org.apache.beam.sdk.fn.stream;
 
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
@@ -30,8 +30,13 @@ import io.grpc.stub.StreamObserver;
  *
  * <p>This is as thread-safe as the undering stream observer that is being wrapped.
  */
-final class ForwardingClientResponseObserver<ReqT, RespT>
+public final class ForwardingClientResponseObserver<ReqT, RespT>
     implements ClientResponseObserver<RespT, ReqT> {
+  public static <ReqT, RespT> ForwardingClientResponseObserver<ReqT, RespT> create(
+      StreamObserver<ReqT> inbound, Runnable onReadyHandler) {
+    return new ForwardingClientResponseObserver<>(inbound, onReadyHandler);
+  }
+
   private final Runnable onReadyHandler;
   private final StreamObserver<ReqT> inboundObserver;
 
