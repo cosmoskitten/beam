@@ -87,25 +87,6 @@ class ReadFiles(DoFn):
       pos += len_line
 
 
-class LoggingDoFn(DoFn):
-
-  def process(self, element, window=DoFn.WindowParam, *args, **kwargs):
-    logging.error('Logging record %s window %r', element, window)
-    yield element
-
-
-class MyRegularDF(beam.DoFn):
-
-  def process(self, element, side=None, *args, **kwargs):
-    side = side or []
-    logging.error('Regular DF record: %s side: %r', element, side)
-    if side:
-      for val in side:
-        yield element + ':' + val
-    else:
-      yield element
-
-
 class ExpandStringsProvider(RestrictionProvider):
 
   def initial_restriction(self, element):
@@ -145,28 +126,6 @@ class ExpandStrings(DoFn):
             yield ret + ':' + val
       else:
         break
-
-
-class PassThroughProvider(RestrictionProvider):
-
-  def initial_restriction(self, element):
-    return None
-
-  def create_tracker(self, restriction):
-    return OffsetRestrictionTracker(0, 1)
-
-  def split(self, element, restriction):
-    return [restriction,]
-
-
-class PassThroughSDF(DoFn):
-
-  def process(
-      self, element, window=beam.DoFn.WindowParam,
-      restriction_tracker=PassThroughProvider(),
-      *args, **kwargs):
-    restriction_tracker.try_claim(0)
-    yield element
 
 
 class SDFDirectRunnerTest(unittest.TestCase):
@@ -267,8 +226,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
     with TestPipeline() as p:
       result = (p
                 | 'create_main' >> beam.Create(['1', '3', '5'])
-                | beam.ParDo(ExpandStrings(), side=['1', '3'])
-                | beam.ParDo(LoggingDoFn()))
+                | beam.ParDo(ExpandStrings(), side=['1', '3']))
 
       expected_result = ['1:1', '3:1', '5:1', '1:3', '3:3', '5:3']
       assert_that(result, equal_to(expected_result))
