@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness.stream;
+package org.apache.beam.sdk.fn.stream;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -29,14 +29,14 @@ import java.io.PushbackInputStream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
-import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
  * {@link #inbound(Iterator)} treats multiple {@link ByteString}s as a single input stream and
- * {@link #outbound(CloseableThrowingConsumer)} treats a single {@link OutputStream} as multiple
+ * {@code #outbound(CloseableThrowingConsumer)} treats a single {@link OutputStream} as multiple
  * {@link ByteString}s.
  */
+// TODO: Migrate logic from BeamFnDataBufferingOutboundObserver to support Outbound
 public class DataStreams {
   /**
    * Converts multiple {@link ByteString}s into a single {@link InputStream}.
@@ -46,14 +46,6 @@ public class DataStreams {
    */
   public static InputStream inbound(Iterator<ByteString> bytes) {
     return new Inbound(bytes);
-  }
-
-  /**
-   * Converts a single {@link OutputStream} into multiple {@link ByteString}s.
-   */
-  public static OutputStream outbound(CloseableThrowingConsumer<ByteString> consumer) {
-    // TODO: Migrate logic from BeamFnDataBufferingOutboundObserver
-    throw new UnsupportedOperationException();
   }
 
   /**
@@ -168,6 +160,11 @@ public class DataStreams {
       currentState = State.READ_REQUIRED;
       return next;
     }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
   }
 
   /**
@@ -181,8 +178,8 @@ public class DataStreams {
    * <p>The order or values which are appended to this iterator is nondeterministic when multiple
    * threads call {@link #accept(Object)}.
    */
-  public static class BlockingQueueIterator<T> implements
-      CloseableThrowingConsumer<T>, Iterator<T> {
+  public static class BlockingQueueIterator<T>
+      implements AutoCloseable, Iterator<T> {
     private static final Object POISION_PILL = new Object();
     private final BlockingQueue<T> queue;
 
@@ -198,9 +195,12 @@ public class DataStreams {
       queue.put((T) POISION_PILL);
     }
 
-    @Override
-    public void accept(T t) throws Exception {
-      queue.put(t);
+    public void accept(T t) {
+      try {
+        queue.put(t);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
@@ -224,6 +224,11 @@ public class DataStreams {
       T rval = currentElement;
       currentElement = null;
       return rval;
+    }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
     }
   }
 }

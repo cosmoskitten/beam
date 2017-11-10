@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.stream;
-
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+package org.apache.beam.sdk.fn.stream;
 
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
@@ -47,14 +44,14 @@ public class ForwardingClientResponseObserverTest {
     ClientResponseObserver<Object, Object> observer =
         new ForwardingClientResponseObserver<>(delegateObserver, onReadyHandler);
     observer.onNext("A");
-    verify(delegateObserver).onNext("A");
+    Mockito.verify(delegateObserver).onNext("A");
     Throwable t = new RuntimeException();
     observer.onError(t);
-    verify(delegateObserver).onError(t);
+    Mockito.verify(delegateObserver).onError(t);
     observer.onCompleted();
-    verify(delegateObserver).onCompleted();
+    Mockito.verify(delegateObserver).onCompleted();
     observer.beforeStart(callStreamObserver);
-    verify(callStreamObserver).setOnReadyHandler(onReadyHandler);
-    verifyNoMoreInteractions(delegateObserver, callStreamObserver);
+    Mockito.verify(callStreamObserver).setOnReadyHandler(onReadyHandler);
+    Mockito.verifyNoMoreInteractions(delegateObserver, callStreamObserver);
   }
 }
