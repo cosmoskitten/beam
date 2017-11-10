@@ -28,7 +28,6 @@ import traceback
 from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
-from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.window import GlobalWindow
@@ -63,14 +62,14 @@ class Receiver(object):
 class MethodWrapper(object):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Represents a method of a DoFn object."""
+  Represents a method that can be invoked by `DoFnInvoker`."""
 
   def __init__(self, obj, method_name):
     """
-    Initiates a ``DoFnMethodWrapper``.
+    Initiates a ``MethodWrapper``.
 
     Args:
-      do_fn: A DoFn object that contains the method.
+      obj: the object that contains the method.
       method_name: name of the method as a string.
     """
 
@@ -105,15 +104,18 @@ class DoFnSignature(object):
     self.finish_bundle_method = MethodWrapper(do_fn, 'finish_bundle')
 
     restriction_provider = self._get_restriction_provider(do_fn)
-    if restriction_provider:
-      self.initial_restriction_method = MethodWrapper(
-          restriction_provider, 'initial_restriction')
-      self.restriction_coder_method = MethodWrapper(
-          restriction_provider, 'restriction_coder')
-      self.create_tracker_method = MethodWrapper(
-          restriction_provider, 'create_tracker')
-      self.split_method = MethodWrapper(
-          restriction_provider, 'split')
+    self.initial_restriction_method = (
+        MethodWrapper(restriction_provider, 'initial_restriction')
+        if restriction_provider else None)
+    self.restriction_coder_method = (
+        MethodWrapper(restriction_provider, 'restriction_coder')
+        if restriction_provider else None)
+    self.create_tracker_method = (
+        MethodWrapper(restriction_provider, 'create_tracker')
+        if restriction_provider else None)
+    self.split_method = (
+        MethodWrapper(restriction_provider, 'split')
+        if restriction_provider else None)
 
     self._validate()
 
@@ -257,7 +259,8 @@ class SimpleInvoker(DoFnInvoker):
     super(SimpleInvoker, self).__init__(output_processor, signature)
     self.process_method = signature.process_method.method_value
 
-  def invoke_process(self, windowed_value, output_processor=None):
+  def invoke_process(self, windowed_value, restriction_tracker=None,
+                     output_processor=None):
     output_processor = output_processor or self.output_processor
     output_processor.process_outputs(
         windowed_value, self.process_method(windowed_value.value))
@@ -341,9 +344,8 @@ class PerWindowInvoker(DoFnInvoker):
     self.args_for_process = args_with_placeholders
     self.kwargs_for_process = input_kwargs
 
-  def invoke_process(
-      self, windowed_value, restriction_tracker=None, watermark_reporter=None,
-      output_processor=None):
+  def invoke_process(self, windowed_value, restriction_tracker=None,
+                     output_processor=None):
     output_processor = output_processor or self.output_processor
     self.context.set_element(windowed_value)
     # Call for the process function for each window if has windowed side inputs
@@ -360,17 +362,6 @@ class PerWindowInvoker(DoFnInvoker):
             'A RestrictionTracker %r was provided but DoFn does not have a '
             'RestrictionTrackerParam defined', restriction_tracker)
       additional_kwargs[restriction_tracker_param] = restriction_tracker
-      if watermark_reporter:
-        watermark_reporter_param = _find_param_with_default(
-            self.signature.process_method,
-            default_as_value=DoFn.WatermarkReporterParam)[0]
-        if watermark_reporter_param:
-          additional_kwargs[watermark_reporter_param] = watermark_reporter
-        else:
-          raise ValueError('A watermark reporter %r was provided but DoFn does '
-                           'not have a WatermarkReporterParam defined.',
-                           watermark_reporter_param)
-
     if self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
         self._invoke_per_window(
