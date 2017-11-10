@@ -261,5 +261,11 @@
       <artifactId>auto-value</artifactId>
       <scope>provided</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-sql</artifactId>
+      <version>${parent.version}</version>
+    </dependency>
   </dependencies>
 </project>
