@@ -19,12 +19,11 @@
 package org.apache.beam.sdk.nexmark.model.sql.adapter;
 
 import com.google.common.collect.ImmutableMap;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
@@ -43,15 +42,15 @@ public class ModelFieldsAdapters {
 
   private static ModelFieldsAdapter<Person> personAdapter() {
     return new ModelFieldsAdapter<Person>(
-        BeamRecordSqlTypeBuilder.of()
-            .withLongField("id")
-            .withStringField("name")
-            .withStringField("emailAddress")
-            .withStringField("creditCard")
-            .withStringField("city")
-            .withStringField("state")
-            .withLongField("dateTime")
-            .withStringField("extra")
+        BeamRecordSqlType.builder()
+            .withBigIntField("id")
+            .withVarcharField("name")
+            .withVarcharField("emailAddress")
+            .withVarcharField("creditCard")
+            .withVarcharField("city")
+            .withVarcharField("state")
+            .withBigIntField("dateTime")
+            .withVarcharField("extra")
             .build()) {
       @Override
       public List<Object> getFieldsValues(Person p) {
@@ -71,12 +70,12 @@ public class ModelFieldsAdapters {
 
   private static ModelFieldsAdapter<Bid> bidAdapter() {
     return new ModelFieldsAdapter<Bid>(
-        BeamRecordSqlTypeBuilder.of()
-            .withLongField("auction")
-            .withLongField("bidder")
-            .withLongField("price")
-            .withLongField("dateTime")
-            .withStringField("extra")
+        BeamRecordSqlType.builder()
+            .withBigIntField("auction")
+            .withBigIntField("bidder")
+            .withBigIntField("price")
+            .withBigIntField("dateTime")
+            .withVarcharField("extra")
             .build()) {
       @Override
       public List<Object> getFieldsValues(Bid b) {
@@ -93,17 +92,17 @@ public class ModelFieldsAdapters {
 
   private static ModelFieldsAdapter<Auction> auctionAdapter() {
     return new ModelFieldsAdapter<Auction>(
-        BeamRecordSqlTypeBuilder.of()
-            .withLongField("id")
-            .withStringField("itemName")
-            .withStringField("description")
-            .withLongField("initialBid")
-            .withLongField("reserve")
-            .withLongField("dateTime")
-            .withLongField("expires")
-            .withLongField("seller")
-            .withLongField("category")
-            .withStringField("extra")
+        BeamRecordSqlType.builder()
+            .withBigIntField("id")
+            .withVarcharField("itemName")
+            .withVarcharField("description")
+            .withBigIntField("initialBid")
+            .withBigIntField("reserve")
+            .withBigIntField("dateTime")
+            .withBigIntField("expires")
+            .withBigIntField("seller")
+            .withBigIntField("category")
+            .withVarcharField("extra")
             .build()) {
       @Override
       public List<Object> getFieldsValues(Auction a) {

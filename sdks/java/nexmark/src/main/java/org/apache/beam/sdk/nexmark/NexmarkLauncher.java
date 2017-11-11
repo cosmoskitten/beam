@@ -80,6 +80,7 @@ import org.apache.beam.sdk.nexmark.queries.Query8;
 import org.apache.beam.sdk.nexmark.queries.Query8Model;
 import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -97,7 +98,14 @@ import org.slf4j.LoggerFactory;
  * Run a single Nexmark query using a given configuration.
  */
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
+
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(NexmarkLauncher.class);
+
+  /**
+   * Command line parameter value for query language.
+   */
+  private static final String SQL = "sql";
+
   /**
    * Minimum number of samples needed for 'stead-state' rate calculation.
    */
@@ -1132,6 +1140,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     }
   }
 
+  private boolean isSql() {
+    return SQL.equalsIgnoreCase(options.getQueryLanguage());
+  }
+
   private NexmarkQueryModel getNexmarkQueryModel() {
     List<NexmarkQueryModel> models = createQueryModels();
     return models.get(configuration.query);
@@ -1139,10 +1151,27 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   private NexmarkQuery getNexmarkQuery() {
     List<NexmarkQuery> queries = createQueries();
+
+    if (options.getQuery() >= queries.size()) {
+      throw new UnsupportedOperationException(
+          "Query " + options.getQuery()
+          + " is not implemented yet");
+    }
+
     return queries.get(configuration.query);
   }
 
   private List<NexmarkQueryModel> createQueryModels() {
+    return isSql()
+        ? createSqlQueryModels()
+        : createJavaQueryModels();
+  }
+
+  private List<NexmarkQueryModel> createSqlQueryModels() {
+    return new ArrayList<>();
+  }
+
+  private List<NexmarkQueryModel> createJavaQueryModels() {
     return Arrays.asList(
             new Query0Model(configuration),
             new Query1Model(configuration),
@@ -1160,7 +1189,14 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private List<NexmarkQuery> createQueries() {
-    return createJavaQueries();
+    return isSql()
+        ? createSqlQueries()
+        : createJavaQueries();
+  }
+
+  private List<NexmarkQuery> createSqlQueries() {
+    return Arrays.<NexmarkQuery> asList(
+        new SqlQuery0(configuration));
   }
 
   private List<NexmarkQuery> createJavaQueries() {

@@ -20,8 +20,8 @@ package org.apache.beam.sdk.nexmark.model.sql;
 
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
+import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.Person;
-import org.apache.beam.sdk.nexmark.model.SellerPrice;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapters;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -29,7 +29,6 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -47,18 +46,17 @@ public class ToBeamRecordTest {
   private static final Auction AUCTION =
       new Auction(5L, "item", "desc", 342L, 321L, 3423342L, 2349234L, 3L, 1L, "extra3");
 
-  private static final SellerPrice SELLER_PRICE =
-      new SellerPrice(32L, 934L);
-
-  @Rule public TestPipeline testPipeline = TestPipeline.create();
-  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public TestPipeline testPipeline = TestPipeline.create();
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testCovertsBids() throws Exception {
-    PCollection<Bid> bids = testPipeline.apply(
-        TestStream.create(Bid.CODER)
-        .addElements(BID)
-        .advanceWatermarkToInfinity());
+    PCollection<Event> bids = testPipeline.apply(
+        TestStream.create(Event.CODER)
+            .addElements(new Event(BID))
+            .advanceWatermarkToInfinity());
 
     BeamRecord expectedBidRecord =
         new BeamRecord(
@@ -74,9 +72,9 @@ public class ToBeamRecordTest {
 
   @Test
   public void testCovertsPeople() throws Exception {
-    PCollection<Person> people = testPipeline.apply(
-        TestStream.create(Person.CODER)
-            .addElements(PERSON)
+    PCollection<Event> people = testPipeline.apply(
+        TestStream.create(Event.CODER)
+            .addElements(new Event(PERSON))
             .advanceWatermarkToInfinity());
 
     BeamRecord expectedPersonRecord =
@@ -93,9 +91,9 @@ public class ToBeamRecordTest {
 
   @Test
   public void testCovertsAuctions() throws Exception {
-    PCollection<Auction> auctions = testPipeline.apply(
-        TestStream.create(Auction.CODER)
-            .addElements(AUCTION)
+    PCollection<Event> auctions = testPipeline.apply(
+        TestStream.create(Event.CODER)
+            .addElements(new Event(AUCTION))
             .advanceWatermarkToInfinity());
 
     BeamRecord expectedAuctionRecord =
@@ -109,21 +107,4 @@ public class ToBeamRecordTest {
 
     testPipeline.run();
   }
-
-  @Test
-  public void testThrowsForUnknownModel() throws Exception {
-
-    thrown.expectCause(IsInstanceOf.<Throwable> instanceOf(IllegalArgumentException.class));
-
-    PCollection<SellerPrice> sellerPrices = testPipeline.apply(
-        TestStream.create(SellerPrice.CODER)
-            .addElements(SELLER_PRICE)
-            .advanceWatermarkToInfinity());
-
-    sellerPrices.apply(ToBeamRecord.parDo());
-
-    testPipeline.run();
-  }
-
-
 }
