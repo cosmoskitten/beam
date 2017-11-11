@@ -15,88 +15,106 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.io.aws.s3;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
-import java.util.Collection;
-import java.util.List;
+import com.google.common.base.Strings;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 
-/**
- * {@link ResourceId} implementation for Amazon Web Services S3.
- */
-public class S3ResourceId implements ResourceId {
+class S3ResourceId implements ResourceId {
 
-  private final S3Path s3Path;
+  static final String SCHEME = "s3";
 
-  public static S3ResourceId fromS3Path(S3Path s3Path) {
-    checkNotNull(s3Path, "s3Path");
-    return new S3ResourceId(s3Path);
+  private static final Pattern S3_URI =
+      Pattern.compile("(?<SCHEME>[^:]+)://(?<BUCKET>[^/]+)(/(?<KEY>.*))?");
+
+  /**
+   * Matches a glob containing a wildcard, capturing the portion before the first wildcard.
+   */
+  private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
+
+  private final String bucket;
+  private final String key;
+
+  private S3ResourceId(String bucket, String key) {
+    checkArgument(!Strings.isNullOrEmpty(bucket), "bucket");
+    this.bucket = bucket;
+    this.key = checkNotNull(key, "key");
   }
 
-  private S3ResourceId(S3Path s3Path) {
-    this.s3Path = s3Path;
+  static S3ResourceId fromComponents(String bucket, String key) {
+    return new S3ResourceId(bucket, key);
   }
 
-  public S3Path getS3Path() {
-    return s3Path;
+  static S3ResourceId fromUri(String uri) {
+    Matcher m = S3_URI.matcher(uri);
+    checkArgument(m.matches(), "Invalid S3 URI: [%s]", uri);
+    checkArgument(m.group("SCHEME").equalsIgnoreCase(SCHEME), "Invalid S3 URI scheme: [%s]", uri);
+    String bucket = m.group("BUCKET");
+    String key = Strings.nullToEmpty(m.group("KEY"));
+    if (!key.startsWith("/")) {
+      key = "/" + key;
+    }
+    return fromComponents(bucket, key);
   }
 
-  static List<S3ResourceId> getNonDirectoryResourceIds(Collection<S3ResourceId> resourceIds) {
-    return FluentIterable.from(resourceIds)
-        .filter(
-            new Predicate<S3ResourceId>() {
-              @Override
-              public boolean apply(S3ResourceId resourceId) {
-                return resourceId != null && !resourceId.isDirectory();
-              }
-            })
-        .toList();
+  String getBucket() {
+    return bucket;
   }
 
-  static List<S3Path> getS3Paths(Collection<S3ResourceId> resourceIds) {
-    return FluentIterable.from(resourceIds)
-        .transform(
-            new Function<S3ResourceId, S3Path>() {
-              @Override
-              public S3Path apply(S3ResourceId resourceId) {
-                return resourceId == null ? null : resourceId.getS3Path();
-              }
-            })
-        .toList();
+  String getKey() {
+    // Skip leading slash
+    return key.substring(1);
   }
 
   @Override
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
-    checkState(
-        isDirectory(), String.format("Expected the s3Path is a directory, but had [%s].", s3Path));
-    checkArgument(
-        resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)
-            || resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY),
-        String.format("ResolveOptions: [%s] is not supported.", resolveOptions));
-    if (resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)) {
-      checkArgument(
-          !other.endsWith("/"), "The resolved file: [%s] should not end with '/'.", other);
-      return fromS3Path(s3Path.resolve(other));
+    checkState(isDirectory(), "Expected this resource to be a directory, but was [%s]", toString());
+
+    if (resolveOptions == StandardResolveOptions.RESOLVE_DIRECTORY) {
+      if ("..".equals(other)) {
+        if ("/".equals(key)) {
+          return this;
+        }
+        int parentStopsAt = key.substring(0, key.length() - 1).lastIndexOf('/');
+        return fromComponents(bucket, key.substring(0, parentStopsAt + 1));
+      }
+
+      if ("".equals(other)) {
+        return this;
+      }
+
+      if (!other.endsWith("/")) {
+        other += "/";
+      }
+      if (S3_URI.matcher(other).matches()) {
+        return fromUri(other);
+      }
+      return fromComponents(bucket, key + other);
     }
 
-    // StandardResolveOptions.RESOLVE_DIRECTORY
-    if (other.endsWith("/")) {
-      // other already contains the delimiter for S3.
-      // It is not recommended for callers to set the delimiter.
-      // However, we consider it as a valid input.
-      return fromS3Path(s3Path.resolve(other));
+    if (resolveOptions == StandardResolveOptions.RESOLVE_FILE) {
+      checkArgument(!other.endsWith("/"), "Cannot resolve a file with a directory path: [%s]",
+          other);
+      checkArgument(!"..".equals(other), "Cannot resolve parent as file: [%s]", other);
+      if (S3_URI.matcher(other).matches()) {
+        return fromUri(other);
+      }
+      return fromComponents(bucket, key + other);
     }
-    return fromS3Path(s3Path.resolve(other + "/"));
+
+    throw new UnsupportedOperationException(
+        String.format("Unexpected StandardResolveOptions [%s]", resolveOptions));
   }
 
   @Override
@@ -104,50 +122,60 @@ public class S3ResourceId implements ResourceId {
     if (isDirectory()) {
       return this;
     }
-    S3Path parent = s3Path.getParent();
-    if (parent == null) {
-      throw new IllegalArgumentException(
-          String.format("Failed to get the current directory for path: [%s].", s3Path));
-    }
-    return fromS3Path(parent);
+    return fromComponents(getBucket(), key.substring(0, key.lastIndexOf('/') + 1));
+  }
+
+  @Override
+  public String getScheme() {
+    return SCHEME;
   }
 
   @Nullable
   @Override
   public String getFilename() {
-    if (s3Path.getNameCount() <= 1) {
+    if (!isDirectory()) {
+      return key.substring(key.lastIndexOf('/') + 1);
+    }
+    if ("/".equals(key)) {
       return null;
     }
-    S3Path s3Filename = s3Path.getFileName();
-    return s3Filename == null ? null : s3Filename.toString();
+    String keyWithoutTrailingSlash = key.substring(0, key.length() - 1);
+    return keyWithoutTrailingSlash.substring(keyWithoutTrailingSlash.lastIndexOf('/') + 1);
   }
 
   @Override
   public boolean isDirectory() {
-    return s3Path.endsWith("/");
+    return key.endsWith("/");
   }
 
-  @Override
-  public String getScheme() {
-    return S3Path.SCHEME;
+  boolean isWildcard() {
+    return GLOB_PREFIX.matcher(getKey()).matches();
+  }
+
+  String getKeyNonWildcardPrefix() {
+    Matcher m = GLOB_PREFIX.matcher(getKey());
+    checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", getKey()));
+    return m.group("PREFIX");
   }
 
   @Override
   public String toString() {
-    return s3Path.toString();
+    return String.format("%s://%s%s", SCHEME, bucket, key);
   }
 
   @Override
-  public boolean equals(Object other) {
-    if (!(other instanceof S3ResourceId)) {
+  public boolean equals(Object obj) {
+    if (!(obj instanceof S3ResourceId)) {
       return false;
     }
-    S3ResourceId otherS3ResourceId = (S3ResourceId) other;
-    return s3Path.equals(otherS3ResourceId.s3Path);
+
+    return bucket.equals(((S3ResourceId) obj).bucket) && key.equals(((S3ResourceId) obj).key);
   }
 
   @Override
   public int hashCode() {
-    return s3Path.hashCode();
+    return Objects.hash(bucket, key);
   }
+
+  // TODO compareTo and test
 }
