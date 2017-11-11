@@ -27,7 +27,7 @@ import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 /**
  * Helper class to construct {@link BeamRecordSqlType}.
  */
-class BeamRecordSqlTypeBuilder {
+public class BeamRecordSqlTypeBuilder {
 
   private ImmutableList.Builder<String> fieldNames;
   private ImmutableList.Builder<Integer> fieldTypes;
@@ -51,7 +51,7 @@ class BeamRecordSqlTypeBuilder {
     this.fieldTypes = ImmutableList.builder();
   }
 
-  static BeamRecordSqlTypeBuilder of() {
+  public static BeamRecordSqlTypeBuilder of() {
     return new BeamRecordSqlTypeBuilder();
   }
 

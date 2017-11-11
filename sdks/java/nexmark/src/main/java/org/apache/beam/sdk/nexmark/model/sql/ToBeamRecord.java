@@ -20,6 +20,7 @@ package org.apache.beam.sdk.nexmark.model.sql;
 
 import java.util.Map;
 
+import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapters;
@@ -40,24 +41,38 @@ public class ToBeamRecord {
     this.modelTypeAdapters = modelTypeAdapters;
   }
 
-  private BeamRecord toRecord(Object model) {
-    if (model == null) {
+  private BeamRecord toRecord(Event event) {
+    if (event == null) {
       return null;
     }
 
+    KnownSize model = getModel(event);
     Class modelClass = model.getClass();
 
     if (!modelTypeAdapters.containsKey(modelClass)) {
       throw new IllegalArgumentException(
-          "Beam SQL record type is not registered for " + model.getClass().getSimpleName());
+          "Beam SQL record type adapter is not registered for " + model.getClass().getSimpleName());
     }
 
     ModelFieldsAdapter adapter = modelTypeAdapters.get(modelClass);
+
     return new BeamRecord(adapter.getRecordType(), adapter.getFieldsValues(model));
   }
 
-  public static ParDo.SingleOutput<KnownSize, BeamRecord> parDo() {
-    return ParDo.of(new DoFn<KnownSize, BeamRecord>() {
+  private KnownSize getModel(Event event) {
+    if (event.newAuction != null) {
+      return event.newAuction;
+    } else if (event.newPerson != null) {
+      return event.newPerson;
+    } else if (event.bid != null) {
+      return event.bid;
+    }
+
+    throw new IllegalStateException("Unsupported event type " + event);
+  }
+
+  public static ParDo.SingleOutput<Event, BeamRecord> parDo() {
+    return ParDo.of(new DoFn<Event, BeamRecord>() {
       @ProcessElement
       public void processElement(ProcessContext c) {
         BeamRecord beamRecord = INSTANCE.toRecord(c.element());
