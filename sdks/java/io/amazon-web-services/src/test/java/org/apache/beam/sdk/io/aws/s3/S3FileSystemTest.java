@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io.aws.util;
+package org.apache.beam.sdk.io.aws.s3;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.contains;
@@ -47,8 +47,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.aws.options.S3Options;
-import org.apache.beam.sdk.io.aws.s3.S3Path;
-import org.apache.beam.sdk.io.aws.s3.S3ResourceId;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
@@ -58,25 +56,25 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 
 /**
- * Test case for {@link S3Util}.
+ * Test case for {@link S3FileSystem}.
  */
 @RunWith(JUnit4.class)
-public class S3UtilTest {
+public class S3FileSystemTest {
 
   @Test
   public void testGlobTranslation() {
-    assertEquals("foo", S3Util.wildcardToRegexp("foo"));
-    assertEquals("fo[^/]*o", S3Util.wildcardToRegexp("fo*o"));
-    assertEquals("f[^/]*o\\.[^/]", S3Util.wildcardToRegexp("f*o.?"));
-    assertEquals("foo-[0-9][^/]*", S3Util.wildcardToRegexp("foo-[0-9]*"));
-    assertEquals("foo-[0-9].*", S3Util.wildcardToRegexp("foo-[0-9]**"));
-    assertEquals(".*foo", S3Util.wildcardToRegexp("**/*foo"));
-    assertEquals(".*foo", S3Util.wildcardToRegexp("**foo"));
-    assertEquals("foo/[^/]*", S3Util.wildcardToRegexp("foo/*"));
-    assertEquals("foo[^/]*", S3Util.wildcardToRegexp("foo*"));
-    assertEquals("foo/[^/]*/[^/]*/[^/]*", S3Util.wildcardToRegexp("foo/*/*/*"));
-    assertEquals("foo/[^/]*/.*", S3Util.wildcardToRegexp("foo/*/**"));
-    assertEquals("foo.*baz", S3Util.wildcardToRegexp("foo**baz"));
+    assertEquals("foo", S3FileSystem.wildcardToRegexp("foo"));
+    assertEquals("fo[^/]*o", S3FileSystem.wildcardToRegexp("fo*o"));
+    assertEquals("f[^/]*o\\.[^/]", S3FileSystem.wildcardToRegexp("f*o.?"));
+    assertEquals("foo-[0-9][^/]*", S3FileSystem.wildcardToRegexp("foo-[0-9]*"));
+    assertEquals("foo-[0-9].*", S3FileSystem.wildcardToRegexp("foo-[0-9]**"));
+    assertEquals(".*foo", S3FileSystem.wildcardToRegexp("**/*foo"));
+    assertEquals(".*foo", S3FileSystem.wildcardToRegexp("**foo"));
+    assertEquals("foo/[^/]*", S3FileSystem.wildcardToRegexp("foo/*"));
+    assertEquals("foo[^/]*", S3FileSystem.wildcardToRegexp("foo*"));
+    assertEquals("foo/[^/]*/[^/]*/[^/]*", S3FileSystem.wildcardToRegexp("foo/*/*/*"));
+    assertEquals("foo/[^/]*/.*", S3FileSystem.wildcardToRegexp("foo/*/**"));
+    assertEquals("foo.*baz", S3FileSystem.wildcardToRegexp("foo**baz"));
   }
 
   private static S3Options s3Options() {
@@ -90,13 +88,13 @@ public class S3UtilTest {
   @Test
   public void testCopyMultipleParts() throws IOException {
     S3Options pipelineOptions = s3Options();
-    S3Util s3Util = pipelineOptions.getS3Util();
+    S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
 
     AmazonS3 mockAmazonS3 = Mockito.mock(AmazonS3.class);
-    s3Util.setAmazonS3Client(mockAmazonS3);
+    s3FileSystem.setAmazonS3Client(mockAmazonS3);
 
-    S3Path sourcePath = S3Path.fromUri("s3://bucket/from");
-    S3Path destinationPath = S3Path.fromUri("s3://bucket/to");
+    S3ResourceId sourcePath = S3ResourceId.fromUri("s3://bucket/from");
+    S3ResourceId destinationPath = S3ResourceId.fromUri("s3://bucket/to");
 
     InitiateMultipartUploadResult initiateMultipartUploadResult =
         new InitiateMultipartUploadResult();
@@ -106,7 +104,8 @@ public class S3UtilTest {
         .thenReturn(initiateMultipartUploadResult);
 
     ObjectMetadata sourceS3ObjectMetadata = new ObjectMetadata();
-    sourceS3ObjectMetadata.setContentLength((long) (s3Util.getS3UploadBufferSizeBytes() * 1.5));
+    sourceS3ObjectMetadata
+        .setContentLength((long) (s3FileSystem.getS3UploadBufferSizeBytes() * 1.5));
     when(mockAmazonS3.getObjectMetadata(sourcePath.getBucket(), sourcePath.getKey()))
         .thenReturn(sourceS3ObjectMetadata);
 
@@ -118,7 +117,7 @@ public class S3UtilTest {
         .thenReturn(copyPartResult1)
         .thenReturn(copyPartResult2);
 
-    s3Util.copy(sourcePath, destinationPath);
+    s3FileSystem.copy(sourcePath, destinationPath);
 
     verify(mockAmazonS3, times(1))
         .completeMultipartUpload(argThat(notNullValue(CompleteMultipartUploadRequest.class)));
@@ -127,24 +126,24 @@ public class S3UtilTest {
   @Test
   public void deleteThousandsOfObjectsInMultipleBuckets() throws IOException {
     S3Options pipelineOptions = s3Options();
-    S3Util s3Util = pipelineOptions.getS3Util();
+    S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
 
     AmazonS3 mockAmazonS3 = Mockito.mock(AmazonS3.class);
-    s3Util.setAmazonS3Client(mockAmazonS3);
+    s3FileSystem.setAmazonS3Client(mockAmazonS3);
 
     List<String> buckets = ImmutableList.of("bucket1", "bucket2");
     List<String> keys = new ArrayList<>();
     for (int i = 0; i < 2500; i++) {
       keys.add(String.format("key-%d", i));
     }
-    List<S3Path> paths = new ArrayList<>();
+    List<S3ResourceId> paths = new ArrayList<>();
     for (String bucket : buckets) {
       for (String key : keys) {
-        paths.add(S3Path.fromComponents(bucket, key));
+        paths.add(S3ResourceId.fromComponents(bucket, key));
       }
     }
 
-    s3Util.delete(paths);
+    s3FileSystem.delete(paths);
 
     // Should require 6 calls to delete 2500 objects in each of 2 buckets.
     verify(mockAmazonS3, times(6)).deleteObjects(argThat(notNullValue(DeleteObjectsRequest.class)));
@@ -153,25 +152,25 @@ public class S3UtilTest {
   @Test
   public void matchNonGlob() {
     S3Options pipelineOptions = s3Options();
-    S3Util s3Util = pipelineOptions.getS3Util();
+    S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
 
     AmazonS3 mockAmazonS3 = Mockito.mock(AmazonS3.class);
-    s3Util.setAmazonS3Client(mockAmazonS3);
+    s3FileSystem.setAmazonS3Client(mockAmazonS3);
 
-    S3Path path = S3Path.fromUri("s3://testbucket/testdirectory/filethatexists");
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
     ObjectMetadata s3ObjectMetadata = new ObjectMetadata();
     s3ObjectMetadata.setContentLength(100);
     when(mockAmazonS3.getObjectMetadata(path.getBucket(), path.getKey()))
         .thenReturn(s3ObjectMetadata);
 
-    MatchResult result = s3Util.matchNonGlobPath(path);
+    MatchResult result = s3FileSystem.matchNonGlobPath(path);
     assertThat(
         result,
         MatchResultMatcher.create(
             ImmutableList.of(
                 MatchResult.Metadata.builder()
                     .setSizeBytes(100)
-                    .setResourceId(S3ResourceId.fromS3Path(path))
+                    .setResourceId(path)
                     .setIsReadSeekEfficient(true)
                     .build())));
   }
@@ -179,17 +178,17 @@ public class S3UtilTest {
   @Test
   public void matchNonGlobNotFound() throws IOException {
     S3Options pipelineOptions = s3Options();
-    S3Util s3Util = pipelineOptions.getS3Util();
+    S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
 
     AmazonS3 mockAmazonS3 = Mockito.mock(AmazonS3.class);
-    s3Util.setAmazonS3Client(mockAmazonS3);
+    s3FileSystem.setAmazonS3Client(mockAmazonS3);
 
-    S3Path path = S3Path.fromUri("s3://testbucket/testdirectory/nonexistentfile");
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/nonexistentfile");
     AmazonS3Exception exception = new AmazonS3Exception("mock exception");
     exception.setStatusCode(404);
     when(mockAmazonS3.getObjectMetadata(path.getBucket(), path.getKey())).thenThrow(exception);
 
-    MatchResult result = s3Util.matchNonGlobPath(path);
+    MatchResult result = s3FileSystem.matchNonGlobPath(path);
     assertThat(
         result,
         MatchResultMatcher.create(MatchResult.Status.NOT_FOUND, new FileNotFoundException()));
@@ -198,18 +197,18 @@ public class S3UtilTest {
   @Test
   public void matchNonGlobForbidden() throws IOException {
     S3Options pipelineOptions = s3Options();
-    S3Util s3Util = pipelineOptions.getS3Util();
+    S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
 
     AmazonS3 mockAmazonS3 = Mockito.mock(AmazonS3.class);
-    s3Util.setAmazonS3Client(mockAmazonS3);
+    s3FileSystem.setAmazonS3Client(mockAmazonS3);
 
     AmazonS3Exception exception = new AmazonS3Exception("mock exception");
     exception.setStatusCode(403);
-    S3Path path = S3Path.fromUri("s3://testbucket/testdirectory/keyname");
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/keyname");
     when(mockAmazonS3.getObjectMetadata(path.getBucket(), path.getKey())).thenThrow(exception);
 
     assertThat(
-        s3Util.matchNonGlobPath(path),
+        s3FileSystem.matchNonGlobPath(path),
         MatchResultMatcher.create(MatchResult.Status.ERROR, new IOException(exception)));
   }
 
@@ -238,12 +237,12 @@ public class S3UtilTest {
   @Test
   public void matchGlob() {
     S3Options pipelineOptions = s3Options();
-    S3Util s3Util = pipelineOptions.getS3Util();
+    S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
 
     AmazonS3 mockAmazonS3 = Mockito.mock(AmazonS3.class);
-    s3Util.setAmazonS3Client(mockAmazonS3);
+    s3FileSystem.setAmazonS3Client(mockAmazonS3);
 
-    S3Path path = S3Path.fromUri("s3://testbucket/foo/bar*baz");
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar*baz");
 
     ListObjectsV2Request firstRequest =
         new ListObjectsV2Request()
@@ -293,21 +292,21 @@ public class S3UtilTest {
         .thenReturn(secondResult);
 
     assertThat(
-        s3Util.matchGlobPath(path),
+        s3FileSystem.matchGlobPath(path),
         MatchResultMatcher.create(
             ImmutableList.of(
                 MatchResult.Metadata.builder()
                     .setIsReadSeekEfficient(true)
                     .setResourceId(
-                        S3ResourceId.fromS3Path(
-                            S3Path.fromComponents(firstMatch.getBucketName(), firstMatch.getKey())))
+                        S3ResourceId
+                            .fromComponents(firstMatch.getBucketName(), firstMatch.getKey()))
                     .setSizeBytes(firstMatch.getSize())
                     .build(),
                 MatchResult.Metadata.builder()
                     .setIsReadSeekEfficient(true)
                     .setResourceId(
-                        S3ResourceId.fromS3Path(
-                            S3Path.fromComponents(thirdMatch.getBucketName(), thirdMatch.getKey())))
+                        S3ResourceId
+                            .fromComponents(thirdMatch.getBucketName(), thirdMatch.getKey()))
                     .setSizeBytes(thirdMatch.getSize())
                     .build())));
   }
@@ -315,30 +314,32 @@ public class S3UtilTest {
   @Test
   public void matchVariousInvokeThreadPool() throws IOException {
     S3Options pipelineOptions = s3Options();
-    S3Util s3Util = pipelineOptions.getS3Util();
+    S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
 
     AmazonS3 mockAmazonS3 = Mockito.mock(AmazonS3.class);
-    s3Util.setAmazonS3Client(mockAmazonS3);
+    s3FileSystem.setAmazonS3Client(mockAmazonS3);
 
     AmazonS3Exception notFoundException = new AmazonS3Exception("mock exception");
     notFoundException.setStatusCode(404);
-    S3Path pathNotExist = S3Path.fromUri("s3://testbucket/testdirectory/nonexistentfile");
+    S3ResourceId pathNotExist = S3ResourceId
+        .fromUri("s3://testbucket/testdirectory/nonexistentfile");
     when(mockAmazonS3.getObjectMetadata(pathNotExist.getBucket(), pathNotExist.getKey()))
         .thenThrow(notFoundException);
 
     AmazonS3Exception forbiddenException = new AmazonS3Exception("mock exception");
     forbiddenException.setStatusCode(403);
-    S3Path pathForbidden = S3Path.fromUri("s3://testbucket/testdirectory/forbiddenfile");
+    S3ResourceId pathForbidden = S3ResourceId
+        .fromUri("s3://testbucket/testdirectory/forbiddenfile");
     when(mockAmazonS3.getObjectMetadata(pathForbidden.getBucket(), pathForbidden.getKey()))
         .thenThrow(forbiddenException);
 
-    S3Path pathExist = S3Path.fromUri("s3://testbucket/testdirectory/filethatexists");
+    S3ResourceId pathExist = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
     ObjectMetadata s3ObjectMetadata = new ObjectMetadata();
     s3ObjectMetadata.setContentLength(100);
     when(mockAmazonS3.getObjectMetadata(pathExist.getBucket(), pathExist.getKey()))
         .thenReturn(s3ObjectMetadata);
 
-    S3Path pathGlob = S3Path.fromUri("s3://testbucket/path/part*");
+    S3ResourceId pathGlob = S3ResourceId.fromUri("s3://testbucket/path/part*");
 
     S3ObjectSummary foundListObject = new S3ObjectSummary();
     foundListObject.setBucketName(pathGlob.getBucket());
@@ -352,16 +353,19 @@ public class S3UtilTest {
         .thenReturn(listObjectsResult);
 
     assertThat(
-        s3Util.match(ImmutableList.of(pathNotExist, pathForbidden, pathExist, pathGlob)),
+        s3FileSystem.match(ImmutableList
+            .of(pathNotExist.toString(),
+                pathForbidden.toString(),
+                pathExist.toString(),
+                pathGlob.toString())),
         contains(
             MatchResultMatcher.create(MatchResult.Status.NOT_FOUND, new FileNotFoundException()),
             MatchResultMatcher.create(
                 MatchResult.Status.ERROR, new IOException(forbiddenException)),
-            MatchResultMatcher.create(100, S3ResourceId.fromS3Path(pathExist), true),
+            MatchResultMatcher.create(100, pathExist, true),
             MatchResultMatcher.create(
                 200,
-                S3ResourceId.fromS3Path(
-                    S3Path.fromComponents(pathGlob.getBucket(), foundListObject.getKey())),
+                S3ResourceId.fromComponents(pathGlob.getBucket(), foundListObject.getKey()),
                 true)));
   }
 }

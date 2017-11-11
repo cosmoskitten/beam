@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws.util;
+package org.apache.beam.sdk.io.aws.s3;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -32,7 +32,6 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
-import org.apache.beam.sdk.io.aws.s3.S3Path;
 
 /**
  * A readable S3 object, as a {@link SeekableByteChannel}.
@@ -40,14 +39,14 @@ import org.apache.beam.sdk.io.aws.s3.S3Path;
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {
 
   private final AmazonS3 amazonS3;
-  private final S3Path path;
+  private final S3ResourceId path;
   private final long contentLength;
   private long position = 0;
   private boolean open = true;
   private S3Object s3Object;
   private ReadableByteChannel s3ObjectContentChannel;
 
-  S3ReadableSeekableByteChannel(AmazonS3 amazonS3, S3Path path) throws IOException {
+  S3ReadableSeekableByteChannel(AmazonS3 amazonS3, S3ResourceId path) throws IOException {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
     this.path = checkNotNull(path, "path");
     try {
