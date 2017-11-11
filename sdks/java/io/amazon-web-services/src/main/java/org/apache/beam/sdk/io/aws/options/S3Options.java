@@ -17,41 +17,29 @@
  */
 package org.apache.beam.sdk.io.aws.options;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.io.aws.util.S3Util;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Hidden;
 
 /**
  * Options used to configure Amazon Web Services S3.
  */
 public interface S3Options extends AwsOptions {
 
-  @JsonIgnore
-  @Description("The S3Util instance that should be used to communicate with AWS S3")
-  @Default.InstanceFactory(S3Util.S3UtilFactory.class)
-  @Hidden
-  S3Util getS3Util();
-
-  void setS3Util(S3Util value);
-
   @Description("AWS S3 storage class used for creating S3 objects")
   @Default.String("STANDARD")
   String getS3StorageClass();
-
   void setS3StorageClass(String value);
 
-  @Description("Size of S3 upload chunks; max upload object size is this value multiplied by 10000")
+  @Description(
+      "Size of S3 upload chunks; max upload object size is this value multiplied by 10000;" +
+          "default is 64MB, or 5MB in memory-constrained environments")
   @Nullable
   Integer getS3UploadBufferSizeBytes();
-
   void setS3UploadBufferSizeBytes(Integer value);
 
   @Description("Thread pool size, limiting max concurrent S3 operations")
   @Default.Integer(50)
   int getS3ThreadPoolSize();
-
   void setS3ThreadPoolSize(int value);
 }

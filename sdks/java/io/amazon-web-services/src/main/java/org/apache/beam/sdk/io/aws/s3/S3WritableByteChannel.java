@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws.util;
+package org.apache.beam.sdk.io.aws.s3;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -37,7 +37,6 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.io.aws.s3.S3Path;
 
 /**
  * A writable S3 object, as a {@link WritableByteChannel}.
@@ -45,7 +44,7 @@ import org.apache.beam.sdk.io.aws.s3.S3Path;
 class S3WritableByteChannel implements WritableByteChannel {
 
   private final AmazonS3 amazonS3;
-  private final S3Path path;
+  private final S3ResourceId path;
   private final String uploadId;
   private final ByteArrayOutputStream uploadStream;
   private final WritableByteChannel uploadChannel;
@@ -56,7 +55,7 @@ class S3WritableByteChannel implements WritableByteChannel {
   private boolean open = true;
 
   S3WritableByteChannel(
-      AmazonS3 amazonS3, S3Path path, String storageClass, int uploadBufferSizeBytes)
+      AmazonS3 amazonS3, S3ResourceId path, String storageClass, int uploadBufferSizeBytes)
       throws IOException {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
     this.path = checkNotNull(path, "path");
