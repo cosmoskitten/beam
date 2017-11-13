@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.base.Objects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -501,15 +502,16 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         if (writer == null) {
           LOG.debug("Opening writer for write operation {}", writeOperation);
           writer = writeOperation.createWriter();
+          int shardNumber =
+              shardNumberAssignment == ShardAssignment.ASSIGN_WHEN_WRITING
+                  ? c.element().getKey().getShardNumber()
+                  : UNKNOWN_SHARDNUM;
           if (windowedWrites) {
-            int shardNumber =
-                shardNumberAssignment == ShardAssignment.ASSIGN_WHEN_WRITING
-                    ? c.element().getKey().getShardNumber()
-                    : UNKNOWN_SHARDNUM;
             writer.openWindowed(
                 UUID.randomUUID().toString(), window, c.pane(), shardNumber, destination);
           } else {
-            writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, destination);
+            writer.openUnwindowed(
+                UUID.randomUUID().toString(), shardNumber, destination);
           }
           LOG.debug("Done opening writer");
           writers.put(destination, writer);
@@ -776,7 +778,11 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                                 entry.getKey(),
                                 entry.getValue().size());
                             Map<ResourceId, ResourceId> finalizeMap =
-                                writeOperation.finalize(entry.getValue());
+                                writeOperation.finalize(
+                                    (fixedNumShardsView == null)
+                                        ? null
+                                        : c.sideInput(fixedNumShardsView),
+                                    entry.getValue());
                             tempFiles.addAll(finalizeMap.keySet());
                             for (ResourceId outputFile : finalizeMap.values()) {
                               c.output(KV.of(entry.getKey(), outputFile.toString()));
@@ -786,7 +792,11 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                           writeOperation.removeTemporaryFiles(tempFiles);
                           LOG.debug("Removed temporary files for {}.", writeOperation);
                         }
-                      }))
+                      })
+              .withSideInputs(
+                  fixedNumShardsView == null
+                      ? ImmutableList.<PCollectionView<?>>of()
+                      : ImmutableList.of(fixedNumShardsView)))
               .setCoder(KvCoder.of(destinationCoder, StringUtf8Coder.of()));
     } else {
       final PCollectionView<Iterable<FileResult<DestinationT>>> resultsView =
@@ -813,14 +823,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
                       sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
-                      // We must always output at least 1 shard, and honor user-specified numShards
-                      // if set.
-                      int minShardsNeeded;
-                      if (fixedNumShardsView != null) {
-                        minShardsNeeded = c.sideInput(fixedNumShardsView);
-                      } else {
-                        minShardsNeeded = 1;
-                      }
+                      @Nullable Integer fixedNumShards = (fixedNumShardsView == null)
+                          ? null
+                          : c.sideInput(fixedNumShardsView);
                       Set<ResourceId> tempFiles = Sets.newHashSet();
                       Multimap<DestinationT, FileResult<DestinationT>> perDestination =
                           perDestinationResults(c.sideInput(resultsView));
@@ -829,7 +834,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                         Map<ResourceId, ResourceId> finalizeMap = Maps.newHashMap();
                         finalizeMap.putAll(
                             finalizeForDestinationFillEmptyShards(
-                                entry.getKey(), entry.getValue(), minShardsNeeded));
+                                entry.getKey(),
+                                fixedNumShards,
+                                entry.getValue()));
                         tempFiles.addAll(finalizeMap.keySet());
                         for (ResourceId outputFile :finalizeMap.values()) {
                           c.output(KV.of(entry.getKey(), outputFile.toString()));
@@ -844,8 +851,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                         finalizeMap.putAll(
                             finalizeForDestinationFillEmptyShards(
                                 destination,
-                                Lists.<FileResult<DestinationT>>newArrayList(),
-                                minShardsNeeded));
+                                fixedNumShards,
+                                Lists.<FileResult<DestinationT>>newArrayList()));
                         tempFiles.addAll(finalizeMap.keySet());
                         for (ResourceId outputFile :finalizeMap.values()) {
                           c.output(KV.of(destination, outputFile.toString()));
@@ -872,7 +879,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * generated.
    */
   private Map<ResourceId, ResourceId> finalizeForDestinationFillEmptyShards(
-      DestinationT destination, Collection<FileResult<DestinationT>> results, int minShardsNeeded)
+      DestinationT destination,
+      @Nullable Integer fixedNumShards,
+      Collection<FileResult<DestinationT>> existingResults)
       throws Exception {
     checkState(!windowedWrites);
 
@@ -880,26 +889,56 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         "Finalizing write operation {} for destination {} num shards {}.",
         writeOperation,
         destination,
-        results.size());
-    int extraShardsNeeded = minShardsNeeded - results.size();
-    if (extraShardsNeeded > 0) {
+        existingResults.size());
+    if (fixedNumShards != null) {
+      checkArgument(
+          existingResults.size() <= fixedNumShards,
+          "Fixed sharding into %s shards was specified, but got %s file results",
+          fixedNumShards,
+          existingResults.size());
+    }
+    // We must always output at least 1 shard, and honor user-specified numShards
+    // if set.
+    Set<Integer> missingShardNums;
+    if (fixedNumShards == null) {
+      missingShardNums =
+          existingResults.isEmpty()
+              ? ImmutableSet.<Integer>of()
+              : ImmutableSet.of(UNKNOWN_SHARDNUM);
+    } else {
+      missingShardNums = Sets.newHashSet();
+      for (int i = 0; i < fixedNumShards; ++i) {
+        missingShardNums.add(i);
+      }
+      for (FileResult<DestinationT> res : existingResults) {
+        checkArgument(
+            res.getShard() != UNKNOWN_SHARDNUM,
+            "Fixed sharding into %s shards was specified, "
+                + "but file result %s does not specify a shard",
+            fixedNumShards,
+            res);
+        missingShardNums.remove(res.getShard());
+      }
+    }
+    List<FileResult<DestinationT>> completeResults = Lists.newArrayList(existingResults);
+    if (!missingShardNums.isEmpty()) {
       LOG.info(
-          "Creating {} empty output shards in addition to {} written "
-              + "for a total of {} for destination {}.",
-          extraShardsNeeded,
-          results.size(),
-          minShardsNeeded,
+          "Creating {} empty output shards in addition to {} written for destination {}.",
+          missingShardNums.size(),
+          existingResults.size(),
           destination);
-      for (int i = 0; i < extraShardsNeeded; ++i) {
+      for (int shard : missingShardNums) {
         Writer<DestinationT, OutputT> writer = writeOperation.createWriter();
         // Currently this code path is only called in the unwindowed case.
-        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, destination);
+        writer.openUnwindowed(UUID.randomUUID().toString(), shard, destination);
         FileResult<DestinationT> emptyWrite = writer.close();
-        results.add(emptyWrite);
+        completeResults.add(emptyWrite);
       }
       LOG.debug("Done creating extra shards for {}.", destination);
     }
-    Map<ResourceId, ResourceId> finalizeMap = writeOperation.finalize(results);
+    Map<ResourceId, ResourceId> finalizeMap =
+        writeOperation.finalize(
+            (fixedNumShards == null) ? null : completeResults.size(), completeResults);
     LOG.debug("Done finalizing write operation {} for destination {}", writeOperation, destination);
     return finalizeMap;
   }

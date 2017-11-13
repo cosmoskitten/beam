@@ -574,10 +574,11 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      *
      * @param writerResults the results of writes (FileResult).
      */
-    public Map<ResourceId, ResourceId> finalize(Iterable<FileResult<DestinationT>> writerResults)
+    public Map<ResourceId, ResourceId> finalize(
+        @Nullable Integer numShards, Iterable<FileResult<DestinationT>> writerResults)
         throws Exception {
       // Collect names of temporary files and copies them.
-      Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(writerResults);
+      Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(numShards, writerResults);
       copyToOutputFiles(outputFilenames);
       return outputFilenames;
     }
@@ -604,31 +605,31 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     @Experimental(Kind.FILESYSTEM)
     protected final Map<ResourceId, ResourceId> buildOutputFilenames(
+        @Nullable Integer numShards,
         Iterable<FileResult<DestinationT>> writerResults) {
-      int numShards = Iterables.size(writerResults);
       Map<ResourceId, ResourceId> outputFilenames = Maps.newHashMap();
 
-      // Either all results have a shard number set (if the sink is configured with a fixed
-      // number of shards), or they all don't (otherwise).
-      Boolean isShardNumberSetEverywhere = null;
-      for (FileResult<DestinationT> result : writerResults) {
-        boolean isShardNumberSetHere = (result.getShard() != UNKNOWN_SHARDNUM);
-        if (isShardNumberSetEverywhere == null) {
-          isShardNumberSetEverywhere = isShardNumberSetHere;
-        } else {
-          checkArgument(
-              isShardNumberSetEverywhere == isShardNumberSetHere,
-              "Found a mix of files with and without shard number set: %s",
-              result);
+      final int effectiveNumShards;
+      if (numShards != null) {
+        effectiveNumShards = numShards;
+        for (FileResult<DestinationT> res : writerResults) {
+          checkArgument(res.getShard() != UNKNOWN_SHARDNUM,
+              "Fixed sharding into %s shards was specified, " +
+                  "but file result %s does not specify a shard",
+              numShards, res);
+        }
+      } else {
+        effectiveNumShards = Iterables.size(writerResults);
+        for (FileResult<DestinationT> res : writerResults) {
+          checkArgument(res.getShard() == UNKNOWN_SHARDNUM,
+              "Runner-chosen sharding was specified, " +
+                  "but file result %s explicitly specifies a shard",
+              res);
         }
       }
 
-      if (isShardNumberSetEverywhere == null) {
-        isShardNumberSetEverywhere = true;
-      }
-
       List<FileResult<DestinationT>> resultsWithShardNumbers = Lists.newArrayList();
-      if (isShardNumberSetEverywhere) {
+      if (numShards != null) {
         resultsWithShardNumbers = Lists.newArrayList(writerResults);
       } else {
         // Sort files for idempotence. Sort by temporary filename.
@@ -660,7 +661,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
             result.getTempFilename(),
             result.getDestinationFile(
                 getSink().getDynamicDestinations(),
-                numShards,
+                effectiveNumShards,
                 getSink().getWritableByteChannelFactory()));
       }
 
