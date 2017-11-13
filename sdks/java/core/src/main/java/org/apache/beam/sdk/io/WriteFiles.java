@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Objects;
@@ -563,41 +562,32 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
   private class ApplyShardingKey extends DoFn<UserT, KV<ShardedKey<Integer>, UserT>> {
     private final @Nullable PCollectionView<Integer> numShardsView;
-    private final ValueProvider<Integer> numShardsProvider;
     private final Coder<DestinationT> destinationCoder;
 
     private int shardNumber;
 
     ApplyShardingKey(
         PCollectionView<Integer> numShardsView,
-        ValueProvider<Integer> numShardsProvider,
         Coder<DestinationT> destinationCoder) {
       this.destinationCoder = destinationCoder;
       this.numShardsView = numShardsView;
-      this.numShardsProvider = numShardsProvider;
       shardNumber = UNKNOWN_SHARDNUM;
     }
 
     @ProcessElement
     public void processElement(ProcessContext context) throws IOException {
-      final int shardCount;
-      if (numShardsView != null) {
-        shardCount = context.sideInput(numShardsView);
-      } else {
-        checkNotNull(numShardsProvider);
-        shardCount = numShardsProvider.get();
-      }
+      final int numShards = context.sideInput(numShardsView);
       checkArgument(
-          shardCount > 0,
+          numShards > 0,
           "Must have a positive number of shards specified for non-runner-determined sharding."
               + " Got %s",
-          shardCount);
+          numShards);
       if (shardNumber == UNKNOWN_SHARDNUM) {
         // We want to desynchronize the first record sharding key for each instance of
         // ApplyShardingKey, so records in a small PCollection will be statistically balanced.
-        shardNumber = ThreadLocalRandom.current().nextInt(shardCount);
+        shardNumber = ThreadLocalRandom.current().nextInt(numShards);
       } else {
-        shardNumber = (shardNumber + 1) % shardCount;
+        shardNumber = (shardNumber + 1) % numShards;
       }
       // We avoid using destination itself as a sharding key, because destination is often large.
       // e.g. when using {@link DefaultFilenamePolicy}, the destination contains the entire path
@@ -668,7 +658,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     // WriteOperation PCollection as a side input), so this will happen after the
     // initial ParDo.
     PCollection<FileResult<DestinationT>> results;
-    final PCollectionView<Integer> numShardsView;
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> shardedWindowCoder =
         (Coder<BoundedWindow>) input.getWindowingStrategy().getWindowFn().windowCoder();
@@ -682,16 +671,27 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       throw new RuntimeException(e);
     }
 
-    if (computeNumShards == null && numShardsProvider == null) {
-      numShardsView = null;
+    final PCollectionView<Integer> fixedNumShardsView;
+    if (computeNumShards != null) {
+      fixedNumShardsView = input.apply(computeNumShards);
+    } else if (numShardsProvider != null) {
+      fixedNumShardsView =
+          p.apply(Create.ofProvider(numShardsProvider, VarIntCoder.of()))
+              .apply(View.<Integer>asSingleton());
+    } else {
+      // null means runner-chosen.
+      fixedNumShardsView = null;
+    }
+
+    if (fixedNumShardsView == null) {
+      // Runner-determined sharding.
       TupleTag<FileResult<DestinationT>> writtenRecordsTag =
           new TupleTag<>("writtenRecordsTag");
       TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittedRecordsTag =
           new TupleTag<>("unwrittenRecordsTag");
-      String writeName = windowedWrites ? "WriteWindowedBundles" : "WriteBundles";
       PCollectionTuple writeTuple =
           input.apply(
-              writeName,
+              windowedWrites ? "WriteWindowedBundles" : "WriteBundles",
               ParDo.of(new WriteBundles(windowedWrites, unwrittedRecordsTag, destinationCoder))
                   .withSideInputs(sideInputs)
                   .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittedRecordsTag)));
@@ -716,23 +716,13 @@ public class WriteFiles<UserT, DestinationT, OutputT>
               .and(writtenGroupedFiles)
               .apply(Flatten.<FileResult<DestinationT>>pCollections());
     } else {
-      List<PCollectionView<?>> shardingSideInputs = Lists.newArrayList();
-      if (computeNumShards != null) {
-        numShardsView = input.apply(computeNumShards);
-        shardingSideInputs.add(numShardsView);
-      } else {
-        numShardsView = null;
-      }
+      // Fixed sharding.
       PCollection<KV<ShardedKey<Integer>, Iterable<UserT>>> sharded =
           input
               .apply(
                   "ApplyShardLabel",
-                  ParDo.of(
-                          new ApplyShardingKey(
-                              numShardsView,
-                              (numShardsView != null) ? null : numShardsProvider,
-                              destinationCoder))
-                      .withSideInputs(shardingSideInputs))
+                  ParDo.of(new ApplyShardingKey(fixedNumShardsView, destinationCoder))
+                      .withSideInputs(fixedNumShardsView))
               .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
               .apply("GroupIntoShards", GroupByKey.<ShardedKey<Integer>, UserT>create());
       shardedWindowCoder =
@@ -802,11 +792,10 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       final PCollectionView<Iterable<FileResult<DestinationT>>> resultsView =
           results.apply(View.<FileResult<DestinationT>>asIterable());
       ImmutableList.Builder<PCollectionView<?>> finalizeSideInputs =
-          ImmutableList.<PCollectionView<?>>builder().add(resultsView);
-      if (numShardsView != null) {
-        finalizeSideInputs.add(numShardsView);
+          ImmutableList.<PCollectionView<?>>builder().add(resultsView).addAll(sideInputs);
+      if (fixedNumShardsView != null) {
+        finalizeSideInputs.add(fixedNumShardsView);
       }
-      finalizeSideInputs.addAll(sideInputs);
 
       // Finalize the write in another do-once ParDo on the singleton collection containing the
       // Writer. The results from the per-bundle writes are given as an Iterable side input.
@@ -827,10 +816,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                       // We must always output at least 1 shard, and honor user-specified numShards
                       // if set.
                       int minShardsNeeded;
-                      if (numShardsView != null) {
-                        minShardsNeeded = c.sideInput(numShardsView);
-                      } else if (numShardsProvider != null) {
-                        minShardsNeeded = numShardsProvider.get();
+                      if (fixedNumShardsView != null) {
+                        minShardsNeeded = c.sideInput(fixedNumShardsView);
                       } else {
                         minShardsNeeded = 1;
                       }
