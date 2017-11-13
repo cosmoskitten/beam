@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,9 +43,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.values.KV;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.junit.Rule;
@@ -196,14 +198,20 @@ public class FileBasedSinkTest {
       fileResults.add(
           new FileResult<Void>(
               LocalResources.fromFile(temporaryFiles.get(i), false),
-              WriteFiles.UNKNOWN_SHARDNUM,
+              UNKNOWN_SHARDNUM,
               null,
               null,
               null));
     }
 
     // TODO: test with null first argument?
-    writeOp.removeTemporaryFiles(writeOp.finalize(null, fileResults).keySet());
+    List<KV<FileResult<Void>, ResourceId>> resultsToFinalFilenames =
+        writeOp.finalize(null, fileResults);
+    Set<ResourceId> tempFiles = Sets.newHashSet();
+    for (KV<FileResult<Void>, ResourceId> res : resultsToFinalFilenames) {
+      tempFiles.add(res.getKey().getTempFilename());
+    }
+    writeOp.removeTemporaryFiles(tempFiles);
 
     for (int i = 0; i < numFiles; i++) {
       ResourceId outputFilename =
@@ -270,8 +278,8 @@ public class FileBasedSinkTest {
     List<String> expectedOutputFilenames =
         Arrays.asList("file-00-of-03.test", "file-01-of-03.test", "file-02-of-03.test");
 
-    Map<ResourceId, ResourceId> inputFilePaths = new HashMap<>();
-    List<ResourceId> expectedOutputPaths = new ArrayList<>();
+    List<KV<FileResult<Void>, ResourceId>> resultsToFinalFilenames = Lists.newArrayList();
+    List<ResourceId> expectedOutputPaths = Lists.newArrayList();
 
     for (int i = 0; i < inputFilenames.size(); i++) {
       // Generate output paths.
@@ -283,17 +291,20 @@ public class FileBasedSinkTest {
       File inputTmpFile = tmpFolder.newFile(inputFilenames.get(i));
       List<String> lines = Collections.singletonList(inputContents.get(i));
       writeFile(lines, inputTmpFile);
-      inputFilePaths.put(
-          LocalResources.fromFile(inputTmpFile, false),
-          writeOp
-              .getSink()
-              .getDynamicDestinations()
-              .getFilenamePolicy(null)
-              .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED));
+      ResourceId finalFilename = writeOp
+          .getSink()
+          .getDynamicDestinations()
+          .getFilenamePolicy(null)
+          .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED);
+      resultsToFinalFilenames.add(
+          KV.of(
+              new FileResult<Void>(
+                  LocalResources.fromFile(inputTmpFile, false), UNKNOWN_SHARDNUM, null, null, null),
+              finalFilename));
     }
 
     // Copy input files to output files.
-    writeOp.copyToOutputFiles(inputFilePaths);
+    writeOp.copyToOutputFiles(resultsToFinalFilenames);
 
     // Assert that the contents were copied.
     for (int i = 0; i < expectedOutputPaths.size(); i++) {
