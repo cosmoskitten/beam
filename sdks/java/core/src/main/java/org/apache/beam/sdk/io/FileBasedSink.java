@@ -74,6 +74,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
@@ -574,13 +575,14 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      *
      * @param writerResults the results of writes (FileResult).
      */
-    public Map<ResourceId, ResourceId> finalize(
+    public List<KV<FileResult<DestinationT>, ResourceId>> finalize(
         @Nullable Integer numShards, Iterable<FileResult<DestinationT>> writerResults)
         throws Exception {
       // Collect names of temporary files and copies them.
-      Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(numShards, writerResults);
-      copyToOutputFiles(outputFilenames);
-      return outputFilenames;
+      List<KV<FileResult<DestinationT>, ResourceId>> finalOutputFilenames =
+          buildOutputFilenames(numShards, writerResults);
+      copyToOutputFiles(finalOutputFilenames);
+      return finalOutputFilenames;
     }
 
     /*
@@ -604,10 +606,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     }
 
     @Experimental(Kind.FILESYSTEM)
-    protected final Map<ResourceId, ResourceId> buildOutputFilenames(
+    protected final List<KV<FileResult<DestinationT>, ResourceId>> buildOutputFilenames(
         @Nullable Integer numShards,
         Iterable<FileResult<DestinationT>> writerResults) {
-      Map<ResourceId, ResourceId> outputFilenames = Maps.newHashMap();
+      List<KV<FileResult<DestinationT>, ResourceId>> outputFilenames = Lists.newArrayList();
 
       final int effectiveNumShards;
       if (numShards != null) {
@@ -657,23 +659,23 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         }
       }
 
+      Map<ResourceId, FileResult<DestinationT>> distinctFilenames = Maps.newHashMap();
       for (FileResult<DestinationT> result : resultsWithShardNumbers) {
         checkArgument(
             result.getShard() != UNKNOWN_SHARDNUM, "Should have set shard number on %s", result);
-        outputFilenames.put(
-            result.getTempFilename(),
-            result.getDestinationFile(
-                getSink().getDynamicDestinations(),
-                effectiveNumShards,
-                getSink().getWritableByteChannelFactory()));
+        ResourceId finalFilename = result.getDestinationFile(
+            getSink().getDynamicDestinations(),
+            effectiveNumShards,
+            getSink().getWritableByteChannelFactory());
+        checkArgument(
+            !distinctFilenames.containsKey(finalFilename),
+            "Filename policy must generate unique filenames, but generated the same name %s "
+                + "for file results %s and %s",
+            finalFilename,
+            result,
+            distinctFilenames.get(finalFilename));
+        outputFilenames.add(KV.of(result, finalFilename));
       }
-
-      int numDistinctShards = new HashSet<>(outputFilenames.values()).size();
-      checkState(
-          numDistinctShards == outputFilenames.size(),
-          "Only generated %s distinct file names for %s files.",
-          numDistinctShards,
-          outputFilenames.size());
       return outputFilenames;
     }
 
@@ -688,24 +690,23 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * the policy) is "dir/file", the extension is ".txt", and the fileNamingTemplate is
      * "-SSS-of-NNN", the contents of A will be copied to dir/file-000-of-003.txt, the contents of B
      * will be copied to dir/file-001-of-003.txt, etc.
-     *
-     * @param filenames the filenames of temporary files.
      */
     @VisibleForTesting
     @Experimental(Kind.FILESYSTEM)
-    final void copyToOutputFiles(Map<ResourceId, ResourceId> filenames) throws IOException {
-      int numFiles = filenames.size();
+    final void copyToOutputFiles(
+        List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames) throws IOException {
+      int numFiles = resultsToFinalFilenames.size();
       if (numFiles > 0) {
         LOG.debug("Copying {} files.", numFiles);
-        List<ResourceId> srcFiles = new ArrayList<>(filenames.size());
-        List<ResourceId> dstFiles = new ArrayList<>(filenames.size());
-        for (Map.Entry<ResourceId, ResourceId> srcDestPair : filenames.entrySet()) {
-          srcFiles.add(srcDestPair.getKey());
-          dstFiles.add(srcDestPair.getValue());
+        List<ResourceId> srcFiles = new ArrayList<>(resultsToFinalFilenames.size());
+        List<ResourceId> dstFiles = new ArrayList<>(resultsToFinalFilenames.size());
+        for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
+          srcFiles.add(entry.getKey().getTempFilename());
+          dstFiles.add(entry.getValue());
           LOG.info(
               "Will copy temporary file {} to final location {}",
-              srcDestPair.getKey(),
-              srcDestPair.getValue());
+              entry.getKey().getTempFilename(),
+              entry.getValue());
         }
         // During a failure case, files may have been deleted in an earlier step. Thus
         // we ignore missing files here.

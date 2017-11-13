@@ -33,6 +33,7 @@ import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -63,6 +64,8 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -534,7 +537,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           throw e;
         }
       }
-      }
+    }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
@@ -754,63 +757,79 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
     PCollection<KV<DestinationT, String>> outputFilenames;
     if (windowedWrites) {
-      // When processing streaming windowed writes, results will arrive multiple times. This
-      // means we can't share the below implementation that turns the results into a side input,
-      // as new data arriving into a side input does not trigger the listening DoFn. Instead
-      // we aggregate the result set using a singleton GroupByKey, so the DoFn will be triggered
-      // whenever new data arrives.
-      PCollection<KV<Void, FileResult<DestinationT>>> keyedResults =
-          results.apply(
-              "AttachSingletonKey", WithKeys.<Void, FileResult<DestinationT>>of((Void) null));
-      keyedResults.setCoder(
-          KvCoder.of(VoidCoder.of(), FileResultCoder.of(shardedWindowCoder, destinationCoder)));
-
-      // Is the continuation trigger sufficient?
+      // We need to materialize the FileResult's before the renaming stage: this can be done either
+      // via a side input or via a GBK. However, when processing streaming windowed writes, results
+      // will arrive multiple times. This means we can't share the below implementation that turns
+      // the results into a side input, as new data arriving into a side input does not trigger the
+      // listening DoFn. We also can't use a GBK because we need only the materialization, but not
+      // the (potentially lossy, dependent on the user's trigger) continuation triggering that GBK
+      // would give. So, we use a reshuffle (over a single key to maximize bundling).
       outputFilenames =
-          keyedResults
-              .apply("FinalizeGroupByKey", GroupByKey.<Void, FileResult<DestinationT>>create())
+          results
+              .apply(WithKeys.<Void, FileResult<DestinationT>>of((Void) null))
+              .setCoder(KvCoder.of(VoidCoder.of(), results.getCoder()))
+              .apply("Reshuffle", Reshuffle.<Void, FileResult<DestinationT>>of())
+              .apply(Values.<FileResult<DestinationT>>create())
               .apply(
                   "FinalizeWindowed",
-                  ParDo.of(
-                      new DoFn<
-                          KV<Void, Iterable<FileResult<DestinationT>>>,
-                          KV<DestinationT, String>>() {
-                        @ProcessElement
-                        public void processElement(ProcessContext c) throws Exception {
-                          @Nullable final Integer numShards;
+                  ParDo.of(new DoFn<FileResult<DestinationT>, KV<DestinationT, String>>() {
+                      private List<FileResult<DestinationT>> fileResults;
+                      @Nullable private Integer fixedNumShards;
+
+                      @StartBundle
+                      public void startBundle() {
+                        fileResults = Lists.newArrayList();
+                        fixedNumShards = null;
+                      }
+
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        fileResults.add(c.element());
+                        if (fixedNumShards == null) {
                           if (numShardsView != null) {
-                            numShards = c.sideInput(numShardsView);
+                            fixedNumShards = c.sideInput(numShardsView);
                           } else if (numShardsProvider != null) {
-                            numShards = numShardsProvider.get();
+                            fixedNumShards = numShardsProvider.get();
                           } else {
-                            numShards = null;
+                            fixedNumShards = null;
                           }
-                          Set<ResourceId> tempFiles = Sets.newHashSet();
-                          Multimap<DestinationT, FileResult<DestinationT>> results =
-                              perDestinationResults(c.element().getValue());
-                          for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>> entry :
-                              results.asMap().entrySet()) {
-                            LOG.info(
-                                "Finalizing write operation {} for destination {} num shards: {}.",
-                                writeOperation,
-                                entry.getKey(),
-                                entry.getValue().size());
-                            Map<ResourceId, ResourceId> finalizeMap =
-                                writeOperation.finalize(numShards, entry.getValue());
-                            tempFiles.addAll(finalizeMap.keySet());
-                            for (ResourceId outputFile : finalizeMap.values()) {
-                              c.output(KV.of(entry.getKey(), outputFile.toString()));
-                            }
-                            LOG.debug("Done finalizing write operation for {}.", entry.getKey());
-                          }
-                          writeOperation.removeTemporaryFiles(tempFiles);
-                          LOG.debug("Removed temporary files for {}.", writeOperation);
                         }
-                      })
-              .withSideInputs(
-                  numShardsView == null
-                      ? ImmutableList.<PCollectionView<?>>of()
-                      : ImmutableList.of(numShardsView)))
+                      }
+
+                      @FinishBundle
+                      public void finishBundle(FinishBundleContext c) throws Exception {
+                        Set<ResourceId> tempFiles = Sets.newHashSet();
+                        Multimap<DestinationT, FileResult<DestinationT>> results =
+                            perDestinationResults(fileResults);
+                        for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>>
+                            destEntry : results.asMap().entrySet()) {
+                          LOG.info(
+                              "Finalizing write operation {} for destination {} num shards: {}.",
+                              writeOperation,
+                              destEntry.getKey(),
+                              destEntry.getValue().size());
+                          List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames =
+                              writeOperation.finalize(fixedNumShards, destEntry.getValue());
+                          for (KV<FileResult<DestinationT>, ResourceId> entry
+                              : resultsToFinalFilenames) {
+                            FileResult<DestinationT> res = entry.getKey();
+                            BoundedWindow window = res.getWindow();
+                            c.output(
+                                KV.of(res.getDestination(), entry.getValue().toString()),
+                                window.maxTimestamp(),
+                                window);
+                          }
+                          LOG.debug(
+                              "Done finalizing write operation for {}.", destEntry.getKey());
+                        }
+                        writeOperation.removeTemporaryFiles(tempFiles);
+                        LOG.debug("Removed temporary files for {}.", writeOperation);
+                      }
+                    })
+                .withSideInputs(
+                    numShardsView == null
+                        ? ImmutableList.<PCollectionView<?>>of()
+                        : ImmutableList.of(numShardsView)))
               .setCoder(KvCoder.of(destinationCoder, StringUtf8Coder.of()));
     } else {
       final PCollectionView<Iterable<FileResult<DestinationT>>> resultsView =
@@ -838,44 +857,37 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
                       sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
-                      @Nullable Integer fixedNumShards;
-                      if (numShardsView != null) {
-                        fixedNumShards = c.sideInput(numShardsView);
+                      @Nullable Integer fixedNumShards ;
+                          if (numShardsView != null) {
+                          fixedNumShards = c.sideInput(numShardsView);
                       } else if (numShardsProvider != null) {
                         fixedNumShards = numShardsProvider.get();
                       } else {
                         fixedNumShards = null;
                       }
                       Set<ResourceId> tempFiles = Sets.newHashSet();
-                      Multimap<DestinationT, FileResult<DestinationT>> perDestination =
-                          perDestinationResults(c.sideInput(resultsView));
-                      for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>> entry :
-                          perDestination.asMap().entrySet()) {
-                        Map<ResourceId, ResourceId> finalizeMap = Maps.newHashMap();
-                        finalizeMap.putAll(
-                            finalizeForDestinationFillEmptyShards(
-                                entry.getKey(),
-                                fixedNumShards,
-                                entry.getValue()));
-                        tempFiles.addAll(finalizeMap.keySet());
-                        for (ResourceId outputFile :finalizeMap.values()) {
-                          c.output(KV.of(entry.getKey(), outputFile.toString()));
+                      Map<DestinationT, Collection<FileResult<DestinationT>>> perDestination =
+                          perDestinationResults(c.sideInput(resultsView)).asMap();
+                        if (perDestination.isEmpty()) {
+                          Collection<FileResult<DestinationT>> empty = ImmutableList.of();
+                          perDestination =
+                              Collections.singletonMap(
+                                  getSink().getDynamicDestinations().getDefaultDestination(),
+                                  empty);
                         }
-                      }
-                      if (perDestination.isEmpty()) {
-                        // If there is no input at all, write empty files to the default
-                        // destination.
-                        Map<ResourceId, ResourceId> finalizeMap = Maps.newHashMap();
-                        DestinationT destination =
-                            getSink().getDynamicDestinations().getDefaultDestination();
-                        finalizeMap.putAll(
+                      for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>>
+                          destEntry :perDestination.entrySet()) {
+                        List<KV<FileResult<DestinationT>,ResourceId>>
+                        resultsToFinalFilenames =
                             finalizeForDestinationFillEmptyShards(
-                                destination,
+                                destEntry.getKey(),
                                 fixedNumShards,
-                                Lists.<FileResult<DestinationT>>newArrayList()));
-                        tempFiles.addAll(finalizeMap.keySet());
-                        for (ResourceId outputFile :finalizeMap.values()) {
-                          c.output(KV.of(destination, outputFile.toString()));
+                                destEntry.getValue());
+
+                        for (KV<FileResult<DestinationT>, ResourceId> entry :
+                              resultsToFinalFilenames){
+                        tempFiles.add(entry.getKey().getTempFilename()) ;
+                          c.output(KV.of(destEntry.getKey(), entry.getValue().toString()));
                         }
                       }
                       writeOperation.removeTemporaryFiles(tempFiles);
@@ -898,7 +910,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * this function will generate empty files for this destination to ensure that all shards are
    * generated.
    */
-  private Map<ResourceId, ResourceId> finalizeForDestinationFillEmptyShards(
+  private List<KV<FileResult<DestinationT>, ResourceId>> finalizeForDestinationFillEmptyShards(
       DestinationT destination,
       @Nullable Integer fixedNumShards,
       Collection<FileResult<DestinationT>> existingResults)
@@ -956,10 +968,10 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       }
       LOG.debug("Done creating extra shards for {}.", destination);
     }
-    Map<ResourceId, ResourceId> finalizeMap =
+    List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames =
         writeOperation.finalize(
             (fixedNumShards == null) ? null : completeResults.size(), completeResults);
     LOG.debug("Done finalizing write operation {} for destination {}", writeOperation, destination);
-    return finalizeMap;
+    return resultsToFinalFilenames;
   }
 }

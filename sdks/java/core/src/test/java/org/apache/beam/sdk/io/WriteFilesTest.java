@@ -35,7 +35,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -154,10 +153,6 @@ public class WriteFilesTest {
           .apply(GroupByKey.<Integer, T>create())
           .apply(ParDo.of(new RemoveArbitraryKey<T>()));
     }
-  }
-
-  private String appendToTempFolder(String filename) {
-    return Paths.get(tmpFolder.getRoot().getPath(), filename).toString();
   }
 
   private String getBaseOutputFilename() {
