@@ -50,7 +50,7 @@ public abstract class NexmarkQuery
   static final TupleTag<Person> PERSON_TAG = new TupleTag<>("person");
 
   /** Predicate to detect a new person event. */
-  private static final SerializableFunction<Event, Boolean> IS_NEW_PERSON =
+  public static final SerializableFunction<Event, Boolean> IS_NEW_PERSON =
       new SerializableFunction<Event, Boolean>() {
         @Override
         public Boolean apply(Event event) {
@@ -67,7 +67,7 @@ public abstract class NexmarkQuery
   };
 
   /** Predicate to detect a new auction event. */
-  private static final SerializableFunction<Event, Boolean> IS_NEW_AUCTION =
+  public static final SerializableFunction<Event, Boolean> IS_NEW_AUCTION =
       new SerializableFunction<Event, Boolean>() {
         @Override
         public Boolean apply(Event event) {
