@@ -773,7 +773,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
               .apply(
                   "FinalizeWindowed",
                   ParDo.of(new DoFn<FileResult<DestinationT>, KV<DestinationT, String>>() {
-                      private List<FileResult<DestinationT>> fileResults;
+                      @Nullable private List<FileResult<DestinationT>> fileResults;
                       @Nullable private Integer fixedNumShards;
 
                       @StartBundle
@@ -850,24 +850,27 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       // set numShards, then all shards will be written out as empty files. For this reason we
       // use a side input here.
       PCollection<Void> singletonCollection = p.apply(Create.of((Void) null));
-      outputFilenames = singletonCollection.apply(
-          "FinalizeUnwindowed",
-          ParDo.of(
-                  new DoFn<Void, KV<DestinationT, String>>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) throws Exception {
-                      sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
-                      @Nullable Integer fixedNumShards ;
-                          if (numShardsView != null) {
+      outputFilenames =
+          singletonCollection
+              .apply(
+                  "FinalizeUnwindowed",
+                  ParDo.of(new DoFn<Void, KV<DestinationT, String>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        sink.getDynamicDestinations()
+                            .setSideInputAccessorFromProcessContext(c);
+                        @Nullable Integer fixedNumShards;
+                        if (numShardsView != null) {
                           fixedNumShards = c.sideInput(numShardsView);
-                      } else if (numShardsProvider != null) {
-                        fixedNumShards = numShardsProvider.get();
-                      } else {
-                        fixedNumShards = null;
-                      }
-                      Set<ResourceId> tempFiles = Sets.newHashSet();
-                      Map<DestinationT, Collection<FileResult<DestinationT>>> perDestination =
-                          perDestinationResults(c.sideInput(resultsView)).asMap();
+                        } else if (numShardsProvider != null) {
+                          fixedNumShards = numShardsProvider.get();
+                        } else {
+                          fixedNumShards = null;
+                        }
+                        Set<ResourceId> tempFiles = Sets.newHashSet();
+                        Map<DestinationT, Collection<FileResult<DestinationT>>>
+                            perDestination =
+                                perDestinationResults(c.sideInput(resultsView)).asMap();
                         if (perDestination.isEmpty()) {
                           Collection<FileResult<DestinationT>> empty = ImmutableList.of();
                           perDestination =
@@ -875,26 +878,26 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                                   getSink().getDynamicDestinations().getDefaultDestination(),
                                   empty);
                         }
-                      for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>>
-                          destEntry :perDestination.entrySet()) {
-                        List<KV<FileResult<DestinationT>,ResourceId>>
-                        resultsToFinalFilenames =
-                            finalizeForDestinationFillEmptyShards(
-                                destEntry.getKey(),
-                                fixedNumShards,
-                                destEntry.getValue());
+                        for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>>
+                            destEntry : perDestination.entrySet()) {
+                          List<KV<FileResult<DestinationT>, ResourceId>>
+                              resultsToFinalFilenames =
+                                  finalizeForDestinationFillEmptyShards(
+                                      destEntry.getKey(),
+                                      fixedNumShards,
+                                      destEntry.getValue());
 
-                        for (KV<FileResult<DestinationT>, ResourceId> entry :
-                              resultsToFinalFilenames){
-                        tempFiles.add(entry.getKey().getTempFilename()) ;
-                          c.output(KV.of(destEntry.getKey(), entry.getValue().toString()));
+                          for (KV<FileResult<DestinationT>, ResourceId> entry :
+                              resultsToFinalFilenames) {
+                            tempFiles.add(entry.getKey().getTempFilename());
+                            c.output(KV.of(destEntry.getKey(), entry.getValue().toString()));
+                          }
                         }
+                        writeOperation.removeTemporaryFiles(tempFiles);
                       }
-                      writeOperation.removeTemporaryFiles(tempFiles);
-                    }
-                  })
-              .withSideInputs(finalizeSideInputs.build()))
-            .setCoder(KvCoder.of(destinationCoder, StringUtf8Coder.of()));
+                    })
+                .withSideInputs(finalizeSideInputs.build()))
+              .setCoder(KvCoder.of(destinationCoder, StringUtf8Coder.of()));
     }
 
     TupleTag<KV<DestinationT, String>> perDestinationOutputFilenamesTag =
