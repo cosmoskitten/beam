@@ -18,18 +18,16 @@
 
 package org.apache.beam.sdk.nexmark.queries.sql;
 
+import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
+
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
-import org.apache.beam.sdk.nexmark.model.sql.BeamRecordSize;
 import org.apache.beam.sdk.nexmark.model.sql.ToBeamRecord;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapters;
-import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -42,17 +40,18 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>{@link Bid} events are used here at the moment, ås they are most numerous
  * with default configuration.
  */
-public class SqlQuery0 extends NexmarkQuery {
+public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<BeamRecord>> {
 
   private static final BeamSql.SimpleQueryTransform QUERY =
       BeamSql.query("SELECT * FROM PCOLLECTION");
 
-  public SqlQuery0(NexmarkConfiguration configuration) {
-    super(configuration, "SqlQuery0");
+  public SqlQuery0() {
+    super("SqlQuery0");
   }
 
   @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> allEvents) {
+  public PCollection<BeamRecord> expand(PCollection<Event> allEvents) {
+
     BeamRecordCoder bidRecordCoder = getBidRecordCoder();
 
     PCollection<BeamRecord> bidEventsRecords = allEvents
@@ -60,15 +59,7 @@ public class SqlQuery0 extends NexmarkQuery {
         .apply(ToBeamRecord.parDo())
         .setCoder(bidRecordCoder);
 
-    PCollection<BeamRecord> queryResultsRecords = bidEventsRecords
-        .apply(QUERY)
-        .setCoder(bidRecordCoder);
-
-    PCollection<? extends KnownSize> bidRecordSizes = queryResultsRecords
-            .apply(BeamRecordSize.parDo())
-            .setCoder(BeamRecordSize.CODER);
-
-    return NexmarkUtils.castToKnownSize(name, bidRecordSizes);
+    return bidEventsRecords.apply(QUERY).setCoder(bidRecordCoder);
   }
 
   private BeamRecordCoder getBidRecordCoder() {
