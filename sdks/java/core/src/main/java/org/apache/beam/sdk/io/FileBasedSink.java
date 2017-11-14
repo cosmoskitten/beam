@@ -615,17 +615,20 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       if (numShards != null) {
         effectiveNumShards = numShards;
         for (FileResult<DestinationT> res : writerResults) {
-          checkArgument(res.getShard() != UNKNOWN_SHARDNUM,
-              "Fixed sharding into %s shards was specified, " +
-                  "but file result %s does not specify a shard",
-              numShards, res);
+          checkArgument(
+              res.getShard() != UNKNOWN_SHARDNUM,
+              "Fixed sharding into %s shards was specified, "
+                  + "but file result %s does not specify a shard",
+              numShards,
+              res);
         }
       } else {
         effectiveNumShards = Iterables.size(writerResults);
         for (FileResult<DestinationT> res : writerResults) {
-          checkArgument(res.getShard() == UNKNOWN_SHARDNUM,
-              "Runner-chosen sharding was specified, " +
-                  "but file result %s explicitly specifies a shard",
+          checkArgument(
+              res.getShard() == UNKNOWN_SHARDNUM,
+              "Runner-chosen sharding was specified, "
+                  + "but file result %s explicitly specifies a shard",
               res);
         }
       }
