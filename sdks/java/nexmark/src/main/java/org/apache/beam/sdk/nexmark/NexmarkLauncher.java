@@ -80,6 +80,7 @@ import org.apache.beam.sdk.nexmark.queries.Query8;
 import org.apache.beam.sdk.nexmark.queries.Query8Model;
 import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
+import org.apache.beam.sdk.nexmark.queries.sql.NexmarkSqlQuery;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -1168,7 +1169,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private List<NexmarkQueryModel> createSqlQueryModels() {
-    return new ArrayList<>();
+    return Arrays.asList(
+        null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   private List<NexmarkQueryModel> createJavaQueryModels() {
@@ -1196,7 +1198,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   private List<NexmarkQuery> createSqlQueries() {
     return Arrays.<NexmarkQuery> asList(
-        new SqlQuery0(configuration));
+        new NexmarkSqlQuery(configuration, new SqlQuery0()));
   }
 
   private List<NexmarkQuery> createJavaQueries() {
