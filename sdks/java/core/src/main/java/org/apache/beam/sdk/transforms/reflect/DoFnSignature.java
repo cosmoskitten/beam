@@ -426,6 +426,12 @@ public abstract class DoFnSignature {
     @Override
     public abstract List<Parameter> extraParameters();
 
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}.
+     */
+    public abstract boolean requiresStableInput();
+
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
     @Nullable
     public abstract TypeDescriptor<?> trackerT();
@@ -440,12 +446,14 @@ public abstract class DoFnSignature {
     static ProcessElementMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
+        boolean requiresStableInput,
         TypeDescriptor<?> trackerT,
         @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
         boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
           targetMethod,
           Collections.unmodifiableList(extraParameters),
+          requiresStableInput,
           trackerT,
           windowT,
           hasReturnValue);
