@@ -86,6 +86,14 @@ public class S3FileSystemTest {
   }
 
   @Test
+  public void testGetScheme() {
+    S3Options pipelineOptions = s3Options();
+    S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
+
+    assertEquals("s3", s3FileSystem.getScheme());
+  }
+
+  @Test
   public void testCopyMultipleParts() throws IOException {
     S3Options pipelineOptions = s3Options();
     S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
@@ -308,6 +316,54 @@ public class S3FileSystemTest {
                         S3ResourceId
                             .fromComponents(thirdMatch.getBucketName(), thirdMatch.getKey()))
                     .setSizeBytes(thirdMatch.getSize())
+                    .build())));
+  }
+
+  @Test
+  public void matchGlobWithSlashes() {
+    S3Options pipelineOptions = s3Options();
+    S3FileSystem s3FileSystem = new S3FileSystem(pipelineOptions);
+
+    AmazonS3 mockAmazonS3 = Mockito.mock(AmazonS3.class);
+    s3FileSystem.setAmazonS3Client(mockAmazonS3);
+
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar\\baz*");
+
+    ListObjectsV2Request request =
+        new ListObjectsV2Request()
+            .withBucketName(path.getBucket())
+            .withPrefix(path.getKeyNonWildcardPrefix())
+            .withContinuationToken(null);
+
+    // Expected to be returned; prefix and wildcard/regex match
+    S3ObjectSummary firstMatch = new S3ObjectSummary();
+    firstMatch.setBucketName(path.getBucket());
+    firstMatch.setKey("foo/bar\\baz0");
+    firstMatch.setSize(100);
+
+    // Expected to not be returned; prefix matches, but substring after wildcard does not
+    S3ObjectSummary secondMatch = new S3ObjectSummary();
+    secondMatch.setBucketName(path.getBucket());
+    secondMatch.setKey("foo/bar/baz1");
+    secondMatch.setSize(200);
+
+    // Expected first request returns continuation token
+    ListObjectsV2Result result = new ListObjectsV2Result();
+    result.getObjectSummaries().add(firstMatch);
+    result.getObjectSummaries().add(secondMatch);
+    when(mockAmazonS3.listObjectsV2(argThat(new ListObjectsV2RequestArgumentMatches(request))))
+        .thenReturn(result);
+
+    assertThat(
+        s3FileSystem.matchGlobPath(path),
+        MatchResultMatcher.create(
+            ImmutableList.of(
+                MatchResult.Metadata.builder()
+                    .setIsReadSeekEfficient(true)
+                    .setResourceId(
+                        S3ResourceId
+                            .fromComponents(firstMatch.getBucketName(), firstMatch.getKey()))
+                    .setSizeBytes(firstMatch.getSize())
                     .build())));
   }
 

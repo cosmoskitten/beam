@@ -294,7 +294,7 @@ public class S3ResourceIdTest {
     S3Options options = PipelineOptionsFactory.create().as(S3Options.class);
     options.setAwsAccessKeyId("testing");
     options.setAwsSecretAccessKey("testing");
-    options.setAwsRegion("testing");
+    options.setAwsRegion("us-west-1");
     FileSystems.setDefaultPipelineOptions(options);
     ResourceIdTester.runResourceIdBattery(S3ResourceId.fromUri("s3://bucket/foo/"));
   }

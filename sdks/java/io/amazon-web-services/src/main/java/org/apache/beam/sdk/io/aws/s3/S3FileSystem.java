@@ -344,7 +344,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static int doubleSlashes(StringBuilder dst, char[] src, int i) {
     // Emit the next character without special interpretation
-    dst.append('\\');
+    dst.append("\\\\");
     if ((i - 1) != src.length) {
       dst.append(src[i]);
       i++;

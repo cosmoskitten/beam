@@ -94,11 +94,6 @@
       <artifactId>slf4j-api</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
-    </dependency>
-
     <!-- build dependencies -->
     <dependency>
       <groupId>com.google.auto.service</groupId>

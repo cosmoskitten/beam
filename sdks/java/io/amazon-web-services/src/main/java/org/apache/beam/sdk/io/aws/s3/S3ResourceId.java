@@ -176,6 +176,4 @@ class S3ResourceId implements ResourceId {
   public int hashCode() {
     return Objects.hash(bucket, key);
   }
-
-  // TODO compareTo and test
 }

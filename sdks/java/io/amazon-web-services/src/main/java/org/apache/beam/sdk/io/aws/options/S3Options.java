@@ -32,8 +32,8 @@ public interface S3Options extends AwsOptions {
   void setS3StorageClass(String value);
 
   @Description(
-      "Size of S3 upload chunks; max upload object size is this value multiplied by 10000;" +
-          "default is 64MB, or 5MB in memory-constrained environments")
+      "Size of S3 upload chunks; max upload object size is this value multiplied by 10000;"
+          + "default is 64MB, or 5MB in memory-constrained environments")
   @Nullable
   Integer getS3UploadBufferSizeBytes();
   void setS3UploadBufferSizeBytes(Integer value);
