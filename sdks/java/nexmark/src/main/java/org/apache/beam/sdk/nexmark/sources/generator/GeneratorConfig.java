@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources;
+package org.apache.beam.sdk.nexmark.sources.generator;
 
 import java.io.Serializable;
 import java.util.ArrayList;

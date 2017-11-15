@@ -16,19 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.nexmark.sources.utils;
+package org.apache.beam.sdk.nexmark.sources.generator.model;
 
-import static org.apache.beam.sdk.nexmark.sources.utils.AuctionGenerator.lastBase0AuctionId;
-import static org.apache.beam.sdk.nexmark.sources.utils.AuctionGenerator.nextBase0AuctionId;
-import static org.apache.beam.sdk.nexmark.sources.utils.PersonGenerator.lastBase0PersonId;
-import static org.apache.beam.sdk.nexmark.sources.utils.PersonGenerator.nextBase0PersonId;
-import static org.apache.beam.sdk.nexmark.sources.utils.PriceGenerator.nextPrice;
-import static org.apache.beam.sdk.nexmark.sources.utils.StringsGenerator.nextExtra;
+import static org.apache.beam.sdk.nexmark.sources.generator.model.AuctionGenerator.lastBase0AuctionId;
+import static org.apache.beam.sdk.nexmark.sources.generator.model.AuctionGenerator.nextBase0AuctionId;
+import static org.apache.beam.sdk.nexmark.sources.generator.model.PersonGenerator.lastBase0PersonId;
+import static org.apache.beam.sdk.nexmark.sources.generator.model.StringsGenerator.nextExtra;
 
 import java.util.Random;
-
 import org.apache.beam.sdk.nexmark.model.Bid;
-import org.apache.beam.sdk.nexmark.sources.GeneratorConfig;
+import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 
 /**
  * Generates bids.
@@ -66,11 +63,11 @@ public class BidGenerator {
       // last HOT_BIDDER_RATIO people.
       bidder = (lastBase0PersonId(eventId) / HOT_BIDDER_RATIO) * HOT_BIDDER_RATIO + 1;
     } else {
-      bidder = nextBase0PersonId(eventId, random, config);
+      bidder = PersonGenerator.nextBase0PersonId(eventId, random, config);
     }
     bidder += GeneratorConfig.FIRST_PERSON_ID;
 
-    long price = nextPrice(random);
+    long price = PriceGenerator.nextPrice(random);
     int currentSize = 8 + 8 + 8 + 8;
     String extra = nextExtra(random, currentSize, config.getAvgBidByteSize());
     return new Bid(auction, bidder, price, timestamp, extra);

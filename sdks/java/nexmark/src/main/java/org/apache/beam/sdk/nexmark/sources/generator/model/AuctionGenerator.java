@@ -16,19 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.nexmark.sources.utils;
+package org.apache.beam.sdk.nexmark.sources.generator.model;
 
-import static org.apache.beam.sdk.nexmark.sources.utils.LongGenerator.nextLong;
-import static org.apache.beam.sdk.nexmark.sources.utils.PersonGenerator.lastBase0PersonId;
-import static org.apache.beam.sdk.nexmark.sources.utils.PersonGenerator.nextBase0PersonId;
-import static org.apache.beam.sdk.nexmark.sources.utils.PriceGenerator.nextPrice;
-import static org.apache.beam.sdk.nexmark.sources.utils.StringsGenerator.nextExtra;
-import static org.apache.beam.sdk.nexmark.sources.utils.StringsGenerator.nextString;
+import static org.apache.beam.sdk.nexmark.sources.generator.model.LongGenerator.nextLong;
+import static org.apache.beam.sdk.nexmark.sources.generator.model.PriceGenerator.nextPrice;
+import static org.apache.beam.sdk.nexmark.sources.generator.model.StringsGenerator.nextExtra;
+import static org.apache.beam.sdk.nexmark.sources.generator.model.StringsGenerator.nextString;
 
 import java.util.Random;
-
 import org.apache.beam.sdk.nexmark.model.Auction;
-import org.apache.beam.sdk.nexmark.sources.GeneratorConfig;
+import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 
 /**
  * AuctionGenerator.
@@ -63,9 +60,9 @@ public class AuctionGenerator {
     // Here P(auction will be for a hot seller) = 1 - 1/hotSellersRatio.
     if (random.nextInt(config.getHotSellersRatio()) > 0) {
       // Choose the first person in the batch of last HOT_SELLER_RATIO people.
-      seller = (lastBase0PersonId(eventId) / HOT_SELLER_RATIO) * HOT_SELLER_RATIO;
+      seller = (PersonGenerator.lastBase0PersonId(eventId) / HOT_SELLER_RATIO) * HOT_SELLER_RATIO;
     } else {
-      seller = nextBase0PersonId(eventId, random, config);
+      seller = PersonGenerator.nextBase0PersonId(eventId, random, config);
     }
     seller += GeneratorConfig.FIRST_PERSON_ID;
 
@@ -131,15 +128,13 @@ public class AuctionGenerator {
         (config.getNumInFlightAuctions() * GeneratorConfig.PROPORTION_DENOMINATOR)
             / GeneratorConfig.AUCTION_PROPORTION;
     // When will the auction numInFlightAuctions beyond now be generated?
-    long futureAuction =
-        config.timestampAndInterEventDelayUsForEvent(currentEventNumber + numEventsForAuctions)
-            .getKey();
+    long futureAuction = config
+        .timestampAndInterEventDelayUsForEvent(currentEventNumber + numEventsForAuctions)
+        .getKey();
     // System.out.printf("*** auction will be for %dms (%d events ahead) ***\n",
     //     futureAuction - timestamp, numEventsForAuctions);
     // Choose a length with average horizonMs.
     long horizonMs = futureAuction - timestamp;
     return 1L + nextLong(random, Math.max(horizonMs * 2, 1L));
   }
-
-
 }
