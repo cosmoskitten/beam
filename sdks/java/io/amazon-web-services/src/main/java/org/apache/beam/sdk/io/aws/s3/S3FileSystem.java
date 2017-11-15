@@ -49,6 +49,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -83,11 +86,14 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           : 64 * 1024 * 1024;
   private static final int MAX_THREADS_PER_CONCURRENT_COPY = 3;
 
+  // S3 API, delete-objects: "You may specify up to 1000 keys."
+  private static final int MAX_DELETE_OBJECTS_PER_REQUEST = 1000;
+
   // Non-final for testing.
   private AmazonS3 amazonS3;
   private final String storageClass;
   private final int s3UploadBufferSizeBytes;
-  private final ExecutorService executorService;
+  private final int threadPoolSize;
 
   S3FileSystem(S3Options options) {
     checkNotNull(options, "options");
@@ -119,7 +125,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         Math.max(MINIMUM_UPLOAD_BUFFER_SIZE_BYTES, uploadBufferSizeBytes);
 
     checkArgument(options.getS3ThreadPoolSize() > 0, "threadPoolSize");
-    this.executorService = Executors.newFixedThreadPool(options.getS3ThreadPoolSize());
+    this.threadPoolSize = options.getS3ThreadPoolSize();
   }
 
   @Override
@@ -135,12 +141,6 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @VisibleForTesting
   int getS3UploadBufferSizeBytes() {
     return s3UploadBufferSizeBytes;
-  }
-
-  // TODO use AutoCloser instead of finalize()
-  @Override
-  protected void finalize() {
-    executorService.shutdownNow();
   }
 
   @Override
@@ -200,7 +200,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           });
     }
 
-    return invokeAllAndUnwrapResults(tasks, executorService);
+    return callTasks(tasks);
   }
 
   /**
@@ -264,7 +264,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           });
     }
 
-    return invokeAllAndUnwrapResults(tasks, executorService);
+    return callTasks(tasks);
   }
 
   @VisibleForTesting
@@ -392,7 +392,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           });
     }
 
-    invokeAllAndUnwrapResults(tasks, executorService);
+    callTasks(tasks);
   }
 
   @VisibleForTesting
@@ -462,7 +462,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     }
     List<PartETag> eTags;
     try {
-      eTags = invokeAllAndUnwrapResults(tasks, executorService);
+      eTags = callTasks(tasks);
     } finally {
       executorService.shutdown();
     }
@@ -507,7 +507,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
     List<Callable<Void>> tasks = new ArrayList<>();
     for (final String bucket : keysByBucket.keySet()) {
-      for (final List<String> keysPartition : Iterables.partition(keysByBucket.get(bucket), 1000)) {
+      for (final List<String> keysPartition
+          : Iterables.partition(keysByBucket.get(bucket), MAX_DELETE_OBJECTS_PER_REQUEST)) {
         tasks.add(
             new Callable<Void>() {
               @Override
@@ -519,12 +520,15 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       }
     }
 
-    invokeAllAndUnwrapResults(tasks, executorService);
+    callTasks(tasks);
   }
 
   private void delete(String bucket, Collection<String> keys) throws IOException {
-    // S3 SDK: "You may specify up to 1000 keys."
-    checkArgument(keys.size() <= 1000, "only 1000 keys can be deleted per request");
+    checkArgument(
+        keys.size() <= MAX_DELETE_OBJECTS_PER_REQUEST,
+        "only %d keys can be deleted per request, but got %d",
+        MAX_DELETE_OBJECTS_PER_REQUEST,
+        keys.size());
     List<KeyVersion> deleteKeyVersions =
         FluentIterable.from(keys)
             .transform(
@@ -559,30 +563,21 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   }
 
   /**
-   * Calls executorService.invokeAll() with tasks, then unwraps the resulting {@link Future
-   * Futures}.
+   * Invokes tasks in a thread pool, then unwraps the resulting {@link Future Futures}.
    *
    * <p>Any task exception is wrapped in {@link IOException}.
    */
-  private static <T> List<T> invokeAllAndUnwrapResults(
-      Collection<Callable<T>> tasks, ExecutorService executorService) throws IOException {
-    List<Future<T>> futures;
-    try {
-      futures = executorService.invokeAll(tasks);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IOException("executor service task was interrupted");
-    }
+  private <T> List<T> callTasks(Collection<Callable<T>> tasks) throws IOException {
 
-    List<T> results = new ArrayList<>(tasks.size());
+    ListeningExecutorService executorService =
+        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(threadPoolSize));
+
     try {
-      for (Future<T> future : futures) {
-        results.add(future.get());
+      ArrayList<ListenableFuture<T>> futures = new ArrayList<>(tasks.size());
+      for (Callable<T> task : tasks) {
+        futures.add(executorService.submit(task));
       }
-
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IOException("executor service future.get() was interrupted");
+      return Futures.allAsList(futures).get();
 
     } catch (ExecutionException e) {
       if (e.getCause() != null) {
@@ -592,8 +587,13 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         throw new IOException(e.getCause());
       }
       throw new IOException(e);
-    }
 
-    return results;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("executor service was interrupted");
+
+    } finally {
+      executorService.shutdown();
+    }
   }
 }
