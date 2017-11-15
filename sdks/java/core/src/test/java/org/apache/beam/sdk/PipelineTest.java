@@ -62,8 +62,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -220,29 +218,6 @@ public class PipelineTest {
     thrown.expectMessage("do not have stable unique names");
     pipeline.apply(Create.of(5, 6, 7));
     ((Pipeline) pipeline).validate(pipeline.getOptions());
-  }
-
-  /**
-   * Tests that Pipeline supports a pass-through identity function.
-   */
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testIdentityTransform() throws Exception {
-
-    PCollection<Integer> output = pipeline
-        .apply(Create.<Integer>of(1, 2, 3, 4))
-        .apply("IdentityTransform", new IdentityTransform<PCollection<Integer>>());
-
-    PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
-    pipeline.run();
-  }
-
-  private static class IdentityTransform<T extends PInput & POutput>
-      extends PTransform<T, T> {
-    @Override
-    public T expand(T input) {
-      return input;
-    }
   }
 
   /**
@@ -462,21 +437,6 @@ public class PipelineTest {
     assertThat(nameToTransformClass.keySet(), not(hasItem("original_application/custom_name2")));
     Assert.assertEquals(nameToTransformClass.get("original_application/custom_name"),
         Max.integersGlobally().getClass());
-  }
-
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testRunPTransform() {
-    PipelineRunner pipelineRunner = pipeline.toPipelineRunner();
-    PTransform<PBegin, POutput> identity = new PTransform<PBegin, POutput>() {
-      @Override
-      public POutput expand(PBegin input) {
-        return input
-            .apply(Create.<Integer>of(1, 2, 3, 4))
-            .apply("IdentityTransform", new IdentityTransform<PCollection<Integer>>());
-      }
-    };
-    pipelineRunner.run(identity);
   }
 
   static class GenerateSequenceToCreateOverride
