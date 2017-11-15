@@ -14,9 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """SDK Fn Harness entry point."""
 
+import json
 import logging
 import os
 import sys
@@ -46,13 +46,21 @@ def main(unused_argv):
     fn_log_handler = None
 
   try:
-    logging.info('Python sdk harness started.')
+    pipeline_options = json.loads(os.environ.get('PIPELINE_OPTIONS', '{}'))
+    if pipeline_options.has_key('options'):
+      pipeline_options = pipeline_options['options']
+    else:
+      logging.warning('PIPELINE_OPTIONS have unexpected format: %s',
+                      str(pipeline_options))
+
+    logging.info('Python sdk harness started with PIPELINE_OPTIONS %s',
+                 pipeline_options)
     service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       service_descriptor)
     # TODO(robertwb): Support credentials.
     assert not service_descriptor.oauth2_client_credentials_grant.url
-    SdkHarness(service_descriptor.url).run()
+    SdkHarness(service_descriptor.url, pipeline_options=pipeline_options).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')
