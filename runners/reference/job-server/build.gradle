@@ -22,6 +22,8 @@ applyJavaNature()
 description = "Apache Beam :: Runners :: Reference :: Job Orchestrator"
 
 dependencies {
+  compile project(path: ":beam-runners-parent:beam-java-fn-execution", configuration: "shadow")
+  compile project(path: ":beam-runners-parent:beam-local-artifact-service-java", configuration: "shadow")
   shadow library.java.grpc_netty
   shadow project(path: ":beam-model-parent:beam-model-job-management", configuration: "shadow")
   shadow library.java.grpc_core
@@ -29,6 +31,8 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.args4j
   testCompile library.java.junit
+  testCompile project(path: ":beam-runners-parent:beam-runners-core-construction-java")
+  shadowTest library.java.slf4j_jdk14
 }
 
 task packageTests(type: Jar) {
