@@ -326,6 +326,7 @@ final class ExecutorServiceParallelExecutor
   }
 
   private static class QueueMessageReceiver implements PipelineMessageReceiver {
+    // If the type of BlockingQueue changes, ensure the findbugs filter is updated appropriately
     private final BlockingQueue<VisibleExecutorUpdate> updates = new LinkedBlockingQueue<>();
 
     @Override
