@@ -81,11 +81,36 @@ public class TextIOIT {
         .as(IOTestPipelineOptions.class);
 
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestamp(options.getFilenamePrefix());
+    filenamePrefix = resolveProtocolAndPath(options);
   }
 
   private static String appendTimestamp(String filenamePrefix) {
     return String.format("%s_%s", filenamePrefix, new Date().getTime());
+  }
+
+  private static String resolveProtocolAndPath(IOTestPipelineOptions options) {
+    Map<String, String> protocolDefinition = ImmutableMap.of(
+        "GCS", "gs://",
+        "HDFS", "hdfs://"
+    );
+
+    String protocol = "", path = "", filesystem = System.getProperty("filesystem");
+    if (filesystem != null) {
+      if (filesystem.equals("GCS")){
+        path = options.getGcsLocation();
+      } else if (filesystem.equals("HDFS")){
+        path = options.getHdfsLocation();
+      } else {
+        throw new UnsupportedOperationException(
+            String.format("Provided filesystem is unsupported : %s", filesystem));
+      }
+      protocol = protocolDefinition.get(filesystem);
+      if (!path.endsWith("/")) {
+        path += "/";
+      }
+    }
+    return String.format("%s%s%s", protocol, path, appendTimestamp(
+        options.getFilenamePrefix()));
   }
 
   @Test

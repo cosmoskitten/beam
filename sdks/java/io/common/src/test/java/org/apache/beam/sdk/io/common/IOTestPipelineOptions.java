@@ -100,4 +100,14 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   String getFilenamePrefix();
 
   void setFilenamePrefix(String prefix);
+
+  @Description("Google cloud storage - bucket_name/path")
+  String getGcsLocation();
+
+  void setGcsLocation(String gcsLocation);
+
+  @Description("HDFS path - hadoop_ip:port/path")
+  String getHdfsLocation();
+
+  void setHdfsLocation(String hdfsLocation);
 }
