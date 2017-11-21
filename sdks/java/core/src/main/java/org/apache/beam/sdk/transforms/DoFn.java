@@ -572,13 +572,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * feature may change.</i></b>
    *
    * <p>Annotation that may be added to a {@link ProcessElement} or {@link OnTimer} method to
-   * indicate that the observable contents of the input {@link PCollection} or mutable state must be
-   * stable upon retries.
+   * indicate that the runner must ensure that the observable contents of the input {@link
+   * PCollection} or mutable state must be stable upon retries.
    *
-   * <p>This is important for exactly-once semantics when writing to a storage medium outside of
-   * your pipeline. The general pattern is to establish an idempotent protocol for writing the data,
-   * and then require stable input. Combined, these allow the write to be freely retried until
-   * success.
+   * <p>This is important for sinks, which must ensure exactly-once semantics when writing to a
+   * storage medium outside of your pipeline. A general pattern for a basic sink is to write a
+   * {@link DoFn} that can perform an idempotent write, and annotate that it requires stable input.
+   * Combined, these allow the write to be freely retried until success.
    *
    * <p>An example of an unstable input would be anything computed using nondeterministic logic. In
    * Beam, any user-defined function is permitted to be nondeterministic, and any {@link
