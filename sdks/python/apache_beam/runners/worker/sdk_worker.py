@@ -60,7 +60,6 @@ class SdkHarness(object):
     logging.info('Initializing SDKHarness with %s workers.', self._worker_count)
     self._worker_index = 0
     self._control_channel = grpc.insecure_channel(control_address)
-    self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
     self.worker_wrappers = []
     # one thread is enough for getting the progress report
     self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
@@ -77,7 +76,7 @@ class SdkHarness(object):
       self.worker_wrappers.append(
           SDKWorkerWrapper(
               control_channel=self._control_channel,
-              data_channel_factory=self._data_channel_factory,
+              data_channel_factory=data_plane.GrpcClientDataChannelFactory(),
               fns=self._fns))
 
     def get_responses():
@@ -101,7 +100,6 @@ class SdkHarness(object):
     # get_responses may be blocked on responses.get(), but we need to return
     # control to its caller.
     self._responses.put(no_more_work)
-    self._data_channel_factory.close()
     # Stop all the workers and clean all the associated resources
     for worker_wrapper in self.worker_wrappers:
       worker_wrapper.stop()
@@ -186,6 +184,7 @@ class SDKWorkerWrapper(object):
     self.worker = SdkWorker(self.state_handler, self.data_channel_factory, fns)
 
   def stop(self):
+    self.data_channel_factory.close()
     self.worker_thread_pool.shutdown()
     self.state_handler.done()
 
