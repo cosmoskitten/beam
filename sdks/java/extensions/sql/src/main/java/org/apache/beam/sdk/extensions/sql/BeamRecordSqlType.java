@@ -138,6 +138,10 @@ public class BeamRecordSqlType extends BeamRecordType {
     }
   }
 
+  public static BeamRecordSqlTypeBuilder builder() {
+    return new BeamRecordSqlTypeBuilder();
+  }
+
   public List<Integer> getFieldTypes() {
     return Collections.unmodifiableList(fieldTypes);
   }
