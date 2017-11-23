@@ -29,6 +29,12 @@ import org.slf4j.LoggerFactory;
  * reference}, and {@code thread} fields.
  */
 public class Slf4jLogWriter implements LogWriter {
+  public static LogWriter getDefault() {
+    return new Slf4jLogWriter();
+  }
+
+  private Slf4jLogWriter() {}
+
   @Override
   public void log(LogEntry entry) {
     Logger log;
