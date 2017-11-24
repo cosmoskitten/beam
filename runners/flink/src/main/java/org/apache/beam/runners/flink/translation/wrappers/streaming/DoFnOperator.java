@@ -362,6 +362,12 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @Override
+  public void dispose() throws Exception {
+    super.dispose();
+    doFnInvoker.invokeTeardown();
+  }
+
+  @Override
   public void close() throws Exception {
     super.close();
 
@@ -380,7 +386,6 @@ public class DoFnOperator<InputT, OutputT>
       }
     }
     checkFinishBundleTimer.cancel(true);
-    doFnInvoker.invokeTeardown();
   }
 
   private long getPushbackWatermarkHold() {
