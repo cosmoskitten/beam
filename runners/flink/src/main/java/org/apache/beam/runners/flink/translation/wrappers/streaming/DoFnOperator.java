@@ -362,6 +362,18 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @Override
+  public void dispose() throws Exception {
+    try {
+      super.dispose();
+      checkFinishBundleTimer.cancel(true);
+    } catch (Exception e) {
+      LOG.warn("Could not dispose DoFnOperator {}", e);
+    } finally {
+      doFnInvoker.invokeTeardown();
+    }
+  }
+
+  @Override
   public void close() throws Exception {
     super.close();
 
@@ -379,8 +391,6 @@ public class DoFnOperator<InputT, OutputT>
         }
       }
     }
-    checkFinishBundleTimer.cancel(true);
-    doFnInvoker.invokeTeardown();
   }
 
   private long getPushbackWatermarkHold() {
