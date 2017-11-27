@@ -426,6 +426,28 @@ public class FileIO {
     public String toString() {
       return "ReadableFile{metadata=" + metadata + ", compression=" + compression + '}';
     }
+
+    @Override public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      ReadableFile that = (ReadableFile) o;
+
+      if (metadata != null ? !metadata.equals(that.metadata) : that.metadata != null) {
+        return false;
+      }
+      return compression == that.compression;
+    }
+
+    @Override public int hashCode() {
+      int result = metadata != null ? metadata.hashCode() : 0;
+      result = 31 * result + (compression != null ? compression.hashCode() : 0);
+      return result;
+    }
   }
 
   /**
