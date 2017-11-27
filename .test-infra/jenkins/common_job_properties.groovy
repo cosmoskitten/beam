@@ -258,7 +258,6 @@ class common_job_properties {
   static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
     context.steps {
-        shell('cd ' + common_job_properties.checkoutDir)
         // Clean up environment.
         shell('rm -rf PerfKitBenchmarker')
         // Clone appropriate perfkit branch
@@ -266,7 +265,7 @@ class common_job_properties {
         // Install Perfkit benchmark requirements.
         shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
         // Install job requirements for Python SDK.
-        shell('pip install --user -e sdks/python/[gcp,test]')
+        shell('pip install --user -e ' + common_job_properties.checkoutDir + '/sdks/python/[gcp,test]')
         // Launch performance test.
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
