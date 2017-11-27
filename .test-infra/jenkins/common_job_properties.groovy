@@ -258,6 +258,7 @@ class common_job_properties {
   static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
     context.steps {
+        shell('cd ' + common_job_properties.checkoutDir)
         // Clean up environment.
         shell('rm -rf PerfKitBenchmarker')
         // Clone appropriate perfkit branch
