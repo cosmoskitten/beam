@@ -18,6 +18,9 @@
 
 package org.apache.beam.runners.reference.job;
 
+import static org.hamcrest.Matchers.hasItems;
+import static org.junit.Assert.assertThat;
+
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Struct;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -25,6 +28,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
@@ -34,6 +42,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -85,8 +96,39 @@ public class ReferenceRunnerJobServiceTest {
     File foo = writeTempFile("foo", "foo, bar, baz".getBytes());
     File bar = writeTempFile("spam", "spam, ham, eggs".getBytes());
     stager.stage(ImmutableList.<File>of(foo, bar));
+    List<byte[]> tempDirFiles = readFlattendFiles(temp.getRoot());
+    assertThat(
+        tempDirFiles,
+        hasItems(
+            deepEqualTo(Files.readAllBytes(foo.toPath())),
+            deepEqualTo(Files.readAllBytes(bar.toPath()))));
     // TODO: 'run' the job with some sort of noop backend, to verify state is cleaned up.
-    // TODO: Verify that the artifacts have been staged
+  }
+
+  private <T> Matcher<T> deepEqualTo(final T expected) {
+    return new TypeSafeMatcher<T>() {
+      @Override
+      protected boolean matchesSafely(T actual) {
+        return Objects.deepEquals(actual, expected);
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText("deep equal to ").appendValue(Objects.toString(expected));
+      }
+    };
+  }
+
+  private List<byte[]> readFlattendFiles(File root) throws Exception {
+    if (root.isDirectory()) {
+      List<byte[]> children = new ArrayList<>();
+      for (File child : root.listFiles()) {
+        children.addAll(readFlattendFiles(child));
+      }
+      return children;
+    } else {
+      return Collections.singletonList(Files.readAllBytes(root.toPath()));
+    }
   }
 
   private File writeTempFile(String fileName, byte[] contents) throws Exception {
