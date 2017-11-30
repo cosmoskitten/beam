@@ -51,7 +51,7 @@ import org.apache.beam.sdk.values.BeamRecordType;
  *
  */
 public class BeamRecordSqlType extends BeamRecordType {
-  private static final Map<Integer, Class> JAVA_CLASSES = ImmutableMap
+  private static final ImmutableMap<Integer, Class> JAVA_CLASSES = ImmutableMap
       .<Integer, Class>builder()
       .put(Types.TINYINT, Byte.class)
       .put(Types.SMALLINT, Short.class)
@@ -87,22 +87,18 @@ public class BeamRecordSqlType extends BeamRecordType {
 
   public List<Integer> fieldTypes;
 
-  protected BeamRecordSqlType(List<String> fieldsName, List<Coder> fieldsCoder) {
-    super(fieldsName, fieldsCoder);
+  public static BeamRecordSqlType create(List<String> fieldNames,
+                                         List<Integer> fieldTypes) {
+    return new BeamRecordSqlType(fieldNames, fieldTypes);
   }
 
-  private BeamRecordSqlType(List<String> fieldsName, List<Integer> fieldTypes
-      , List<Coder> fieldsCoder) {
-    super(fieldsName, fieldsCoder);
+  protected BeamRecordSqlType(List<String> fieldNames,
+                              List<Integer> fieldTypes) {
+    super(fieldNames, toCodersList(fieldTypes));
     this.fieldTypes = fieldTypes;
   }
 
-  public static BeamRecordSqlType create(List<String> fieldNames,
-                                         List<Integer> fieldTypes) {
-    if (fieldNames.size() != fieldTypes.size()) {
-      throw new IllegalStateException("the sizes of 'dataType' and 'fieldTypes' must match.");
-    }
-
+  private static List<Coder> toCodersList(List<Integer> fieldTypes) {
     List<Coder> fieldCoders = new ArrayList<>(fieldTypes.size());
 
     for (int idx = 0; idx < fieldTypes.size(); ++idx) {
@@ -115,8 +111,7 @@ public class BeamRecordSqlType extends BeamRecordType {
 
       fieldCoders.add(CODERS.get(fieldType));
     }
-
-    return new BeamRecordSqlType(fieldNames, fieldTypes, fieldCoders);
+    return fieldCoders;
   }
 
   @Override
