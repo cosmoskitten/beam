@@ -19,10 +19,10 @@ package org.apache.beam.fn.harness.data;
 
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.DataBytesReceiver;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnDataInboundObserver<T> implements DataBytesReceiver {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataInboundObserver.class);
-
-  private final ThrowingConsumer<WindowedValue<T>> consumer;
+  private final FnDataReceiver<WindowedValue<T>> consumer;
   private final Coder<WindowedValue<T>> coder;
   private final CompletableFuture<Void> readFuture;
   private long byteCounter;
@@ -42,7 +41,7 @@ public class BeamFnDataInboundObserver<T> implements DataBytesReceiver {
 
   public BeamFnDataInboundObserver(
       Coder<WindowedValue<T>> coder,
-      ThrowingConsumer<WindowedValue<T>> consumer,
+      FnDataReceiver<WindowedValue<T>> consumer,
       CompletableFuture<Void> readFuture) {
     this.coder = coder;
     this.consumer = consumer;
@@ -64,6 +63,7 @@ public class BeamFnDataInboundObserver<T> implements DataBytesReceiver {
             counter,
             byteCounter);
         readFuture.complete(null);
+        consumer.close();
         return;
       }
 
@@ -75,6 +75,11 @@ public class BeamFnDataInboundObserver<T> implements DataBytesReceiver {
         consumer.accept(value);
       }
     } catch (Exception e) {
+      try {
+        consumer.close();
+      } catch (Exception closeE) {
+        e.addSuppressed(closeE);
+      }
       readFuture.completeExceptionally(e);
     }
   }
