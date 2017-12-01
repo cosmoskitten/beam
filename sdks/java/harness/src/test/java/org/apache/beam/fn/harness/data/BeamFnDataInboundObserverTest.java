@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.junit.Test;
@@ -51,10 +52,19 @@ public class BeamFnDataInboundObserverTest {
   public void testDecodingElements() throws Exception {
     Collection<WindowedValue<String>> values = new ArrayList<>();
     CompletableFuture<Void> readFuture = new CompletableFuture<>();
-    BeamFnDataInboundObserver<String> observer = new BeamFnDataInboundObserver<>(
-        CODER,
-        values::add,
-        readFuture);
+    BeamFnDataInboundObserver<String> observer =
+        new BeamFnDataInboundObserver<>(
+            CODER,
+            new FnDataReceiver<WindowedValue<String>>() {
+              @Override
+              public void accept(WindowedValue<String> input) throws Exception {
+                values.add(input);
+              }
+
+              @Override
+              public void close() throws Exception {}
+            },
+            readFuture);
 
     // Test decoding multiple messages
     observer.accept(dataWith("ABC", "DEF", "GHI"));
@@ -75,10 +85,19 @@ public class BeamFnDataInboundObserverTest {
   @Test
   public void testConsumptionFailureCompletesReadFutureAndDiscardsMessages() throws Exception {
     CompletableFuture<Void> readFuture = new CompletableFuture<>();
-    BeamFnDataInboundObserver<String> observer = new BeamFnDataInboundObserver<>(
-        CODER,
-        this::throwOnDefValue,
-        readFuture);
+    BeamFnDataInboundObserver<String> observer =
+        new BeamFnDataInboundObserver<>(
+            CODER,
+            new FnDataReceiver<WindowedValue<String>>() {
+              @Override
+              public void accept(WindowedValue<String> input) throws Exception {
+                throwOnDefValue(input);
+              }
+
+              @Override
+              public void close() throws Exception {}
+            },
+            readFuture);
 
     assertFalse(readFuture.isDone());
     observer.accept(dataWith("ABC", "DEF", "GHI"));
