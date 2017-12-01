@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A buffering outbound {@link FnDataReceiver} for the Beam Fn Data API.
+ * A buffering outbound {@link CloseableFnDataReceiver} for the Beam Fn Data API.
  *
  * <p>Encodes individually consumed elements with the provided {@link Coder} producing
  * a single {@link BeamFnApi.Elements} message when the buffer threshold

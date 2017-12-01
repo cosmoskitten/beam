@@ -147,7 +147,7 @@ public class BeamFnDataWriteRunnerTest {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
     AtomicBoolean wasCloseCalled = new AtomicBoolean();
     CloseableFnDataReceiver<WindowedValue<String>> outputConsumer =
-        new CloseableFnDataReceiver<WindowedValue<String>>() {
+        new CloseableFnDataReceiver<WindowedValue<String>>(){
           @Override
           public void close() throws Exception {
             wasCloseCalled.set(true);
