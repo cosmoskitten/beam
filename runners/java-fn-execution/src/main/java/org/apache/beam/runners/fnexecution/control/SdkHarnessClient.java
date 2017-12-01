@@ -21,11 +21,11 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import java.io.IOException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.runners.fnexecution.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
  * A high-level client for an SDK harness.
@@ -53,22 +53,19 @@ public class SdkHarnessClient {
     }
   }
 
-  /**
-   * An active bundle for a particular {@link
-   * BeamFnApi.ProcessBundleDescriptor}.
-   */
+  /** An active bundle for a particular {@link BeamFnApi.ProcessBundleDescriptor}. */
   @AutoValue
   public abstract static class ActiveBundle<InputT> {
     public abstract String getBundleId();
 
     public abstract Future<BeamFnApi.ProcessBundleResponse> getBundleResponse();
 
-    public abstract FnDataReceiver<InputT> getInputReceiver();
+    public abstract CloseableFnDataReceiver<InputT> getInputReceiver();
 
     public static <InputT> ActiveBundle<InputT> create(
         String bundleId,
         Future<BeamFnApi.ProcessBundleResponse> response,
-        FnDataReceiver<InputT> dataReceiver) {
+        CloseableFnDataReceiver<InputT> dataReceiver) {
       return new AutoValue_SdkHarnessClient_ActiveBundle(bundleId, response, dataReceiver);
     }
   }
@@ -138,17 +135,24 @@ public class SdkHarnessClient {
     String bundleId = idGenerator.getId();
 
     // TODO: acquire an input receiver from appropriate FnDataService
-    FnDataReceiver dataReceiver = new FnDataReceiver() {
-      @Override
-      public void accept(Object input) throws Exception {
-        throw new UnsupportedOperationException("Placeholder FnDataReceiver cannot accept data.");
-      }
+    CloseableFnDataReceiver dataReceiver =
+        new CloseableFnDataReceiver() {
+          @Override
+          public void close() throws Exception {
+            throw new UnsupportedOperationException(
+                String.format(
+                    "Placeholder %s cannot be closed.",
+                    CloseableFnDataReceiver.class.getSimpleName()));
+          }
 
-      @Override
-      public void close() throws IOException {
-        // noop
-      }
-    };
+          @Override
+          public void accept(Object input) throws Exception {
+            throw new UnsupportedOperationException(
+                String.format(
+                    "Placeholder %s cannot accept data.",
+                    CloseableFnDataReceiver.class.getSimpleName()));
+          }
+        };
 
     ListenableFuture<BeamFnApi.InstructionResponse> genericResponse =
         fnApiControlClient.handle(
