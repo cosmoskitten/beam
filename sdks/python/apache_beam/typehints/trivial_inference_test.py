@@ -147,12 +147,20 @@ class TrivialInferenceTest(unittest.TestCase):
   def testMethod(self):
 
     class A(object):
-
       def m(self, x):
         return x
 
     self.assertReturnType(int, lambda: A().m(3))
     self.assertReturnType(float, lambda: A.m(A(), 3.0))
+
+  def testOldStyleClass(self):
+
+    class A:
+      def m(self, x):
+        return x
+
+    self.assertReturnType(int, lambda: A().m(-33))
+    self.assertReturnType(float, lambda: A.m(A(), 3.5))
 
   def testAlwaysReturnsEarly(self):
 
