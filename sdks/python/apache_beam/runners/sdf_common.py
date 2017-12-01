@@ -151,7 +151,7 @@ class ProcessKeyedElements(PTransform):
       self, sdf, element_coder, restriction_coder, windowing_strategy,
       ptransform_args, ptransform_kwargs):
     self.sdf = sdf
-    self.elemenet_coder = element_coder
+    self.element_coder = element_coder
     self.restriction_coder = restriction_coder
     self.windowing_strategy = windowing_strategy
     self.ptransform_args = ptransform_args

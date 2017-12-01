@@ -28,6 +28,7 @@ import traceback
 from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.window import GlobalWindow
@@ -64,18 +65,25 @@ class MethodWrapper(object):
 
   Represents a method that can be invoked by `DoFnInvoker`."""
 
-  def __init__(self, obj, method_name):
+  def __init__(self, obj_to_invoke, method_name):
     """
     Initiates a ``MethodWrapper``.
 
     Args:
-      obj: the object that contains the method.
+      obj_to_invoke: the object that contains the method. Has to either be a
+                    `DoFn` object or a `RestrictionProvider` object.
       method_name: name of the method as a string.
     """
 
-    args, _, _, defaults = core.get_function_arguments(obj, method_name)
+    if not isinstance(obj_to_invoke, (DoFn, RestrictionProvider)):
+      raise ValueError('\'obj_to_invoke\' has to be either a \'DoFn\' or '
+                       'a \'RestrictionProvider\'. Received %r instead.',
+                       obj_to_invoke)
+
+    args, _, _, defaults = core.get_function_arguments(
+        obj_to_invoke, method_name)
     defaults = defaults if defaults else []
-    method_value = getattr(obj, method_name)
+    method_value = getattr(obj_to_invoke, method_name)
     self.method_value = method_value
     self.args = args
     self.defaults = defaults
@@ -142,13 +150,8 @@ class DoFnSignature(object):
       assert param not in method_wrapper.defaults
 
   def is_splittable_dofn(self):
-    splittable_do_fn = False
-    for default in self.process_method.defaults:
-      if isinstance(default, RestrictionProvider):
-        splittable_do_fn = True
-        break
-
-    return splittable_do_fn
+    return any([isinstance(default, RestrictionProvider) for default in
+                self.process_method.defaults])
 
 
 class DoFnInvoker(object):

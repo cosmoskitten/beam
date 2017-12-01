@@ -56,8 +56,7 @@ class ProcessKeyedElementsViaKeyedWorkItemsOverride(PTransformOverride):
 
 
 class ProcessKeyedElementsViaKeyedWorkItems(PTransform):
-  """A transform that processes Splittable DoFn input via KeyedWorkItems.
-  """
+  """A transform that processes Splittable DoFn input via KeyedWorkItems."""
 
   def __init__(self, process_keyed_elements_transform):
     self._process_keyed_elements_transform = process_keyed_elements_transform
@@ -68,7 +67,11 @@ class ProcessKeyedElementsViaKeyedWorkItems(PTransform):
 
 
 class ProcessElements(PTransform):
-  """Processes keyed input via Splittable DoFn objects."""
+  """A primitive transform for processing keyed elements or KeyedWorkItems.
+
+  Will be evaluated by
+  `runners.direct.transform_evaluator._ProcessElemenetsEvaluator`.
+  """
 
   def __init__(self, process_keyed_elements_transform):
     self._process_keyed_elements_transform = process_keyed_elements_transform
@@ -85,6 +88,21 @@ class ProcessElements(PTransform):
 
 
 class ProcessFn(beam.DoFn):
+  """A `DoFn` that executes machineary for invoking a Splittable `DoFn`.
+
+  Input to the `ParDo` step that includes a `ProcessFn` will be a `PCollection`
+  of `ElementAndRestriction` objects.
+
+  This class is mainly responsible for following.
+  (1) setup environment for properly invoking a Splittable `DoFn`.
+  (2) invoke `process()` method of a Splittable `DoFn`.
+  (3) after the `process()` invocation of the Splittable `DoFn`, determine if a
+  re-invocation of the element is needed. If this is the case, set state and
+  a timer for a re-invocation and hold output watermark till this
+  re-invocation.
+  (4) after the final invocation of a given element clear any previous state set
+  for re-invoking the element and release the output watermark.
+  """
 
   def __init__(
       self, sdf, args_for_invoker, kwargs_for_invoker):
@@ -98,7 +116,14 @@ class ProcessFn(beam.DoFn):
         DoFnSignature(self.sdf), context=DoFnContext('unused_context'),
         input_args=args_for_invoker, input_kwargs=kwargs_for_invoker)
 
-  def set_step_context(self, step_context):
+    self._step_context = None
+
+  @property
+  def step_context(self):
+    return self._step_context
+
+  @step_context.setter
+  def step_context(self, step_context):
     assert isinstance(step_context, DirectStepContext)
     self._step_context = step_context
 
@@ -106,16 +131,8 @@ class ProcessFn(beam.DoFn):
     assert isinstance(process_element_invoker, SDFProcessElementInvoker)
     self._process_element_invoker = process_element_invoker
 
-  def start_bundle(self):
-    # TODO: support start_bundle() method for SDFs.
-    pass
-
-  def finish_bundle(self):
-    # TODO: support finish_bundle() method for SDFs.
-    pass
-
   def process(self, element, timestamp=beam.DoFn.TimestampParam,
-              window=beam.DoFn.WindowParam, * args, **kwargs):
+              window=beam.DoFn.WindowParam, *args, **kwargs):
     if isinstance(element, KeyedWorkItem):
       # Must be a timer firing.
       key = element.encoded_key
@@ -123,11 +140,21 @@ class ProcessFn(beam.DoFn):
       key, values = element
       values = list(values)
       assert len(values) == 1
+      # Value here will either be a WindowedValue or an ElementAndRestriction
+      # object.
+      # TODO: handle key collisions here.
+      assert len(values) == 1, 'Internal error. Processing of splittable ' \
+                               'DoFn cannot continue since elements did not ' \
+                               'have unique keys.'
       value = values[0]
+      if len(values) != 1:
+        raise ValueError('')
+      assert isinstance(value, (WindowedValue, ElementAndRestriction))
 
     state = self._step_context.get_keyed_state(key)
     element_state = state.get_state(window, self._element_tag)
-    is_seed_call = not element_state # Initially element_state is an empty list.
+    # Initially element_state is an empty list.
+    is_seed_call = not element_state
 
     if not is_seed_call:
       element = state.get_state(window, self._element_tag)
@@ -136,7 +163,6 @@ class ProcessFn(beam.DoFn):
     else:
       element_and_restriction = (
           value.value if isinstance(value, WindowedValue) else value)
-      assert isinstance(element_and_restriction, ElementAndRestriction)
       element = element_and_restriction.element
       restriction = element_and_restriction.restriction
 
@@ -162,6 +188,8 @@ class ProcessFn(beam.DoFn):
         break
       yield output
 
+    assert sdf_result
+
     if not sdf_result.residual_restriction:
       # All work for current residual and restriction pair is complete.
       state.clear_state(window, self._element_tag)
@@ -173,26 +201,64 @@ class ProcessFn(beam.DoFn):
       state.add_state(window, self._element_tag, element)
       state.add_state(window, self._restriction_tag,
                       sdf_result.residual_restriction)
+      # Holding output watermark by setting it to negative infinity.
       state.add_state(window, self.watermark_hold_tag,
                       WatermarkManager.WATERMARK_NEG_INF)
-      # Holding output watermark by setting it to negative infinity.
+
+      # Setting a timer to be reinvoked to continue processing the element.
+      # Currently Python SDK only supports setting timers based on watermark. So
+      # forcing a reinvocation by setting a timer for watermark negative
+      # infinity.
+      # TODO(chamikara): update this by setting a timer for the proper
+      # processing time when Python SDK supports that.
       state.set_timer(
           window, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_NEG_INF)
 
 
 class SDFProcessElementInvoker(object):
-  """A utility that requsts checkpoints.
+  """A utility that invokes SDF `process()` method and requests checkpoints.
 
-  Requests a checkpoint after processing a predefined number of elements or
-  after a predefined time is elapsed from the process() invocation.
+  This class is responsible for invoking the `process()` method of a Splittable
+  `DoFn` and making sure that invocation terminated properly. Based on the input
+  configuration, this class may decide to request a checkpoint for a `process()`
+  execution so that runner can process current output and resume the invocation
+  at a later time.
+
+  More specifically, when initializing a `SDFProcessElementInvoker`, caller may
+  specify the number of output elements or processing time after which a
+  checkpoint should be requested. This class is responsible for properly
+  requesting a checkpoint based on either of these criteria.
+  When the `process()` call of Splittable `DoFn` ends, this class performs
+  validations to make sure that processing ended gracefully and returns a
+  `SDFProcessElementInvoker.Result` that contains information which can be used
+  by the caller to perform another `process()` invocation for the residual.
+
+  A `process()` invocation may decide to give up processing voluntarily by
+  returning a `ProcessContinuation` object (see documentation of
+  `ProcessContinuation` for more details). So if a 'ProcessContinuation' is
+  produced this class ends the execution and performs steps to finalize the
+  current invocation.
   """
 
   class Result(object):
     def __init__(
-        self, residual_restriction=None, continuation=None,
+        self, residual_restriction=None, process_continuation=None,
         future_output_watermark=None):
+      """Returned as a result of a `invoke_process_element()` invocation.
+
+      Args:
+        residual_restriction: a restriction for the unprocessed part of the
+                             element.
+        process_continuation: a `ProcessContinuation` if one was returned as the
+                              last element of the SDF `process()` invocation.
+        future_output_watermark: output watermark of the results that will be
+                                 produced when invoking the Splittable `DoFn`
+                                 for the current element with
+                                 `residual_restriction`.
+      """
+
       self.residual_restriction = residual_restriction
-      self.continuation = continuation
+      self.process_continuation = process_continuation
       self.future_output_watermark = future_output_watermark
 
   def __init__(
@@ -205,20 +271,33 @@ class SDFProcessElementInvoker(object):
     raise ValueError
 
   def invoke_process_element(self, sdf_invoker, element, tracker):
+    """Invokes `process()` method of a Splittable `DoFn` for a given element.
+
+     Args:
+       sdf_invoker: a `DoFnInvoker` for the Splittable `DoFn`.
+       element: the element to process
+       tracker: a `RestrictionTracker` for the element that will be passed when
+                invoking the `process()` method of the Splittable `DoFn`.
+     Returns:
+       a `SDFProcessElementInvoker.Result` object.
+     """
     assert isinstance(sdf_invoker, DoFnInvoker)
     assert isinstance(tracker, RestrictionTracker)
 
-    # Using lists for following two variables so that they are accessible from
-    # the closure of the function initiate_checkpoint().
-    checkpointed = []
-    residual_restriction = []
+    class CheckpointState(object):
+
+      def __init__(self):
+        self.checkpointed = None
+        self.residual_restriction = None
+
+    checkpoint_state = CheckpointState()
 
     def initiate_checkpoint():
       with self._checkpoint_lock:
-        if checkpointed:
+        if checkpoint_state.checkpointed:
           return
-      residual_restriction.append(tracker.checkpoint())
-      checkpointed.append(object())
+      checkpoint_state.residual_restriction = tracker.checkpoint()
+      checkpoint_state.checkpointed = object()
 
     output_processor = _OutputProcessor()
     Timer(self._max_duration, initiate_checkpoint).start()
@@ -231,7 +310,10 @@ class SDFProcessElementInvoker(object):
     # We have to expand and re-yield here to support ending execution for a
     # given number of output elements as well as to capture the
     # ProcessContinuation of one was returned.
+    process_continuation = None
     for output in output_processor.output_iter:
+      # A ProcessContinuation, if returned, should be the last element.
+      assert not process_continuation
       if isinstance(output, ProcessContinuation):
         # Taking a checkpoint so that we can determine primary and residual
         # restrictions.
@@ -240,7 +322,10 @@ class SDFProcessElementInvoker(object):
         # A ProcessContinuation should always be the last element produced by
         # the output iterator.
         # TODO: support continuing after the specified amount of delay.
-        break
+
+        # Continuing here instead of breaking to enforce that this is the last
+        # element.
+        continue
 
       yield output
       output_count += 1
@@ -250,8 +335,9 @@ class SDFProcessElementInvoker(object):
     tracker.check_done()
     result = (
         SDFProcessElementInvoker.Result(
-            residual_restriction=residual_restriction[0])
-        if residual_restriction else SDFProcessElementInvoker.Result())
+            residual_restriction=checkpoint_state.residual_restriction)
+        if checkpoint_state.residual_restriction
+        else SDFProcessElementInvoker.Result())
     yield result
 
 
