@@ -26,6 +26,7 @@ import time
 import apache_beam.io as io
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
@@ -76,7 +77,7 @@ class TransformEvaluatorRegistry(object):
         _StreamingGroupAlsoByWindow: _StreamingGroupAlsoByWindowEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
         TestStream: _TestStreamEvaluator,
-        ProcessElements: _ProcessElemenetsEvaluator
+        ProcessElements: _ProcessElementsEvaluator
     }
     self._root_bundle_providers = {
         core.PTransform: DefaultRootBundleProvider,
@@ -516,6 +517,15 @@ class _TaggedReceivers(dict):
 
 class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
+
+  def __init__(self, evaluation_context, applied_ptransform,
+               input_committed_bundle, side_inputs, scoped_metrics_container,
+               perform_dofn_pickle_test=True):
+    super(_ParDoEvaluator, self).__init__(
+        evaluation_context, applied_ptransform, input_committed_bundle,
+        side_inputs, scoped_metrics_container)
+    self._perform_dofn_pickle_test = perform_dofn_pickle_test
+
   def start_bundle(self):
     transform = self._applied_ptransform.transform
 
@@ -530,7 +540,8 @@ class _ParDoEvaluator(_TransformEvaluator):
     self._counter_factory = counters.CounterFactory()
 
     # TODO(aaltay): Consider storing the serialized form as an optimization.
-    dofn = transform.dofn
+    dofn = (pickler.loads(pickler.dumps(transform.dofn))
+            if self._perform_dofn_pickle_test else transform.dofn)
 
     pipeline_options = self._evaluation_context.pipeline_options
     if (pipeline_options is not None
@@ -832,15 +843,19 @@ class _NativeWriteEvaluator(_TransformEvaluator):
     return TransformResult(self, [], [], None, {None: hold})
 
 
-class _ProcessElemenetsEvaluator(_TransformEvaluator):
+class _ProcessElementsEvaluator(_TransformEvaluator):
   """An evaluator for sdf_direct_runner.ProcessElements transform."""
 
+  # Maximum number of elements that will be produced by a Splittable DoFn before
+  # a checkpoint is requested by the runner.
   DEFAULT_MAX_NUM_OUTPUTS = 100
+  # Maximum duration a Splittable DoFn will process an element before a
+  # checkpoint is requested by the runner.
   DEFAULT_MAX_DURATION = 1
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs, scoped_metrics_container):
-    super(_ProcessElemenetsEvaluator, self).__init__(
+    super(_ProcessElementsEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs, scoped_metrics_container)
 
@@ -857,8 +872,7 @@ class _ProcessElemenetsEvaluator(_TransformEvaluator):
     assert isinstance(self._process_fn, ProcessFn)
 
     self.step_context = self._execution_context.get_step_context()
-    # self.global_state = self.step_context.get_keyed_state(None)
-    self._process_fn.set_step_context(self.step_context)
+    self._process_fn.step_context = self.step_context
 
     process_element_invoker = (
         SDFProcessElementInvoker(
@@ -868,7 +882,7 @@ class _ProcessElemenetsEvaluator(_TransformEvaluator):
 
     self._par_do_evaluator = _ParDoEvaluator(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs, scoped_metrics_container, perform_dofn_pickle_test=False)
     self.keyed_holds = {}
 
   def start_bundle(self):
@@ -879,15 +893,18 @@ class _ProcessElemenetsEvaluator(_TransformEvaluator):
     assert len(element.windows) == 1
     window = element.windows[0]
     if isinstance(element.value, KeyedWorkItem):
-      encoded_k = element.value.encoded_key
+      key = element.value.encoded_key
     else:
+      # If not a `KeyedWorkItem`, this must be a tuple where key is a randomly
+      # generated key and the value is a `WindowedValue` that contains an
+      # `ElementAndRestriction` object.
       assert isinstance(element.value, tuple)
-      encoded_k = element.value[0]
+      key = element.value[0]
 
     self._par_do_evaluator.process_element(element)
 
-    state = self.step_context.get_keyed_state(encoded_k)
-    self.keyed_holds[encoded_k] = state.get_state(
+    state = self.step_context.get_keyed_state(key)
+    self.keyed_holds[key] = state.get_state(
         window, self._process_fn.watermark_hold_tag)
 
   def finish_bundle(self):
