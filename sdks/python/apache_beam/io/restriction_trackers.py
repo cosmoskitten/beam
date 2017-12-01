@@ -39,12 +39,6 @@ class OffsetRange(object):
 
     return self.start == other.start and self.stop == other.stop
 
-  def __ne__(self, other):
-    if not isinstance(other, OffsetRange):
-      return True
-
-    return not (self.start == other.start and self.stop == other.stop)
-
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
     current_split_start = self.start
     max_split_size = max(desired_num_offsets_per_split,
@@ -66,7 +60,11 @@ class OffsetRange(object):
 
 
 class OffsetRestrictionTracker(RestrictionTracker):
-  """An `iobase.RestrictionTracker` implementations for byte offsets."""
+  """An `iobase.RestrictionTracker` implementations for an offset range.
+
+  Offset range is represented as a pair of integers
+  [start_position, stop_position}.
+  """
 
   def __init__(self, start_position, stop_position):
     self._range = OffsetRange(start_position, stop_position)
@@ -76,26 +74,42 @@ class OffsetRestrictionTracker(RestrictionTracker):
     self._lock = threading.Lock()
 
   def check_done(self):
-    if self._last_claim_attempt < self._range.stop - 1:
-      raise ValueError(
-          'OffsetRestrictionTracker is not done since work in range [%s, %s) '
-          'has not been claimed.',
-          self._last_claim_attempt if self._last_claim_attempt is not None
-          else self._range.start,
-          self._range.stop)
+    with self._lock:
+      if self._last_claim_attempt < self._range.stop - 1:
+        raise ValueError(
+            'OffsetRestrictionTracker is not done since work in range [%s, %s) '
+            'has not been claimed.',
+            self._last_claim_attempt if self._last_claim_attempt is not None
+            else self._range.start,
+            self._range.stop)
 
   def current_restriction(self):
-    return (self._range.start, self._range.stop)
+    with self._lock:
+      return (self._range.start, self._range.stop)
 
   def start_position(self):
-    return self._range.start
+    with self._lock:
+      return self._range.start
 
   def stop_position(self):
-    return self._range.stop
+    with self._lock:
+      return self._range.stop
 
   def try_claim(self, position):
     with self._lock:
+      if self._last_claim_attempt and position <= self._last_claim_attempt:
+        raise ValueError(
+            'Positions claimed should strictly increase. Trying to claim '
+            'position %d while last claim attempt was %d.',
+            position, self._last_claim_attempt)
+
       self._last_claim_attempt = position
+      if position < self._range.start:
+        raise ValueError(
+            'Position to be claimed cannot be smaller than the start position '
+            'of the range. Tried to claim position %r for the range [%r, %r)',
+            position, self._range.start, self._range.stop)
+
       if position >= self._range.start and position < self._range.stop:
         self._current_position = position
         return True
@@ -104,14 +118,14 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def checkpoint(self):
     with self._lock:
-      residual_range = (
-          (self._range.start, self._range.stop)
-          if self._current_position is None
-          else (self._current_position + 1, self._range.stop))
       # If self._current_position is 'None' no records have been claimed so
       # residual should start from self._range.start.
-      end_position = (
-          self._range.start if self._current_position is None
-          else self._current_position + 1)
+      if self._current_position is None:
+        residual_range = (self._range.start, self._range.stop)
+        end_position = self._range.start
+      else:
+        residual_range = (self._current_position + 1, self._range.stop)
+        end_position = self._current_position + 1
+
       self._range = OffsetRange(self._range.start, end_position)
       return residual_range

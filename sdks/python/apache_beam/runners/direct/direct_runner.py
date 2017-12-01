@@ -95,8 +95,9 @@ def _get_transform_overrides():
   # not change.
   # For internal use only; no backwards-compatibility guarantees.
 
-  from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
+  # Importing following locally to avoid a circular dependency.
   from apache_beam.runners.sdf_common import SplittableParDoOverride
+  from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
   return [SplittableParDoOverride(),
           ProcessKeyedElementsViaKeyedWorkItemsOverride()]
 

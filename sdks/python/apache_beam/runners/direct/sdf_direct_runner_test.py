@@ -37,18 +37,12 @@ from apache_beam.transforms.window import TimestampedValue
 
 class ReadFilesProvider(RestrictionProvider):
 
-  def restriction_coder(self):
-    return object()
-
   def initial_restriction(self, element):
     size = os.path.getsize(element)
     return (0, size)
 
   def create_tracker(self, restriction):
-    return OffsetRestrictionTracker(restriction[0], restriction[1])
-
-  def split(self, element, restriction):
-    return [restriction,]
+    return OffsetRestrictionTracker(*restriction)
 
 
 class ReadFiles(DoFn):
@@ -59,32 +53,33 @@ class ReadFiles(DoFn):
   def process(
       self, element, restriction_tracker=ReadFilesProvider(), *args, **kwargs):
     file_name = element
-    file = open(file_name, 'rb')
     assert isinstance(restriction_tracker, OffsetRestrictionTracker)
-    pos = restriction_tracker.start_position()
-    if restriction_tracker.start_position() > 0:
-      file.seek(restriction_tracker.start_position() - 1)
-      line = file.readline()
-      pos = pos - 1 + len(line)
 
-    output_count = 0
-    while restriction_tracker.try_claim(pos):
-      line = file.readline()
-      len_line = len(line)
-      line = line.strip()
-      if not line:
-        break
+    with open(file_name, 'rb') as file:
+      pos = restriction_tracker.start_position()
+      if restriction_tracker.start_position() > 0:
+        file.seek(restriction_tracker.start_position() - 1)
+        line = file.readline()
+        pos = pos - 1 + len(line)
 
-      if line is None:
-        break
-      yield line
-      output_count += 1
+      output_count = 0
+      while restriction_tracker.try_claim(pos):
+        line = file.readline()
+        len_line = len(line)
+        line = line.strip()
+        if not line:
+          break
 
-      if self._resume_count and output_count == self._resume_count:
-        yield ProcessContinuation()
-        break
+        if line is None:
+          break
+        yield line
+        output_count += 1
 
-      pos += len_line
+        if self._resume_count and output_count == self._resume_count:
+          yield ProcessContinuation()
+          break
+
+        pos += len_line
 
 
 class ExpandStringsProvider(RestrictionProvider):
@@ -116,7 +111,7 @@ class ExpandStrings(DoFn):
       if restriction_tracker.try_claim(i):
         if not side:
           yield (
-              element[0] + ':' +  str(element[1]) + ':' + str(int(window.start))
+              element[0] + ':' + str(element[1]) + ':' + str(int(window.start))
               if self._record_window else element)
         else:
           for val in side:
@@ -135,7 +130,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
     # Importing following for DirectRunner SDF implemenation for testing.
     from apache_beam.runners.direct import transform_evaluator
     self._default_max_num_outputs = (
-        transform_evaluator._ProcessElemenetsEvaluator.DEFAULT_MAX_NUM_OUTPUTS)
+        transform_evaluator._ProcessElementsEvaluator.DEFAULT_MAX_NUM_OUTPUTS)
 
   def run_sdf_read_pipeline(
       self, num_files, num_records_per_file, resume_count=None):
@@ -156,6 +151,9 @@ class SDFDirectRunnerTest(unittest.TestCase):
              | 'SDF' >> beam.ParDo(ReadFiles(resume_count)))
 
       assert_that(pc1, equal_to(expected_data))
+
+      # TODO(chamikara: verify the number of times process method was invoked
+      # using a side output once SDFs supports producing side outputs.
 
   def test_sdf_no_checkpoint_single_element(self):
     self.run_sdf_read_pipeline(
