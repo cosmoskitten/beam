@@ -18,11 +18,29 @@
 
 package org.apache.beam.sdk.values.reflect;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
+import org.junit.Test;
 
 /**
- * Unit tests for {@link RecordTypeGettersTest}.
+ * Unit tests for {@link RecordTypeGetters}.
  */
 public class RecordTypeGettersTest {
 
+  @Test
+  public void testGetters() {
+    BeamRecordType recordType = new BeamRecordType(
+        Collections.<String>emptyList(), Collections.<Coder>emptyList());
+    List<FieldValueGetter> fieldValueGetters = Collections.emptyList();
+
+    RecordTypeGetters getters = new RecordTypeGetters(recordType, fieldValueGetters);
+
+    assertSame(recordType, getters.recordType());
+    assertSame(fieldValueGetters, getters.valueGetters());
+  }
 }
