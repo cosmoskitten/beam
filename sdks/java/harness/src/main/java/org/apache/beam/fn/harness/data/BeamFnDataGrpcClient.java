@@ -31,6 +31,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -87,8 +88,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
     CompletableFuture<Void> readFuture = new CompletableFuture<>();
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
-    client.futureForKey(inputLocation).complete(
-        new BeamFnDataInboundObserver<>(coder, consumer, readFuture));
+    client.attachReceiver(
+        inputLocation, new BeamFnDataInboundObserver<>(coder, consumer, readFuture));
     return readFuture;
   }
 
