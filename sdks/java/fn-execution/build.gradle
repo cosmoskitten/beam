@@ -30,6 +30,7 @@ dependencies {
   shadow library.java.grpc_stub
   shadow library.java.grpc_netty
   shadow library.java.netty_transport_native_epoll
+  shadow library.java.slf4j_api
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
