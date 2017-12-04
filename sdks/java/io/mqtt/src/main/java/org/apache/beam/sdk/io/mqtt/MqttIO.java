@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -411,8 +412,11 @@ public class MqttIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        LOG.debug("MQTT reader (client ID {}) waiting message ...", client.getClientId());
-        Message message = connection.receive();
+        LOG.trace("MQTT reader (client ID {}) waiting message ...", client.getClientId());
+        Message message = connection.receive(1, TimeUnit.SECONDS);
+        if (message == null) {
+          return false;
+        }
         current = message.getPayload();
         currentTimestamp = Instant.now();
         checkpointMark.add(message, currentTimestamp);
