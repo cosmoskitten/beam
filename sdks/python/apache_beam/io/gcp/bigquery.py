@@ -1186,8 +1186,8 @@ class BigQueryWriteFn(DoFn):
   """A ``DoFn`` that streams writes to BigQuery once the table is created.
   """
 
-  def __init__(self, table_id, dataset_id, project_id, batch_size, schema,
-               create_disposition, write_disposition, client):
+  def __init__(self, table_id, dataset_id, project_id, is_direct, batch_size,
+               schema, create_disposition, write_disposition, client):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1199,6 +1199,8 @@ class BigQueryWriteFn(DoFn):
         table reference is specified entirely by the table argument.
       project_id: The ID of the project containing this table or null if the
         table reference is specified entirely by the table argument.
+      is_direct: If True, writes directly to BQ. Otherwise, writes via GCS.
+      TODO: update wording above
       batch_size: Number of rows to be written to BQ per streaming API insert.
       schema: The schema to be used if the BigQuery table to write has to be
         created. This can be either specified as a 'bigquery.TableSchema' object
@@ -1217,11 +1219,12 @@ class BigQueryWriteFn(DoFn):
         -  BigQueryDisposition.WRITE_APPEND: add to existing rows.
         -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
         For streaming pipelines WriteTruncate can not be used.
-      test_client: Override the default bigquery client used for testing.
+      client: Override the default bigquery client used for testing.
     """
     self.table_id = table_id
     self.dataset_id = dataset_id
     self.project_id = project_id
+    self.is_direct = is_direct
     self.schema = schema
     self.client = client
     self.create_disposition = create_disposition
@@ -1266,18 +1269,27 @@ class BigQueryWriteFn(DoFn):
   def finish_bundle(self):
     if self._rows_buffer:
       self._flush_batch()
+    if not self.is_direct:
+      # TODO: transfer from GCS to BigQuery.
+      pass
     self._rows_buffer = []
 
   def _flush_batch(self):
-    # Flush the current batch of rows to BigQuery.
-    passed, errors = self.bigquery_wrapper.insert_rows(
-        project_id=self.project_id, dataset_id=self.dataset_id,
-        table_id=self.table_id, rows=self._rows_buffer)
-    if not passed:
-      raise RuntimeError('Could not successfully insert rows to BigQuery'
-                         ' table [%s:%s.%s]. Errors: %s'%
-                         (self.project_id, self.dataset_id,
-                          self.table_id, errors))
+    """Flush the current batch of rows."""
+    if self.is_direct:
+      # Flush to BigQuery.
+      passed, errors = self.bigquery_wrapper.insert_rows(
+          project_id=self.project_id, dataset_id=self.dataset_id,
+          table_id=self.table_id, rows=self._rows_buffer)
+      if not passed:
+        raise RuntimeError('Could not successfully insert rows to BigQuery'
+                           ' table [%s:%s.%s]. Errors: %s'%
+                           (self.project_id, self.dataset_id,
+                            self.table_id, errors))
+    else:
+      # Flush to GCS.
+      # TODO: implement
+      pass
     logging.debug("Successfully wrote %d rows.", len(self._rows_buffer))
     self._rows_buffer = []
 
@@ -1289,6 +1301,8 @@ class WriteToBigQuery(PTransform):
                write_disposition=BigQueryDisposition.WRITE_APPEND,
                batch_size=None, test_client=None):
     """Initialize a WriteToBigQuery transform.
+
+    TODO: Document behavior with bounded vs unbounded collections.
 
     Args:
       table (str): The ID of the table. The ID must contain only letters
@@ -1331,7 +1345,7 @@ bigquery_v2_messages.TableSchema`
         For streaming pipelines WriteTruncate can not be used.
 
       batch_size (int): Number of rows to be written to BQ per streaming API
-        insert.
+        insert. TODO: only valid for streaming/unbound pipelines
       test_client: Override the default bigquery client used for testing.
     """
     self.table_reference = _parse_table_reference(table, dataset, project)
@@ -1429,6 +1443,7 @@ bigquery_v2_messages.TableSchema):
         table_id=self.table_reference.tableId,
         dataset_id=self.table_reference.datasetId,
         project_id=self.table_reference.projectId,
+        is_direct=pcoll.streaming,
         batch_size=self.batch_size,
         schema=self.get_dict_table_schema(self.schema),
         create_disposition=self.create_disposition,
