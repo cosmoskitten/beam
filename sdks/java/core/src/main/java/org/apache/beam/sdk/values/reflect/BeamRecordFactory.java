@@ -34,9 +34,12 @@ import org.apache.beam.sdk.values.reflect.field.GetterMethodGetterFactory;
  *
  * <p>Generated record types are cached in the instance of this factory.
  *
- * <p>Currently only 1-1 mapping is supported between pojo classes and record types.
+ * <p>At the moment single pojo class corresponds to single BeamRecordType.
+ *
+ * <p>Supported pojo field types depend on types supported by the {@link RecordTypeFactory}.
+ * See {@link DefaultRecordTypeFactory} for default implementation.
  */
-public class RecordFactory {
+public class BeamRecordFactory {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
   private RecordTypeFactory recordTypeFactory;
@@ -47,7 +50,7 @@ public class RecordFactory {
    *
    * <p>Use this to create instances of {@link BeamRecordType}.
    */
-  public RecordFactory() {
+  public BeamRecordFactory() {
     this(new DefaultRecordTypeFactory());
   }
 
@@ -56,7 +59,7 @@ public class RecordFactory {
    *
    * <p>For example this can be used to create BeamRecordSqlTypes instead of BeamRecordType.
    */
-  public RecordFactory(RecordTypeFactory recordTypeFactory) {
+  public BeamRecordFactory(RecordTypeFactory recordTypeFactory) {
     this.recordTypeFactory = recordTypeFactory;
   }
 
@@ -71,19 +74,19 @@ public class RecordFactory {
    * For example record field 'name' will be generated for 'getName()' pojo method.
    */
   public BeamRecord newRecordCopyOf(Object pojo) {
-    RecordTypeGetters getters = getRowType(pojo.getClass());
+    RecordTypeGetters getters = getRecordType(pojo.getClass());
     List<Object> fieldValues = getFieldValues(getters.valueGetters(), pojo);
     return new BeamRecord(getters.recordType(), fieldValues);
   }
 
-  private synchronized RecordTypeGetters getRowType(Class pojoClass) {
+  private synchronized RecordTypeGetters getRecordType(Class pojoClass) {
     if (recordTypesCache.containsKey(pojoClass)) {
       return recordTypesCache.get(pojoClass);
     }
 
     List<FieldValueGetter> fieldValueGetters = createGetters(pojoClass);
-    BeamRecordType rowType = recordTypeFactory.createRecordType(fieldValueGetters);
-    recordTypesCache.put(pojoClass, new RecordTypeGetters(rowType, fieldValueGetters));
+    BeamRecordType recordType = recordTypeFactory.createRecordType(fieldValueGetters);
+    recordTypesCache.put(pojoClass, new RecordTypeGetters(recordType, fieldValueGetters));
 
     return recordTypesCache.get(pojoClass);
   }

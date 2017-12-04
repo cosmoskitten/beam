@@ -23,12 +23,14 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** API surface verification for {@link org.apache.beam}. */
 @RunWith(JUnit4.class)
+@Ignore
 public class SdkCoreApiSurfaceTest {
 
   @Test
