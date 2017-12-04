@@ -27,7 +27,6 @@ import com.google.common.collect.Multimap;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -43,6 +42,7 @@ import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -124,7 +124,7 @@ public class BeamFnDataReadRunner<OutputT> {
   private final Coder<WindowedValue<OutputT>> coder;
   private final BeamFnApi.Target inputTarget;
 
-  private CompletableFuture<Void> readFuture;
+  private InboundDataClient readFuture;
 
   BeamFnDataReadRunner(
       RunnerApi.FunctionSpec functionSpec,
@@ -163,6 +163,6 @@ public class BeamFnDataReadRunner<OutputT> {
   public void blockTillReadFinishes() throws Exception {
     LOG.debug("Waiting for process bundle instruction {} and target {} to close.",
         processBundleInstructionIdSupplier.get(), inputTarget);
-    readFuture.get();
+    readFuture.awaitCompletion();
   }
 }
