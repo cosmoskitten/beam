@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
@@ -61,11 +62,14 @@ class ElasticSearchIOTestUtils {
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     StringBuilder bulkRequest = new StringBuilder();
-    int i = 0;
     for (String document : data) {
-      bulkRequest.append(String.format(
-          "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }%n%s%n",
-          connectionConfiguration.getIndex(), connectionConfiguration.getType(), i++, document));
+      bulkRequest.append(
+          String.format(
+              "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }%n%s%n",
+              connectionConfiguration.getIndex(),
+              connectionConfiguration.getType(),
+              UUID.randomUUID(),
+              document));
     }
     String endPoint = String.format("/%s/%s/_bulk", connectionConfiguration.getIndex(),
         connectionConfiguration.getType());
