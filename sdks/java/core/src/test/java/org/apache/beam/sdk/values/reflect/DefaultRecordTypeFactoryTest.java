@@ -21,11 +21,8 @@ package org.apache.beam.sdk.values.reflect;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
-import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
-import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
@@ -43,13 +40,18 @@ import org.junit.rules.ExpectedException;
  */
 public class DefaultRecordTypeFactoryTest {
 
-  private static final List<FieldValueGetter> GETTERS_FOR_KNOWN_TYPES = ImmutableList
+  /**
+   * Test class without supported coder.
+   */
+  private static class UnsupportedClass {
+  }
+
+  private static final List<FieldValueGetter> GETTERS = ImmutableList
       .<FieldValueGetter>builder()
       .add(getter("byteGetter", Byte.class))
       .add(getter("integerGetter", Integer.class))
       .add(getter("longGetter", Long.class))
       .add(getter("doubleGetter", Double.class))
-      .add(getter("bigDecimalGetter", BigDecimal.class))
       .add(getter("booleanGetter", Boolean.class))
       .add(getter("stringGetter", String.class))
       .build();
@@ -61,16 +63,15 @@ public class DefaultRecordTypeFactoryTest {
   public void testContainsCorrectFields() throws Exception {
     DefaultRecordTypeFactory factory = new DefaultRecordTypeFactory();
 
-    BeamRecordType recordType = factory.createRecordType(GETTERS_FOR_KNOWN_TYPES);
+    BeamRecordType recordType = factory.createRecordType(GETTERS);
 
-    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), recordType.getFieldCount());
+    assertEquals(GETTERS.size(), recordType.getFieldCount());
     assertEquals(
         Arrays.asList(
             "byteGetter",
             "integerGetter",
             "longGetter",
             "doubleGetter",
-            "bigDecimalGetter",
             "booleanGetter",
             "stringGetter"),
         recordType.getFieldNames());
@@ -80,16 +81,15 @@ public class DefaultRecordTypeFactoryTest {
   public void testContainsCorrectCoders() throws Exception {
     DefaultRecordTypeFactory factory = new DefaultRecordTypeFactory();
 
-    BeamRecordType recordType = factory.createRecordType(GETTERS_FOR_KNOWN_TYPES);
+    BeamRecordType recordType = factory.createRecordType(GETTERS);
 
-    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), recordType.getFieldCount());
+    assertEquals(GETTERS.size(), recordType.getFieldCount());
     assertEquals(
         Arrays.asList(
             ByteCoder.of(),
             VarIntCoder.of(),
             VarLongCoder.of(),
             DoubleCoder.of(),
-            BigDecimalCoder.of(),
             BooleanCoder.of(),
             StringUtf8Coder.of()),
         recordType.getRecordCoder().getCoders());
@@ -102,7 +102,7 @@ public class DefaultRecordTypeFactoryTest {
     DefaultRecordTypeFactory factory = new DefaultRecordTypeFactory();
 
     factory.createRecordType(
-        Arrays.<FieldValueGetter>asList(getter("dateGetter", Date.class)));
+        Arrays.<FieldValueGetter>asList(getter("unsupportedGetter", UnsupportedClass.class)));
   }
 
   private static FieldValueGetter<Object> getter(final String fieldName, final Class fieldType) {

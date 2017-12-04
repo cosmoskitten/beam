@@ -18,12 +18,12 @@
 
 package org.apache.beam.sdk.values.reflect.field;
 
-import org.apache.beam.sdk.values.reflect.RecordFactory;
+import org.apache.beam.sdk.values.reflect.BeamRecordFactory;
 
 /**
  * An interface to access a field of a class.
  *
- * <p>Implementations of this interface are generated at rutime by {@link RecordFactory}
+ * <p>Implementations of this interface are generated at runtime by {@link BeamRecordFactory}
  * to map pojo fields to BeamRecord fields.
  */
 public interface FieldValueGetter<T> {

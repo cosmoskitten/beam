@@ -39,7 +39,6 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.FloatCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.ShortCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.TimeCoder;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.DefaultRecordTypeFactory;
 import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,7 +48,6 @@ import org.junit.rules.ExpectedException;
  * Unit tests for {@link SqlRecordTypeFactory}.
  */
 public class SqlRecordTypeFactoryTest {
-
 
   private static final List<FieldValueGetter> GETTERS_FOR_KNOWN_TYPES = ImmutableList
       .<FieldValueGetter>builder()
@@ -119,7 +117,7 @@ public class SqlRecordTypeFactoryTest {
   public void testThrowsForUnsupportedTypes() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
 
-    DefaultRecordTypeFactory factory = new DefaultRecordTypeFactory();
+    SqlRecordTypeFactory factory = new SqlRecordTypeFactory();
 
     factory.createRecordType(
         Arrays.<FieldValueGetter>asList(getter("arrayListGetter", ArrayList.class)));

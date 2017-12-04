@@ -28,9 +28,9 @@ import org.apache.beam.sdk.values.BeamRecord;
 import org.junit.Test;
 
 /**
- * Unit tests for {@link RecordFactoryTest}.
+ * Unit tests for {@link BeamRecordFactory}.
  */
-public class RecordFactoryTest {
+public class BeamRecordFactoryTest {
 
   /**
    * Test pojo.
@@ -59,7 +59,7 @@ public class RecordFactoryTest {
   public void testNewRecordFieldValues() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
     pojo.publicBooleanField = true;
-    RecordFactory factory = new RecordFactory();
+    BeamRecordFactory factory = new BeamRecordFactory();
 
     BeamRecord record = factory.newRecordCopyOf(pojo);
 
@@ -74,7 +74,7 @@ public class RecordFactoryTest {
   public void testNewRecordFieldNames() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
     pojo.publicBooleanField = true;
-    RecordFactory factory = new RecordFactory();
+    BeamRecordFactory factory = new BeamRecordFactory();
 
     BeamRecord record = factory.newRecordCopyOf(pojo);
 
@@ -87,7 +87,7 @@ public class RecordFactoryTest {
   public void testCreatesNewInstanceEachTime() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
     pojo.publicBooleanField = true;
-    RecordFactory factory = new RecordFactory();
+    BeamRecordFactory factory = new BeamRecordFactory();
 
     BeamRecord record1 = factory.newRecordCopyOf(pojo);
     BeamRecord record2 = factory.newRecordCopyOf(pojo);
@@ -99,7 +99,7 @@ public class RecordFactoryTest {
   public void testCachesRecordType() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
     pojo.publicBooleanField = true;
-    RecordFactory factory = new RecordFactory();
+    BeamRecordFactory factory = new BeamRecordFactory();
 
     BeamRecord record1 = factory.newRecordCopyOf(pojo);
     BeamRecord record2 = factory.newRecordCopyOf(pojo);
@@ -111,7 +111,7 @@ public class RecordFactoryTest {
   public void testCopiesValues() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
     pojo.publicBooleanField = true;
-    RecordFactory factory = new RecordFactory();
+    BeamRecordFactory factory = new BeamRecordFactory();
 
     BeamRecord record = factory.newRecordCopyOf(pojo);
 

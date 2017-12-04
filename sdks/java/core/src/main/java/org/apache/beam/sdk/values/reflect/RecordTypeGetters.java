@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
  * Helper class to hold {@link BeamRecordType} and {@link FieldValueGetter}s which were used to
  * create it.
  *
- * <p>This is used in {@link RecordFactory} to create instances of {@link BeamRecord}s.
+ * <p>This is used in {@link BeamRecordFactory} to create instances of {@link BeamRecord}s.
  */
 class RecordTypeGetters {
   private BeamRecordType recordType;
