@@ -21,24 +21,24 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -48,10 +48,13 @@ public class BeamFnDataInboundObserverTest {
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
 
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testDecodingElements() throws Exception {
     Collection<WindowedValue<String>> values = new ArrayList<>();
-    CompletableFuture<Void> readFuture = new CompletableFuture<>();
+    InboundDataClient readFuture = CompletableFutureInboundDataClient.create();
     BeamFnDataInboundObserver<String> observer =
         new BeamFnDataInboundObserver<>(
             CODER,
@@ -84,32 +87,31 @@ public class BeamFnDataInboundObserverTest {
 
   @Test
   public void testConsumptionFailureCompletesReadFutureAndDiscardsMessages() throws Exception {
-    CompletableFuture<Void> readFuture = new CompletableFuture<>();
+    InboundDataClient readClient = CompletableFutureInboundDataClient.create();
     BeamFnDataInboundObserver<String> observer =
         new BeamFnDataInboundObserver<>(
             CODER,
             new FnDataReceiver<WindowedValue<String>>() {
               @Override
               public void accept(WindowedValue<String> input) throws Exception {
-                throwOnDefValue(input);
+                if ("DEF".equals(input.getValue())) {
+                  throw new RuntimeException("Failure");
+                }
               }
 
               @Override
               public void close() throws Exception {}
             },
-            readFuture);
+            readClient);
 
-    assertFalse(readFuture.isDone());
+    assertFalse(readClient.isDone());
     observer.receive(dataWith("ABC", "DEF", "GHI"));
-    assertTrue(readFuture.isCompletedExceptionally());
+    assertTrue(readClient.isDone());
 
-    try {
-      readFuture.get();
-      fail("Expected failure");
-    } catch (ExecutionException e) {
-      assertThat(e.getCause(), instanceOf(RuntimeException.class));
-      assertEquals("Failure", e.getCause().getMessage());
-    }
+    thrown.expect(ExecutionException.class);
+    thrown.expectCause(instanceOf(RuntimeException.class));
+    thrown.expectMessage("Failure");
+    readClient.awaitCompletion();
   }
 
   private void throwOnDefValue(WindowedValue<String> value) {
