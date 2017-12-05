@@ -65,8 +65,8 @@ class StatusServer(object):
         self.send_header('Content-Type', 'text/plain')
         self.end_headers()
 
-        for line in StatusServer.get_thread_dump(): self.wfile.write(line)
-
+        for line in StatusServer.get_thread_dump():
+          self.wfile.write(line)
 
       def log_message(self, f, *args):
         """Do not log any messages."""
@@ -128,7 +128,9 @@ def main(unused_argv):
                       service_descriptor)
     # TODO(robertwb): Support credentials.
     assert not service_descriptor.oauth2_client_credentials_grant.url
-    SdkHarness(service_descriptor.url).run()
+    SdkHarness(
+        control_address=service_descriptor.url,
+        pipeline_options=sdk_pipeline_options).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')
@@ -142,7 +144,7 @@ def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
   if semi_persistent_directory:
     session_file = os.path.join(
-        semi_persistent_directory, 'staged', names.PICKLED_MAIN_SESSION_FILE)
+      semi_persistent_directory, 'staged', names.PICKLED_MAIN_SESSION_FILE)
     if os.path.isfile(session_file):
       pickler.load_session(session_file)
     else:
