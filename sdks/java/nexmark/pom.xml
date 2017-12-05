@@ -25,10 +25,6 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <properties>
-    <calcite.version>1.13.0</calcite.version>
-  </properties>
-
   <artifactId>beam-sdks-java-nexmark</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Nexmark</name>
   <packaging>jar</packaging>

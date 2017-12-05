@@ -19,13 +19,11 @@
 package org.apache.beam.sdk.nexmark.model.sql;
 
 import com.google.common.collect.ImmutableMap;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.sql.Types;
 import java.util.Map;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -37,11 +35,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
 
 /**
- * KnownSize implementation to estimate the size of a BeamRecord, similar to Java model.
- * NexmarkLauncher/Queries infrastructure expects the events to be able to quickly provide
- * the estimates of their sizes.
+ * {@link KnownSize} implementation to estimate the size of a {@link BeamRecord},
+ * similar to Java model. NexmarkLauncher/Queries infrastructure expects the events to
+ * be able to quickly provide the estimates of their sizes.
  *
- * <p>The BeamRecord size is calculated at creation time.
+ * <p>The {@link BeamRecord} size is calculated at creation time.
  *
  * <p>Field sizes are sizes of Java types described in {@link BeamRecordSqlType}. Except strings,
  * which are assumed to be taking 1-byte per character plus 1 byte size.

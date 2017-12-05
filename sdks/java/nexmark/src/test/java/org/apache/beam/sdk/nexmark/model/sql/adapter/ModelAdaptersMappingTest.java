@@ -30,9 +30,9 @@ import org.apache.beam.sdk.nexmark.model.Person;
 import org.junit.Test;
 
 /**
- * Unit tests for {@link ModelFieldsAdapters}.
+ * Unit tests for {@link ModelAdaptersMapping}.
  */
-public class ModelFieldsAdaptersTest {
+public class ModelAdaptersMappingTest {
 
   private static final Person PERSON =
       new Person(3L, "name", "email", "cc", "city", "state", 329823L, "extra");
@@ -77,18 +77,18 @@ public class ModelFieldsAdaptersTest {
 
   @Test
   public void hasAdaptersForSupportedModels() throws Exception {
-    assertTrue(ModelFieldsAdapters.ADAPTERS.containsKey(Bid.class));
-    assertTrue(ModelFieldsAdapters.ADAPTERS.containsKey(Person.class));
-    assertTrue(ModelFieldsAdapters.ADAPTERS.containsKey(Auction.class));
+    assertTrue(ModelAdaptersMapping.ADAPTERS.containsKey(Bid.class));
+    assertTrue(ModelAdaptersMapping.ADAPTERS.containsKey(Person.class));
+    assertTrue(ModelAdaptersMapping.ADAPTERS.containsKey(Auction.class));
 
-    assertNotNull(ModelFieldsAdapters.ADAPTERS.get(Bid.class));
-    assertNotNull(ModelFieldsAdapters.ADAPTERS.get(Person.class));
-    assertNotNull(ModelFieldsAdapters.ADAPTERS.get(Auction.class));
+    assertNotNull(ModelAdaptersMapping.ADAPTERS.get(Bid.class));
+    assertNotNull(ModelAdaptersMapping.ADAPTERS.get(Person.class));
+    assertNotNull(ModelAdaptersMapping.ADAPTERS.get(Auction.class));
   }
 
   @Test
   public void testBidAdapterRecordType() {
-    ModelFieldsAdapter<Person> adapter = ModelFieldsAdapters.ADAPTERS.get(Bid.class);
+    ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Bid.class);
 
     BeamRecordSqlType bidRecordType = (BeamRecordSqlType) adapter.getRecordType();
 
@@ -98,7 +98,7 @@ public class ModelFieldsAdaptersTest {
 
   @Test
   public void testPersonAdapterRecordType() {
-    ModelFieldsAdapter<Person> adapter = ModelFieldsAdapters.ADAPTERS.get(Person.class);
+    ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Person.class);
 
     BeamRecordSqlType personRecordType = (BeamRecordSqlType) adapter.getRecordType();
 
@@ -108,7 +108,7 @@ public class ModelFieldsAdaptersTest {
 
   @Test
   public void testAuctionAdapterRecordType() {
-    ModelFieldsAdapter<Person> adapter = ModelFieldsAdapters.ADAPTERS.get(Auction.class);
+    ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Auction.class);
 
     BeamRecordSqlType auctionRecordType = (BeamRecordSqlType) adapter.getRecordType();
 
@@ -118,7 +118,7 @@ public class ModelFieldsAdaptersTest {
 
   @Test
   public void testPersonAdapterGetsFieldValues() throws Exception {
-    ModelFieldsAdapter<Person> adapter = ModelFieldsAdapters.ADAPTERS.get(Person.class);
+    ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Person.class);
     List<Object> values = adapter.getFieldsValues(PERSON);
     assertEquals(PERSON.id, values.get(0));
     assertEquals(PERSON.name, values.get(1));
@@ -132,7 +132,7 @@ public class ModelFieldsAdaptersTest {
 
   @Test
   public void testBidAdapterGetsFieldValues() throws Exception {
-    ModelFieldsAdapter<Bid> adapter = ModelFieldsAdapters.ADAPTERS.get(Bid.class);
+    ModelFieldsAdapter<Bid> adapter = ModelAdaptersMapping.ADAPTERS.get(Bid.class);
     List<Object> values = adapter.getFieldsValues(BID);
     assertEquals(BID.auction, values.get(0));
     assertEquals(BID.bidder, values.get(1));
@@ -143,7 +143,7 @@ public class ModelFieldsAdaptersTest {
 
   @Test
   public void testAuctionAdapterGetsFieldValues() throws Exception {
-    ModelFieldsAdapter<Auction> adapter = ModelFieldsAdapters.ADAPTERS.get(Auction.class);
+    ModelFieldsAdapter<Auction> adapter = ModelAdaptersMapping.ADAPTERS.get(Auction.class);
     List<Object> values = adapter.getFieldsValues(AUCTION);
     assertEquals(AUCTION.id, values.get(0));
     assertEquals(AUCTION.itemName, values.get(1));

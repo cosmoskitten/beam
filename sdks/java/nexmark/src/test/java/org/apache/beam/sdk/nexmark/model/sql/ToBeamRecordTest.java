@@ -22,13 +22,12 @@ import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.Person;
-import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapters;
+import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -52,7 +51,7 @@ public class ToBeamRecordTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testCovertsBids() throws Exception {
+  public void testConvertsBids() throws Exception {
     PCollection<Event> bids = testPipeline.apply(
         TestStream.create(Event.CODER)
             .addElements(new Event(BID))
@@ -60,8 +59,8 @@ public class ToBeamRecordTest {
 
     BeamRecord expectedBidRecord =
         new BeamRecord(
-            ModelFieldsAdapters.ADAPTERS.get(Bid.class).getRecordType(),
-            ModelFieldsAdapters.ADAPTERS.get(Bid.class).getFieldsValues(BID));
+            ModelAdaptersMapping.ADAPTERS.get(Bid.class).getRecordType(),
+            ModelAdaptersMapping.ADAPTERS.get(Bid.class).getFieldsValues(BID));
 
     PAssert
         .that(bids.apply(ToBeamRecord.parDo()))
@@ -71,7 +70,7 @@ public class ToBeamRecordTest {
   }
 
   @Test
-  public void testCovertsPeople() throws Exception {
+  public void testConvertsPeople() throws Exception {
     PCollection<Event> people = testPipeline.apply(
         TestStream.create(Event.CODER)
             .addElements(new Event(PERSON))
@@ -79,8 +78,8 @@ public class ToBeamRecordTest {
 
     BeamRecord expectedPersonRecord =
         new BeamRecord(
-            ModelFieldsAdapters.ADAPTERS.get(Person.class).getRecordType(),
-            ModelFieldsAdapters.ADAPTERS.get(Person.class).getFieldsValues(PERSON));
+            ModelAdaptersMapping.ADAPTERS.get(Person.class).getRecordType(),
+            ModelAdaptersMapping.ADAPTERS.get(Person.class).getFieldsValues(PERSON));
 
     PAssert
         .that(people.apply(ToBeamRecord.parDo()))
@@ -90,7 +89,7 @@ public class ToBeamRecordTest {
   }
 
   @Test
-  public void testCovertsAuctions() throws Exception {
+  public void testConvertsAuctions() throws Exception {
     PCollection<Event> auctions = testPipeline.apply(
         TestStream.create(Event.CODER)
             .addElements(new Event(AUCTION))
@@ -98,8 +97,8 @@ public class ToBeamRecordTest {
 
     BeamRecord expectedAuctionRecord =
         new BeamRecord(
-            ModelFieldsAdapters.ADAPTERS.get(Auction.class).getRecordType(),
-            ModelFieldsAdapters.ADAPTERS.get(Auction.class).getFieldsValues(AUCTION));
+            ModelAdaptersMapping.ADAPTERS.get(Auction.class).getRecordType(),
+            ModelAdaptersMapping.ADAPTERS.get(Auction.class).getFieldsValues(AUCTION));
 
     PAssert
         .that(auctions.apply(ToBeamRecord.parDo()))

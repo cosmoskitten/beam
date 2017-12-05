@@ -31,7 +31,7 @@ import org.apache.beam.sdk.nexmark.model.Person;
 /**
  * Maps Java model classes to Beam SQL record types.
  */
-public class ModelFieldsAdapters {
+public class ModelAdaptersMapping {
 
   public static final Map<Class, ModelFieldsAdapter> ADAPTERS =
       ImmutableMap.<Class, ModelFieldsAdapter>builder()
