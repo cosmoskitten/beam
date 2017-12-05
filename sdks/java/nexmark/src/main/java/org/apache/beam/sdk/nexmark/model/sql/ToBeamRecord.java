@@ -19,11 +19,10 @@
 package org.apache.beam.sdk.nexmark.model.sql;
 
 import java.util.Map;
-
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
+import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
-import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapters;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -33,7 +32,7 @@ import org.apache.beam.sdk.values.BeamRecord;
  */
 public class ToBeamRecord {
 
-  static final ToBeamRecord INSTANCE = new ToBeamRecord(ModelFieldsAdapters.ADAPTERS);
+  static final ToBeamRecord INSTANCE = new ToBeamRecord(ModelAdaptersMapping.ADAPTERS);
 
   private Map<Class, ModelFieldsAdapter> modelTypeAdapters;
 

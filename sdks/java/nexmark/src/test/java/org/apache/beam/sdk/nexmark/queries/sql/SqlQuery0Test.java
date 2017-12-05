@@ -20,14 +20,13 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
+import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
-import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapters;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -43,7 +42,7 @@ public class SqlQuery0Test {
       new Bid(6L, 4L, 134123L, 13234234L, "extra2");
 
   private static final ModelFieldsAdapter<Bid> BID_ADAPTER =
-      ModelFieldsAdapters.ADAPTERS.get(Bid.class);
+      ModelAdaptersMapping.ADAPTERS.get(Bid.class);
 
   private static final BeamRecord BID1_RECORD =
       new BeamRecord(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(BID1));
