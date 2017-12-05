@@ -20,14 +20,12 @@ package org.apache.beam.sdk.values.reflect.field;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
-import java.lang.reflect.Method;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
-import net.bytebuddy.implementation.MethodCall;
 
 /**
  * Utilities to help with code generation for implementing {@link FieldValueGetter}s.
@@ -82,19 +80,6 @@ class ByteBuddyUtils {
         .method(named("get"))
         .intercept(fieldAccessImplementation);
   }
-
-  /**
-   * Implements {@link FieldValueGetter#get(Object)} for calling getters on pojos.
-   */
-  static DynamicType.Builder<FieldValueGetter> implementValueGetter(
-      DynamicType.Builder<FieldValueGetter> getterClassBuilder,
-      Method getterMethod) {
-
-    return getterClassBuilder
-        .method(named("get"))
-        .intercept(MethodCall.invoke(getterMethod).onArgument(0));
-  }
-
 
   /**
    * Finish the {@link FieldValueGetter} implementation and return its new instance.

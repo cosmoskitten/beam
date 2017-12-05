@@ -25,18 +25,17 @@ import java.util.Map;
 import net.bytebuddy.ByteBuddy;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.field.DirectAccessGetterFactory;
 import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.field.GetterMethodGetterFactory;
 
 /**
- * Generates the code to create BeamRecordTypes and BeamRecords based on pojos.
+ * Generates the code to create {@link BeamRecordType}s and {@link BeamRecord}s based on pojos.
  *
  * <p>Generated record types are cached in the instance of this factory.
  *
- * <p>At the moment single pojo class corresponds to single BeamRecordType.
+ * <p>At the moment single pojo class corresponds to single {@link BeamRecordType}.
  *
- * <p>Supported pojo field types depend on types supported by the {@link RecordTypeFactory}.
+ * <p>Supported pojo getter types depend on types supported by the {@link RecordTypeFactory}.
  * See {@link DefaultRecordTypeFactory} for default implementation.
  */
 public class BeamRecordFactory {
@@ -57,7 +56,7 @@ public class BeamRecordFactory {
   /**
    * Create new instance with custom record type factory.
    *
-   * <p>For example this can be used to create BeamRecordSqlTypes instead of BeamRecordType.
+   * <p>For example this can be used to create BeamRecordSqlTypes instead of {@link BeamRecordType}.
    */
   public BeamRecordFactory(RecordTypeFactory recordTypeFactory) {
     this.recordTypeFactory = recordTypeFactory;
@@ -66,14 +65,15 @@ public class BeamRecordFactory {
   /**
    * Create a BeamRecord of the pojo.
    *
-   * <p>This implementation copies the values of the pojo fields into the record fields on creation.
+   * <p>This implementation copies the return values of the pojo getters into
+   * the record fields on creation.
    *
-   * <p>Currently all public fields and getters are used to populate the record type and instance.
+   * <p>Currently all public getters are used to populate the record type and instance.
    *
    * <p>Field names for getters are stripped of the 'get' prefix.
    * For example record field 'name' will be generated for 'getName()' pojo method.
    */
-  public BeamRecord newRecordCopyOf(Object pojo) {
+  public BeamRecord create(Object pojo) {
     RecordTypeGetters getters = getRecordType(pojo.getClass());
     List<Object> fieldValues = getFieldValues(getters.valueGetters(), pojo);
     return new BeamRecord(getters.recordType(), fieldValues);
@@ -94,7 +94,6 @@ public class BeamRecordFactory {
   private List<FieldValueGetter> createGetters(Class pojoClass) {
     return ImmutableList.
         <FieldValueGetter>builder()
-        .addAll(DirectAccessGetterFactory.generateGetters(BYTE_BUDDY, pojoClass))
         .addAll(GetterMethodGetterFactory.generateGetters(BYTE_BUDDY, pojoClass))
         .build();
   }

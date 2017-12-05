@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.values.reflect.field;
 
+import static net.bytebuddy.implementation.MethodCall.invoke;
 import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.implementNameGetter;
 import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.implementTypeGetter;
 import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.implementValueGetter;
@@ -115,7 +116,7 @@ public class GetterMethodGetterFactory {
 
     getterBuilder = implementNameGetter(getterBuilder, tryStripGetPrefix(getterMethod));
     getterBuilder = implementTypeGetter(getterBuilder, getterMethod.getReturnType());
-    getterBuilder = implementValueGetter(getterBuilder, getterMethod);
+    getterBuilder = implementValueGetter(getterBuilder, invoke(getterMethod).onArgument(0));
 
     return makeNewGetterInstance(getterMethod.getName(), getterBuilder);
   }

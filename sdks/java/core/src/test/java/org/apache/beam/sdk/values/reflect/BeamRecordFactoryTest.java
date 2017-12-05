@@ -39,8 +39,6 @@ public class BeamRecordFactoryTest {
     private String someStringField;
     private Integer someIntegerField;
 
-    public Boolean publicBooleanField;
-
     public SomePojo(String someStringField, Integer someIntegerField) {
       this.someStringField = someStringField;
       this.someIntegerField = someIntegerField;
@@ -58,39 +56,34 @@ public class BeamRecordFactoryTest {
   @Test
   public void testNewRecordFieldValues() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    pojo.publicBooleanField = true;
     BeamRecordFactory factory = new BeamRecordFactory();
 
-    BeamRecord record = factory.newRecordCopyOf(pojo);
+    BeamRecord record = factory.create(pojo);
 
-    assertEquals(3, record.getFieldCount());
+    assertEquals(2, record.getFieldCount());
     assertThat(
         record.getDataValues(),
-        containsInAnyOrder(
-            (Object) "someString", Integer.valueOf(42), Boolean.TRUE));
+        containsInAnyOrder((Object) "someString", Integer.valueOf(42)));
   }
 
   @Test
   public void testNewRecordFieldNames() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    pojo.publicBooleanField = true;
     BeamRecordFactory factory = new BeamRecordFactory();
 
-    BeamRecord record = factory.newRecordCopyOf(pojo);
+    BeamRecord record = factory.create(pojo);
 
     assertThat(record.getDataType().getFieldNames(),
-        containsInAnyOrder(
-            "publicBooleanField", "someStringField", "someIntegerField"));
+        containsInAnyOrder("someStringField", "someIntegerField"));
   }
 
   @Test
   public void testCreatesNewInstanceEachTime() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    pojo.publicBooleanField = true;
     BeamRecordFactory factory = new BeamRecordFactory();
 
-    BeamRecord record1 = factory.newRecordCopyOf(pojo);
-    BeamRecord record2 = factory.newRecordCopyOf(pojo);
+    BeamRecord record1 = factory.create(pojo);
+    BeamRecord record2 = factory.create(pojo);
 
     assertNotSame(record1, record2);
   }
@@ -98,11 +91,10 @@ public class BeamRecordFactoryTest {
   @Test
   public void testCachesRecordType() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    pojo.publicBooleanField = true;
     BeamRecordFactory factory = new BeamRecordFactory();
 
-    BeamRecord record1 = factory.newRecordCopyOf(pojo);
-    BeamRecord record2 = factory.newRecordCopyOf(pojo);
+    BeamRecord record1 = factory.create(pojo);
+    BeamRecord record2 = factory.create(pojo);
 
     assertSame(record1.getDataType(), record2.getDataType());
   }
@@ -110,23 +102,19 @@ public class BeamRecordFactoryTest {
   @Test
   public void testCopiesValues() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    pojo.publicBooleanField = true;
     BeamRecordFactory factory = new BeamRecordFactory();
 
-    BeamRecord record = factory.newRecordCopyOf(pojo);
+    BeamRecord record = factory.create(pojo);
 
     assertThat(
         record.getDataValues(),
-        containsInAnyOrder(
-            (Object) "someString", Integer.valueOf(42), Boolean.TRUE));
+        containsInAnyOrder((Object) "someString", Integer.valueOf(42)));
 
     pojo.someIntegerField = 23;
     pojo.someStringField = "hello";
-    pojo.publicBooleanField = false;
 
     assertThat(
         record.getDataValues(),
-        containsInAnyOrder(
-            (Object) "someString", Integer.valueOf(42), Boolean.TRUE));
+        containsInAnyOrder((Object) "someString", Integer.valueOf(42)));
   }
 }
