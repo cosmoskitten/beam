@@ -123,14 +123,15 @@ class RunnerTest(unittest.TestCase):
 
     class CreateAndScaleTransform(ptransform.PTransform):
 
-      def __init__(self, label=None):
+      def __init__(self, label=None, scalar=2):
         super(CreateAndScaleTransform, self).__init__(label)
+        self._scalar=scalar
 
       def expand(self, pbegin):
         assert isinstance(pbegin, beam.pvalue.PBegin)
         ret = (pbegin
                | 'create' >> ptransform.Create([1, 2, 3, 4, 5])
-               | 'scale' >> beam.ParDo(ScaleDoFn(2)))
+               | 'scale' >> beam.ParDo(ScaleDoFn(self._scalar)))
         return ret
 
     class ScaleDoFn(beam.DoFn):
@@ -138,32 +139,41 @@ class RunnerTest(unittest.TestCase):
         self._scalar = scalar
 
       def process(self, element):
+        transformed_element = element * self._scalar
         counter = Metrics.counter(self.__class__, 'elements')
         counter.inc()
-        print(counter)
-        return [element * self._scalar]
+        sum_counter = Metrics.counter(self.__class__, 'sum_inputs')
+        sum_counter.inc(element)
+        sum_counter = Metrics.counter(self.__class__, 'sum_outputs')
+        sum_counter.inc(transformed_element)
+        return [transformed_element]
 
     runner = DirectRunner()
-    p = Pipeline(runner,
-                 options=PipelineOptions(self.default_properties))
-    blah = (p | 'create_and_scale' >> CreateAndScaleTransform())
-    result = p.run()
-    result.wait_until_finish()
+    result = runner.run_single_step(
+      CreateAndScaleTransform('create_and_scale'),
+      options=PipelineOptions(self.default_properties)
+    )
 
-    # result = runner.run_single_step(
-    #     CreateAndScaleTransform('create_and_scale'))
     metrics = result.metrics().query()
     namespace = '{}.{}'.format(ScaleDoFn.__module__,
                                ScaleDoFn.__name__)
-
-    print(metrics['counters'])
     hc.assert_that(
         metrics['counters'],
         hc.contains_inanyorder(
             MetricResult(
-                MetricKey('create_and_scale',
+                MetricKey('create_and_scale/scale',
                           MetricName(namespace, 'elements')),
                 5, 5
+            ),
+            MetricResult(
+                MetricKey('create_and_scale/scale',
+                          MetricName(namespace, 'sum_inputs')),
+                15, 15
+            ),
+            MetricResult(
+                MetricKey('create_and_scale/scale',
+                          MetricName(namespace, 'sum_outputs')),
+                30, 30
             )
         )
     )

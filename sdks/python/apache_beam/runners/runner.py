@@ -137,15 +137,19 @@ class PipelineRunner(object):
 
     pipeline.visit(RunVisitor(self))
 
-  def run_single_step(self, transform):
+  def run_single_step(self, transform, options=None):
     """Execute a single ptransform step as a pipeline.
 
     Args:
-      transform: the transform to run.
+      transform: the ptransform to run on a pBegin
+      options: pipeline configuration options for the runner
+
+    Returns:
+      result from running transform from a pBegin
     """
     from apache_beam.pipeline import Pipeline
-    p = Pipeline(self)
-    _ = (p >> transform)
+    p = Pipeline(self, options=options)
+    p | transform
     result = p.run()
     result.wait_until_finish()
     return result
