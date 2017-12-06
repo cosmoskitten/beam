@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_UTESTS;
@@ -40,6 +41,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.transport.Netty4Plugin;
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -173,13 +175,16 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
    long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
    float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
    int expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
-   assertEquals(expectedNumSources, splits.size());
-    int nonEmptySplits = 0;
+   assertEquals("Wrong number of splits", expectedNumSources, splits.size());
+    int emptySplits = 0;
     for (BoundedSource<String> subSource : splits) {
-      if (readFromSource(subSource, options).size() > 0) {
-        nonEmptySplits += 1;
+      if (readFromSource(subSource, options).size() == 0) {
+        emptySplits += 1;
       }
     }
-    assertEquals("Wrong number of non empty splits", expectedNumSources, nonEmptySplits);
+    assertThat(
+        "There are too many empty splits, parallelism is sub-optimal",
+        emptySplits,
+        Matchers.lessThan(ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size()));
   }
 }
