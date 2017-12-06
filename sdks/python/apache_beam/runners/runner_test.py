@@ -118,6 +118,56 @@ class RunnerTest(unittest.TestCase):
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
 
+  def test_single_step(self):
+    from apache_beam.metrics.metric import Metrics
+
+    class CreateAndScaleTransform(ptransform.PTransform):
+
+      def __init__(self, label=None):
+        super(CreateAndScaleTransform, self).__init__(label)
+
+      def expand(self, pbegin):
+        assert isinstance(pbegin, beam.pvalue.PBegin)
+        ret = (pbegin
+               | 'create' >> ptransform.Create([1, 2, 3, 4, 5])
+               | 'scale' >> beam.ParDo(ScaleDoFn(2)))
+        return ret
+
+    class ScaleDoFn(beam.DoFn):
+      def __init__(self, scalar):
+        self._scalar = scalar
+
+      def process(self, element):
+        counter = Metrics.counter(self.__class__, 'elements')
+        counter.inc()
+        print(counter)
+        return [element * self._scalar]
+
+    runner = DirectRunner()
+    p = Pipeline(runner,
+                 options=PipelineOptions(self.default_properties))
+    blah = (p | 'create_and_scale' >> CreateAndScaleTransform())
+    result = p.run()
+    result.wait_until_finish()
+
+    # result = runner.run_single_step(
+    #     CreateAndScaleTransform('create_and_scale'))
+    metrics = result.metrics().query()
+    namespace = '{}.{}'.format(ScaleDoFn.__module__,
+                               ScaleDoFn.__name__)
+
+    print(metrics['counters'])
+    hc.assert_that(
+        metrics['counters'],
+        hc.contains_inanyorder(
+            MetricResult(
+                MetricKey('create_and_scale',
+                          MetricName(namespace, 'elements')),
+                5, 5
+            )
+        )
+    )
+
 
 if __name__ == '__main__':
   unittest.main()
