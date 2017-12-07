@@ -19,7 +19,9 @@ package org.apache.beam.sdk.fn.data;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -42,14 +44,12 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: Add support for multiplexing over multiple outbound observers by stickying the output
  * location with a specific outbound observer.
  */
-public class BeamFnDataGrpcMultiplexer {
+public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
 
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
-  private final ConcurrentMap<
-            LogicalEndpoint, SettableFuture<DataBytesReceiver>>
-      consumers;
+  private final ConcurrentMap<LogicalEndpoint, SettableFuture<DataBytesReceiver>> consumers;
 
   public BeamFnDataGrpcMultiplexer(
       StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements> outboundObserverFactory) {
@@ -94,6 +94,21 @@ public class BeamFnDataGrpcMultiplexer {
   @VisibleForTesting
   boolean hasReceiver(LogicalEndpoint outputLocation) {
     return consumers.containsKey(outputLocation);
+  }
+
+  @Override
+  public void close() {
+    for (SettableFuture<DataBytesReceiver> receiver : ImmutableList.copyOf(consumers.values())) {
+      if (receiver.isDone()) {
+        continue;
+      }
+      // Cancel any observer waiting for the client to complete.
+      receiver.cancel(true);
+    }
+    // Cancel any outbound calls and complete any inbound calls, as this multiplexer is hanging up
+    outboundObserver.onError(
+        Status.CANCELLED.withDescription("Multiplexer hanging up").asException());
+    inboundObserver.onCompleted();
   }
 
   /**
