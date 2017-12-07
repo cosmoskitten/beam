@@ -119,11 +119,13 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   private BeamFnDataGrpcMultiplexer getClientFor(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor) {
-    return cache.computeIfAbsent(apiServiceDescriptor,
-        (Endpoints.ApiServiceDescriptor descriptor) -> new BeamFnDataGrpcMultiplexer(
-            descriptor,
-            (StreamObserver<BeamFnApi.Elements> inboundObserver) -> streamObserverFactory.apply(
-                BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,
-                inboundObserver)));
+    return cache.computeIfAbsent(
+        apiServiceDescriptor,
+        (Endpoints.ApiServiceDescriptor descriptor) ->
+            new BeamFnDataGrpcMultiplexer(
+                (StreamObserver<BeamFnApi.Elements> inboundObserver) ->
+                    streamObserverFactory.apply(
+                        BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,
+                        inboundObserver)));
   }
 }

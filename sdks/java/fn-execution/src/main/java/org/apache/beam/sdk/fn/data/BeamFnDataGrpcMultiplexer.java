@@ -25,13 +25,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A gRPC multiplexer for a specific {@link Endpoints.ApiServiceDescriptor}.
+ * A gRPC multiplexer for specific inbound and outbound element observers.
  *
  * <p>Multiplexes data for inbound consumers based upon their individual {@link
  * org.apache.beam.model.fnexecution.v1.BeamFnApi.Target}s.
@@ -45,7 +44,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnDataGrpcMultiplexer {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
-  private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
+
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   private final ConcurrentMap<
@@ -53,9 +52,7 @@ public class BeamFnDataGrpcMultiplexer {
       consumers;
 
   public BeamFnDataGrpcMultiplexer(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements> outboundObserverFactory) {
-    this.apiServiceDescriptor = apiServiceDescriptor;
     this.consumers = new ConcurrentHashMap<>();
     this.inboundObserver = new InboundObserver();
     this.outboundObserver = outboundObserverFactory.outboundObserverFor(inboundObserver);
@@ -64,7 +61,6 @@ public class BeamFnDataGrpcMultiplexer {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-        .add("apiServiceDescriptor", apiServiceDescriptor)
         .add("consumers", consumers)
         .toString();
   }
@@ -148,12 +144,12 @@ public class BeamFnDataGrpcMultiplexer {
 
     @Override
     public void onError(Throwable t) {
-      LOG.error("Failed to handle for {}", apiServiceDescriptor, t);
+      LOG.error("Failed to handle for {}", this, t);
     }
 
     @Override
     public void onCompleted() {
-      LOG.warn("Hanged up for {}.", apiServiceDescriptor);
+      LOG.warn("Hanged up for {}.", this);
     }
   }
 }
