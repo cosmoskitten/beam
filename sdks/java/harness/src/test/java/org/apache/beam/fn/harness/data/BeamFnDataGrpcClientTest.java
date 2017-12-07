@@ -40,7 +40,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
@@ -244,17 +243,21 @@ public class BeamFnDataGrpcClientTest {
           (Endpoints.ApiServiceDescriptor descriptor) -> channel,
           this::createStreamForTest);
 
-      InboundDataClient readFuture = clientFactory.forInboundConsumer(
-          apiServiceDescriptor,
-          ENDPOINT_A,
-          CODER,
-          new ThrowingConsumer<WindowedValue<String>>() {
-            @Override
-            public void accept(WindowedValue<String> t) throws Exception {
-              consumerInvoked.incrementAndGet();
-              throw exceptionToThrow;
-            }
-          });
+      InboundDataClient readFuture =
+          clientFactory.forInboundConsumer(
+              apiServiceDescriptor,
+              ENDPOINT_A,
+              CODER,
+              new FnDataReceiver<WindowedValue<String>>() {
+                @Override
+                public void accept(WindowedValue<String> t) throws Exception {
+                  consumerInvoked.incrementAndGet();
+                  throw exceptionToThrow;
+                }
+
+                @Override
+                public void close() throws Exception {}
+              });
 
       waitForClientToConnect.await();
 

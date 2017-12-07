@@ -49,7 +49,7 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.fn.harness.data.BeamFnDataInboundObserver"/>
+    <Class name="org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver"/>
     <Method name="receive"/>
     <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
     <!--
