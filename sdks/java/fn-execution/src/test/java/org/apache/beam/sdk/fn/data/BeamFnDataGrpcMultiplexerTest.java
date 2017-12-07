@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
-import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.apache.beam.sdk.fn.test.Consumer;
 import org.apache.beam.sdk.fn.test.TestStreams;
@@ -41,8 +40,6 @@ import org.junit.Test;
 
 /** Tests for {@link BeamFnDataGrpcMultiplexer}. */
 public class BeamFnDataGrpcMultiplexerTest {
-  private static final Endpoints.ApiServiceDescriptor DESCRIPTOR =
-      Endpoints.ApiServiceDescriptor.newBuilder().setUrl("test").build();
   private static final LogicalEndpoint OUTPUT_LOCATION =
       LogicalEndpoint.of(
           "777L",
@@ -67,7 +64,6 @@ public class BeamFnDataGrpcMultiplexerTest {
     final Collection<BeamFnApi.Elements> values = new ArrayList<>();
     BeamFnDataGrpcMultiplexer multiplexer =
         new BeamFnDataGrpcMultiplexer(
-            DESCRIPTOR,
             new StreamObserverClientFactory<Elements, Elements>() {
               @Override
               public StreamObserver<Elements> outboundObserverFor(
@@ -92,7 +88,6 @@ public class BeamFnDataGrpcMultiplexerTest {
     final Collection<BeamFnApi.Elements.Data> inboundValues = new ArrayList<>();
     final BeamFnDataGrpcMultiplexer multiplexer =
         new BeamFnDataGrpcMultiplexer(
-            DESCRIPTOR,
             new StreamObserverClientFactory<Elements, Elements>() {
               @Override
               public StreamObserver<Elements> outboundObserverFor(
