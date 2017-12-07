@@ -53,7 +53,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   private final BiFunction<
           StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements>,
           StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
-      streamObserverFactory;
+      outboundStreamObserverFactory;
   private final PipelineOptions options;
 
   public BeamFnDataGrpcClient(
@@ -62,10 +62,10 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       BiFunction<
               StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements>,
               StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
-          streamObserverFactory) {
+          outboundStreamObserverFactory) {
     this.options = options;
     this.channelFactory = channelFactory;
-    this.streamObserverFactory = streamObserverFactory;
+    this.outboundStreamObserverFactory = outboundStreamObserverFactory;
     this.cache = new ConcurrentHashMap<>();
   }
 
@@ -127,7 +127,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
         (Endpoints.ApiServiceDescriptor descriptor) ->
             new BeamFnDataGrpcMultiplexer(
                 (StreamObserver<BeamFnApi.Elements> inboundObserver) ->
-                    streamObserverFactory.apply(
+                    outboundStreamObserverFactory.apply(
                         BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,
                         inboundObserver)));
   }
