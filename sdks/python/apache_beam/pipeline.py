@@ -321,21 +321,25 @@ class Pipeline(object):
     for override in replacements:
       self._check_replacement(override)
 
-  def run(self, test_runner_api=True):
+  def run(self, test_runner_api=True, runner=None):
     """Runs the pipeline. Returns whatever our runner returns after running."""
+    if runner is None:
+      runner = self.runner
 
+    pipeline_options = runner._get_pipeline_options(self)
     # When possible, invoke a round trip through the runner API.
-    if test_runner_api and self._verify_runner_api_compatible():
+    if test_runner_api and self._verify_runner_api_compatible(pipeline_options):
       return Pipeline.from_runner_api(
-          self.to_runner_api(), self.runner, self._options).run(False)
+          self.to_runner_api(), runner, pipeline_options).run(False)
 
-    if self._options.view_as(SetupOptions).save_main_session:
+    if pipeline_options.view_as(SetupOptions).save_main_session:
       # If this option is chosen, verify we can pickle the main session early.
       tmpdir = tempfile.mkdtemp()
       try:
         pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
       finally:
         shutil.rmtree(tmpdir)
+
     return self.runner.run(self)
 
   def __enter__(self):
@@ -492,8 +496,8 @@ class Pipeline(object):
     # require pickled pipelines to be executable, break the chain here.
     return str, ('Pickled pipeline stub.',)
 
-  def _verify_runner_api_compatible(self):
-    if self._options.view_as(TypeOptions).runtime_type_check:
+  def _verify_runner_api_compatible(self, pipeline_options):
+    if pipeline_options.view_as(TypeOptions).runtime_type_check:
       # This option is incompatible with the runner API as it requires
       # the runner to inspect non-serialized hints on the transform
       # itself.

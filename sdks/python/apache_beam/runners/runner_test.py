@@ -28,6 +28,7 @@ import hamcrest as hc
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
+import apache_beam.typehints as typehints
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
@@ -37,6 +38,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners import DirectRunner
 from apache_beam.runners import create_runner
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -67,7 +69,8 @@ class RunnerTest(unittest.TestCase):
     self.assertTrue(
         isinstance(create_runner('Direct'), DirectRunner))
 
-  def test_direct_runner_metrics(self):
+  @staticmethod
+  def _create_counting_do_fn_class():
     from apache_beam.metrics.metric import Metrics
 
     class MyDoFn(beam.DoFn):
@@ -86,18 +89,10 @@ class RunnerTest(unittest.TestCase):
         distro.update(element)
         return [element]
 
-    runner = DirectRunner()
-    p = Pipeline(runner,
-                 options=PipelineOptions(self.default_properties))
-    pcoll = (p | ptransform.Create([1, 2, 3, 4, 5])
-             | 'Do' >> beam.ParDo(MyDoFn()))
-    assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
-    result = p.run()
-    result.wait_until_finish()
-    metrics = result.metrics().query()
-    namespace = '{}.{}'.format(MyDoFn.__module__,
-                               MyDoFn.__name__)
+    return MyDoFn
 
+  @staticmethod
+  def _check_metric_counters(metrics, namespace):
     hc.assert_that(
         metrics['counters'],
         hc.contains_inanyorder(
@@ -118,6 +113,59 @@ class RunnerTest(unittest.TestCase):
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
 
+  def test_direct_runner_metrics(self):
+    my_do_fn = self._create_counting_do_fn_class()
+
+    runner = DirectRunner()
+    p = Pipeline(runner,
+                 options=PipelineOptions(self.default_properties))
+    pcoll = (p | ptransform.Create([1, 2, 3, 4, 5])
+             | 'Do' >> beam.ParDo(my_do_fn()))
+    assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
+    result = p.run()
+    result.wait_until_finish()
+    metrics = result.metrics().query()
+    namespace = '{}.{}'.format(my_do_fn.__module__,
+                               my_do_fn.__name__)
+
+    self._check_metric_counters(metrics, namespace)
+
+  def test_direct_runner_metrics_with_runner_options(self):
+    my_do_fn = self._create_counting_do_fn_class()
+
+    runner = DirectRunner(options=PipelineOptions(self.default_properties))
+    p = Pipeline()
+    pcoll = (p | ptransform.Create([1, 2, 3, 4, 5])
+             | 'Do' >> beam.ParDo(my_do_fn()))
+    assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
+    result = runner.run(p)
+    result.wait_until_finish()
+    metrics = result.metrics().query()
+    namespace = '{}.{}'.format(my_do_fn.__module__,
+                               my_do_fn.__name__)
+
+    self._check_metric_counters(metrics, namespace)
+
+  def test_raise_exception_with_multiple_options(self):
+    my_do_fn = self._create_counting_do_fn_class()
+
+    runner = DirectRunner(options=PipelineOptions(self.default_properties))
+    p = Pipeline(options=PipelineOptions(self.default_properties))
+    pcoll = (p | ptransform.Create([1, 2, 3, 4, 5])
+             | 'Do' >> beam.ParDo(my_do_fn()))
+    assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
+    with self.assertRaises(ValueError):
+      runner.run(p)
+
+  def test_typehint_exception_from_runner_run(self):
+    type_check_properties = PipelineOptions(self.default_properties
+                                            + ['--runtime_type_check'])
+    p = TestPipeline(DirectRunner(options=type_check_properties))
+    with self.assertRaises(typehints.TypeCheckError):
+      _ = (p | beam.Create(['a'])
+           | beam.Map(lambda x: 3).with_output_types(str))
+      p.run()
+
   def test_single_step(self):
     from apache_beam.metrics.metric import Metrics
 
@@ -125,7 +173,7 @@ class RunnerTest(unittest.TestCase):
 
       def __init__(self, label=None, scalar=2):
         super(CreateAndScaleTransform, self).__init__(label)
-        self._scalar=scalar
+        self._scalar = scalar
 
       def expand(self, pbegin):
         assert isinstance(pbegin, beam.pvalue.PBegin)
@@ -148,11 +196,9 @@ class RunnerTest(unittest.TestCase):
         sum_counter.inc(transformed_element)
         return [transformed_element]
 
-    runner = DirectRunner()
+    runner = DirectRunner(options=PipelineOptions(self.default_properties))
     result = runner.run_single_step(
-      CreateAndScaleTransform('create_and_scale'),
-      options=PipelineOptions(self.default_properties)
-    )
+        CreateAndScaleTransform('create_and_scale'))
 
     metrics = result.metrics().query()
     namespace = '{}.{}'.format(ScaleDoFn.__module__,
@@ -177,6 +223,25 @@ class RunnerTest(unittest.TestCase):
             )
         )
     )
+
+  def test_typehint_exception_from_run_single_step(self):
+
+    class ConstTransform(ptransform.PTransform):
+
+      def __init__(self, label=None, scalar=2):
+        super(ConstTransform, self).__init__(label)
+        self._scalar = scalar
+
+      def expand(self, pbegin):
+        assert isinstance(pbegin, beam.pvalue.PBegin)
+        ret = (pbegin
+               | 'create' >> beam.Create(['a'])
+               | 'scale' >> beam.Map(lambda x: 3).with_output_types(str))
+        return ret
+
+    runner = DirectRunner(options=PipelineOptions(runtime_type_check=True))
+    with self.assertRaises(typehints.TypeCheckError):
+      runner.run_single_step(ConstTransform())
 
 
 if __name__ == '__main__':

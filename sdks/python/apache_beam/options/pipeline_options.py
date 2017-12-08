@@ -219,6 +219,9 @@ class PipelineOptions(HasDisplayData):
 
     return result
 
+  def is_empty(self):
+    return not self._flags and not self._all_options
+
   def display_data(self):
     return self.get_all_options(True)
 

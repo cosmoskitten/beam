@@ -54,7 +54,8 @@ class MapTaskExecutorRunner(PipelineRunner):
   Primarily intended for testing and profiling the worker code paths.
   """
 
-  def __init__(self):
+  def __init__(self, options=None, argv=None):
+    super(MapTaskExecutorRunner, self).__init__(options=options, argv=argv)
     self.executors = []
 
   def has_metrics_support(self):
@@ -97,7 +98,7 @@ class MapTaskExecutorRunner(PipelineRunner):
     ordered_map_tasks = sorted((map_task_depths.get(ix, -1), map_task)
                                for ix, map_task in enumerate(self.map_tasks))
 
-    profile_options = pipeline.options.view_as(
+    profile_options = self._get_pipeline_options(pipeline).view_as(
         pipeline_options.ProfilingOptions)
     if profile_options.profile_cpu:
       with profiler.Profile(

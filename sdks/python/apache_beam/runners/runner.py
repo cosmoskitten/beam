@@ -25,6 +25,8 @@ import shelve
 import shutil
 import tempfile
 
+from apache_beam.options.pipeline_options import PipelineOptions
+
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
 
@@ -116,6 +118,28 @@ class PipelineRunner(object):
   materialized values in order to reduce footprint.
   """
 
+  def __init__(self, options=None, argv=None):
+    """Initializes a Pipeline Runner
+
+    Args:
+      options: a PipelineOptions object.
+    """
+    if options is not None:
+      if isinstance(options, PipelineOptions):
+        self._options = options
+      else:
+        raise ValueError(
+            'Parameter options, if specified, must be of type PipelineOptions. '
+            'Received : %r', options)
+    elif argv is not None:
+      if isinstance(argv, list):
+        self._options = PipelineOptions(argv)
+      else:
+        raise ValueError(
+            'Parameter argv, if specified, must be a list. Received : %r', argv)
+    else:
+      self._options = PipelineOptions([])
+
   def run(self, pipeline):
     """Execute the entire pipeline or the sub-DAG reachable from a node."""
 
@@ -137,20 +161,47 @@ class PipelineRunner(object):
 
     pipeline.visit(RunVisitor(self))
 
-  def run_single_step(self, transform, options=None):
+  def _get_pipeline_options(self, pipeline):
+    """Pick PipelineOptions from self or pipeline, or raise an error.
+
+    If pipeline.options is empty, run with self.options.
+
+    If self.options is empty, run with pipeline.options.
+
+    If both options are not empty, throw an error unless they are equal.
+      Note that an error will be thrown even if the runner and pipeline use
+      different PipelineOptions objects created with the same command line args.
+
+    Args:
+      pipeline: the pipeline to be run
+
+    Returns:
+      a PipelineOptions object to be use by this runner
+    """
+
+    if pipeline.options.is_empty():
+      return self.options
+    else:
+      if self.options.is_empty() or self.options == pipeline.options:
+        return pipeline.options
+      else:
+        raise ValueError(
+            'Pipeline and runner cannot use different non-empty'
+            ' PipelineOptions objects.')
+
+  def run_single_step(self, transform):
     """Execute a single ptransform step as a pipeline.
 
     Args:
       transform: the ptransform to run on a pBegin
-      options: pipeline configuration options for the runner
 
     Returns:
       result from running transform from a pBegin
     """
     from apache_beam.pipeline import Pipeline
-    p = Pipeline(self, options=options)
+    p = Pipeline()
     p | transform
-    result = p.run()
+    result = self.run(p)
     result.wait_until_finish()
     return result
 
@@ -194,6 +245,10 @@ class PipelineRunner(object):
     raise NotImplementedError(
         'Execution of [%s] not implemented in runner %s.' % (
             transform_node.transform, self))
+
+  @property
+  def options(self):
+    return self._options
 
 
 class PValueCache(object):

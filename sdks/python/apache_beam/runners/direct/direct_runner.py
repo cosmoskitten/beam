@@ -97,7 +97,8 @@ class DirectRunner(PipelineRunner):
   # authors.
   _PTRANSFORM_OVERRIDES = []
 
-  def __init__(self):
+  def __init__(self, options=None, argv=None):
+    super(DirectRunner, self).__init__(options=options, argv=argv)
     self._cache = None
 
   def apply_CombinePerKey(self, transform, pcoll):
@@ -112,8 +113,10 @@ class DirectRunner(PipelineRunner):
       return transform.expand(pcoll)
 
   def apply__GroupByKeyOnly(self, transform, pcoll):
+    # TODO(bfoo): Test streaming pipeline
     if (transform.__class__ == _GroupByKeyOnly and
-        pcoll.pipeline._options.view_as(StandardOptions).streaming):
+        self._get_pipeline_options(pcoll.pipeline)
+        .view_as(StandardOptions).streaming):
       # Use specialized streaming implementation, if requested.
       type_hints = transform.get_type_hints()
       return pcoll | (_StreamingGroupByKeyOnly()
@@ -122,8 +125,10 @@ class DirectRunner(PipelineRunner):
     return transform.expand(pcoll)
 
   def apply__GroupAlsoByWindow(self, transform, pcoll):
+    # TODO(bfoo): Test group by window in streaming pipeline
     if (transform.__class__ == _GroupAlsoByWindow and
-        pcoll.pipeline._options.view_as(StandardOptions).streaming):
+        self._get_pipeline_options(pcoll.pipeline)
+        .view_as(StandardOptions).streaming):
       # Use specialized streaming implementation, if requested.
       type_hints = transform.get_type_hints()
       return pcoll | (_StreamingGroupAlsoByWindow(transform.windowing)
@@ -185,7 +190,7 @@ class DirectRunner(PipelineRunner):
 
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
-
+    pipeline_options = self._get_pipeline_options(pipeline)
     # Performing configured PTransform overrides.
     pipeline.replace_all(DirectRunner._PTRANSFORM_OVERRIDES)
 
@@ -205,8 +210,8 @@ class DirectRunner(PipelineRunner):
     pipeline.visit(self.consumer_tracking_visitor)
 
     evaluation_context = EvaluationContext(
-        pipeline._options,
-        BundleFactory(stacked=pipeline._options.view_as(DirectOptions)
+        pipeline_options,
+        BundleFactory(stacked=pipeline_options.view_as(DirectOptions)
                       .direct_runner_use_stacked_bundle),
         self.consumer_tracking_visitor.root_transforms,
         self.consumer_tracking_visitor.value_to_consumers,

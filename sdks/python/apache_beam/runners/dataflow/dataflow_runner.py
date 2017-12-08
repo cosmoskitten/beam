@@ -79,7 +79,8 @@ class DataflowRunner(PipelineRunner):
       CreatePTransformOverride(),
   ]
 
-  def __init__(self, cache=None):
+  def __init__(self, cache=None, options=None, argv=None):
+    super(DataflowRunner, self).__init__(options=options, argv=argv)
     # Cache of CloudWorkflowStep protos generated while the runner
     # "executes" a pipeline.
     self._cache = cache if cache is not None else PValueCache()
@@ -263,6 +264,7 @@ class DataflowRunner(PipelineRunner):
 
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
+    pipeline_options = self._get_pipeline_options(pipeline)
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
@@ -279,13 +281,13 @@ class DataflowRunner(PipelineRunner):
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
     # Add setup_options for all the BeamPlugin imports
-    setup_options = pipeline._options.view_as(SetupOptions)
+    setup_options = pipeline_options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
     if setup_options.beam_plugins is not None:
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
-    self.job = apiclient.Job(pipeline._options, proto_pipeline)
+    self.job = apiclient.Job(pipeline_options, proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -298,14 +300,14 @@ class DataflowRunner(PipelineRunner):
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowRunner, self).run(pipeline)
 
-    test_options = pipeline._options.view_as(TestOptions)
+    test_options = pipeline_options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.
     if test_options.dry_run:
       return None
 
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
-        pipeline._options)
+        pipeline_options)
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.
@@ -423,7 +425,8 @@ class DataflowRunner(PipelineRunner):
 
   def run_Impulse(self, transform_node):
     standard_options = (
-        transform_node.outputs[None].pipeline._options.view_as(StandardOptions))
+        self._get_pipeline_options(transform_node.outputs[None].pipeline)
+        .view_as(StandardOptions))
     if standard_options.streaming:
       step = self._add_step(
           TransformNames.READ, transform_node.full_label, transform_node)
@@ -464,7 +467,8 @@ class DataflowRunner(PipelineRunner):
     # Make sure this is the WriteToBigQuery class that we expected
     if not isinstance(transform, beam.io.WriteToBigQuery):
       return self.apply_PTransform(transform, pcoll)
-    standard_options = pcoll.pipeline._options.view_as(StandardOptions)
+    standard_options = (self._get_pipeline_options(pcoll.pipeline)
+                        .view_as(StandardOptions))
     if standard_options.streaming:
       if (transform.write_disposition ==
           beam.io.BigQueryDisposition.WRITE_TRUNCATE):
@@ -713,7 +717,8 @@ class DataflowRunner(PipelineRunner):
                          transform.source)
     elif transform.source.format == 'pubsub':
       standard_options = (
-          transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
+          self._get_pipeline_options(transform_node.inputs[0].pipeline)
+          .view_as(StandardOptions))
       if not standard_options.streaming:
         raise ValueError('PubSubPayloadSource is currently available for use '
                          'only in streaming pipelines.')
@@ -803,7 +808,8 @@ class DataflowRunner(PipelineRunner):
             PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
     elif transform.sink.format == 'pubsub':
       standard_options = (
-          transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
+          self._get_pipeline_options(transform_node.inputs[0].pipeline)
+          .view_as(StandardOptions))
       if not standard_options.streaming:
         raise ValueError('PubSubPayloadSink is currently available for use '
                          'only in streaming pipelines.')

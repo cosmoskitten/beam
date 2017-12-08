@@ -44,7 +44,8 @@ class PythonRPCDirectRunner(PipelineRunner):
   # authors.
   _PTRANSFORM_OVERRIDES = []
 
-  def __init__(self):
+  def __init__(self, options=None, argv=None):
+    super(PythonRPCDirectRunner, self).__init__(options=options, argv=argv)
     self._cache = None
 
   def run(self, pipeline):
@@ -59,7 +60,9 @@ class PythonRPCDirectRunner(PipelineRunner):
     # Submit the job to the RPC co-process
     jobName = ('Job-' +
                ''.join(random.choice(string.ascii_uppercase) for _ in range(6)))
-    options = {k: v for k, v in pipeline._options.get_all_options().iteritems()
+    options = {k: v for k, v
+               in self._get_pipeline_options(pipeline)
+               .get_all_options().iteritems()
                if v is not None}
 
     try:
