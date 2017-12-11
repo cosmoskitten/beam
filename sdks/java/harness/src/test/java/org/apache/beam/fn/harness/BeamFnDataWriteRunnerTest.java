@@ -56,6 +56,7 @@ import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -81,7 +82,6 @@ public class BeamFnDataWriteRunnerTest {
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final RunnerApi.Coder CODER_SPEC;
   private static final RunnerApi.Components COMPONENTS;
-  private static final String URN = "urn:org.apache.beam:sink:runner:0.1";
 
   static {
     try {
@@ -109,21 +109,14 @@ public class BeamFnDataWriteRunnerTest {
   @Test
   public void testCreatingAndProcessingBeamFnDataWriteRunner() throws Exception {
     String bundleId = "57L";
-    String inputId = "100L";
 
     Multimap<String, ThrowingConsumer<WindowedValue<?>>> consumers = HashMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
-        .setUrn("urn:org.apache.beam:sink:runner:0.1")
-        .setPayload(PORT_SPEC.toByteString())
-        .build();
-
-    RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
-        .setSpec(functionSpec)
-        .putInputs(inputId, "inputPC")
-        .build();
+    String localInputId = "inputPC";
+    RunnerApi.PTransform pTransform =
+        RemoteGrpcPortWrite.writeToPort(localInputId, PORT_SPEC).toPTransform();
 
     new BeamFnDataWriteRunner.Factory<String>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
@@ -132,7 +125,7 @@ public class BeamFnDataWriteRunnerTest {
         "ptransformId",
         pTransform,
         Suppliers.ofInstance(bundleId)::get,
-        ImmutableMap.of("inputPC",
+        ImmutableMap.of(localInputId,
             RunnerApi.PCollection.newBuilder().setCoderId(CODER_ID).build()),
         COMPONENTS.getCodersMap(),
         consumers,
@@ -161,16 +154,22 @@ public class BeamFnDataWriteRunnerTest {
         any(),
         Matchers.<Coder<WindowedValue<String>>>any())).thenReturn(outputConsumer);
     Iterables.getOnlyElement(startFunctions).run();
-    verify(mockBeamFnDataClient).forOutboundConsumer(
-        eq(PORT_SPEC.getApiServiceDescriptor()),
-        eq(LogicalEndpoint.of(bundleId, BeamFnApi.Target.newBuilder()
-            .setPrimitiveTransformReference("ptransformId")
-            .setName(inputId)
-            .build())),
-        eq(CODER));
+    verify(mockBeamFnDataClient)
+        .forOutboundConsumer(
+            eq(PORT_SPEC.getApiServiceDescriptor()),
+            eq(
+                LogicalEndpoint.of(
+                    bundleId,
+                    BeamFnApi.Target.newBuilder()
+                        .setPrimitiveTransformReference("ptransformId")
+                        // The local input name is arbitrary, so use whatever the
+                        // RemoteGrpcPortWrite uses
+                        .setName(Iterables.getOnlyElement(pTransform.getInputsMap().keySet()))
+                        .build())),
+            eq(CODER));
 
-    assertThat(consumers.keySet(), containsInAnyOrder("inputPC"));
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("TestValue"));
+    assertThat(consumers.keySet(), containsInAnyOrder(localInputId));
+    Iterables.getOnlyElement(consumers.get(localInputId)).accept(valueInGlobalWindow("TestValue"));
     assertThat(outputValues, contains(valueInGlobalWindow("TestValue")));
     outputValues.clear();
 
@@ -255,7 +254,9 @@ public class BeamFnDataWriteRunnerTest {
     for (Registrar registrar :
         ServiceLoader.load(Registrar.class)) {
       if (registrar instanceof BeamFnDataWriteRunner.Registrar) {
-        assertThat(registrar.getPTransformRunnerFactories(), IsMapContaining.hasKey(URN));
+        assertThat(
+            registrar.getPTransformRunnerFactories(),
+            IsMapContaining.hasKey(RemoteGrpcPortWrite.URN));
         return;
       }
     }
