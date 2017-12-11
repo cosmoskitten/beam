@@ -962,7 +962,7 @@ class _WriteBundleDoFn(core.DoFn):
 
   def process(self, element, init_result):
     if self.writer is None:
-      # TODO: handle uid collisions here.
+      # We ignore uuid collisions here since it's extremely rare.
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     self.writer.write(element)
 
