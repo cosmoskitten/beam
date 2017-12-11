@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
@@ -40,6 +39,7 @@ import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -52,9 +52,6 @@ import org.apache.beam.sdk.util.WindowedValue;
  */
 public class BeamFnDataWriteRunner<InputT> {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final String URN = "urn:org.apache.beam:sink:runner:0.1";
-
   /** A registrar which provides a factory to handle writing to the Fn Api Data Plane. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
   public static class Registrar implements
@@ -62,7 +59,7 @@ public class BeamFnDataWriteRunner<InputT> {
 
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
-      return ImmutableMap.of(URN, new Factory());
+      return ImmutableMap.of(RemoteGrpcPortWrite.URN, new Factory());
     }
   }
 
@@ -91,7 +88,7 @@ public class BeamFnDataWriteRunner<InputT> {
           pCollections.get(getOnlyElement(pTransform.getInputsMap().values())).getCoderId());
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
-              pTransform.getSpec(),
+              pTransform,
               processBundleInstructionId,
               target,
               coderSpec,
@@ -116,7 +113,7 @@ public class BeamFnDataWriteRunner<InputT> {
   private CloseableThrowingConsumer<WindowedValue<InputT>> consumer;
 
   BeamFnDataWriteRunner(
-      RunnerApi.FunctionSpec functionSpec,
+      RunnerApi.PTransform functionSpec,
       Supplier<String> processBundleInstructionIdSupplier,
       BeamFnApi.Target outputTarget,
       RunnerApi.Coder coderSpec,
@@ -124,7 +121,7 @@ public class BeamFnDataWriteRunner<InputT> {
       BeamFnDataClient beamFnDataClientFactory)
           throws IOException {
     this.apiServiceDescriptor =
-        BeamFnApi.RemoteGrpcPort.parseFrom(functionSpec.getPayload()).getApiServiceDescriptor();
+        RemoteGrpcPortWrite.fromPTransform(functionSpec).getPort().getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.outputTarget = outputTarget;
