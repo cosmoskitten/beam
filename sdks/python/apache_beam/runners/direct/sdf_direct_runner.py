@@ -149,7 +149,6 @@ class ProcessFn(beam.DoFn):
       value = values[0]
       if len(values) != 1:
         raise ValueError('')
-      assert isinstance(value, (WindowedValue, ElementAndRestriction))
 
     state = self._step_context.get_keyed_state(key)
     element_state = state.get_state(window, self._element_tag)
@@ -161,8 +160,10 @@ class ProcessFn(beam.DoFn):
       restriction = state.get_state(window, self._restriction_tag)
       windowed_element = WindowedValue(element, timestamp, [window])
     else:
-      element_and_restriction = (
-          value.value if isinstance(value, WindowedValue) else value)
+      # After values iterator is expanded above we should have gotten a list
+      # with a single ElementAndRestriction object.
+      assert isinstance(value, ElementAndRestriction)
+      element_and_restriction = value
       element = element_and_restriction.element
       restriction = element_and_restriction.restriction
 
@@ -188,7 +189,9 @@ class ProcessFn(beam.DoFn):
         break
       yield output
 
-    assert sdf_result
+    assert sdf_result, ('SDFProcessElementInvoker must return a '
+                        'SDFProcessElementInvoker.Result object as the last '
+                        'value of a SDF invoke_process_element() invocation.')
 
     if not sdf_result.residual_restriction:
       # All work for current residual and restriction pair is complete.
@@ -325,6 +328,7 @@ class SDFProcessElementInvoker(object):
 
         # Continuing here instead of breaking to enforce that this is the last
         # element.
+        process_continuation = output
         continue
 
       yield output
