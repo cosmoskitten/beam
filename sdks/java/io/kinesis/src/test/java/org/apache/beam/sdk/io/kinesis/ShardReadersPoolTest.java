@@ -20,7 +20,11 @@ package org.apache.beam.sdk.io.kinesis;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -48,7 +52,7 @@ import org.mockito.stubbing.Answer;
 public class ShardReadersPoolTest {
 
   @Mock
-  private ShardRecordsIterator firstIterator, secondIterator;
+  private ShardRecordsIterator firstIterator, secondIterator, thirdIterator, fourthIterator;
   @Mock
   private ShardCheckpoint firstCheckpoint, secondCheckpoint;
   @Mock
@@ -66,6 +70,10 @@ public class ShardReadersPoolTest {
     when(d.getShardId()).thenReturn("shard2");
     when(firstCheckpoint.getShardId()).thenReturn("shard1");
     when(secondCheckpoint.getShardId()).thenReturn("shard2");
+    when(firstIterator.getShardId()).thenReturn("shard1");
+    when(secondIterator.getShardId()).thenReturn("shard2");
+    when(thirdIterator.getShardId()).thenReturn("shard3");
+    when(fourthIterator.getShardId()).thenReturn("shard4");
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(
         Arrays.asList(firstCheckpoint, secondCheckpoint));
     shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
@@ -74,7 +82,8 @@ public class ShardReadersPoolTest {
   }
 
   @Test
-  public void shouldReturnAllRecords() throws TransientKinesisException {
+  public void shouldReturnAllRecords()
+      throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch())
         .thenReturn(Collections.<KinesisRecord>emptyList())
         .thenReturn(asList(a, b))
@@ -96,7 +105,8 @@ public class ShardReadersPoolTest {
   }
 
   @Test
-  public void shouldReturnAbsentOptionalWhenNoRecords() throws TransientKinesisException {
+  public void shouldReturnAbsentOptionalWhenNoRecords()
+      throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch())
         .thenReturn(Collections.<KinesisRecord>emptyList());
     when(secondIterator.readNextBatch())
@@ -108,7 +118,8 @@ public class ShardReadersPoolTest {
   }
 
   @Test
-  public void shouldCheckpointReadRecords() throws TransientKinesisException {
+  public void shouldCheckpointReadRecords()
+      throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch())
         .thenReturn(asList(a, b))
         .thenReturn(Collections.<KinesisRecord>emptyList());
@@ -134,7 +145,8 @@ public class ShardReadersPoolTest {
   }
 
   @Test
-  public void shouldInterruptKinesisReadingAndStopShortly() throws TransientKinesisException {
+  public void shouldInterruptKinesisReadingAndStopShortly()
+      throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch()).thenAnswer(new Answer<List<KinesisRecord>>() {
 
       @Override
@@ -152,7 +164,7 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldInterruptPuttingRecordsToQueueAndStopShortly()
-      throws TransientKinesisException {
+      throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch()).thenReturn(asList(a, b, c));
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(
         Arrays.asList(firstCheckpoint, secondCheckpoint));
@@ -181,5 +193,70 @@ public class ShardReadersPoolTest {
     shardReadersPool.start();
 
     assertThat(shardReadersPool.allShardsUpToDate()).isTrue();
+  }
+
+  @Test
+  public void shouldStopReadingShardAfterReceivingShardClosedException() throws Exception {
+    when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
+    when(firstIterator.findSuccessiveShardRecordIterators())
+        .thenReturn(Collections.<ShardRecordsIterator>emptyList());
+
+    shardReadersPool.start();
+    Thread.sleep(200);
+
+    verify(firstIterator, times(1)).readNextBatch();
+    verify(secondIterator, atLeast(2)).readNextBatch();
+  }
+
+  @Test
+  public void shouldStartReadingSuccessiveShardsAfterReceivingShardClosedException()
+      throws Exception {
+    when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
+    when(firstIterator.findSuccessiveShardRecordIterators())
+        .thenReturn(asList(thirdIterator, fourthIterator));
+
+    shardReadersPool.start();
+    Thread.sleep(200);
+
+    verify(thirdIterator, atLeast(2)).readNextBatch();
+    verify(fourthIterator, atLeast(2)).readNextBatch();
+  }
+
+  @Test
+  public void shouldStopReadersPoolWhenLastShardReaderStopped() throws Exception {
+    when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
+    when(firstIterator.findSuccessiveShardRecordIterators())
+        .thenReturn(Collections.<ShardRecordsIterator>emptyList());
+
+    shardReadersPool.start();
+    Thread.sleep(200);
+
+    verify(firstIterator, times(1)).readNextBatch();
+  }
+
+  @Test
+  public void shouldStopReadersPoolAlsoWhenExceptionsOccurDuringStopping() throws Exception {
+    when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
+    when(firstIterator.findSuccessiveShardRecordIterators())
+        .thenThrow(TransientKinesisException.class)
+        .thenReturn(Collections.<ShardRecordsIterator>emptyList());
+
+    shardReadersPool.start();
+    Thread.sleep(200);
+
+    verify(firstIterator, times(2)).readNextBatch();
+  }
+
+  @Test
+  public void shouldReturnAbsentOptionalWhenStartedWithNoIterators() throws Exception {
+    KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(
+        Collections.<ShardCheckpoint>emptyList());
+    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
+    doReturn(firstIterator).when(shardReadersPool)
+        .createShardIterator(eq(kinesis), any(ShardCheckpoint.class));
+
+    shardReadersPool.start();
+
+    assertThat(shardReadersPool.nextRecord()).isEqualTo(CustomOptional.absent());
   }
 }
