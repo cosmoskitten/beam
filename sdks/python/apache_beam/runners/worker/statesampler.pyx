@@ -129,7 +129,12 @@ cdef class StateSampler(object):
     self.current_state_index = 0
     self.time_since_transition = 0
     self.state_transition_count = 0
-    unknown_state = ScopedState(self, 'unknown', self.current_state_index)
+    unknown_state = ScopedState(self,
+                                CounterName('unknown',
+                                            'unknown',
+                                            'unknown',
+                                            'unknown'),
+                                self.current_state_index)
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
     self.scoped_states_by_index = [unknown_state]
     self.finished = False
@@ -189,6 +194,13 @@ cdef class StateSampler(object):
   def stop_if_still_running(self):
     if self.started and not self.finished:
       self.stop()
+
+  def current_state(self):
+    """Returns the current ScopedState.
+
+    This operation is not thread safe, and should only be used to check, not to
+    update information in the current state."""
+    return self.scoped_states_by_index[self.current_state_index]
 
   def get_info(self):
     """Returns StateSamplerInfo with transition statistics."""

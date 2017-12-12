@@ -17,6 +17,8 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+from apache_beam.utils.counters import CounterName
+
 
 class StateSampler(object):
 
@@ -24,6 +26,9 @@ class StateSampler(object):
     pass
 
   def scoped_state(self, step_name, state_name=None, io_target=None):
+    return _FakeScopedState()
+
+  def current_state(self):
     return _FakeScopedState()
 
   def start(self):
@@ -40,6 +45,9 @@ class StateSampler(object):
 
 
 class _FakeScopedState(object):
+
+  def __init__(self):
+    self.name = CounterName('unknown', 'unknown', 'unknown', 'unknown')
 
   def __enter__(self):
     pass
