@@ -83,8 +83,8 @@ public class MultiplexingFnDataReceiverTest {
             ImmutableList.<FnDataReceiver<String>>of(consumer::add, otherConsumer::add));
 
     multiplexer.accept("foo");
-    multiplexer.accept("foo");
     multiplexer.accept("bar");
+    multiplexer.accept("foo");
 
     assertThat(consumer, contains("foo", "bar", "foo"));
     assertThat(otherConsumer, contains("foo", "bar"));
