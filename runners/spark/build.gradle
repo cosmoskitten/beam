@@ -82,6 +82,7 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.jackson_dataformat_yaml
   testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
+  testCompile "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9"
 }
 
 configurations.testRuntimeClasspath {
