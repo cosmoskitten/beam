@@ -379,11 +379,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Unbounded.class),
-                  new StreamingUnboundedReadOverrideFactory()))
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
-                  new StreamingCreatePCollectionViewFactory()));
+                  new StreamingUnboundedReadOverrideFactory()));
+      if (!hasExperiment(options, "beam_fn_api")) {
+        overridesBuilder.add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
+                new StreamingCreatePCollectionViewFactory()));
+      }
     } else {
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
@@ -394,7 +396,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoSingle(),
-                  BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)))
+                  BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)));
+      if (!hasExperiment(options, "beam_fn_api")) {
+        overridesBuilder
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(View.AsMap.class),
@@ -419,6 +423,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   PTransformMatchers.classEqualTo(View.AsIterable.class),
                   new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsIterable.class, this)));
+      }
     }
     overridesBuilder
         .add(

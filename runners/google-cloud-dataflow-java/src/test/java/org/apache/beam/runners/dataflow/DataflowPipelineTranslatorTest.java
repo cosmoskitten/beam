@@ -1037,6 +1037,32 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
+  public void testToIterableTranslationFnApiSideInput() throws Exception {
+    // A "change detector" test that makes sure the translation
+    // of getting a PCollectionView<Iterable<T>> does not change
+    // in bad ways during refactor
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(ImmutableList.of("beam_fn_api"));
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Create.of(1, 2, 3))
+        .apply(View.<Integer>asIterable());
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
+    Job job =
+        translator.translate(pipeline, runner, Collections.<DataflowPackage>emptyList()).getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
+
+    List<Step> steps = job.getSteps();
+    assertEquals(3, steps.size());
+
+    Step collectionToSingletonStep = steps.get(2);
+    assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
+  }
+
+  @Test
   public void testStepDisplayData() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
