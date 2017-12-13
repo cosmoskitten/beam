@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.mqtt;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -292,7 +294,8 @@ public class MqttIO {
    * Checkpoint for an unbounded MQTT source. Consists of the MQTT messages waiting to be
    * acknowledged and oldest pending message timestamp.
    */
-  private static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
+  @VisibleForTesting
+  static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
     private String clientId;
     private Instant oldestMessageTimestamp = Instant.now();
@@ -330,8 +333,8 @@ public class MqttIO {
 
   }
 
-  private static class UnboundedMqttSource
-      extends UnboundedSource<byte[], MqttCheckpointMark> {
+  @VisibleForTesting
+  static class UnboundedMqttSource extends UnboundedSource<byte[], MqttCheckpointMark> {
 
     private final Read spec;
 
@@ -371,7 +374,8 @@ public class MqttIO {
     }
   }
 
-  private static class UnboundedMqttReader extends UnboundedSource.UnboundedReader<byte[]> {
+  @VisibleForTesting
+  static class UnboundedMqttReader extends UnboundedSource.UnboundedReader<byte[]> {
 
     private final UnboundedMqttSource source;
 
