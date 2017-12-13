@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.mqtt;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.net.ServerSocket;
@@ -26,6 +27,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -191,6 +193,27 @@ public class MqttIOTest {
 
     publishConnection.disconnect();
     publisherThread.join();
+  }
+
+  /**
+   * Test for BEAM-3282: this test should not timeout, and start/advance should return false.
+   */
+  @Test(timeout = 5000L)
+  public void testReceiveWithTimeout() throws Exception {
+    MqttIO.Read spec = MqttIO.read().withConnectionConfiguration(
+            MqttIO.ConnectionConfiguration.create(
+                "tcp://localhost:" + port,
+                "READ_TOPIC",
+                "READ_PIPELINE"));
+    UnboundedSource<byte[], MqttIO.MqttCheckpointMark> source =
+        new MqttIO.UnboundedMqttSource(spec);
+
+    UnboundedSource.UnboundedReader<byte[]> reader =
+        source.createReader(null, null);
+
+    boolean offset = reader.start();
+
+    assertFalse(offset);
   }
 
   @Test
