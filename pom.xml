@@ -1717,6 +1717,9 @@
               <exclude>**/apache_beam/portability/api/*_pb2*.py</exclude>
               <exclude>**/go/pkg/beam/model/**/*.pb.go</exclude>
 
+              <!-- Go vendor shipping -->
+              <exclude>**/go/vendor/**/*</exclude>
+
               <!-- VCF test files -->
               <exclude>**/apache_beam/testing/data/vcf/*</exclude>
             </excludes>
