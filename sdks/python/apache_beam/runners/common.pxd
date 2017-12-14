@@ -53,8 +53,10 @@ cdef class DoFnInvoker(object):
                        restriction_tracker=*, output_processor=*)
   cpdef invoke_start_bundle(self)
   cpdef invoke_finish_bundle(self)
-
-  # TODO(chamikara) define static method create_invoker() here.
+  cpdef invoke_split(self, element, restriction)
+  cpdef invoke_initial_restriction(self, element)
+  cpdef invoke_restriction_coder(self)
+  cpdef invoke_create_tracker(self, restriction)
 
 
 cdef class SimpleInvoker(DoFnInvoker):
