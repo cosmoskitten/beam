@@ -95,7 +95,10 @@ class PairWithRestrictionFn(beam.DoFn):
   """A transform that pairs each element with a restriction."""
 
   def __init__(self, do_fn):
-    signature = DoFnSignature(do_fn)
+    self._do_fn = do_fn
+
+  def start_bundle(self):
+    signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
         signature, process_invocation=False)
 
@@ -108,7 +111,10 @@ class SplitRestrictionFn(beam.DoFn):
   """A transform that perform initial splitting of Splittable DoFn inputs."""
 
   def __init__(self, do_fn):
-    signature = DoFnSignature(do_fn)
+    self._do_fn = do_fn
+
+  def start_bundle(self):
+    signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
         signature, process_invocation=False)
 
