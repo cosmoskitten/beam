@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.*;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.MAX_ATTRIBUTE_KEY_SIZE;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.MAX_ATTRIBUTE_VALUE_SIZE;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.MAX_MSG_ATTRIBUTES;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.MAX_PUBLISH_BYTE_SIZE;
 
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
@@ -31,6 +34,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 
+/**
+ * Tests for PubsubMessage.
+ */
 @RunWith(JUnit4.class)
 public class PubsubMessageTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
