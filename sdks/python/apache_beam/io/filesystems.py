@@ -25,7 +25,7 @@ from apache_beam.io.filesystem import FileSystem
 # All filesystem implements should be added here
 # pylint: disable=wrong-import-position, unused-import
 from apache_beam.io.localfilesystem import LocalFileSystem
-from apache_beam.io.hdfilesystem import HdFileSystem
+from apache_beam.io.hadoopfilesystem import HadoopFileSystem
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem

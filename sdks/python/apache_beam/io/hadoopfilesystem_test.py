@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for HdFileSystem."""
+"""Unit tests for HadoopFileSystem."""
 
 from __future__ import absolute_import
 
@@ -23,7 +23,7 @@ import posixpath
 import StringIO
 import unittest
 
-from apache_beam.io import hdfilesystem
+from apache_beam.io import hadoopfilesystem
 from apache_beam.io.filesystem import BeamIOError
 
 
@@ -65,7 +65,7 @@ class FakeHdfsError(Exception):
 
 
 class FakeHdfs(object):
-  """Fake implementation of hdfs3.HdFileSystem."""
+  """Fake implementation of hdfs3.HadoopFileSystem."""
 
   def __init__(self):
     self.files = {}
@@ -161,12 +161,12 @@ class FakeHdfs(object):
     return True
 
 
-class HdFileSystemTest(unittest.TestCase):
+class HadoopFileSystemTest(unittest.TestCase):
 
   def setUp(self):
     self._fake_hdfs = FakeHdfs()
-    hdfilesystem.HDFS3 = lambda *args, **kwargs: self._fake_hdfs
-    self.fs = hdfilesystem.HdFileSystem()
+    hadoopfilesystem.HDFileSystem = lambda *args, **kwargs: self._fake_hdfs
+    self.fs = hadoopfilesystem.HadoopFileSystem()
     self.tmpdir = 'hdfs://test_dir'
 
     for filename in ['old_file1', 'old_file2']:
@@ -175,7 +175,7 @@ class HdFileSystemTest(unittest.TestCase):
 
   def test_scheme(self):
     self.assertEqual(self.fs.scheme(), 'hdfs')
-    self.assertEqual(hdfilesystem.HdFileSystem.scheme(), 'hdfs')
+    self.assertEqual(hadoopfilesystem.HadoopFileSystem.scheme(), 'hdfs')
 
   def test_url_join(self):
     self.assertEqual('hdfs://tmp/path/to/file',

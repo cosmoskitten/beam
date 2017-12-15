@@ -24,7 +24,7 @@ import logging
 import posixpath
 import re
 
-from hdfs3 import HDFileSystem as HDFS3
+from hdfs3 import HDFileSystem
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -33,7 +33,7 @@ from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import MatchResult
 
-__all__ = ['HdFileSystem']
+__all__ = ['HadoopFileSystem']
 
 _HDFS_PREFIX = 'hdfs:/'
 _URL_RE = re.compile(r'^' + _HDFS_PREFIX + r'(/.*)')
@@ -44,7 +44,7 @@ _COPY_BUFFER_SIZE = 2 ** 16
 # gcsio.py.
 
 
-class HdFileSystem(FileSystem):
+class HadoopFileSystem(FileSystem):
   """``FileSystem`` implementation that supports HDFS.
 
   URL arguments to methods expect strings starting with ``hdfs://``.
@@ -57,8 +57,8 @@ class HdFileSystem(FileSystem):
 
     Connection configuration is done using :doc:`hdfs`.
     """
-    super(HdFileSystem, self).__init__()
-    self._hdfs_client = HDFS3()
+    super(HadoopFileSystem, self).__init__()
+    self._hdfs_client = HDFileSystem()
 
   @classmethod
   def scheme(cls):
