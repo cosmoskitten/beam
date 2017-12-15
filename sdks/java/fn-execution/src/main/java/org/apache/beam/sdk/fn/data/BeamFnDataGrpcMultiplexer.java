@@ -92,7 +92,7 @@ public class BeamFnDataGrpcMultiplexer {
     return future;
   }
 
-  public void attachReceiver(LogicalEndpoint inputLocation, DataBytesReceiver dataBytesReceiver) {
+  public void registerReceiver(LogicalEndpoint inputLocation, DataBytesReceiver dataBytesReceiver) {
     receiverFuture(inputLocation).set(dataBytesReceiver);
   }
 

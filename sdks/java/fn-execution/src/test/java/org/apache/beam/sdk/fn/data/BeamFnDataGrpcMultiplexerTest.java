@@ -113,7 +113,7 @@ public class BeamFnDataGrpcMultiplexerTest {
       public void run() {
         // Purposefully sleep to simulate a delay in a consumer connecting.
         Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-        multiplexer.attachReceiver(OUTPUT_LOCATION, new DataBytesReceiver() {
+        multiplexer.registerReceiver(OUTPUT_LOCATION, new DataBytesReceiver() {
           @Override
           public void receive(Data data) {
             inboundValues.add(data);
