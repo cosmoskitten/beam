@@ -893,8 +893,8 @@ public class PubsubIO {
         payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
 
-        boolean shouldPublish = output.size() == MAX_PUBLISH_BATCH_SIZE ||
-                currentByteSize + message.getMessageByteSize() >= MAX_PUBLISH_BYTE_SIZE;
+        boolean shouldPublish = output.size() == MAX_PUBLISH_BATCH_SIZE
+                || currentByteSize + message.getMessageByteSize() >= MAX_PUBLISH_BYTE_SIZE;
 
         if (shouldPublish) {
           publish();
