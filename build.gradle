@@ -121,7 +121,7 @@ ext.library = [
     jackson_core: "com.fasterxml.jackson.core:jackson-core:$jackson_version",
     jackson_databind: "com.fasterxml.jackson.core:jackson-databind:$jackson_version",
     jackson_dataformat_yaml: "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
-    jackson_module_scala: "com.fasterxml.jackson.module:jackson-module-scala_2.10:$jackson_version",
+    jackson_module_scala: "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
     joda_time: "joda-time:joda-time:2.4",
     junit: "junit:junit:4.12",
     kafka_clients: "org.apache.kafka:kafka-clients:0.11.0.1",
