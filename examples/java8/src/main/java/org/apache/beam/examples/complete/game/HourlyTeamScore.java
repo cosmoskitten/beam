@@ -73,7 +73,7 @@ import org.joda.time.format.DateTimeFormatter;
  */
 public class HourlyTeamScore extends UserScore {
 
-  private static DateTimeFormatter fmt =
+  protected static DateTimeFormatter fmt =
       DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS")
           .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
   private static DateTimeFormatter minFmt =
