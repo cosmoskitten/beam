@@ -19,7 +19,6 @@ package org.apache.beam.examples.complete.game;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TimeZone;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
@@ -50,11 +49,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,12 +88,6 @@ import org.slf4j.LoggerFactory;
  * be the same topic to which the Injector is publishing.
  */
 public class GameStats extends LeaderBoard {
-
-  private static final String TIMESTAMP_ATTRIBUTE = "timestamp_ms";
-
-  private static DateTimeFormatter fmt =
-      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS")
-          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
 
   /**
    * Filter out all but those users with a high clickrate, which we will consider as 'spammy' uesrs.
