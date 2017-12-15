@@ -19,7 +19,9 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -140,5 +142,17 @@ public class StringUtils {
     }
 
     return v1[t.length()];
+  }
+
+  public static int getTotalSizeInBytes(Collection<String> list) {
+    int out = 0;
+    for (String s: list) {
+      out += getStringByteSize(s);
+    }
+    return out;
+  }
+
+  public static int getStringByteSize(String s) {
+    return s.getBytes(StandardCharsets.UTF_8).length;
   }
 }
