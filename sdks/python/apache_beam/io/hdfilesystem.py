@@ -15,12 +15,14 @@
 # limitations under the License.
 #
 
-"""FileSystem implementation for accessing Hadoop Distributed File System
-files."""
+""":class:`~apache_beam.io.filesystem.FileSystem` implementation for accessing
+Hadoop Distributed File System files."""
 
 from __future__ import absolute_import
 
+import logging
 import posixpath
+import re
 
 from hdfs3 import HDFileSystem as HDFS3
 
@@ -33,8 +35,9 @@ from apache_beam.io.filesystem import MatchResult
 
 __all__ = ['HdFileSystem']
 
-
-COPY_BUFFER_SIZE = 2**16
+_HDFS_PREFIX = 'hdfs:/'
+_URL_RE = re.compile(r'^' + _HDFS_PREFIX + r'(/.*)')
+_COPY_BUFFER_SIZE = 2 ** 16
 
 
 # TODO(udim): Add @retry.with_exponential_backoff to some functions, like in
@@ -42,149 +45,240 @@ COPY_BUFFER_SIZE = 2**16
 
 
 class HdFileSystem(FileSystem):
-  """FileSystem implementation that supports HDFS."""
+  """``FileSystem`` implementation that supports HDFS.
 
-  def __init__(self, *args, **kwargs):
+  URL arguments to methods expect strings starting with ``hdfs://``.
+
+  Uses client library :class:`hdfs3.core.HDFileSystem`.
+  """
+
+  def __init__(self):
     """Initialize a connection to HDFS.
 
-    Keyword arguments:
-      host: Hostname of HDFS server to connect to.
-      port: Port of HDFS server to connect to.
+    Connection configuration is done using :doc:`hdfs`.
     """
-    host = kwargs.pop('host')
-    port = kwargs.pop('port')
-    super(HdFileSystem, self).__init__(*args, **kwargs)
-    self._hdfs = HDFS3(host=host, port=port)
+    super(HdFileSystem, self).__init__()
+    self._hdfs_client = HDFS3()
 
   @classmethod
   def scheme(cls):
     return 'hdfs'
 
-  def join(self, basepath, *paths):
+  @classmethod
+  def _parse_url(cls, url):
+    """Verifies that url begins with hdfs:// prefix and strips it.
+
+    Raises:
+      ValueError if url doesn't begin with hdfs://.
+
+    Args:
+      url: A URL in the form <scheme>://path/...
+
+    Returns:
+      /path/...
+    """
+    m = _URL_RE.match(url)
+    if m is None:
+      raise ValueError('could not parse url: %s' % url)
+    return m.group(1)
+
+  def join(self, baseurl, *paths):
+    """Join two or more pathname components.
+
+    Args:
+      baseurl: string path of the first component of the path.
+        Must start with hdfs://.
+      paths: path components to be added
+
+    Returns:
+      Full url after combining all the passed components.
+    """
+    basepath = self._parse_url(baseurl)
+    return _HDFS_PREFIX + self._join(basepath, *paths)
+
+  def _join(self, basepath, *paths):
     return posixpath.join(basepath, *paths)
 
-  def split(self, path):
-    return posixpath.split(path)
+  def split(self, url):
+    rel_path = self._parse_url(url)
+    head, tail = posixpath.split(rel_path)
+    return _HDFS_PREFIX + head, tail
 
-  def mkdirs(self, path):
-    if self.exists(path):
-      raise IOError('%s: path already exists' % path)
-    self._hdfs.makedirs(path)
+  def mkdirs(self, url):
+    path = self._parse_url(url)
+    if self._exists(path):
+      raise IOError('path already exists: %s' % path)
+    return self._mkdirs(path)
 
-  def match(self, patterns, limits=None):
+  def _mkdirs(self, path):
+    self._hdfs_client.makedirs(path)
+
+  def match(self, url_patterns, limits=None):
     if limits is None:
-      limits = [None] * len(patterns)
-    else:
-      err_msg = 'Patterns and limits should be equal in length'
-      assert len(patterns) == len(limits), err_msg
+      limits = [None] * len(url_patterns)
 
-    def _match(pattern, limit):
+    if len(url_patterns) != len(limits):
+      raise BeamIOError(
+          'Patterns and limits should be equal in length: %d != %d' % (
+              len(url_patterns), len(limits)))
+
+    # TODO(udim): Update client to allow batched results.
+    def _match(path_pattern, limit):
       """Find all matching paths to the pattern provided."""
-      fileinfos = self._hdfs.ls(pattern, detail=True)[:limit]
-      metadata_list = [FileMetadata(fileinfo['name'], fileinfo['size'])
-                       for fileinfo in fileinfos]
-      return MatchResult(pattern, metadata_list)
+      file_infos = self._hdfs_client.ls(path_pattern, detail=True)[:limit]
+      metadata_list = [FileMetadata(file_info['name'], file_info['size'])
+                       for file_info in file_infos]
+      return MatchResult(path_pattern, metadata_list)
 
     exceptions = {}
     result = []
-    for pattern, limit in zip(patterns, limits):
+    for url_pattern, limit in zip(url_patterns, limits):
       try:
-        result.append(_match(pattern, limit))
+        path_pattern = self._parse_url(url_pattern)
+        result.append(_match(path_pattern, limit))
       except Exception as e:  # pylint: disable=broad-except
-        exceptions[pattern] = e
+        exceptions[url_pattern] = e
 
     if exceptions:
       raise BeamIOError('Match operation failed', exceptions)
     return result
 
-  def _open(self, path, mode, mime_type, compression_type):
+  def _open_hdfs(self, path, mode, mime_type, compression_type):
     if mime_type != 'application/octet-stream':
-      raise BeamIOError('Unsupported mime_type: %s', mime_type)
+      logging.warning('Mime types are not supported. Got non-default mime_type:'
+                      ' %s', mime_type)
     if compression_type == CompressionTypes.AUTO:
       compression_type = CompressionTypes.detect_compression_type(path)
-    res = self._hdfs.open(path, mode)
+    res = self._hdfs_client.open(path, mode)
     if compression_type != CompressionTypes.UNCOMPRESSED:
       res = CompressedFile(res)
     return res
 
-  def create(self, path, mime_type='application/octet-stream',
+  def create(self, url, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
-    return self._open(path, 'wb', mime_type, compression_type)
+    """
+    Returns:
+      *hdfs3.core.HDFile*: An Python File-like object.
+    """
+    path = self._parse_url(url)
+    return self._create(path, mime_type, compression_type)
 
-  def open(self, path, mime_type='application/octet-stream',
+  def _create(self, path, mime_type='application/octet-stream',
+              compression_type=CompressionTypes.AUTO):
+    return self._open_hdfs(path, 'wb', mime_type, compression_type)
+
+  def open(self, url, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
-    return self._open(path, 'rb', mime_type, compression_type)
+    """
+    Returns:
+      *hdfs3.core.HDFile*: An Python File-like object.
+    """
+    path = self._parse_url(url)
+    return self._open(path, mime_type, compression_type)
+
+  def _open(self, path, mime_type='application/octet-stream',
+            compression_type=CompressionTypes.AUTO):
+    return self._open_hdfs(path, 'rb', mime_type, compression_type)
 
   def copy(self, source_file_names, destination_file_names):
-    """Implements the FileSystem interface.
-
-    Will overwrite files and directories in destination_file_names.
     """
-    err_msg = ("source_file_names and destination_file_names should "
-               "be equal in length")
-    assert len(source_file_names) == len(destination_file_names), err_msg
+    Will overwrite files and directories in destination_file_names.
+
+    Raises ``BeamIOError`` if any error occurred.
+
+    Args:
+      source_file_names: iterable of URLs.
+      destination_file_names: iterable of URLs.
+    """
+    if len(source_file_names) != len(destination_file_names):
+      raise BeamIOError(
+          'source_file_names and destination_file_names should '
+          'be equal in length: %d != %d' % (
+              len(source_file_names), len(destination_file_names)))
 
     def _copy_file(source, destination):
-      with self.open(source) as f1:
-        with self.create(destination) as f2:
+      with self._open(source) as f1:
+        with self._create(destination) as f2:
           while True:
-            buf = f1.read(COPY_BUFFER_SIZE)
+            buf = f1.read(_COPY_BUFFER_SIZE)
             if not buf:
               break
             f2.write(buf)
 
     def _copy_path(source, destination):
       """Recursively copy the file tree from the source to the destination."""
-      if not self._hdfs.isdir(source):
+      if not self._hdfs_client.isdir(source):
         _copy_file(source, destination)
         return
 
-      for path, dirs, files in self._hdfs.walk(source):
+      for path, dirs, files in self._hdfs_client.walk(source):
         for dir in dirs:
-          new_dir = self.join(destination, dir)
-          if not self.exists(new_dir):
-            self.mkdirs(new_dir)
+          new_dir = self._join(destination, dir)
+          if not self._exists(new_dir):
+            self._mkdirs(new_dir)
 
-        relpath = posixpath.relpath(path, source)
-        if relpath == '.':
-          relpath = ''
+        rel_path = posixpath.relpath(path, source)
+        if rel_path == '.':
+          rel_path = ''
         for file in files:
-          _copy_file(self.join(path, file),
-                     self.join(destination, relpath, file))
+          _copy_file(self._join(path, file),
+                     self._join(destination, rel_path, file))
 
     exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
       try:
-        _copy_path(source, destination)
+        rel_source = self._parse_url(source)
+        rel_destination = self._parse_url(destination)
+        _copy_path(rel_source, rel_destination)
       except Exception as e:  # pylint: disable=broad-except
         exceptions[(source, destination)] = e
 
     if exceptions:
-      raise BeamIOError("Copy operation failed", exceptions)
+      raise BeamIOError('Copy operation failed', exceptions)
 
   def rename(self, source_file_names, destination_file_names):
     exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
       try:
-        if not self._hdfs.mv(source, destination):
+        rel_source = self._parse_url(source)
+        rel_destination = self._parse_url(destination)
+        if not self._hdfs_client.mv(rel_source, rel_destination):
           raise BeamIOError(
-              'libhdfs error in rename(%s, %s)' % (source, destination))
+              'libhdfs error in renaming %s to %s' % (source, destination))
       except Exception as e:  # pylint: disable=broad-except
         exceptions[(source, destination)] = e
 
     if exceptions:
-      raise BeamIOError("Rename operation failed", exceptions)
+      raise BeamIOError('Rename operation failed', exceptions)
 
-  def exists(self, path):
-    return self._hdfs.exists(path)
+  def exists(self, url):
+    """Checks existence of url in HDFS.
 
-  def delete(self, paths):
+    Args:
+      url: String in the form hdfs://...
+
+    Returns:
+      True if url exists as a file or directory in HDFS.
+    """
+    path = self._parse_url(url)
+    return self._exists(path)
+
+  def _exists(self, path):
+    """Returns True if path exists as a file or directory in HDFS.
+
+    Args:
+      path: String in the form /...
+    """
+    return self._hdfs_client.exists(path)
+
+  def delete(self, urls):
     exceptions = {}
-    for path in paths:
+    for url in urls:
       try:
-        self._hdfs.rm(path, recursive=True)
+        path = self._parse_url(url)
+        self._hdfs_client.rm(path, recursive=True)
       except Exception as e:  # pylint: disable=broad-except
-        exceptions[path] = e
+        exceptions[url] = e
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
