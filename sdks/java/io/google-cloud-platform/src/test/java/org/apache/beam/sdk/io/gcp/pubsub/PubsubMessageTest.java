@@ -17,9 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.*;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.MAX_ATTRIBUTE_KEY_SIZE;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.MAX_ATTRIBUTE_VALUE_SIZE;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.MAX_MSG_ATTRIBUTES;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.MAX_PUBLISH_BYTE_SIZE;
 
-import org.apache.commons.lang3.StringUtils;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashMap;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,10 +33,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashMap;
 
+/**
+ * Tests for PubsubMessage.
+ */
 @RunWith(JUnit4.class)
 public class PubsubMessageTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -40,7 +46,11 @@ public class PubsubMessageTest {
   }
 
   static String makeStringOfLength(int length) {
-    return StringUtils.repeat("a", length);
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < length; i++) {
+      sb.append('a');
+    }
+    return sb.toString();
   }
 
   @Test
