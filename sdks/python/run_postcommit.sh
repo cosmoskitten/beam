@@ -41,7 +41,8 @@ pip install virtualenv --user
 pip install tox --user
 
 # Tox runs unit tests in a virtual environment
-${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini
+# TODO: uncomment
+#${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini
 
 # Virtualenv for the rest of the script to run setup & e2e tests
 ${LOCAL_PATH}/virtualenv sdks/python
@@ -51,7 +52,8 @@ pip install -e .[gcp,test]
 
 # Run wordcount in the Direct Runner and validate output.
 echo ">>> RUNNING DIRECT RUNNER py-wordcount"
-python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct
+# TODO: uncomment
+#python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct
 # TODO: check that output file is generated for Direct Runner.
 
 # Run tests on the service.
@@ -69,17 +71,22 @@ SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 # Run integration tests on the Google Cloud Dataflow service
 # and validate that jobs finish successfully.
 echo ">>> RUNNING TEST DATAFLOW RUNNER it tests"
-python setup.py nosetests \
-  --attr IT \
-  --nocapture \
-  --processes=4 \
-  --process-timeout=900 \
-  --test-pipeline-options=" \
-    --runner=TestDataflowRunner \
-    --project=$PROJECT \
-    --staging_location=$GCS_LOCATION/staging-it \
-    --temp_location=$GCS_LOCATION/temp-it \
-    --output=$GCS_LOCATION/py-it-cloud/output \
-    --sdk_location=$SDK_LOCATION \
-    --num_workers=1 \
-    --sleep_secs=20"
+# TODO: uncomment
+#python setup.py nosetests \
+#  --attr IT \
+#  --nocapture \
+#  --processes=4 \
+#  --process-timeout=900 \
+#  --test-pipeline-options=" \
+#    --runner=TestDataflowRunner \
+#    --project=$PROJECT \
+#    --staging_location=$GCS_LOCATION/staging-it \
+#    --temp_location=$GCS_LOCATION/temp-it \
+#    --output=$GCS_LOCATION/py-it-cloud/output \
+#    --sdk_location=$SDK_LOCATION \
+#    --num_workers=1 \
+#    --sleep_secs=20"
+
+echo ">>> RUNNING DIRECT RUNNER hdfs_integration_test"
+cd ../../
+sdks/python/apache_beam/io/hdfs_integration_test.sh
