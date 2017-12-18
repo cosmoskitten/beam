@@ -83,3 +83,7 @@ python setup.py nosetests \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
     --sleep_secs=20"
+
+echo ">>> RUNNING DIRECT RUNNER hdfs_integration_test"
+cd ../../
+sdks/python/apache_beam/io/hdfs_integration_test.sh
