@@ -143,6 +143,7 @@ class RandomUniqueKeyFn(beam.DoFn):
   """A transform that assigns a unique key to each element."""
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
+    # We ignore UUID collisions here since they are extremely rare.
     yield (uuid.uuid4().bytes, element)
 
 

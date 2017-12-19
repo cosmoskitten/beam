@@ -70,7 +70,7 @@ class ProcessElements(PTransform):
   """A primitive transform for processing keyed elements or KeyedWorkItems.
 
   Will be evaluated by
-  `runners.direct.transform_evaluator._ProcessElemenetsEvaluator`.
+  `runners.direct.transform_evaluator._ProcessElementsEvaluator`.
   """
 
   def __init__(self, process_keyed_elements_transform):

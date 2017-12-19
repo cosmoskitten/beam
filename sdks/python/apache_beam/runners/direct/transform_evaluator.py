@@ -525,6 +525,8 @@ class _ParDoEvaluator(_TransformEvaluator):
     super(_ParDoEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs, scoped_metrics_container)
+    # This is a workaround for SDF implementation. SDF implementation adds state
+    # to the SDF that is not picklable.
     self._perform_dofn_pickle_test = perform_dofn_pickle_test
 
   def start_bundle(self):

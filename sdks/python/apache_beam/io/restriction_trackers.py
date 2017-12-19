@@ -121,11 +121,11 @@ class OffsetRestrictionTracker(RestrictionTracker):
       # If self._current_position is 'None' no records have been claimed so
       # residual should start from self._range.start.
       if self._current_position is None:
-        residual_range = (self._range.start, self._range.stop)
         end_position = self._range.start
       else:
-        residual_range = (self._current_position + 1, self._range.stop)
         end_position = self._current_position + 1
+
+      residual_range = (end_position, self._range.stop)
 
       self._range = OffsetRange(self._range.start, end_position)
       return residual_range

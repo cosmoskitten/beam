@@ -962,7 +962,7 @@ class _WriteBundleDoFn(core.DoFn):
 
   def process(self, element, init_result):
     if self.writer is None:
-      # We ignore uuid collisions here since it's extremely rare.
+      # We ignore UUID collisions here since they are extremely rare.
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     self.writer.write(element)
 
@@ -1075,7 +1075,7 @@ class RestrictionTracker(object):
     Called by the runner after iterator returned by ``DoFn.process()`` has been
     fully read.
 
-    This method must raise an error if there is still any unclaimed work
+    This method must raise an `ValueError` if there is still any unclaimed work
     remaining in the restriction when this method is invoked. Exception raised
     must have an informative error message.
 
