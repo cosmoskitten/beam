@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
@@ -99,6 +100,11 @@ class FlinkPipelineExecutionEnvironment {
     } else {
       this.flinkBatchEnv = createBatchExecutionEnvironment();
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
+      try {
+        pipeline = PipelineTranslation.fromProto(PipelineTranslation.toProto(pipeline));
+      } catch (java.io.IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     translator.translate(pipeline);
