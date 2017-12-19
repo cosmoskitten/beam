@@ -34,6 +34,7 @@ from apache_beam.examples.snippets import snippets
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -592,7 +593,7 @@ class SnippetsTest(unittest.TestCase):
 
   @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
   def test_model_datastoreio(self):
-    # We cannot test datastoreio functionality in unit tests therefore we limit
+    # We cannot test DatastoreIO functionality in unit tests, therefore we limit
     # ourselves to making sure the pipeline containing Datastore read and write
     # transforms can be built.
     # TODO(vikasrk): Expore using Datastore Emulator.
@@ -600,10 +601,22 @@ class SnippetsTest(unittest.TestCase):
 
   @unittest.skipIf(base_api is None, 'GCP dependencies are not installed')
   def test_model_bigqueryio(self):
-    # We cannot test BigQueryIO functionality in unit tests therefore we limit
+    # We cannot test BigQueryIO functionality in unit tests, therefore we limit
     # ourselves to making sure the pipeline containing BigQuery sources and
     # sinks can be built.
-    snippets.model_bigqueryio()
+    run_locally = False
+    if run_locally:
+      project = 'my-project'
+      dataset = 'samples'  # this must already exist
+      table = 'model_bigqueryio'  # this will be created if needed
+
+      options = PipelineOptions().view_as(GoogleCloudOptions)
+      options.project = project
+      with beam.Pipeline(options=options) as p:
+        snippets.model_bigqueryio(p, project, dataset, table)
+    else:
+      p = TestPipeline()
+      snippets.model_bigqueryio(p)
 
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
