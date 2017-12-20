@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for HadoopFileSystem."""
+"""Unit tests for :class:`HadoopFileSystem`."""
 
 from __future__ import absolute_import
 
@@ -72,7 +72,7 @@ class FakeHdfs(object):
 
   def open(self, path, mode='rb'):
     if mode == 'rb' and not self.exists(path):
-      raise FakeHdfsError('path not found: %s' % path)
+      raise FakeHdfsError('Path not found: %s' % path)
 
     if mode in ['rb', 'wb']:
       new_file = FakeFile(path, mode)
@@ -83,7 +83,7 @@ class FakeHdfs(object):
         old_file = self.files.get(path, None)
         if old_file is not None:
           if old_file.stat['mode'] == 'dir':
-            raise FakeHdfsError('cannot open a directory: %s' % path)
+            raise FakeHdfsError('Cannot open a directory: %s' % path)
           if old_file.saved_data:
             old_file = self.files[path]
             new_file.write(old_file.saved_data)
@@ -92,7 +92,7 @@ class FakeHdfs(object):
       self.files[path] = new_file
       return new_file
     else:
-      raise FakeHdfsError('unknown mode: %s' % mode)
+      raise FakeHdfsError('Unknown mode: %s' % mode)
 
   def ls(self, path, detail=False):
     result = []
@@ -112,10 +112,10 @@ class FakeHdfs(object):
 
   def rm(self, path, recursive=True):
     if not recursive:
-      raise FakeHdfsError('non-recursive mode not implemented')
+      raise FakeHdfsError('Non-recursive mode not implemented')
 
     if not self.exists(path):
-      raise FakeHdfsError('path not found: %s' % path)
+      raise FakeHdfsError('Path not found: %s' % path)
 
     for filepath in self.files.keys():  # pylint: disable=consider-iterating-dictionary
       if filepath.startswith(path):
@@ -123,7 +123,7 @@ class FakeHdfs(object):
 
   def isdir(self, path):
     if not self.exists(path):
-      raise FakeHdfsError('path not found: %s' % path)
+      raise FakeHdfsError('Path not found: %s' % path)
 
     return self.files[path].stat['mode'] == 'dir'
 
@@ -149,7 +149,7 @@ class FakeHdfs(object):
 
   def mv(self, path1, path2):
     if not self.exists(path1):
-      raise FakeHdfsError('path1 not found: %s' % path1)
+      raise FakeHdfsError('Path1 not found: %s' % path1)
 
     for fullpath in self.files.keys():  # pylint: disable=consider-iterating-dictionary
       if fullpath == path1 or fullpath.startswith(path1 + '/'):
@@ -231,6 +231,14 @@ class HadoopFileSystemTest(unittest.TestCase):
     files = [f.path for f in result.metadata_list]
     self.assertEquals(len(files), 1)
     self.assertIn(files[0], expected_files)
+
+  def test_match_file_with_zero_limit(self):
+    result = self.fs.match([self.tmpdir], [0])[0]
+    self.assertEquals(len(result.metadata_list), 0)
+
+  def test_match_file_with_bad_limit(self):
+    with self.assertRaisesRegexp(BeamIOError, r'TypeError'):
+      self.fs.match([self.tmpdir], ['a'])[0]
 
   def test_match_file_empty(self):
     url = self.fs.join(self.tmpdir, 'nonexistent_file')

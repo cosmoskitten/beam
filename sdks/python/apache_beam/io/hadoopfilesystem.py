@@ -53,7 +53,7 @@ class HadoopFileSystem(FileSystem):
   """
 
   def __init__(self):
-    """Initialize a connection to HDFS.
+    """Initializes a connection to HDFS.
 
     Connection configuration is done using :doc:`hdfs`.
     """
@@ -64,36 +64,37 @@ class HadoopFileSystem(FileSystem):
   def scheme(cls):
     return 'hdfs'
 
-  @classmethod
-  def _parse_url(cls, url):
-    """Verifies that url begins with hdfs:// prefix and strips it.
+  @staticmethod
+  def _parse_url(url):
+    """Verifies that url begins with hdfs:// prefix, strips it and adds a
+    leading /.
 
     Raises:
       ValueError if url doesn't begin with hdfs://.
 
     Args:
-      url: A URL in the form <scheme>://path/...
+      url: A URL in the form hdfs://path/...
 
     Returns:
-      /path/...
+      For an input of 'hdfs://path/...', will return '/path/...'.
     """
     m = _URL_RE.match(url)
     if m is None:
-      raise ValueError('could not parse url: %s' % url)
+      raise ValueError('Could not parse url: %s' % url)
     return m.group(1)
 
-  def join(self, baseurl, *paths):
+  def join(self, base_url, *paths):
     """Join two or more pathname components.
 
     Args:
-      baseurl: string path of the first component of the path.
+      base_url: string path of the first component of the path.
         Must start with hdfs://.
       paths: path components to be added
 
     Returns:
       Full url after combining all the passed components.
     """
-    basepath = self._parse_url(baseurl)
+    basepath = self._parse_url(base_url)
     return _HDFS_PREFIX + self._join(basepath, *paths)
 
   def _join(self, basepath, *paths):
@@ -107,7 +108,7 @@ class HadoopFileSystem(FileSystem):
   def mkdirs(self, url):
     path = self._parse_url(url)
     if self._exists(path):
-      raise IOError('path already exists: %s' % path)
+      raise IOError('Path already exists: %s' % path)
     return self._mkdirs(path)
 
   def _mkdirs(self, path):
