@@ -29,6 +29,7 @@ import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
@@ -36,6 +37,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -50,7 +52,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
-import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
+import org.apache.beam.sdk.io.range.ByteKeyRangesTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -77,8 +79,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>To configure a Cloud Bigtable source, you must supply a table id, a project id, an instance
  * id and optionally a {@link BigtableOptions} to provide more specific connection configuration.
- * By default, {@link BigtableIO.Read} will read all rows in the table. The row range to be read
- * can optionally be restricted using {@link BigtableIO.Read#withKeyRange}, and a {@link RowFilter}
+ * By default, {@link BigtableIO.Read} will read all rows in the table. The row ranges to be read
+ * can optionally be restricted using {@link BigtableIO.Read#withKeyRanges}, and a {@link RowFilter}
  * can be specified using {@link BigtableIO.Read#withRowFilter}. For example:
  *
  * <pre>{@code
@@ -189,7 +191,7 @@ public class BigtableIO {
 
     /** Returns the range of keys that will be read from the table. */
     @Nullable
-    public abstract ByteKeyRange getKeyRange();
+    public abstract List<ByteKeyRange> getKeyRanges();
 
     /** Returns the table being read from. */
     @Nullable
@@ -214,10 +216,12 @@ public class BigtableIO {
         .setTableId("")
         .setValidate(true)
         .build();
+      List<ByteKeyRange> ranges = new ArrayList<>();
+      ranges.add(ByteKeyRange.ALL_KEYS);
 
       return new AutoValue_BigtableIO_Read.Builder()
         .setBigtableConfig(config)
-        .setKeyRange(ByteKeyRange.ALL_KEYS)
+        .setKeyRanges(ranges)
         .build();
     }
 
@@ -228,7 +232,7 @@ public class BigtableIO {
 
       abstract Builder setRowFilter(RowFilter filter);
 
-      abstract Builder setKeyRange(ByteKeyRange keyRange);
+      abstract Builder setKeyRanges(List<ByteKeyRange> keyRange);
 
       abstract Read build();
     }
@@ -334,7 +338,24 @@ public class BigtableIO {
      */
     public Read withKeyRange(ByteKeyRange keyRange) {
       checkArgument(keyRange != null, "keyRange can not be null");
-      return toBuilder().setKeyRange(keyRange).build();
+      List<ByteKeyRange> keyRanges = new ArrayList<>();
+      keyRanges.add(keyRange);
+      return toBuilder().setKeyRanges(keyRanges).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} that will read only rows in the specified ranges.
+     * Ranges must not overlap.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withKeyRanges(List<ByteKeyRange> keyRanges) {
+      checkArgument(keyRanges != null, "keyRanges can not be null");
+      checkArgument(!keyRanges.isEmpty(), "keyRanges can not be empty");
+      for (ByteKeyRange range : keyRanges) {
+        checkArgument(range != null, "keyRanges cannot hold null range");
+      }
+      return toBuilder().setKeyRanges(keyRanges).build();
     }
 
     /**
@@ -376,7 +397,7 @@ public class BigtableIO {
             public BigtableService apply(PipelineOptions options) {
               return getBigtableConfig().getBigtableService(options);
             }
-          }, getTableId(), getRowFilter(), getKeyRange(), null);
+          }, getTableId(), getRowFilter(), getKeyRanges(), null);
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -390,8 +411,11 @@ public class BigtableIO {
       super.populateDisplayData(builder);
       getBigtableConfig().populateDisplayData(builder);
 
-      builder.addIfNotDefault(
-          DisplayData.item("keyRange", getKeyRange().toString()), ByteKeyRange.ALL_KEYS.toString());
+      List<ByteKeyRange> keyRanges = getKeyRanges();
+      for (int i = 0; i < keyRanges.size(); i++) {
+        builder.addIfNotDefault(DisplayData.item("keyRange " + i, keyRanges.get(i).toString()),
+            ByteKeyRange.ALL_KEYS.toString());
+      }
 
       if (getRowFilter() != null) {
         builder.add(DisplayData.item("rowFilter", getRowFilter().toString())
@@ -401,11 +425,12 @@ public class BigtableIO {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(Read.class)
-        .add("config", getBigtableConfig())
-        .add("keyRange", getKeyRange())
-        .add("filter", getRowFilter())
-        .toString();
+      ToStringHelper helper = MoreObjects.toStringHelper(Read.class)
+          .add("config", getBigtableConfig());
+      for (int i = 0; i < getKeyRanges().size(); i++) {
+        helper.add("keyRange " + i, getKeyRanges().get(i));
+      }
+      return helper.add("filter", getRowFilter()).toString();
     }
   }
 
@@ -738,12 +763,12 @@ public class BigtableIO {
         SerializableFunction<PipelineOptions, BigtableService> serviceFactory,
         String tableId,
         @Nullable RowFilter filter,
-        ByteKeyRange range,
+        List<ByteKeyRange> ranges,
         @Nullable Long estimatedSizeBytes) {
       this.serviceFactory = serviceFactory;
       this.tableId = tableId;
       this.filter = filter;
-      this.range = range;
+      this.ranges = ranges;
       this.estimatedSizeBytes = estimatedSizeBytes;
     }
 
@@ -752,7 +777,7 @@ public class BigtableIO {
       return MoreObjects.toStringHelper(BigtableSource.class)
           .add("tableId", tableId)
           .add("filter", filter)
-          .add("range", range)
+          .add("ranges", ranges)
           .add("estimatedSizeBytes", estimatedSizeBytes)
           .toString();
     }
@@ -761,25 +786,31 @@ public class BigtableIO {
     private final SerializableFunction<PipelineOptions, BigtableService> serviceFactory;
     private final String tableId;
     @Nullable private final RowFilter filter;
-    private final ByteKeyRange range;
+    private final List<ByteKeyRange> ranges;
     @Nullable private Long estimatedSizeBytes;
     @Nullable private transient List<SampleRowKeysResponse> sampleRowKeys;
 
-    protected BigtableSource withStartKey(ByteKey startKey) {
-      checkArgument(startKey != null, "startKey can not be null");
-      return new BigtableSource(
-          serviceFactory, tableId, filter, range.withStartKey(startKey), estimatedSizeBytes);
+    /**
+     * Creates a new {@link BigtableSource} with just one {@link ByteKeyRange}.
+     */
+    protected BigtableSource withSingleRange(ByteKeyRange range) {
+      checkArgument(range != null, "range can not be null");
+      List<ByteKeyRange> keyRanges = new ArrayList<>();
+      keyRanges.add(range);
+      return withRanges(keyRanges);
     }
 
-    protected BigtableSource withEndKey(ByteKey endKey) {
-      checkArgument(endKey != null, "endKey can not be null");
-      return new BigtableSource(
-          serviceFactory, tableId, filter, range.withEndKey(endKey), estimatedSizeBytes);
+    /**
+     * Creates a new {@link BigtableSource} with the list of {@link ByteKeyRange}s.
+     */
+    protected BigtableSource withRanges(List<ByteKeyRange> ranges) {
+      checkArgument(ranges != null, "ranges can not be null");
+      return new BigtableSource(serviceFactory, tableId, filter, ranges, estimatedSizeBytes);
     }
 
     protected BigtableSource withEstimatedSizeBytes(Long estimatedSizeBytes) {
       checkArgument(estimatedSizeBytes != null, "estimatedSizeBytes can not be null");
-      return new BigtableSource(serviceFactory, tableId, filter, range, estimatedSizeBytes);
+      return new BigtableSource(serviceFactory, tableId, filter, ranges, estimatedSizeBytes);
     }
 
     /**
@@ -825,6 +856,8 @@ public class BigtableIO {
       // scan range. The main complication is that we must track the end range of the previous
       // sample to generate good ranges.
       ByteKey lastEndKey = ByteKey.EMPTY;
+      // The largest end key of all the {@code ranges}.
+      ByteKey rangesEndKey = ByteKey.EMPTY;
       long lastOffset = 0;
       ImmutableList.Builder<BigtableSource> splits = ImmutableList.builder();
       for (SampleRowKeysResponse response : sampleRowKeys) {
@@ -835,37 +868,47 @@ public class BigtableIO {
             "Expected response byte offset %s to come after the last offset %s",
             responseOffset,
             lastOffset);
-
-        if (!range.overlaps(ByteKeyRange.of(lastEndKey, responseEndKey))) {
-          // This region does not overlap the scan, so skip it.
+        // find which of our ranges overlaps the sample range
+        List<ByteKeyRange> overlappingRanges = new ArrayList<>();
+        for (ByteKeyRange range : ranges) {
+          if (range.overlaps(ByteKeyRange.of(lastEndKey, responseEndKey))) {
+            overlappingRanges.add(range);
+          }
+        }
+        if (overlappingRanges.isEmpty()) {
+          // No regions overlap the scan, so skip the scan.
           lastOffset = responseOffset;
           lastEndKey = responseEndKey;
           continue;
         }
 
-        // Calculate the beginning of the split as the larger of startKey and the end of the last
-        // split. Unspecified start is smallest key so is correctly treated as earliest key.
-        ByteKey splitStartKey = lastEndKey;
-        if (splitStartKey.compareTo(range.getStartKey()) < 0) {
-          splitStartKey = range.getStartKey();
-        }
+        for (ByteKeyRange range : overlappingRanges) {
 
-        // Calculate the end of the split as the smaller of endKey and the end of this sample. Note
-        // that range.containsKey handles the case when range.getEndKey() is empty.
-        ByteKey splitEndKey = responseEndKey;
-        if (!range.containsKey(splitEndKey)) {
-          splitEndKey = range.getEndKey();
-        }
+          if (rangesEndKey.compareTo(range.getEndKey()) < 0) {
+            rangesEndKey = range.getEndKey();
+          }
 
-        // We know this region overlaps the desired key range, and we know a rough estimate of its
-        // size. Split the key range into bundle-sized chunks and then add them all as splits.
-        long sampleSizeBytes = responseOffset - lastOffset;
-        List<BigtableSource> subSplits =
-            splitKeyRangeIntoBundleSizedSubranges(
-                sampleSizeBytes,
-                desiredBundleSizeBytes,
-                ByteKeyRange.of(splitStartKey, splitEndKey));
-        splits.addAll(subSplits);
+          // Calculate the beginning of the split as the larger of startKey and the end of the last
+          // split. Unspecified start is smallest key so is correctly treated as earliest key.
+          ByteKey splitStartKey = lastEndKey;
+          if (splitStartKey.compareTo(range.getStartKey()) < 0) {
+            splitStartKey = range.getStartKey();
+          }
+
+          // Calculate the end of the split as the smaller of endKey and the end of this sample.
+          // Note that range.containsKey handles the case when range.getEndKey() is empty.
+          ByteKey splitEndKey = responseEndKey;
+          if (!range.containsKey(splitEndKey)) {
+            splitEndKey = range.getEndKey();
+          }
+
+          // We know this region overlaps the desired key range, and we know a rough estimate of its
+          // size. Split the key range into bundle-sized chunks and then add them all as splits.
+          long sampleSizeBytes = (responseOffset - lastOffset) / overlappingRanges.size();
+          List<BigtableSource> subSplits = splitKeyRangeIntoBundleSizedSubranges(sampleSizeBytes,
+              desiredBundleSizeBytes, ByteKeyRange.of(splitStartKey, splitEndKey));
+          splits.addAll(subSplits);
+        }
 
         // Move to the next region.
         lastEndKey = responseEndKey;
@@ -874,10 +917,11 @@ public class BigtableIO {
 
       // We must add one more region after the end of the samples if both these conditions hold:
       //  1. we did not scan to the end yet (lastEndKey is concrete, not 0-length).
-      //  2. we want to scan to the end (endKey is empty) or farther (lastEndKey < endKey).
-      if (!lastEndKey.isEmpty()
-          && (range.getEndKey().isEmpty() || lastEndKey.compareTo(range.getEndKey()) < 0)) {
-        splits.add(this.withStartKey(lastEndKey).withEndKey(range.getEndKey()));
+      //  2. we want to scan to the end (rangesEndKey is empty) or farther
+      // (lastEndKey < rangesEndKey).
+      if (!lastEndKey.isEmpty() && (rangesEndKey.isEmpty()
+          || lastEndKey.compareTo(rangesEndKey) < 0)) {
+        splits.add(this.withSingleRange(ByteKeyRange.of(lastEndKey, rangesEndKey)));
       }
 
       List<BigtableSource> ret = splits.build();
@@ -896,7 +940,7 @@ public class BigtableIO {
 
     /**
      * Computes the estimated size in bytes based on the total size of all samples that overlap
-     * the key range this source will scan.
+     * the key ranges this source will scan.
      */
     private long getEstimatedSizeBytesBasedOnSamples(List<SampleRowKeysResponse> samples) {
       long estimatedSizeBytes = 0;
@@ -912,8 +956,16 @@ public class BigtableIO {
           // Skip an empty region.
           lastOffset = currentOffset;
           continue;
-        } else if (range.overlaps(ByteKeyRange.of(currentStartKey, currentEndKey))) {
-          estimatedSizeBytes += currentOffset - lastOffset;
+        } else {
+          for (int i = 0; i < ranges.size(); i++) {
+            ByteKeyRange range = ranges.get(i);
+            if (range.overlaps(ByteKeyRange.of(currentStartKey, currentEndKey))) {
+              estimatedSizeBytes += currentOffset - lastOffset;
+              // We don't want to double our estimated size if two ranges overlap this sample
+              // region, so exit early.
+              break;
+            }
+          }
         }
         currentStartKey = currentEndKey;
         lastOffset = currentOffset;
@@ -959,7 +1011,7 @@ public class BigtableIO {
           desiredBundleSizeBytes);
       if (sampleSizeBytes <= desiredBundleSizeBytes) {
         return Collections.singletonList(
-            this.withStartKey(range.getStartKey()).withEndKey(range.getEndKey()));
+            this.withSingleRange(ByteKeyRange.of(range.getStartKey(), range.getEndKey())));
       }
 
       checkArgument(
@@ -978,16 +1030,15 @@ public class BigtableIO {
         ByteKey next = keys.next();
         splits.add(
             this
-                .withStartKey(prev)
-                .withEndKey(next)
+                .withSingleRange(ByteKeyRange.of(prev, next))
                 .withEstimatedSizeBytes(sampleSizeBytes / splitCount));
         prev = next;
       }
       return splits.build();
     }
 
-    public ByteKeyRange getRange() {
-      return range;
+    public List<ByteKeyRange> getRanges() {
+      return ranges;
     }
 
     public RowFilter getRowFilter() {
@@ -1005,13 +1056,13 @@ public class BigtableIO {
     private BigtableSource source;
     private BigtableService service;
     private BigtableService.Reader reader;
-    private final ByteKeyRangeTracker rangeTracker;
+    private final ByteKeyRangesTracker rangeTracker;
     private long recordsReturned;
 
     public BigtableReader(BigtableSource source, BigtableService service) {
       this.source = source;
       this.service = service;
-      rangeTracker = ByteKeyRangeTracker.of(source.getRange());
+      rangeTracker = ByteKeyRangesTracker.of(source.getRanges());
     }
 
     @Override
@@ -1072,33 +1123,38 @@ public class BigtableIO {
     @Nullable
     public final synchronized BigtableSource splitAtFraction(double fraction) {
       ByteKey splitKey;
+      List<ByteKeyRange> primaryKeyRanges = new ArrayList<>();
+      List<ByteKeyRange> residualKeyRanges = new ArrayList<>();
       try {
-        splitKey = rangeTracker.getRange().interpolateKey(fraction);
+        splitKey = rangeTracker.interpolateKey(fraction);
       } catch (RuntimeException e) {
         LOG.info(
-            "{}: Failed to interpolate key for fraction {}.", rangeTracker.getRange(), fraction, e);
+            "{}: Failed to interpolate key for fraction {}.", rangeTracker, fraction, e);
         return null;
       }
       LOG.info(
           "Proposing to split {} at fraction {} (key {})", rangeTracker, fraction, splitKey);
-      BigtableSource primary;
-      BigtableSource residual;
-      try {
-         primary = source.withEndKey(splitKey);
-         residual =  source.withStartKey(splitKey);
-      } catch (RuntimeException e) {
-        LOG.info(
-            "{}: Interpolating for fraction {} yielded invalid split key {}.",
-            rangeTracker.getRange(),
-            fraction,
-            splitKey,
-            e);
-        return null;
+      for (ByteKeyRange range : rangeTracker.getRanges()) {
+        if (splitKey.compareTo(range.getEndKey()) >= 0) {
+          primaryKeyRanges.add(range);
+        } else if (splitKey.compareTo(range.getStartKey()) <= 0) {
+          residualKeyRanges.add(range);
+        } else {
+          try {
+            primaryKeyRanges.add(ByteKeyRange.of(range.getStartKey(), splitKey));
+            residualKeyRanges.add(ByteKeyRange.of(splitKey, range.getEndKey()));
+          } catch (RuntimeException e) {
+            LOG.info("{}: Interpolating for fraction {} yielded invalid split key {}.", range,
+                fraction, splitKey, e);
+            return null;
+          }
+        }
       }
       if (!rangeTracker.trySplitAtPosition(splitKey)) {
         return null;
       }
-      this.source = primary;
+      BigtableSource residual = source.withRanges(residualKeyRanges);
+      this.source = source.withRanges(primaryKeyRanges);
       return residual;
     }
   }
