@@ -296,7 +296,7 @@ class AsSideInput(object):
     view_options = self._view_options()
     from_runtime_iterable = type(self)._from_runtime_iterable
     return SideInputData(
-        common_urns.ITERABLE_ACCESS,
+        common_urns.ITERABLE_SIDEINPUT,
         self._window_mapping_fn,
         lambda iterable: from_runtime_iterable(iterable, view_options),
         self._input_element_coder())
