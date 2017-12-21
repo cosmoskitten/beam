@@ -26,8 +26,6 @@ import collections
 import json
 import logging
 
-from google.protobuf import wrappers_pb2
-
 import apache_beam as beam
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import coder_impl
@@ -43,7 +41,6 @@ from apache_beam.runners.worker import operations
 from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -567,14 +564,16 @@ def create(factory, transform_id, transform_proto, payload, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.COMBINE_MERGE_ACCUMULATORS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+    common_urns.COMBINE_MERGE_ACCUMULATORS_TRANSFORM,
+    beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
       factory, transform_proto, payload, consumers, 'merge')
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.COMBINE_EXTRACT_OUTPUTS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+    common_urns.COMBINE_EXTRACT_OUTPUTS_TRANSFORM,
+    beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
       factory, transform_proto, payload, consumers, 'extract')

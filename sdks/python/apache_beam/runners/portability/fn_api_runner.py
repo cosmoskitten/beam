@@ -36,7 +36,6 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability import common_urns
-from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -771,7 +770,8 @@ class FnApiRunner(runner.PipelineRunner):
     coders.populate_map(pipeline_components.coders)
 
     known_composites = set(
-        [common_urns.GROUP_BY_KEY_TRANSFORM, common_urns.COMBINE_PER_KEY_TRANSFORM])
+        [common_urns.GROUP_BY_KEY_TRANSFORM,
+         common_urns.COMBINE_PER_KEY_TRANSFORM])
 
     def leaf_transforms(root_ids):
       for root_id in root_ids:

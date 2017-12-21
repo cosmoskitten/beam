@@ -67,7 +67,6 @@ from apache_beam.runners import create_runner
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
-from apache_beam.utils import urns
 from apache_beam.utils.annotations import deprecated
 
 __all__ = ['Pipeline', 'PTransformOverride']

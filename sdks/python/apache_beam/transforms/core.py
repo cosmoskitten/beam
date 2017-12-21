@@ -23,8 +23,6 @@ import copy
 import inspect
 import types
 
-from google.protobuf import wrappers_pb2
-
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -1248,7 +1246,8 @@ class CombineValues(PTransformWithSideInputs):
         _combine_payload(self.fn, context))
 
   @PTransform.register_urn(
-      common_urns.COMBINE_GROUPED_VALUES_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+      common_urns.COMBINE_GROUPED_VALUES_TRANSFORM,
+      beam_runner_api_pb2.CombinePayload)
   def from_runner_api_parameter(combine_payload, context):
     return CombineValues(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))

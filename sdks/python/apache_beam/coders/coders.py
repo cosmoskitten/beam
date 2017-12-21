@@ -31,7 +31,6 @@ from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -286,7 +285,8 @@ class Coder(object):
         return cls()
 
 
-@Coder.register_urn(python_urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
+@Coder.register_urn(
+    python_urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
 def _pickle_from_runner_api_parameter(payload, components, context):
   return deserialize_coder(payload.value)
 
@@ -847,7 +847,8 @@ class GlobalWindowCoder(SingletonCoder):
     }
 
 
-Coder.register_structured_urn(common_urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
+Coder.register_structured_urn(
+    common_urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
 
 
 class IntervalWindowCoder(FastCoder):
@@ -871,7 +872,8 @@ class IntervalWindowCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_structured_urn(common_urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
+Coder.register_structured_urn(
+    common_urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
 
 
 class WindowedValueCoder(FastCoder):
@@ -930,7 +932,8 @@ class WindowedValueCoder(FastCoder):
         (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
 
 
-Coder.register_structured_urn(common_urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
+Coder.register_structured_urn(
+    common_urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
 
 
 class LengthPrefixCoder(FastCoder):
@@ -974,4 +977,5 @@ class LengthPrefixCoder(FastCoder):
     return hash((type(self), self._value_coder))
 
 
-Coder.register_structured_urn(common_urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)
+Coder.register_structured_urn(
+    common_urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)
