@@ -17,12 +17,9 @@
 package harness
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"runtime/pprof"
 	"sync"
 	"time"
 
@@ -40,9 +37,10 @@ import (
 // "pipeline-construction time" -- on each worker. It is a Fn API client and
 // ultimately responsible for correctly executing user code.
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
-	setupRemoteLogging(ctx, loggingEndpoint)
-	setupDiagnosticRecording()
+	DeserializeHooks()
 
+	runInitHooks(ctx)
+	setupRemoteLogging(ctx, loggingEndpoint)
 	recordHeader()
 
 	// Connect to FnAPI control server. Receive and execute work.
@@ -87,8 +85,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		data:   &DataManager{},
 	}
 
-	var cpuProfBuf bytes.Buffer
-
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
@@ -112,18 +108,10 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
 			recordInstructionRequest(req)
 
-			if isEnabled("cpu_profiling") {
-				cpuProfBuf.Reset()
-				pprof.StartCPUProfile(&cpuProfBuf)
-			}
+			runRequestHooks(ctx, req)
 			resp := ctrl.handleInstruction(ctx, req)
 
-			if isEnabled("cpu_profiling") {
-				pprof.StopCPUProfile()
-				if err := ioutil.WriteFile(fmt.Sprintf("%s/cpu_prof%s", storagePath, req.InstructionId), cpuProfBuf.Bytes(), 0644); err != nil {
-					log.Warnf(ctx, "Failed to write CPU profile for instruction %s: %v", req.InstructionId, err)
-				}
-			}
+			runResponseHooks(ctx, req, resp)
 
 			recordInstructionResponse(resp)
 			if resp != nil {
