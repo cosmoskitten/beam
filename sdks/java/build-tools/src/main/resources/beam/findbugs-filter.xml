@@ -108,6 +108,25 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.sdk.io.range.ByteKeyRangeTracker"/>
+    <Method name="getStartPosition"/>
+    <Bug pattern="UG_SYNC_SET_UNSYNC_GET"/>
+    <!--
+      This get method is synchronized, but it's inherited from an abstract class.
+      See: https://sourceforge.net/p/findbugs/bugs/1482/
+     -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.ByteKeyRangesTracker"/>
+    <Method name="getStartPosition"/>
+    <Bug pattern="UG_SYNC_SET_UNSYNC_GET"/>
+    <!--
+      This get method is synchronized, but it's inherited from an abstract class.
+      See: https://sourceforge.net/p/findbugs/bugs/1482/
+     -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.coders.InstantCoder$LexicographicLongConverter"/>
     <Bug pattern="HE_INHERITS_EQUALS_USE_HASHCODE"/>
     <!-- Converter overrides .equals() to add documentation but does not change behavior -->
