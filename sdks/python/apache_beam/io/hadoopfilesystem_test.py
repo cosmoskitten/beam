@@ -238,7 +238,7 @@ class HadoopFileSystemTest(unittest.TestCase):
 
   def test_match_file_with_bad_limit(self):
     with self.assertRaisesRegexp(BeamIOError, r'TypeError'):
-      self.fs.match([self.tmpdir], ['a'])[0]
+      _ = self.fs.match([self.tmpdir], ['a'])[0]
 
   def test_match_file_empty(self):
     url = self.fs.join(self.tmpdir, 'nonexistent_file')
