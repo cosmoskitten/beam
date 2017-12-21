@@ -1674,6 +1674,7 @@
               <exclude>sdks/python/NOTICE</exclude>
               <exclude>sdks/python/README.md</exclude>
               <exclude>sdks/python/apache_beam/portability/api/*pb2*.*</exclude>
+              <exclude>sdks/python/apache_beam/portability/common_urns.py</exclude>
 
               <!-- .gitignore: Ignore IntelliJ files. -->
               <exclude>**/.idea/**/*</exclude>
@@ -2011,6 +2012,7 @@
                   <include>**/sdks/python/NOTICE</include>
                   <include>**/sdks/python/README.md</include>
                   <include>**/sdks/python/apache_beam/portability/api/*pb2*.*</include>
+                  <include>**/sdks/python/apache_beam/portability/common_urns.py</include>
                   <include>**/sdks/python/**/*.c</include>
                   <include>**/sdks/python/**/*.so</include>
                   <include>**/sdks/python/**/*.egg</include>
