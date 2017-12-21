@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
 import java.util.List;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
@@ -85,6 +86,14 @@ class FlinkPipelineExecutionEnvironment {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
+    // TODO: Remove proto round trip. Note that this must happen before the overrides are applied
+    // because some of the substituted nodes are transient and not serializable.
+    try {
+      pipeline = PipelineTranslation.fromProto(PipelineTranslation.toProto(pipeline));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
     pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options.isStreaming()));
 
     PipelineTranslationOptimizer optimizer =
@@ -100,11 +109,6 @@ class FlinkPipelineExecutionEnvironment {
     } else {
       this.flinkBatchEnv = createBatchExecutionEnvironment();
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
-      try {
-        pipeline = PipelineTranslation.fromProto(PipelineTranslation.toProto(pipeline));
-      } catch (java.io.IOException e) {
-        throw new RuntimeException(e);
-      }
     }
 
     translator.translate(pipeline);
