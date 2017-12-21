@@ -56,14 +56,22 @@ public class CoderTranslation {
   @VisibleForTesting
   static final BiMap<Class<? extends StructuredCoder>, String> KNOWN_CODER_URNS =
       ImmutableBiMap.<Class<? extends StructuredCoder>, String>builder()
-          .put(ByteArrayCoder.class, validateCommonUrn("urn:beam:coder:bytes:v1"))
-          .put(KvCoder.class, validateCommonUrn("urn:beam:coder:kv:v1"))
-          .put(VarLongCoder.class, validateCommonUrn("urn:beam:coder:varint:v1"))
-          .put(IntervalWindowCoder.class, validateCommonUrn("urn:beam:coder:interval_window:v1"))
-          .put(IterableCoder.class, validateCommonUrn("urn:beam:coder:iterable:v1"))
-          .put(LengthPrefixCoder.class, validateCommonUrn("urn:beam:coder:length_prefix:v1"))
-          .put(GlobalWindow.Coder.class, validateCommonUrn("urn:beam:coder:global_window:v1"))
-          .put(FullWindowedValueCoder.class, validateCommonUrn("urn:beam:coder:windowed_value:v1"))
+          .put(ByteArrayCoder.class,
+               validateCommonUrn("org.apache.beam:coder:bytes:v1"))
+          .put(KvCoder.class,
+               validateCommonUrn("org.apache.beam:coder:kv:v1"))
+          .put(VarLongCoder.class,
+               validateCommonUrn("org.apache.beam:coder:varint:v1"))
+          .put(IntervalWindowCoder.class,
+               validateCommonUrn("org.apache.beam:coder:interval_window:v1"))
+          .put(IterableCoder.class,
+               validateCommonUrn("org.apache.beam:coder:iterable:v1"))
+          .put(LengthPrefixCoder.class,
+               validateCommonUrn("org.apache.beam:coder:length_prefix:v1"))
+          .put(GlobalWindow.Coder.class,
+               validateCommonUrn("org.apache.beam:coder:global_window:v1"))
+          .put(FullWindowedValueCoder.class,
+               validateCommonUrn("org.apache.beam:coder:windowed_value:v1"))
           .build();
 
   @VisibleForTesting

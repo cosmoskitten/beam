@@ -196,10 +196,10 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static final String GLOBAL_WINDOWS_FN = "urn:beam:windowfn:global_windows:v1";
-  public static final String FIXED_WINDOWS_FN = "urn:beam:windowfn:fixed_windows:v1";
-  public static final String SLIDING_WINDOWS_FN = "urn:beam:windowfn:sliding_windows:v1";
-  public static final String SESSION_WINDOWS_FN = "urn:beam:windowfn:session_windows:v1";
+  public static final String GLOBAL_WINDOWS_FN = "org.apache.beam:windowfn:global_windows:v1";
+  public static final String FIXED_WINDOWS_FN = "org.apache.beam:windowfn:fixed_windows:v1";
+  public static final String SLIDING_WINDOWS_FN = "org.apache.beam:windowfn:sliding_windows:v1";
+  public static final String SESSION_WINDOWS_FN = "org.apache.beam:windowfn:session_windows:v1";
   {
     // Out-of-line to facilitate use in the case statements below.
     UrnUtils.validateCommonUrn(GLOBAL_WINDOWS_FN);
