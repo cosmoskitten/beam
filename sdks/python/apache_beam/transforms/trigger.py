@@ -378,8 +378,8 @@ class AfterCount(TriggerFn):
   COUNT_TAG = _CombiningValueStateTag('count', combiners.CountCombineFn())
 
   def __init__(self, count):
-    if count == 0:
-      raise ValueError("count (%s) must be a non-zero natural number." % count)
+    if not isinstance(count, int) or count < 1:
+      raise ValueError("count (%d) must be a non-zero natural number." % count)
     self.count = count
 
   def __repr__(self):
