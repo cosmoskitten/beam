@@ -349,7 +349,7 @@ class SideInputData(object):
             urn=self.access_pattern),
         view_fn=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
-                urn=python_urns.PICKLED_PYTHON_VIEWFN,
+                urn=python_urns.PICKLED_VIEWFN,
                 payload=pickler.dumps((self.view_fn, self.coder)))),
         window_mapping_fn=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
@@ -358,8 +358,9 @@ class SideInputData(object):
 
   @staticmethod
   def from_runner_api(proto, unused_context):
-    assert proto.view_fn.spec.urn == python_urns.PICKLED_PYTHON_VIEWFN
-    assert proto.window_mapping_fn.spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
+    assert proto.view_fn.spec.urn == python_urns.PICKLED_VIEWFN
+    assert (proto.window_mapping_fn.spec.urn ==
+            python_urns.PICKLED_WINDOW_MAPPING_FN)
     return SideInputData(
         proto.access_pattern.urn,
         pickler.loads(proto.window_mapping_fn.spec.payload),

@@ -443,7 +443,7 @@ def create(factory, transform_id, transform_proto, serialized_fn, consumers):
 @BeamTransformFactory.register_urn(
     common_urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  assert parameter.do_fn.spec.urn == python_urns.PICKLED_DO_FN_INFO
+  assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
   serialized_fn = parameter.do_fn.spec.payload
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,

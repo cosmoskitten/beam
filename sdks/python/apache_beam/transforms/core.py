@@ -380,7 +380,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       return False # Method is a classmethod
     return True
 
-  urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_DO_FN)
+  urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_DOFN)
 
 
 def _fn_takes_side_inputs(fn):
@@ -861,7 +861,7 @@ class ParDo(PTransformWithSideInputs):
         beam_runner_api_pb2.ParDoPayload(
             do_fn=beam_runner_api_pb2.SdkFunctionSpec(
                 spec=beam_runner_api_pb2.FunctionSpec(
-                    urn=python_urns.PICKLED_DO_FN_INFO,
+                    urn=python_urns.PICKLED_DOFN_INFO,
                     payload=picked_pardo_fn_data)),
             # It'd be nice to name these according to their actual
             # names/positions in the orignal argument list, but such a
@@ -875,7 +875,7 @@ class ParDo(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(pardo_payload, context):
-    assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DO_FN_INFO
+    assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
         pardo_payload.do_fn.spec.payload)
     if si_tags_and_types:
