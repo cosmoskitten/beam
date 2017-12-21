@@ -838,7 +838,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   @VisibleForTesting
-  void replaceTransforms(Pipeline pipeline) {
+  protected void replaceTransforms(Pipeline pipeline) {
     boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
     // Ensure all outputs of all reads are consumed before potentially replacing any
     // Read PTransforms
