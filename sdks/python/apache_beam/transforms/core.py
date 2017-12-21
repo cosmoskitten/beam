@@ -1392,13 +1392,6 @@ class _GroupByKeyOnly(PTransform):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
 
-  def to_runner_api_parameter(self, unused_context):
-    return python_urns.GROUP_BY_KEY_ONLY_TRANSFORM, None
-
-  @PTransform.register_urn(python_urns.GROUP_BY_KEY_ONLY_TRANSFORM, None)
-  def from_runner_api_parameter(unused_payload, unused_context):
-    return _GroupByKeyOnly()
-
 
 @typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
@@ -1412,18 +1405,6 @@ class _GroupAlsoByWindow(ParDo):
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
-
-  def to_runner_api_parameter(self, context):
-    return (
-        python_urns.GROUP_ALSO_BY_WINDOW_TRANSFORM,
-        wrappers_pb2.BytesValue(value=context.windowing_strategies.get_id(
-            self.windowing)))
-
-  @PTransform.register_urn(
-      python_urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
-  def from_runner_api_parameter(payload, context):
-    return _GroupAlsoByWindow(
-        context.windowing_strategies.get_by_id(payload.value))
 
 
 class _GroupAlsoByWindowDoFn(DoFn):

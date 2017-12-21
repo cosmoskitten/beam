@@ -514,17 +514,6 @@ def _create_simple_pardo_operation(
 
 
 @BeamTransformFactory.register_urn(
-    python_urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
-def create(factory, transform_id, transform_proto, parameter, consumers):
-  # Perhaps this hack can go away once all apply overloads are gone.
-  from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
-  return _create_simple_pardo_operation(
-      factory, transform_id, transform_proto, consumers,
-      _GroupAlsoByWindowDoFn(
-          factory.context.windowing_strategies.get_by_id(parameter.value)))
-
-
-@BeamTransformFactory.register_urn(
     common_urns.WINDOW_INTO_TRANSFORM, beam_runner_api_pb2.WindowingStrategy)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   class WindowIntoDoFn(beam.DoFn):
