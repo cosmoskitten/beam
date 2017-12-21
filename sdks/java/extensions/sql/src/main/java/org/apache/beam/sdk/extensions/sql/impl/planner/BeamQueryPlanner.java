@@ -56,6 +56,7 @@ import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.Planner;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
+import org.apache.calcite.util.ConversionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +75,11 @@ public class BeamQueryPlanner {
       RelDataTypeSystem.DEFAULT);
 
   public BeamQueryPlanner(SchemaPlus schema) {
+    String defaultCharsetKey = "saffron.default.charset";
+    if (System.getProperty(defaultCharsetKey) == null) {
+      System.setProperty(defaultCharsetKey, ConversionUtil.NATIVE_UTF16_CHARSET_NAME);
+    }
+
     final List<RelTraitDef> traitDefs = new ArrayList<>();
     traitDefs.add(ConventionTraitDef.INSTANCE);
     traitDefs.add(RelCollationTraitDef.INSTANCE);
