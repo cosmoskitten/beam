@@ -17,9 +17,8 @@ package harness
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"sync"
-	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
@@ -35,12 +34,13 @@ const (
 	dataSend
 )
 
+// Capture can be set by an initialization hook.
+var Capture io.WriteCloser
+
 var (
 	selectedOptions = make(map[string]bool)
-	// TODO(wcn): add a buffered writer around capture and use it.
-	capture     *os.File
-	sessionLock sync.Mutex
-	bufPool     = sync.Pool{
+	sessionLock     sync.Mutex
+	bufPool         = sync.Pool{
 		New: func() interface{} {
 			return proto.NewBuffer(nil)
 		},
@@ -48,35 +48,6 @@ var (
 
 	storagePath string
 )
-
-// TODO(wcn): the plan is to make these hooks available in the harness in a fashion
-// similar to net/http/httptrace. They are simple function calls now to get this
-// code underway.
-func setupDiagnosticRecording() error {
-	// No recording options specified? We're done.
-	if runtime.GlobalOptions.Get("cpu_profiling") == "" && runtime.GlobalOptions.Get("session_recording") == "" {
-		return nil
-	}
-
-	var err error
-
-	storagePath = runtime.GlobalOptions.Get("storage_path")
-	// Any form of recording requires the destination directory to exist.
-	if err = os.MkdirAll(storagePath, 0755); err != nil {
-		return fmt.Errorf("Unable to create session directory: %v", err)
-	}
-
-	if !isEnabled("session_recording") {
-		return nil
-	}
-
-	// Set up the session recorder.
-	if capture, err = os.Create(fmt.Sprintf("%s/session-%v", storagePath, time.Now().Unix())); err != nil {
-		return fmt.Errorf("Unable to create session file: %v", err)
-	}
-
-	return nil
-}
 
 func isEnabled(option string) bool {
 	return runtime.GlobalOptions.Get(option) == "true"
@@ -127,13 +98,13 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	sessionLock.Lock()
 	defer sessionLock.Unlock()
 
-	if _, err := capture.Write(l.Bytes()); err != nil {
+	if _, err := Capture.Write(l.Bytes()); err != nil {
 		return fmt.Errorf("Unable to write entry header length: %v", err)
 	}
-	if _, err := capture.Write(hdr.Bytes()); err != nil {
+	if _, err := Capture.Write(hdr.Bytes()); err != nil {
 		return fmt.Errorf("Unable to write entry header: %v", err)
 	}
-	if _, err := capture.Write(body.Bytes()); err != nil {
+	if _, err := Capture.Write(body.Bytes()); err != nil {
 		return fmt.Errorf("Unable to write entry body: %v", err)
 	}
 	return nil

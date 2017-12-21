@@ -28,9 +28,10 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	// Importing to get the side effect of the remote execution hook. See init().
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
@@ -99,6 +100,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		beam.PipelineOptions.Set("storage_path", "/var/opt/google/traces")
 	}
 
+	hooks.SerializeHooks()
 	options := beam.PipelineOptions.Export()
 
 	// (1) Upload Go binary and model to GCS.
