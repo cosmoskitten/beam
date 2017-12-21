@@ -1,7 +1,10 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
 /**
