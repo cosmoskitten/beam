@@ -22,14 +22,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"path"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	// Importing to get the side effect of the remote execution hook. See init().
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -37,6 +38,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/hooks/perf"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
@@ -62,6 +64,8 @@ var (
 func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("dataflow", Execute)
+
+	perf.RegisterProfCaptureHook("gcs_profile_writer", gcsRecorderHook)
 }
 
 type dataflowOptions struct {
@@ -90,13 +94,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 
 	if *cpuProfiling != "" {
-		beam.PipelineOptions.Set("cpu_profiling", "true")
-		beam.PipelineOptions.Set("storage_path", "/var/opt/google/traces")
+		perf.EnableProfCaptureHook("gcs_profile_writer", []string{*cpuProfiling})
 	}
 
 	if *sessionRecording != "" {
-		beam.PipelineOptions.Set("session_recording", "true")
-		beam.PipelineOptions.Set("storage_path", "/var/opt/google/traces")
+		// TODO(wcn/diagnostic_interfaces): reimplement this
 	}
 
 	options := beam.PipelineOptions.Export()
@@ -316,4 +318,19 @@ func printJob(ctx context.Context, job *df.Job) {
 		log.Infof(ctx, "Failed to print job %v: %v", job.Id, err)
 	}
 	log.Info(ctx, string(str))
+}
+
+func gcsRecorderHook(opts []string) perf.CaptureHook {
+	bucket, prefix, err := gcsx.ParseObject(opts[0])
+	if err != nil {
+		panic(fmt.Sprintf("Invalid hook configuration for gcsRecorderHook: %s", opts))
+	}
+
+	return func(ctx context.Context, spec string, r io.Reader) error {
+		client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
+		if err != nil {
+			return fmt.Errorf("couldn't establish GCS client: %v", err)
+		}
+		return gcsx.WriteObject(client, bucket, path.Join(prefix, spec), r)
+	}
 }
