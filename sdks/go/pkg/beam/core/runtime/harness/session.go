@@ -17,9 +17,9 @@ package harness
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
@@ -34,6 +34,10 @@ const (
 	dataReceive
 	dataSend
 )
+
+// Capture is set by clients of this module should set this variable to have
+// the session recorded to the supplied WriteCloser.
+var Capture io.WriteCloser
 
 var (
 	selectedOptions = make(map[string]bool)
@@ -71,8 +75,8 @@ func setupDiagnosticRecording() error {
 	}
 
 	// Set up the session recorder.
-	if capture, err = os.Create(fmt.Sprintf("%s/session-%v", storagePath, time.Now().Unix())); err != nil {
-		return fmt.Errorf("Unable to create session file: %v", err)
+	if Capture == nil {
+		return fmt.Errorf("Cannot enable session recording. Capture variable not provided")
 	}
 
 	return nil
