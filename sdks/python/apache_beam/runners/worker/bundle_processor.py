@@ -33,6 +33,8 @@ from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import coder_impl
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
@@ -57,7 +59,7 @@ DATA_OUTPUT_URN = 'urn:org.apache.beam:sink:runner:0.1'
 IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
 PYTHON_ITERABLE_VIEWFN_URN = 'urn:org.apache.beam:viewfn:iterable:python:0.1'
 PYTHON_CODER_URN = 'urn:org.apache.beam:coder:python:0.1'
-# TODO(vikasrk): Fix this once runner sends appropriate python urns.
+# TODO(vikasrk): Fix this once runner sends appropriate python common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'urn:beam:dofn:javasdk:0.1'
 OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
 
@@ -201,7 +203,7 @@ class BundleProcessor(object):
         self.state_sampler, self.state_handler)
 
     def is_side_input(transform_proto, tag):
-      if transform_proto.spec.urn == urns.PARDO_TRANSFORM:
+      if transform_proto.spec.urn == common_urns.PARDO_TRANSFORM:
         return tag in proto_utils.parse_Bytes(
             transform_proto.spec.payload,
             beam_runner_api_pb2.ParDoPayload).side_inputs
@@ -416,7 +418,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    urns.READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
+    common_urns.READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   source = iobase.SourceBase.from_runner_api(parameter.source, factory.context)
   spec = operation_specs.WorkerRead(
@@ -439,9 +441,9 @@ def create(factory, transform_id, transform_proto, serialized_fn, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
+    common_urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  assert parameter.do_fn.spec.urn == urns.PICKLED_DO_FN_INFO
+  assert parameter.do_fn.spec.urn == python_urns.PICKLED_DO_FN_INFO
   serialized_fn = parameter.do_fn.spec.payload
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
@@ -512,7 +514,7 @@ def _create_simple_pardo_operation(
 
 
 @BeamTransformFactory.register_urn(
-    urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
+    python_urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   # Perhaps this hack can go away once all apply overloads are gone.
   from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
@@ -523,7 +525,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    urns.WINDOW_INTO_TRANSFORM, beam_runner_api_pb2.WindowingStrategy)
+    common_urns.WINDOW_INTO_TRANSFORM, beam_runner_api_pb2.WindowingStrategy)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   class WindowIntoDoFn(beam.DoFn):
     def __init__(self, windowing):
@@ -556,7 +558,7 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    urns.PRECOMBINE_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+    common_urns.COMBINE_PGBKCV_TRANSFORM, beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   # TODO: Combine side inputs.
   serialized_combine_fn = pickler.dumps(
@@ -576,14 +578,14 @@ def create(factory, transform_id, transform_proto, payload, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    urns.MERGE_ACCUMULATORS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+    common_urns.COMBINE_MERGE_ACCUMULATORS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
       factory, transform_proto, payload, consumers, 'merge')
 
 
 @BeamTransformFactory.register_urn(
-    urns.EXTRACT_OUTPUTS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+    common_urns.COMBINE_EXTRACT_OUTPUTS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
       factory, transform_proto, payload, consumers, 'extract')

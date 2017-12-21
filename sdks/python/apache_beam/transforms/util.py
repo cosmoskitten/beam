@@ -27,6 +27,7 @@ import time
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
+from apache_beam.portability import common_urns
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
@@ -470,7 +471,7 @@ class _IdentityWindowFn(NonMergingWindowFn):
   def to_runner_api_parameter(self, unused_context):
     pass  # Overridden by register_pickle_urn below.
 
-  urns.RunnerApiFn.register_pickle_urn(urns.RESHUFFLE_TRANSFORM)
+  urns.RunnerApiFn.register_pickle_urn(common_urns.RESHUFFLE_TRANSFORM)
 
 
 @typehints.with_input_types(typehints.KV[K, V])

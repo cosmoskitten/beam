@@ -1,0 +1,103 @@
+# Apache Beam URNs
+
+This file serves as a central place to enumerate and document the various
+URNs used in the Beam portability APIs.
+
+
+## Core Transforms
+
+### org.apache.beam:transform:pardo:v1
+
+Represents Beam's parallel do operation.
+
+Payload: A serialized ParDoPayload proto.
+
+### org.apache.beam:transform:group_by_key:v1
+
+Represents Beam's group-by-key operation.
+
+Payload: None
+
+### org.apache.beam:transform:window_into:v1
+
+Payload: A windowing strategy id.
+
+### org.apache.beam:transform:flatten:v1
+
+### org.apache.beam:transform:read:v1
+
+
+## Combining
+
+If any of the combine operations are produced by an SDK, it is assumed that
+the SDK understands the last three combine helper operations.
+
+### org.apache.beam:transform:combine_globally:v1
+
+### org.apache.beam:transform:combine_per_key:v1
+
+### org.apache.beam:transform:combine_grouped_values:v1
+
+### org.apache.beam:transform:combine_pgbkcv:v1
+
+### org.apache.beam:transform:combine_merge_accumulators:v1
+
+### org.apache.beam:transform:combine_extract_outputs:v1
+
+
+## Other common transforms
+
+### org.apache.beam:transform:reshuffle:v1
+
+
+## WindowFns
+
+### org.apache.beam:windowfn:global_windows:v1
+
+### org.apache.beam:windowfn:fixed_windows:v1
+
+### org.apache.beam:windowfn:sliding_windows:v1
+
+### org.apache.beam:windowfn:session_windows:v1
+
+
+## Coders
+
+###  org.apache.beam:coder:bytes:v1
+
+Components: None
+
+###  org.apache.beam:coder:varint:v1
+
+Components: None
+
+###  org.apache.beam:coder:kv:v1
+
+Components: The key and value coder, in that order.
+
+###  org.apache.beam:coder:iterable:v1
+
+Encodes an iterable of elements.
+
+Components: Coder for a single element.
+
+## Internal coders
+
+The following coders are typically not specified by manually by the user,
+but are used at runtime and must be supported by every SDK.
+
+###  org.apache.beam:coder:length_prefix:v1
+
+###  org.apache.beam:coder:global_window:v1
+
+###  org.apache.beam:coder:interval_window:v1
+
+###  org.apache.beam:coder:windowed_value:v1
+
+
+## Side input access
+
+### org.apache.beam:sideinput:iterable:v1
+
+### org.apache.beam:sideinput:multimap:v1
+
