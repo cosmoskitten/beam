@@ -18,7 +18,6 @@
 import unittest
 
 import mock
-import pkg_resources
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions

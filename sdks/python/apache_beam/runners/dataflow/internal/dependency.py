@@ -58,6 +58,8 @@ import shutil
 import sys
 import tempfile
 
+import pkg_resources
+
 from apache_beam import version as beam_version
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
