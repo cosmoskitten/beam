@@ -52,6 +52,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -135,6 +136,7 @@ public class ProcessBundleHandler {
           Supplier<String> processBundleInstructionId,
           Map<String, PCollection> pCollections,
           Map<String, Coder> coders,
+          Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
           Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
           Consumer<ThrowingRunnable> addStartFunction,
           Consumer<ThrowingRunnable> addFinishFunction) {
@@ -191,6 +193,7 @@ public class ProcessBundleHandler {
             processBundleInstructionId,
             processBundleDescriptor.getPcollectionsMap(),
             processBundleDescriptor.getCodersMap(),
+            processBundleDescriptor.getWindowingStrategiesMap(),
             pCollectionIdsToConsumers,
             addStartFunction,
             addFinishFunction);
@@ -234,7 +237,9 @@ public class ProcessBundleHandler {
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
-            && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())) {
+            && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
+            && !PTransformTranslation.READ_TRANSFORM_URN.equals(
+                entry.getValue().getSpec().getUrn())) {
           continue;
         }
 
