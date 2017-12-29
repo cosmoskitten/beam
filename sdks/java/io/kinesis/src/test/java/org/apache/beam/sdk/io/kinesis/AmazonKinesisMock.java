@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.transform;
 import static java.lang.Integer.parseInt;
 import static java.lang.Math.min;
@@ -80,6 +79,7 @@ import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
 import com.google.common.base.Function;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.commons.lang.builder.EqualsBuilder;
@@ -210,14 +210,17 @@ class AmazonKinesisMock implements AmazonKinesis {
     }
     boolean hasMoreShards = nextShardId + 1 < shardedData.size();
 
-    List<Shard> shards = newArrayList();
+    List<Shard> shards = new ArrayList<>();
     if (nextShardId < shardedData.size()) {
       shards.add(new Shard().withShardId(Integer.toString(nextShardId)));
     }
 
-    return new DescribeStreamResult().withStreamDescription(
-        new StreamDescription().withHasMoreShards(hasMoreShards).withShards(shards)
-    );
+    return new DescribeStreamResult()
+        .withStreamDescription(
+            new StreamDescription()
+                .withStreamName(streamName)
+                .withHasMoreShards(hasMoreShards)
+                .withShards(shards));
   }
 
   @Override
@@ -273,8 +276,7 @@ class AmazonKinesisMock implements AmazonKinesis {
 
   @Override
   public DescribeStreamResult describeStream(String streamName) {
-
-    throw new RuntimeException("Not implemented");
+    return describeStream(streamName, null);
   }
 
   @Override
