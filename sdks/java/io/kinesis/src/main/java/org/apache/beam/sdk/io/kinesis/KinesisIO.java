@@ -32,7 +32,7 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
+import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -115,7 +115,7 @@ public final class KinesisIO {
   /** Returns a new {@link Read} transform for reading from Kinesis. */
   public static Read read() {
     return new AutoValue_KinesisIO_Read.Builder()
-        .setMaxNumRecords(-1)
+        .setMaxNumRecords(Long.MAX_VALUE)
         .setUpToDateThreshold(Duration.ZERO)
         .build();
   }
@@ -133,7 +133,7 @@ public final class KinesisIO {
     @Nullable
     abstract AWSClientsProvider getAWSClientsProvider();
 
-    abstract int getMaxNumRecords();
+    abstract long getMaxNumRecords();
 
     @Nullable
     abstract Duration getMaxReadTime();
@@ -151,7 +151,7 @@ public final class KinesisIO {
 
       abstract Builder setAWSClientsProvider(AWSClientsProvider clientProvider);
 
-      abstract Builder setMaxNumRecords(int maxNumRecords);
+      abstract Builder setMaxNumRecords(long maxNumRecords);
 
       abstract Builder setMaxReadTime(Duration maxReadTime);
 
@@ -221,13 +221,13 @@ public final class KinesisIO {
     }
 
     /** Specifies to read at most a given number of records. */
-    public Read withMaxNumRecords(int maxNumRecords) {
+    public Read withMaxNumRecords(long maxNumRecords) {
       checkArgument(
           maxNumRecords > 0, "maxNumRecords must be positive, but was: %s", maxNumRecords);
       return toBuilder().setMaxNumRecords(maxNumRecords).build();
     }
 
-    /** Specifies to read at most a given number of records. */
+    /** Specifies to read records during {@code maxReadTime}. */
     public Read withMaxReadTime(Duration maxReadTime) {
       checkArgument(maxReadTime != null, "maxReadTime can not be null");
       return toBuilder().setMaxReadTime(maxReadTime).build();
@@ -246,21 +246,23 @@ public final class KinesisIO {
 
     @Override
     public PCollection<KinesisRecord> expand(PBegin input) {
-      org.apache.beam.sdk.io.Read.Unbounded<KinesisRecord> read =
+      Unbounded<KinesisRecord> unbounded =
           org.apache.beam.sdk.io.Read.from(
-              new KinesisSource(getAWSClientsProvider(), getStreamName(),
-                  getInitialPosition(), getUpToDateThreshold()));
-      if (getMaxNumRecords() > 0) {
-        BoundedReadFromUnboundedSource<KinesisRecord> bounded =
-            read.withMaxNumRecords(getMaxNumRecords());
-        return getMaxReadTime() == null
-            ? input.apply(bounded)
-            : input.apply(bounded.withMaxReadTime(getMaxReadTime()));
-      } else {
-        return getMaxReadTime() == null
-            ? input.apply(read)
-            : input.apply(read.withMaxReadTime(getMaxReadTime()));
+              new KinesisSource(
+                  getAWSClientsProvider(),
+                  getStreamName(),
+                  getInitialPosition(),
+                  getUpToDateThreshold()));
+
+      PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;
+
+      if (getMaxNumRecords() < Long.MAX_VALUE) {
+        transform = unbounded.withMaxNumRecords(getMaxNumRecords());
+      } else if (getMaxReadTime() != null) {
+        transform = unbounded.withMaxReadTime(getMaxReadTime());
       }
+
+      return input.apply(transform);
     }
 
     private static final class BasicKinesisProvider implements AWSClientsProvider {
