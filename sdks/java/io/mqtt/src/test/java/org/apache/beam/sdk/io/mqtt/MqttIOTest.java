@@ -18,16 +18,15 @@
 package org.apache.beam.sdk.io.mqtt;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
+
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
-import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -39,6 +38,7 @@ import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
 import org.fusesource.mqtt.client.QoS;
 import org.fusesource.mqtt.client.Topic;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -198,22 +198,17 @@ public class MqttIOTest {
   /**
    * Test for BEAM-3282: this test should not timeout, and start/advance should return false.
    */
-  @Test(timeout = 5000L)
+  @Test(timeout = 3 * 1000)
   public void testReceiveWithTimeout() throws Exception {
-    MqttIO.Read spec = MqttIO.read().withConnectionConfiguration(
+    pipeline.apply(MqttIO.read()
+        .withConnectionConfiguration(
             MqttIO.ConnectionConfiguration.create(
                 "tcp://localhost:" + port,
                 "READ_TOPIC",
-                "READ_PIPELINE"));
-    UnboundedSource<byte[], MqttIO.MqttCheckpointMark> source =
-        new MqttIO.UnboundedMqttSource(spec);
+                "READ_PIPELINE")).withMaxReadTime(Duration.standardSeconds(2)));
 
-    UnboundedSource.UnboundedReader<byte[]> reader =
-        source.createReader(null, null);
-
-    boolean offset = reader.start();
-
-    assertFalse(offset);
+    // should stop before the test timeout
+    pipeline.run();
   }
 
   @Test
