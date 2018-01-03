@@ -264,7 +264,9 @@ class SimpleInvoker(DoFnInvoker):
 
   def invoke_process(self, windowed_value, restriction_tracker=None,
                      output_processor=None):
-    output_processor = output_processor or self.output_processor
+    if not output_processor:
+      output_processor = self.output_processor
+    assert output_processor
     output_processor.process_outputs(
         windowed_value, self.process_method(windowed_value.value))
 
@@ -349,7 +351,9 @@ class PerWindowInvoker(DoFnInvoker):
 
   def invoke_process(self, windowed_value, restriction_tracker=None,
                      output_processor=None):
-    output_processor = output_processor or self.output_processor
+    if not output_processor:
+      output_processor = self.output_processor
+    assert output_processor
     self.context.set_element(windowed_value)
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
