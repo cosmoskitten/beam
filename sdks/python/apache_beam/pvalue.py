@@ -296,7 +296,7 @@ class AsSideInput(object):
     view_options = self._view_options()
     from_runtime_iterable = type(self)._from_runtime_iterable
     return SideInputData(
-        common_urns.ITERABLE_SIDEINPUT,
+        common_urns.ITERABLE_SIDE_INPUT,
         self._window_mapping_fn,
         lambda iterable: from_runtime_iterable(iterable, view_options),
         self._input_element_coder())
@@ -438,7 +438,7 @@ class AsIter(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        common_urns.ITERABLE_SIDEINPUT,
+        common_urns.ITERABLE_SIDE_INPUT,
         self._window_mapping_fn,
         lambda iterable: iterable,
         self._input_element_coder())
@@ -469,7 +469,7 @@ class AsList(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        common_urns.ITERABLE_SIDEINPUT,
+        common_urns.ITERABLE_SIDE_INPUT,
         self._window_mapping_fn,
         list,
         self._input_element_coder())
@@ -497,7 +497,7 @@ class AsDict(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        common_urns.ITERABLE_SIDEINPUT,
+        common_urns.ITERABLE_SIDE_INPUT,
         self._window_mapping_fn,
         dict,
         self._input_element_coder())

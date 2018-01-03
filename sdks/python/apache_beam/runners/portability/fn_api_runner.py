@@ -145,7 +145,7 @@ class _WindowGroupingBuffer(object):
   def __init__(self, side_input_data):
     # Here's where we would use a different type of partitioning
     # (e.g. also by key) for a different access pattern.
-    assert side_input_data.access_pattern == common_urns.ITERABLE_SIDEINPUT
+    assert side_input_data.access_pattern == common_urns.ITERABLE_SIDE_INPUT
     self._windowed_value_coder = side_input_data.coder
     self._window_coder = side_input_data.coder.window_coder
     self._value_coder = side_input_data.coder.wrapped_value_coder
