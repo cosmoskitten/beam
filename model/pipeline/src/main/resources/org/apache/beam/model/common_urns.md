@@ -116,7 +116,7 @@ but are used at runtime and must be supported by every SDK.
 
 ## Side input access
 
-### org.apache.beam:sideinput:iterable:v1
+### org.apache.beam:side_input:iterable:v1
 
-### org.apache.beam:sideinput:multimap:v1
+### org.apache.beam:side_input:multimap:v1
 
