@@ -207,7 +207,6 @@ public class CombineTranslation {
               (PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)),
               "no input with tag %s",
               sideInputTag);
-      // TODO: Should ParDoTranslation#viewFromProto live elsewhere?
       views.add(
           PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection,
               combineProto, components));
