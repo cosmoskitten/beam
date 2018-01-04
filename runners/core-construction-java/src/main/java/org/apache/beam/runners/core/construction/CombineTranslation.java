@@ -209,8 +209,8 @@ public class CombineTranslation {
               sideInputTag);
       // TODO: Should ParDoTranslation#viewFromProto live elsewhere?
       views.add(
-          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection, combineProto,
-              components));
+          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection,
+              combineProto, components));
     }
     return views;
   }
