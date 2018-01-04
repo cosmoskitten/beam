@@ -196,10 +196,10 @@ public class MqttIOTest {
   }
 
   /**
-   * Test for BEAM-3282: this test should not timeout, and start/advance should return false.
+   * Test for BEAM-3282: this test should not timeout.
    */
-  @Test(timeout = 3 * 1000)
-  public void testReceiveWithTimeout() throws Exception {
+  @Test(timeout = 5 * 1000)
+  public void testReceiveWithTimeoutAndNoData() throws Exception {
     pipeline.apply(MqttIO.read()
         .withConnectionConfiguration(
             MqttIO.ConnectionConfiguration.create(
@@ -209,6 +209,67 @@ public class MqttIOTest {
 
     // should stop before the test timeout
     pipeline.run();
+  }
+
+  /**
+   * Test for BEAM-3282: this test should not timeout.
+   */
+  @Test(timeout = 5 * 1000)
+  public void testReceiveWithTimeoutAndData() throws Exception {
+    PCollection<byte[]> output = pipeline.apply(MqttIO.read()
+        .withConnectionConfiguration(
+            MqttIO.ConnectionConfiguration.create(
+                "tcp://localhost:" + port,
+                "READ_TOPIC",
+                "READ_PIPELINE")).withMaxReadTime(Duration.standardSeconds(2)));
+    PAssert.that(output).containsInAnyOrder(
+        "This is test 0".getBytes(),
+        "This is test 1".getBytes(),
+        "This is test 2".getBytes(),
+        "This is test 3".getBytes(),
+        "This is test 4".getBytes(),
+        "This is test 5".getBytes(),
+        "This is test 6".getBytes(),
+        "This is test 7".getBytes(),
+        "This is test 8".getBytes(),
+        "This is test 9".getBytes()
+    );
+
+    // produce messages on the brokerService in another thread
+    // This thread prevents to block the pipeline waiting for new messages
+    MQTT client = new MQTT();
+    client.setHost("tcp://localhost:" + port);
+    final BlockingConnection publishConnection = client.blockingConnection();
+    publishConnection.connect();
+    Thread publisherThread = new Thread() {
+      public void run() {
+        try {
+          LOG.info("Waiting pipeline connected to the MQTT broker before sending "
+              + "messages ...");
+          boolean pipelineConnected = false;
+          while (!pipelineConnected) {
+            Thread.sleep(100);
+            for (Connection connection : brokerService.getBroker().getClients()) {
+              if (connection.getConnectionId().startsWith("READ_PIPELINE")) {
+                pipelineConnected = true;
+              }
+            }
+          }
+          for (int i = 0; i < 10; i++) {
+            publishConnection.publish("READ_TOPIC", ("This is test " + i).getBytes(),
+                QoS.AT_LEAST_ONCE, false);
+          }
+        } catch (Exception e) {
+          // nothing to do
+        }
+      }
+    };
+
+    publisherThread.start();
+    pipeline.run();
+
+    publishConnection.disconnect();
+    publisherThread.join();
   }
 
   @Test
