@@ -96,7 +96,6 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
         FlinkBatchTransformTranslators.getTranslator(transform);
     if (translator == null) {
       String transformUrn = PTransformTranslation.urnForTransform(transform);
-      LOG.info(transformUrn);
       throw new UnsupportedOperationException("The transform " + transformUrn
           + " is currently not supported.");
     }
