@@ -321,7 +321,8 @@ public class ParDoTranslation {
               "no input with tag %s",
               sideInputTag);
       views.add(
-          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection, parDoProto, components));
+          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection,
+              parDoProto, components));
     }
     return views;
   }
