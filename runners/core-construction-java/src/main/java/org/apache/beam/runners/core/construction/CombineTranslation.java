@@ -209,7 +209,8 @@ public class CombineTranslation {
               sideInputTag);
       // TODO: Should ParDoTranslation#viewFromProto live elsewhere?
       views.add(
-          ParDoTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection, combineProto, components));
+          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection, combineProto,
+              components));
     }
     return views;
   }
@@ -225,7 +226,8 @@ public class CombineTranslation {
     private final CombinePayload payload;
     private final Coder<AccumT> accumulatorCoder;
 
-    private RawCombine(RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents) throws IOException {
+    private RawCombine(RunnerApi.PTransform protoTransform,
+        RehydratedComponents rehydratedComponents) throws IOException {
       this.protoTransform = protoTransform;
       this.rehydratedComponents = rehydratedComponents;
       this.spec = protoTransform.getSpec();
