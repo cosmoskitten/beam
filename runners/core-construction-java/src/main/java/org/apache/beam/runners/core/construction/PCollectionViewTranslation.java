@@ -18,7 +18,10 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Materializations;
@@ -30,9 +33,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-import java.io.IOException;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 /** Utilities for interacting with PCollection view protos. */
 public class PCollectionViewTranslation {
@@ -86,7 +86,8 @@ public class PCollectionViewTranslation {
             spec.getPayload().toByteArray(), "Custom ViewFn");
   }
 
-  private static WindowMappingFn<?> windowMappingFnFromProto(RunnerApi.SdkFunctionSpec windowMappingFn)
+  private static WindowMappingFn<?> windowMappingFnFromProto(
+      RunnerApi.SdkFunctionSpec windowMappingFn)
       throws InvalidProtocolBufferException {
     RunnerApi.FunctionSpec spec = windowMappingFn.getSpec();
     checkArgument(
