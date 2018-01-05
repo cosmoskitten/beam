@@ -530,8 +530,7 @@ class FlinkBatchTransformTranslators {
         }
       }
 
-      // TODO: Why does the UnionCoder order have to match the output map order? Why does this
-      // appear to work without the proto round trip?
+      // Union coder elements must match the order of the output tags.
       Map<Integer, TupleTag<?>> indexMap = Maps.newTreeMap();
       for (Map.Entry<TupleTag<?>, Integer> entry : outputMap.entrySet()) {
         indexMap.put(entry.getValue(), entry.getKey());
