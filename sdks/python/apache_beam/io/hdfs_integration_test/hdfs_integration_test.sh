@@ -17,31 +17,14 @@
 #
 # Runs Python HDFS integration tests.
 #
-# Requires docker to be installed.
-# Run from the root directory of the Beam repo.
+# Requires docker, docker-compose to be installed.
 
 set -e -u -x
+cd $(dirname $0)
 
-IMAGE_TAG=$(echo hdfs:${BUILD_TAG:-non-jenkins})
+# Use a unique name to allow concurrent runs on the same machine.
+PROJECT_NAME=$(echo hdfs_IT-${BUILD_TAG:-non-jenkins})
 
-DOCKER_OPTS=""
-# Override DNS settings on GCE to make GCE credentials refresh work.
-# GCE credentials are refreshed when reading the test's input file from GCS.
-if hash curl &> /dev/null && \
-    curl metadata.google.internal -i -s | \
-        grep 'Metadata-Flavor: Google' > /dev/null; then
-    DOCKER_OPTS="--dns=169.254.169.254"
-fi
-
-time docker build . \
-    -f sdks/python/apache_beam/io/hdfs_container/Dockerfile \
-    --tag $IMAGE_TAG
-
-case ${1:-""} in
-    "debug")
-        docker run $DOCKER_OPTS -itP $IMAGE_TAG bash
-        ;;
-    *)
-        time docker run $DOCKER_OPTS -t $IMAGE_TAG
-        ;;
-esac
+time docker-compose -p ${PROJECT_NAME} build
+time docker-compose -p ${PROJECT_NAME} up --exit-code-from test \
+    --abort-on-container-exit
