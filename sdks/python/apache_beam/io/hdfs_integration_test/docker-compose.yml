@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  namenode:
+    image: uhopper/hadoop-namenode:2.8.1
+    hostname: namenode
+    container_name: namenode
+    domainname: hadoop
+    environment:
+      - CLUSTER_NAME=test
+    networks:
+      - test_net
+
+  datanode:
+    image: uhopper/hadoop-datanode:2.8.1
+    hostname: datanode1
+    container_name: datanode1
+    domainname: hadoop
+    environment:
+      - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+    networks:
+      - test_net
+    depends_on:
+      - "namenode"
+
+  test:
+    build:
+      context: ../../../../../
+      dockerfile: sdks/python/apache_beam/io/hdfs_integration_test/Dockerfile
+    networks:
+      - test_net
+    depends_on:
+      - "namenode"
+      - "datanode"
+
+networks:
+  test_net:
