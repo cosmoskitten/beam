@@ -19,13 +19,12 @@
 
 For internal use only; no backwards-compatibility guarantees."""
 
-PICKLED_CODER = "org.apache.beam:coder:pickled_python:v1"
-PICKLED_COMBINE_FN = "org.apache.beam:combinefn:pickled_python:v1"
-PICKLED_DOFN = "org.apache.beam:dofn:pickled_python:v1"
-PICKLED_DOFN_INFO = "org.apache.beam:dofn:pickled_python_info:v1"
-PICKLED_SOURCE = "org.apache.beam:source:pickled_python:v1"
-PICKLED_TRANSFORM = "org.apache.beam:ptransform:pickled_python:v1"
-PICKLED_WINDOW_MAPPING_FN = (
-    "org.apache.beam:window_mapping_fn:pickled_python:v1")
-PICKLED_WINDOWFN = "org.apache.beam:windowfn:pickled_python:v1"
-PICKLED_VIEWFN = "org.apache.beam:view_fn:pickled_python_data:v1"
+PICKLED_CODER = "beam:coder:pickled_python:v1"
+PICKLED_COMBINE_FN = "beam:combinefn:pickled_python:v1"
+PICKLED_DOFN = "beam:dofn:pickled_python:v1"
+PICKLED_DOFN_INFO = "beam:dofn:pickled_python_info:v1"
+PICKLED_SOURCE = "beam:source:pickled_python:v1"
+PICKLED_TRANSFORM = "beam:ptransform:pickled_python:v1"
+PICKLED_WINDOW_MAPPING_FN = "beam:window_mapping_fn:pickled_python:v1"
+PICKLED_WINDOWFN = "beam:windowfn:pickled_python:v1"
+PICKLED_VIEWFN = "beam:view_fn:pickled_python_data:v1"

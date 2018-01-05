@@ -28,8 +28,8 @@ import org.junit.Test;
  */
 public class UrnUtilsTest {
 
-  private static final String GOOD_URN = "org.apache.beam:coder:bytes:v1";
-  private static final String MISSING_URN = "org.apache.beam:fake:v1";
+  private static final String GOOD_URN = "beam:coder:bytes:v1";
+  private static final String MISSING_URN = "beam:fake:v1";
   private static final String BAD_URN = "Beam";
 
   @Test

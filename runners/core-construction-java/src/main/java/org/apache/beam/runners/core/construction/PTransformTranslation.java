@@ -53,34 +53,33 @@ import org.apache.beam.sdk.values.TupleTag;
 public class PTransformTranslation {
 
   public static final String PAR_DO_TRANSFORM_URN =
-      validateCommonUrn("org.apache.beam:transform:pardo:v1");
+      validateCommonUrn("beam:transform:pardo:v1");
   public static final String FLATTEN_TRANSFORM_URN =
-      validateCommonUrn("org.apache.beam:transform:flatten:v1");
+      validateCommonUrn("beam:transform:flatten:v1");
   public static final String GROUP_BY_KEY_TRANSFORM_URN =
-      validateCommonUrn("org.apache.beam:transform:group_by_key:v1");
+      validateCommonUrn("beam:transform:group_by_key:v1");
   public static final String READ_TRANSFORM_URN =
-      validateCommonUrn("org.apache.beam:transform:read:v1");
+      validateCommonUrn("beam:transform:read:v1");
   public static final String WINDOW_TRANSFORM_URN =
-      validateCommonUrn("org.apache.beam:transform:window_into:v1");
-  public static final String TEST_STREAM_TRANSFORM_URN =
-      "urn:beam:transform:teststream:v1";
+      validateCommonUrn("beam:transform:window_into:v1");
+  public static final String TEST_STREAM_TRANSFORM_URN = "urn:beam:transform:teststream:v1";
 
   // Not strictly a primitive transform
   public static final String COMBINE_TRANSFORM_URN =
-      validateCommonUrn("org.apache.beam:transform:combine_per_key:v1");
+      validateCommonUrn("beam:transform:combine_per_key:v1");
 
   public static final String RESHUFFLE_URN =
-      validateCommonUrn("org.apache.beam:transform:reshuffle:v1");
+      validateCommonUrn("beam:transform:reshuffle:v1");
 
   // Less well-known. And where shall these live?
-  public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
+  public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:0.1";
 
   /**
    * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
    *     part of the translation for a `ParDo` side input.
    */
   @Deprecated
-  public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
+  public static final String CREATE_VIEW_TRANSFORM_URN = "beam:transform:create_view:v1";
 
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
