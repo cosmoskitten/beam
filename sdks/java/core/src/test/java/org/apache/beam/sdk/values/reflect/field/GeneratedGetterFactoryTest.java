@@ -23,18 +23,17 @@ import static org.junit.Assert.assertEquals;
 import com.google.common.collect.ImmutableSet;
 import java.util.List;
 import java.util.Set;
-import net.bytebuddy.ByteBuddy;
 import org.junit.Test;
 
 /**
- * Unit tests for {@link GetterMethodGetterFactory}.
+ * Unit tests for {@link GeneratedGetterFactory}.
  */
-public class GetterMethodGetterFactoryTest {
+public class GeneratedGetterFactoryTest {
 
   /**
    * Test pojo.
    */
-  public static class Pojo {
+  private static class Pojo {
     private String privateStringField = "privateStringValue";
     private Integer privateIntegerField = 15;
 
@@ -51,8 +50,7 @@ public class GetterMethodGetterFactoryTest {
 
   @Test
   public void testGettersHaveCorrectNames() throws Exception {
-    List<FieldValueGetter> getters =
-        GetterMethodGetterFactory.generateGetters(new ByteBuddy(), Pojo.class);
+    List<FieldValueGetter> getters = new GeneratedGetterFactory().generateGetters(Pojo.class);
 
     assertEquals(
         ImmutableSet.of("privateStringField", "privateIntegerField"),
@@ -61,8 +59,7 @@ public class GetterMethodGetterFactoryTest {
 
   @Test
   public void testGettersHaveCorrectTypes() throws Exception {
-    List<FieldValueGetter> getters =
-        GetterMethodGetterFactory.generateGetters(new ByteBuddy(), Pojo.class);
+    List<FieldValueGetter> getters = new GeneratedGetterFactory().generateGetters(Pojo.class);
 
     assertEquals(
         ImmutableSet.of(String.class, Integer.class),
@@ -71,8 +68,7 @@ public class GetterMethodGetterFactoryTest {
 
   @Test
   public void testGettersReturnCorrectValues() throws Exception {
-    List<FieldValueGetter> getters =
-        GetterMethodGetterFactory.generateGetters(new ByteBuddy(), Pojo.class);
+    List<FieldValueGetter> getters = new GeneratedGetterFactory().generateGetters(Pojo.class);
 
     assertEquals(
         ImmutableSet.<Object>of("privateStringValue", 15),
@@ -88,7 +84,6 @@ public class GetterMethodGetterFactoryTest {
 
     return names.build();
   }
-
 
   private Set<Class> getTypes(List<FieldValueGetter> getters) {
     ImmutableSet.Builder<Class> types = ImmutableSet.builder();
@@ -109,5 +104,4 @@ public class GetterMethodGetterFactoryTest {
 
     return values.build();
   }
-
 }

@@ -24,12 +24,19 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.reflect.field.GeneratedGetterFactory;
+import org.apache.beam.sdk.values.reflect.field.GetterFactory;
+import org.apache.beam.sdk.values.reflect.field.ReflectionGetterFactory;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /**
  * Unit tests for {@link BeamRecordFactory}.
  */
+@RunWith(Parameterized.class)
 public class BeamRecordFactoryTest {
 
   /**
@@ -53,10 +60,24 @@ public class BeamRecordFactoryTest {
     }
   }
 
+  /**
+   * Getters factories to test the record factory with.
+   */
+  @Parameterized.Parameters
+  public static Iterable<GetterFactory> gettersFactories() {
+    return ImmutableList.of(new GeneratedGetterFactory(), new ReflectionGetterFactory());
+  }
+
+  private GetterFactory getterFactory;
+
+  public BeamRecordFactoryTest(GetterFactory getterFactory) {
+    this.getterFactory = getterFactory;
+  }
+
   @Test
   public void testNewRecordFieldValues() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    BeamRecordFactory factory = new BeamRecordFactory();
+    BeamRecordFactory factory = newFactory();
 
     BeamRecord record = factory.create(pojo);
 
@@ -69,7 +90,7 @@ public class BeamRecordFactoryTest {
   @Test
   public void testNewRecordFieldNames() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    BeamRecordFactory factory = new BeamRecordFactory();
+    BeamRecordFactory factory = newFactory();
 
     BeamRecord record = factory.create(pojo);
 
@@ -80,7 +101,7 @@ public class BeamRecordFactoryTest {
   @Test
   public void testCreatesNewInstanceEachTime() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    BeamRecordFactory factory = new BeamRecordFactory();
+    BeamRecordFactory factory = newFactory();
 
     BeamRecord record1 = factory.create(pojo);
     BeamRecord record2 = factory.create(pojo);
@@ -91,7 +112,7 @@ public class BeamRecordFactoryTest {
   @Test
   public void testCachesRecordType() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    BeamRecordFactory factory = new BeamRecordFactory();
+    BeamRecordFactory factory = newFactory();
 
     BeamRecord record1 = factory.create(pojo);
     BeamRecord record2 = factory.create(pojo);
@@ -102,7 +123,7 @@ public class BeamRecordFactoryTest {
   @Test
   public void testCopiesValues() throws Exception {
     SomePojo pojo = new SomePojo("someString", 42);
-    BeamRecordFactory factory = new BeamRecordFactory();
+    BeamRecordFactory factory = newFactory();
 
     BeamRecord record = factory.create(pojo);
 
@@ -116,5 +137,9 @@ public class BeamRecordFactoryTest {
     assertThat(
         record.getDataValues(),
         containsInAnyOrder((Object) "someString", Integer.valueOf(42)));
+  }
+
+  private BeamRecordFactory newFactory() {
+    return new BeamRecordFactory(new DefaultRecordTypeFactory(), getterFactory);
   }
 }

@@ -24,11 +24,11 @@ import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.implementT
 import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.implementValueGetter;
 import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.makeNewGetterInstance;
 import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.subclassGetterInterface;
+import static org.apache.beam.sdk.values.reflect.field.ReflectionUtils.getPublicGetters;
+import static org.apache.beam.sdk.values.reflect.field.ReflectionUtils.tryStripGetPrefix;
 
 import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.DynamicType;
@@ -72,66 +72,35 @@ import net.bytebuddy.dynamic.DynamicType;
  * See {@link ByteBuddyUtils#makeNewGetterInstance(String, DynamicType.Builder)}
  * and ByteBuddy documentation for details.
  */
-public class GetterMethodGetterFactory {
+public class GeneratedGetterFactory implements GetterFactory {
+
+  private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
   /**
    * Returns the list of the getters, one for each public getter of the pojoClass.
    */
-  public static List<FieldValueGetter> generateGetters(ByteBuddy byteBuddy, Class pojoClass) {
+  @Override
+  public List<FieldValueGetter> generateGetters(Class pojoClass) {
     ImmutableList.Builder<FieldValueGetter> getters = ImmutableList.builder();
 
-    List<Method> getterMethods = getGetters(pojoClass);
+    List<Method> getterMethods = getPublicGetters(pojoClass);
 
     for (Method getterMethod : getterMethods) {
-      getters.add(createFieldGetterInstance(byteBuddy, pojoClass, getterMethod));
+      getters.add(createFieldGetterInstance(pojoClass, getterMethod));
     }
 
     return getters.build();
   }
 
-  private static List<Method> getGetters(Class pojoClass) {
-    List<Method> getters = new ArrayList<>();
-    for (Method method : pojoClass.getDeclaredMethods()) {
-      if (isGetter(method) && isPublic(method)) {
-        getters.add(method);
-      }
-    }
+  private static FieldValueGetter createFieldGetterInstance(Class clazz, Method getterMethod) {
 
-    return getters;
-  }
-
-  private static boolean isGetter(Method method) {
-    return method.getName().startsWith("get")
-        && !Void.TYPE.equals(method.getReturnType());
-  }
-
-  private static boolean isPublic(Method method) {
-    return Modifier.isPublic(method.getModifiers());
-  }
-
-  private static FieldValueGetter createFieldGetterInstance(
-      ByteBuddy byteBuddy, Class clazz, Method getterMethod) {
-
-    DynamicType.Builder<FieldValueGetter> getterBuilder = subclassGetterInterface(byteBuddy, clazz);
+    DynamicType.Builder<FieldValueGetter> getterBuilder =
+        subclassGetterInterface(BYTE_BUDDY, clazz);
 
     getterBuilder = implementNameGetter(getterBuilder, tryStripGetPrefix(getterMethod));
     getterBuilder = implementTypeGetter(getterBuilder, getterMethod.getReturnType());
     getterBuilder = implementValueGetter(getterBuilder, invoke(getterMethod).onArgument(0));
 
     return makeNewGetterInstance(getterMethod.getName(), getterBuilder);
-  }
-
-  private static String tryStripGetPrefix(Method method) {
-    String name = method.getName();
-
-    if (name.length() == 3) {
-      return name;
-    }
-
-    String firstLetter = name.substring(3, 4).toLowerCase();
-
-    return name.length() == 4
-        ? firstLetter
-        : firstLetter + name.substring(4, name.length());
   }
 }

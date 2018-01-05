@@ -19,14 +19,15 @@
 package org.apache.beam.sdk.values.reflect;
 
 import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import net.bytebuddy.ByteBuddy;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.field.GetterMethodGetterFactory;
+import org.apache.beam.sdk.values.reflect.field.GeneratedGetterFactory;
+import org.apache.beam.sdk.values.reflect.field.GetterFactory;
 
 /**
  * Generates the code to create {@link BeamRecordType}s and {@link BeamRecord}s based on pojos.
@@ -39,10 +40,10 @@ import org.apache.beam.sdk.values.reflect.field.GetterMethodGetterFactory;
  * See {@link DefaultRecordTypeFactory} for default implementation.
  */
 public class BeamRecordFactory {
-  private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
   private RecordTypeFactory recordTypeFactory;
   private final Map<Class, RecordTypeGetters> recordTypesCache = new HashMap<>();
+  private final List<GetterFactory> getterFactories;
 
   /**
    * Create new instance based on default record type factory.
@@ -50,7 +51,7 @@ public class BeamRecordFactory {
    * <p>Use this to create instances of {@link BeamRecordType}.
    */
   public BeamRecordFactory() {
-    this(new DefaultRecordTypeFactory());
+    this(new DefaultRecordTypeFactory(), new GeneratedGetterFactory());
   }
 
   /**
@@ -58,8 +59,9 @@ public class BeamRecordFactory {
    *
    * <p>For example this can be used to create BeamRecordSqlTypes instead of {@link BeamRecordType}.
    */
-  public BeamRecordFactory(RecordTypeFactory recordTypeFactory) {
+  public BeamRecordFactory(RecordTypeFactory recordTypeFactory, GetterFactory ... getterFactories) {
     this.recordTypeFactory = recordTypeFactory;
+    this.getterFactories = Arrays.asList(getterFactories);
   }
 
   /**
@@ -92,10 +94,13 @@ public class BeamRecordFactory {
   }
 
   private List<FieldValueGetter> createGetters(Class pojoClass) {
-    return ImmutableList.
-        <FieldValueGetter>builder()
-        .addAll(GetterMethodGetterFactory.generateGetters(BYTE_BUDDY, pojoClass))
-        .build();
+    ImmutableList.Builder<FieldValueGetter> getters = ImmutableList.builder();
+
+    for (GetterFactory getterFactory : getterFactories) {
+      getters.addAll(getterFactory.generateGetters(pojoClass));
+    }
+
+    return getters.build();
   }
 
   private List<Object> getFieldValues(List<FieldValueGetter> fieldValueGetters, Object pojo) {
