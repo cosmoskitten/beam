@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -142,7 +143,12 @@ class FlinkBatchTransformTranslators {
       AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> application =
           (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
               context.getCurrentTransform();
-      BoundedSource<T> source = demoteException(() -> ReadTranslation.boundedSourceFromTransform(application));
+      BoundedSource<T> source;
+      try {
+        source = ReadTranslation.boundedSourceFromTransform(application);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       String name = transform.getName();
       PCollection<T> output = context.getOutput(transform);
 
@@ -354,9 +360,13 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn = demoteException(
-          () -> (CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT>) CombineTranslation
-            .getCombineFn(context.getCurrentTransform()));
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
+      try {
+            combineFn = (CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT>) CombineTranslation
+                .getCombineFn(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
 
       KvCoder<K, InputT> inputCoder =
           (KvCoder<K, InputT>) context.getInput(transform).getCoder();
@@ -386,8 +396,12 @@ class FlinkBatchTransformTranslators {
       // construct a map from side input to WindowingStrategy so that
       // the DoFn runner can map main-input windows to side input windows
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
-      List<PCollectionView<?>> sideInputs = demoteException(
-          () -> CombineTranslation.getSideInputs(context.getCurrentTransform()));
+      List<PCollectionView<?>> sideInputs;
+      try {
+        sideInputs = CombineTranslation.getSideInputs(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       for (PCollectionView<?> sideInput: sideInputs) {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
       }
@@ -488,16 +502,24 @@ class FlinkBatchTransformTranslators {
     public void translateNode(
         PTransform<PCollection<InputT>, PCollectionTuple> transform,
         FlinkBatchTranslationContext context) {
-      DoFn<InputT, OutputT> doFn = demoteException(
-          () -> (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(context.getCurrentTransform()));
+      DoFn<InputT, OutputT> doFn;
+      try {
+        doFn = (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       rejectSplittable(doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
       Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
 
-      TupleTag<?> mainOutputTag = demoteException(
-          () -> ParDoTranslation.getMainOutputTag(context.getCurrentTransform()));
+      TupleTag<?> mainOutputTag;
+      try {
+        mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       Map<TupleTag<?>, Integer> outputMap = Maps.newHashMap();
       // put the main output at index 0, FlinkMultiOutputDoFnFunction  expects this
       outputMap.put(mainOutputTag, 0);
@@ -543,8 +565,12 @@ class FlinkBatchTransformTranslators {
                   unionCoder,
                   windowingStrategy.getWindowFn().windowCoder()));
 
-      List<PCollectionView<?>> sideInputs = demoteException(
-          () -> ParDoTranslation.getSideInputs(context.getCurrentTransform()));
+      List<PCollectionView<?>> sideInputs;
+      try {
+        sideInputs = ParDoTranslation.getSideInputs(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
 
       // construct a map from side input to WindowingStrategy so that
       // the DoFn runner can map main-input windows to side input windows
@@ -554,8 +580,12 @@ class FlinkBatchTransformTranslators {
       }
 
       SingleInputUdfOperator<WindowedValue<InputT>, WindowedValue<RawUnionValue>, ?> outputDataSet;
-      boolean usesStateOrTimers = demoteException(
-          () -> ParDoTranslation.usesStateOrTimers(context.getCurrentTransform()));
+      boolean usesStateOrTimers;
+      try {
+        usesStateOrTimers = ParDoTranslation.usesStateOrTimers(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       if (usesStateOrTimers) {
 
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
@@ -705,14 +735,14 @@ class FlinkBatchTransformTranslators {
               PCollection<ElemT>,
               PCollection<ElemT>,
               PTransform<PCollection<ElemT>, PCollection<ElemT>>>) context.getCurrentTransform();
-      PCollectionView<ViewT> input = demoteException(() -> CreatePCollectionViewTranslation.getView(application));
+      PCollectionView<ViewT> input;
+      try {
+        input = CreatePCollectionViewTranslation.getView(application);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       context.setSideInputDataSet(input, inputDataSet);
     }
-  }
-
-  @FunctionalInterface
-  private interface ThrowingProvider<T> {
-    T get() throws Exception;
   }
 
   private static void transformSideInputs(
@@ -723,15 +753,6 @@ class FlinkBatchTransformTranslators {
     for (PCollectionView<?> input : sideInputs) {
       DataSet<?> broadcastSet = context.getSideInputDataSet(input);
       outputDataSet.withBroadcastSet(broadcastSet, input.getTagInternal().getId());
-    }
-  }
-
-  /** Invokes the given throwing-provider, throwing a runtime exception on error. */
-  private static <T> T demoteException(ThrowingProvider<T> provider) {
-    try {
-      return provider.get();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
