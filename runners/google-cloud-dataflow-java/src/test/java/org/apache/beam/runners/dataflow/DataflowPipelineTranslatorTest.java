@@ -159,7 +159,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     FileSystems.setDefaultPipelineOptions(options);
 
     p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
-     .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
+        .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(p);
 
@@ -206,37 +206,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     options.setDataflowClient(buildMockDataflow(new IsValidCreateRequest()));
     options.setGcsUtil(mockGcsUtil);
     return options;
-  }
-
-  @Test
-  public void testSettingOfSdkPipelineOptions() throws IOException {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setRunner(DataflowRunner.class);
-
-    Pipeline p = Pipeline.create(options);
-    p.traverseTopologically(new RecordingPipelineVisitor());
-    Job job =
-        DataflowPipelineTranslator.fromOptions(options)
-            .translate(
-                p, DataflowRunner.fromOptions(options), Collections.<DataflowPackage>emptyList())
-            .getJob();
-
-    Map<String, Object> sdkPipelineOptions = job.getEnvironment().getSdkPipelineOptions();
-    assertThat(sdkPipelineOptions, hasKey("options"));
-    Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
-
-    assertThat(optionsMap, hasEntry("appName", (Object) "DataflowPipelineTranslatorTest"));
-    assertThat(optionsMap, hasEntry("project", (Object) "some-project"));
-    assertThat(optionsMap,
-        hasEntry("pathValidatorClass", (Object) GcsPathValidator.class.getName()));
-    assertThat(optionsMap, hasEntry("runner", (Object) DataflowRunner.class.getName()));
-    assertThat(optionsMap, hasEntry("jobName", (Object) "some-job-name"));
-    assertThat(optionsMap, hasEntry("tempLocation", (Object) "gs://somebucket/some/path"));
-    assertThat(optionsMap,
-        hasEntry("stagingLocation", (Object) "gs://somebucket/some/path/staging/"));
-    assertThat(optionsMap, hasEntry("stableUniqueNames", (Object) "WARNING"));
-    assertThat(optionsMap, hasEntry("streaming", (Object) false));
-    assertThat(optionsMap, hasEntry("numberOfWorkerHarnessThreads", (Object) 0));
   }
 
   /** PipelineOptions used to test auto registration of Jackson modules. */
