@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageF
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
@@ -398,6 +399,51 @@ public class DataflowRunnerTest implements Serializable {
     String expectedVersion = DataflowRunnerInfo.getDataflowRunnerInfo().getVersion();
     assertThat(options.getUserAgent(), containsString(expectedVersion));
   }
+
+  /**
+   * Invasive mock-based test for checking that the JSON generated for the pipeline options has
+   * not had vital fields pruned.
+   */
+  @Test
+  public void testSettingOfSdkPipelineOptions() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+
+    // These options are important only for this test, and need not be global to the test class
+    options.setAppName(DataflowRunnerTest.class.getSimpleName());
+    options.setJobName("some-job-name");
+
+    Pipeline p = Pipeline.create(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+
+    Map<String, Object> sdkPipelineOptions =
+        jobCaptor.getValue().getEnvironment().getSdkPipelineOptions();
+
+    assertThat(sdkPipelineOptions, hasKey("options"));
+    Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
+
+    assertThat(optionsMap, hasEntry("appName", (Object) options.getAppName()));
+    assertThat(optionsMap, hasEntry("project", (Object) options.getProject()));
+    assertThat(
+        optionsMap,
+        hasEntry("pathValidatorClass", (Object) options.getPathValidatorClass().getName()));
+    assertThat(optionsMap, hasEntry("runner", (Object) options.getRunner().getName()));
+    assertThat(optionsMap, hasEntry("jobName", (Object) options.getJobName()));
+    assertThat(optionsMap, hasEntry("tempLocation", (Object) options.getTempLocation()));
+    assertThat(
+        optionsMap, hasEntry("stagingLocation", (Object) options.getStagingLocation()));
+    assertThat(
+        optionsMap,
+        hasEntry("stableUniqueNames", (Object) options.getStableUniqueNames().toString()));
+    assertThat(optionsMap, hasEntry("streaming", (Object) options.isStreaming()));
+    assertThat(
+        optionsMap,
+        hasEntry(
+            "numberOfWorkerHarnessThreads", (Object) options.getNumberOfWorkerHarnessThreads()));
+  }
+
 
   @Test
   public void testRun() throws IOException {
