@@ -18,6 +18,8 @@
 
 package org.apache.beam.fn.harness.control;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -25,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
+import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -141,9 +144,10 @@ public class ProcessBundleHandler {
           Consumer<ThrowingRunnable> addStartFunction,
           Consumer<ThrowingRunnable> addFinishFunction) {
         throw new IllegalStateException(String.format(
-            "No factory registered for %s, known factories %s",
+            "No factory registered for %s, known factories %s, whole transform was: %s",
             pTransform.getSpec().getUrn(),
-            urnToPTransformRunnerFactoryMap.keySet()));
+            urnToPTransformRunnerFactoryMap.keySet(),
+            TextFormat.printToString(pTransform)));
       }
     };
   }
@@ -180,6 +184,18 @@ public class ProcessBundleHandler {
             addStartFunction,
             addFinishFunction);
       }
+    }
+
+    if (!pTransform.hasSpec()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot process transform with no spec: %s", TextFormat.printToString(pTransform)));
+    }
+
+    if (pTransform.getSubtransformsCount() > 0) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot process composite transform: %s", TextFormat.printToString(pTransform)));
     }
 
     urnToPTransformRunnerFactoryMap.getOrDefault(
