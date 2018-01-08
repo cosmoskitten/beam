@@ -21,7 +21,9 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
@@ -57,8 +59,9 @@ class SplittableProcessElementsEvaluatorFactory<
   private final ParDoEvaluatorFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
   private final EvaluationContext evaluationContext;
+  private final Collection<DoFnLifecycleManager> managers = new CopyOnWriteArrayList<>();
 
-  SplittableProcessElementsEvaluatorFactory(EvaluationContext evaluationContext) {
+    SplittableProcessElementsEvaluatorFactory(EvaluationContext evaluationContext) {
     this.evaluationContext = evaluationContext;
     this.delegateFactory =
         new ParDoEvaluatorFactory<>(
@@ -81,6 +84,7 @@ class SplittableProcessElementsEvaluatorFactory<
   @Override
   public void cleanup() throws Exception {
     delegateFactory.cleanup();
+    DoFnLifecycleManagers.removeAllFromManagers(managers);
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -98,6 +102,7 @@ class SplittableProcessElementsEvaluatorFactory<
         transform.newProcessFn(transform.getFn());
 
     DoFnLifecycleManager fnManager = DoFnLifecycleManager.of(processFn);
+    managers.add(fnManager);
     processFn =
         ((ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
             fnManager.<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>get());
@@ -139,6 +144,19 @@ class SplittableProcessElementsEvaluatorFactory<
           }
         });
 
+    final ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor(
+          new ThreadFactoryBuilder()
+                  .setThreadFactory(MoreExecutors.platformThreadFactory())
+                  .setDaemon(true) // todo: set to false once the lifecycle of this is fixed
+                  .setNameFormat("direct-splittable-process-element-checkpoint-executor")
+                  .build());
+    processFn.setShutdownCallback(new Runnable() {
+        @Override
+        public void run() {
+            ses.shutdown();
+        }
+    });
+
     OutputWindowedValue<OutputT> outputWindowedValue =
         new OutputWindowedValue<OutputT>() {
           private final OutputManager outputManager = parDoEvaluator.getOutputManager();
@@ -173,12 +191,7 @@ class SplittableProcessElementsEvaluatorFactory<
             // TODO: For better performance, use a higher-level executor?
             // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the
             // DirectRunner.
-            Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder()
-                    .setThreadFactory(MoreExecutors.platformThreadFactory())
-                    .setDaemon(true)
-                    .setNameFormat("direct-splittable-process-element-checkpoint-executor")
-                    .build()),
+            ses,
             // Setting small values here to stimulate frequent checkpointing and better exercise
             // splittable DoFn's in that respect.
             100,

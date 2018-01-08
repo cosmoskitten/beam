@@ -277,7 +277,6 @@ final class ExecutorServiceParallelExecutor
       return;
     }
     LOG.debug("Pipeline has terminated. Shutting down.");
-    pipelineState.compareAndSet(State.RUNNING, newState);
     // Stop accepting new work before shutting down the executor. This ensures that thread don't try
     // to add work to the shutdown executor.
     serialExecutorServices.invalidateAll();
@@ -289,6 +288,7 @@ final class ExecutorServiceParallelExecutor
     } catch (Exception e) {
       visibleUpdates.failed(e);
     }
+    pipelineState.compareAndSet(State.RUNNING, newState);
   }
 
   /**
