@@ -55,11 +55,12 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
         CacheBuilder.newBuilder().build(doFnCacheLoader);
   }
 
-  static CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> basicDoFnCacheLoader() {
+  static CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> basicDoFnCacheLoader(
+          final EvaluationContext ctxt) {
     return new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
       @Override
       public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> application) throws Exception {
-        return DoFnLifecycleManager.of(ParDoTranslation.getDoFn(application));
+        return DoFnLifecycleManager.of(ParDoTranslation.getDoFn(application), application, ctxt);
       }
     };
   }

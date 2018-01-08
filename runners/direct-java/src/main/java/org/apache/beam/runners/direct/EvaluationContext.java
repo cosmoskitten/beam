@@ -18,12 +18,15 @@
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
+
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -31,6 +34,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
+
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
@@ -94,6 +99,39 @@ class EvaluationContext {
   private final DirectMetrics metrics;
 
   private final Set<PValue> keyedPValues;
+
+  // track doFn (by fullName for now) to ensure we can wait teardown execution
+  private final ConcurrentMap<String, CountDownLatch> latches =
+          new ConcurrentHashMap<>();
+
+  public void unregisterFn(final String value) {
+    final CountDownLatch removed = latches.remove(value);
+    if (removed == null) {
+      throw new IllegalArgumentException("Didn't find " + value);
+    } else {
+      removed.countDown();
+    }
+  }
+
+  public void registerFn(final String original) {
+    latches.putIfAbsent(original, new CountDownLatch(1));
+  }
+
+  public boolean await(final long timeout) {
+    final long end = System.currentTimeMillis() + timeout;
+    for (final Map.Entry<String, CountDownLatch> latch :
+            new ArrayList<>(latches.entrySet())) {
+      try {
+        if (!latch.getValue().await(end - System.currentTimeMillis(), MILLISECONDS)) {
+          return false;
+        }
+        latches.remove(latch.getKey());
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+    return true;
+  }
 
   public static EvaluationContext create(
       DirectOptions options,

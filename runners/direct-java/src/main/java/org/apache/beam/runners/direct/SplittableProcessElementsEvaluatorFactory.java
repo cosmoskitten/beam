@@ -65,7 +65,7 @@ class SplittableProcessElementsEvaluatorFactory<
             evaluationContext,
             SplittableProcessElementsEvaluatorFactory
                 .<InputT, OutputT, RestrictionT>processFnRunnerFactory(),
-            ParDoEvaluatorFactory.basicDoFnCacheLoader());
+            ParDoEvaluatorFactory.basicDoFnCacheLoader(evaluationContext));
   }
 
   @Override
@@ -74,7 +74,8 @@ class SplittableProcessElementsEvaluatorFactory<
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
         (TransformEvaluator<T>)
-            createEvaluator((AppliedPTransform) application, (CommittedBundle) inputBundle);
+            createEvaluator((AppliedPTransform) application,
+                    (CommittedBundle) inputBundle);
     return evaluator;
   }
 
@@ -97,7 +98,8 @@ class SplittableProcessElementsEvaluatorFactory<
     ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
         transform.newProcessFn(transform.getFn());
 
-    DoFnLifecycleManager fnManager = DoFnLifecycleManager.of(processFn);
+    DoFnLifecycleManager fnManager = DoFnLifecycleManager.of(
+            processFn, application, evaluationContext);
     processFn =
         ((ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
             fnManager.<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>get());

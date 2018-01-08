@@ -23,10 +23,12 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
@@ -43,22 +45,37 @@ import org.apache.beam.sdk.util.SerializableUtils;
  */
 class DoFnLifecycleManager {
   public static DoFnLifecycleManager of(DoFn<?, ?> original) {
-    return new DoFnLifecycleManager(original);
+    return new DoFnLifecycleManager(original, null, null);
   }
 
-  private final LoadingCache<Thread, DoFn<?, ?>> outstanding;
+  public static DoFnLifecycleManager of(DoFn<?, ?> original,
+                                        AppliedPTransform<?, ?, ?> app,
+                                        EvaluationContext ctx) {
+    return new DoFnLifecycleManager(original, ctx, app);
+  }
+
+  private final LoadingCache<Thread, Value> outstanding;
   private final ConcurrentMap<Thread, Exception> thrownOnTeardown;
 
-  private DoFnLifecycleManager(DoFn<?, ?> original) {
+  private DoFnLifecycleManager(DoFn<?, ?> original, EvaluationContext ctx,
+                               AppliedPTransform<?, ?, ?> app) {
     this.outstanding = CacheBuilder.newBuilder()
-        .removalListener(new TeardownRemovedFnListener())
-        .build(new DeserializingCacheLoader(original));
+        .removalListener(new TeardownRemovedFnListener(ctx))
+        .build(new DeserializingCacheLoader(original, app));
     thrownOnTeardown = new ConcurrentHashMap<>();
+    if (ctx != null && app != null) {
+      ctx.registerFn(toKey(app));
+    }
+  }
+
+  // can we make AppliedPTransform Serializable and use it as key?
+  private static String toKey(AppliedPTransform<?, ?, ?> app) {
+    return app.getFullName();
   }
 
   public <InputT, OutputT> DoFn<InputT, OutputT> get() throws Exception {
     Thread currentThread = Thread.currentThread();
-    return (DoFn<InputT, OutputT>) outstanding.get(currentThread);
+    return (DoFn<InputT, OutputT>) outstanding.get(currentThread).original;
   }
 
   public void remove() throws Exception {
@@ -88,29 +105,49 @@ class DoFnLifecycleManager {
     return thrownOnTeardown.values();
   }
 
-  private static class DeserializingCacheLoader extends CacheLoader<Thread, DoFn<?, ?>> {
+  private static class Value implements Serializable {
+    private final DoFn<?, ?> original;
+    private final String key;
+
+    private Value(final DoFn<?, ?> original, final AppliedPTransform<?, ?, ?> app) {
+      this.original = original;
+      this.key = app == null ? "" : toKey(app);
+    }
+  }
+
+  private static class DeserializingCacheLoader extends CacheLoader<Thread, Value> {
     private final byte[] original;
 
-    public DeserializingCacheLoader(DoFn<?, ?> original) {
-      this.original = SerializableUtils.serializeToByteArray(original);
+    public DeserializingCacheLoader(DoFn<?, ?> original, AppliedPTransform<?, ?, ?> app) {
+      this.original = SerializableUtils.serializeToByteArray(new Value(original, app));
     }
 
     @Override
-    public DoFn<?, ?> load(Thread key) throws Exception {
-      DoFn<?, ?> fn = (DoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
+    public Value load(Thread key) throws Exception {
+      Value fn = (Value) SerializableUtils.deserializeFromByteArray(original,
           "DoFn Copy in thread " + key.getName());
-      DoFnInvokers.invokerFor(fn).invokeSetup();
+      DoFnInvokers.invokerFor(fn.original).invokeSetup();
       return fn;
     }
   }
 
-  private class TeardownRemovedFnListener implements RemovalListener<Thread, DoFn<?, ?>> {
+  private class TeardownRemovedFnListener implements RemovalListener<Thread, Value> {
+    private final EvaluationContext context;
+
+    private TeardownRemovedFnListener(final EvaluationContext context) {
+      this.context = context;
+    }
+
     @Override
-    public void onRemoval(RemovalNotification<Thread, DoFn<?, ?>> notification) {
+    public void onRemoval(RemovalNotification<Thread, Value> notification) {
       try {
-        DoFnInvokers.invokerFor(notification.getValue()).invokeTeardown();
+        DoFnInvokers.invokerFor(notification.getValue().original).invokeTeardown();
       } catch (Exception e) {
         thrownOnTeardown.put(notification.getKey(), e);
+      } finally {
+        if (context != null) {
+          context.unregisterFn(notification.getValue().key);
+        }
       }
     }
   }
