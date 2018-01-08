@@ -242,7 +242,12 @@ final class ExecutorServiceParallelExecutor
       if (update == null && pipelineState.get().isTerminal()) {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
-        return pipelineState.get();
+        final State state = pipelineState.get();
+        if (!evaluationContext.await(completionTime.getMillis() - Instant.now().getMillis())) {
+          throw new IllegalStateException(
+                  "Pipeline didn't complete properly, some teardown are not finished");
+        }
+        return state;
       } else if (update != null && update.thrown.isPresent()) {
         Throwable thrown = update.thrown.get();
         if (thrown instanceof Exception) {
