@@ -79,9 +79,8 @@ class TestTFRecordUtil(unittest.TestCase):
     return ''.join(l)
 
   def _test_error(self, record, error_text):
-    with self.assertRaises(ValueError) as context:
+    with self.assertRaisesRegexp(ValueError, error_text):
       _TFRecordUtil.read_record(self._as_file_handle(record))
-    self.assertIn(error_text, context.exception.message)
 
   def test_masked_crc32c(self):
     self.assertEqual(0xfd7fffa, _TFRecordUtil._masked_crc32c('\x00' * 32))
