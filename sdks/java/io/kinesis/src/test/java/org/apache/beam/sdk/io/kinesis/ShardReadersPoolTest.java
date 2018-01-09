@@ -216,7 +216,7 @@ public class ShardReadersPoolTest {
         .thenReturn(asList(thirdIterator, fourthIterator));
 
     shardReadersPool.start();
-    Thread.sleep(200);
+    Thread.sleep(1500);
 
     verify(thirdIterator, atLeast(2)).readNextBatch();
     verify(fourthIterator, atLeast(2)).readNextBatch();
