@@ -51,7 +51,7 @@ class ShardReadersPool {
   private final ExecutorService executorService;
   private volatile BlockingQueue<KinesisRecord> recordsQueue;
   private volatile ImmutableMap<String, ShardRecordsIterator> shardIteratorsMap;
-  private final ConcurrentMap<String, AtomicInteger> counters;
+  private final ConcurrentMap<String, AtomicInteger> numberOfRecordsInAQueueByShard;
   private final SimplifiedKinesisClient kinesis;
   private final KinesisReaderCheckpoint initialCheckpoint;
   private final int queueCapacityPerShard;
@@ -67,7 +67,7 @@ class ShardReadersPool {
     this.initialCheckpoint = initialCheckpoint;
     this.queueCapacityPerShard = queueCapacityPerShard;
     this.executorService = Executors.newCachedThreadPool();
-    this.counters = new ConcurrentHashMap<>();
+    this.numberOfRecordsInAQueueByShard = new ConcurrentHashMap<>();
   }
 
   void start() throws TransientKinesisException {
@@ -79,7 +79,7 @@ class ShardReadersPool {
     if (!shardIteratorsMap.isEmpty()) {
       recordsQueue = new ArrayBlockingQueue<>(queueCapacityPerShard * shardIteratorsMap.size());
       for (final ShardRecordsIterator shardRecordsIterator : shardIteratorsMap.values()) {
-        counters.put(shardRecordsIterator.getShardId(), new AtomicInteger());
+        numberOfRecordsInAQueueByShard.put(shardRecordsIterator.getShardId(), new AtomicInteger());
         executorService.submit(new Runnable() {
 
           @Override
@@ -100,7 +100,7 @@ class ShardReadersPool {
           List<KinesisRecord> kinesisRecords = shardRecordsIterator.readNextBatch();
           for (KinesisRecord kinesisRecord : kinesisRecords) {
             recordsQueue.put(kinesisRecord);
-            counters.get(kinesisRecord.getShardId()).incrementAndGet();
+            numberOfRecordsInAQueueByShard.get(kinesisRecord.getShardId()).incrementAndGet();
           }
         } catch (KinesisShardClosedException e) {
           LOG.info("Shard iterator is closed, finishing the read loop", e);
@@ -127,7 +127,7 @@ class ShardReadersPool {
         return CustomOptional.absent();
       }
       shardIteratorsMap.get(record.getShardId()).ackRecord(record);
-      counters.get(record.getShardId()).decrementAndGet();
+      numberOfRecordsInAQueueByShard.get(record.getShardId()).decrementAndGet();
       return CustomOptional.of(record);
     } catch (InterruptedException e) {
       LOG.warn("Interrupted while waiting for KinesisRecord from the buffer");
@@ -183,7 +183,7 @@ class ShardReadersPool {
   /**
    * Waits until all records read from given shardRecordsIterator are taken from
    * {@link #recordsQueue} and acked.
-   * Uses {@link #counters} map to track the amount of remaining events.
+   * Uses {@link #numberOfRecordsInAQueueByShard} map to track the amount of remaining events.
    */
   private void waitUntilAllShardRecordsRead(ShardRecordsIterator shardRecordsIterator)
       throws InterruptedException {
@@ -193,7 +193,7 @@ class ShardReadersPool {
   }
 
   private boolean allShardRecordsRead(final ShardRecordsIterator shardRecordsIterator) {
-    return counters.get(shardRecordsIterator.getShardId()).get() == 0;
+    return numberOfRecordsInAQueueByShard.get(shardRecordsIterator.getShardId()).get() == 0;
   }
 
   private void readFromSuccessiveShards(final ShardRecordsIterator closedShardIterator)
@@ -204,7 +204,7 @@ class ShardReadersPool {
     if (!successiveShardRecordIterators.isEmpty()) {
 
       // Handle one closedShardIterator at a time to keep shardIteratorsMap,
-      // recordsQueue and counters in sync.
+      // recordsQueue and numberOfRecordsInAQueueByShard in sync.
       synchronized (this) {
         ImmutableMap.Builder<String, ShardRecordsIterator> shardsMap = ImmutableMap.builder();
         Iterable<ShardRecordsIterator> allShards = Iterables
@@ -215,23 +215,26 @@ class ShardReadersPool {
           }
         }
         shardIteratorsMap = shardsMap.build();
-        counters.remove(closedShardIterator.getShardId());
+        numberOfRecordsInAQueueByShard.remove(closedShardIterator.getShardId());
 
         BlockingQueue<KinesisRecord> newRecordsQueue = new ArrayBlockingQueue<>(
             queueCapacityPerShard * shardIteratorsMap.size());
         BlockingQueue<KinesisRecord> previousRecordsQueue = recordsQueue;
         recordsQueue = newRecordsQueue;
-        while (!previousRecordsQueue.isEmpty()) {
+        do {
           try {
-            newRecordsQueue.put(previousRecordsQueue.poll());
+            KinesisRecord record = previousRecordsQueue.poll(500, TimeUnit.MILLISECONDS);
+            if (record != null) {
+              newRecordsQueue.put(record);
+            }
           } catch (InterruptedException e) {
             LOG.warn("Thread was interrupted during resharding operation, stopping", e);
             return;
           }
-        }
+        } while (!previousRecordsQueue.isEmpty());
       }
       for (final ShardRecordsIterator recordsIterator : successiveShardRecordIterators) {
-        counters.put(recordsIterator.getShardId(), new AtomicInteger());
+        numberOfRecordsInAQueueByShard.put(recordsIterator.getShardId(), new AtomicInteger());
         executorService.submit(new Runnable() {
 
           @Override
