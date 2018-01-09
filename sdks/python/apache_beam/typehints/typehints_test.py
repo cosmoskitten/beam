@@ -1049,7 +1049,7 @@ class DecoratorHelpers(TypeHintTestCase):
     def func(a, bandc, *d):
       return None
     self.assertEquals(
-        {'a': Any, 'band': Any, 'd': Tuple[Any, ...]},
+        {'a': Any, 'bandc': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[Any, Any]))
     self.assertEquals(
         {'a': Any, 'bandc': Any, 'd': Tuple[Any, ...]},
