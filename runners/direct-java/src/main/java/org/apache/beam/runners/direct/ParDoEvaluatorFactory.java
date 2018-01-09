@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,9 +47,9 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
   private final ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory;
 
   ParDoEvaluatorFactory(
-      EvaluationContext evaluationContext,
-      ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory,
-      CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> doFnCacheLoader) {
+          final EvaluationContext evaluationContext,
+          ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory,
+          CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> doFnCacheLoader) {
     this.evaluationContext = evaluationContext;
     this.runnerFactory = runnerFactory;
     fnClones =

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -26,7 +24,6 @@ import static org.junit.Assert.fail;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -81,7 +78,7 @@ public class WaitTearDownTest implements Serializable {
               final Context context = TEAR_DOWN_CALLED.get(name);
               assertNotNull(context);
               try {
-                assertFalse(context.waitFinish.await(4, SECONDS));
+                Thread.sleep(5000);
               } catch (final InterruptedException e) {
                 fail(e.getMessage());
               }
@@ -98,7 +95,6 @@ public class WaitTearDownTest implements Serializable {
    * Variable holder for each test instance.
    */
   public static class Context {
-    private final CountDownLatch waitFinish = new CountDownLatch(1);
     private volatile boolean teardown;
   }
 }

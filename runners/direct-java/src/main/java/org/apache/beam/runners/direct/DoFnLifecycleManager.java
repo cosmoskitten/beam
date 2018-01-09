@@ -23,7 +23,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -32,7 +31,10 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.SerializableUtils;
 
 /**
@@ -54,28 +56,20 @@ class DoFnLifecycleManager {
     return new DoFnLifecycleManager(original, ctx, app);
   }
 
-  private final LoadingCache<Thread, Value> outstanding;
+  private final LoadingCache<Thread, DoFn<?, ?>> outstanding;
   private final ConcurrentMap<Thread, Exception> thrownOnTeardown;
 
   private DoFnLifecycleManager(DoFn<?, ?> original, EvaluationContext ctx,
                                AppliedPTransform<?, ?, ?> app) {
     this.outstanding = CacheBuilder.newBuilder()
-        .removalListener(new TeardownRemovedFnListener(ctx))
-        .build(new DeserializingCacheLoader(original, app));
+        .removalListener(new TeardownRemovedFnListener(ctx, app))
+        .build(new DeserializingCacheLoader(original, app, ctx));
     thrownOnTeardown = new ConcurrentHashMap<>();
-    if (ctx != null && app != null) {
-      ctx.registerFn(toKey(app));
-    }
-  }
-
-  // can we make AppliedPTransform Serializable and use it as key?
-  private static String toKey(AppliedPTransform<?, ?, ?> app) {
-    return app.getFullName();
   }
 
   public <InputT, OutputT> DoFn<InputT, OutputT> get() throws Exception {
     Thread currentThread = Thread.currentThread();
-    return (DoFn<InputT, OutputT>) outstanding.get(currentThread).original;
+    return (DoFn<InputT, OutputT>) outstanding.get(currentThread);
   }
 
   public void remove() throws Exception {
@@ -105,48 +99,55 @@ class DoFnLifecycleManager {
     return thrownOnTeardown.values();
   }
 
-  private static class Value implements Serializable {
-    private final DoFn<?, ?> original;
-    private final String key;
-
-    private Value(final DoFn<?, ?> original, final AppliedPTransform<?, ?, ?> app) {
-      this.original = original;
-      this.key = app == null ? "" : toKey(app);
-    }
-  }
-
-  private static class DeserializingCacheLoader extends CacheLoader<Thread, Value> {
+  private static class DeserializingCacheLoader extends CacheLoader<Thread, DoFn<?, ?>> {
     private final byte[] original;
+    private final EvaluationContext context;
+    private final AppliedPTransform<?, ?, ?> application;
 
-    public DeserializingCacheLoader(DoFn<?, ?> original, AppliedPTransform<?, ?, ?> app) {
-      this.original = SerializableUtils.serializeToByteArray(new Value(original, app));
+    public DeserializingCacheLoader(DoFn<?, ?> original,
+                                    AppliedPTransform<?, ?, ?> app,
+                                    EvaluationContext ctx) {
+      this.original = SerializableUtils.serializeToByteArray(original);
+      this.context = ctx;
+      this.application = app;
     }
 
     @Override
-    public Value load(Thread key) throws Exception {
-      Value fn = (Value) SerializableUtils.deserializeFromByteArray(original,
+    public DoFn<?, ?> load(Thread key) throws Exception {
+      final DoFn<?, ?> fn = (DoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
           "DoFn Copy in thread " + key.getName());
-      DoFnInvokers.invokerFor(fn.original).invokeSetup();
+      final DoFnInvoker<?, ?> fnInvoker = DoFnInvokers.invokerFor(fn);
+      fnInvoker.invokeSetup();
+      if (context != null) {
+        final DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+        final DoFnSignature.LifecycleMethod teardown = signature.teardown();
+        if (teardown != null) {
+          context.registerFn(application, key.getId());
+        }
+      }
       return fn;
     }
   }
 
-  private class TeardownRemovedFnListener implements RemovalListener<Thread, Value> {
+  private class TeardownRemovedFnListener implements RemovalListener<Thread, DoFn<?, ?>> {
     private final EvaluationContext context;
+    private final AppliedPTransform<?, ?, ?> application;
 
-    private TeardownRemovedFnListener(final EvaluationContext context) {
+    private TeardownRemovedFnListener(final EvaluationContext context,
+                                      final AppliedPTransform<?, ?, ?> application) {
       this.context = context;
+      this.application = application;
     }
 
     @Override
-    public void onRemoval(RemovalNotification<Thread, Value> notification) {
+    public void onRemoval(RemovalNotification<Thread, DoFn<?, ?>> notification) {
       try {
-        DoFnInvokers.invokerFor(notification.getValue().original).invokeTeardown();
+        DoFnInvokers.invokerFor(notification.getValue()).invokeTeardown();
       } catch (Exception e) {
         thrownOnTeardown.put(notification.getKey(), e);
       } finally {
         if (context != null) {
-          context.unregisterFn(notification.getValue().key);
+          context.unregisterFn(application, notification.getKey().getId());
         }
       }
     }
