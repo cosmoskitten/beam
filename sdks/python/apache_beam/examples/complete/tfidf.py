@@ -152,7 +152,7 @@ class TfIdf(beam.PTransform):
     # inputs (and ordinary Python values, too) can be provided to MapFns and
     # DoFns in this way.
     def div_word_count_by_total(word_counts_and_total):
-      ((word, count), total) = word_counts_and_total
+      (word, count), total = word_counts_and_total
       return (word, float(count) / total)
 
     word_to_df = (

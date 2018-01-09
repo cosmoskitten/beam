@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from future.utils import raise_with_traceback
 
 import abc
 import collections
@@ -30,6 +29,7 @@ import sys
 import threading
 
 import grpc
+from future.utils import raise_with_traceback
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
