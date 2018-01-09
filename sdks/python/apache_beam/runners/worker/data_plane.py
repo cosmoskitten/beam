@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from future.utils import raise_with_traceback
 
 import abc
 import collections
@@ -182,7 +183,7 @@ class _GrpcDataChannel(DataChannel):
           data = received.get(timeout=1)
         except queue.Empty:
           if self._exc_info:
-            raise self.exc_info[0], self.exc_info[1], self.exc_info[2]
+            raise_with_traceback(exc_info[0], exc_info[2])
         else:
           if not data.data and data.target in expected_targets:
             done_targets.append(data.target)

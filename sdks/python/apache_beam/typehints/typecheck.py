@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from future.utils import raise_with_traceback
+
 import collections
 import inspect
 import sys
@@ -86,7 +88,7 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     except TypeCheckError as e:
       error_msg = ('Runtime type violation detected within ParDo(%s): '
                    '%s' % (self.full_label, e))
-      six.reraise(TypeCheckError, error_msg, sys.exc_info()[2])
+      raise_with_traceback(TypeCheckError(error_msg), sys.exc_info()[2])
     else:
       return self._check_type(result)
 
@@ -175,12 +177,12 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     try:
       check_constraint(type_constraint, datum)
     except CompositeTypeHintError as e:
-      six.reraise(TypeCheckError, e.args[0], sys.exc_info()[2])
+      raise_with_traceback(TypeCheckError(e.message), sys.exc_info()[2])
     except SimpleTypeHintError:
       error_msg = ("According to type-hint expected %s should be of type %s. "
                    "Instead, received '%s', an instance of type %s."
                    % (datum_type, type_constraint, datum, type(datum)))
-      six.reraise(TypeCheckError, error_msg, sys.exc_info()[2])
+      raise_with_traceback(TypeCheckError(error_msg), sys.exc_info()[2])
 
 
 class TypeCheckCombineFn(core.CombineFn):
@@ -205,7 +207,7 @@ class TypeCheckCombineFn(core.CombineFn):
       except TypeCheckError as e:
         error_msg = ('Runtime type violation detected within %s: '
                      '%s' % (self._label, e))
-        raise TypeCheckError, error_msg, sys.exc_info()[2]
+        raise_with_traceback(TypeCheckError(error_msg), sys.exc_info()[2])
     return self._combinefn.add_input(accumulator, element, *args, **kwargs)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
@@ -220,7 +222,7 @@ class TypeCheckCombineFn(core.CombineFn):
       except TypeCheckError as e:
         error_msg = ('Runtime type violation detected within %s: '
                      '%s' % (self._label, e))
-        raise TypeCheckError, error_msg, sys.exc_info()[2]
+        raise_with_traceback(TypeCheckError(error_msg), sys.exc_info()[2])
     return result
 
 
