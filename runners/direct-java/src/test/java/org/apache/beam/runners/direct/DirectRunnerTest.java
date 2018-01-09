@@ -21,7 +21,9 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableMap;
@@ -30,6 +32,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -75,10 +78,13 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -87,13 +93,57 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class DirectRunnerTest implements Serializable {
+  private static final Map<String, Context> TEAR_DOWN_CALLED = new HashMap<>();
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  @Rule public transient TestName testName = new TestName();
+
+  @Before
+  public void before() {
+    TEAR_DOWN_CALLED.put(testName.getMethodName(), new Context());
+  }
+
+  @After
+  public void after() {
+    TEAR_DOWN_CALLED.remove(testName.getMethodName());
+  }
 
   private Pipeline getPipeline() {
     PipelineOptions opts = PipelineOptionsFactory.create();
     opts.setRunner(DirectRunner.class);
 
     return Pipeline.create(opts);
+  }
+
+  @Test
+  public void tearDownRespected() {
+    final Pipeline pipeline = getPipeline();
+    pipeline.apply(Create.of("a"))
+                 .apply(ParDo.of(new DoFn<String, String>() {
+       private String name = testName.getMethodName();
+
+       @ProcessElement
+       public void onElement(final ProcessContext ctx) {
+         // no-op
+       }
+
+       @Teardown
+       public void teardown() {
+         final Context context = TEAR_DOWN_CALLED.get(name);
+         assertNotNull(context);
+         try {
+           Thread.sleep(5000);
+         } catch (final InterruptedException e) {
+           fail(e.getMessage());
+         }
+         context.teardown = true;
+       }
+     }));
+    final PipelineResult pipelineResult = pipeline.run();
+    pipelineResult.waitUntilFinish();
+    final Context context = TEAR_DOWN_CALLED.get(testName.getMethodName());
+    assertTrue(context.teardown);
   }
 
   @Test
@@ -573,5 +623,12 @@ public class DirectRunnerTest implements Serializable {
     public Coder<T> getOutputCoder() {
       return underlying.getOutputCoder();
     }
+  }
+
+  /**
+   * Variable holder for each test instance.
+   */
+  public static class Context {
+    private volatile boolean teardown;
   }
 }
