@@ -1046,7 +1046,8 @@ class DecoratorHelpers(TypeHintTestCase):
                       _positional_arg_hints(['x', 'y'], {'x': int}))
 
   def test_getcallargs_forhints(self):
-    func = lambda a, (b, c), *d: None
+    def func(a, bandc, *d):
+      return None
     self.assertEquals(
         {'a': Any, 'b': Any, 'c': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[Any, Any]))
