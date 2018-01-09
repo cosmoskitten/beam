@@ -22,6 +22,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from future.utils import raise_with_traceback
+
 import sys
 import traceback
 
@@ -512,7 +514,10 @@ class DoFnRunner(Receiver):
           traceback.format_exception_only(type(exn), exn)[-1].strip()
           + step_annotation)
       new_exn._tagged_with_step = True
-    raise new_exn, None, original_traceback
+    if sys.version_info[0] == 2:
+      raise_with_traceback(new_exn, original_traceback)
+    else:
+      raise new_exn from exn
 
 
 class OutputProcessor(object):

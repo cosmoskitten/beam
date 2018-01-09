@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from future.utils import raise_with_traceback
 
 import logging
 import Queue as queue
@@ -288,7 +289,7 @@ class GrpcStateHandler(object):
     self._requests.put(request)
     while not future.wait(timeout=1):
       if self._exc_info:
-        raise self._exc_info[0], self._exc_info[1], self._exc_info[2]
+        raise_with_traceback(self._exc_info[0], self._exc_info[2])
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]
