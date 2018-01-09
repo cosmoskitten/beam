@@ -84,7 +84,7 @@ public interface DoFnInvoker<InputT, OutputT> {
   /** Get the bound {@link DoFn}. */
   DoFn<InputT, OutputT> getFn();
 
-    /**
+  /**
    * Interface for runner implementors to provide implementations of extra context information.
    *
    * <p>The methods on this interface are called by {@link DoFnInvoker} before invoking an annotated
