@@ -42,7 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <p>As written that query will only yield a few hundred results over event streams of
  * arbitrary size. To make it more interesting we instead choose bids for every
- * {@code auctionSkip}'th auction.
+ * {@code skipFactor}'th auction.
  */
 public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<BeamRecord>> {
 
