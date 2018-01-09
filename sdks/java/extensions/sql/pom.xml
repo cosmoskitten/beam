@@ -73,10 +73,11 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>${maven-checkstyle-plugin.version}</version>
           <configuration>
             <!-- Set testSourceDirectory in order to exclude generated-test-sources -->
-            <testSourceDirectory>${project.basedir}/src/test/</testSourceDirectory>
-            <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+            <testSourceDirectories>${project.basedir}/src/test/</testSourceDirectories>
+            <sourceDirectories>${project.build.sourceDirectory}</sourceDirectories>
           </configuration>
         </plugin>
       </plugins>
