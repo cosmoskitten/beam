@@ -18,7 +18,6 @@
 """An executor that schedules and executes applied ptransforms."""
 
 from __future__ import absolute_import
-from future.utils import raise_with_traceback
 
 import collections
 import itertools
@@ -28,6 +27,8 @@ import sys
 import threading
 import traceback
 from weakref import WeakValueDictionary
+
+from future.utils import raise_with_traceback
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
@@ -409,7 +410,7 @@ class _ExecutorServiceParallelExecutor(object):
     update = self.visible_updates.take()
     try:
       if update.exception:
-        t, v, tb = update.exc_info
+        t, _, tb = update.exc_info
         raise_with_traceback(t, tb)
     finally:
       self.executor_service.shutdown()
