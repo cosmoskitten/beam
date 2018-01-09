@@ -42,7 +42,7 @@ public abstract class EncodedBoundedWindow extends BoundedWindow {
     return new AutoValue_EncodedBoundedWindow(encodedWindow);
   }
 
-  protected abstract ByteString getEncodedWindow();
+  public abstract ByteString getEncodedWindow();
 
   public Instant maxTimestamp() {
     throw new UnsupportedOperationException("TODO: Add support for reading the timestamp from "
