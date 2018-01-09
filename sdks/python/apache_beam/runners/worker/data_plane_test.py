@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from future.utils import raise_with_traceback
 
 import logging
 import sys
@@ -29,6 +28,7 @@ import unittest
 from concurrent import futures
 
 import grpc
+from future.utils import raise_with_traceback
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -50,7 +50,7 @@ def timeout(timeout_secs):
       thread.start()
       thread.join(timeout_secs)
       if exc_info:
-        t, v, tb = exc_info  # pylint: disable=unbalanced-tuple-unpacking
+        t, _, tb = exc_info  # pylint: disable=unbalanced-tuple-unpacking
         raise_with_traceback(t, tb)
       assert not thread.is_alive(), 'timed out after %s seconds' % timeout_secs
     return wrapper

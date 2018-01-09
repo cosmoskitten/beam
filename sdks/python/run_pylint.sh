@@ -71,6 +71,7 @@ ISORT_EXCLUDED=(
   "avroio_test.py"
   "datastore_wordcount.py"
   "datastoreio_test.py"
+  "hadoopfilesystem.py"
   "iobase_test.py"
   "fast_coders_test.py"
   "slow_coders_test.py"
