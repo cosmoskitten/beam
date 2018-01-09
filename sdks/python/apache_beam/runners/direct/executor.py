@@ -18,6 +18,7 @@
 """An executor that schedules and executes applied ptransforms."""
 
 from __future__ import absolute_import
+from future.utils import raise_with_traceback
 
 import collections
 import itertools
@@ -409,7 +410,7 @@ class _ExecutorServiceParallelExecutor(object):
     try:
       if update.exception:
         t, v, tb = update.exc_info
-        raise t, v, tb
+        raise_with_traceback(t, tb)
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()
