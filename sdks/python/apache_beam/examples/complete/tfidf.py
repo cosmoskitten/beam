@@ -151,10 +151,14 @@ class TfIdf(beam.PTransform):
     # receives the value we listed after the lambda in Map(). Additional side
     # inputs (and ordinary Python values, too) can be provided to MapFns and
     # DoFns in this way.
+    def div_word_count_by_total(word_counts_and_total):
+      ((word, count), total) = word_counts_and_total
+      return (word, float(count) / total)
+
     word_to_df = (
         word_to_doc_count
         | 'ComputeDocFrequencies' >> beam.Map(
-            lambda (word, count), total: (word, float(count) / total),
+            div_word_count_by_total,
             AsSingleton(total_documents)))
 
     # Join the term frequency and document frequency collections,
