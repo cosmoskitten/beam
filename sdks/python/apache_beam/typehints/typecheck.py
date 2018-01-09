@@ -20,12 +20,13 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from future.utils import raise_with_traceback
 
 import collections
 import inspect
 import sys
 import types
+
+from future.utils import raise_with_traceback
 
 from apache_beam import pipeline
 from apache_beam.pvalue import TaggedOutput

@@ -19,7 +19,6 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from future.utils import raise_with_traceback
 
 import logging
 import Queue as queue
@@ -29,6 +28,7 @@ import traceback
 from concurrent import futures
 
 import grpc
+from future.utils import raise_with_traceback
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
