@@ -682,6 +682,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Stage the pipeline, retrieving the staged pipeline path, then update
     // the options on the new job
+    // TODO: add an explicit `pipeline` parameter to the submission instead of pipeline options
     LOG.info("Staging pipeline description to {}", options.getStagingLocation());
     byte[] serializedProtoPipeline = jobSpecification.getPipelineProto().toByteArray();
     DataflowPackage stagedPipeline =
