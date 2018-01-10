@@ -36,6 +36,7 @@ from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.runners.worker import statesampler
 
 
 class MetricKey(object):
@@ -127,18 +128,40 @@ class _MetricsEnvironment(object):
     with self._METRICS_SUPPORTED_LOCK:
       self.METRICS_SUPPORTED = supported
 
-  def current_container(self):
+  def _old_style_container(self):
+    """Gets the current MetricsContainer based on the container stack.
+
+    The container stack is the old method, and will be deprecated. Should
+    rely on StateSampler instead."""
     self.set_container_stack()
     index = len(self.PER_THREAD.container) - 1
     if index < 0:
       return None
     return self.PER_THREAD.container[index]
 
+  def current_container(self):
+    """Returns the current MetricsContainer."""
+    sampler = statesampler.EXECUTION_STATE_SAMPLERS.current_sampler()
+    if sampler is None:
+      return self._old_style_container()
+
+    current_state = sampler.current_state()
+    if current_state is None or  current_state.metrics_container is None:
+      return self._old_style_container()
+
+    return current_state.metrics_container
+
   def set_current_container(self, container):
+    """Sets the Metricscontainer based in the container stack.
+
+    The container stack is the old style, and will be deprecated."""
     self.set_container_stack()
     self.PER_THREAD.container.append(container)
 
   def unset_current_container(self):
+    """Resets the Metricscontainer based in the container stack.
+
+    The container stack is the old style, and will be deprecated."""
     self.set_container_stack()
     self.PER_THREAD.container.pop()
 
@@ -227,10 +250,12 @@ class ScopedMetricsContainer(object):
     self._container = container
 
   def enter(self):
-    self._stack.append(self._container)
+    if self._container:
+      self._stack.append(self._container)
 
   def exit(self):
-    self._stack.pop()
+    if self._container:
+      self._stack.pop()
 
   def __enter__(self):
     self.enter()
