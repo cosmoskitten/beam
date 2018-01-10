@@ -133,24 +133,25 @@ class Operation(object):
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
-    self.scoped_metrics_container = ScopedMetricsContainer(
-        self.metrics_container)
+    self.scoped_metrics_container = ScopedMetricsContainer()
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'start')
+        self.name_context.metrics_name(), 'start',
+        metrics_container=self.metrics_container)
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'process')
+        self.name_context.metrics_name(), 'process',
+        metrics_container=self.metrics_container)
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'finish')
+        self.name_context.metrics_name(), 'finish',
+        metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
 
   def start(self):
     """Start operation."""
-    self.debug_logging_enabled = logging.getLogger().isEnabledFor(
-        logging.DEBUG)
+    self.debug_logging_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
     # Everything except WorkerSideInputSource, which is not a
     # top-level operation, should have output_coders
     #TODO(pabloem): Define better what step name is used here.
@@ -240,16 +241,15 @@ class ReadOperation(Operation):
 
   def start(self):
     with self.scoped_start_state:
-      with self.scoped_metrics_container:
-        super(ReadOperation, self).start()
-        range_tracker = self.spec.source.source.get_range_tracker(
-            self.spec.source.start_position, self.spec.source.stop_position)
-        for value in self.spec.source.source.read(range_tracker):
-          if isinstance(value, WindowedValue):
-            windowed_value = value
-          else:
-            windowed_value = _globally_windowed_value.with_value(value)
-          self.output(windowed_value)
+      super(ReadOperation, self).start()
+      range_tracker = self.spec.source.source.get_range_tracker(
+          self.spec.source.start_position, self.spec.source.stop_position)
+      for value in self.spec.source.source.read(range_tracker):
+        if isinstance(value, WindowedValue):
+          windowed_value = value
+        else:
+          windowed_value = _globally_windowed_value.with_value(value)
+        self.output(windowed_value)
 
 
 class InMemoryWriteOperation(Operation):
@@ -444,9 +444,8 @@ class CombineOperation(Operation):
     if self.debug_logging_enabled:
       logging.debug('Processing [%s] in %s', o, self)
     key, values = o.value
-    with self.scoped_metrics_container:
-      self.output(
-          o.with_value((key, self.phased_combine_fn.apply(values))))
+    self.output(
+        o.with_value((key, self.phased_combine_fn.apply(values))))
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -725,8 +724,6 @@ class SimpleMapTaskExecutor(object):
 
     for ix, op in reversed(list(enumerate(self._ops))):
       logging.debug('Starting op %d %s', ix, op)
-      with op.scoped_metrics_container:
-        op.start()
+      op.start()
     for op in self._ops:
-      with op.scoped_metrics_container:
-        op.finish()
+      op.finish()
