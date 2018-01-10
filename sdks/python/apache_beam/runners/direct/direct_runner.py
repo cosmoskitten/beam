@@ -32,7 +32,6 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal.util import ArgumentPlaceholder
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -339,6 +338,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     from apache_beam.runners.direct.executor import Executor
     from apache_beam.runners.direct.transform_evaluator import \
       TransformEvaluatorRegistry
+    from apache_beam.metrics.execution import MetricsEnvironment
 
     MetricsEnvironment.set_metrics_supported(True)
     logging.info('Running pipeline with DirectRunner.')
