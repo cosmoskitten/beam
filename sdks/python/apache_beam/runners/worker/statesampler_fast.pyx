@@ -37,6 +37,7 @@ runtime profile to be produced.
 import threading
 
 from apache_beam.utils.counters import CounterName
+from apache_beam.metrics.execution cimport MetricsContainer
 
 cimport cython
 from cpython cimport pythread
@@ -113,6 +114,10 @@ cdef class StateSampler(object):
   def __dealloc__(self):
     pythread.PyThread_free_lock(self.lock)
 
+  @staticmethod
+  def simple_tracker():
+    return StateSampler('', None)
+
   def run(self):
     cdef int64_t last_nsecs = get_nsec_time()
     cdef int64_t elapsed_nsecs
@@ -156,7 +161,8 @@ cdef class StateSampler(object):
   def current_state(self):
     return self.scoped_states_by_index[self.current_state_index]
 
-  cpdef _scoped_state(self, counter_name, output_counter):
+  cpdef _scoped_state(self, counter_name, output_counter,
+                      metrics_container=None):
     """Returns a context manager managing transitions for a given state.
     Args:
      TODO(pabloem)
@@ -165,8 +171,11 @@ cdef class StateSampler(object):
       A ScopedState for the set of step-state-io_target.
     """
     new_state_index = len(self.scoped_states_by_index)
-    scoped_state = ScopedState(self, counter_name,
-                               new_state_index, output_counter)
+    scoped_state = ScopedState(self,
+                               counter_name,
+                               new_state_index,
+                               output_counter,
+                               metrics_container)
     # Both scoped_states_by_index and scoped_state.nsecs are accessed
     # by the sampling thread; initialize them under the lock.
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
@@ -185,12 +194,15 @@ cdef class ScopedState(object):
   cdef readonly object name
   cdef readonly int64_t _nsecs
   cdef int32_t old_state_index
+  cdef readonly MetricsContainer _metrics_container
 
-  def __init__(self, sampler, name, state_index, counter=None):
+  def __init__(
+      self, sampler, name, state_index, counter=None, metrics_container=None):
     self.sampler = sampler
     self.name = name
     self.state_index = state_index
     self.counter = counter
+    self._metrics_container = metrics_container
 
   @property
   def nsecs(self):
@@ -214,3 +226,7 @@ cdef class ScopedState(object):
     self.sampler.current_state_index = self.old_state_index
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
+
+  @property
+  def metrics_container(self):
+    return self._metrics_container
