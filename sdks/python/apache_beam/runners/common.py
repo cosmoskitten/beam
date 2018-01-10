@@ -26,7 +26,6 @@ import sys
 import traceback
 
 from apache_beam.internal import util
-from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
@@ -444,6 +443,8 @@ class DoFnRunner(Receiver):
     """
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
+
+    from apache_beam.metrics.execution import ScopedMetricsContainer
 
     self.scoped_metrics_container = (
         scoped_metrics_container or ScopedMetricsContainer())

@@ -121,24 +121,28 @@ class Operation(object):
     # These are overwritten in the legacy harness.
     self.step_name = operation_name
     self.metrics_container = MetricsContainer(self.step_name)
-    self.scoped_metrics_container = ScopedMetricsContainer(
-        self.metrics_container)
+    self.scoped_metrics_container = ScopedMetricsContainer()
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.operation_name, 'start')
+        self.operation_name, 'start',
+        metrics_container=self.metrics_container)
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.operation_name, 'process')
+        self.operation_name, 'process',
+        metrics_container=self.metrics_container)
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.operation_name, 'finish')
+        self.operation_name, 'finish',
+        metrics_container=self.metrics_container)
+
+    self.debug_logging_enabled = logging.getLogger().isEnabledFor(
+        logging.DEBUG)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
 
   def start(self):
     """Start operation."""
-    self.debug_logging_enabled = logging.getLogger().isEnabledFor(
-        logging.DEBUG)
+    self.debug_logging_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
     # Everything except WorkerSideInputSource, which is not a
     # top-level operation, should have output_coders
     if getattr(self.spec, 'output_coders', None):
@@ -404,7 +408,6 @@ class CombineOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.serialized_fn)[:3]
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
-    self.scoped_metrics_container = ScopedMetricsContainer()
 
   def finish(self):
     logging.debug('Finishing %s', self)
@@ -413,9 +416,8 @@ class CombineOperation(Operation):
     if self.debug_logging_enabled:
       logging.debug('Processing [%s] in %s', o, self)
     key, values = o.value
-    with self.scoped_metrics_container:
-      self.output(
-          o.with_value((key, self.phased_combine_fn.apply(values))))
+    self.output(
+        o.with_value((key, self.phased_combine_fn.apply(values))))
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -556,6 +558,9 @@ def create_operation(operation_name, spec, counter_factory, step_name,
                      state_sampler, test_shuffle_source=None,
                      test_shuffle_sink=None, is_streaming=False):
   """Create Operation object for given operation specification."""
+  if step_name:
+    operation_name = step_name
+
   if isinstance(spec, operation_specs.WorkerRead):
     if isinstance(spec.source, iobase.SourceBundle):
       op = ReadOperation(
@@ -612,9 +617,6 @@ def create_operation(operation_name, spec, counter_factory, step_name,
   else:
     raise TypeError('Expected an instance of operation_specs.Worker* class '
                     'instead of %s' % (spec,))
-  op.step_name = step_name
-  op.metrics_container = MetricsContainer(step_name)
-  op.scoped_metrics_container = ScopedMetricsContainer(op.metrics_container)
   return op
 
 
@@ -689,8 +691,6 @@ class SimpleMapTaskExecutor(object):
 
     for ix, op in reversed(list(enumerate(self._ops))):
       logging.debug('Starting op %d %s', ix, op)
-      with op.scoped_metrics_container:
-        op.start()
+      op.start()
     for op in self._ops:
-      with op.scoped_metrics_container:
-        op.finish()
+      op.finish()

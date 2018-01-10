@@ -20,6 +20,7 @@ import threading
 from collections import namedtuple
 
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 
@@ -52,17 +53,26 @@ class StateSampler(object):
 
   def __init__(self, prefix, counter_factory,
                sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
+    EXECUTION_STATE_SAMPLERS.set_sampler(self)
     self._prefix = prefix
     self._state_stack = [ScopedState(None, self, None)]
     self.states_by_name = {}
     self.transition_count = 0
-    self._counter_factory = counter_factory
+    self._counter_factory = counter_factory or CounterFactory()
+
+  @staticmethod
+  def simple_tracker():
+    return StateSampler('', None, None)
 
   def current_state(self):
-    """Returns the current execution state."""
+    """Returns the current execution state.
+
+    This operation is not thread safe, and should only be called from the
+    execution thread."""
     return self._state_stack[-1]
 
-  def scoped_state(self, step_name, state_name, io_target=None):
+  def scoped_state(
+      self, step_name, state_name, io_target=None, metrics_container=None):
     counter_name = CounterName(state_name + '-msecs',
                                stage_name=self._prefix,
                                step_name=step_name,
@@ -73,7 +83,8 @@ class StateSampler(object):
       output_counter = self._counter_factory.get_counter(counter_name,
                                                          Counter.SUM)
       self.states_by_name[counter_name] = ScopedState(
-          counter_name, self, output_counter)
+          counter_name, self, output_counter,
+          metrics_container=metrics_container)
       return self.states_by_name[counter_name]
 
   def _enter_state(self, state):
@@ -107,11 +118,13 @@ class StateSampler(object):
 
 class ScopedState(object):
 
-  def __init__(self, state_name, state_sampler, counter):
+  def __init__(
+      self, state_name, state_sampler, counter, metrics_container=None):
     self.name = state_name
     self.state_sampler = state_sampler
     self.counter = counter
     self.msecs = 0
+    self.metrics_container = metrics_container
 
   def enter(self):
     self.state_sampler._enter_state(self)

@@ -39,7 +39,10 @@ import threading
 import time
 
 
+from apache_beam.metrics.execution cimport MetricsContainer
+
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 cimport cython
@@ -123,7 +126,7 @@ cdef class StateSampler(object):
       sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
     EXECUTION_STATE_SAMPLERS.set_sampler(self)
     self.prefix = prefix
-    self.counter_factory = counter_factory
+    self.counter_factory = counter_factory or CounterFactory()
     self.sampling_period_ms = sampling_period_ms
 
     self.lock = pythread.PyThread_allocate_lock()
@@ -148,6 +151,10 @@ cdef class StateSampler(object):
 
   def __dealloc__(self):
     pythread.PyThread_free_lock(self.lock)
+
+  @staticmethod
+  def simple_tracker():
+    return StateSampler('', None)
 
   def run(self):
     cdef int64_t last_nsecs = get_nsec_time()
@@ -193,6 +200,13 @@ cdef class StateSampler(object):
     if self.started and not self.finished:
       self.stop()
 
+  def current_state(self):
+    """Returns the current ScopedState.
+
+    This operation is not thread safe, and should only be called from the
+    execution thread."""
+    return self.scoped_states_by_index[self.current_state_index]
+
   def get_info(self):
     """Returns StateSamplerInfo with transition statistics."""
     return StateSamplerInfo(
@@ -200,13 +214,16 @@ cdef class StateSampler(object):
         self.state_transition_count,
         self.time_since_transition)
 
-  def scoped_state(self, step_name, state_name, io_target=None):
+  def scoped_state(
+      self, step_name, state_name, io_target=None, metrics_container=None):
     """Returns a context manager managing transitions for a given state.
     Args:
       step_name: A string with the name of the running step.
       state_name: A string with the name of the state (e.g. 'process', 'start')
       io_target: An IOTargetName object describing the io_target (e.g. writing
         or reading to side inputs, shuffle or state). Will often be None.
+      metrics_container: The MetricsContainer associated to this execution state.
+        This is optional.
 
     Returns:
       A ScopedState for the set of step-state-io_target.
@@ -223,7 +240,8 @@ cdef class StateSampler(object):
                                                         Counter.SUM)
       new_state_index = len(self.scoped_states_by_index)
       scoped_state = ScopedState(self, counter_name,
-                                 new_state_index, output_counter)
+                                 new_state_index, output_counter,
+                                 metrics_container=metrics_container)
       # Both scoped_states_by_index and scoped_state.nsecs are accessed
       # by the sampling thread; initialize them under the lock.
       pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
@@ -249,12 +267,15 @@ cdef class ScopedState(object):
   cdef readonly object name
   cdef readonly int64_t nsecs
   cdef int32_t old_state_index
+  cdef readonly MetricsContainer _metrics_container
 
-  def __init__(self, sampler, name, state_index, counter=None):
+  def __init__(
+      self, sampler, name, state_index, counter=None, metrics_container=None):
     self.sampler = sampler
     self.name = name
     self.state_index = state_index
     self.counter = counter
+    self._metrics_container = metrics_container
 
   cpdef __enter__(self):
     self.old_state_index = self.sampler.current_state_index
@@ -268,6 +289,10 @@ cdef class ScopedState(object):
     self.sampler.current_state_index = self.old_state_index
     pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
+
+  @property
+  def metrics_container(self):
+    return self._metrics_container
 
   def __repr__(self):
     return "ScopedState[%s, %s, %s]" % (self.name, self.state_index, self.nsecs)
