@@ -186,15 +186,17 @@ public class ProcessBundleHandler {
       }
     }
 
-    String pTransformString = TextFormat.printToString(pTransform);
-    checkArgument(
-        pTransform.hasSpec(),
-        "Cannot process transform with no spec: %s",
-        pTransformString);
+    if (!pTransform.hasSpec()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot process transform with no spec: %s", TextFormat.printToString(pTransform)));
+    }
 
-    checkArgument(pTransform.getSubtransformsCount() == 0,
-      "Cannot process composite transform: %s",
-        pTransformString);
+    if (pTransform.getSubtransformsCount() > 0) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot process composite transform: %s", TextFormat.printToString(pTransform)));
+    }
 
     urnToPTransformRunnerFactoryMap.getOrDefault(
         pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
