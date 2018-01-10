@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpec
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrCrash;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -72,6 +73,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
         PTransformReplacements.getSingletonMainInput(transform),
         new ParDoSingle<>(
             transform.getTransform(),
+            Iterables.getOnlyElement(transform.getOutputs().keySet()),
             PTransformReplacements.getSingletonMainOutput(transform).getCoder()));
   }
 
@@ -79,10 +81,12 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
   public static class ParDoSingle<InputT, OutputT>
       extends ForwardingPTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     private final ParDo.SingleOutput<InputT, OutputT> original;
+    private final TupleTag<?> onlyOutputTag;
     private final Coder<OutputT> outputCoder;
 
-    private ParDoSingle(SingleOutput<InputT, OutputT> original, Coder<OutputT> outputCoder) {
+    private ParDoSingle(SingleOutput<InputT, OutputT> original, TupleTag<?> onlyOutputTag, Coder<OutputT> outputCoder) {
       this.original = original;
+      this.onlyOutputTag = onlyOutputTag;
       this.outputCoder = outputCoder;
     }
 
@@ -97,7 +101,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     }
 
     public TupleTag<?> getMainOutputTag() {
-      return new TupleTag<>(ParDo.SingleOutput.MAIN_OUTPUT_TAG);
+      return onlyOutputTag;
     }
 
     public List<PCollectionView<?>> getSideInputs() {
