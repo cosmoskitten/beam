@@ -979,7 +979,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       checkState(currentElement.getValue() instanceof KV,
           "Accessing state in unkeyed context. Current element is not a KV: %s.",
           currentElement);
-      checkState(inputCoder.getCoderArguments().get(0) instanceof KvCoder,
+      checkState(
+          inputCoder instanceof KvCoder,
           "Accessing state in unkeyed context. No keyed coder found.");
 
       ByteString.Output encodedKeyOut = ByteString.newOutput();
