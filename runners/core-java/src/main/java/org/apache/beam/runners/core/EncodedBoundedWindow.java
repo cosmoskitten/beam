@@ -44,6 +44,7 @@ public abstract class EncodedBoundedWindow extends BoundedWindow {
 
   public abstract ByteString getEncodedWindow();
 
+  @Override
   public Instant maxTimestamp() {
     throw new UnsupportedOperationException("TODO: Add support for reading the timestamp from "
         + "the encoded window.");
