@@ -127,6 +127,7 @@ class MapTaskExecutorRunner(PipelineRunner):
       # TODO(robertwb): Output counters produced here are currently ignored.
       counter_factory = CounterFactory()
       state_sampler = statesampler.StateSampler('%s' % ix, counter_factory)
+      state_sampler.register()
       map_executor = operations.SimpleMapTaskExecutor(
           operation_specs.MapTask(
               all_operations, 'S%02d' % ix,

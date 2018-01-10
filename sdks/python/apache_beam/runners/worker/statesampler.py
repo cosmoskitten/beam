@@ -20,6 +20,7 @@ import threading
 from collections import namedtuple
 
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 try:
@@ -67,6 +68,12 @@ class StateSampler(statesampler_impl.StateSampler):
     self.sampling_period_ms = sampling_period_ms
     super(StateSampler, self).__init__(sampling_period_ms)
 
+  @staticmethod
+  def simple_tracker():
+    sampler = StateSampler('', CounterFactory())
+    sampler.register()
+    return sampler
+
   def register(self):
     EXECUTION_STATE_SAMPLERS.set_sampler(self)
     self._registered = True
@@ -78,7 +85,11 @@ class StateSampler(statesampler_impl.StateSampler):
         self.state_transition_count,
         self.time_since_transition)
 
-  def scoped_state(self, step_name, state_name, io_target=None):
+  def scoped_state(self,
+                   step_name,
+                   state_name,
+                   io_target=None,
+                   metrics_container=None):
     counter_name = CounterName(state_name + '-msecs',
                                stage_name=self._prefix,
                                step_name=step_name,
@@ -89,7 +100,9 @@ class StateSampler(statesampler_impl.StateSampler):
       output_counter = self._counter_factory.get_counter(counter_name,
                                                          Counter.SUM)
       self._states_by_name[counter_name] = super(
-          StateSampler, self)._scoped_state(counter_name, output_counter)
+          StateSampler, self)._scoped_state(counter_name,
+                                            output_counter,
+                                            metrics_container)
       return self._states_by_name[counter_name]
 
   def commit_counters(self):
