@@ -1071,11 +1071,11 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
       {'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'}
   ])
 
-  quotes | beam.io.Write(beam.io.BigQuerySink(
+  quotes | beam.io.WriteToBigQuery(
       table_spec,
       schema=table_schema,
       write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED))
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
   # [END model_bigqueryio_write]
 
 
