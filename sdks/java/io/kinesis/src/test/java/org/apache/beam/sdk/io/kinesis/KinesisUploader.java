@@ -27,9 +27,12 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 
 /**
  * Sends records to Kinesis in reliable way.
@@ -38,7 +41,7 @@ public class KinesisUploader {
 
   public static final int MAX_NUMBER_OF_RECORDS_IN_BATCH = 499;
 
-  public static void uploadAll(List<String> data, KinesisTestOptions options) {
+  public static void uploadAll(List<String> data, IOTestPipelineOptions options) {
     AmazonKinesis client =
         AmazonKinesisClientBuilder.standard()
             .withCredentials(

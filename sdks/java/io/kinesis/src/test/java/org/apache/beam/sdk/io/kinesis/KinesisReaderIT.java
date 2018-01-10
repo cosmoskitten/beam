@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -46,21 +47,29 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Integration test, that reads from the real Kinesis. You need to provide all {@link
- * KinesisTestOptions} in order to run this.
+ * A test of {@link KinesisReader} on a concrete and independent Kinesis instance (on Amazon).
+ *
+ * <p>You can run this test directly using Maven with:
+ *
+ * <pre>{@code
+ * mvn -e -Pio-it verify -pl sdks/java/io/kinesis -DintegrationTestPipelineOptions='[
+ * "--awsKinesisRegion=region",
+ * "--awsKinesisStream=stream"]'
+ * }</pre>
  */
 public class KinesisReaderIT {
 
   private static final long PIPELINE_STARTUP_TIME = TimeUnit.SECONDS.toMillis(10);
-  private static KinesisTestOptions options;
+  private static IOTestPipelineOptions options;
   private ExecutorService singleThreadExecutor = newSingleThreadExecutor();
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @BeforeClass
   public static void setup() {
-    PipelineOptionsFactory.register(KinesisTestOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(KinesisTestOptions.class);
+    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions()
+        .as(IOTestPipelineOptions.class);
   }
 
   @Test
