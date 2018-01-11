@@ -46,9 +46,9 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
   private final ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory;
 
   ParDoEvaluatorFactory(
-          final EvaluationContext evaluationContext,
-          ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory,
-          CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> doFnCacheLoader) {
+      EvaluationContext evaluationContext,
+      ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory,
+      CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> doFnCacheLoader) {
     this.evaluationContext = evaluationContext;
     this.runnerFactory = runnerFactory;
     fnClones =
