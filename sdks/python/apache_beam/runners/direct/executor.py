@@ -28,7 +28,7 @@ import threading
 import traceback
 from weakref import WeakValueDictionary
 
-from future.utils import raise_with_traceback
+from future.utils import raise_
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
@@ -400,13 +400,7 @@ class _ExecutorServiceParallelExecutor(object):
     try:
       if update.exception:
         t, v, tb = update.exc_info
-        # Construct a new message if possible
-        try:
-          old_msg = t.message
-          new_msg = "{0}{1}".format(old_msg, v)
-          t = t(new_msg)
-        finally:
-          raise_with_traceback(t, tb)
+        raise_(t, v, tb)
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()

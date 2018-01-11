@@ -28,7 +28,7 @@ import traceback
 from concurrent import futures
 
 import grpc
-from future.utils import raise_with_traceback
+from future.utils import raise_
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -289,14 +289,8 @@ class GrpcStateHandler(object):
     self._requests.put(request)
     while not future.wait(timeout=1):
       if self._exc_info:
-        # Construct a new message if possible
         t, v, tb = self._exc_info
-        try:
-          old_msg = t.message
-          new_msg = "{0}{1}".format(old_msg, v)
-          t = t(new_msg)
-        finally:
-          raise_with_traceback(t, tb)
+        raise_(t, v, tb)
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]
