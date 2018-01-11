@@ -29,7 +29,7 @@ import sys
 import threading
 
 import grpc
-from future.utils import raise_with_traceback
+from future.utils import raise_
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -183,15 +183,8 @@ class _GrpcDataChannel(DataChannel):
           data = received.get(timeout=1)
         except queue.Empty:
           if self._exc_info:
-            print("PANDA dp")
             t, v, tb = self._exc_info
-            # Construct a new message if possible
-            try:
-              old_msg = t.message
-              new_msg = "{0}{1}".format(old_msg, v)
-              t = t(new_msg)
-            finally:
-              raise_with_traceback(t, tb)
+            raise_(t, v, tb)
         else:
           if not data.data and data.target in expected_targets:
             done_targets.append(data.target)

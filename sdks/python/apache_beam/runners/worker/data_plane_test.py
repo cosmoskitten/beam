@@ -28,7 +28,7 @@ import unittest
 from concurrent import futures
 
 import grpc
-from future.utils import raise_with_traceback
+from future.utils import raise_
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -50,8 +50,8 @@ def timeout(timeout_secs):
       thread.start()
       thread.join(timeout_secs)
       if exc_info:
-        t, _, tb = exc_info  # pylint: disable=unbalanced-tuple-unpacking
-        raise_with_traceback(t, tb)
+        t, v, tb = exc_info  # pylint: disable=unbalanced-tuple-unpacking
+        raise_(t, v, tb)
       assert not thread.is_alive(), 'timed out after %s seconds' % timeout_secs
     return wrapper
   return decorate
