@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -428,41 +427,5 @@ class EvaluationContext {
 
   Clock getClock() {
     return clock;
-  }
-
-  private static final class LatchKey {
-    private final AppliedPTransform<?, ?, ?> application;
-    private final long threadId;
-
-    // cached
-    private final int hash;
-
-    private LatchKey(final AppliedPTransform<?, ?, ?> application, final long threadId) {
-      this.application = application;
-      this.threadId = threadId;
-      this.hash = Objects.hash(application, threadId);
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final LatchKey latchKey = LatchKey.class.cast(o);
-      return threadId == latchKey.threadId && Objects.equals(application, latchKey.application);
-    }
-
-    @Override
-    public int hashCode() {
-      return hash;
-    }
-
-    @Override
-    public String toString() {
-      return threadId + " @ " + application.getFullName();
-    }
   }
 }

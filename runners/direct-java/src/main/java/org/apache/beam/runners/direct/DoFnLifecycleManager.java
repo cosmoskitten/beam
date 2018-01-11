@@ -30,7 +30,6 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
-import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.SerializableUtils;
 
@@ -98,10 +97,9 @@ class DoFnLifecycleManager {
 
     @Override
     public DoFn<?, ?> load(Thread key) throws Exception {
-      final DoFn<?, ?> fn = (DoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
+      DoFn<?, ?> fn = (DoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
           "DoFn Copy in thread " + key.getName());
-      final DoFnInvoker<?, ?> fnInvoker = DoFnInvokers.invokerFor(fn);
-      fnInvoker.invokeSetup();
+      DoFnInvokers.invokerFor(fn).invokeSetup();
       return fn;
     }
   }

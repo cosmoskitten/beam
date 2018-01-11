@@ -64,7 +64,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
   private final ParDoEvaluatorFactory<KV<K, InputT>, OutputT> delegateFactory;
 
-  StatefulParDoEvaluatorFactory(final EvaluationContext evaluationContext) {
+  StatefulParDoEvaluatorFactory(EvaluationContext evaluationContext) {
     this.delegateFactory =
         new ParDoEvaluatorFactory<>(
             evaluationContext,
