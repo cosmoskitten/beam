@@ -183,7 +183,15 @@ class _GrpcDataChannel(DataChannel):
           data = received.get(timeout=1)
         except queue.Empty:
           if self._exc_info:
-            raise_with_traceback(exc_info[0], exc_info[2])
+            print("PANDA dp")
+            t, v, tb = self._exc_info
+            # Construct a new message if possible
+            try:
+              old_msg = t.message
+              new_msg = "{0}{1}".format(old_msg, v)
+              t = t(new_msg)
+            finally:
+              raise_with_traceback(t, tb)
         else:
           if not data.data and data.target in expected_targets:
             done_targets.append(data.target)
