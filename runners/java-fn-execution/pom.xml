@@ -32,6 +32,18 @@
 
   <packaging>jar</packaging>
 
+  <plugins>
+    <plugin>
+      <!--  Override Beam parent to allow Java8 -->
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <configuration>
+        <source>1.8</source>
+        <target>1.8</target>
+      </configuration>
+    </plugin>
+  </plugins>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
