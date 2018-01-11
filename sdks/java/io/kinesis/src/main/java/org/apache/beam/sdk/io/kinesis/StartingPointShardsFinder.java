@@ -19,9 +19,6 @@ package org.apache.beam.sdk.io.kinesis;
 
 import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Sets;
 
 import java.io.Serializable;
@@ -118,16 +115,20 @@ class StartingPointShardsFinder implements Serializable {
       Set<Shard> validShards = validateShards(kinesis, initialShards, streamName, startingPoint);
       startingPointShards.addAll(validShards);
       expiredShards = Sets.difference(initialShards, validShards);
-      Set<String> expiredShardIds = FluentIterable.from(expiredShards)
-          .transform(new ShardIdGetter())
-          .toSet();
+      Set<String> expiredShardIds = new HashSet<>();
+      for (Shard expiredShard : expiredShards) {
+        expiredShardIds.add(expiredShard.getShardId());
+      }
       if (!expiredShardIds.isEmpty()) {
         LOGGER.info("Following shards expired for {} stream at '{}' starting point: {}", streamName,
             startingPoint, expiredShardIds);
       }
-      initialShards = FluentIterable.from(allShards)
-          .filter(new ExpiredShardsSuccessorsFilter(expiredShardIds))
-          .toSet();
+      initialShards = new HashSet<>();
+      for (Shard shard : allShards) {
+        if (expiredShardIds.contains(shard.getParentShardId())) {
+          initialShards.add(shard);
+        }
+      }
     } while (!expiredShards.isEmpty());
     return startingPointShards;
   }
@@ -137,13 +138,18 @@ class StartingPointShardsFinder implements Serializable {
    * the shard list.
    */
   private Set<Shard> findInitialShardsWithoutParents(String streamName, List<Shard> allShards) {
-    final Set<String> shardIds = FluentIterable.from(allShards)
-        .transform(new ShardIdGetter())
-        .toSet();
+    Set<String> shardIds = new HashSet<>();
+    for (Shard shard : allShards) {
+      shardIds.add(shard.getShardId());
+    }
     LOGGER.info("Stream {} has following shards: {}", streamName, shardIds);
-    return FluentIterable.from(allShards)
-        .filter(new ShardsWithoutParentsFilter(shardIds))
-        .toSet();
+    Set<Shard> shardsWithoutParents = new HashSet<>();
+    for (Shard shard : allShards) {
+      if (!shardIds.contains(shard.getParentShardId())) {
+        shardsWithoutParents.add(shard);
+      }
+    }
+    return shardsWithoutParents;
   }
 
   private Set<Shard> validateShards(SimplifiedKinesisClient kinesis, Iterable<Shard> rootShards,
@@ -162,41 +168,5 @@ class StartingPointShardsFinder implements Serializable {
       }
     }
     return validShards;
-  }
-
-  private static class ShardIdGetter implements Function<Shard, String> {
-
-    @Override
-    public String apply(Shard shard) {
-      return shard.getShardId();
-    }
-  }
-
-  private static class ExpiredShardsSuccessorsFilter implements Predicate<Shard> {
-
-    private final Set<String> expiredShardIds;
-
-    ExpiredShardsSuccessorsFilter(Set<String> expiredShardIds) {
-      this.expiredShardIds = expiredShardIds;
-    }
-
-    @Override
-    public boolean apply(Shard shard) {
-      return expiredShardIds.contains(shard.getParentShardId());
-    }
-  }
-
-  private static class ShardsWithoutParentsFilter implements Predicate<Shard> {
-
-    private final Set<String> shardIds;
-
-    ShardsWithoutParentsFilter(Set<String> shardIds) {
-      this.shardIds = shardIds;
-    }
-
-    @Override
-    public boolean apply(Shard shard) {
-      return !shardIds.contains(shard.getParentShardId());
-    }
   }
 }

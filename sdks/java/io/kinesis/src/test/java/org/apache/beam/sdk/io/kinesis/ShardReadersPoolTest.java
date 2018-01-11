@@ -71,7 +71,9 @@ public class ShardReadersPoolTest {
     when(firstCheckpoint.getShardId()).thenReturn("shard1");
     when(secondCheckpoint.getShardId()).thenReturn("shard2");
     when(firstIterator.getShardId()).thenReturn("shard1");
+    when(firstIterator.getCheckpoint()).thenReturn(firstCheckpoint);
     when(secondIterator.getShardId()).thenReturn("shard2");
+    when(secondIterator.getCheckpoint()).thenReturn(secondCheckpoint);
     when(thirdIterator.getShardId()).thenReturn("shard3");
     when(fourthIterator.getShardId()).thenReturn("shard4");
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(
@@ -258,5 +260,21 @@ public class ShardReadersPoolTest {
     shardReadersPool.start();
 
     assertThat(shardReadersPool.nextRecord()).isEqualTo(CustomOptional.absent());
+  }
+
+  @Test
+  public void shouldForgetClosedShardIterator() throws Exception {
+    when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
+    when(firstIterator.findSuccessiveShardRecordIterators())
+        .thenReturn(Collections.<ShardRecordsIterator>emptyList());
+
+    shardReadersPool.start();
+    Thread.sleep(200);
+
+    KinesisReaderCheckpoint checkpointMark = shardReadersPool.getCheckpointMark();
+    assertThat(checkpointMark.iterator())
+        .extracting("shardId", String.class)
+        .containsOnly("shard2")
+        .doesNotContain("shard1");
   }
 }
