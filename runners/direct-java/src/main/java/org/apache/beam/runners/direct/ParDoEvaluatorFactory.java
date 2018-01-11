@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,12 +55,11 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
         CacheBuilder.newBuilder().build(doFnCacheLoader);
   }
 
-  static CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> basicDoFnCacheLoader(
-          final EvaluationContext ctxt) {
+  static CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> basicDoFnCacheLoader() {
     return new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
       @Override
       public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> application) throws Exception {
-        return DoFnLifecycleManager.of(ParDoTranslation.getDoFn(application), application, ctxt);
+        return DoFnLifecycleManager.of(ParDoTranslation.getDoFn(application));
       }
     };
   }

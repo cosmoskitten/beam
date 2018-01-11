@@ -242,12 +242,7 @@ final class ExecutorServiceParallelExecutor
       if (update == null && pipelineState.get().isTerminal()) {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
-        final State state = pipelineState.get();
-        if (!evaluationContext.await(completionTime.getMillis() - Instant.now().getMillis())) {
-          throw new IllegalStateException(
-                  "Pipeline didn't complete properly, some teardown are not finished");
-        }
-        return state;
+        return pipelineState.get();
       } else if (update != null && update.thrown.isPresent()) {
         Throwable thrown = update.thrown.get();
         if (thrown instanceof Exception) {
@@ -282,18 +277,35 @@ final class ExecutorServiceParallelExecutor
       return;
     }
     LOG.debug("Pipeline has terminated. Shutting down.");
-    pipelineState.compareAndSet(State.RUNNING, newState);
+
     // Stop accepting new work before shutting down the executor. This ensures that thread don't try
     // to add work to the shutdown executor.
-    serialExecutorServices.invalidateAll();
-    serialExecutorServices.cleanUp();
-    parallelExecutorService.shutdown();
-    executorService.shutdown();
+    try {
+      serialExecutorServices.invalidateAll();
+    } catch (final RuntimeException re) {
+      LOG.error(re.getMessage(), re);
+    }
+    try {
+      serialExecutorServices.cleanUp();
+    } catch (final RuntimeException re) {
+      LOG.error(re.getMessage(), re);
+    }
+    try {
+      parallelExecutorService.shutdown();
+    } catch (final RuntimeException re) {
+      LOG.error(re.getMessage(), re);
+    }
+    try {
+      executorService.shutdown();
+    } catch (final RuntimeException re) {
+      LOG.error(re.getMessage(), re);
+    }
     try {
       registry.cleanup();
     } catch (Exception e) {
       visibleUpdates.failed(e);
     }
+    pipelineState.compareAndSet(State.RUNNING, newState);
   }
 
   /**

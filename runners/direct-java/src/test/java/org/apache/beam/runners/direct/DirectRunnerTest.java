@@ -41,6 +41,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
@@ -137,13 +138,13 @@ public class DirectRunnerTest implements Serializable {
          } catch (final InterruptedException e) {
            fail(e.getMessage());
          }
-         context.teardown = true;
+         context.teardown.set(true);
        }
      }));
     final PipelineResult pipelineResult = pipeline.run();
     pipelineResult.waitUntilFinish();
     final Context context = TEAR_DOWN_CALLED.get(testName.getMethodName());
-    assertTrue(context.teardown);
+    assertTrue(context.teardown.get());
   }
 
   @Test
@@ -632,6 +633,6 @@ public class DirectRunnerTest implements Serializable {
    * Variable holder for each test instance.
    */
   public static class Context {
-    private volatile boolean teardown;
+    private final AtomicBoolean teardown = new AtomicBoolean();
   }
 }

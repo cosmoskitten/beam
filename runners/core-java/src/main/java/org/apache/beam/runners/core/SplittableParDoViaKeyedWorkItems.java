@@ -253,8 +253,6 @@ public class SplittableParDoViaKeyedWorkItems {
 
     private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
 
-    private transient @Nullable Runnable shutdownCallback;
-
     public ProcessFn(
         DoFn<InputT, OutputT> fn,
         Coder<InputT> elementCoder,
@@ -270,10 +268,6 @@ public class SplittableParDoViaKeyedWorkItems {
               WindowedValue.getFullCoder(
                   elementCoder, inputWindowingStrategy.getWindowFn().windowCoder()));
       this.restrictionTag = StateTags.value("restriction", restrictionCoder);
-    }
-
-    public void setShutdownCallback(Runnable shutdownCallback) {
-      this.shutdownCallback = shutdownCallback;
     }
 
     public void setStateInternalsFactory(StateInternalsFactory<String> stateInternalsFactory) {
@@ -313,13 +307,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
     @Teardown
     public void tearDown() throws Exception {
-      try {
-        invoker.invokeTeardown();
-      } finally {
-        if (shutdownCallback != null) {
-          shutdownCallback.run();
-        }
-      }
+      invoker.invokeTeardown();
     }
 
     @StartBundle
