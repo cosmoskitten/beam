@@ -53,6 +53,11 @@ class SplittableProcessElementsEvaluatorFactory<
   private final EvaluationContext evaluationContext;
   private final Collection<DoFnLifecycleManager> doFnLifecycleManagers =
           new CopyOnWriteArrayList<>();
+  private final ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactoryBuilder()
+                    .setThreadFactory(MoreExecutors.platformThreadFactory())
+                    .setNameFormat("direct-splittable-process-element-checkpoint-executor")
+                    .build());
 
   SplittableProcessElementsEvaluatorFactory(EvaluationContext evaluationContext) {
     this.evaluationContext = evaluationContext;
@@ -61,7 +66,7 @@ class SplittableProcessElementsEvaluatorFactory<
             evaluationContext,
             SplittableProcessElementsEvaluatorFactory
                 .<InputT, OutputT, RestrictionT>processFnRunnerFactory(),
-            ParDoEvaluatorFactory.basicDoFnCacheLoader(evaluationContext));
+            ParDoEvaluatorFactory.basicDoFnCacheLoader());
   }
 
   @Override
@@ -78,6 +83,7 @@ class SplittableProcessElementsEvaluatorFactory<
   @Override
   public void cleanup() throws Exception {
     delegateFactory.cleanup(); // should be a noop since we don't use the cache
+    ses.shutdownNow();
     DoFnLifecycleManagers.removeAllFromManagers(doFnLifecycleManagers);
   }
 
@@ -95,8 +101,7 @@ class SplittableProcessElementsEvaluatorFactory<
     ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
         transform.newProcessFn(transform.getFn());
 
-    DoFnLifecycleManager fnManager = DoFnLifecycleManager.of(
-            processFn, application, evaluationContext);
+    DoFnLifecycleManager fnManager = DoFnLifecycleManager.of(processFn);
     doFnLifecycleManagers.add(fnManager);
     processFn =
         ((ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
@@ -125,19 +130,6 @@ class SplittableProcessElementsEvaluatorFactory<
     processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());
 
     processFn.setTimerInternalsFactory(key -> stepContext.timerInternals());
-
-    final ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor(
-          new ThreadFactoryBuilder()
-                  .setThreadFactory(MoreExecutors.platformThreadFactory())
-                  .setDaemon(true) // todo: set to false once the lifecycle of this is fixed
-                  .setNameFormat("direct-splittable-process-element-checkpoint-executor")
-                  .build());
-    processFn.setShutdownCallback(new Runnable() {
-        @Override
-        public void run() {
-            ses.shutdown();
-        }
-    });
 
     OutputWindowedValue<OutputT> outputWindowedValue =
         new OutputWindowedValue<OutputT>() {
