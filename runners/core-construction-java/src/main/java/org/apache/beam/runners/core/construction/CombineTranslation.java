@@ -276,7 +276,6 @@ public class CombineTranslation {
 
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      // TODO: This was ripped from ParDoTranslation. Is this correct?
       Map<TupleTag<?>, PValue> additionalInputs = new HashMap<>();
       for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
         try {
