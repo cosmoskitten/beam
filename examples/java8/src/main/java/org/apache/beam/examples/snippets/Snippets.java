@@ -51,10 +51,13 @@ public class Snippets {
 
   @DefaultCoder(AvroCoder.class)
   static class Quote {
-    String source;
-    String quote;
+    final String source;
+    final String quote;
 
-    public Quote() {}
+    public Quote() {
+      this.source = "";
+      this.quote = "";
+    }
     public Quote(String source, String quote) {
       this.source = source;
       this.quote = quote;
@@ -124,9 +127,23 @@ public class Snippets {
     }
 
     {
-      // [START BigQuerySchema]
-      String tableSchema = "source:STRING, quote:STRING";
-      // [END BigQuerySchema]
+      // [START BigQuerySchemaJson]
+      String tableSchemaJson = ""
+          + "{"
+          + "  \"fields\": ["
+          + "    {"
+          + "      \"name\": \"source\","
+          + "      \"type\": \"STRING\","
+          + "      \"mode\": \"NULLABLE\""
+          + "    },"
+          + "    {"
+          + "      \"name\": \"quote\","
+          + "      \"type\": \"STRING\","
+          + "      \"mode\": \"REQUIRED\""
+          + "    }"
+          + "  ]"
+          + "}";
+      // [END BigQuerySchemaJson]
     }
 
     // [START BigQuerySchemaObject]
@@ -138,7 +155,7 @@ public class Snippets {
 
     {
       String tableSpec = "clouddataflow-readonly:samples.weather_stations";
-      if (writeProject != "" && writeDataset != "" && writeTable != "") {
+      if (!writeProject.isEmpty() && !writeDataset.isEmpty() && !writeTable.isEmpty()) {
         tableSpec = writeProject + ":" + writeDataset + "." + writeTable;
       }
 
@@ -146,10 +163,13 @@ public class Snippets {
       /*
       @DefaultCoder(AvroCoder.class)
       static class Quote {
-        String source;
-        String quote;
+        final String source;
+        final String quote;
 
-        public Quote() {}
+        public Quote() {
+          this.source = "";
+          this.quote = "";
+        }
         public Quote(String source, String quote) {
           this.source = source;
           this.quote = quote;
@@ -163,12 +183,7 @@ public class Snippets {
 
       quotes
           .apply(MapElements.into(TypeDescriptor.of(TableRow.class)).via(
-              (Quote elem) -> {
-                TableRow row = new TableRow();
-                row.set("source", elem.source);
-                row.set("quote", elem.quote);
-                return row;
-              }
+              (Quote elem) -> new TableRow().set("source", elem.source).set("quote", elem.quote)
           ))
           .apply(BigQueryIO.writeTableRows()
               .to(tableSpec)
@@ -187,14 +202,14 @@ public class Snippets {
     for (String elem : emails) {
       emailsList.add("'" + elem + "'");
     }
-    Collections.<String>sort(emailsList);
+    Collections.sort(emailsList);
     String emailsStr = "[" + String.join(", ", emailsList) + "]";
 
     List<String> phonesList = new ArrayList<>();
     for (String elem : phones) {
       phonesList.add("'" + elem + "'");
     }
-    Collections.<String>sort(phonesList);
+    Collections.sort(phonesList);
     String phonesStr = "[" + String.join(", ", phonesList) + "]";
 
     return name + "; " + emailsStr + "; " + phonesStr;
@@ -212,7 +227,7 @@ public class Snippets {
         KeyedPCollectionTuple
         .of(emailsTag, emails)
         .and(phonesTag, phones)
-        .apply(CoGroupByKey.<String>create());
+        .apply(CoGroupByKey.create());
 
     PCollection<String> contactLines = results.apply(ParDo.of(
       new DoFn<KV<String, CoGbkResult>, String>() {
