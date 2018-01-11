@@ -143,7 +143,8 @@ class SpannerSchema implements Serializable {
     }
   }
 
-  @Override public boolean equals(Object o) {
+  @Override
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
@@ -155,7 +156,8 @@ class SpannerSchema implements Serializable {
         .equal(keyParts, that.keyParts);
   }
 
-  @Override public int hashCode() {
+  @Override
+  public int hashCode() {
     return Objects.hashCode(tables, columns, keyParts);
   }
 }

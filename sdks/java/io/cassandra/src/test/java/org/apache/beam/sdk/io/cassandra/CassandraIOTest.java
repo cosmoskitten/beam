@@ -277,7 +277,8 @@ public class CassandraIOTest implements Serializable {
       return id + ":" + name;
     }
 
-    @Override public boolean equals(Object o) {
+    @Override
+    public boolean equals(Object o) {
       if (this == o) {
         return true;
       }
@@ -288,7 +289,8 @@ public class CassandraIOTest implements Serializable {
       return id == scientist.id && Objects.equal(name, scientist.name);
     }
 
-    @Override public int hashCode() {
+    @Override
+    public int hashCode() {
       return Objects.hashCode(name, id);
     }
   }

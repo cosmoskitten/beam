@@ -48,7 +48,8 @@ public final class SerializableThrowable implements Serializable {
     }
   }
 
-  @Override public boolean equals(Object o) {
+  @Override
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
@@ -59,7 +60,8 @@ public final class SerializableThrowable implements Serializable {
     return Arrays.equals(stackTrace, that.stackTrace);
   }
 
-  @Override public int hashCode() {
+  @Override
+  public int hashCode() {
     return Arrays.hashCode(stackTrace);
   }
 }

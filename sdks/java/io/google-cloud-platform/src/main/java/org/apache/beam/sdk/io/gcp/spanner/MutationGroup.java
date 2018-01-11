@@ -66,7 +66,8 @@ public final class MutationGroup implements Serializable, Iterable<Mutation> {
     return mutations.subList(1, mutations.size());
   }
 
-  @Override public boolean equals(Object o) {
+  @Override
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
@@ -77,7 +78,8 @@ public final class MutationGroup implements Serializable, Iterable<Mutation> {
     return Objects.equal(mutations, mutations1.mutations);
   }
 
-  @Override public int hashCode() {
+  @Override
+  public int hashCode() {
     return Objects.hashCode(mutations);
   }
 }
