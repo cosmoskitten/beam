@@ -290,7 +290,14 @@ class GrpcStateHandler(object):
     self._requests.put(request)
     while not future.wait(timeout=1):
       if self._exc_info:
-        raise_with_traceback(self._exc_info[0], self._exc_info[2])
+        # Construct a new message if possible
+        t, v, tb = self._exc_info
+        try:
+          old_msg = t.message
+          new_msg = "{0}{1}".format(old_msg, v)
+          t = t(new_msg)
+        finally:
+          raise_with_traceback(t, tb)
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]
