@@ -64,7 +64,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
   private final ParDoEvaluatorFactory<KV<K, InputT>, OutputT> delegateFactory;
 
-  StatefulParDoEvaluatorFactory(final EvaluationContext evaluationContext) {
+  StatefulParDoEvaluatorFactory(EvaluationContext evaluationContext) {
     this.delegateFactory =
         new ParDoEvaluatorFactory<>(
             evaluationContext,
@@ -77,8 +77,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
                 // do not go through the portability translation layers
                 StatefulParDo<?, ?, ?> statefulParDo =
                     (StatefulParDo<?, ?, ?>) appliedStatefulParDo.getTransform();
-                return DoFnLifecycleManager.of(
-                        statefulParDo.getDoFn(), appliedStatefulParDo, evaluationContext);
+                return DoFnLifecycleManager.of(statefulParDo.getDoFn());
               }
             });
     this.cleanupRegistry =

@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,25 +42,24 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
 
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
   private final LoadingCache<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> fnClones;
-  private final EvaluationContext evaluationContext;
+  final EvaluationContext evaluationContext;
   private final ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory;
 
   ParDoEvaluatorFactory(
-          final EvaluationContext evaluationContext,
-          ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory,
-          CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> doFnCacheLoader) {
+      EvaluationContext evaluationContext,
+      ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory,
+      CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> doFnCacheLoader) {
     this.evaluationContext = evaluationContext;
     this.runnerFactory = runnerFactory;
     fnClones =
         CacheBuilder.newBuilder().build(doFnCacheLoader);
   }
 
-  static CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> basicDoFnCacheLoader(
-          final EvaluationContext ctxt) {
+  static CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> basicDoFnCacheLoader() {
     return new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
       @Override
       public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> application) throws Exception {
-        return DoFnLifecycleManager.of(ParDoTranslation.getDoFn(application), application, ctxt);
+        return DoFnLifecycleManager.of(ParDoTranslation.getDoFn(application));
       }
     };
   }

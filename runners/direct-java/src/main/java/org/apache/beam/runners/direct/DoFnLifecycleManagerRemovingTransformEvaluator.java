@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements TransformEvaluator<InputT> {
   private static final Logger LOG =
       LoggerFactory.getLogger(DoFnLifecycleManagerRemovingTransformEvaluator.class);
-  private final ParDoEvaluator<InputT> underlying;
+  final ParDoEvaluator<InputT> underlying;
   private final DoFnLifecycleManager lifecycleManager;
 
   public static <InputT> DoFnLifecycleManagerRemovingTransformEvaluator<InputT> wrapping(

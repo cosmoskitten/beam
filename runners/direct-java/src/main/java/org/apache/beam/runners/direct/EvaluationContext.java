@@ -18,25 +18,19 @@
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
-
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
@@ -56,8 +50,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The evaluation context for a specific pipeline being executed by the {@link DirectRunner}.
@@ -76,8 +68,6 @@ import org.slf4j.LoggerFactory;
  * executed.
  */
 class EvaluationContext {
-  private static final Logger LOGGER = LoggerFactory.getLogger(EvaluationContext.class);
-
   /**
    * The graph representing this {@link Pipeline}.
    */
@@ -103,43 +93,6 @@ class EvaluationContext {
   private final DirectMetrics metrics;
 
   private final Set<PValue> keyedPValues;
-
-  // track doFn to ensure we can wait teardown execution
-  private final ConcurrentMap<LatchKey, CountDownLatch> latches =
-          new ConcurrentHashMap<>();
-
-  public void registerFn(final AppliedPTransform<?, ?, ?> app, final long thread) {
-    latches.put(new LatchKey(app, thread), new CountDownLatch(1));
-  }
-
-  public void unregisterFn(final AppliedPTransform<?, ?, ?> app, final long thread) {
-    final CountDownLatch removed = latches.remove(new LatchKey(app, thread));
-    if (removed != null) {
-      removed.countDown();
-    }
-  }
-
-  public boolean await(final long timeout) {
-    final long end = System.currentTimeMillis() + timeout;
-    while (!latches.isEmpty()) {
-      for (final Map.Entry<LatchKey, CountDownLatch> latch : new ArrayList<>(latches.entrySet())) {
-        if (LOGGER.isDebugEnabled()) {
-          LOGGER.debug("Waiting for teardown for {}", latch.getKey().application.getFullName());
-        }
-        try {
-          if (!latch.getValue()
-                    .await(Math.max(end - System.currentTimeMillis(), 1), MILLISECONDS)) {
-            return false;
-          }
-          latches.remove(latch.getKey());
-        } catch (final InterruptedException e) {
-          Thread.currentThread()
-                .interrupt();
-        }
-      }
-    }
-    return true;
-  }
 
   public static EvaluationContext create(
       DirectOptions options,
@@ -468,41 +421,5 @@ class EvaluationContext {
 
   Clock getClock() {
     return clock;
-  }
-
-  private static final class LatchKey {
-    private final AppliedPTransform<?, ?, ?> application;
-    private final long threadId;
-
-    // cached
-    private final int hash;
-
-    private LatchKey(final AppliedPTransform<?, ?, ?> application, final long threadId) {
-      this.application = application;
-      this.threadId = threadId;
-      this.hash = Objects.hash(application, threadId);
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final LatchKey latchKey = LatchKey.class.cast(o);
-      return threadId == latchKey.threadId && Objects.equals(application, latchKey.application);
-    }
-
-    @Override
-    public int hashCode() {
-      return hash;
-    }
-
-    @Override
-    public String toString() {
-      return threadId + " @ " + application.getFullName();
-    }
   }
 }
