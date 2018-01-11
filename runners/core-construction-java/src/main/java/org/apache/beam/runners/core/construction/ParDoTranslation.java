@@ -480,8 +480,7 @@ public class ParDoTranslation {
 
           @Override
           // Java 7 + findbugs limitation. The return type is nullable.
-          @SuppressFBWarnings("NP_NONNULL_RETURN_VIOLATION")
-          protected RunnerApi.Parameter dispatchDefault(Parameter p) {
+          protected @Nullable RunnerApi.Parameter dispatchDefault(Parameter p) {
             return null;
           }
         });
