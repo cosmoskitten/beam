@@ -190,7 +190,8 @@ public class CombineFns {
       }
     }
 
-    @Override public boolean equals(Object o) {
+    @Override
+    public boolean equals(Object o) {
       if (this == o) {
         return true;
       }
@@ -201,7 +202,8 @@ public class CombineFns {
       return Objects.equal(valuesMap, that.valuesMap);
     }
 
-    @Override public int hashCode() {
+    @Override
+    public int hashCode() {
       return Objects.hashCode(valuesMap);
     }
   }

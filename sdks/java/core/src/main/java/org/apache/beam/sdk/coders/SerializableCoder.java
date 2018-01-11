@@ -62,6 +62,10 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
     return false;
   }
 
+  /**
+   * The structural value of the object is the object itself. The {@link SerializableCoder} should
+   * be only used for objects with a proper {@link Object#equals} implementation.
+   */
   @Override
   public Object structuralValue(T value) {
     return value;

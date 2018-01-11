@@ -188,7 +188,8 @@ public class PAssert {
       return res;
     }
 
-    @Override public boolean equals(Object o) {
+    @Override
+    public boolean equals(Object o) {
       if (this == o) {
         return true;
       }
@@ -200,7 +201,8 @@ public class PAssert {
           .equals(creationStackTrace, that.creationStackTrace);
     }
 
-    @Override public int hashCode() {
+    @Override
+    public int hashCode() {
       return Objects.hashCode(message, Arrays.asList(creationStackTrace));
     }
   }

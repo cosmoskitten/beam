@@ -142,8 +142,7 @@ public class MutationDetectors {
     private void illegalMutation(T previousValue, T newValue) throws CoderException {
       throw new IllegalMutationException(
           String.format("Value %s mutated illegally, new value was %s."
-              + " Encoding was %s, now %s. If you are using SerlializedCoder verify that the "
-                  + " Object#equals is implemented correctly.",
+              + " Encoding was %s, now %s.",
               previousValue, newValue,
               CoderUtils.encodeToBase64(coder, previousValue),
               CoderUtils.encodeToBase64(coder, newValue)),
