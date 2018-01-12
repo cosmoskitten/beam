@@ -24,7 +24,6 @@ import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
 import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
@@ -43,12 +42,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Tests of {@link MqttIO}.
  */
+@RunWith(JUnit4.class)
 public class MqttIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIOTest.class);

@@ -136,13 +136,6 @@ public class LengthPrefixUnknownCoders {
     String lengthPrefixComponentCoderId = coderId;
     if (replaceWithByteArrayCoder) {
       return createLengthPrefixByteArrayCoder(coderId, components);
-      // lengthPrefixComponentCoderId = generateUniqueId(coderId + "-byte_array",
-      //     Sets.union(components.getCodersMap().keySet(),
-      //         rvalBuilder.getComponents().getCodersMap().keySet()));
-      // Coder.Builder byteArrayCoder = Coder.newBuilder();
-      // byteArrayCoder.getSpecBuilder().getSpecBuilder().setUrn(BYTES_CODER_TYPE);
-      // rvalBuilder.getComponentsBuilder().putCoders(lengthPrefixComponentCoderId,
-      //     byteArrayCoder.build());
     } else {
       rvalBuilder.getComponentsBuilder().putCoders(coderId, currentCoder);
     }
