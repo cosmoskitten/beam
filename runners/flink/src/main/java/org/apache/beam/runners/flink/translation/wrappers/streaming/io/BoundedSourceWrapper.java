@@ -104,7 +104,8 @@ public class BoundedSourceWrapper<OutputT>
         numSubtasks,
         localSources);
 
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
+    FlinkMetricContainer metricContainer =
+        new FlinkMetricContainer(getRuntimeContext(), serializedOptions);
 
     ReaderInvocationUtil<OutputT, BoundedSource.BoundedReader<OutputT>> readerInvoker =
         new ReaderInvocationUtil<>(

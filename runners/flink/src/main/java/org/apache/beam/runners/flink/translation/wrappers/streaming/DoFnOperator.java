@@ -339,7 +339,9 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     if (options.getEnableMetrics()) {
-      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+      doFnRunner =
+          new DoFnRunnerWithMetricsUpdate<>(
+              stepName, doFnRunner, getRuntimeContext(), serializedOptions);
     }
 
     elementCount = 0L;
