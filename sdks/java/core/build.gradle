@@ -38,6 +38,11 @@ processResources {
   ]
 }
 
+configurations {
+    flinkValidatesRunner
+    sparkValidatesRunner
+}
+
 // Exclude tests that need a runner
 test {
   systemProperty "beamUseDummyRunner", "true"
@@ -71,6 +76,8 @@ dependencies {
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
+  flinkValidatesRunner project(path: project.path, configuration: "shadowTest")
+  flinkValidatesRunner project(path: ":beam-runners-parent:beam-runners-flink_2.11", configuration: "shadow")
 }
 
 // Shade dependencies.
@@ -116,6 +123,41 @@ task packageTests(type: Jar) {
   from sourceSets.test.output
   classifier = "tests"
 }
+
+def runnerName = "flink"
+
+class ValidatesRunnerConfig {
+  String testName
+  String runnerName
+  boolean streaming
+  List<String> excludes
+}
+
+def createValidatesRunner(Map m) {
+  def config = m as ValidatesRunnerConfig
+  tasks.create(name: "${config.testName}ValidatesRunner", type: Test) {
+    def streaming = false
+      def pipelineOptions = "[\"--runner=TestFlinkRunner\", \"--streaming=${streaming}\"]"
+      systemProperty "beamTestPipelineOptions", pipelineOptions
+      maxParallelForks 4
+      classpath = configurations.flinkValidatesRunner
+      useJUnit {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories(*config.excludes)
+      }
+  }
+}
+
+def flinkExcludedCategories = [
+  'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders',
+  'org.apache.beam.sdk.testing.LargeKeys$Above100MB',
+  'org.apache.beam.sdk.testing.UsesSplittableParDo',
+  'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+  'org.apache.beam.sdk.testing.UsesTestStream',
+]
+
+createValidatesRunner(testName: "flinkBatch", runnerName: "TestFlinkRunner", streaming: false, excludes: flinkExcludedCategories)
+createValidatesRunner(testName: "flinkStreaming", runnerName: "TestFlinkRunner", streaming: true, excludes: flinkExcludedCategories)
 
 artifacts.archives packageTests
 artifacts {
