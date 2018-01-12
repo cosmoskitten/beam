@@ -17,78 +17,122 @@ package org.apache.beam.runners.fnexecution.graph;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link LengthPrefixUnknownCoders}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class LengthPrefixUnknownCodersTest {
-  private static final Coder<WindowedValue<KV<String, Integer>>> windowedValueCoder =
-      WindowedValue.getFullCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
-          GlobalWindow.Coder.INSTANCE);
 
-  private static final Coder<WindowedValue<KV<String, Integer>>> prefixedWindowedValueCoder =
-      WindowedValue.getFullCoder(KvCoder.of(LengthPrefixCoder.of(StringUtf8Coder.of()),
-          LengthPrefixCoder.of(VarIntCoder.of())), GlobalWindow.Coder.INSTANCE);
+  private static class UnknownCoder extends CustomCoder<String> {
+    private static final Coder<?> INSTANCE = new UnknownCoder();
+    @Override
+    public void encode(String value, OutputStream outStream) throws CoderException, IOException {
+    }
 
-  private static final Coder<WindowedValue<KV<byte[], byte[]>>>
-      prefixedAndReplacedWindowedValueCoder = WindowedValue.getFullCoder(
-      KvCoder.of(
-          LengthPrefixCoder.of(ByteArrayCoder.of()),
-          LengthPrefixCoder.of(ByteArrayCoder.of())),
-      GlobalWindow.Coder.INSTANCE);
+    @Override
+    public String decode(InputStream inStream) throws CoderException, IOException {
+      return "";
+    }
 
-  /** Test wrapping unknown coders with {@code LengthPrefixCoder}. */
-  @Test
-  public void testLengthPrefixUnknownCoders() throws Exception {
-    assertEqualsAfterLengthPrefixingProtoCoder(
-        windowedValueCoder, prefixedWindowedValueCoder, false);
+    @Override
+    public int hashCode() {
+      return 1278890232;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof  UnknownCoder;
+    }
   }
 
-  /** Test bypassing unknown coders that are already wrapped with {@code LengthPrefixCoder}. */
-  @Test
-  public void testLengthPrefixForLengthPrefixCoder() throws Exception {
-    Coder<WindowedValue<KV<String, Integer>>> windowedValueCoder =
-        WindowedValue.getFullCoder(KvCoder.of(StringUtf8Coder.of(),
-            LengthPrefixCoder.of(VarIntCoder.of())), GlobalWindow.Coder.INSTANCE);
-
-    Coder<WindowedValue<KV<String, Integer>>> expectedCoder =
-        WindowedValue.getFullCoder(KvCoder.of(LengthPrefixCoder.of(StringUtf8Coder.of()),
-            LengthPrefixCoder.of(VarIntCoder.of())), GlobalWindow.Coder.INSTANCE);
-
-    assertEqualsAfterLengthPrefixingProtoCoder(windowedValueCoder, expectedCoder, false);
+  @Parameters
+  public static Collection<Object[]> data() {
+    return ImmutableList.of(
+        /** Test wrapping unknown coders with {@code LengthPrefixCoder}. */
+        new Object[] {
+            WindowedValue.getFullCoder(
+                KvCoder.of(UnknownCoder.INSTANCE, UnknownCoder.INSTANCE),
+                GlobalWindow.Coder.INSTANCE),
+            WindowedValue.getFullCoder(
+                KvCoder.of(LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+                    LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
+                GlobalWindow.Coder.INSTANCE),
+            false
+        },
+        /**
+         * Test bypassing unknown coders that are already wrapped with
+         * {@code LengthPrefixCoder}.
+         */
+        new Object[] {
+            WindowedValue.getFullCoder(
+                KvCoder.of(UnknownCoder.INSTANCE,
+                    LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
+                GlobalWindow.Coder.INSTANCE),
+            WindowedValue.getFullCoder(
+                KvCoder.of(LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+                    LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
+                GlobalWindow.Coder.INSTANCE),
+            false
+        },
+        /** Test replacing unknown coders with {@code LengthPrefixCoder<ByteArray>}. */
+        new Object[] {
+            WindowedValue.getFullCoder(
+                KvCoder.of(LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+                    UnknownCoder.INSTANCE),
+                GlobalWindow.Coder.INSTANCE),
+            WindowedValue.getFullCoder(
+                KvCoder.of(LengthPrefixCoder.of(ByteArrayCoder.of()),
+                    LengthPrefixCoder.of(ByteArrayCoder.of())),
+                GlobalWindow.Coder.INSTANCE),
+            true
+        },
+        /** Test skipping a top level length prefix coder. */
+        new Object[] {
+            LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+            LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+            false
+        },
+        /** Test replacing a top level length prefix coder with byte array coder. */
+        new Object[] {
+            LengthPrefixCoder.of(UnknownCoder.INSTANCE),
+            LengthPrefixCoder.of(ByteArrayCoder.of()),
+            true
+        }
+    );
   }
 
-  /** Test replacing unknown coders with {@code LengthPrefixCoder<ByteArray>}. */
+  @Parameter
+  public Coder<?> original;
+
+  @Parameter(1)
+  public Coder<?> expected;
+
+  @Parameter(2)
+  public boolean replaceWithByteArray;
+
   @Test
-  public void testLengthPrefixAndReplaceUnknownCoder() throws Exception {
-    Coder<WindowedValue<KV<String, Integer>>> windowedValueCoder =
-        WindowedValue.getFullCoder(KvCoder.of(LengthPrefixCoder.of(StringUtf8Coder.of()),
-            VarIntCoder.of()), GlobalWindow.Coder.INSTANCE);
-
-    Coder<WindowedValue<KV<byte[], byte[]>>> expectedCoder = prefixedAndReplacedWindowedValueCoder;
-
-    assertEqualsAfterLengthPrefixingProtoCoder(
-        windowedValueCoder, prefixedAndReplacedWindowedValueCoder, true);
-  }
-
-  private static void assertEqualsAfterLengthPrefixingProtoCoder(
-      Coder<?> original, Coder<?> expected, boolean replaceWithByteArray) throws IOException {
+  public void test() throws IOException {
     MessageWithComponents messageWithComponents = CoderTranslation.toProto(original);
     Components.Builder builder = messageWithComponents.getComponents().toBuilder();
     String coderId = LengthPrefixUnknownCoders.generateUniqueId("rootTestId",
