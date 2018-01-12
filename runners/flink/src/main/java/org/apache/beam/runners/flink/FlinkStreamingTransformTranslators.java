@@ -296,6 +296,8 @@ class FlinkStreamingTransformTranslators {
             "Error while translating BoundedSource: " + rawSource, e);
       }
 
+      // Add operator directly to source to ensure that the read happens.
+      context.getExecutionEnvironment().addOperator(source.getTransformation());
       context.setOutputDataStream(output, source);
     }
   }
