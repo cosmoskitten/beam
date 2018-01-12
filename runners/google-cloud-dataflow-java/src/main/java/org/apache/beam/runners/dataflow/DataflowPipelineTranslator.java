@@ -167,7 +167,7 @@ public class DataflowPipelineTranslator {
     SdkComponents sdkComponents = SdkComponents.create();
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents);
 
-    LOG.info("Portable pipeline proto:\n{}", TextFormat.printToString(pipelineProto));
+    LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(pipelineProto));
 
     Translator translator = new Translator(pipeline, runner, sdkComponents);
     Job result = translator.translate(packages);
