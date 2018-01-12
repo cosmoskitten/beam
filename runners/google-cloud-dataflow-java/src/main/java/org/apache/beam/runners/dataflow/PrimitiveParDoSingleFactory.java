@@ -20,8 +20,8 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerSpec;
-import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrCrash;
-import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrCrash;
+import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
+import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.Iterables;
@@ -200,7 +200,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                   signature.stateDeclarations().entrySet()) {
                 RunnerApi.StateSpec spec =
                     ParDoTranslation.translateStateSpec(
-                        getStateSpecOrCrash(state.getValue(), doFn), components);
+                        getStateSpecOrThrow(state.getValue(), doFn), components);
                 stateSpecs.put(state.getKey(), spec);
               }
               return stateSpecs;
@@ -213,7 +213,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
               for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
                   signature.timerDeclarations().entrySet()) {
                 RunnerApi.TimerSpec spec =
-                    translateTimerSpec(getTimerSpecOrCrash(timer.getValue(), doFn));
+                    translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn));
                 timerSpecs.put(timer.getKey(), spec);
               }
               return timerSpecs;

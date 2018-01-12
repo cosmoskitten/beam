@@ -1382,7 +1382,7 @@ public class DoFnSignatures {
     }
   }
 
-  public static StateSpec<?> getStateSpecOrCrash(
+  public static StateSpec<?> getStateSpecOrThrow(
       StateDeclaration stateDeclaration, DoFn<?, ?> target) {
     try {
       Object fieldValue = stateDeclaration.field().get(target);
@@ -1405,7 +1405,7 @@ public class DoFnSignatures {
     }
   }
 
-  public static TimerSpec getTimerSpecOrCrash(
+  public static TimerSpec getTimerSpecOrThrow(
       TimerDeclaration timerDeclaration, DoFn<?, ?> target) {
     try {
       Object fieldValue = timerDeclaration.field().get(target);
