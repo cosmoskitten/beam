@@ -85,6 +85,7 @@ cdef class StateSampler(object):
   cdef int32_t current_state_index
 
   def __init__(self, *args):
+    #TODO(pabloem): Figure out how to pass arguments without errors.
     self._sampling_period_ms = args[0]
 
     self.lock = pythread.PyThread_allocate_lock()
