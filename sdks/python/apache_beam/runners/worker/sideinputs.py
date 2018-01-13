@@ -73,7 +73,6 @@ class PrefetchingSourceSetIterable(object):
     # Whether an error was encountered in any source reader.
     self.has_errored = False
 
-    experiments = RuntimeValueProvider('experiments', str, '').get().split(',')
     self.read_counter = read_counter or opcounters.TransformIOCounter()
 
     self.reader_threads = []
