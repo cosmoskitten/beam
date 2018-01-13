@@ -129,7 +129,7 @@ class ValidatesRunnerConfig {
   List<String> excludes
   // TODO: Can option keys be specified multiple times?
   Map<String, String> pipelineOptions
-  ConfigurationContainer configuration
+  FileCollection configuration
 }
 
 def createValidatesRunner(Map m) {
@@ -145,10 +145,9 @@ def createValidatesRunner(Map m) {
 
     println "PIPELINE OPTIONS: $pipelineOptions"
     systemProperty "beamTestPipelineOptions", pipelineOptions
+    // TODO: Does Spark require a different forking strategy?
     maxParallelForks 4
-    //println "CONFIG TYPE: " configurations.flinkValidatesRunner.getClass()
-    classpath = configurations.flinkValidatesRunner
-    //classpath = config.configuration
+    classpath = config.configuration
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       if (config.excludes != null) {
@@ -169,12 +168,12 @@ def flinkExcludedCategories = [
 def flinkPipelineOptions(streaming) {
   [
     runner: "TestFlinkRunner",
-    streaming: "streaming",
+    streaming: streaming as String,
   ]
 }
 
-createValidatesRunner(configuration: configurations.flinkValidatesRunner, testName: "flinkBatch", excludes: flinkExcludedCategories, pipelineOptions: flinkPipelineOptions(false))
-createValidatesRunner(testName: "flinkStreaming", excludes: flinkExcludedCategories, pipelineOptions: flinkPipelineOptions(true))
+createValidatesRunner(testName: "flinkBatch", configuration: configurations.flinkValidatesRunner,excludes: flinkExcludedCategories, pipelineOptions: flinkPipelineOptions(false))
+createValidatesRunner(testName: "flinkStreaming", configuration: configurations.flinkValidatesRunner, excludes: flinkExcludedCategories, pipelineOptions: flinkPipelineOptions(true))
 
 def sparkBatchExcludedCategories = [
   'org.apache.beam.sdk.testing.UsesSplittableParDo',
@@ -191,8 +190,8 @@ def sparkPipelineOptions(streaming) {
   ]
 }
 
-createValidatesRunner(testName: "sparkBatch", excludes: sparkBatchExcludedCategories, pipelineOptions: sparkPipelineOptions(true))
-createValidatesRunner(testName: "sparkStreaming", pipelineOptions: sparkPipelineOptions(false))
+createValidatesRunner(testName: "sparkBatch", configuration: configurations.sparkValidatesRunner, excludes: sparkBatchExcludedCategories, pipelineOptions: sparkPipelineOptions(true))
+createValidatesRunner(testName: "sparkStreaming", configuration: configurations.sparkValidatesRunner, pipelineOptions: sparkPipelineOptions(false))
 
 artifacts.archives packageTests
 artifacts {
