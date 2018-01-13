@@ -124,27 +124,37 @@ task packageTests(type: Jar) {
   classifier = "tests"
 }
 
-def runnerName = "flink"
-
 class ValidatesRunnerConfig {
   String testName
-  String runnerName
-  boolean streaming
   List<String> excludes
+  // TODO: Can option keys be specified multiple times?
+  Map<String, String> pipelineOptions
+  ConfigurationContainer configuration
 }
 
 def createValidatesRunner(Map m) {
   def config = m as ValidatesRunnerConfig
   tasks.create(name: "${config.testName}ValidatesRunner", type: Test) {
-    def streaming = false
-      def pipelineOptions = "[\"--runner=TestFlinkRunner\", \"--streaming=${streaming}\"]"
-      systemProperty "beamTestPipelineOptions", pipelineOptions
-      maxParallelForks 4
-      classpath = configurations.flinkValidatesRunner
-      useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    def optionsList = config.pipelineOptions.collect {
+      // Escape strings with embedded '\' and '"' characters.
+      def key = it.getKey().replaceAll("\\\\", "\\\\\\\\").replaceAll("\"", "\\\\\"")
+      def value = it.getValue().replaceAll("\\\\", "\\\\\\\\").replaceAll("\"", "\\\\\"")
+      "\"--${key}=${value}\""
+    }
+    def pipelineOptions = "[${optionsList.join(",")}]"
+
+    println "PIPELINE OPTIONS: $pipelineOptions"
+    systemProperty "beamTestPipelineOptions", pipelineOptions
+    maxParallelForks 4
+    //println "CONFIG TYPE: " configurations.flinkValidatesRunner.getClass()
+    classpath = configurations.flinkValidatesRunner
+    //classpath = config.configuration
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      if (config.excludes != null) {
         excludeCategories(*config.excludes)
       }
+    }
   }
 }
 
@@ -156,8 +166,33 @@ def flinkExcludedCategories = [
   'org.apache.beam.sdk.testing.UsesTestStream',
 ]
 
-createValidatesRunner(testName: "flinkBatch", runnerName: "TestFlinkRunner", streaming: false, excludes: flinkExcludedCategories)
-createValidatesRunner(testName: "flinkStreaming", runnerName: "TestFlinkRunner", streaming: true, excludes: flinkExcludedCategories)
+def flinkPipelineOptions(streaming) {
+  [
+    runner: "TestFlinkRunner",
+    streaming: "streaming",
+  ]
+}
+
+createValidatesRunner(configuration: configurations.flinkValidatesRunner, testName: "flinkBatch", excludes: flinkExcludedCategories, pipelineOptions: flinkPipelineOptions(false))
+createValidatesRunner(testName: "flinkStreaming", excludes: flinkExcludedCategories, pipelineOptions: flinkPipelineOptions(true))
+
+def sparkBatchExcludedCategories = [
+  'org.apache.beam.sdk.testing.UsesSplittableParDo',
+  'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+  'org.apache.beam.sdk.testing.UsesTestStream',
+  'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
+]
+
+def sparkPipelineOptions(streaming) {
+  [
+    runner: "TestSparkRunner",
+    streaming: "false",
+    enableSparkMetricSinks: "false",
+  ]
+}
+
+createValidatesRunner(testName: "sparkBatch", excludes: sparkBatchExcludedCategories, pipelineOptions: sparkPipelineOptions(true))
+createValidatesRunner(testName: "sparkStreaming", pipelineOptions: sparkPipelineOptions(false))
 
 artifacts.archives packageTests
 artifacts {
