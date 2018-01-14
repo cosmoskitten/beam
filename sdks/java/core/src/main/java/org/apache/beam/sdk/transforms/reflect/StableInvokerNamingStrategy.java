@@ -31,6 +31,8 @@ import org.apache.beam.sdk.transforms.DoFn;
  */
 @AutoValue
 abstract class StableInvokerNamingStrategy extends NamingStrategy.AbstractBase {
+  /** $ is for a nested class so use as most proxying framework $$. */
+  static final Object PROXY_NAME_DELIMITER = "$$";
 
   public abstract Class<? extends DoFn<?, ?>> getFnClass();
 
@@ -48,7 +50,9 @@ abstract class StableInvokerNamingStrategy extends NamingStrategy.AbstractBase {
   @Override
   protected String name(TypeDescription superClass) {
     return String.format(
-        "%s$%s",
-        getFnClass().getName(), firstNonNull(getSuffix(), superClass.getName().replace(".", "_")));
+        "%s%s%s",
+        getFnClass().getName(),
+        PROXY_NAME_DELIMITER,
+        firstNonNull(getSuffix(), superClass.getName().replace(".", "_")));
   }
 }

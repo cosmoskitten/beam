@@ -94,6 +94,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String RESTRICTION_TRACKER_PARAMETER_METHOD = "restrictionTracker";
   public static final String STATE_PARAMETER_METHOD = "state";
   public static final String TIMER_PARAMETER_METHOD = "timer";
+  static final String PROXY_CLASSNAME_SUFFIX = DoFnInvoker.class.getSimpleName();
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -284,7 +285,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             // private and package-private bits
             .with(
                 StableInvokerNamingStrategy.forDoFnClass(fnClass)
-                    .withSuffix(DoFnInvoker.class.getSimpleName()))
+                    .withSuffix(PROXY_CLASSNAME_SUFFIX))
 
             // class <invoker class> extends DoFnInvokerBase {
             .subclass(DoFnInvokerBase.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
