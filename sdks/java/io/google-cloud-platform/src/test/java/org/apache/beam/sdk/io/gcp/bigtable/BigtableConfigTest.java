@@ -48,190 +48,190 @@ import org.mockito.Mockito;
 @RunWith(JUnit4.class)
 public class BigtableConfigTest {
 
-  static final ValueProvider<String> NOT_ACCESSIBLE_VALUE = new ValueProvider<String>() {
-    @Override
-    public String get() {
-      throw new IllegalStateException("Value is not accessible");
+    static final ValueProvider<String> NOT_ACCESSIBLE_VALUE = new ValueProvider<String>() {
+        @Override
+        public String get() {
+            throw new IllegalStateException("Value is not accessible");
+        }
+
+        @Override
+        public boolean isAccessible() {
+            return false;
+        }
+    };
+
+    static final ValueProvider<String> PROJECT_ID =
+            ValueProvider.StaticValueProvider.of("project_id");
+
+    static final ValueProvider<String> INSTANCE_ID =
+            ValueProvider.StaticValueProvider.of("instance_id");
+
+    static final ValueProvider<String> TABLE_ID =  ValueProvider.StaticValueProvider.of("table");
+
+    static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> CONFIGURATOR =
+            (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>) input -> input;
+
+    static final BigtableService SERVICE = Mockito.mock(BigtableService.class);
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
+    private BigtableConfig config;
+
+    @Before
+    public void setup() throws Exception {
+        config = BigtableConfig.builder().setValidate(false).build();
     }
 
-    @Override
-    public boolean isAccessible() {
-      return false;
+    @Test
+    public void testWithProjectId() {
+        assertEquals(PROJECT_ID.get(), config.withProjectId(PROJECT_ID).getProjectId().get());
+
+        thrown.expect(IllegalArgumentException.class);
+        config.withProjectId(null);
     }
-  };
 
-  static final ValueProvider<String> PROJECT_ID =
-    ValueProvider.StaticValueProvider.of("project_id");
+    @Test
+    public void testWithInstanceId() {
+        assertEquals(INSTANCE_ID.get(), config.withInstanceId(INSTANCE_ID).getInstanceId().get());
 
-  static final ValueProvider<String> INSTANCE_ID =
-    ValueProvider.StaticValueProvider.of("instance_id");
+        thrown.expect(IllegalArgumentException.class);
+        config.withInstanceId(null);
+    }
 
-  static final ValueProvider<String> TABLE_ID =  ValueProvider.StaticValueProvider.of("table");
+    @Test
+    public void testWithTableId() {
+        assertEquals(TABLE_ID.get(), config.withTableId(TABLE_ID).getTableId().get());
 
-  static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> CONFIGURATOR =
-      (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>) input -> input;
+        thrown.expect(IllegalArgumentException.class);
+        config.withTableId(null);
+    }
 
-  static final BigtableService SERVICE = Mockito.mock(BigtableService.class);
+    @Test
+    public void testWithBigtableOptionsConfigurator() {
+        assertEquals(CONFIGURATOR,
+                config.withBigtableOptionsConfigurator(CONFIGURATOR).getBigtableOptionsConfigurator());
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+        thrown.expect(IllegalArgumentException.class);
+        config.withBigtableOptionsConfigurator(null);
+    }
 
-  private BigtableConfig config;
+    @Test
+    public void testWithValidate() {
+        assertEquals(true, config.withValidate(true).getValidate());
+    }
 
-  @Before
-  public void setup() throws Exception {
-    config = BigtableConfig.builder().setValidate(false).build();
-  }
+    @Test
+    public void testWithBigtableService() {
+        assertEquals(SERVICE, config.withBigtableService(SERVICE).getBigtableService());
 
-  @Test
-  public void testWithProjectId() {
-    assertEquals(PROJECT_ID.get(), config.withProjectId(PROJECT_ID).getProjectId().get());
+        thrown.expect(IllegalArgumentException.class);
+        config.withBigtableService(null);
+    }
 
-    thrown.expect(IllegalArgumentException.class);
-    config.withProjectId(null);
-  }
+    @Test
+    public void testValidate() {
+        config.withProjectId(PROJECT_ID)
+              .withInstanceId(INSTANCE_ID)
+              .withTableId(TABLE_ID)
+              .validate();
+    }
 
-  @Test
-  public void testWithInstanceId() {
-    assertEquals(INSTANCE_ID.get(), config.withInstanceId(INSTANCE_ID).getInstanceId().get());
+    @Test
+    public void testValidateFailsWithoutProjectId() {
+        config.withInstanceId(INSTANCE_ID)
+              .withTableId(TABLE_ID);
 
-    thrown.expect(IllegalArgumentException.class);
-    config.withInstanceId(null);
-  }
+        thrown.expect(IllegalArgumentException.class);
+        config.validate();
+    }
 
-  @Test
-  public void testWithTableId() {
-    assertEquals(TABLE_ID.get(), config.withTableId(TABLE_ID).getTableId().get());
+    @Test
+    public void testValidateFailsWithoutInstanceId() {
+        config.withProjectId(PROJECT_ID)
+              .withTableId(TABLE_ID);
 
-    thrown.expect(IllegalArgumentException.class);
-    config.withTableId(null);
-  }
+        thrown.expect(IllegalArgumentException.class);
+        config.validate();
+    }
 
-  @Test
-  public void testWithBigtableOptionsConfigurator() {
-    assertEquals(CONFIGURATOR,
-      config.withBigtableOptionsConfigurator(CONFIGURATOR).getBigtableOptionsConfigurator());
+    @Test
+    public void testValidateFailsWithoutTableId() {
+        config.withProjectId(PROJECT_ID)
+              .withInstanceId(INSTANCE_ID);
 
-    thrown.expect(IllegalArgumentException.class);
-    config.withBigtableOptionsConfigurator(null);
-  }
+        thrown.expect(IllegalArgumentException.class);
+        config.validate();
+    }
 
-  @Test
-  public void testWithValidate() {
-    assertEquals(true, config.withValidate(true).getValidate());
-  }
+    @Test
+    public void testPopulateDisplayData() {
+        DisplayData displayData =
+                DisplayData.from(
+                        config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID).withTableId(TABLE_ID)
+                                ::populateDisplayData);
 
-  @Test
-  public void testWithBigtableService() {
-    assertEquals(SERVICE, config.withBigtableService(SERVICE).getBigtableService());
+        assertThat(displayData, hasDisplayItem(allOf(
+                hasKey("projectId"),
+                hasLabel("Bigtable Project Id"),
+                hasValue(PROJECT_ID.get()))));
 
-    thrown.expect(IllegalArgumentException.class);
-    config.withBigtableService(null);
-  }
+        assertThat(displayData, hasDisplayItem(allOf(
+                hasKey("instanceId"),
+                hasLabel("Bigtable Instance Id"),
+                hasValue(INSTANCE_ID.get()))));
 
-  @Test
-  public void testValidate() {
-    config.withProjectId(PROJECT_ID)
-      .withInstanceId(INSTANCE_ID)
-      .withTableId(TABLE_ID)
-      .validate();
-  }
+        assertThat(displayData, hasDisplayItem(allOf(
+                hasKey("tableId"),
+                hasLabel("Bigtable Table Id"),
+                hasValue(TABLE_ID.get()))));
+    }
 
-  @Test
-  public void testValidateFailsWithoutProjectId() {
-    config.withInstanceId(INSTANCE_ID)
-      .withTableId(TABLE_ID);
+    @Test
+    public void testGetBigtableServiceWithDefaultService() {
+        assertEquals(SERVICE, config.withBigtableService(SERVICE).getBigtableService());
+    }
 
-    thrown.expect(IllegalArgumentException.class);
-    config.validate();
-  }
+    @Test
+    public void testGetBigtableServiceWithConfigurator() {
+        SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator =
+                (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>)
+                        input ->
+                                input
+                                        .setInstanceId(INSTANCE_ID.get() + INSTANCE_ID.get())
+                                        .setProjectId(PROJECT_ID.get() + PROJECT_ID.get())
+                                        .setBulkOptions(new BulkOptions.Builder().setUseBulkApi(true).build());
 
-  @Test
-  public void testValidateFailsWithoutInstanceId() {
-    config.withProjectId(PROJECT_ID)
-      .withTableId(TABLE_ID);
+        BigtableService service = config
+                .withProjectId(PROJECT_ID)
+                .withInstanceId(INSTANCE_ID)
+                .withBigtableOptionsConfigurator(configurator)
+                .getBigtableService(PipelineOptionsFactory.as(GcpOptions.class));
 
-    thrown.expect(IllegalArgumentException.class);
-    config.validate();
-  }
+        assertEquals(PROJECT_ID.get(), service.getBigtableOptions().getProjectId());
+        assertEquals(INSTANCE_ID.get(), service.getBigtableOptions().getInstanceId());
+        assertEquals(true, service.getBigtableOptions().getBulkOptions().useBulkApi());
+    }
 
-  @Test
-  public void testValidateFailsWithoutTableId() {
-    config.withProjectId(PROJECT_ID)
-      .withInstanceId(INSTANCE_ID);
+    @Test
+    public void testIsDataAccessible() {
+        assertTrue(config.withTableId(TABLE_ID).withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID)
+                         .isDataAccessible());
+        assertTrue(config.withTableId(TABLE_ID).withProjectId(PROJECT_ID)
+                         .withBigtableOptions(new BigtableOptions.Builder().setInstanceId("instance_id").build())
+                         .isDataAccessible());
+        assertTrue(config.withTableId(TABLE_ID).withInstanceId(INSTANCE_ID)
+                         .withBigtableOptions(new BigtableOptions.Builder().setProjectId("project_id").build())
+                         .isDataAccessible());
+        assertTrue(config.withTableId(TABLE_ID).withBigtableOptions(
+                new BigtableOptions.Builder().setProjectId("project_id").setInstanceId("instance_id").build())
+                         .isDataAccessible());
 
-    thrown.expect(IllegalArgumentException.class);
-    config.validate();
-  }
-
-  @Test
-  public void testPopulateDisplayData() {
-    DisplayData displayData =
-        DisplayData.from(
-            config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID).withTableId(TABLE_ID)
-                ::populateDisplayData);
-
-    assertThat(displayData, hasDisplayItem(allOf(
-      hasKey("projectId"),
-      hasLabel("Bigtable Project Id"),
-      hasValue(PROJECT_ID.get()))));
-
-    assertThat(displayData, hasDisplayItem(allOf(
-      hasKey("instanceId"),
-      hasLabel("Bigtable Instance Id"),
-      hasValue(INSTANCE_ID.get()))));
-
-    assertThat(displayData, hasDisplayItem(allOf(
-      hasKey("tableId"),
-      hasLabel("Bigtable Table Id"),
-      hasValue(TABLE_ID.get()))));
-  }
-
-  @Test
-  public void testGetBigtableServiceWithDefaultService() {
-    assertEquals(SERVICE, config.withBigtableService(SERVICE).getBigtableService());
-  }
-
-  @Test
-  public void testGetBigtableServiceWithConfigurator() {
-    SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator =
-        (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>)
-            input ->
-                input
-                    .setInstanceId(INSTANCE_ID.get() + INSTANCE_ID.get())
-                    .setProjectId(PROJECT_ID.get() + PROJECT_ID.get())
-                    .setBulkOptions(new BulkOptions.Builder().setUseBulkApi(true).build());
-
-    BigtableService service = config
-      .withProjectId(PROJECT_ID)
-      .withInstanceId(INSTANCE_ID)
-      .withBigtableOptionsConfigurator(configurator)
-      .getBigtableService(PipelineOptionsFactory.as(GcpOptions.class));
-
-    assertEquals(PROJECT_ID.get(), service.getBigtableOptions().getProjectId());
-    assertEquals(INSTANCE_ID.get(), service.getBigtableOptions().getInstanceId());
-    assertEquals(true, service.getBigtableOptions().getBulkOptions().useBulkApi());
-  }
-
-  @Test
-  public void testIsDataAccessible() {
-    assertTrue(config.withTableId(TABLE_ID).withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID)
-      .isDataAccessible());
-    assertTrue(config.withTableId(TABLE_ID).withProjectId(PROJECT_ID)
-      .withBigtableOptions(new BigtableOptions.Builder().setInstanceId("instance_id").build())
-      .isDataAccessible());
-    assertTrue(config.withTableId(TABLE_ID).withInstanceId(INSTANCE_ID)
-      .withBigtableOptions(new BigtableOptions.Builder().setProjectId("project_id").build())
-      .isDataAccessible());
-    assertTrue(config.withTableId(TABLE_ID).withBigtableOptions(
-      new BigtableOptions.Builder().setProjectId("project_id").setInstanceId("instance_id").build())
-      .isDataAccessible());
-
-    assertFalse(config.withTableId(NOT_ACCESSIBLE_VALUE).withProjectId(PROJECT_ID)
-      .withInstanceId(INSTANCE_ID).isDataAccessible());
-    assertFalse(config.withTableId(TABLE_ID).withProjectId(NOT_ACCESSIBLE_VALUE)
-      .withInstanceId(INSTANCE_ID).isDataAccessible());
-    assertFalse(config.withTableId(TABLE_ID).withProjectId(PROJECT_ID)
-      .withInstanceId(NOT_ACCESSIBLE_VALUE).isDataAccessible());
-  }
+        assertFalse(config.withTableId(NOT_ACCESSIBLE_VALUE).withProjectId(PROJECT_ID)
+                          .withInstanceId(INSTANCE_ID).isDataAccessible());
+        assertFalse(config.withTableId(TABLE_ID).withProjectId(NOT_ACCESSIBLE_VALUE)
+                          .withInstanceId(INSTANCE_ID).isDataAccessible());
+        assertFalse(config.withTableId(TABLE_ID).withProjectId(PROJECT_ID)
+                          .withInstanceId(NOT_ACCESSIBLE_VALUE).isDataAccessible());
+    }
 }

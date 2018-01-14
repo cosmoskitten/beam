@@ -56,217 +56,217 @@ import org.slf4j.LoggerFactory;
  * service.
  */
 class BigtableServiceImpl implements BigtableService {
-  private static final Logger LOG = LoggerFactory.getLogger(BigtableService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BigtableService.class);
 
-  public BigtableServiceImpl(BigtableOptions options) {
-    this.options = options;
-  }
-
-  private final BigtableOptions options;
-
-  @Override
-  public BigtableOptions getBigtableOptions() {
-    return options;
-  }
-
-  @Override
-  public BigtableWriterImpl openForWriting(String tableId) throws IOException {
-    BigtableSession session = new BigtableSession(options);
-    BigtableTableName tableName = options.getInstanceName().toTableName(tableId);
-    return new BigtableWriterImpl(session, tableName);
-  }
-
-  @Override
-  public boolean tableExists(String tableId) throws IOException {
-    try (BigtableSession session = new BigtableSession(options)) {
-      GetTableRequest getTable =
-          GetTableRequest.newBuilder()
-              .setName(options.getInstanceName().toTableNameStr(tableId))
-              .build();
-      session.getTableAdminClient().getTable(getTable);
-      return true;
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Code.NOT_FOUND) {
-        return false;
-      }
-      String message =
-          String.format(
-              "Error checking whether table %s (BigtableOptions %s) exists", tableId, options);
-      LOG.error(message, e);
-      throw new IOException(message, e);
+    public BigtableServiceImpl(BigtableOptions options) {
+        this.options = options;
     }
-  }
 
-  @VisibleForTesting
-  static class BigtableReaderImpl implements Reader {
-    private BigtableSession session;
-    private final BigtableSource source;
-    private ResultScanner<Row> results;
-    private Row currentRow;
+    private final BigtableOptions options;
+
+    @Override
+    public BigtableOptions getBigtableOptions() {
+        return options;
+    }
+
+    @Override
+    public BigtableWriterImpl openForWriting(String tableId) throws IOException {
+        BigtableSession session = new BigtableSession(options);
+        BigtableTableName tableName = options.getInstanceName().toTableName(tableId);
+        return new BigtableWriterImpl(session, tableName);
+    }
+
+    @Override
+    public boolean tableExists(String tableId) throws IOException {
+        try (BigtableSession session = new BigtableSession(options)) {
+            GetTableRequest getTable =
+                    GetTableRequest.newBuilder()
+                                   .setName(options.getInstanceName().toTableNameStr(tableId))
+                                   .build();
+            session.getTableAdminClient().getTable(getTable);
+            return true;
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus().getCode() == Code.NOT_FOUND) {
+                return false;
+            }
+            String message =
+                    String.format(
+                            "Error checking whether table %s (BigtableOptions %s) exists", tableId, options);
+            LOG.error(message, e);
+            throw new IOException(message, e);
+        }
+    }
 
     @VisibleForTesting
-    BigtableReaderImpl(BigtableSession session, BigtableSource source) {
-      this.session = session;
-      this.source = source;
-    }
+    static class BigtableReaderImpl implements Reader {
+        private BigtableSession session;
+        private final BigtableSource source;
+        private ResultScanner<Row> results;
+        private Row currentRow;
 
-    @Override
-    public boolean start() throws IOException {
-      RowSet.Builder rowSetBuilder = RowSet.newBuilder();
-      for (ByteKeyRange sourceRange : source.getRanges()) {
-        rowSetBuilder = rowSetBuilder.addRowRanges(
-            RowRange.newBuilder()
-                .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
-                .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
-      }
-      RowSet rowSet = rowSetBuilder.build();
-
-      String tableNameSr =
-          session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
-
-      ReadRowsRequest.Builder requestB =
-          ReadRowsRequest.newBuilder()
-              .setRows(rowSet)
-              .setTableName(tableNameSr);
-      if (source.getRowFilter() != null) {
-        requestB.setFilter(source.getRowFilter());
-      }
-      results = session.getDataClient().readRows(requestB.build());
-      return advance();
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      currentRow = results.next();
-      return (currentRow != null);
-    }
-
-    @Override
-    public void close() throws IOException {
-      // Goal: by the end of this function, both results and session are null and closed,
-      // independent of what errors they throw or prior state.
-
-      if (session == null) {
-        // Only possible when previously closed, so we know that results is also null.
-        return;
-      }
-
-      // Session does not implement Closeable -- it's AutoCloseable. So we can't register it with
-      // the Closer, but we can use the Closer to simplify the error handling.
-      try (Closer closer = Closer.create()) {
-        if (results != null) {
-          closer.register(results);
-          results = null;
+        @VisibleForTesting
+        BigtableReaderImpl(BigtableSession session, BigtableSource source) {
+            this.session = session;
+            this.source = source;
         }
 
-        session.close();
-      } finally {
-        session = null;
-      }
-    }
+        @Override
+        public boolean start() throws IOException {
+            RowSet.Builder rowSetBuilder = RowSet.newBuilder();
+            for (ByteKeyRange sourceRange : source.getRanges()) {
+                rowSetBuilder = rowSetBuilder.addRowRanges(
+                        RowRange.newBuilder()
+                                .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
+                                .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
+            }
+            RowSet rowSet = rowSetBuilder.build();
 
-    @Override
-    public Row getCurrentRow() throws NoSuchElementException {
-      if (currentRow == null) {
-        throw new NoSuchElementException();
-      }
-      return currentRow;
-    }
-  }
+            String tableNameSr =
+                    session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
 
-  @VisibleForTesting
-  static class BigtableWriterImpl implements Writer {
-    private BigtableSession session;
-    private BulkMutation bulkMutation;
-
-    BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
-      this.session = session;
-      bulkMutation = session.createBulkMutation(tableName);
-    }
-
-    @Override
-    public void flush() throws IOException {
-      if (bulkMutation != null) {
-        try {
-          bulkMutation.flush();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          // We fail since flush() operation was interrupted.
-          throw new IOException(e);
+            ReadRowsRequest.Builder requestB =
+                    ReadRowsRequest.newBuilder()
+                                   .setRows(rowSet)
+                                   .setTableName(tableNameSr);
+            if (source.getRowFilter() != null) {
+                requestB.setFilter(source.getRowFilter());
+            }
+            results = session.getDataClient().readRows(requestB.build());
+            return advance();
         }
-      }
-    }
 
-    @Override
-    public void close() throws IOException {
-      try {
-        if (bulkMutation != null) {
-          try {
-            bulkMutation.flush();
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            // We fail since flush() operation was interrupted.
-            throw new IOException(e);
-          }
-          bulkMutation = null;
+        @Override
+        public boolean advance() throws IOException {
+            currentRow = results.next();
+            return (currentRow != null);
         }
-      } finally {
-        if (session != null) {
-          session.close();
-          session = null;
-        }
-      }
-    }
 
-    @Override
-    public CompletionStage<MutateRowResponse> writeRecord(
-        KV<ByteString, Iterable<Mutation>> record)
-        throws IOException {
-      MutateRowsRequest.Entry request = MutateRowsRequest.Entry.newBuilder()
-          .setRowKey(record.getKey())
-          .addAllMutations(record.getValue())
-          .build();
+        @Override
+        public void close() throws IOException {
+            // Goal: by the end of this function, both results and session are null and closed,
+            // independent of what errors they throw or prior state.
 
-      CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
-      Futures.addCallback(
-          bulkMutation.add(request),
-          new FutureCallback<MutateRowResponse>() {
-            @Override
-            public void onSuccess(MutateRowResponse mutateRowResponse) {
-              result.complete(mutateRowResponse);
+            if (session == null) {
+                // Only possible when previously closed, so we know that results is also null.
+                return;
             }
 
-            @Override
-            public void onFailure(Throwable throwable) {
-              result.completeExceptionally(throwable);
+            // Session does not implement Closeable -- it's AutoCloseable. So we can't register it with
+            // the Closer, but we can use the Closer to simplify the error handling.
+            try (Closer closer = Closer.create()) {
+                if (results != null) {
+                    closer.register(results);
+                    results = null;
+                }
+
+                session.close();
+            } finally {
+                session = null;
             }
-          });
-      return result;
+        }
+
+        @Override
+        public Row getCurrentRow() throws NoSuchElementException {
+            if (currentRow == null) {
+                throw new NoSuchElementException();
+            }
+            return currentRow;
+        }
     }
-  }
 
-  @Override
-  public String toString() {
-    return MoreObjects
-        .toStringHelper(BigtableServiceImpl.class)
-        .add("options", options)
-        .toString();
-  }
+    @VisibleForTesting
+    static class BigtableWriterImpl implements Writer {
+        private BigtableSession session;
+        private BulkMutation bulkMutation;
 
-  @Override
-  public Reader createReader(BigtableSource source) throws IOException {
-    BigtableSession session = new BigtableSession(options);
-    return new BigtableReaderImpl(session, source);
-  }
+        BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
+            this.session = session;
+            bulkMutation = session.createBulkMutation(tableName);
+        }
 
-  @Override
-  public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException {
-    try (BigtableSession session = new BigtableSession(options)) {
-      SampleRowKeysRequest request =
-          SampleRowKeysRequest.newBuilder()
-              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId().get()))
-              .build();
-      return session.getDataClient().sampleRowKeys(request);
+        @Override
+        public void flush() throws IOException {
+            if (bulkMutation != null) {
+                try {
+                    bulkMutation.flush();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    // We fail since flush() operation was interrupted.
+                    throw new IOException(e);
+                }
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            try {
+                if (bulkMutation != null) {
+                    try {
+                        bulkMutation.flush();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        // We fail since flush() operation was interrupted.
+                        throw new IOException(e);
+                    }
+                    bulkMutation = null;
+                }
+            } finally {
+                if (session != null) {
+                    session.close();
+                    session = null;
+                }
+            }
+        }
+
+        @Override
+        public CompletionStage<MutateRowResponse> writeRecord(
+                KV<ByteString, Iterable<Mutation>> record)
+                throws IOException {
+            MutateRowsRequest.Entry request = MutateRowsRequest.Entry.newBuilder()
+                                                                     .setRowKey(record.getKey())
+                                                                     .addAllMutations(record.getValue())
+                                                                     .build();
+
+            CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
+            Futures.addCallback(
+                    bulkMutation.add(request),
+                    new FutureCallback<MutateRowResponse>() {
+                        @Override
+                        public void onSuccess(MutateRowResponse mutateRowResponse) {
+                            result.complete(mutateRowResponse);
+                        }
+
+                        @Override
+                        public void onFailure(Throwable throwable) {
+                            result.completeExceptionally(throwable);
+                        }
+                    });
+            return result;
+        }
     }
-  }
+
+    @Override
+    public String toString() {
+        return MoreObjects
+                .toStringHelper(BigtableServiceImpl.class)
+                .add("options", options)
+                .toString();
+    }
+
+    @Override
+    public Reader createReader(BigtableSource source) throws IOException {
+        BigtableSession session = new BigtableSession(options);
+        return new BigtableReaderImpl(session, source);
+    }
+
+    @Override
+    public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException {
+        try (BigtableSession session = new BigtableSession(options)) {
+            SampleRowKeysRequest request =
+                    SampleRowKeysRequest.newBuilder()
+                                        .setTableName(options.getInstanceName().toTableNameStr(source.getTableId().get()))
+                                        .build();
+            return session.getDataClient().sampleRowKeys(request);
+        }
+    }
 }

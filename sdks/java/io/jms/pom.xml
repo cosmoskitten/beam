@@ -114,7 +114,7 @@
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
       <scope>test</scope>
-    </dependency>    
+    </dependency>
   </dependencies>
 
 </project>
