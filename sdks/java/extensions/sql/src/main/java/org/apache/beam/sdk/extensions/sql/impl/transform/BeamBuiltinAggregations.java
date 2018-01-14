@@ -170,7 +170,32 @@ class BeamBuiltinAggregations {
         return new BigDecimalVar(isSamp);
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in AVG", fieldType));
+            String.format("[%s] is not support in VAR_POP or VAR_SAMP", fieldType));
+    }
+  }
+
+  /**
+   * {@link CombineFn} for COVAR_POP and COVAR_SAMP.
+   */
+  public static CombineFn createCoVar(SqlTypeName fieldType, boolean isSamp) {
+    switch (fieldType) {
+      case INTEGER:
+        return new IntegerCoVar(isSamp);
+      case SMALLINT:
+        return new ShortCoVar(isSamp);
+      case TINYINT:
+        return new ByteCoVar(isSamp);
+      case BIGINT:
+        return new LongCoVar(isSamp);
+      case FLOAT:
+        return new FloatCoVar(isSamp);
+      case DOUBLE:
+        return new DoubleCoVar(isSamp);
+      case DECIMAL:
+        return new BigDecimalCoVar(isSamp);
+      default:
+        throw new UnsupportedOperationException(
+                String.format("[%s] is not support in COVAR_POP or COVAR_SAMP", fieldType));
     }
   }
 
@@ -553,5 +578,66 @@ class BeamBuiltinAggregations {
     public BigDecimal toBigDecimal(BigDecimal record) {
       return record;
     }
+  }
+
+  static class CovarAgg implements Serializable {
+    long count; // number of elements
+    BigDecimal sum; // sum of elements
+    BigDecimal xavg;
+    BigDecimal yavg;
+
+    public CovarAgg(long count, BigDecimal sum, BigDecimal xavg, BigDecimal yavg) {
+      this.count = count;
+      this.sum = sum;
+      this.xavg = xavg;
+      this.yavg = yavg;
+    }
+  }
+
+  /**
+   * {@link CombineFn} for <em>Covar</em> on {@link Number} types.
+   * Covariance Sample
+   */
+  abstract static class Covar<T extends Number>
+          extends CombineFn<T, KV<BigDecimal, VarAgg>, T> {
+    boolean isSamp;  // flag to determine return value should be Variance Pop or Variance Sample
+
+    public Covar(boolean isSamp){
+      this.isSamp = isSamp;
+    }
+
+    @Override
+    public KV<BigDecimal, VarAgg> createAccumulator() {
+      CovarAgg covaragg = new CovarAgg(0L, new BigDecimal(0),
+              new BigDecimal(0), new BigDecimal(0));
+      return KV.of(new BigDecimal(0), covaragg);
+    }
+
+    @Override
+    public KV<BigDecimal, VarAgg> addInput(KV<BigDecimal, VarAgg> accumulator, T input) {
+      BigDecimal v;
+        return KV.of(accumulator.getKey().add(variance), accumulator.getValue());
+      }
+    }
+
+    @Override
+    public KV<BigDecimal, VarAgg> mergeAccumulators(
+            Iterable<KV<BigDecimal, VarAgg>> accumulators) {
+      return KV.of(variance, new VarAgg(count, sum));
+    }
+
+    @Override
+    public Coder<KV<BigDecimal, VarAgg>> getAccumulatorCoder(CoderRegistry registry,
+           Coder<T> inputCoder) throws CannotProvideCoderException {
+    }
+
+    protected BigDecimal prepareOutput(KV<BigDecimal, VarAgg> accumulator){
+      BigDecimal decimalVar;
+      return decimalVar;
+    }
+
+    public abstract T extractOutput(KV<BigDecimal, VarAgg> accumulator);
+
+    public abstract BigDecimal toBigDecimal(T record);
   }
 }
