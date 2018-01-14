@@ -177,49 +177,6 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
-  private static class CheckerBigDecimalDivide
-          implements SerializableFunction<Iterable<BeamRecord>, Void> {
-    @Override public Void apply(Iterable<BeamRecord> input) {
-      Iterator<BeamRecord> iter = input.iterator();
-      assertTrue(iter.hasNext());
-      BeamRecord row = iter.next();
-      assertEquals(row.getDouble("avg1"), 8.142857143, 1e-7);
-      assertTrue(row.getInteger("avg2") == 8);
-      assertEquals(row.getDouble("varpop1"), 26.40816326, 1e-7);
-      assertTrue(row.getInteger("varpop2") == 26);
-      assertEquals(row.getDouble("varsamp1"), 30.80952381, 1e-7);
-      assertTrue(row.getInteger("varsamp2") == 30);
-      assertFalse(iter.hasNext());
-      return null;
-    }
-  }
-
-  /**
-   * GROUP-BY with aggregation functions with BigDeciaml Calculation (Avg, Var_Pop, etc).
-   */
-  @Test
-  public void testAggregationFunctionsWithBoundedOnBigDecimalDivide() throws Exception {
-    String sql = "SELECT AVG(f_double) as avg1, AVG(f_int) as avg2, "
-            + "VAR_POP(f_double) as varpop1, VAR_POP(f_int) as varpop2, "
-            + "VAR_SAMP(f_double) as varsamp1, VAR_SAMP(f_int) as varsamp2 "
-            + "FROM PCOLLECTION GROUP BY f_int2";
-
-    PCollection<BeamRecord> result =
-            boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
-
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(
-            Arrays.asList("avg1", "avg2", "avg3",
-                    "varpop1", "varpop2",
-                    "varsamp1", "varsamp2"),
-            Arrays.asList(Types.DOUBLE, Types.INTEGER, Types.DECIMAL,
-                    Types.DOUBLE, Types.INTEGER,
-                    Types.DOUBLE, Types.INTEGER));
-
-    PAssert.that(result).satisfies(new CheckerBigDecimalDivide());
-
-    pipeline.run().waitUntilFinish();
-  }
-
   /**
    * Implicit GROUP-BY with DISTINCT with bounded PCollection.
    */
