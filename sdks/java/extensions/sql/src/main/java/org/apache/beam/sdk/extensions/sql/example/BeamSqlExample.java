@@ -64,7 +64,7 @@ class BeamSqlExample {
 
     //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<BeamRecord> outputStream = inputTable.apply(
-        BeamSql.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
+        BeamSql.query("select pow(c3, c1) from PCOLLECTION"));
 
     // print the output record of case 1;
     outputStream.apply(
@@ -79,7 +79,7 @@ class BeamSqlExample {
                 return null;
               }
             }));
-
+      
     // Case 2. run the query with BeamSql.query over result PCollection of case 1.
     PCollection<BeamRecord> outputStream2 =
         PCollectionTuple.of(new TupleTag<>("CASE1_RESULT"), outputStream)

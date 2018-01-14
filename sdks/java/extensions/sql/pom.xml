@@ -58,6 +58,64 @@
         </dependency>
       </dependencies>
     </profile>
+
+
+    <profile>
+      <id>dataflow-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>spark-runner</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-spark</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-core_2.11</artifactId>
+          <version>1.6.3</version>
+          <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.codehaus.janino</groupId>
+              <artifactId>janino</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.codehaus.janino</groupId>
+              <artifactId>commons-compiler</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-network-common_2.11</artifactId>
+          <version>1.6.3</version>
+        </dependency>
+        <dependency>
+          <groupId>org.codehaus.janino</groupId>
+          <artifactId>commons-compiler</artifactId>
+          <version>3.0.7</version>
+        </dependency>
+        <dependency>
+          <groupId>org.codehaus.janino</groupId>
+          <artifactId>janino</artifactId>
+          <version>3.0.7</version>
+        </dependency>
+      </dependencies>
+    </profile>
+
   </profiles>
 
   <build>
@@ -276,18 +334,21 @@
                   </relocation>
                   <relocation>
                     <pattern>com.google.protobuf</pattern>
+                    <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.com.google.protobuf
                     </shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>org.apache.calcite</pattern>
+                    <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.org.apache.calcite
                     </shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>org.codehaus</pattern>
+                    <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.org.codehaus
                     </shadedPattern>
@@ -326,6 +387,18 @@
       <groupId>org.apache.calcite.avatica</groupId>
       <artifactId>avatica-core</artifactId>
       <version>${avatica.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_2.11</artifactId>
+      <version>1.6.3</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-streaming_2.11</artifactId>
+      <version>1.6.3</version>
     </dependency>
 
     <dependency>
