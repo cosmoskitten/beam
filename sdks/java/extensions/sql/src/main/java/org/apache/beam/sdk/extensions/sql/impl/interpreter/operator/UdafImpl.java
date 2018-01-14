@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -72,6 +73,71 @@ public final class UdafImpl<InputT, AccumT, OutputT>
         });
     return para;
   }
+
+
+//    @Override
+//    public List<FunctionParameter> getParameters() {
+//        List<FunctionParameter> para = new ArrayList<>();
+////    final ParameterizedType parameterizedType = (ParameterizedType) combineFn.getClass()
+////              .getGenericSuperclass();
+//
+////    if (a.getActualTypeArguments)
+//
+//        para.add(new FunctionParameter() {
+//            public int getOrdinal() {
+//                return 0; //up to one parameter is supported in UDAF.
+//            }
+//
+//            public String getName() {
+//                // not used as Beam SQL uses its own execution engine
+//                return null;
+//            }
+//
+//            public RelDataType getType(RelDataTypeFactory typeFactory) {
+//                //the first generic type of CombineFn is the input type.
+//                ParameterizedType parameterizedType = (ParameterizedType) combineFn.getClass()
+//                        .getGenericSuperclass();
+//
+//                ParameterizedType a = (ParameterizedType) parameterizedType.getActualTypeArguments()[0];
+//                return typeFactory.createJavaType(
+//                        (Class) a.getActualTypeArguments()[0]);
+////            return typeFactory.createJavaType(
+////                (Class) parameterizedType.getActualTypeArguments()[0]);
+//            }
+//
+//            public boolean isOptional() {
+//                // not used as Beam SQL uses its own execution engine
+//                return false;
+//            }
+//        });
+//
+//        para.add(new FunctionParameter() {
+//            public int getOrdinal() {
+//                return 1; //up to one parameter is supported in UDAF.
+//            }
+//
+//            public String getName() {
+//                // not used as Beam SQL uses its own execution engine
+//                return null;
+//            }
+//
+//            public RelDataType getType(RelDataTypeFactory typeFactory) {
+//                //the first generic type of CombineFn is the input type.
+//                ParameterizedType parameterizedType = (ParameterizedType) combineFn.getClass()
+//                        .getGenericSuperclass();
+//
+//                ParameterizedType a = (ParameterizedType) parameterizedType.getActualTypeArguments()[0];
+//                return typeFactory.createJavaType(
+//                        (Class) a.getActualTypeArguments()[1]);
+//            }
+//
+//            public boolean isOptional() {
+//                // not used as Beam SQL uses its own execution engine
+//                return false;
+//            }
+//        });
+//        return para;
+//    }
 
   @Override
   public AggImplementor getImplementor(boolean windowContext) {
