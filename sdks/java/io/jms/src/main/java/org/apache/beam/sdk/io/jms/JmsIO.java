@@ -287,10 +287,10 @@ public class JmsIO {
 
       PTransform<PBegin, PCollection<JmsRecord>> transform = unbounded;
 
-      if (getMaxNumRecords() != Long.MAX_VALUE) {
-        transform = unbounded.withMaxNumRecords(getMaxNumRecords());
-      } else if (getMaxReadTime() != null) {
-        transform = unbounded.withMaxReadTime(getMaxReadTime());
+      if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
+        transform = unbounded
+            .withMaxReadTime(getMaxReadTime())
+            .withMaxNumRecords(getMaxNumRecords());
       }
 
       return input.getPipeline().apply(transform);
