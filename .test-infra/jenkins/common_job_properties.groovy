@@ -260,12 +260,19 @@ class common_job_properties {
     context.steps {
         // Clean up environment.
         shell('rm -rf PerfKitBenchmarker')
+        shell('rm -rf .env')
+
+        // create new VirtualEnv
+        shell('virtualenv .env')
+        //activate VirtualEnv
+        shell('source .env/bin/activate')
+
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
         // Install Perfkit benchmark requirements.
-        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
+        shell('pip install -r PerfKitBenchmarker/requirements.txt')
         // Install job requirements for Python SDK.
-        shell('pip install --user -e ' + common_job_properties.checkoutDir + '/sdks/python/[gcp,test]')
+        shell('pip install -e ' + common_job_properties.checkoutDir + '/sdks/python/[gcp,test]')
         // Launch performance test.
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
