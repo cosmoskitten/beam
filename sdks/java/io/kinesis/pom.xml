@@ -32,6 +32,8 @@
   <build>
     <plugins>
       <!-- Integration Tests -->
+      <!-- Ignore IT for now we don't have a Kinesis instance on Amazon available -->
+      <!--
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
@@ -52,6 +54,7 @@
           </execution>
         </executions>
       </plugin>
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
