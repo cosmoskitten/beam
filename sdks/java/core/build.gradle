@@ -40,7 +40,10 @@ processResources {
 
 configurations {
     flinkValidatesRunner
-    sparkValidatesRunner
+    sparkValidatesRunner {
+      // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+      exclude group: "org.slf4j", module: "slf4j-jdk14"
+    }
 }
 
 // Exclude tests that need a runner
@@ -80,6 +83,9 @@ dependencies {
   flinkValidatesRunner project(path: ":beam-runners-parent:beam-runners-flink_2.11", configuration: "shadow")
   sparkValidatesRunner project(path: project.path, configuration: "shadowTest")
   sparkValidatesRunner project(path: ":beam-runners-parent:beam-runners-spark", configuration: "shadow")
+  // TODO: Is there a way to refer to the `provided` configuration from the Spark build?
+  sparkValidatesRunner library.java.spark_core
+  sparkValidatesRunner library.java.spark_streaming
 }
 
 // Shade dependencies.
