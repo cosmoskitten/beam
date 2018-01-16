@@ -166,7 +166,6 @@ def createValidatesRunner(Map m) {
     }
     def pipelineOptions = "[${optionsList.join(",")}]"
 
-    println "PIPELINE OPTIONS: $pipelineOptions"
     systemProperty "beamTestPipelineOptions", pipelineOptions
     if (config.systemProperties != null) {
       for (Map.Entry<String, String> property : config.systemProperties) {
