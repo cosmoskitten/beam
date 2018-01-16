@@ -51,6 +51,9 @@ public class SnippetsTest implements Serializable {
   public void testModelBigQueryIO() {
     // We cannot test BigQueryIO functionality in unit tests, therefore we limit ourselves
     // to making sure the pipeline containing BigQuery sources and sinks can be built.
+    //
+    // To run locally, set `runLocally` to `true`. You will have to set `project`, `dataset` and
+    // `table` to the BigQuery table the test will write into.
     boolean runLocally = false;
     if (runLocally) {
       String project = "my-project";

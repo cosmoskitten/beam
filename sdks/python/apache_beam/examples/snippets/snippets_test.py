@@ -601,6 +601,10 @@ class SnippetsTest(unittest.TestCase):
     # We cannot test BigQueryIO functionality in unit tests, therefore we limit
     # ourselves to making sure the pipeline containing BigQuery sources and
     # sinks can be built.
+    #
+    # To run locally, set `run_locally` to `True`. You will also have to set
+    # `project`, `dataset` and `table` to the BigQuery table the test will write
+    # to.
     run_locally = False
     if run_locally:
       project = 'my-project'
