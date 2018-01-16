@@ -1063,7 +1063,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   table_schema.fields.append(quote_field)
   # [END model_bigqueryio_schema_object]
 
-  if write_project and write_project and write_table:
+  if write_project and write_dataset and write_table:
     table_spec = '{}:{}.{}'.format(write_project, write_dataset, write_table)
 
   # [START model_bigqueryio_write]
