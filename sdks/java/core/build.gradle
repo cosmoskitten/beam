@@ -208,9 +208,9 @@ createValidatesRunner(
 
 createValidatesRunner(
     testPrefix: "flinkStreaming",
-     runnerName: "Flink streaming",
+    runnerName: "Flink streaming",
     configuration: configurations.flinkValidatesRunner,
-    excludes: flinkExcludedCategories, 
+    excludes: flinkExcludedCategories,
     pipelineOptions: flinkPipelineOptions(true))
 
 def sparkBatchExcludedCategories = [
