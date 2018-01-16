@@ -178,7 +178,7 @@ public class Snippets {
       */
 
       PCollection<Quote> quotes = p.apply(Create.of(
-          new Quote("Mahatma Ghandi", "My life is my message.")
+          new Quote("Mahatma Gandhi", "My life is my message.")
       ));
 
       quotes
