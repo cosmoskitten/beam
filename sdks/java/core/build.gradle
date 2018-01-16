@@ -146,6 +146,8 @@ class ValidatesRunnerConfig {
   FileCollection configuration
   // Additional system properties to be set for tests. Optional.
   Map<String, String> systemProperties
+  // Whether each test must run in a new JVM fork. Defaults to false.
+  Boolean forkEveryRun
 }
 
 def createValidatesRunner(Map m) {
@@ -172,7 +174,9 @@ def createValidatesRunner(Map m) {
         systemProperty property.getKey(), property.getValue()
       }
     }
-    // TODO: Does Spark require a different forking strategy?
+    if (config.forkEveryRun != null && config.forkEveryRun) {
+        forkEvery 1
+    }
     maxParallelForks 4
     classpath = config.configuration
     useJUnit {
@@ -236,6 +240,7 @@ createValidatesRunner(
   testPrefix: "sparkBatch",
   runnerName: "Spark batch",
   configuration: configurations.sparkValidatesRunner,
+  forkEveryRun: true,
   excludes: sparkBatchExcludedCategories,
   pipelineOptions: sparkBatchPipelineOptions)
 
