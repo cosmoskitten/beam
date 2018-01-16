@@ -152,6 +152,12 @@ class StartingPointShardsFinder implements Serializable {
     return shardsWithoutParents;
   }
 
+  /**
+   * Validates the shards at the given startingPoint. Validity is checked by getting an iterator at
+   * the startingPoint and then trying to read some records. This action does not affect the records
+   * at all. If the shard is valid then it will get read from exactly the same point and these
+   * records will be read again.
+   */
   private Set<Shard> validateShards(SimplifiedKinesisClient kinesis, Iterable<Shard> rootShards,
       String streamName, StartingPoint startingPoint)
       throws TransientKinesisException {

@@ -128,7 +128,13 @@ class ShardReadersPool {
         try {
           kinesisRecords = shardRecordsIterator.readNextBatch();
         } catch (KinesisShardClosedException e) {
-          LOG.info("Shard iterator is closed, finishing the read loop", e);
+          LOG.info("Shard iterator for {} shard is closed, finishing the read loop",
+              shardRecordsIterator.getShardId(), e);
+          // Wait until all records from already closed shard are taken from the buffer and only
+          // then start reading successive shards. This guarantees that checkpoints will contain
+          // either parent or child shard and never both. Such approach allows for more
+          // straightforward checkpoint restoration than in a case when new shards are read
+          // immediately.
           waitUntilAllShardRecordsRead(shardRecordsIterator);
           readFromSuccessiveShards(shardRecordsIterator);
           break;
@@ -189,14 +195,16 @@ class ShardReadersPool {
 
   boolean allShardsUpToDate() {
     boolean shardsUpToDate = true;
-    for (ShardRecordsIterator shardRecordsIterator : shardIteratorsMap.get().values()) {
+    ImmutableMap<String, ShardRecordsIterator> currentShardIterators = shardIteratorsMap.get();
+    for (ShardRecordsIterator shardRecordsIterator : currentShardIterators.values()) {
       shardsUpToDate &= shardRecordsIterator.isUpToDate();
     }
     return shardsUpToDate;
   }
 
   KinesisReaderCheckpoint getCheckpointMark() {
-    return new KinesisReaderCheckpoint(transform(shardIteratorsMap.get().values(),
+    ImmutableMap<String, ShardRecordsIterator> currentShardIterators = shardIteratorsMap.get();
+    return new KinesisReaderCheckpoint(transform(currentShardIterators.values(),
         new Function<ShardRecordsIterator, ShardCheckpoint>() {
 
           @Override
