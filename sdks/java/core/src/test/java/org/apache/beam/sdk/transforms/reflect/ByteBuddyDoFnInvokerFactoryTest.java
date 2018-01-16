@@ -29,6 +29,10 @@ import org.junit.Test;
  * Tests for the proxy generator based on byte buddy.
  */
 public class ByteBuddyDoFnInvokerFactoryTest {
+  /**
+   * Ensuring we define the subclass using bytebuddy in the right classloader,
+   * i.e. the doFn classloader and not beam classloader.
+   */
   @Test
   public void validateProxyClassLoaderSelectionLogic() throws Exception {
     final ClassLoader testLoader = Thread.currentThread().getContextClassLoader();
@@ -36,7 +40,7 @@ public class ByteBuddyDoFnInvokerFactoryTest {
     final Class<? extends DoFn<?, ?>> source = (Class<? extends DoFn<?, ?>>) loader.loadClass(
         "org.apache.beam.sdk.transforms.reflect.ByteBuddyDoFnInvokerFactoryTest$MyDoFn");
     assertEquals(loader, source.getClassLoader()); // precondition check
-    final String proxyName = source.getName() + "$DoFnInvoker";
+    final String proxyName = source.getName() + "$" + DoFnInvoker.class.getSimpleName();
     for (final ClassLoader cl : asList(testLoader, loader)) {
       try {
         cl.loadClass(proxyName);
