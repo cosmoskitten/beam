@@ -300,7 +300,6 @@ class AfterProcessingTime(TriggerFn):
             .delay
             .delay_millis))
 
-
   def to_runner_api(self, context):
     delay_proto = beam_runner_api_pb2.TimestampTransform(
         delay=beam_runner_api_pb2.TimestampTransform.Delay(
@@ -761,7 +760,6 @@ class SimpleState(object):
   @abstractmethod
   def clear_state(self, window, tag):
     pass
-
 
   def at(self, window, clock=None):
     return TriggerContext(self, window, clock)
