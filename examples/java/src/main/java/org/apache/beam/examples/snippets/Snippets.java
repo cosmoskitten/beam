@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,7 +30,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -137,7 +138,7 @@ public class Snippets {
           .apply(BigQueryIO.read(
               (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
               .from(tableSpec)
-              .withCoder(SerializableCoder.of(Double.class)));
+              .withCoder(DoubleCoder.of()));
       // [END BigQueryReadFunction]
     }
 
@@ -148,7 +149,7 @@ public class Snippets {
               (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
               .fromQuery(
                   "SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]")
-              .withCoder(SerializableCoder.of(Double.class)));
+              .withCoder(DoubleCoder.of()));
       // [END BigQueryReadQuery]
     }
 
@@ -160,7 +161,7 @@ public class Snippets {
               .fromQuery(
                   "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
               .usingStandardSql()
-              .withCoder(SerializableCoder.of(Double.class)));
+              .withCoder(DoubleCoder.of()));
       // [END BigQueryReadQueryStdSQL]
     }
 
@@ -183,16 +184,16 @@ public class Snippets {
     // [END BigQuerySchemaJson]
 
     {
+      String tableSpec = "clouddataflow-readonly:samples.weather_stations";
+      if (!writeProject.isEmpty() && !writeDataset.isEmpty() && !writeTable.isEmpty()) {
+        tableSpec = writeProject + ":" + writeDataset + "." + writeTable;
+      }
+
       // [START BigQuerySchemaObject]
       TableSchema tableSchema = new TableSchema().setFields(ImmutableList.of(
           new TableFieldSchema().setName("source").setType("STRING").setMode("NULLABLE"),
           new TableFieldSchema().setName("quote").setType("STRING").setMode("REQUIRED")));
       // [END BigQuerySchemaObject]
-
-      String tableSpec = "clouddataflow-readonly:samples.weather_stations";
-      if (!writeProject.isEmpty() && !writeDataset.isEmpty() && !writeTable.isEmpty()) {
-        tableSpec = writeProject + ":" + writeDataset + "." + writeTable;
-      }
 
       // [START BigQueryWriteInput]
       /*
@@ -328,6 +329,33 @@ public class Snippets {
           .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
           .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
       // [END BigQueryWriteDynamicDestinations]
+
+      String tableSpec = "clouddataflow-readonly:samples.weather_stations";
+      if (!writeProject.isEmpty() && !writeDataset.isEmpty() && !writeTable.isEmpty()) {
+        tableSpec = writeProject + ":" + writeDataset + "." + writeTable + "_partitioning";
+      }
+
+      TableSchema tableSchema = new TableSchema().setFields(ImmutableList.of(
+          new TableFieldSchema().setName("year").setType("INTEGER").setMode("REQUIRED"),
+          new TableFieldSchema().setName("month").setType("INTEGER").setMode("REQUIRED"),
+          new TableFieldSchema().setName("day").setType("INTEGER").setMode("REQUIRED"),
+          new TableFieldSchema().setName("maxTemp").setType("FLOAT").setMode("NULLABLE")));
+
+      // [START BigQueryTimePartitioning]
+      weatherData.apply(BigQueryIO.<WeatherData>write()
+          .to(tableSpec + "_partitioning")
+          .withSchema(tableSchema)
+          .withFormatFunction(
+              (WeatherData elem) -> new TableRow()
+                  .set("year", elem.year)
+                  .set("month", elem.month)
+                  .set("day", elem.day)
+                  .set("maxTemp", elem.maxTemp))
+          // NOTE: an existing table without time partitioning set up will not work
+          .withTimePartitioning(new TimePartitioning().setType("DAY"))
+          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+          .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+      // [END BigQueryTimePartitioning]
     }
   }
 
