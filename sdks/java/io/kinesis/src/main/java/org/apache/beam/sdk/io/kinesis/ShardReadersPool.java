@@ -289,6 +289,9 @@ class ShardReadersPool {
       if (capacity > 0) {
         BlockingQueue<KinesisRecord> newRecordsQueue = new ArrayBlockingQueue<>(capacity);
         recordsQueue.set(newRecordsQueue);
+        // Drain the previous queue manually using poll & put operations with some timeout. Can't be
+        // simply replaced with drainTo() because drainTo() will throw exception when
+        // newRecordsQueue is full.
         do {
           try {
             KinesisRecord record = previousRecordsQueue.poll(500, TimeUnit.MILLISECONDS);
@@ -296,6 +299,8 @@ class ShardReadersPool {
               newRecordsQueue.put(record);
             }
           } catch (InterruptedException e) {
+            // ExecutorService is shutting down and KinesisReader instance is closing so there's
+            // no need to handle any remaining records.
             LOG.warn("Thread was interrupted during resharding operation, stopping", e);
             return;
           }
