@@ -1068,7 +1068,8 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
 
   # [START model_bigqueryio_write]
   quotes = p | beam.Create([
-      {'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'}
+      {'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'},
+      {'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."},
   ])
 
   quotes | beam.io.WriteToBigQuery(
