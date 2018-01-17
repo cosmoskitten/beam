@@ -131,8 +131,9 @@ class TestStreamTest(unittest.TestCase):
                    .add_elements([TimestampedValue('last', 310)]))
 
     # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result
+    global result     # pylint: disable=global-variable-undefined
     result = []
+
     def fired_elements(elem):
       result.append(elem)
       return elem
@@ -169,8 +170,9 @@ class TestStreamTest(unittest.TestCase):
                    .advance_watermark_to(20))
 
     # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result
+    global result   # pylint: disable=global-variable-undefined
     result = []
+
     def fired_elements(elem):
       result.append(elem)
       return elem
@@ -178,7 +180,7 @@ class TestStreamTest(unittest.TestCase):
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
-    records = (p
+    records = (p            # pylint: disable=unused-variable
                | test_stream
                | beam.WindowInto(
                    FixedWindows(15),
@@ -211,8 +213,9 @@ class TestStreamTest(unittest.TestCase):
                    .advance_processing_time(5.1))
 
     # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result
+    global result     # pylint: disable=global-variable-undefined
     result = []
+
     def fired_elements(elem):
       result.append(elem)
       return elem
