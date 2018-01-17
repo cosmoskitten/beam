@@ -86,8 +86,7 @@ class FlinkPipelineExecutionEnvironment {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
-    // TODO: Remove proto round trip. Note that this must happen before the overrides are applied
-    // because some of the substituted nodes are transient and not serializable.
+    // Serialize and rehydrate pipeline to make sure we only depend serialized transforms.
     try {
       pipeline = PipelineTranslation.fromProto(PipelineTranslation.toProto(pipeline));
     } catch (IOException e) {

@@ -250,7 +250,6 @@
       </exclusions>
     </dependency>
 
-    <!-- TODO: Remove this dependency before submitting. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-model-pipeline</artifactId>
