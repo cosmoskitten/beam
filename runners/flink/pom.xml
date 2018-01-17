@@ -250,6 +250,12 @@
       </exclusions>
     </dependency>
 
+    <!-- TODO: Remove this dependency before submitting. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-pipeline</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
