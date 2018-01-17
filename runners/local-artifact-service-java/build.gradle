@@ -35,6 +35,7 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
+  testCompile project(path: ":beam-runners-parent:beam-runners-core-construction-java")
 }
 
 task packageTests(type: Jar) {
