@@ -28,9 +28,11 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -104,6 +106,17 @@ public class Snippets {
     }
 
     {
+      String tableSpec = "clouddataflow-readonly:samples.weather_stations";
+      // [START BigQueryReadFunction]
+      PCollection<Double> maxTemperatures = p
+          .apply(BigQueryIO.read(
+              (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+              .from(tableSpec)
+              .withCoder(SerializableCoder.of(Double.class)));
+      // [END BigQueryReadFunction]
+    }
+
+    {
       // [START BigQueryReadQuery]
       PCollection<Double> maxTemperatures = p
           .apply(BigQueryIO.readTableRows().fromQuery(
@@ -126,25 +139,23 @@ public class Snippets {
       // [END BigQueryReadQueryStdSQL]
     }
 
-    {
-      // [START BigQuerySchemaJson]
-      String tableSchemaJson = ""
-          + "{"
-          + "  \"fields\": ["
-          + "    {"
-          + "      \"name\": \"source\","
-          + "      \"type\": \"STRING\","
-          + "      \"mode\": \"NULLABLE\""
-          + "    },"
-          + "    {"
-          + "      \"name\": \"quote\","
-          + "      \"type\": \"STRING\","
-          + "      \"mode\": \"REQUIRED\""
-          + "    }"
-          + "  ]"
-          + "}";
-      // [END BigQuerySchemaJson]
-    }
+    // [START BigQuerySchemaJson]
+    String tableSchemaJson = ""
+        + "{"
+        + "  \"fields\": ["
+        + "    {"
+        + "      \"name\": \"source\","
+        + "      \"type\": \"STRING\","
+        + "      \"mode\": \"NULLABLE\""
+        + "    },"
+        + "    {"
+        + "      \"name\": \"quote\","
+        + "      \"type\": \"STRING\","
+        + "      \"mode\": \"REQUIRED\""
+        + "    }"
+        + "  ]"
+        + "}";
+    // [END BigQuerySchemaJson]
 
     // [START BigQuerySchemaObject]
     List<TableFieldSchema> fields = new ArrayList<>(Arrays.asList(
@@ -153,12 +164,12 @@ public class Snippets {
     TableSchema tableSchema = new TableSchema().setFields(fields);
     // [END BigQuerySchemaObject]
 
-    {
-      String tableSpec = "clouddataflow-readonly:samples.weather_stations";
-      if (!writeProject.isEmpty() && !writeDataset.isEmpty() && !writeTable.isEmpty()) {
-        tableSpec = writeProject + ":" + writeDataset + "." + writeTable;
-      }
+    String tableSpec = "clouddataflow-readonly:samples.weather_stations";
+    if (!writeProject.isEmpty() && !writeDataset.isEmpty() && !writeTable.isEmpty()) {
+      tableSpec = writeProject + ":" + writeDataset + "." + writeTable;
+    }
 
+    {
       // [START BigQueryWrite]
       /*
       @DefaultCoder(AvroCoder.class)
@@ -177,20 +188,29 @@ public class Snippets {
       }
       */
 
-      PCollection<Quote> quotes = p.apply(Create.of(
-          new Quote("Mahatma Gandhi", "My life is my message.")
-      ));
-
-      quotes
+      PCollection<TableRow> rows = p
+          .apply(Create.of(
+              new Quote("Mahatma Gandhi", "My life is my message."),
+              new Quote("Yoda", "Do, or do not. There is no 'try'.")
+          ))
           .apply(MapElements.into(TypeDescriptor.of(TableRow.class)).via(
               (Quote elem) -> new TableRow().set("source", elem.source).set("quote", elem.quote)
-          ))
-          .apply(BigQueryIO.writeTableRows()
+          ));
+
+      rows.apply(BigQueryIO.writeTableRows()
               .to(tableSpec)
               .withSchema(tableSchema)
               .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE)
               .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
       // [END BigQueryWrite]
+
+      // [START BigQueryWriteJsonSchema]
+      rows.apply(BigQueryIO.writeTableRows()
+          .to(tableSpec)
+          .withJsonSchema(tableSchemaJson)
+          .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE)
+          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
+      // [END BigQueryWriteJsonSchema]
     }
   }
 
