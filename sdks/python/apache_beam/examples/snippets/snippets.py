@@ -1066,12 +1066,14 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   if write_project and write_dataset and write_table:
     table_spec = '{}:{}.{}'.format(write_project, write_dataset, write_table)
 
-  # [START model_bigqueryio_write]
+  # [START model_bigqueryio_write_input]
   quotes = p | beam.Create([
       {'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'},
       {'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."},
   ])
+  # [END model_bigqueryio_write_input]
 
+  # [START model_bigqueryio_write]
   quotes | beam.io.WriteToBigQuery(
       table_spec,
       schema=table_schema,

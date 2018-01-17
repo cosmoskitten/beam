@@ -21,16 +21,21 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -43,6 +48,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
  * Code snippets used in webdocs.
@@ -61,6 +67,27 @@ public class Snippets {
     public Quote(String source, String quote) {
       this.source = source;
       this.quote = quote;
+    }
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  static class WeatherData {
+    final long year;
+    final long month;
+    final long day;
+    final double maxTemp;
+
+    public WeatherData() {
+      this.year = 0;
+      this.month = 0;
+      this.day = 0;
+      this.maxTemp = 0.0f;
+    }
+    public WeatherData(long year, long month, long day, double maxTemp) {
+      this.year = year;
+      this.month = month;
+      this.day = day;
+      this.maxTemp = maxTemp;
     }
   }
 
@@ -104,62 +131,70 @@ public class Snippets {
     }
 
     {
+      String tableSpec = "clouddataflow-readonly:samples.weather_stations";
+      // [START BigQueryReadFunction]
+      PCollection<Double> maxTemperatures = p
+          .apply(BigQueryIO.read(
+              (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+              .from(tableSpec)
+              .withCoder(SerializableCoder.of(Double.class)));
+      // [END BigQueryReadFunction]
+    }
+
+    {
       // [START BigQueryReadQuery]
       PCollection<Double> maxTemperatures = p
-          .apply(BigQueryIO.readTableRows().fromQuery(
-              "SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]"))
-          // Each row is of type TableRow
-          .apply(MapElements.into(TypeDescriptors.doubles()).via(
-              (TableRow row) -> (Double) row.get("max_temperature")));
+          .apply(BigQueryIO.read(
+              (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+              .fromQuery(
+                  "SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]")
+              .withCoder(SerializableCoder.of(Double.class)));
       // [END BigQueryReadQuery]
     }
 
     {
       // [START BigQueryReadQueryStdSQL]
       PCollection<Double> maxTemperatures = p
-          .apply(BigQueryIO.readTableRows().fromQuery(
-              "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
-              .usingStandardSql())
-          // Each row is of type TableRow
-          .apply(MapElements.into(TypeDescriptors.doubles()).via(
-              (TableRow row) -> (Double) row.get("max_temperature")));
+          .apply(BigQueryIO.read(
+              (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+              .fromQuery(
+                  "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
+              .usingStandardSql()
+              .withCoder(SerializableCoder.of(Double.class)));
       // [END BigQueryReadQueryStdSQL]
     }
 
-    {
-      // [START BigQuerySchemaJson]
-      String tableSchemaJson = ""
-          + "{"
-          + "  \"fields\": ["
-          + "    {"
-          + "      \"name\": \"source\","
-          + "      \"type\": \"STRING\","
-          + "      \"mode\": \"NULLABLE\""
-          + "    },"
-          + "    {"
-          + "      \"name\": \"quote\","
-          + "      \"type\": \"STRING\","
-          + "      \"mode\": \"REQUIRED\""
-          + "    }"
-          + "  ]"
-          + "}";
-      // [END BigQuerySchemaJson]
-    }
-
-    // [START BigQuerySchemaObject]
-    List<TableFieldSchema> fields = new ArrayList<>(Arrays.asList(
-        new TableFieldSchema().setName("source").setType("STRING").setMode("NULLABLE"),
-        new TableFieldSchema().setName("quote").setType("STRING").setMode("REQUIRED")));
-    TableSchema tableSchema = new TableSchema().setFields(fields);
-    // [END BigQuerySchemaObject]
+    // [START BigQuerySchemaJson]
+    String tableSchemaJson = ""
+        + "{"
+        + "  \"fields\": ["
+        + "    {"
+        + "      \"name\": \"source\","
+        + "      \"type\": \"STRING\","
+        + "      \"mode\": \"NULLABLE\""
+        + "    },"
+        + "    {"
+        + "      \"name\": \"quote\","
+        + "      \"type\": \"STRING\","
+        + "      \"mode\": \"REQUIRED\""
+        + "    }"
+        + "  ]"
+        + "}";
+    // [END BigQuerySchemaJson]
 
     {
+      // [START BigQuerySchemaObject]
+      TableSchema tableSchema = new TableSchema().setFields(ImmutableList.of(
+          new TableFieldSchema().setName("source").setType("STRING").setMode("NULLABLE"),
+          new TableFieldSchema().setName("quote").setType("STRING").setMode("REQUIRED")));
+      // [END BigQuerySchemaObject]
+
       String tableSpec = "clouddataflow-readonly:samples.weather_stations";
       if (!writeProject.isEmpty() && !writeDataset.isEmpty() && !writeTable.isEmpty()) {
         tableSpec = writeProject + ":" + writeDataset + "." + writeTable;
       }
 
-      // [START BigQueryWrite]
+      // [START BigQueryWriteInput]
       /*
       @DefaultCoder(AvroCoder.class)
       static class Quote {
@@ -177,10 +212,14 @@ public class Snippets {
       }
       */
 
-      PCollection<Quote> quotes = p.apply(Create.of(
-          new Quote("Mahatma Gandhi", "My life is my message.")
-      ));
+      PCollection<Quote> quotes = p
+          .apply(Create.of(
+              new Quote("Mahatma Gandhi", "My life is my message."),
+              new Quote("Yoda", "Do, or do not. There is no 'try'.")
+          ));
+      // [END BigQueryWriteInput]
 
+      // [START BigQueryWriteTable]
       quotes
           .apply(MapElements.into(TypeDescriptor.of(TableRow.class)).via(
               (Quote elem) -> new TableRow().set("source", elem.source).set("quote", elem.quote)
@@ -188,9 +227,107 @@ public class Snippets {
           .apply(BigQueryIO.writeTableRows()
               .to(tableSpec)
               .withSchema(tableSchema)
-              .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE)
-              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
-      // [END BigQueryWrite]
+              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+              .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+      // [END BigQueryWriteTable]
+
+      // [START BigQueryWriteFunction]
+      quotes.apply(BigQueryIO.<Quote>write()
+          .to(tableSpec)
+          .withSchema(tableSchema)
+          .withFormatFunction(
+              (Quote elem) -> new TableRow().set("source", elem.source).set("quote", elem.quote))
+          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+          .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+      // [END BigQueryWriteFunction]
+
+      // [START BigQueryWriteJsonSchema]
+      quotes.apply(BigQueryIO.<Quote>write()
+          .to(tableSpec)
+          .withJsonSchema(tableSchemaJson)
+          .withFormatFunction(
+              (Quote elem) -> new TableRow().set("source", elem.source).set("quote", elem.quote))
+          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+          .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+      // [END BigQueryWriteJsonSchema]
+    }
+
+    {
+      // [START BigQueryWriteDynamicDestinations]
+      /*
+      @DefaultCoder(AvroCoder.class)
+      static class WeatherData {
+        final long year;
+        final long month;
+        final long day;
+        final double maxTemp;
+
+        public WeatherData() {
+          this.year = 0;
+          this.month = 0;
+          this.day = 0;
+          this.maxTemp = 0.0f;
+        }
+        public WeatherData(long year, long month, long day, double maxTemp) {
+          this.year = year;
+          this.month = month;
+          this.day = day;
+          this.maxTemp = maxTemp;
+        }
+      }
+      */
+
+      PCollection<WeatherData> weatherData = p
+          .apply(BigQueryIO.read(
+              (SchemaAndRecord elem) -> {
+                GenericRecord record = elem.getRecord();
+                return new WeatherData(
+                    (Long) record.get("year"),
+                    (Long) record.get("month"),
+                    (Long) record.get("day"),
+                    (Double) record.get("max_temperature"));
+              })
+              .fromQuery("SELECT year, month, day, max_temperature "
+                  + "FROM [clouddataflow-readonly:samples.weather_stations] "
+                  + "WHERE year BETWEEN 2007 AND 2009")
+              .withCoder(AvroCoder.of(WeatherData.class)));
+
+      // We will send the weather data into different tables for every year.
+      weatherData.apply(BigQueryIO.<WeatherData>write()
+          .to(new DynamicDestinations<WeatherData, Long>() {
+            @Override
+            public Long getDestination(ValueInSingleWindow<WeatherData> elem) {
+              return elem.getValue().year;
+            }
+
+            @Override
+            public TableDestination getTable(Long destination) {
+              return new TableDestination(
+                  new TableReference()
+                      .setProjectId(writeProject)
+                      .setDatasetId(writeDataset)
+                      .setTableId(writeTable + "_" + destination),
+                  "Table for year " + destination);
+            }
+
+            @Override
+            public TableSchema getSchema(Long destination) {
+              return new TableSchema().setFields(ImmutableList.of(
+                  new TableFieldSchema().setName("year").setType("INTEGER").setMode("REQUIRED"),
+                  new TableFieldSchema().setName("month").setType("INTEGER").setMode("REQUIRED"),
+                  new TableFieldSchema().setName("day").setType("INTEGER").setMode("REQUIRED"),
+                  new TableFieldSchema().setName("maxTemp").setType("FLOAT").setMode("NULLABLE")));
+            }
+          })
+          .withFormatFunction(
+              (WeatherData elem) -> new TableRow()
+                  .set("year", elem.year)
+                  .set("month", elem.month)
+                  .set("day", elem.day)
+                  .set("maxTemp", elem.maxTemp))
+          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+          .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+      // [END BigQueryWriteDynamicDestinations]
     }
   }
 
