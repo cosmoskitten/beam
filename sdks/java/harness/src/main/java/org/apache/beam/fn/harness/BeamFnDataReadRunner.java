@@ -149,10 +149,10 @@ public class BeamFnDataReadRunner<OutputT> {
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<OutputT>> coder;
-    if (!port.getWireCoderId().isEmpty()) {
+    if (!port.getCoderId().isEmpty()) {
       coder =
           (Coder<WindowedValue<OutputT>>)
-              CoderTranslation.fromProto(coders.get(port.getWireCoderId()), components);
+              CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
     } else {
       // TODO: Remove this path once it is no longer used
       coder =

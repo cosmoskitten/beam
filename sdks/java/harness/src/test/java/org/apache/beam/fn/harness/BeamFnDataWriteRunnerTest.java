@@ -84,7 +84,7 @@ public class BeamFnDataWriteRunnerTest {
   private static final BeamFnApi.RemoteGrpcPort PORT_SPEC =
       BeamFnApi.RemoteGrpcPort.newBuilder()
           .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance())
-          .setWireCoderId(WIRE_CODER_ID)
+          .setCoderId(WIRE_CODER_ID)
           .build();
 
   static {

@@ -78,7 +78,7 @@ message RemoteGrpcPort {
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor api_service_descriptor = 1;
 
   // (Required) The ID of the Coder that will be used to decode data sent over this port.
-  string wire_coder_id = 2;
+  string coder_id = 2;
 }
 
 /*
