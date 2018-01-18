@@ -43,13 +43,10 @@ class StateSampler(statesampler_impl.StateSampler):
 
   def __init__(self, prefix, counter_factory,
                sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
-    self.started = False
-    self.finished = False
     self.states_by_name = {}
     self._prefix = prefix
     self._counter_factory = counter_factory
     self._states_by_name = {}
-    self._registered = False
     self.sampling_period_ms = sampling_period_ms
     super(StateSampler, self).__init__(sampling_period_ms)
 

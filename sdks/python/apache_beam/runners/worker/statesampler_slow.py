@@ -24,6 +24,8 @@ class StateSampler(object):
     self._state_stack = [ScopedState(None, self, None)]
     self.state_transition_count = 0
     self.time_since_transition = 0
+    self.started = False
+    self.finished = False
 
   def current_state(self):
     """Returns the current execution state."""
@@ -42,10 +44,10 @@ class StateSampler(object):
 
   def start(self):
     # Sampling not yet supported. Only state tracking at the moment.
-    pass
+    self.started = True
 
   def stop(self):
-    pass
+    self.finished = True
 
   def get_info(self):
     """Returns StateSamplerInfo with transition statistics."""

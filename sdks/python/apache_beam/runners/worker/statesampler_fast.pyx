@@ -71,8 +71,8 @@ cdef class StateSampler(object):
 
   cdef list scoped_states_by_index
 
-  cdef bint started
-  cdef bint finished
+  cdef public bint started
+  cdef public bint finished
   cdef object sampling_thread
 
   # This lock guards members that are shared between threads, specificaly
@@ -86,6 +86,8 @@ cdef class StateSampler(object):
 
   def __init__(self, sampling_period_ms, *args):
     self._sampling_period_ms = sampling_period_ms
+    self.started = False
+    self.finished = False
 
     self.lock = pythread.PyThread_allocate_lock()
 
@@ -95,7 +97,6 @@ cdef class StateSampler(object):
     unknown_state = ScopedState(self, 'unknown', self.current_state_index)
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
     self.scoped_states_by_index = [unknown_state]
-    self.finished = False
     pythread.PyThread_release_lock(self.lock)
 
     # Assert that the compiler correctly aligned the current_state field.  This
