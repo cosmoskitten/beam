@@ -16,7 +16,6 @@
 #
 
 # This module is experimental. No backwards-compatibility guarantees.
-import threading
 from collections import namedtuple
 
 from apache_beam.utils.counters import Counter
