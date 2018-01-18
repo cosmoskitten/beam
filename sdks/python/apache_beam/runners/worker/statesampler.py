@@ -30,22 +30,6 @@ except ImportError:
   FAST_SAMPLER = False
 
 
-class ExecutionStateSamplers(threading.local):
-  """ Per-thread state sampler. """
-  def __init__(self):
-    super(ExecutionStateSamplers, self).__init__()
-    self._current_sampler = None
-
-  def current_sampler(self):
-    return self._current_sampler
-
-  def set_sampler(self, sampler):
-    self._current_sampler = sampler
-
-
-EXECUTION_STATE_SAMPLERS = ExecutionStateSamplers()
-
-
 StateSamplerInfo = namedtuple(
     'StateSamplerInfo',
     ['state_name', 'transition_count', 'time_since_transition'])
@@ -72,10 +56,6 @@ class StateSampler(statesampler_impl.StateSampler):
   def stop_if_still_running(self):
     if self.started and not self.finished:
       self.stop()
-
-  def register(self):
-    EXECUTION_STATE_SAMPLERS.set_sampler(self)
-    self._registered = True
 
   def get_info(self):
     """Returns StateSamplerInfo with transition statistics."""
