@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
 
@@ -48,7 +48,7 @@ public class BagUserState<T> {
   private final BeamFnStateClient beamFnStateClient;
   private final String stateId;
   private final Coder<T> coder;
-  private final Supplier<Builder> partialRequestSupplier;
+  private final Supplier<StateRequest.Builder> partialRequestSupplier;
   private Iterable<T> oldValues;
   private ArrayList<T> newValues;
   private List<T> unmodifiableNewValues;
@@ -58,7 +58,7 @@ public class BagUserState<T> {
       BeamFnStateClient beamFnStateClient,
       String stateId,
       Coder<T> coder,
-      Supplier<Builder> partialRequestSupplier) {
+      Supplier<StateRequest.Builder> partialRequestSupplier) {
     this.beamFnStateClient = beamFnStateClient;
     this.stateId = stateId;
     this.coder = coder;

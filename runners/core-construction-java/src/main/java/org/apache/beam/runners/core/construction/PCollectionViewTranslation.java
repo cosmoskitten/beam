@@ -73,7 +73,7 @@ public class PCollectionViewTranslation {
     return view;
   }
 
-  private static ViewFn<?, ?> viewFnFromProto(RunnerApi.SdkFunctionSpec viewFn)
+  public static ViewFn<?, ?> viewFnFromProto(RunnerApi.SdkFunctionSpec viewFn)
       throws InvalidProtocolBufferException {
     RunnerApi.FunctionSpec spec = viewFn.getSpec();
     checkArgument(
@@ -86,7 +86,7 @@ public class PCollectionViewTranslation {
             spec.getPayload().toByteArray(), "Custom ViewFn");
   }
 
-  private static WindowMappingFn<?> windowMappingFnFromProto(
+  public static WindowMappingFn<?> windowMappingFnFromProto(
       RunnerApi.SdkFunctionSpec windowMappingFn)
       throws InvalidProtocolBufferException {
     RunnerApi.FunctionSpec spec = windowMappingFn.getSpec();

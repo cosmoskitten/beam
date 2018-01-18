@@ -26,6 +26,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -111,6 +112,16 @@ public class SdkComponents {
         AppliedPTransform.class.getSimpleName(),
         appliedPTransform);
     return transformIds.get(appliedPTransform);
+  }
+
+  public String getPTransformIdOrThrow(PTransform<?, ?> pTransform) {
+    for (Map.Entry<AppliedPTransform<?, ?, ?>, String> entry : transformIds.entrySet()) {
+      if (entry.getKey().getTransform().equals(pTransform)) {
+        return entry.getValue();
+      }
+    }
+    throw new IllegalArgumentException(
+        String.format("PTransform id not found for: %s", pTransform));
   }
 
   public String getPTransformIdOrThrow(AppliedPTransform<?, ?, ?> appliedPTransform) {
