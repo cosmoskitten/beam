@@ -21,11 +21,17 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Before;
 import org.junit.Rule;
@@ -76,6 +82,14 @@ public class ForwardingPTransformTest {
     String name = "My_forwardingptransform-name;for!thisTest";
     Mockito.when(delegate.getName()).thenReturn(name);
     assertThat(forwarding.getName(), equalTo(name));
+  }
+
+  @Test
+  public void getAdditionalInputsDelegates() {
+    Map<TupleTag<?>, PValue> additionalInputs = ImmutableMap.<TupleTag<?>, PValue>of(
+        new TupleTag<Object>("test_tag"), Pipeline.create().apply(Create.of("1")));
+    Mockito.when(delegate.getAdditionalInputs()).thenReturn(additionalInputs);
+    assertThat(forwarding.getAdditionalInputs(), equalTo(additionalInputs));
   }
 
   @Test
