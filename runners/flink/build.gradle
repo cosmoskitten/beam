@@ -95,7 +95,7 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptions = JsonOutput.toJson(["--runner=TestFlinkRunner", "--streaming=${config.streaming}"])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDir)
+    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     maxParallelForks 4
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
