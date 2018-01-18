@@ -151,8 +151,8 @@ class TfIdf(beam.PTransform):
     # receives the value we listed after the lambda in Map(). Additional side
     # inputs (and ordinary Python values, too) can be provided to MapFns and
     # DoFns in this way.
-    def div_word_count_by_total(word_counts_and_total):
-      (word, count), total = word_counts_and_total
+    def div_word_count_by_total(word_counts, total):
+      (word, count) = word_counts
       return (word, float(count) / total)
 
     word_to_df = (
