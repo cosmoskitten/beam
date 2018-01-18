@@ -29,16 +29,17 @@ from apache_beam.utils.counters import CounterName
 
 class StateSamplerTest(unittest.TestCase):
 
-  def setUp(self):
+  @classmethod
+  def setUpClass(cls):
     try:
       # pylint: disable=unused-variable
       from apache_beam.runners.worker import statesampler_fast
-      self.slow_sampler = False
+      cls.slow_sampler = False
     except ImportError:
       # pylint: disable=unused-variable
       from apache_beam.runners.worker import statesampler_slow
-      self.slow_sampler = True
-    super(StateSamplerTest, self).setUp()
+      cls.slow_sampler = True
+    super(StateSamplerTest, cls).setUpClass()
 
   def test_basic_sampler(self):
     # Set up state sampler.

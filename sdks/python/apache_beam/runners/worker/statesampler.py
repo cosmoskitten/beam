@@ -59,6 +59,8 @@ class StateSampler(statesampler_impl.StateSampler):
 
   def __init__(self, prefix, counter_factory,
                sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
+    self.started = False
+    self.finished = False
     self.states_by_name = {}
     self._prefix = prefix
     self._counter_factory = counter_factory
@@ -66,6 +68,10 @@ class StateSampler(statesampler_impl.StateSampler):
     self._registered = False
     self.sampling_period_ms = sampling_period_ms
     super(StateSampler, self).__init__(sampling_period_ms)
+
+  def stop_if_still_running(self):
+    if self.started and not self.finished:
+      self.stop()
 
   def register(self):
     EXECUTION_STATE_SAMPLERS.set_sampler(self)

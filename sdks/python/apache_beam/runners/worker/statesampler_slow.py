@@ -47,9 +47,6 @@ class StateSampler(object):
   def stop(self):
     pass
 
-  def stop_if_still_running(self):
-    self.stop()
-
   def get_info(self):
     """Returns StateSamplerInfo with transition statistics."""
     return StateSamplerInfo(
