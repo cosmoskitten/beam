@@ -27,6 +27,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -46,10 +47,15 @@ import org.apache.beam.sdk.values.BeamRecordType;
  * Type provider for {@link BeamRecord} with SQL types.
  *
  * <p>Limited SQL types are supported now, visit
- * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>
+ * <a href="https://beam.apache.org/documentation/dsls/sql/#data-types">data types</a>
  * for more details.
  *
+ * <p>This is a SQL specific subclass of {@link BeamRecordType}. In addition to
+ * encapsulating field names and coders, this class also contains information about
+ * SQL types of the fields. Constants from {@link java.sql.Types} are used to represent the
+ * supported SQL types.
  */
+@Experimental
 public class BeamRecordSqlType extends BeamRecordType {
   private static final ImmutableMap<Integer, Class> JAVA_CLASSES = ImmutableMap
       .<Integer, Class>builder()
@@ -87,12 +93,28 @@ public class BeamRecordSqlType extends BeamRecordType {
 
   public List<Integer> fieldTypes;
 
+  /**
+   * Creates a {@link BeamRecordSqlType} from the list of field names and field types.
+   *
+   * <p>Consider using {@link #builder()} instead of this method for readability.
+   *
+   * <p>Field types are {@code int} constants from {@link java.sql.Types}.
+   *
+   * <p>Only subset of SQL types are supported, see
+   * <a href="https://beam.apache.org/documentation/dsls/sql/#data-types">data types</a>
+   *
+   * <p>{@link IllegalStateException} is thrown if {@code fieldNames.size()} does not match
+   * {@code fieldTypes.size()}.
+   *
+   * <p>{@link UnsupportedOperationException} is thrown if the type in {@code fieldTypes}
+   * is not supported.
+   */
   public static BeamRecordSqlType create(List<String> fieldNames,
                                          List<Integer> fieldTypes) {
     return new BeamRecordSqlType(fieldNames, fieldTypes);
   }
 
-  protected BeamRecordSqlType(List<String> fieldNames,
+  private BeamRecordSqlType(List<String> fieldNames,
                               List<Integer> fieldTypes) {
     super(fieldNames, toCodersList(fieldTypes));
     this.fieldTypes = fieldTypes;
@@ -101,9 +123,7 @@ public class BeamRecordSqlType extends BeamRecordType {
   private static List<Coder> toCodersList(List<Integer> fieldTypes) {
     List<Coder> fieldCoders = new ArrayList<>(fieldTypes.size());
 
-    for (int idx = 0; idx < fieldTypes.size(); ++idx) {
-      Integer fieldType = fieldTypes.get(idx);
-
+    for (Integer fieldType : fieldTypes) {
       if (!CODERS.containsKey(fieldType)) {
         throw new UnsupportedOperationException(
             "Data type: " + fieldType + " not supported yet!");
@@ -134,10 +154,23 @@ public class BeamRecordSqlType extends BeamRecordType {
     }
   }
 
+  /**
+   * Returns an unmodifiable list of field types.
+   *
+   * <p>Types are represented by {@code int} constants from {@link java.sql.Types}.
+   *
+   * <p>Order of the types in the list matches {@link #getFieldNames()}.
+   * Size matches {@link #getFieldCount()}.
+   */
   public List<Integer> getFieldTypes() {
     return Collections.unmodifiableList(fieldTypes);
   }
 
+  /**
+   * Returns the SQL type of a field. Field is identified by a zero-based {@code index}.
+   *
+   * <p>Type is an {@code int} constant from {@link java.sql.Types}.
+   */
   public Integer getFieldTypeByIndex(int index) {
     return fieldTypes.get(index);
   }
@@ -163,6 +196,10 @@ public class BeamRecordSqlType extends BeamRecordType {
         + ", fieldTypes=" + fieldTypes + "]";
   }
 
+  /**
+   * Returns a new {@link Builder} to assist with assembling the {@link BeamRecordSqlType}
+   * from the fields.
+   */
   public static Builder builder() {
     return new Builder();
   }
@@ -175,6 +212,16 @@ public class BeamRecordSqlType extends BeamRecordType {
     private ImmutableList.Builder<String> fieldNames;
     private ImmutableList.Builder<Integer> fieldTypes;
 
+    /**
+     * Adds a field to the builder.
+     *
+     * @param fieldName is a name of the field;
+     * @param fieldType is a type of the field. One of the supported types from
+     *                  {@link java.sql.Types};
+     *
+     * Will throw {@link UnsupportedOperationException} from {@link #build()}
+     * if a field type is not supported.
+     */
     public Builder withField(String fieldName, Integer fieldType) {
       fieldNames.add(fieldName);
       fieldTypes.add(fieldType);
@@ -238,6 +285,11 @@ public class BeamRecordSqlType extends BeamRecordType {
       this.fieldTypes = ImmutableList.builder();
     }
 
+    /**
+     * Returns a new instance of {@link BeamRecordSqlType}.
+     *
+     * <p>Validations are performed similar to {@link BeamRecordSqlType#create(List, List)}.
+     */
     public BeamRecordSqlType build() {
       return create(fieldNames.build(), fieldTypes.build());
     }

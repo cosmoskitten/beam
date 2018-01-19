@@ -21,7 +21,6 @@ package org.apache.beam.sdk.values.reflect;
 import java.util.List;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
 
 /**
  * Helper class to hold {@link BeamRecordType} and {@link FieldValueGetter}s which were used to

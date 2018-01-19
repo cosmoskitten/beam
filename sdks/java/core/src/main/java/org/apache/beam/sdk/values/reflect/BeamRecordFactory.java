@@ -23,14 +23,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
-import org.apache.beam.sdk.values.reflect.field.GeneratedGetterFactory;
-import org.apache.beam.sdk.values.reflect.field.GetterFactory;
 
 /**
- * Generates the code to create {@link BeamRecordType}s and {@link BeamRecord}s based on pojos.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>Generates the code to create {@link BeamRecordType}s and {@link BeamRecord}s based on pojos.
  *
  * <p>Generated record types are cached in the instance of this factory.
  *
@@ -39,6 +39,7 @@ import org.apache.beam.sdk.values.reflect.field.GetterFactory;
  * <p>Supported pojo getter types depend on types supported by the {@link RecordTypeFactory}.
  * See {@link DefaultRecordTypeFactory} for default implementation.
  */
+@Internal
 public class BeamRecordFactory {
 
   private RecordTypeFactory recordTypeFactory;
@@ -46,11 +47,19 @@ public class BeamRecordFactory {
   private final List<GetterFactory> getterFactories;
 
   /**
+   * Creates an instance of {@link BeamRecordFactory} using {@link DefaultRecordTypeFactory}
+   * and {@link GeneratedGetterFactory}.
+   */
+  public static BeamRecordFactory createDefault() {
+    return new BeamRecordFactory();
+  }
+
+  /**
    * Create new instance based on default record type factory.
    *
    * <p>Use this to create instances of {@link BeamRecordType}.
    */
-  public BeamRecordFactory() {
+  private BeamRecordFactory() {
     this(new DefaultRecordTypeFactory(), new GeneratedGetterFactory());
   }
 
@@ -59,7 +68,7 @@ public class BeamRecordFactory {
    *
    * <p>For example this can be used to create BeamRecordSqlTypes instead of {@link BeamRecordType}.
    */
-  public BeamRecordFactory(RecordTypeFactory recordTypeFactory, GetterFactory ... getterFactories) {
+  BeamRecordFactory(RecordTypeFactory recordTypeFactory, GetterFactory ... getterFactories) {
     this.recordTypeFactory = recordTypeFactory;
     this.getterFactories = Arrays.asList(getterFactories);
   }

@@ -16,16 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect.field;
+package org.apache.beam.sdk.values.reflect;
 
-import org.apache.beam.sdk.values.reflect.BeamRecordFactory;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * An interface to access a field of a class.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>An interface to access a field of a class.
  *
  * <p>Implementations of this interface are generated at runtime by {@link BeamRecordFactory}
  * to map pojo fields to BeamRecord fields.
  */
+@Internal
 public interface FieldValueGetter<T> {
   Object get(T object);
   String name();

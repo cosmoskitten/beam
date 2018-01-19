@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect.field;
+package org.apache.beam.sdk.values.reflect;
 
 import static net.bytebuddy.implementation.MethodCall.invoke;
-import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.implementNameGetter;
-import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.implementTypeGetter;
-import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.implementValueGetter;
-import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.makeNewGetterInstance;
-import static org.apache.beam.sdk.values.reflect.field.ByteBuddyUtils.subclassGetterInterface;
-import static org.apache.beam.sdk.values.reflect.field.ReflectionUtils.getPublicGetters;
-import static org.apache.beam.sdk.values.reflect.field.ReflectionUtils.tryStripGetPrefix;
+import static org.apache.beam.sdk.values.reflect.ByteBuddyUtils.implementNameGetter;
+import static org.apache.beam.sdk.values.reflect.ByteBuddyUtils.implementTypeGetter;
+import static org.apache.beam.sdk.values.reflect.ByteBuddyUtils.implementValueGetter;
+import static org.apache.beam.sdk.values.reflect.ByteBuddyUtils.makeNewGetterInstance;
+import static org.apache.beam.sdk.values.reflect.ByteBuddyUtils.subclassGetterInterface;
+import static org.apache.beam.sdk.values.reflect.ReflectionUtils.getPublicGetters;
+import static org.apache.beam.sdk.values.reflect.ReflectionUtils.tryStripGetPrefix;
 
 import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Method;
@@ -72,7 +72,7 @@ import net.bytebuddy.dynamic.DynamicType;
  * See {@link ByteBuddyUtils#makeNewGetterInstance(String, DynamicType.Builder)}
  * and ByteBuddy documentation for details.
  */
-public class GeneratedGetterFactory implements GetterFactory {
+class GeneratedGetterFactory implements GetterFactory {
 
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 

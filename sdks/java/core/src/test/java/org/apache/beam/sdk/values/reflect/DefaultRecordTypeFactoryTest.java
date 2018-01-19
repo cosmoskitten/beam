@@ -30,7 +30,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

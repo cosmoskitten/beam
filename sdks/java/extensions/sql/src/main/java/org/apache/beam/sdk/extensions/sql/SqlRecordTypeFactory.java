@@ -25,17 +25,21 @@ import java.sql.Types;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.RecordTypeFactory;
-import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
 
 /**
- * Implementation of the {@link RecordTypeFactory} to return instances of {@link BeamRecordSqlType}
- * instead of {@link BeamRecordType}.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>Implementation of the {@link RecordTypeFactory} to return instances
+ * of {@link BeamRecordSqlType} instead of {@link BeamRecordType}.
  *
  * <p>This is currently needed because Beam SQL uses {@link java.sql.Types} to map
  * between Calcite types, Java types, and coders.
  */
+@Internal
 public class SqlRecordTypeFactory implements RecordTypeFactory {
 
   static final ImmutableMap<Class, Integer> SQL_TYPES = ImmutableMap
