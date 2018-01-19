@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.Variance;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
@@ -188,12 +189,10 @@ public class BeamAggregationTransforms implements Serializable{
             aggregators.add(BeamBuiltinAggregations.createAvg(call.type.getSqlTypeName()));
             break;
           case "VAR_POP":
-            aggregators.add(BeamBuiltinAggregations.createVar(call.type.getSqlTypeName(),
-                    false));
+            aggregators.add(Variance.populationVariance(call.type.getSqlTypeName()));
             break;
           case "VAR_SAMP":
-            aggregators.add(BeamBuiltinAggregations.createVar(call.type.getSqlTypeName(),
-                    true));
+            aggregators.add(Variance.sampleVariance(call.type.getSqlTypeName()));
             break;
           default:
             if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
