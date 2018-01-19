@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect.field;
+package org.apache.beam.sdk.values.reflect;
 
-import static org.apache.beam.sdk.values.reflect.field.ReflectionUtils.getPublicGetters;
+import static org.apache.beam.sdk.values.reflect.ReflectionUtils.getPublicGetters;
 
 import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.BeamRecordFactory;
 
 /**
  * Factory to wrap calls to pojo getters into instances of {@link FieldValueGetter}
@@ -37,7 +36,7 @@ import org.apache.beam.sdk.values.reflect.BeamRecordFactory;
  * <p>Caching is not handled at this level, {@link BeamRecordFactory} should cache getters
  * for each {@link BeamRecordType}.
  */
-public class ReflectionGetterFactory implements GetterFactory {
+class ReflectionGetterFactory implements GetterFactory {
 
   /**
    * Returns a list of {@link FieldValueGetter}s.

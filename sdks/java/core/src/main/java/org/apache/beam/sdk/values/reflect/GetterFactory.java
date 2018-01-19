@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.values.reflect.field;
+package org.apache.beam.sdk.values.reflect;
 
 import java.util.List;
 
@@ -23,7 +23,7 @@ import java.util.List;
  * Interface for factories generating getter wrappers.
  * See {@link GeneratedGetterFactory} or {@link ReflectionGetterFactory}.
  */
-public interface GetterFactory {
+interface GetterFactory {
 
   /**
    * Generates getters for {@code clazz}.

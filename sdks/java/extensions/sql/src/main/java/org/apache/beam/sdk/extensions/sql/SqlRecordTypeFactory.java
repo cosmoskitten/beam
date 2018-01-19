@@ -26,8 +26,8 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.RecordTypeFactory;
-import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
 
 /**
  * Implementation of the {@link RecordTypeFactory} to return instances of {@link BeamRecordSqlType}

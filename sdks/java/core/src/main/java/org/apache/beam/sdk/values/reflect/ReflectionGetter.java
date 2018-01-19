@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect.field;
+package org.apache.beam.sdk.values.reflect;
 
-import static org.apache.beam.sdk.values.reflect.field.ReflectionUtils.tryStripGetPrefix;
+import static org.apache.beam.sdk.values.reflect.ReflectionUtils.tryStripGetPrefix;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -27,12 +27,12 @@ import java.lang.reflect.Method;
  * Implementation of {@link FieldValueGetter} backed by relfection-based getter invocation,
  * as opposed to a code-generated version produced by {@link GeneratedGetterFactory}.
  */
-public class ReflectionGetter implements FieldValueGetter {
+class ReflectionGetter implements FieldValueGetter {
   private String name;
   private Class type;
   private Method getter;
 
-  public ReflectionGetter(Method getter) {
+  ReflectionGetter(Method getter) {
     this.getter = getter;
     this.name = tryStripGetPrefix(getter);
     this.type = getter.getReturnType();

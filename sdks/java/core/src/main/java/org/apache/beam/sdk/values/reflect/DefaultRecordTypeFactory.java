@@ -24,12 +24,38 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
 
 /**
- * A default factory to create a {@link BeamRecordType} based on pojo field getters.
+ * A default implementation of the {@link RecordTypeFactory} interface. The purpose of
+ * the factory is to create a record (row) types given a list of getters.
+ *
+ * <p>Row type is represented by {@link BeamRecordType} which essentially is a
+ * {@code List<Pair<FieldName, Coder>>}.
+ *
+ * <p>Getters (e.g. pojo field getters) are represented by {@link FieldValueGetter} interface,
+ * which exposes the field's name (see {@link FieldValueGetter#name()})
+ * and java type (see {@link FieldValueGetter#type()}).
+ *
+ * <p>This factory then uses the default {@link CoderRegistry} to map java types of
+ * the getters to coders, and then creates an instance of {@link BeamRecordType} using those coders.
+ *
+ * <p>If there is no coder in the default {@link CoderRegistry} for the java type of the getter,
+ * then the factory throws {@link UnsupportedOperationException}.
+ *
+ * <p>This is the default factory implementation used in {@link BeamRecordFactory}.
+ * It should work for regular java pipelines where coder mapping via default {@link CoderRegistry}
+ * is enough.
+ *
+ * <p>In other cases, when mapping requires extra logic, another implentation of the
+ * {@link RecordTypeFactory} should be used instead of this class.
+ *
+ * <p>For example, Beam SQL uses {@link java.sql.Types} as an intermediate type representation
+ * instead of using plain java types. The mapping between {@link java.sql.Types} and coders
+ * is not available in the default {@link CoderRegistry}, so custom SQL-specific implementation of
+ * {@link RecordTypeFactory} is used with SQL infrastructure instead of this class.
+ * See {@code SqlRecordTypeFactory}.
  */
-public class DefaultRecordTypeFactory implements RecordTypeFactory {
+class DefaultRecordTypeFactory implements RecordTypeFactory {
 
   private static final CoderRegistry CODER_REGISTRY = CoderRegistry.createDefault();
 
