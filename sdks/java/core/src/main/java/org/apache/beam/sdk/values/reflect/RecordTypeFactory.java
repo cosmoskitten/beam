@@ -18,10 +18,12 @@
 
 package org.apache.beam.sdk.values.reflect;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
 
 /**
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
  * Interface for factories used to create record types based on getters.
  *
  * <p>Different implementations can have different ways of mapping getter types to coders.
@@ -31,6 +33,7 @@ import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
  * It returns instances of {@link BeamRecordType}, mapping {@link FieldValueGetter#type()}
  * to known coders.
  */
+@Internal
 public interface RecordTypeFactory {
 
   /**

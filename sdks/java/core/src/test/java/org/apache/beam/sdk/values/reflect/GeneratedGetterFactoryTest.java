@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect.field;
+package org.apache.beam.sdk.values.reflect;
 
 import static org.junit.Assert.assertEquals;
 
@@ -26,9 +26,9 @@ import java.util.Set;
 import org.junit.Test;
 
 /**
- * Unit tests for {@link ReflectionGetterFactory}.
+ * Unit tests for {@link GeneratedGetterFactory}.
  */
-public class ReflectionGetterFactoryTest {
+public class GeneratedGetterFactoryTest {
 
   /**
    * Test pojo.
@@ -50,7 +50,7 @@ public class ReflectionGetterFactoryTest {
 
   @Test
   public void testGettersHaveCorrectNames() throws Exception {
-    List<FieldValueGetter> getters = new ReflectionGetterFactory().generateGetters(Pojo.class);
+    List<FieldValueGetter> getters = new GeneratedGetterFactory().generateGetters(Pojo.class);
 
     assertEquals(
         ImmutableSet.of("privateStringField", "privateIntegerField"),
@@ -59,7 +59,7 @@ public class ReflectionGetterFactoryTest {
 
   @Test
   public void testGettersHaveCorrectTypes() throws Exception {
-    List<FieldValueGetter> getters = new ReflectionGetterFactory().generateGetters(Pojo.class);
+    List<FieldValueGetter> getters = new GeneratedGetterFactory().generateGetters(Pojo.class);
 
     assertEquals(
         ImmutableSet.of(String.class, Integer.class),
@@ -68,7 +68,7 @@ public class ReflectionGetterFactoryTest {
 
   @Test
   public void testGettersReturnCorrectValues() throws Exception {
-    List<FieldValueGetter> getters = new ReflectionGetterFactory().generateGetters(Pojo.class);
+    List<FieldValueGetter> getters = new GeneratedGetterFactory().generateGetters(Pojo.class);
 
     assertEquals(
         ImmutableSet.<Object>of("privateStringValue", 15),

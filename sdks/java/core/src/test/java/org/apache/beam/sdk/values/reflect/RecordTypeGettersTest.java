@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
 import org.junit.Test;
 
 /**

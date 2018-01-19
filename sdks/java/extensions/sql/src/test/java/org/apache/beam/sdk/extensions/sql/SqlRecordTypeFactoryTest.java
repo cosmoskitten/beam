@@ -39,7 +39,7 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.FloatCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.ShortCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.TimeCoder;
 import org.apache.beam.sdk.values.BeamRecordType;
-import org.apache.beam.sdk.values.reflect.field.FieldValueGetter;
+import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

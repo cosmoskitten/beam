@@ -15,19 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.values.reflect;
 
-package org.apache.beam.sdk.values.reflect.field;
-
-import org.apache.beam.sdk.values.reflect.BeamRecordFactory;
+import java.util.List;
 
 /**
- * An interface to access a field of a class.
- *
- * <p>Implementations of this interface are generated at runtime by {@link BeamRecordFactory}
- * to map pojo fields to BeamRecord fields.
+ * Interface for factories generating getter wrappers.
+ * See {@link GeneratedGetterFactory} or {@link ReflectionGetterFactory}.
  */
-public interface FieldValueGetter<T> {
-  Object get(T object);
-  String name();
-  Class type();
+interface GetterFactory {
+
+  /**
+   * Generates getters for {@code clazz}.
+   */
+  List<FieldValueGetter> generateGetters(Class clazz);
 }

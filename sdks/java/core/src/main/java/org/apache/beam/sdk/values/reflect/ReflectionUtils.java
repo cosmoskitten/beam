@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values.reflect.field;
+package org.apache.beam.sdk.values.reflect;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
