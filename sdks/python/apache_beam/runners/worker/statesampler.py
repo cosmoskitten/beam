@@ -16,8 +16,8 @@
 #
 
 # This module is experimental. No backwards-compatibility guarantees.
-from collections import namedtuple
 import threading
+from collections import namedtuple
 
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterFactory
@@ -82,8 +82,8 @@ class StateSampler(statesampler_impl.StateSampler):
     return sampler
 
   @staticmethod
-  def create_and_register_tracker(prefix, counter_factory,
-                     sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
+  def create_and_register_tracker(
+      prefix, counter_factory, sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
     sampler = StateSampler(prefix, counter_factory, sampling_period_ms)
     sampler.register()
     return sampler
