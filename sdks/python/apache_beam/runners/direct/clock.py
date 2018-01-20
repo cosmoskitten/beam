@@ -41,7 +41,7 @@ class RealClock(object):
 
 class TestClock(object):
   """Clock used for Testing"""
-  def __init__(self, current_time=time.time()):
+  def __init__(self, current_time=0):
     self._current_time = current_time
 
   def time(self):

@@ -275,7 +275,8 @@ class AfterProcessingTime(TriggerFn):
     return 'AfterProcessingTime(delay=%d)' % self.delay
 
   def on_element(self, element, window, context):
-    context.set_timer('', TimeDomain.REAL_TIME, self.delay)
+    context.set_timer(
+        '', TimeDomain.REAL_TIME, context.current_time + self.delay)
 
   def on_merge(self, to_be_merged, merge_result, context):
     for window in to_be_merged:
@@ -283,6 +284,8 @@ class AfterProcessingTime(TriggerFn):
         context.clear_timer('', TimeDomain.REAL_TIME)
 
   def should_fire(self, watermark, window, context):
+    # evaluation deferred to be handled by the
+    # GeneralTriggerDriver's process_timer routine
     return False
 
   def on_fire(self, watermark, window, context):
@@ -687,9 +690,11 @@ class TriggerContext(object):
     self._window = window
     self._clock = clock
 
+  @property
+  def current_time(self):
+    return self._clock.time()
+
   def set_timer(self, name, time_domain, timestamp):
-    if self._clock and time_domain == TimeDomain.REAL_TIME:
-      timestamp += self._clock.time()
     self._outer.set_timer(self._window, name, time_domain, timestamp)
 
   def clear_timer(self, name, time_domain):
@@ -1006,7 +1011,7 @@ class GeneralTriggerDriver(TriggerDriver):
   ELEMENTS = _ListStateTag('elements')
   TOMBSTONE = _CombiningValueStateTag('tombstone', combiners.CountCombineFn())
 
-  def __init__(self, windowing, clock=None):
+  def __init__(self, windowing, clock):
     self.clock = clock
     self.window_fn = windowing.windowfn
     self.timestamp_combiner_impl = TimestampCombiner.get_impl(
