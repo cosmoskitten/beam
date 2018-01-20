@@ -163,8 +163,8 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_Write.Builder<T>().build();
   }
 
-  public static <T> WriteIterator<T> writeIterator() {
-    return new AutoValue_JdbcIO_WriteIterator.Builder<T>().build();
+  public static <T> WriteIterable<T> writeIterable() {
+    return new AutoValue_JdbcIO_WriteIterable.Builder<T>().build();
   }
 
   private JdbcIO() {}
@@ -625,7 +625,7 @@ public class JdbcIO {
 
   /** A {@link PTransform} to write to a JDBC datasource. */
   @AutoValue
-  public abstract static class WriteIterator<T>
+  public abstract static class WriteIterable<T>
           extends PTransform<PCollection<Iterable<T>>, PDone> {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
     @Nullable abstract String getStatement();
@@ -639,16 +639,16 @@ public class JdbcIO {
       abstract Builder<T> setStatement(String statement);
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
 
-      abstract WriteIterator<T> build();
+      abstract WriteIterable<T> build();
     }
 
-    public WriteIterator<T> withDataSourceConfiguration(DataSourceConfiguration config) {
+    public WriteIterable<T> withDataSourceConfiguration(DataSourceConfiguration config) {
       return toBuilder().setDataSourceConfiguration(config).build();
     }
-    public WriteIterator<T> withStatement(String statement) {
+    public WriteIterable<T> withStatement(String statement) {
       return toBuilder().setStatement(statement).build();
     }
-    public WriteIterator<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
+    public WriteIterable<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
       return toBuilder().setPreparedStatementSetter(setter).build();
     }
 
@@ -660,21 +660,21 @@ public class JdbcIO {
       checkArgument(
           getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
 
-      input.apply(ParDo.of(new WriteIteratorFn<T>(this)));
+      input.apply(ParDo.of(new WriteIterableFn<T>(this)));
       return PDone.in(input.getPipeline());
     }
 
-    private static class WriteIteratorFn<T> extends DoFn<Iterable<T>, Void> {
+    private static class WriteIterableFn<T> extends DoFn<Iterable<T>, Void> {
       private static final int DEFAULT_BATCH_SIZE = 1000;
 
-      private final WriteIterator<T> spec;
+      private final WriteIterable<T> spec;
 
       private DataSource dataSource;
       private Connection connection;
       private PreparedStatement preparedStatement;
       private int batchCount;
 
-      public WriteIteratorFn(WriteIterator<T> spec) {
+      public WriteIterableFn(WriteIterable<T> spec) {
         this.spec = spec;
       }
 

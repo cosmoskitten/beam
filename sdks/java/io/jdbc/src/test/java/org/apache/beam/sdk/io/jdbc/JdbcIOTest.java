@@ -350,7 +350,7 @@ public class JdbcIOTest implements Serializable {
           .apply(ParDo.of(new ModuloTen()))
           .apply(GroupByKey.<Integer, KV<Integer, String>> create())
           .apply(ParDo.of(new GetValues()))
-          .apply(JdbcIO.<KV<Integer, String>>writeIterator()
+          .apply(JdbcIO.<KV<Integer, String>>writeIterable()
               .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
                   "org.apache.derby.jdbc.ClientDriver",
                   "jdbc:derby://localhost:" + port + "/target/beam"))
