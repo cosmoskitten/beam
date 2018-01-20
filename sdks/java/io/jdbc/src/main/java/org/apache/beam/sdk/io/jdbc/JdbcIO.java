@@ -163,6 +163,10 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_Write.Builder<T>().build();
   }
 
+  public static <T> WriteIterator<T> writeIterator() {
+    return new AutoValue_JdbcIO_WriteIterator.Builder<T>().build();
+  }
+
   private JdbcIO() {}
 
   /**
@@ -585,6 +589,122 @@ public class JdbcIO {
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
           executeBatch();
+        }
+      }
+
+      @FinishBundle
+      public void finishBundle() throws Exception {
+        executeBatch();
+      }
+
+      private void executeBatch() throws SQLException {
+        if (batchCount > 0) {
+          preparedStatement.executeBatch();
+          connection.commit();
+          batchCount = 0;
+        }
+      }
+
+      @Teardown
+      public void teardown() throws Exception {
+        try {
+          if (preparedStatement != null) {
+            preparedStatement.close();
+          }
+        } finally {
+          if (connection != null) {
+            connection.close();
+          }
+          if (dataSource instanceof AutoCloseable) {
+            ((AutoCloseable) dataSource).close();
+          }
+        }
+      }
+    }
+  }
+
+  /** A {@link PTransform} to write to a JDBC datasource. */
+  @AutoValue
+  public abstract static class WriteIterator<T>
+          extends PTransform<PCollection<Iterable<T>>, PDone> {
+    @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
+    @Nullable abstract String getStatement();
+    @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
+      abstract Builder<T> setStatement(String statement);
+      abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
+
+      abstract WriteIterator<T> build();
+    }
+
+    public WriteIterator<T> withDataSourceConfiguration(DataSourceConfiguration config) {
+      return toBuilder().setDataSourceConfiguration(config).build();
+    }
+    public WriteIterator<T> withStatement(String statement) {
+      return toBuilder().setStatement(statement).build();
+    }
+    public WriteIterator<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
+      return toBuilder().setPreparedStatementSetter(setter).build();
+    }
+
+    @Override
+    public PDone expand(PCollection<Iterable<T>> input) {
+      checkArgument(
+          getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
+      checkArgument(getStatement() != null, "withStatement() is required");
+      checkArgument(
+          getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
+
+      input.apply(ParDo.of(new WriteIteratorFn<T>(this)));
+      return PDone.in(input.getPipeline());
+    }
+
+    private static class WriteIteratorFn<T> extends DoFn<Iterable<T>, Void> {
+      private static final int DEFAULT_BATCH_SIZE = 1000;
+
+      private final WriteIterator<T> spec;
+
+      private DataSource dataSource;
+      private Connection connection;
+      private PreparedStatement preparedStatement;
+      private int batchCount;
+
+      public WriteIteratorFn(WriteIterator<T> spec) {
+        this.spec = spec;
+      }
+
+      @Setup
+      public void setup() throws Exception {
+        dataSource = spec.getDataSourceConfiguration().buildDatasource();
+        connection = dataSource.getConnection();
+        connection.setAutoCommit(false);
+        preparedStatement = connection.prepareStatement(spec.getStatement());
+      }
+
+      @StartBundle
+      public void startBundle() {
+        batchCount = 0;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context) throws Exception {
+        Iterable<T> records = context.element();
+
+        for (T record : records) {
+          preparedStatement.clearParameters();
+          spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
+          preparedStatement.addBatch();
+
+          batchCount++;
+
+          if (batchCount >= DEFAULT_BATCH_SIZE) {
+            executeBatch();
+          }
         }
       }
 
