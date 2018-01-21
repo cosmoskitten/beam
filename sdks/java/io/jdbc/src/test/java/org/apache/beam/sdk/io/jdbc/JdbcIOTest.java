@@ -339,8 +339,8 @@ public class JdbcIOTest implements Serializable {
   public void testWriteIterator() throws Exception {
     final long rowsToAdd = 1000L;
 
-    String tableName = JdbcTestHelper.getTableName("UT_WRITE_ITERATOR");
-    JdbcTestHelper.createDataTable(dataSource, tableName);
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ITERATOR");
+    DatabaseTestHelper.createTable(dataSource, tableName);
     try {
       ArrayList<KV<Integer, String>> data = new ArrayList<>();
       for (int i = 0; i < rowsToAdd; i++) {
@@ -379,7 +379,7 @@ public class JdbcIOTest implements Serializable {
         }
       }
     } finally {
-      JdbcTestHelper.cleanUpDataTable(dataSource, tableName);
+      DatabaseTestHelper.deleteTable(dataSource, tableName);
     }
   }
 }
