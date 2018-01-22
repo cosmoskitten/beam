@@ -37,7 +37,8 @@ import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
-import org.apache.beam.sdk.extensions.sql.impl.transform.agg.Variance;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.BigDecimalConverter;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.KV;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.joda.time.Instant;
@@ -169,7 +171,8 @@ public class BeamAggregationTransforms implements Serializable{
         sourceFieldExps.add(sourceExp);
 
         outFieldsName.add(call.name);
-        int outFieldType = CalciteUtils.toJavaType(call.type.getSqlTypeName());
+        SqlTypeName outFieldSqlType = call.type.getSqlTypeName();
+        int outFieldType = CalciteUtils.toJavaType(outFieldSqlType);
         outFieldsType.add(outFieldType);
 
         switch (call.getAggregation().getName()) {
@@ -177,22 +180,24 @@ public class BeamAggregationTransforms implements Serializable{
             aggregators.add(Count.combineFn());
             break;
           case "MAX":
-            aggregators.add(BeamBuiltinAggregations.createMax(call.type.getSqlTypeName()));
+            aggregators.add(BeamBuiltinAggregations.createMax(outFieldSqlType));
             break;
           case "MIN":
-            aggregators.add(BeamBuiltinAggregations.createMin(call.type.getSqlTypeName()));
+            aggregators.add(BeamBuiltinAggregations.createMin(outFieldSqlType));
             break;
           case "SUM":
-            aggregators.add(BeamBuiltinAggregations.createSum(call.type.getSqlTypeName()));
+            aggregators.add(BeamBuiltinAggregations.createSum(outFieldSqlType));
             break;
           case "AVG":
-            aggregators.add(BeamBuiltinAggregations.createAvg(call.type.getSqlTypeName()));
+            aggregators.add(BeamBuiltinAggregations.createAvg(outFieldSqlType));
             break;
           case "VAR_POP":
-            aggregators.add(Variance.populationVariance(call.type.getSqlTypeName()));
+            aggregators.add(
+                VarianceFn.newPopulation(BigDecimalConverter.forSqlType(outFieldSqlType)));
             break;
           case "VAR_SAMP":
-            aggregators.add(Variance.sampleVariance(call.type.getSqlTypeName()));
+            aggregators.add(
+                VarianceFn.newSample(BigDecimalConverter.forSqlType(outFieldSqlType)));
             break;
           default:
             if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {

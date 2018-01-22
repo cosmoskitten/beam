@@ -21,16 +21,18 @@ package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.common.collect.ImmutableSet;
+import java.math.BigDecimal;
 import java.util.Set;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Unit tests for {@link VarianceTest}.
+ * Unit tests for {@link BigDecimalConverter}.
  */
-public class VarianceTest {
+public class BigDecimalConverterTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -44,22 +46,19 @@ public class VarianceTest {
       SqlTypeName.DECIMAL);
 
   @Test
-  public void testReturnsVarianceFnForNumericTypes() {
+  public void testReturnsConverterForNumericTypes() {
     for (SqlTypeName numericType : NUMERIC_TYPES) {
-      assertNotNull(Variance.populationVariance(numericType));
-      assertNotNull(Variance.sampleVariance(numericType));
+      SerializableFunction<BigDecimal, ? extends Number> converter =
+          BigDecimalConverter.forSqlType(numericType);
+
+      assertNotNull(converter);
+      assertNotNull(converter.apply(BigDecimal.TEN));
     }
   }
 
   @Test
-  public void testPopulationVarianceThrowsForUnsupportedTypes() {
+  public void testThrowsForUnsupportedTypes() {
     thrown.expect(UnsupportedOperationException.class);
-    Variance.populationVariance(SqlTypeName.ARRAY);
-  }
-
-  @Test
-  public void testSampleVarianceThrowsForUnsupportedTypes() {
-    thrown.expect(UnsupportedOperationException.class);
-    Variance.sampleVariance(SqlTypeName.ARRAY);
+    BigDecimalConverter.forSqlType(SqlTypeName.ARRAY);
   }
 }
