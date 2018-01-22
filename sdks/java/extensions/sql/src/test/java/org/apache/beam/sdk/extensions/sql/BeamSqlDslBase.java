@@ -54,9 +54,13 @@ public class BeamSqlDslBase {
   public static BeamRecordSqlType rowTypeInTableA;
   public static List<BeamRecord> recordsInTableA;
 
+  public static BeamRecordSqlType rowTypeInTableB;
+  public static List<BeamRecord> recordsInTableB;
+
   //bounded PCollections
   public PCollection<BeamRecord> boundedInput1;
   public PCollection<BeamRecord> boundedInput2;
+  public PCollection<BeamRecord> boundedInput3;
 
   //unbounded PCollections
   public PCollection<BeamRecord> unboundedInput1;
@@ -70,7 +74,13 @@ public class BeamSqlDslBase {
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,
             Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER, Types.DECIMAL));
 
+    rowTypeInTableB = BeamRecordSqlType.create(
+            Arrays.asList("f_decimal1", "f_decimal2", "f_decimal3"),
+            Arrays.asList(Types.DECIMAL, Types.DECIMAL, Types.DECIMAL));
+
     recordsInTableA = prepareInputRowsInTableA();
+
+    recordsInTableB = prepareInputRowsInTableB();
   }
 
   @Before
@@ -80,6 +90,9 @@ public class BeamSqlDslBase {
 
     boundedInput2 = PBegin.in(pipeline).apply("boundedInput2",
         Create.of(recordsInTableA.get(0)).withCoder(rowTypeInTableA.getRecordCoder()));
+
+    boundedInput3 = PBegin.in(pipeline).apply("boundedInput3",
+            Create.of(recordsInTableB).withCoder(rowTypeInTableB.getRecordCoder()));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
@@ -130,6 +143,27 @@ public class BeamSqlDslBase {
         , 4, 4000L, Short.valueOf("4"), Byte.valueOf("4"), 4.0f, 4.0, "第四行"
         , FORMAT.parse("2017-01-01 02:04:03"), 0, new BigDecimal(4));
     rows.add(row4);
+
+    return rows;
+  }
+
+  private static List<BeamRecord> prepareInputRowsInTableB() throws ParseException{
+    List<BeamRecord> rows = new ArrayList<>();
+
+    BeamRecord row1 = new BeamRecord(rowTypeInTableB, new BigDecimal(3), new BigDecimal(1), new BigDecimal(1));
+    rows.add(row1);
+
+    BeamRecord row2 = new BeamRecord(rowTypeInTableB, new BigDecimal(4), new BigDecimal(2), new BigDecimal(2));
+    rows.add(row2);
+
+    BeamRecord row3 = new BeamRecord(rowTypeInTableB, new BigDecimal(5), new BigDecimal(3), new BigDecimal(1));
+    rows.add(row3);
+
+    BeamRecord row4 = new BeamRecord(rowTypeInTableB, new BigDecimal(6), new BigDecimal(4), new BigDecimal(2));
+    rows.add(row4);
+
+    BeamRecord row5 = new BeamRecord(rowTypeInTableB, new BigDecimal(8), new BigDecimal(4), new BigDecimal(1));
+    rows.add(row5);
 
     return rows;
   }
