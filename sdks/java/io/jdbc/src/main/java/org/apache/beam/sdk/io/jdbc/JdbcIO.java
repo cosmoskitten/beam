@@ -477,7 +477,11 @@ public class JdbcIO {
     @Setup
     public void setup() throws Exception {
       dataSource = dataSourceConfiguration.buildDatasource();
-      connection = dataSource.getConnection();
+    }
+
+    @StartBundle
+    public void startBundle() throws Exception {
+        connection = dataSource.getConnection();
     }
 
     @ProcessElement
@@ -492,9 +496,13 @@ public class JdbcIO {
       }
     }
 
+    @FinishBundle
+    public void finishBundle() throws Exception {
+        connection.close();
+    }
+
     @Teardown
     public void teardown() throws Exception {
-      connection.close();
       if (dataSource instanceof AutoCloseable) {
         ((AutoCloseable) dataSource).close();
       }
