@@ -208,14 +208,46 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
-            Arrays.asList("avg1", "avg2", "avg3",
+            Arrays.asList("avg1", "avg2",
                     "varpop1", "varpop2",
                     "varsamp1", "varsamp2"),
-            Arrays.asList(Types.DOUBLE, Types.INTEGER, Types.DECIMAL,
+            Arrays.asList(Types.DOUBLE, Types.INTEGER,
                     Types.DOUBLE, Types.INTEGER,
                     Types.DOUBLE, Types.INTEGER));
 
     PAssert.that(result).satisfies(new CheckerBigDecimalDivide());
+
+    pipeline.run().waitUntilFinish();
+  }
+
+
+  private static class CheckerBigDecimalDivide2
+          implements SerializableFunction<Iterable<BeamRecord>, Void> {
+    @Override public Void apply(Iterable<BeamRecord> input) {
+      Iterator<BeamRecord> iter = input.iterator();
+      assertTrue(iter.hasNext());
+      BeamRecord row = iter.next();
+      assertEquals(row.getDouble("avg1"), 2.5, 1e-7);
+      assertTrue(row.getInteger("var1") == 1);
+//      assertTrue(row.getInteger("avg1") == 8);
+      assertFalse(iter.hasNext());
+      return null;
+    }
+  }
+
+
+  @Test
+  public void testAggregationBoundedOnBigDecimalDivide() throws Exception {
+    String sql = "SELECT AVG(f_double) as avg1, VAR_POP(f_int) as var1 FROM PCOLLECTION GROUP BY f_int2";
+
+    PCollection<BeamRecord> result =
+            boundedInput1.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
+
+    BeamRecordSqlType resultType = BeamRecordSqlType.create(
+            Arrays.asList("avg1", "var1"),
+            Arrays.asList(Types.DOUBLE, Types.INTEGER));
+
+    PAssert.that(result).satisfies(new CheckerBigDecimalDivide2());
 
     pipeline.run().waitUntilFinish();
   }

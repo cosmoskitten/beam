@@ -177,22 +177,22 @@ class BeamBuiltinAggregations {
   /**
    * {@link CombineFn} for COVAR_POP and COVAR_SAMP.
    */
-  public static CombineFn createCoVar(SqlTypeName fieldType, boolean isSamp) {
+  public static CombineFn createCovar(SqlTypeName fieldType, boolean isSamp) {
     switch (fieldType) {
       case INTEGER:
-        return new IntegerCoVar(isSamp);
+        return new IntegerCovar(isSamp);
       case SMALLINT:
-        return new ShortCoVar(isSamp);
+        return new ShortCovar(isSamp);
       case TINYINT:
-        return new ByteCoVar(isSamp);
+        return new ByteCovar(isSamp);
       case BIGINT:
-        return new LongCoVar(isSamp);
+        return new LongCovar(isSamp);
       case FLOAT:
-        return new FloatCoVar(isSamp);
+        return new FloatCovar(isSamp);
       case DOUBLE:
-        return new DoubleCoVar(isSamp);
+        return new DoubleCovar(isSamp);
       case DECIMAL:
-        return new BigDecimalCoVar(isSamp);
+        return new BigDecimalCovar(isSamp);
       default:
         throw new UnsupportedOperationException(
                 String.format("[%s] is not support in COVAR_POP or COVAR_SAMP", fieldType));
@@ -581,25 +581,37 @@ class BeamBuiltinAggregations {
   }
 
   static class CovarAgg implements Serializable {
-    long count; // number of elements
-    BigDecimal sum; // sum of elements
-    BigDecimal xavg;
-    BigDecimal yavg;
+    Long count; // number of elements
+    BigDecimal xavg; // average of x elements
+    BigDecimal yavg; // average of y elements
+    BigDecimal covar; // n times the covariance
 
-    public CovarAgg(long count, BigDecimal sum, BigDecimal xavg, BigDecimal yavg) {
+    public CovarAgg(Long count, BigDecimal xavg, BigDecimal yavg, BigDecimal covar) {
       this.count = count;
-      this.sum = sum;
       this.xavg = xavg;
       this.yavg = yavg;
+      this.covar = covar;
     }
   }
 
   /**
-   * {@link CombineFn} for <em>Covar</em> on {@link Number} types.
-   * Covariance Sample
+   * {@link CombineFn} for <em>Covar_pop and Covar_samp</em> on {@link Number} types.
+   * Covariance Populator and Sample
+   * http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+   *
+   * Incremental:
+   *   n : <count>
+   *   mx_n = mx_(n-1) + [x_n - mx_(n-1)]/n : <xavg>
+   *   my_n = my_(n-1) + [y_n - my_(n-1)]/n : <yavg>
+   *   c_n = c_(n-1) + (x_n - mx_(n-1))*(y_n - my_n) : <covariance * n>
+   *
+   * Merge:
+   *   c_X = c_A + c_B + (mx_A - mx_B)*(my_A - my_B)*n_A*n_B/n_X
+   *
+   *  This one-pass algorithm is stable.
    */
   abstract static class Covar<T extends Number>
-          extends CombineFn<T, KV<BigDecimal, VarAgg>, T> {
+          extends CombineFn<KV<T, T>, CovarAgg, T> {
     boolean isSamp;  // flag to determine return value should be Variance Pop or Variance Sample
 
     public Covar(boolean isSamp){
@@ -607,37 +619,196 @@ class BeamBuiltinAggregations {
     }
 
     @Override
-    public KV<BigDecimal, VarAgg> createAccumulator() {
-      CovarAgg covaragg = new CovarAgg(0L, new BigDecimal(0),
-              new BigDecimal(0), new BigDecimal(0));
-      return KV.of(new BigDecimal(0), covaragg);
+    public CovarAgg createAccumulator() {
+      return new CovarAgg(0L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
     @Override
-    public KV<BigDecimal, VarAgg> addInput(KV<BigDecimal, VarAgg> accumulator, T input) {
-      BigDecimal v;
-        return KV.of(accumulator.getKey().add(variance), accumulator.getValue());
+    public CovarAgg addInput(CovarAgg accumulator, KV<T, T> input) {
+      if (input == null) {
+        return accumulator;
+      } else {
+        BigDecimal vx = toBigDecimal(input.getKey());
+        BigDecimal vy = toBigDecimal(input.getValue());
+
+        CovarAgg myagg = accumulator;
+
+        myagg.count++;
+        myagg.yavg = myagg.yavg.add(vy.subtract(myagg.yavg).divide(new BigDecimal(myagg.count), mc));
+        if (myagg.count > 1) {
+          myagg.covar = myagg.covar.add(
+                  vx.subtract(myagg.xavg).multiply(vy.subtract(myagg.yavg)));
+        }
+        myagg.xavg = myagg.xavg.add(vx.subtract(myagg.xavg).divide(new BigDecimal(myagg.count), mc));
+
+        return myagg;
       }
     }
 
     @Override
-    public KV<BigDecimal, VarAgg> mergeAccumulators(
-            Iterable<KV<BigDecimal, VarAgg>> accumulators) {
-      return KV.of(variance, new VarAgg(count, sum));
+    public CovarAgg mergeAccumulators(Iterable<CovarAgg> accumulators) {
+      CovarAgg newCovar = new CovarAgg(0L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+      Iterator<CovarAgg> ite = accumulators.iterator();
+      while (ite.hasNext()) {
+        CovarAgg r = ite.next();
+
+        BigDecimal nA = new BigDecimal(newCovar.count);
+        BigDecimal nB = new BigDecimal(r.count);
+
+        newCovar.count += r.count;
+        newCovar.xavg = newCovar.xavg.multiply(nA).add(r.xavg.multiply(nB))
+                .divide(new BigDecimal(newCovar.count));
+        newCovar.yavg = newCovar.yavg.multiply(nA).add(r.yavg.multiply(nB))
+                .divide(new BigDecimal(newCovar.count));
+
+//        calculateMerge(
+//                /* partialCount */pCount, /*mergeCount*/mCount,
+//                /* partialXavg */pXavg, /*mergeXavg*/mXavg,
+//                /* partialYavg */pYavg, /*mergeYavg*/mYavg,
+//                /* partialCovar */pCovar, /*mergeCovar*/mCovar
+//        );
+
+        newCovar.covar = newCovar.covar.add(
+                r.covar.add(
+                        newCovar.xavg.subtract(r.xavg).multiply(
+                        newCovar.yavg.subtract(r.yavg)
+                        ).multiply(nA).multiply(nB)
+                        .divide(new BigDecimal(newCovar.count))
+                )
+        );
+
+      }
+      return newCovar;
     }
 
     @Override
-    public Coder<KV<BigDecimal, VarAgg>> getAccumulatorCoder(CoderRegistry registry,
-           Coder<T> inputCoder) throws CannotProvideCoderException {
+    public Coder<CovarAgg> getAccumulatorCoder(CoderRegistry registry,
+           Coder<KV<T, T>> inputCoder) throws CannotProvideCoderException {
+      return SerializableCoder.of(CovarAgg.class);
     }
 
-    protected BigDecimal prepareOutput(KV<BigDecimal, VarAgg> accumulator){
+    protected BigDecimal prepareOutput(CovarAgg accumulator){
       BigDecimal decimalVar;
+      if (accumulator.count > 1) {
+        BigDecimal covar = accumulator.covar;
+        BigDecimal count = new BigDecimal(accumulator.count)
+                .subtract(this.isSamp ? BigDecimal.ONE : BigDecimal.ZERO);
+
+        decimalVar = covar.divide(count, mc);
+      } else {
+        decimalVar = BigDecimal.ZERO;
+      }
       return decimalVar;
     }
 
-    public abstract T extractOutput(KV<BigDecimal, VarAgg> accumulator);
+    public abstract T extractOutput(CovarAgg accumulator);
 
     public abstract BigDecimal toBigDecimal(T record);
+  }
+
+  static class IntegerCovar extends Covar<Integer> {
+    public IntegerCovar(boolean isSamp) {
+      super(isSamp);
+    }
+
+    public Integer extractOutput(CovarAgg accumulator) {
+      return prepareOutput(accumulator).intValue();
+    }
+
+    @Override
+    public BigDecimal toBigDecimal(Integer record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class ShortCovar extends Covar<Short> {
+    public ShortCovar(boolean isSamp) {
+      super(isSamp);
+    }
+
+    public Short extractOutput(CovarAgg accumulator) {
+      return prepareOutput(accumulator).shortValue();
+    }
+
+    @Override
+    public BigDecimal toBigDecimal(Short record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class ByteCovar extends Covar<Byte> {
+    public ByteCovar(boolean isSamp) {
+      super(isSamp);
+    }
+
+    public Byte extractOutput(CovarAgg accumulator) {
+      return prepareOutput(accumulator).byteValue();
+    }
+
+    @Override
+    public BigDecimal toBigDecimal(Byte record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class LongCovar extends Covar<Long> {
+    public LongCovar(boolean isSamp) {
+      super(isSamp);
+    }
+
+    public Long extractOutput(CovarAgg accumulator) {
+      return prepareOutput(accumulator).longValue();
+    }
+
+    @Override
+    public BigDecimal toBigDecimal(Long record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class FloatCovar extends Covar<Float> {
+    public FloatCovar(boolean isSamp) {
+      super(isSamp);
+    }
+
+    public Float extractOutput(CovarAgg accumulator) {
+      return prepareOutput(accumulator).floatValue();
+    }
+
+    @Override
+    public BigDecimal toBigDecimal(Float record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class DoubleCovar extends Covar<Double> {
+    public DoubleCovar(boolean isSamp) {
+      super(isSamp);
+    }
+
+    public Double extractOutput(CovarAgg accumulator) {
+      return prepareOutput(accumulator).doubleValue();
+    }
+
+    @Override
+    public BigDecimal toBigDecimal(Double record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class BigDecimalCovar extends Covar<BigDecimal> {
+    public BigDecimalCovar(boolean isSamp) {
+      super(isSamp);
+    }
+
+    public BigDecimal extractOutput(CovarAgg accumulator) {
+      return prepareOutput(accumulator);
+    }
+
+    @Override
+    public BigDecimal toBigDecimal(BigDecimal record) {
+      return record;
+    }
   }
 }
