@@ -21,11 +21,13 @@ package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.extensions.sql.impl.utils.DecimalConverter;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
  * {@link Combine.CombineFn} for <em>Variance</em> on {@link Number} types.
@@ -59,7 +61,8 @@ import org.apache.beam.sdk.transforms.Combine;
  * and count of elements, and then use the formula whenever new element comes or we need to merge
  * variances for 2 samples.
  */
-class VarianceFn<T extends Number>
+@Internal
+public class VarianceFn<T extends Number>
     extends Combine.CombineFn<T, VarianceAccumulator, T> {
 
   static final MathContext MATH_CTX = new MathContext(10, RoundingMode.HALF_UP);
@@ -68,17 +71,21 @@ class VarianceFn<T extends Number>
   private static final boolean POP = false;
 
   private boolean isSample; // flag to determine return value should be Variance Pop or Sample
-  private DecimalConverter decimalConverter;
+  private SerializableFunction<BigDecimal, T> decimalConverter;
 
-  public static VarianceFn newPopulation(DecimalConverter decimalConverter) {
-    return new VarianceFn(POP, decimalConverter);
+  public static <V extends Number> VarianceFn newPopulation(
+      SerializableFunction<BigDecimal, V> decimalConverter) {
+
+    return new VarianceFn<>(POP, decimalConverter);
   }
 
-  public static VarianceFn newSample(DecimalConverter decimalConverter) {
-    return new VarianceFn(SAMPLE, decimalConverter);
+  public static <V extends Number> VarianceFn newSample(
+      SerializableFunction<BigDecimal, V> decimalConverter) {
+
+    return new VarianceFn<>(SAMPLE, decimalConverter);
   }
 
-  private VarianceFn(boolean isSample, DecimalConverter decimalConverter){
+  private VarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter){
     this.isSample = isSample;
     this.decimalConverter = decimalConverter;
   }
@@ -100,13 +107,9 @@ class VarianceFn<T extends Number>
 
   @Override
   public VarianceAccumulator mergeAccumulators(Iterable<VarianceAccumulator> variances) {
-    VarianceAccumulator resultingVariance = VarianceAccumulator.ofZeroElements();
-
-    for (VarianceAccumulator variance : variances) {
-      resultingVariance = resultingVariance.combineWith(variance);
-    }
-
-    return resultingVariance;
+    return StreamSupport
+        .stream(variances.spliterator(), false)
+        .reduce(VarianceAccumulator.ofZeroElements(), VarianceAccumulator::combineWith);
   }
 
   @Override
@@ -117,7 +120,7 @@ class VarianceFn<T extends Number>
 
   @Override
   public T extractOutput(VarianceAccumulator accumulator) {
-    return decimalConverter.convert(getVariance(accumulator));
+    return decimalConverter.apply(getVariance(accumulator));
   }
 
   private BigDecimal getVariance(VarianceAccumulator variance) {

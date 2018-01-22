@@ -28,7 +28,6 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.extensions.sql.impl.utils.DecimalConverter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -45,17 +44,15 @@ public class VarianceFnTest {
 
   @Parameters(name = "varianceFn {index}")
   public static Iterable<Object[]> varianceFns() {
-    return Arrays.asList(new Object[][]{
-        {
-            VarianceFn.newPopulation(DecimalConverter.INTEGER),
-            newVarianceAccumulator(FIFTEEN, THREE, ZERO),
-            5
-        },
-        {
-            VarianceFn.newSample(DecimalConverter.INTEGER),
-            newVarianceAccumulator(FIFTEEN, FOUR, ZERO),
-            5
-        }
+    return Arrays.asList(new Object[][]{{
+        VarianceFn.newPopulation(BigDecimal::intValue),
+        newVarianceAccumulator(FIFTEEN, THREE, ZERO),
+        5
+    }, {
+        VarianceFn.newSample(BigDecimal::intValue),
+        newVarianceAccumulator(FIFTEEN, FOUR, ZERO),
+        5
+    }
     });
   }
 
