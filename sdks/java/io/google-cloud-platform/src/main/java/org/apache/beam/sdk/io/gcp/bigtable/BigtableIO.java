@@ -388,7 +388,12 @@ public class BigtableIO {
       getBigtableConfig().validate();
 
       BigtableSource source =
-          new BigtableSource(options -> getBigtableConfig().getBigtableService(options), getTableId(), getRowFilter(), getKeyRanges(), null);
+          new BigtableSource(
+              options -> getBigtableConfig().getBigtableService(options),
+              getTableId(),
+              getRowFilter(),
+              getKeyRanges(),
+              null);
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -444,11 +449,8 @@ public class BigtableIO {
           optionsBuilder = userConfigurator.apply(optionsBuilder);
         }
 
-        return optionsBuilder
-          .setBulkOptions(
-            optionsBuilder.build().getBulkOptions().toBuilder()
-              .setUseBulkApi(true)
-              .build());
+        return optionsBuilder.setBulkOptions(
+            optionsBuilder.build().getBulkOptions().toBuilder().setUseBulkApi(true).build());
       };
     }
 
@@ -601,8 +603,11 @@ public class BigtableIO {
     public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
       getBigtableConfig().validate();
 
-      input.apply(ParDo.of(new BigtableWriterFn(getBigtableConfig().getTableId(),
-          options -> getBigtableConfig().getBigtableService(options))));
+      input.apply(
+          ParDo.of(
+              new BigtableWriterFn(
+                  getBigtableConfig().getTableId(),
+                  options -> getBigtableConfig().getBigtableService(options))));
       return PDone.in(input.getPipeline());
     }
 
