@@ -388,12 +388,7 @@ public class BigtableIO {
       getBigtableConfig().validate();
 
       BigtableSource source =
-          new BigtableSource(new SerializableFunction<PipelineOptions, BigtableService>() {
-            @Override
-            public BigtableService apply(PipelineOptions options) {
-              return getBigtableConfig().getBigtableService(options);
-            }
-          }, getTableId(), getRowFilter(), getKeyRanges(), null);
+          new BigtableSource(options -> getBigtableConfig().getBigtableService(options), getTableId(), getRowFilter(), getKeyRanges(), null);
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -444,19 +439,16 @@ public class BigtableIO {
     static SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
     enableBulkApiConfigurator(final @Nullable SerializableFunction<BigtableOptions.Builder,
         BigtableOptions.Builder> userConfigurator) {
-      return new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
-        @Override
-        public BigtableOptions.Builder apply(BigtableOptions.Builder optionsBuilder) {
-          if (userConfigurator != null) {
-            optionsBuilder = userConfigurator.apply(optionsBuilder);
-          }
-
-          return optionsBuilder
-            .setBulkOptions(
-              optionsBuilder.build().getBulkOptions().toBuilder()
-                .setUseBulkApi(true)
-                .build());
+      return optionsBuilder -> {
+        if (userConfigurator != null) {
+          optionsBuilder = userConfigurator.apply(optionsBuilder);
         }
+
+        return optionsBuilder
+          .setBulkOptions(
+            optionsBuilder.build().getBulkOptions().toBuilder()
+              .setUseBulkApi(true)
+              .build());
       };
     }
 
@@ -610,12 +602,7 @@ public class BigtableIO {
       getBigtableConfig().validate();
 
       input.apply(ParDo.of(new BigtableWriterFn(getBigtableConfig().getTableId(),
-          new SerializableFunction<PipelineOptions, BigtableService>() {
-            @Override
-            public BigtableService apply(PipelineOptions options) {
-              return getBigtableConfig().getBigtableService(options);
-            }
-          })));
+          options -> getBigtableConfig().getBigtableService(options))));
       return PDone.in(input.getPipeline());
     }
 
