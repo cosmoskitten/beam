@@ -75,8 +75,9 @@ public class BeamSqlDslBase {
             Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER, Types.DECIMAL));
 
     rowTypeInTableB = BeamRecordSqlType.create(
-            Arrays.asList("f_decimal1", "f_decimal2", "f_decimal3"),
-            Arrays.asList(Types.DECIMAL, Types.DECIMAL, Types.DECIMAL));
+            Arrays.asList("f_double1", "f_double2", "f_double3", "f_int1", "f_int2"),
+            Arrays.asList(Types.DOUBLE, Types.DOUBLE, Types.DOUBLE,
+                    Types.INTEGER, Types.INTEGER));
 
     recordsInTableA = prepareInputRowsInTableA();
 
@@ -150,19 +151,19 @@ public class BeamSqlDslBase {
   private static List<BeamRecord> prepareInputRowsInTableB() throws ParseException{
     List<BeamRecord> rows = new ArrayList<>();
 
-    BeamRecord row1 = new BeamRecord(rowTypeInTableB, new BigDecimal(3), new BigDecimal(1), new BigDecimal(1));
+    BeamRecord row1 = new BeamRecord(rowTypeInTableB, 3.0, 1.0, 1.0, 3, 1);
     rows.add(row1);
 
-    BeamRecord row2 = new BeamRecord(rowTypeInTableB, new BigDecimal(4), new BigDecimal(2), new BigDecimal(2));
+    BeamRecord row2 = new BeamRecord(rowTypeInTableB, 4.0, 2.0, 2.0, 4, 2);
     rows.add(row2);
 
-    BeamRecord row3 = new BeamRecord(rowTypeInTableB, new BigDecimal(5), new BigDecimal(3), new BigDecimal(1));
+    BeamRecord row3 = new BeamRecord(rowTypeInTableB, 5.0, 3.0, 1.0, 5, 3);
     rows.add(row3);
 
-    BeamRecord row4 = new BeamRecord(rowTypeInTableB, new BigDecimal(6), new BigDecimal(4), new BigDecimal(2));
+    BeamRecord row4 = new BeamRecord(rowTypeInTableB, 6.0, 4.0, 2.0, 6, 4);
     rows.add(row4);
 
-    BeamRecord row5 = new BeamRecord(rowTypeInTableB, new BigDecimal(8), new BigDecimal(4), new BigDecimal(1));
+    BeamRecord row5 = new BeamRecord(rowTypeInTableB, 8.0, 4.0, 1.0, 8, 4);
     rows.add(row5);
 
     return rows;

@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.Arrays;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -114,62 +112,6 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
       return accumulator;
     }
 
-  }
-
-  public static class TwoSum extends CombineFn<KV<Integer, Integer>, Integer, Integer> {
-//  public static class TwoSum extends CombineFn<Float, Integer, Float> {
-    @Override
-    public Integer createAccumulator() {
-      return 0;
-    }
-
-    @Override
-    public Integer addInput(Integer accumulator, KV<Integer, Integer> input) {
-      return accumulator + input.getKey() * input.getValue();
-    }
-//    public Integer addInput(Integer accumulator, Float input) {
-//      return accumulator + input.intValue() * input.intValue();
-//    }
-
-    @Override
-    public Integer mergeAccumulators(Iterable<Integer> accumulators) {
-      int v = 0;
-      Iterator<Integer> ite = accumulators.iterator();
-      while (ite.hasNext()) {
-        v += ite.next();
-      }
-      return v;
-    }
-
-    @Override
-    public Integer extractOutput(Integer accumulator) {
-      return accumulator;
-    }
-
-  }
-
-  @Test
-  public void testUdafwithTwoColumns() throws Exception {
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("covar"),
-            Arrays.asList(Types.DECIMAL));
-
-    BeamRecord record = new BeamRecord(resultType, new BigDecimal(0.08));
-
-    String sql1 = "SELECT covar_pop(f_decimal3, f_decimal2)"
-            + " FROM PCOLLECTION";
-    PCollection<BeamRecord> result1 =
-            boundedInput3.apply("testUdafwithTwoColumns", BeamSql.query(sql1));
-    PAssert.that(result1).containsInAnyOrder(record);
-
-//    String sql2 = "SELECT f_int2, squaresum2(f_int, f_int) AS `squaresum`"
-//            + " FROM PCOLLECTION GROUP BY f_int2";
-//    PCollection<BeamRecord> result2 =
-//            PCollectionTuple.of(new TupleTag<BeamRecord>("PCOLLECTION"), boundedInput1)
-//                    .apply("testUdafwithTwoColumns2",
-//                            BeamSql.queryMulti(sql2).withUdaf("squaresum2", new TwoSum()));
-//    PAssert.that(result2).containsInAnyOrder(record);
-
-    pipeline.run().waitUntilFinish();
   }
 
   /**
