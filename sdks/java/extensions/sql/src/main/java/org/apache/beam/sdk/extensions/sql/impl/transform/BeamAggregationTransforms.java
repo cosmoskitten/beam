@@ -153,7 +153,6 @@ public class BeamAggregationTransforms implements Serializable{
   public static class AggregationAdaptor
     extends CombineFn<BeamRecord, AggregationAccumulator, BeamRecord> {
     private List<CombineFn> aggregators;
-//    private List<BeamSqlInputRefExpression> sourceFieldExps;
     private List<Object> sourceFieldExps;
     private BeamRecordSqlType finalRowType;
 
@@ -259,7 +258,7 @@ public class BeamAggregationTransforms implements Serializable{
           );
         } else if (sourceFieldExps.get(idx) instanceof KV){
           KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression> exp =
-                  (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
+          (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
           deltaAcc.accumulatorElements.add(
                   aggregators.get(idx).addInput(accumulator.accumulatorElements.get(idx),
                           KV.of(exp.getKey().evaluate(input, null).getValue(),
@@ -309,7 +308,7 @@ public class BeamAggregationTransforms implements Serializable{
           aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, srcFieldCoder));
         } else if (sourceFieldExps.get(idx) instanceof KV) {
           KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression> exp =
-                  (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
+          (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
           int srcFieldIndexKey = exp.getKey().getInputRef();
           int srcFieldIndexValue = exp.getValue().getInputRef();
 

@@ -598,17 +598,20 @@ class BeamBuiltinAggregations {
    * {@link CombineFn} for <em>Covar_pop and Covar_samp</em> on {@link Number} types.
    * Covariance Populator and Sample
    * http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-   *
+   * <p>
    * Incremental:
-   *   n : <count>
-   *   mx_n = mx_(n-1) + [x_n - mx_(n-1)]/n : <xavg>
-   *   my_n = my_(n-1) + [y_n - my_(n-1)]/n : <yavg>
-   *   c_n = c_(n-1) + (x_n - mx_(n-1))*(y_n - my_n) : <covariance * n>
-   *
+   *   count -> n
+   *   xavg -> mx_n = mx_(n-1) + [x_n - mx_(n-1)]/n
+   *   yavg -> my_n = my_(n-1) + [y_n - my_(n-1)]/n
+   *   covariance * n -> c_n = c_(n-1) + (x_n - mx_(n-1))*(y_n - my_n)
+   * </p>
+   * <p>
    * Merge:
    *   c_X = c_A + c_B + (mx_A - mx_B)*(my_A - my_B)*n_A*n_B/n_X
-   *
+   * </p>
+   * <p>
    *  This one-pass algorithm is stable.
+   * </p>
    */
   abstract static class Covar<T extends Number>
           extends CombineFn<KV<T, T>, CovarAgg, T> {
@@ -634,12 +637,14 @@ class BeamBuiltinAggregations {
         CovarAgg myagg = accumulator;
 
         myagg.count++;
-        myagg.yavg = myagg.yavg.add(vy.subtract(myagg.yavg).divide(new BigDecimal(myagg.count), mc));
+        myagg.yavg = myagg.yavg.add(vy.subtract(myagg.yavg)
+                .divide(new BigDecimal(myagg.count), mc));
         if (myagg.count > 1) {
           myagg.covar = myagg.covar.add(
                   vx.subtract(myagg.xavg).multiply(vy.subtract(myagg.yavg)));
         }
-        myagg.xavg = myagg.xavg.add(vx.subtract(myagg.xavg).divide(new BigDecimal(myagg.count), mc));
+        myagg.xavg = myagg.xavg.add(vx.subtract(myagg.xavg)
+                .divide(new BigDecimal(myagg.count), mc));
 
         return myagg;
       }
@@ -657,17 +662,11 @@ class BeamBuiltinAggregations {
         BigDecimal nB = new BigDecimal(r.count);
 
         newCovar.count += r.count;
+
         newCovar.xavg = newCovar.xavg.multiply(nA).add(r.xavg.multiply(nB))
                 .divide(new BigDecimal(newCovar.count));
         newCovar.yavg = newCovar.yavg.multiply(nA).add(r.yavg.multiply(nB))
                 .divide(new BigDecimal(newCovar.count));
-
-//        calculateMerge(
-//                /* partialCount */pCount, /*mergeCount*/mCount,
-//                /* partialXavg */pXavg, /*mergeXavg*/mXavg,
-//                /* partialYavg */pYavg, /*mergeYavg*/mYavg,
-//                /* partialCovar */pCovar, /*mergeCovar*/mCovar
-//        );
 
         newCovar.covar = newCovar.covar.add(
                 r.covar.add(
