@@ -43,7 +43,7 @@ import org.junit.Test;
  * with BOUNDED PCollection.
  */
 public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
-  public PCollection<BeamRecord> boundedInput3;
+  public PCollection<BeamRecord> boundedInput4;
 
   @Before
   public void setUp(){
@@ -80,7 +80,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             , 17, 17.0, 0, new BigDecimal(17));
     recordsInTableB.add(row7);
 
-    boundedInput3 = PBegin.in(pipeline).apply("boundedInput3",
+    boundedInput4 = PBegin.in(pipeline).apply("boundedInput4",
             Create.of(recordsInTableB).withCoder(rowTypeInTableB.getRecordCoder()));
   }
 
@@ -205,7 +205,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             + "FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<BeamRecord> result =
-            boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
+            boundedInput4.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
             Arrays.asList("avg1", "avg2",
@@ -221,33 +221,43 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
 
-  private static class CheckerBigDecimalDivide2
+  private static class CheckerCovariance
           implements SerializableFunction<Iterable<BeamRecord>, Void> {
     @Override public Void apply(Iterable<BeamRecord> input) {
       Iterator<BeamRecord> iter = input.iterator();
       assertTrue(iter.hasNext());
       BeamRecord row = iter.next();
-      assertEquals(row.getDouble("avg1"), 2.5, 1e-7);
-      assertTrue(row.getInteger("var1") == 1);
-//      assertTrue(row.getInteger("avg1") == 8);
+      assertEquals(row.getDouble("covarpop1"), 1.84, 1e-7);
+      assertTrue(row.getInteger("covarpop2") == 1);
+      assertEquals(row.getDouble("covarsamp1"), 2.3, 1e-7);
+      assertTrue(row.getInteger("covarsamp2") == 2);
       assertFalse(iter.hasNext());
       return null;
     }
   }
 
-
+  /**
+   * Aggregation functions (two parameters) with BigDeciaml Calculation (Covar_samp,
+   * Covar_pop).
+   */
   @Test
-  public void testAggregationBoundedOnBigDecimalDivide() throws Exception {
-    String sql = "SELECT AVG(f_double) as avg1, VAR_POP(f_int) as var1 FROM PCOLLECTION GROUP BY f_int2";
+  public void testCovarianceAggregationFunctions() throws Exception {
+    String sql = "SELECT COVAR_POP(f_double1, f_double2) as covarpop1, "
+            + "COVAR_POP(f_int1, f_int2) as covarpop2, "
+            + "COVAR_SAMP(f_double1, f_double2) as covarsamp1, "
+            + "COVAR_SAMP(f_int1, f_int2) as covarsamp2 "
+            + "FROM PCOLLECTION";
 
     PCollection<BeamRecord> result =
-            boundedInput1.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
+            boundedInput3.apply("testCovarianceAggregation", BeamSql.query(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
-            Arrays.asList("avg1", "var1"),
-            Arrays.asList(Types.DOUBLE, Types.INTEGER));
+            Arrays.asList("covarpop1", "covarpop2",
+                    "covarsamp1", "covarsamp2"),
+            Arrays.asList(Types.DOUBLE, Types.INTEGER,
+                    Types.DOUBLE, Types.INTEGER));
 
-    PAssert.that(result).satisfies(new CheckerBigDecimalDivide2());
+    PAssert.that(result).satisfies(new CheckerCovariance());
 
     pipeline.run().waitUntilFinish();
   }
