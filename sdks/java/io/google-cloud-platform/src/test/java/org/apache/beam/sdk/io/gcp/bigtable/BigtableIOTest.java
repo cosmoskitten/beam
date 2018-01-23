@@ -356,7 +356,7 @@ public class BigtableIOTest {
     service.createTable(table);
     service.setupSampleRowKeys(table, 1, 1L);
 
-    runReadTest(defaultRead.withTableId(table), new ArrayList<Row>());
+    runReadTest(defaultRead.withTableId(table), new ArrayList<>());
     logged.verifyInfo("Closing reader after reading 0 records.");
   }
 
@@ -1023,7 +1023,7 @@ public class BigtableIOTest {
     }
 
     public void createTable(String tableId) {
-      tables.put(tableId, new TreeMap<ByteString, ByteString>(new ByteStringComparator()));
+      tables.put(tableId, new TreeMap<>(new ByteStringComparator()));
     }
 
     @Override
