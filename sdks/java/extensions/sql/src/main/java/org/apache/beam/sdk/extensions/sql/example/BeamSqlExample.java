@@ -64,7 +64,7 @@ class BeamSqlExample {
 
     //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<BeamRecord> outputStream = inputTable.apply(
-        BeamSql.query("select pow(c3, c1) from PCOLLECTION"));
+        BeamSql.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
 
     //print the output record of case 1;
     outputStream.apply(
@@ -80,24 +80,24 @@ class BeamSqlExample {
               }
             }));
 
-//    //Case 2. run the query with BeamSql.query over result PCollection of case 1.
-//    PCollection<BeamRecord> outputStream2 =
-//        PCollectionTuple.of(new TupleTag<BeamRecord>("CASE1_RESULT"), outputStream)
-//        .apply(BeamSql.queryMulti("select c2, sum(c3) from CASE1_RESULT group by c2"));
-//
-//    //print the output record of case 2;
-//    outputStream2.apply(
-//        "log_result",
-//        MapElements.<BeamRecord, Void>via(
-//            new SimpleFunction<BeamRecord, Void>() {
-//              @Override
-//              public @Nullable Void apply(BeamRecord input) {
-//                //expect output:
-//                //  CASE1_RESULT: [row, 5.0]
-//                System.out.println("CASE1_RESULT: " + input.getDataValues());
-//                return null;
-//              }
-//            }));
+    //Case 2. run the query with BeamSql.query over result PCollection of case 1.
+    PCollection<BeamRecord> outputStream2 =
+        PCollectionTuple.of(new TupleTag<BeamRecord>("CASE1_RESULT"), outputStream)
+        .apply(BeamSql.queryMulti("select c2, sum(c3) from CASE1_RESULT group by c2"));
+
+    //print the output record of case 2;
+    outputStream2.apply(
+        "log_result",
+        MapElements.<BeamRecord, Void>via(
+            new SimpleFunction<BeamRecord, Void>() {
+              @Override
+              public @Nullable Void apply(BeamRecord input) {
+                //expect output:
+                //  CASE1_RESULT: [row, 5.0]
+                System.out.println("CASE1_RESULT: " + input.getDataValues());
+                return null;
+              }
+            }));
 
     p.run().waitUntilFinish();
   }
