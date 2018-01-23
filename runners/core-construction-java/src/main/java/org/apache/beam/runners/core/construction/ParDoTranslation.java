@@ -41,7 +41,6 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter.Type;
@@ -146,12 +145,8 @@ public class ParDoTranslation {
         new ParDoLike() {
           @Override
           public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-            return ParDoTranslation.translateDoFn(parDo.getFn(), parDo.getMainOutputTag());
-          }
-
-          @Override
-          public Environment getEnvironment() {
-            return Environments.JAVA_SDK_HARNESS_ENVIRONMENT;
+            return ParDoTranslation.translateDoFn(
+                parDo.getFn(), parDo.getMainOutputTag(), newComponents);
           }
 
           @Override
@@ -432,8 +427,10 @@ public class ParDoTranslation {
     }
   }
 
-  public static SdkFunctionSpec translateDoFn(DoFn<?, ?> fn, TupleTag<?> tag) {
+  public static SdkFunctionSpec translateDoFn(
+      DoFn<?, ?> fn, TupleTag<?> tag, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
+        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_DO_FN_URN)
@@ -592,13 +589,13 @@ public class ParDoTranslation {
 
     @Override
     public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-      // TODO: re-register the environment with the new components
-      return payload.getDoFn();
-    }
-
-    @Override
-    public Environment getEnvironment() {
-      return rehydratedComponents.getEnvironment(payload.getDoFn().getEnvironmentId());
+      SdkFunctionSpec sdkFnSpec = payload.getDoFn();
+      return sdkFnSpec
+          .toBuilder()
+          .setEnvironmentId(
+              newComponents.registerEnvironment(
+                  rehydratedComponents.getEnvironment(sdkFnSpec.getEnvironmentId())))
+          .build();
     }
 
     @Override
@@ -636,8 +633,6 @@ public class ParDoTranslation {
   /** These methods drive to-proto translation from Java and from rehydrated ParDos. */
   public interface ParDoLike {
     SdkFunctionSpec translateDoFn(SdkComponents newComponents);
-
-    Environment getEnvironment();
 
     List<RunnerApi.Parameter> translateParameters();
 
