@@ -519,7 +519,6 @@ public class JdbcIO {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
     @Nullable abstract String getStatement();
     @Nullable abstract PreparedStatementSetter<RowT> getPreparedStatementSetter();
-    abstract long getBatchSize();
 
     @Override
     public PDone expand(PCollection<InputT> input) {
@@ -599,6 +598,7 @@ public class JdbcIO {
   /** A {@link PTransform} to write to a JDBC datasource. */
   @AutoValue
   public abstract static class Write<T> extends AbstractWrite<T, T> {
+    abstract long getBatchSize();
     // Override is needed, otherwise the code generator complains about the type parameter
     @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
 
@@ -623,7 +623,7 @@ public class JdbcIO {
     public Write<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
       return toBuilder().setPreparedStatementSetter(setter).build();
     }
-    
+
     /**
      * Provide a maximum size in number of SQL statement for the batch. Default is 1000.
      *
@@ -641,9 +641,11 @@ public class JdbcIO {
     }
 
     private static class WriteFn<T> extends AbstractWriteFn<T, T> {
+      private final long batchSize;
 
       public WriteFn(AbstractWrite<T, T> spec) {
         super(spec);
+        batchSize = ((Write<T>) spec).getBatchSize();
       }
 
       @ProcessElement
@@ -657,7 +659,7 @@ public class JdbcIO {
 
         batchCount++;
 
-        if (batchCount >= spec.getBatchSize()) {
+        if (batchCount >= batchSize) {
           executeBatch();
         }
       }
