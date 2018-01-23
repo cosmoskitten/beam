@@ -89,9 +89,6 @@ class PrefetchingSourceSetIterable(object):
         bytes tracked.
     """
 
-    # The tracking of time spend reading and bytes read from side inputs is kept
-    # behind an experiment flag to test performance impact.
-    experiments = RuntimeValueProvider('experiments', str, '').get().split(',')
     if 'sideinput_io_metrics' not in experiments:
       return
 
@@ -112,6 +109,8 @@ class PrefetchingSourceSetIterable(object):
 
   def _reader_thread(self):
     # pylint: disable=too-many-nested-blocks
+    experiments = set(
+        RuntimeValueProvider('experiments', str, '').get().split(','))
     try:
       while True:
         try:
@@ -128,7 +127,11 @@ class PrefetchingSourceSetIterable(object):
           else:
             # Native dataflow source.
             with source.reader() as reader:
-              self.add_byte_counter(reader)
+              # The tracking of time spend reading and bytes read from side
+              # inputs is kept behind an experiment flag to test performance
+              # impact.
+              if 'sideinput_io_metrics' in experiments:
+                self.add_byte_counter(reader)
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
                 if self.has_errored:
