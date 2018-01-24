@@ -249,7 +249,7 @@ public class CoderRegistry {
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
   public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
-    return getCoderFromTypeDescriptor(type, HashMultimap.<Type, Coder<?>>create());
+    return getCoderFromTypeDescriptor(type, HashMultimap.create());
   }
 
   /**
@@ -612,11 +612,11 @@ public class CoderRegistry {
             ReasonCode.OVER_SPECIFIED);
       }
     } else if (type instanceof Class<?>) {
-      coder = getCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
+      coder = getCoderFromFactories(typeDescriptor, Collections.emptyList());
     } else if (type instanceof ParameterizedType) {
       coder = getCoderFromParameterizedType((ParameterizedType) type, typeCoderBindings);
     } else if (type instanceof TypeVariable) {
-      coder = getCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
+      coder = getCoderFromFactories(typeDescriptor, Collections.emptyList());
     } else if (type instanceof WildcardType) {
       // No coder for an unknown generic type.
       throw new CannotProvideCoderException(
@@ -704,7 +704,7 @@ public class CoderRegistry {
     checkArgument(type != null);
     checkArgument(coder != null);
     if (type instanceof TypeVariable || type instanceof Class) {
-      return ImmutableSetMultimap.<Type, Coder<?>>of(type, coder);
+      return ImmutableSetMultimap.of(type, coder);
     } else if (type instanceof ParameterizedType) {
       return getTypeToCoderBindings((ParameterizedType) type, coder);
     } else {
