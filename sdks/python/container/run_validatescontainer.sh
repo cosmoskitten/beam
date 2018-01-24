@@ -35,7 +35,7 @@ LOCAL_PATH=$HOME/.local/bin/
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 
 # Project for the container and integration test
-PROJECT=beam-container-builder-test
+PROJECT=apache-beam-testing
 
 # Verify in the root of the repository
 test -d sdks/python/container
