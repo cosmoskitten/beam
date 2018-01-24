@@ -31,17 +31,16 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.adapter.BoundedSourceSystem;
 import org.apache.beam.runners.samza.adapter.UnboundedSourceSystem;
 import org.apache.beam.runners.samza.util.Base64Serializer;
+import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.JobConfig;
@@ -105,15 +104,7 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     final PCollection<T> output =
         (PCollection<T>) Iterables.getOnlyElement(
             node.toAppliedPTransform(pipeline).getOutputs().values());
-
-    @SuppressWarnings("unchecked")
-    final WindowingStrategy<T, ? extends BoundedWindow> windowingStrategy =
-        (WindowingStrategy<T, ? extends BoundedWindow>) output.getWindowingStrategy();
-
-    final Coder<WindowedValue<T>> coder =
-        WindowedValue.FullWindowedValueCoder.of(
-            source.getDefaultOutputCoder(),
-            windowingStrategy.getWindowFn().windowCoder());
+    final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
 
     config.putAll(BoundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
   }
@@ -126,15 +117,7 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     final PCollection<T> output =
         (PCollection<T>) Iterables.getOnlyElement(
             node.toAppliedPTransform(pipeline).getOutputs().values());
-
-    @SuppressWarnings("unchecked")
-    final WindowingStrategy<T, ? extends BoundedWindow> windowingStrategy =
-        (WindowingStrategy<T, ? extends BoundedWindow>) output.getWindowingStrategy();
-
-    final Coder<WindowedValue<T>> coder =
-        WindowedValue.FullWindowedValueCoder.of(
-            source.getDefaultOutputCoder(),
-            windowingStrategy.getWindowFn().windowCoder());
+    final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
 
     config.putAll(UnboundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
   }

@@ -26,12 +26,12 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-runners-samza_2.10</artifactId>
+  <artifactId>beam-runners-samza_2.11</artifactId>
   <name>Apache Beam :: Runners :: Samza</name>
   <packaging>jar</packaging>
 
   <properties>
-    <samza.version>0.14.0</samza.version>
+    <samza.version>0.14.1-SNAPSHOT</samza.version>
   </properties>
 
   <profiles>
@@ -170,20 +170,20 @@
 
     <dependency>
       <groupId>org.apache.samza</groupId>
-      <artifactId>samza-core_2.10</artifactId>
+      <artifactId>samza-core_2.11</artifactId>
       <version>${samza.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.samza</groupId>
-      <artifactId>samza-kafka_2.10</artifactId>
+      <artifactId>samza-kafka_2.11</artifactId>
       <version>${samza.version}</version>
       <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.samza</groupId>
-      <artifactId>samza-kv-rocksdb_2.10</artifactId>
+      <artifactId>samza-kv-rocksdb_2.11</artifactId>
       <version>${samza.version}</version>
       <scope>runtime</scope>
     </dependency>

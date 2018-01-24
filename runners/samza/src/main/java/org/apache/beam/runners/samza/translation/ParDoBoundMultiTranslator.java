@@ -118,15 +118,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
         inputStream.merge(sideInputStreams).flatMap(OpAdapter.adapt(op));
 
     for (int outputIndex : tagToIdMap.values()) {
-      final Coder<WindowedValue<OutT>> outputCoder =
-          WindowedValue.FullWindowedValueCoder.of(
-              (Coder<OutT>) idToPCollectionMap.get(outputIndex).getCoder(),
-              windowingStrategy.getWindowFn().windowCoder());
-
       registerSideOutputStream(
           taggedOutputStream,
           idToPCollectionMap.get(outputIndex),
-          outputCoder,
           outputIndex,
           ctx);
     }
@@ -135,14 +129,13 @@ class ParDoBoundMultiTranslator<InT, OutT>
   private <T> void registerSideOutputStream(
       MessageStream<OpMessage<RawUnionValue>> inputStream,
       PValue outputPValue,
-      Coder<T> coder,
       int outputIndex,
       TranslationContext ctx) {
 
     @SuppressWarnings("unchecked")
     final MessageStream<OpMessage<T>> outputStream = inputStream
         .filter(new FilterByUnionId(outputIndex))
-        .flatMap(OpAdapter.adapt(new RawUnionValueToValue(coder)));
+        .flatMap(OpAdapter.adapt(new RawUnionValueToValue()));
 
     ctx.registerMessageStream(outputPValue, outputStream);
   }
@@ -162,11 +155,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
   }
 
   private class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT> {
-    private final Coder<WindowedValue<OutT>> coder;
-
-    private RawUnionValueToValue(Coder<WindowedValue<OutT>> coder) {
-      this.coder = coder;
-    }
 
     @Override
     public void processElement(WindowedValue<RawUnionValue> inputElement,

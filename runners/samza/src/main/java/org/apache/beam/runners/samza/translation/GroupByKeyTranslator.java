@@ -18,10 +18,6 @@
 
 package org.apache.beam.runners.samza.translation;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
@@ -29,6 +25,7 @@ import org.apache.beam.runners.samza.runtime.GroupByKeyOp;
 import org.apache.beam.runners.samza.runtime.KvToKeyedWorkItemOp;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -41,7 +38,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.serializers.KVSerde;
-import org.apache.samza.serializers.Serde;
 
 /**
  * Translates {@link GroupByKey} to Samza {@link GroupByKeyOp}.
@@ -64,15 +60,8 @@ class GroupByKeyTranslator<K, V>
 
     final MessageStream<OpMessage<KV<K, V>>> inputStream = ctx.getMessageStream(input);
 
-    final Coder<KV<K, V>> inputCoder = input.getCoder();
-    if (!(inputCoder instanceof KvCoder)) {
-      throw new IllegalStateException("Could not get KvCoder from input coder: " + inputCoder);
-    }
-    final KvCoder<K, V> kvInputCoder = (KvCoder<K, V>) inputCoder;
-    final Coder<WindowedValue<KV<K, V>>> elementCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            inputCoder,
-            windowingStrategy.getWindowFn().windowCoder());
+    final KvCoder<K, V> kvInputCoder = (KvCoder<K, V>) input.getCoder();
+    final Coder<WindowedValue<KV<K, V>>> elementCoder = SamzaCoders.of(input);
 
     final MessageStream<OpMessage<KV<K, V>>> filteredInputStream = inputStream
         .filter(msg -> msg.getType() == OpMessage.Type.ELEMENT);
@@ -84,7 +73,9 @@ class GroupByKeyTranslator<K, V>
     } else {
       partitionedInputStream = filteredInputStream
           .partitionBy(msg -> msg.getElement().getValue().getKey(), msg -> msg.getElement(),
-              KVSerde.of(coderToSerde(kvInputCoder.getKeyCoder()), coderToSerde(elementCoder)),
+              KVSerde.of(
+                  SamzaCoders.toSerde(kvInputCoder.getKeyCoder()),
+                  SamzaCoders.toSerde(elementCoder)),
               "gbk-" + ctx.getCurrentTopologicalId())
           .map(kv -> OpMessage.ofElement(kv.getValue()));
     }
@@ -108,36 +99,5 @@ class GroupByKeyTranslator<K, V>
     ctx.registerMessageStream(output, outputStream);
   }
 
-  private static <T> Serde<T> coderToSerde(final Coder<T> coder) {
-    return new Serde<T>() {
-      @Override
-      public T fromBytes(byte[] bytes) {
-        if (bytes != null) {
-          final ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-          try {
-            return (T) coder.decode(bais);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        } else {
-          return null;
-        }
-      }
 
-      @Override
-      public byte[] toBytes(T t) {
-        if (t != null) {
-          final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          try {
-            coder.encode(t, baos);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-          return baos.toByteArray();
-        } else {
-          return null;
-        }
-      }
-    };
-  }
 }
