@@ -17,7 +17,6 @@ package harness
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"sync"
 
@@ -35,16 +34,14 @@ const (
 	dataSend
 )
 
-// Capture is set by clients of this module should set this variable to have
-// the session recorded to the supplied WriteCloser.
-var Capture io.WriteCloser
+// This variable is set in the init process when it parses
+// runner options.
+var capture SessionCaptureHook
 
 var (
 	selectedOptions = make(map[string]bool)
-	// TODO(wcn): add a buffered writer around capture and use it.
-	capture     *os.File
-	sessionLock sync.Mutex
-	bufPool     = sync.Pool{
+	sessionLock     sync.Mutex
+	bufPool         = sync.Pool{
 		New: func() interface{} {
 			return proto.NewBuffer(nil)
 		},
@@ -75,7 +72,7 @@ func setupDiagnosticRecording() error {
 	}
 
 	// Set up the session recorder.
-	if Capture == nil {
+	if capture == nil {
 		return fmt.Errorf("Cannot enable session recording. Capture variable not provided")
 	}
 
