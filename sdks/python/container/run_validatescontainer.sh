@@ -67,12 +67,7 @@ pip install -e .[gcp,test]
 
 # Create a tarball
 python setup.py sdist
-
 SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
-
-# Install test dependencies for ValidatesRunner tests.
-#echo "pyhamcrest" > postcommit_requirements.txt
-#echo "mock" >> postcommit_requirements.txt
 
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
