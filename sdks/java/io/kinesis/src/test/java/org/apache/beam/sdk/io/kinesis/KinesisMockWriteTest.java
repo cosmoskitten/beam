@@ -36,7 +36,6 @@ import java.util.Properties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Before;
@@ -132,15 +131,17 @@ public class KinesisMockWriteTest {
 
   @Test
   public void testNotExistedStream() {
-    KinesisIO.Write write =
-        KinesisIO.write()
-            .withStreamName(STREAM)
-            .withPartitionKey(PARTITION_KEY)
-            .withAWSClientsProvider(
-                new FakeKinesisProvider(getMockedAmazonKinesisClient(404)));
+    Iterable<byte[]> data = Arrays.asList("1".getBytes());
+    p.apply(Create.of(data))
+        .apply(
+            KinesisIO.write()
+                .withStreamName(STREAM)
+                .withPartitionKey(PARTITION_KEY)
+                .withAWSClientsProvider(new FakeKinesisProvider(false))
+        );
 
-    thrown.expect(IllegalArgumentException.class);
-    write.expand(null);
+    thrown.expect(RuntimeException.class);
+    p.run().waitUntilFinish();
   }
 
   @Test
@@ -154,7 +155,7 @@ public class KinesisMockWriteTest {
             KinesisIO.write()
                 .withStreamName(STREAM)
                 .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider(getMockedAmazonKinesisClient()))
+                .withAWSClientsProvider(new FakeKinesisProvider())
                 .withProducerProperties(properties));
 
     thrown.expect(RuntimeException.class);
@@ -176,7 +177,7 @@ public class KinesisMockWriteTest {
             KinesisIO.write()
                 .withStreamName(STREAM)
                 .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider(getMockedAmazonKinesisClient()))
+                .withAWSClientsProvider(new FakeKinesisProvider())
                 .withProducerProperties(properties));
     p.run().waitUntilFinish();
 
@@ -193,7 +194,7 @@ public class KinesisMockWriteTest {
             KinesisIO.write()
                 .withStreamName(STREAM)
                 .withPartitionKey(PARTITION_KEY)
-                .withAWSClientsProvider(new FakeKinesisProvider(getMockedAmazonKinesisClient())));
+                .withAWSClientsProvider(new FakeKinesisProvider()));
     p.run().waitUntilFinish();
     assertEquals(2, kinesisService.getAddedRecords().get());
 
@@ -208,7 +209,7 @@ public class KinesisMockWriteTest {
                     .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
                     .withAWSClientsProvider(new AmazonKinesisMock.Provider(testData, 10))
                     .withMaxNumRecords(noOfShards * noOfEventsPerShard))
-            .apply(ParDo.of(new KinesisRecordToTestData()));
+            .apply(ParDo.of(new KinesisMockReadTest.KinesisRecordToTestData()));
     PAssert.that(result).containsInAnyOrder(Iterables.concat(testData));
     p2.run().waitUntilFinish();
   }
@@ -226,18 +227,18 @@ public class KinesisMockWriteTest {
   }
 
   private static final class FakeKinesisProvider implements AWSClientsProvider {
-    private transient AmazonKinesis client;
+    private boolean isExistingStream = true;
 
     public FakeKinesisProvider() {
     }
 
-    public FakeKinesisProvider(AmazonKinesis client) {
-      this.client = client;
+    public FakeKinesisProvider(boolean isExistingStream) {
+      this.isExistingStream = isExistingStream;
     }
 
     @Override
     public AmazonKinesis getKinesisClient() {
-      return client;
+      return getMockedAmazonKinesisClient();
     }
 
     @Override
@@ -249,30 +250,19 @@ public class KinesisMockWriteTest {
     public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
       return new KinesisProducerMock(config);
     }
-  }
 
-  private static class KinesisRecordToTestData
-      extends DoFn<KinesisRecord, AmazonKinesisMock.TestData> {
-    @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      c.output(new AmazonKinesisMock.TestData(c.element()));
+    private AmazonKinesis getMockedAmazonKinesisClient() {
+      int statusCode = isExistingStream ? 200 : 404;
+      SdkHttpMetadata httpMetadata = mock(SdkHttpMetadata.class);
+      when(httpMetadata.getHttpStatusCode()).thenReturn(statusCode);
+
+      DescribeStreamResult streamResult = mock(DescribeStreamResult.class);
+      when(streamResult.getSdkHttpMetadata()).thenReturn(httpMetadata);
+
+      AmazonKinesis client = mock(AmazonKinesis.class);
+      when(client.describeStream(any(String.class))).thenReturn(streamResult);
+
+      return client;
     }
-  }
-
-  private AmazonKinesis getMockedAmazonKinesisClient() {
-    return getMockedAmazonKinesisClient(200);
-  }
-
-  private AmazonKinesis getMockedAmazonKinesisClient(int statusCode) {
-    SdkHttpMetadata httpMetadata = mock(SdkHttpMetadata.class);
-    when(httpMetadata.getHttpStatusCode()).thenReturn(statusCode);
-
-    DescribeStreamResult streamResult = mock(DescribeStreamResult.class);
-    when(streamResult.getSdkHttpMetadata()).thenReturn(httpMetadata);
-
-    AmazonKinesis client = mock(AmazonKinesis.class);
-    when(client.describeStream(any(String.class))).thenReturn(streamResult);
-
-    return client;
   }
 }
