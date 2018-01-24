@@ -17,7 +17,6 @@ package harness
 
 import (
 	"fmt"
-	"io"
 	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
@@ -34,9 +33,9 @@ const (
 	dataSend
 )
 
-// Capture is set by clients of this module should set this variable to have
-// the session recorded to the supplied WriteCloser.
-var Capture io.WriteCloser
+// This variable is set in the init process when it parses
+// runner options.
+var capture SessionCaptureHook
 
 var (
 	selectedOptions = make(map[string]bool)
@@ -61,7 +60,7 @@ func setupDiagnosticRecording() error {
 		return nil
 	}
 
-	if Capture == nil {
+	if capture == nil {
 		return fmt.Errorf("Cannot enable session recording. Capture variable not provided")
 	}
 
@@ -117,13 +116,13 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	sessionLock.Lock()
 	defer sessionLock.Unlock()
 
-	if _, err := Capture.Write(l.Bytes()); err != nil {
+	if _, err := capture.Write(l.Bytes()); err != nil {
 		return fmt.Errorf("Unable to write entry header length: %v", err)
 	}
-	if _, err := Capture.Write(hdr.Bytes()); err != nil {
+	if _, err := capture.Write(hdr.Bytes()); err != nil {
 		return fmt.Errorf("Unable to write entry header: %v", err)
 	}
-	if _, err := Capture.Write(body.Bytes()); err != nil {
+	if _, err := capture.Write(body.Bytes()); err != nil {
 		return fmt.Errorf("Unable to write entry body: %v", err)
 	}
 	return nil
