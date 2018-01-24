@@ -86,9 +86,6 @@ python setup.py nosetests \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1"
 
-# Delete the container locally
-docker rmi $CONTAINER
-
 # Delete the container locally and remotely
 docker rmi $CONTAINER
 gcloud container images delete $CONTAINER --quiet
