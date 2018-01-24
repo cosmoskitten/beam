@@ -276,7 +276,7 @@ class AfterProcessingTime(TriggerFn):
 
   def on_element(self, element, window, context):
     context.set_timer(
-        '', TimeDomain.REAL_TIME, context.current_time + self.delay)
+        '', TimeDomain.REAL_TIME, context.get_current_time() + self.delay)
 
   def on_merge(self, to_be_merged, merge_result, context):
     for window in to_be_merged:
@@ -690,8 +690,7 @@ class TriggerContext(object):
     self._window = window
     self._clock = clock
 
-  @property
-  def current_time(self):
+  def get_current_time(self):
     return self._clock.time()
 
   def set_timer(self, name, time_domain, timestamp):
@@ -1105,6 +1104,7 @@ class GeneralTriggerDriver(TriggerDriver):
           finished = self.trigger_fn.on_fire(timestamp, window, context)
           yield self._output(window, finished, state)
       elif time_domain == TimeDomain.REAL_TIME:
+        # TODO(mariagh): Move this evaluation to class AfterProcessingTime
         # Fire as soon as the clock surpasses the timer's timestamp
         if self.clock.time() > timestamp:
           self.trigger_fn.on_fire(timestamp, window, context)
