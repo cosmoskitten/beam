@@ -388,7 +388,6 @@ public class FnApiDoFnRunnerTest {
         .build();
   }
 
-
   private static class TestSideInputDoFn extends DoFn<String, String> {
     private final PCollectionView<String> defaultSingletonSideInput;
     private final PCollectionView<String> singletonSideInput;
@@ -421,7 +420,6 @@ public class FnApiDoFnRunnerTest {
     PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
     PCollectionView<Iterable<String>> iterableSideInputView =
         valuePCollection.apply(View.asIterable());
-
     PCollection<String> outputPCollection = valuePCollection.apply(TEST_PTRANSFORM_ID, ParDo.of(
         new TestSideInputDoFn(
             defaultSingletonSideInputView,
