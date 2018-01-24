@@ -480,6 +480,34 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
+   * Annotation for the method to use for performing actions on window expiration. For example,
+   * users can use this annotation to write a method that extracts a value saved in a state before
+   * it gets garbage collected on window expiration.
+   *
+   * <p>The method annotated with
+   * {@code @OnWindowExpiration} may have parameters according to the same logic as {@link OnTimer}.
+   * See the following code for an example:
+   *
+   * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
+   *
+   *   {@literal @ProcessElement}
+   *    public void processElement(ProcessContext c) {
+   *    }
+   *
+   *   {@literal @OnWindowExpiration}
+   *    public void onWindowExpiration() {
+   *      ...
+   *    }
+   * }</code></pre>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.TIMERS)
+  public @interface OnWindowExpiration {
+  }
+
+  /**
    * Annotation for the method to use to prepare an instance for processing bundles of elements. The
    * method annotated with this must satisfy the following constraints
    * <ul>
@@ -571,9 +599,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
    * feature may change.</i></b>
    *
-   * <p>Annotation that may be added to a {@link ProcessElement} or {@link OnTimer} method to
-   * indicate that the runner must ensure that the observable contents of the input {@link
-   * PCollection} or mutable state must be stable upon retries.
+   * <p>Annotation that may be added to a {@link ProcessElement}, {@link OnTimer}, or
+   * {@link OnWindowExpiration} method to indicate that the runner must ensure that the observable
+   * contents of the input {@link PCollection} or mutable state must be stable upon retries.
    *
    * <p>This is important for sinks, which must ensure exactly-once semantics when writing to a
    * storage medium outside of your pipeline. A general pattern for a basic sink is to write a
