@@ -447,7 +447,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public RestrictionTracker<?> restrictionTracker() {
+    public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException(
           "Cannot access RestrictionTracker outside of @ProcessElement method.");
     }
@@ -504,7 +504,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public RestrictionTracker<?> restrictionTracker() {
+    public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException("TODO: Add support for SplittableDoFn");
     }
 
@@ -663,7 +663,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public RestrictionTracker<?> restrictionTracker() {
+    public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException(
           "Cannot access RestrictionTracker outside of @ProcessElement method.");
     }

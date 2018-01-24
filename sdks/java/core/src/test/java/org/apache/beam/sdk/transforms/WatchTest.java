@@ -27,20 +27,22 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.joda.time.Duration.standardSeconds;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import com.google.common.hash.HashCode;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -497,8 +499,8 @@ public class WatchTest implements Serializable {
     assertEquals(
         primary.toString(condition),
         new GrowthState<>(
-                Collections.emptyMap() /* completed */,
-                Collections.<TimestampedValue<String>>emptyList() /* pending */,
+                ImmutableMap.of() /* completed */,
+                ImmutableMap.of() /* pending */,
                 true /* isOutputFinal */,
                 (Integer) null /* terminationState */,
                 BoundedWindow.TIMESTAMP_MAX_VALUE /* pollWatermark */)
@@ -506,12 +508,19 @@ public class WatchTest implements Serializable {
     assertEquals(
         residual.toString(condition),
         new GrowthState<>(
-                Collections.emptyMap() /* completed */,
-                Collections.<TimestampedValue<String>>emptyList() /* pending */,
+                ImmutableMap.of() /* completed */,
+                ImmutableMap.of() /* pending */,
                 false /* isOutputFinal */,
                 0 /* terminationState */,
                 BoundedWindow.TIMESTAMP_MIN_VALUE /* pollWatermark */)
             .toString(condition));
+  }
+
+  private String tryClaimNextPending(GrowthTracker<String, ?, ?> tracker) {
+    assertTrue(tracker.hasPending());
+    Map.Entry<HashCode, TimestampedValue<String>> entry = tracker.getNextPending();
+    tracker.tryClaim(entry.getKey());
+    return entry.getValue().getValue();
   }
 
   @Test
@@ -528,10 +537,8 @@ public class WatchTest implements Serializable {
             .withWatermark(now.plus(standardSeconds(7))));
 
     assertEquals(now.plus(standardSeconds(1)), tracker.getWatermark());
-    assertTrue(tracker.hasPending());
-    assertEquals("a", tracker.tryClaimNextPending().getValue());
-    assertTrue(tracker.hasPending());
-    assertEquals("b", tracker.tryClaimNextPending().getValue());
+    assertEquals("a", tryClaimNextPending(tracker));
+    assertEquals("b", tryClaimNextPending(tracker));
     assertTrue(tracker.hasPending());
     assertEquals(now.plus(standardSeconds(3)), tracker.getWatermark());
 
@@ -541,10 +548,8 @@ public class WatchTest implements Serializable {
 
     // Verify primary: should contain what the current tracker claimed, and nothing else.
     assertEquals(now.plus(standardSeconds(1)), primaryTracker.getWatermark());
-    assertTrue(primaryTracker.hasPending());
-    assertEquals("a", primaryTracker.tryClaimNextPending().getValue());
-    assertTrue(primaryTracker.hasPending());
-    assertEquals("b", primaryTracker.tryClaimNextPending().getValue());
+    assertEquals("a", tryClaimNextPending(primaryTracker));
+    assertEquals("b", tryClaimNextPending(primaryTracker));
     assertFalse(primaryTracker.hasPending());
     assertFalse(primaryTracker.shouldPollMore());
     // No more pending elements in primary restriction, and no polling.
@@ -553,19 +558,16 @@ public class WatchTest implements Serializable {
 
     // Verify residual: should contain what the current tracker didn't claim.
     assertEquals(now.plus(standardSeconds(3)), residualTracker.getWatermark());
-    assertTrue(residualTracker.hasPending());
-    assertEquals("c", residualTracker.tryClaimNextPending().getValue());
-    assertTrue(residualTracker.hasPending());
-    assertEquals("d", residualTracker.tryClaimNextPending().getValue());
+    assertEquals("c", tryClaimNextPending(residualTracker));
+    assertEquals("d", tryClaimNextPending(residualTracker));
     assertFalse(residualTracker.hasPending());
     assertTrue(residualTracker.shouldPollMore());
     // No more pending elements in residual restriction, but poll watermark still holds.
     assertEquals(now.plus(standardSeconds(7)), residualTracker.getWatermark());
 
     // Verify current tracker: it was checkpointed, so should contain nothing else.
-    assertNull(tracker.tryClaimNextPending());
-    tracker.checkDone();
     assertFalse(tracker.hasPending());
+    tracker.checkDone();
     assertFalse(tracker.shouldPollMore());
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, tracker.getWatermark());
   }
@@ -583,10 +585,10 @@ public class WatchTest implements Serializable {
                     TimestampedValue.of("b", now.plus(standardSeconds(2)))))
             .withWatermark(now.plus(standardSeconds(7))));
 
-    assertEquals("a", tracker.tryClaimNextPending().getValue());
-    assertEquals("b", tracker.tryClaimNextPending().getValue());
-    assertEquals("c", tracker.tryClaimNextPending().getValue());
-    assertEquals("d", tracker.tryClaimNextPending().getValue());
+    assertEquals("a", tryClaimNextPending(tracker));
+    assertEquals("b", tryClaimNextPending(tracker));
+    assertEquals("c", tryClaimNextPending(tracker));
+    assertEquals("d", tryClaimNextPending(tracker));
     assertFalse(tracker.hasPending());
     assertEquals(now.plus(standardSeconds(7)), tracker.getWatermark());
 
@@ -596,14 +598,10 @@ public class WatchTest implements Serializable {
 
     // Verify primary: should contain what the current tracker claimed, and nothing else.
     assertEquals(now.plus(standardSeconds(1)), primaryTracker.getWatermark());
-    assertTrue(primaryTracker.hasPending());
-    assertEquals("a", primaryTracker.tryClaimNextPending().getValue());
-    assertTrue(primaryTracker.hasPending());
-    assertEquals("b", primaryTracker.tryClaimNextPending().getValue());
-    assertTrue(primaryTracker.hasPending());
-    assertEquals("c", primaryTracker.tryClaimNextPending().getValue());
-    assertTrue(primaryTracker.hasPending());
-    assertEquals("d", primaryTracker.tryClaimNextPending().getValue());
+    assertEquals("a", tryClaimNextPending(primaryTracker));
+    assertEquals("b", tryClaimNextPending(primaryTracker));
+    assertEquals("c", tryClaimNextPending(primaryTracker));
+    assertEquals("d", tryClaimNextPending(primaryTracker));
     assertFalse(primaryTracker.hasPending());
     assertFalse(primaryTracker.shouldPollMore());
     // No more pending elements in primary restriction, and no polling.
@@ -636,10 +634,10 @@ public class WatchTest implements Serializable {
                     TimestampedValue.of("b", now.plus(standardSeconds(2)))))
             .withWatermark(now.plus(standardSeconds(7))));
 
-    assertEquals("a", tracker.tryClaimNextPending().getValue());
-    assertEquals("b", tracker.tryClaimNextPending().getValue());
-    assertEquals("c", tracker.tryClaimNextPending().getValue());
-    assertEquals("d", tracker.tryClaimNextPending().getValue());
+    assertEquals("a", tryClaimNextPending(tracker));
+    assertEquals("b", tryClaimNextPending(tracker));
+    assertEquals("c", tryClaimNextPending(tracker));
+    assertEquals("d", tryClaimNextPending(tracker));
 
     GrowthState<String, String, Integer> checkpoint = tracker.checkpoint();
     // Simulate resuming from the checkpoint and adding more elements.
@@ -657,9 +655,9 @@ public class WatchTest implements Serializable {
               .withWatermark(now.plus(standardSeconds(12))));
 
       assertEquals(now.plus(standardSeconds(5)), residualTracker.getWatermark());
-      assertEquals("e", residualTracker.tryClaimNextPending().getValue());
+      assertEquals("e", tryClaimNextPending(residualTracker));
       assertEquals(now.plus(standardSeconds(8)), residualTracker.getWatermark());
-      assertEquals("f", residualTracker.tryClaimNextPending().getValue());
+      assertEquals("f", tryClaimNextPending(residualTracker));
 
       assertFalse(residualTracker.hasPending());
       assertTrue(residualTracker.shouldPollMore());
@@ -679,9 +677,9 @@ public class WatchTest implements Serializable {
                   TimestampedValue.of("f", now.plus(standardSeconds(8))))));
 
       assertEquals(now.plus(standardSeconds(5)), residualTracker.getWatermark());
-      assertEquals("e", residualTracker.tryClaimNextPending().getValue());
+      assertEquals("e", tryClaimNextPending(residualTracker));
       assertEquals(now.plus(standardSeconds(5)), residualTracker.getWatermark());
-      assertEquals("f", residualTracker.tryClaimNextPending().getValue());
+      assertEquals("f", tryClaimNextPending(residualTracker));
 
       assertFalse(residualTracker.hasPending());
       assertTrue(residualTracker.shouldPollMore());
@@ -702,10 +700,10 @@ public class WatchTest implements Serializable {
                     TimestampedValue.of("b", now.plus(standardSeconds(2)))))
             .withWatermark(now.plus(standardSeconds(7))));
 
-    assertEquals("a", tracker.tryClaimNextPending().getValue());
-    assertEquals("b", tracker.tryClaimNextPending().getValue());
-    assertEquals("c", tracker.tryClaimNextPending().getValue());
-    assertEquals("d", tracker.tryClaimNextPending().getValue());
+    assertEquals("a", tryClaimNextPending(tracker));
+    assertEquals("b", tryClaimNextPending(tracker));
+    assertEquals("c", tryClaimNextPending(tracker));
+    assertEquals("d", tryClaimNextPending(tracker));
 
     // Simulate resuming from the checkpoint but there are no new elements.
     GrowthState<String, String, Integer> checkpoint = tracker.checkpoint();
@@ -750,10 +748,10 @@ public class WatchTest implements Serializable {
                 TimestampedValue.of("c", now.plus(standardSeconds(3))),
                 TimestampedValue.of("a", now.plus(standardSeconds(1))),
                 TimestampedValue.of("b", now.plus(standardSeconds(2))))));
-    assertEquals("a", tracker.tryClaimNextPending().getValue());
-    assertEquals("b", tracker.tryClaimNextPending().getValue());
-    assertEquals("c", tracker.tryClaimNextPending().getValue());
-    assertEquals("d", tracker.tryClaimNextPending().getValue());
+    assertEquals("a", tryClaimNextPending(tracker));
+    assertEquals("b", tryClaimNextPending(tracker));
+    assertEquals("c", tryClaimNextPending(tracker));
+    assertEquals("d", tryClaimNextPending(tracker));
     assertEquals(now.plus(standardSeconds(1)), tracker.getWatermark());
 
     // Simulate resuming from the checkpoint but there are no new elements.
@@ -813,10 +811,10 @@ public class WatchTest implements Serializable {
                 TimestampedValue.of("a", now.plus(standardSeconds(1))),
                 TimestampedValue.of("b", now.plus(standardSeconds(2))))));
 
-    assertEquals("a", tracker.tryClaimNextPending().getValue());
-    assertEquals("b", tracker.tryClaimNextPending().getValue());
-    assertEquals("c", tracker.tryClaimNextPending().getValue());
-    assertEquals("d", tracker.tryClaimNextPending().getValue());
+    assertEquals("a", tryClaimNextPending(tracker));
+    assertEquals("b", tryClaimNextPending(tracker));
+    assertEquals("c", tryClaimNextPending(tracker));
+    assertEquals("d", tryClaimNextPending(tracker));
     assertFalse(tracker.hasPending());
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, tracker.getWatermark());
 
