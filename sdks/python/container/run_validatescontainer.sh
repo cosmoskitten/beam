@@ -45,16 +45,16 @@ command -v docker
 command -v gcloud
 
 # Build the container
-DATE=$(date +%Y%m%d-%H%M%S)
-CONTAINER=gcr.io/$PROJECT/$USER-$DATE/python
+TAG=$(date +%Y%m%d-%H%M%S)
+CONTAINER=gcr.io/$PROJECT/$USER/python
 echo "Using container $CONTAINER"
-mvn clean install -DskipTests -Pbuild-containers --projects sdks/python/container -amd -Ddocker-repository-root=gcr.io/$PROJECT/$USER-$DATE -amd
+mvn clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
 
 # Verify it exists
-docker images | grep $CONTAINER
+docker images | grep "$CONTAINER.*$TAG"
 
 # Push the container
-gcloud docker -- push $CONTAINER
+gcloud docker -- push $CONTAINER:$TAG
 
 # INFRA does not install virtualenv
 pip install virtualenv --user
@@ -79,7 +79,7 @@ python setup.py nosetests \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
-    --worker_harness_container_image=$CONTAINER \
+    --worker_harness_container_image=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --output=$GCS_LOCATION/output \
@@ -87,7 +87,7 @@ python setup.py nosetests \
     --num_workers=1"
 
 # Delete the container locally and remotely
-docker rmi $CONTAINER
-gcloud container images delete $CONTAINER --quiet
+docker rmi $CONTAINER:$TAG
+gcloud container images delete $CONTAINER:$TAG --quiet
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
