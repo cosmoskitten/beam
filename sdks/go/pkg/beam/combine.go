@@ -23,55 +23,43 @@ import (
 
 // Combine inserts a global Combine transform into the pipeline. It
 // expects a PCollection<T> as input where T is a concrete type.
-func Combine(s Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
-	return Must(TryCombine(s, combinefn, col, opts...))
+func Combine(s Scope, combinefn interface{}, col PCollection) PCollection {
+	return Must(TryCombine(s, combinefn, col))
 }
 
 // CombinePerKey inserts a GBK and per-key Combine transform into the pipeline. It
 // expects a PCollection<KV<K,T>>. The CombineFn may optionally take a key parameter.
-func CombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
-	return Must(TryCombinePerKey(s, combinefn, col, opts...))
+func CombinePerKey(s Scope, combinefn interface{}, col PCollection) PCollection {
+	return Must(TryCombinePerKey(s, combinefn, col))
 }
 
 // TryCombine attempts to insert a global Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
-// -- due to type mismatch, say -- to the incoming PCollections.
-func TryCombine(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
-	side, _, err := validate(s, col, opts)
-	if err != nil {
-		return PCollection{}, err
-	}
+// -- due to type mismatch, say -- to the incoming PCollection.
+func TryCombine(s Scope, combinefn interface{}, col PCollection) (PCollection, error) {
 	ValidateNonCompositeType(col)
-	return combine(s, combinefn, col, side)
+	return combine(s, combinefn, col)
 }
 
 // TryCombinePerKey attempts to insert a per-key Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
-// -- due to type mismatch, say -- to the incoming PCollections.
-func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
-	side, _, err := validate(s, col, opts)
-	if err != nil {
-		return PCollection{}, err
-	}
+// -- due to type mismatch, say -- to the incoming PCollection.
+func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection) (PCollection, error) {
 	ValidateKVType(col)
-	col, err = TryGroupByKey(s, col)
+	col, err := TryGroupByKey(s, col)
 	if err != nil {
 		return PCollection{}, fmt.Errorf("failed to group by key: %v", err)
 	}
-	return combine(s, combinefn, col, side)
+	return combine(s, combinefn, col)
 }
 
-func combine(s Scope, combinefn interface{}, col PCollection, side []SideInput) (PCollection, error) {
+func combine(s Scope, combinefn interface{}, col PCollection) (PCollection, error) {
 	fn, err := graph.NewCombineFn(combinefn)
 	if err != nil {
 		return PCollection{}, fmt.Errorf("invalid CombineFn: %v", err)
 	}
 
-	in := []*graph.Node{col.n}
-	for _, s := range side {
-		in = append(in, s.Input.n)
-	}
-	edge, err := graph.NewCombine(s.real, s.scope, fn, in)
+	edge, err := graph.NewCombine(s.real, s.scope, fn, col.n)
 	if err != nil {
 		return PCollection{}, err
 	}
