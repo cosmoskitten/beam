@@ -44,11 +44,27 @@ test -d sdks/python/container
 command -v docker
 command -v gcloud
 
+# ensure maven version is 3.5 or above
+TMPDIR=$(mktemp -d)
+MVN=$(which mvn)
+mvn_ver=$($MVN -v | head -1 | awk '{print $3}')
+if [[ "$mvn_ver" < "3.5" ]]
+then
+  pushd $TMPDIR
+  curl http://www.apache.org/dist/maven/maven-3/3.5.2/binaries/apache-maven-3.5.2-bin.tar.gz --output maven.tar.gz
+  tar xf maven.tar.gz
+  MVN="$(pwd)/apache-maven-3.5.2/bin/mvn"
+  popd
+fi
+
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
 CONTAINER=gcr.io/$PROJECT/$USER/python
 echo "Using container $CONTAINER"
-mvn clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
+$MVN clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
+
+# Clean up tempdir
+rm -rf $TMPDIR
 
 # Verify it exists
 docker images | grep "$CONTAINER.*$TAG"
