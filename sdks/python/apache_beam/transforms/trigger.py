@@ -284,8 +284,10 @@ class AfterProcessingTime(TriggerFn):
         context.clear_timer('', TimeDomain.REAL_TIME)
 
   def should_fire(self, watermark, window, context):
-    # evaluation deferred to be handled by the
+    # Firing evaluation deferred to be handled by the
     # GeneralTriggerDriver's process_timer routine
+    # TODO(mariagh): Move handling of the clock from
+    # GeneralTriggerDriver's process_timer to here
     return False
 
   def on_fire(self, watermark, window, context):
