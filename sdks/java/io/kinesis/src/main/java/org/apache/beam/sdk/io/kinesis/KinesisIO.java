@@ -317,11 +317,6 @@ public final class KinesisIO {
 
     @Override
     public PCollection<KinesisRecord> expand(PBegin input) {
-      checkArgument(
-          streamExists(getAWSClientsProvider().getKinesisClient(), getStreamName()),
-          "Stream %s does not exist",
-          getStreamName());
-
       Unbounded<KinesisRecord> unbounded =
           org.apache.beam.sdk.io.Read.from(
               new KinesisSource(
@@ -413,8 +408,6 @@ public final class KinesisIO {
           getPartitionKey() == null || (getPartitioner() == null),
           "only one of either withPartitionKey() or withPartitioner() is possible");
       checkArgument(getAWSClientsProvider() != null, "withAWSClientsProvider() is required");
-      checkArgument(streamExists(getAWSClientsProvider().getKinesisClient(), getStreamName()),
-          "Stream %s does not exist", getStreamName());
       input.apply(ParDo.of(new KinesisWriterFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -430,6 +423,10 @@ public final class KinesisIO {
 
       @Setup
       public void setup() throws Exception {
+        checkArgument(
+            streamExists(spec.getAWSClientsProvider().getKinesisClient(), spec.getStreamName()),
+            "Stream %s does not exist", spec.getStreamName());
+
         // Init producer config
         Properties props = spec.getProducerProperties();
         if (props == null) {
