@@ -59,9 +59,9 @@ fi
 
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
-CONTAINER=gcr.io/$PROJECT/$USER/python
+CONTAINER=us.gcr.io/$PROJECT/$USER/python
 echo "Using container $CONTAINER"
-$MVN clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
+$MVN clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=us.gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
 
 # Clean up tempdir
 rm -rf $TMPDIR
@@ -70,7 +70,8 @@ rm -rf $TMPDIR
 docker images | grep "$CONTAINER.*$TAG"
 
 # Push the container
-gcloud docker -- push $CONTAINER:$TAG
+docker tag $CONTAINER:$TAG $CONTAINER:$TAG
+gcloud docker -- push $CONTAINER
 
 # INFRA does not install virtualenv
 pip install virtualenv --user
