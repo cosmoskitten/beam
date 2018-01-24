@@ -24,6 +24,7 @@ import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -110,27 +111,40 @@ class StartingPointShardsFinder implements Serializable {
     Set<Shard> initialShards = findInitialShardsWithoutParents(streamName, allShards);
 
     Set<Shard> startingPointShards = new HashSet<>();
-    Sets.SetView<Shard> expiredShards;
+    Set<Shard> expiredShards;
     do {
       Set<Shard> validShards = validateShards(kinesis, initialShards, streamName, startingPoint);
       startingPointShards.addAll(validShards);
       expiredShards = Sets.difference(initialShards, validShards);
-      Set<String> expiredShardIds = new HashSet<>();
-      for (Shard expiredShard : expiredShards) {
-        expiredShardIds.add(expiredShard.getShardId());
-      }
-      if (!expiredShardIds.isEmpty()) {
+      if (!expiredShards.isEmpty()) {
         LOGGER.info("Following shards expired for {} stream at '{}' starting point: {}", streamName,
-            startingPoint, expiredShardIds);
+            startingPoint, expiredShards);
       }
-      initialShards = new HashSet<>();
-      for (Shard shard : allShards) {
-        if (expiredShardIds.contains(shard.getParentShardId())) {
-          initialShards.add(shard);
-        }
-      }
+      initialShards = findNextShards(allShards, expiredShards);
     } while (!expiredShards.isEmpty());
     return startingPointShards;
+  }
+
+  private Set<Shard> findNextShards(List<Shard> allShards, Set<Shard> expiredShards) {
+    Set<Shard> nextShards = new HashSet<>();
+    for (Shard expiredShard : expiredShards) {
+      boolean successorFound = false;
+      for (Shard shard : allShards) {
+        if (Objects.equals(expiredShard.getShardId(), shard.getParentShardId())) {
+          nextShards.add(shard);
+          successorFound = true;
+        } else if (Objects.equals(expiredShard.getShardId(), shard.getAdjacentParentShardId())) {
+          successorFound = true;
+        }
+      }
+      if (!successorFound) {
+        // This can potentially happen during split/merge operation. Newly created shards might be
+        // not listed in the allShards list and their predecessor is already considered expired.
+        // Retrying should solve the issue.
+        throw new IllegalStateException("No successors were found for shard: " + expiredShard);
+      }
+    }
+    return nextShards;
   }
 
   /**

@@ -193,6 +193,22 @@ public class StartingPointShardsFinderTest {
     assertThat(shardsAtStartingPoint).containsExactlyInAnyOrder(shard00, shard01);
   }
 
+  @Test(expected = IllegalStateException.class)
+  public void shouldThrowExceptionWhenSuccessorsNotFoundForExpiredShard() throws Exception {
+    // given
+    StartingPoint latestStartingPoint = new StartingPoint(InitialPositionInStream.LATEST);
+    Shard closedShard10 = createClosedShard("0010")
+        .withParentShardId("0008")
+        .withAdjacentParentShardId("0005");
+    List<Shard> shards = ImmutableList.of(shard00, shard01, shard02, shard03,
+        shard04, shard05, shard06, shard07, shard08, shard09, closedShard10);
+
+    given(kinesis.listShards(STREAM_NAME)).willReturn(shards);
+
+    // when
+    underTest.findShardsAtStartingPoint(kinesis, STREAM_NAME, latestStartingPoint);
+  }
+
   private Shard createClosedShard(String shardId) {
     Shard shard = new Shard().withShardId(shardId);
     activeAtPoint(shard, ShardIteratorType.TRIM_HORIZON);

@@ -57,12 +57,11 @@ class ShardReadersPool {
   private final ExecutorService executorService;
 
   /**
-   * A reference to a bounded buffer for read records. Its capacity is related to the number of
-   * shards and new buffer is created with each shard split/merge operation. Records are added to
-   * this buffer within {@link ShardReadersPool#readLoop(ShardRecordsIterator)} method and removed
+   * A Bounded buffer for read records. Records are added to this buffer within
+   * {@link ShardReadersPool#readLoop(ShardRecordsIterator)} method and removed
    * in {@link ShardReadersPool#nextRecord()}.
    */
-  private final AtomicReference<BlockingQueue<KinesisRecord>> recordsQueue;
+  private BlockingQueue<KinesisRecord> recordsQueue;
 
   /**
    * A reference to an immutable mapping of {@link ShardRecordsIterator} instances to shard ids.
@@ -90,7 +89,6 @@ class ShardReadersPool {
     this.queueCapacityPerShard = queueCapacityPerShard;
     this.executorService = Executors.newCachedThreadPool();
     this.numberOfRecordsInAQueueByShard = new ConcurrentHashMap<>();
-    this.recordsQueue = new AtomicReference<>();
     this.shardIteratorsMap = new AtomicReference<>();
   }
 
@@ -101,10 +99,11 @@ class ShardReadersPool {
     }
     shardIteratorsMap.set(shardsMap.build());
     if (!shardIteratorsMap.get().isEmpty()) {
-      BlockingQueue<KinesisRecord> queue = new ArrayBlockingQueue<>(
+      recordsQueue = new ArrayBlockingQueue<>(
           queueCapacityPerShard * shardIteratorsMap.get().size());
-      recordsQueue.set(queue);
       startReadingShards(shardIteratorsMap.get().values());
+    } else {
+      recordsQueue = new ArrayBlockingQueue<>(1);
     }
   }
 
@@ -140,7 +139,7 @@ class ShardReadersPool {
           break;
         }
         for (KinesisRecord kinesisRecord : kinesisRecords) {
-          recordsQueue.get().put(kinesisRecord);
+          recordsQueue.put(kinesisRecord);
           numberOfRecordsInAQueueByShard.get(kinesisRecord.getShardId()).incrementAndGet();
         }
       } catch (TransientKinesisException e) {
@@ -157,10 +156,7 @@ class ShardReadersPool {
 
   CustomOptional<KinesisRecord> nextRecord() {
     try {
-      if (recordsQueue.get() == null) {
-        return CustomOptional.absent();
-      }
-      KinesisRecord record = recordsQueue.get().poll(1, TimeUnit.SECONDS);
+      KinesisRecord record = recordsQueue.poll(1, TimeUnit.SECONDS);
       if (record == null) {
         return CustomOptional.absent();
       }
@@ -250,19 +246,16 @@ class ShardReadersPool {
    * </p>
    * <p>
    * Once shard successors are established, the transition to reading new shards can begin.
-   * The {@link ShardReadersPool#shardIteratorsMap}, {@link ShardReadersPool#recordsQueue}
-   * and {@link ShardReadersPool#numberOfRecordsInAQueueByShard} need to be updated atomically to
-   * remain in sync. Therefore the operation is synchronized on this {@link ShardReadersPool}
-   * instance. During this operation, the immutable {@link ShardReadersPool#shardIteratorsMap}
+   * During this operation, the immutable {@link ShardReadersPool#shardIteratorsMap}
    * is replaced with a new one holding references to {@link ShardRecordsIterator} instances for
-   * open shards only. The {@link ShardReadersPool#recordsQueue} is replaced with a new instance of
-   * capacity adjusted to the new number of open shards and records remaining in previous queue are
-   * drained to the new one. Also, the counter for already closed shard is removed from
+   * open shards only. Potentially there might be more shard iterators closing at the same time so
+   * {@link ShardReadersPool#shardIteratorsMap} is updated in a loop using CAS pattern to keep all
+   * the updates. Then, the counter for already closed shard is removed from
    * {@link ShardReadersPool#numberOfRecordsInAQueueByShard} map.
    * </p>
    * <p>
-   * Finally when atomic update is finished, new threads are spawned for reading the successive
-   * shards. The thread that handled reading from already closed shard can finally complete.
+   * Finally when update is finished, new threads are spawned for reading the successive shards.
+   * The thread that handled reading from already closed shard can finally complete.
    * </p>
    */
   private void readFromSuccessiveShards(final ShardRecordsIterator closedShardIterator)
@@ -270,46 +263,29 @@ class ShardReadersPool {
     List<ShardRecordsIterator> successiveShardRecordIterators = closedShardIterator
         .findSuccessiveShardRecordIterators();
 
-    // Handle one closedShardIterator at a time to keep shardIteratorsMap,
-    // recordsQueue and numberOfRecordsInAQueueByShard in sync.
-    synchronized (this) {
-      ImmutableMap.Builder<String, ShardRecordsIterator> shardsMap = ImmutableMap.builder();
-      Iterable<ShardRecordsIterator> allShards = Iterables
-          .concat(shardIteratorsMap.get().values(), successiveShardRecordIterators);
-      for (ShardRecordsIterator iterator : allShards) {
-        if (!closedShardIterator.getShardId().equals(iterator.getShardId())) {
-          shardsMap.put(iterator.getShardId(), iterator);
-        }
-      }
-      shardIteratorsMap.set(shardsMap.build());
-      numberOfRecordsInAQueueByShard.remove(closedShardIterator.getShardId());
+    ImmutableMap<String, ShardRecordsIterator> current;
+    ImmutableMap<String, ShardRecordsIterator> updated;
+    do {
+      current = shardIteratorsMap.get();
+      updated = createMapWithSuccessiveShards(current, closedShardIterator,
+          successiveShardRecordIterators);
+    } while (!shardIteratorsMap.compareAndSet(current, updated));
+    numberOfRecordsInAQueueByShard.remove(closedShardIterator.getShardId());
+    startReadingShards(successiveShardRecordIterators);
+  }
 
-      BlockingQueue<KinesisRecord> previousRecordsQueue = recordsQueue.get();
-      int capacity = queueCapacityPerShard * shardIteratorsMap.get().size();
-      if (capacity > 0) {
-        BlockingQueue<KinesisRecord> newRecordsQueue = new ArrayBlockingQueue<>(capacity);
-        recordsQueue.set(newRecordsQueue);
-        // Drain the previous queue manually using poll & put operations with some timeout. Can't be
-        // simply replaced with drainTo() because drainTo() will throw exception when
-        // newRecordsQueue is full.
-        do {
-          try {
-            KinesisRecord record = previousRecordsQueue.poll(500, TimeUnit.MILLISECONDS);
-            if (record != null) {
-              newRecordsQueue.put(record);
-            }
-          } catch (InterruptedException e) {
-            // ExecutorService is shutting down and KinesisReader instance is closing so there's
-            // no need to handle any remaining records.
-            LOG.warn("Thread was interrupted during resharding operation, stopping", e);
-            return;
-          }
-        } while (!previousRecordsQueue.isEmpty());
-      } else {
-        recordsQueue.set(null);
+  private ImmutableMap<String, ShardRecordsIterator> createMapWithSuccessiveShards(
+      ImmutableMap<String, ShardRecordsIterator> current, ShardRecordsIterator closedShardIterator,
+      List<ShardRecordsIterator> successiveShardRecordIterators) throws TransientKinesisException {
+    ImmutableMap.Builder<String, ShardRecordsIterator> shardsMap = ImmutableMap.builder();
+    Iterable<ShardRecordsIterator> allShards = Iterables
+        .concat(current.values(), successiveShardRecordIterators);
+    for (ShardRecordsIterator iterator : allShards) {
+      if (!closedShardIterator.getShardId().equals(iterator.getShardId())) {
+        shardsMap.put(iterator.getShardId(), iterator);
       }
     }
-    startReadingShards(successiveShardRecordIterators);
+    return shardsMap.build();
   }
 
 }
