@@ -832,7 +832,7 @@ public class Watch {
           + " elements>, pending=<"
           + pending.size()
           + " elements"
-          + (pending.isEmpty() ? "" : (", earliest " + pending.get(0)))
+          + (pending.isEmpty() ? "" : (", earliest " + pending.values().iterator().next()))
           + ">, isOutputComplete="
           + isOutputComplete
           + ", terminationState="
@@ -899,6 +899,9 @@ public class Watch {
 
     @Override
     public synchronized GrowthState<OutputT, KeyT, TerminationStateT> checkpoint() {
+      checkState(
+          !claimed.isEmpty(), "Can't checkpoint before any element was successfully claimed");
+
       // primary should contain exactly the work claimed in the current ProcessElement call - i.e.
       // claimed outputs become pending, and it shouldn't poll again.
       GrowthState<OutputT, KeyT, TerminationStateT> primary =
@@ -1050,7 +1053,7 @@ public class Watch {
           + ", pending=<"
           + pending.size()
           + " elements"
-          + (pending.isEmpty() ? "" : (", earliest " + pending.get(0)))
+          + (pending.isEmpty() ? "" : (", earliest " + pending.values().iterator().next()))
           + ">, claimed=<"
           + claimed.size()
           + " elements>, isOutputComplete="

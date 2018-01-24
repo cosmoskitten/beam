@@ -388,7 +388,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage(
-        "Returns void, but must return a subtype of RestrictionTracker<SomeRestriction>");
+        "Returns void, but must return a subtype of RestrictionTracker<SomeRestriction, ?>");
     DoFnSignatures.getSignature(BadFn.class);
   }
 
@@ -576,7 +576,8 @@ public class DoFnSignaturesSplittableDoFnTest {
   @Test
   public void testNewTrackerInconsistent() throws Exception {
     thrown.expectMessage(
-        "Returns SomeRestrictionTracker, but must return a subtype of RestrictionTracker<String>");
+        "Returns SomeRestrictionTracker, "
+            + "but must return a subtype of RestrictionTracker<String, ?>");
     DoFnSignatures.analyzeNewTrackerMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
